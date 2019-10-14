@@ -1,0 +1,23 @@
+{
+	"cluster_permissions": [
+		"UNLIMITED"
+	],
+	"index_permissions": [{
+		"index_patterns": [
+			"*"
+		],
+		"fls": [],
+		"masked_fields": [],
+		"allowed_actions": [
+			"UNLIMITED"
+		]
+	}],
+	"tenant_permissions": [{
+		"tenant_patterns": [
+			"admin_tenant"
+		],
+		"allowed_actions": [
+			"SGS_KIBANA_ALL_WRITE"
+		]
+	}]
+}

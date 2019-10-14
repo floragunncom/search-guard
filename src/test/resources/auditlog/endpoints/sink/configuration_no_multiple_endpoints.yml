@@ -1,0 +1,5 @@
+searchguard.audit.type: internal_elasticsearch
+searchguard.audit.config.index: "myownindex"
+searchguard.audit.config.type: "auditevents"
+searchguard.audit.threadpool.size: 5
+searchguard.audit.threadpool.max_queue_len: 200000

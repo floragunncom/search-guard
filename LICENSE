@@ -1,0 +1,15 @@
+Copyright 2015-2018 by floragunn GmbH. All rights reserved.
+
+Unless required by applicable law or agreed to in writing, software
+distributed here is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+Usage of the software on a go-live cluster requires a valid license. 
+Development systems, test systems and staging systems shall not be deemed to be go-live clusters, 
+unless they are combined with a go-live cluster or are bundled with same. 
+
+To obtain a valid license, contact:
+
+info@search-guard.com 
+
+Search Guard is a trademark of floragunn GmbH, registered in the U.S. and in other countries.

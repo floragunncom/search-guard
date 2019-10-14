@@ -1,0 +1,17 @@
+{
+  "cluster_permissions" : [ "cluster:monitor*" ],
+  "index_permissions" : [ {
+    "index_patterns" : [ "hulla" ],
+    "allowed_actions" : [ "blafasel" ]
+  }, {
+    "index_patterns" : [ "pub" ],
+    "allowed_actions" : [ "CRUD" ]
+  } ],
+  "tenant_permissions" : [ {
+    "tenant_patterns" : [ "tenant2" ],
+    "allowed_actions" : [ "SGS_KIBANA_ALL_WRITE" ]
+  }, {
+    "tenant_patterns" : [ "tenant1" ],
+    "allowed_actions" : [ "SGS_KIBANA_ALL_WRITE" ]
+  } ]
+}

@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Copyright 2016-2017 by floragunn GmbH - All rights reserved Unless required 
+  by applicable law or agreed to in writing, software distributed here is distributed 
+  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either 
+  express or implied. -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.floragunn</groupId>
+    <artifactId>search-guard-parent</artifactId>
+    <version>7.35.1</version>
+  </parent>
+
+  <artifactId>dlic-search-guard-enterprise-modules</artifactId>
+  <version>7.4-enterprise-HEAD-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Search Guard Enterprise Modules</name>
+  <description>Enterprise Modules for Search Guard</description>
+  <url>https://github.com/floragunncom/search-guard-enterprise</url>
+  <inceptionYear>2016</inceptionYear>
+
+  <properties>
+    <sg2.version>7.4-HEAD-SNAPSHOT</sg2.version>
+    <elasticsearch.version>7.4.0</elasticsearch.version>
+
+    <!-- deps -->
+    <log4j.version>2.11.1</log4j.version>
+    <jjwt.version>0.10.5</jjwt.version>
+    <ldaptive.version>1.2.3</ldaptive.version>
+    <jackson-databind.version>2.9.9</jackson-databind.version>
+    <http.commons.version>4.5.3</http.commons.version>
+    <cxf.version>3.2.9</cxf.version>
+    <guava.version>25.1-jre</guava.version>
+
+    <!-- Test only -->
+    <mockito.version>2.23.0</mockito.version>
+    <unboundid-ldapsdk.version>4.0.9</unboundid-ldapsdk.version>
+  </properties>
+
+  <scm>
+    <url>https://github.com/floragunncom/search-guard-enterprise-modules</url>
+    <connection>scm:git:git@github.com:floragunncom/search-guard-enterprise-modules.git</connection>
+    <developerConnection>scm:git:git@github.com:floragunncom/search-guard-enterprise-modules.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
+
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/floragunncom/search-guard-enterprise-modules/issues</url>
+  </issueManagement>
+
+  <contributors />
+
+  <dependencies>
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-7</artifactId>
+      <version>${sg2.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>${log4j.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <version>${log4j.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-api</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch</groupId>
+      <artifactId>elasticsearch</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.ldaptive</groupId>
+      <artifactId>ldaptive</artifactId>
+      <version>${ldaptive.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>commons-cli</artifactId>
+          <groupId>commons-cli</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>slf4j-api</artifactId>
+          <groupId>org.slf4j</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+ 
+     <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient-cache</artifactId>
+      <version>${http.commons.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpcore</artifactId>
+        </exclusion>
+      </exclusions>
+     </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch.client</groupId>
+      <artifactId>elasticsearch-rest-high-level-client</artifactId>
+      <version>${elasticsearch.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.elasticsearch.plugin</groupId>
+          <artifactId>mapper-extras</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    
+    <dependency>
+    <groupId>org.codelibs.elasticsearch.module</groupId>
+    <artifactId>mapper-extras</artifactId>
+    <version>${elasticsearch.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>jackson-databind</artifactId>
+          <groupId>com.fasterxml.jackson.core</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.cxf</groupId>
+      <artifactId>cxf-rt-rs-security-jose</artifactId>
+      <version>${cxf.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson-databind.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jackson-core</artifactId>
+          <groupId>com.fasterxml.jackson.core</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.wnameless</groupId>
+      <artifactId>json-flattener</artifactId>
+      <version>0.5.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.flipkart.zjsonpatch</groupId>
+      <artifactId>zjsonpatch</artifactId>
+      <version>0.4.4</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jackson-core</artifactId>
+          <groupId>com.fasterxml.jackson.core</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jackson-databind</artifactId>
+          <groupId>com.fasterxml.jackson.core</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>2.0.1</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>slf4j-api</artifactId>
+          <groupId>org.slf4j</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.onelogin</groupId>
+      <artifactId>java-saml</artifactId>
+      <version>2.3.0</version>
+
+      <exclusions>
+        <exclusion>
+          <groupId>org.codehaus.woodstox</groupId>
+          <artifactId>woodstox-core-asl</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>joda-time</groupId>
+          <artifactId>joda-time</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.opensaml</groupId>
+      <artifactId>opensaml-saml-impl</artifactId>
+      <version>3.3.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>joda-time</groupId>
+          <artifactId>joda-time</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-collections</groupId>
+          <artifactId>commons-collections</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-collections</groupId>
+      <artifactId>commons-collections</artifactId>
+      <version>3.2.2</version>
+    </dependency>
+
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
+
+	<dependency>
+		<groupId>com.jayway.jsonpath</groupId>
+		<artifactId>json-path</artifactId>
+		<version>2.4.0</version>
+	</dependency>
+
+    <!-- Only test scoped dependencies hereafter -->
+
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-7</artifactId>
+      <version>${sg2.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka-test</artifactId>
+      <version>2.2.7.RELEASE</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>2.0.1</version>
+      <scope>test</scope>
+      <classifier>test</classifier>
+    </dependency>
+
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>reindex-client</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+      <exclusions>
+      <exclusion>
+      <groupId>org.elasticsearch</groupId>
+      <artifactId>elasticsearch-ssl-config</artifactId>
+      </exclusion>
+      </exclusions>
+    </dependency>
+
+     <dependency>
+      <groupId>org.elasticsearch</groupId>
+      <artifactId>elasticsearch-ssl-config</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>percolator-client</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>servlet-api</artifactId>
+      <version>2.5</version>
+      <scope>test</scope>
+    </dependency>
+
+	<!-- https://mvnrepository.com/artifact/com.unboundid/unboundid-ldapsdk -->
+	<dependency>
+	    <groupId>com.unboundid</groupId>
+	    <artifactId>unboundid-ldapsdk</artifactId>
+	    <version>${unboundid-ldapsdk.version}</version>
+	    <scope>test</scope>
+	</dependency>
+	
+	<dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+
+        <configuration>
+          <argLine>-Xmx3072m</argLine>
+          <rerunFailingTestsCount>3</rerunFailingTestsCount>
+          <forkCount>3</forkCount>
+          <reuseForks>true</reuseForks>
+          <!-- <parallel>methods</parallel> <threadCount>1</threadCount> -->
+          <systemPropertyVariables>
+            <forkno>fork_${surefire.forkNumber}</forkno>
+          </systemPropertyVariables>
+
+          <includes>
+            <include>**/*.java</include>
+          </includes>
+        </configuration>
+
+
+      </plugin>
+    </plugins>
+  </build>
+</project>
