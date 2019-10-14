@@ -1,0 +1,72 @@
+version: 2
+jobs:
+  build:
+    parallelism: 4
+    working_directory: ~/circleci-sg
+    resource_class: xlarge
+    docker:
+      - image: circleci/openjdk:${SG_JAVA_BUILD_VERSION:-11}-jdk-browsers
+    steps:
+      - run:
+          name: Install and Update
+          command: sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update -yqq && sudo apt-get install -yqq libapr1 openssl libxml2-utils
+      - run:
+          name: Versions
+          command: 'uname -a;java -version;openssl version'
+      - checkout
+      - restore_cache:
+          keys:
+            - maven-repo-v3-{{ .Branch }}-{{ checksum "pom.xml" }}
+            - maven-repo-v3-{{ .Branch }}-
+            - maven-repo-v3-
+      - run: mvn org.apache.maven.plugins:maven-dependency-plugin:3.1.1:resolve -DincludeParents=true -s settings.xml
+      - run: ./smoketest.sh
+      - run:
+          command: |
+            set -x
+            cd src/test/java         
+            TESTFILES="$(circleci tests glob **/*.java | circleci tests split --split-by=timings | tr -s '\n' ',')"
+            echo "$TESTFILES"
+            #echo "${TESTFILES// /,}"
+            cd ~/circleci-sg
+
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              mvn -U -Pcoverage,with-static-openssl-linux-non-fedora,-with-dynamic-openssl verify -Dtest="$TESTFILES" -s settings.xml
+            else
+              #no coverage for non-master branches
+              mvn -U verify -Dtest="$TESTFILES" -s settings.xml -Pwith-static-openssl-linux-non-fedora,-with-dynamic-openssl
+            fi
+      - store_test_results:
+          path: target/surefire-reports
+      - store_artifacts:
+          path: /.circleci-task-data
+      - deploy:
+          name: Deploy
+          command: |
+            
+            if [ "${CIRCLE_BRANCH}" == "master" ] && [ "${SG_JAVA_BUILD_VERSION}" == "8" ]; then
+             mvn deploy -U -Penterprise -DskipTests -s settings.xml
+              mvn -U -Pcoverage sonar:sonar -Dsonar.organization=floragunncom-github -Dsonar.login=$SONAR_LOGIN -Dsonar.host.url=https://sonarcloud.io || true
+              mvn clean verify com.srcclr:srcclr-maven-plugin:3.1.0:scan -Penterprise -DskipTests -U
+              ./dev/scan_veracode.sh
+            fi
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: maven-repo-v3-{{ .Branch }}-{{ checksum "pom.xml" }}
+
+#workflows:
+#  version: 2
+#  commit:
+#    jobs:
+#      - build
+#  nightly:
+#    triggers:
+#      - schedule:
+#          cron: "0 * * * *"
+#          filters:
+#            branches:
+#              only:
+#                - master
+#    jobs:
+#      - build

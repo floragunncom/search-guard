@@ -1,0 +1,97 @@
+---
+_sg_meta:
+  type: "config"
+  config_version: 2
+sg_config:
+  dynamic:
+    filtered_alias_mode: "disallow"
+    disable_rest_auth: false
+    disable_intertransport_auth: false
+    respect_request_indices_options: false
+    license: "LS0tLS1CRUdJTiBQR1AgU0lHTkVEIE1FU1NBR0UtLS0tLQpIYXNoOiBTSEE1MTIKCnsKICAgICJ1aWQiOiAiRTg5NzE1RjUtMENGMS00ODlCLThEMUItNzA1OUM4RDRGOEYyIiwKICAgICJ0eXBlIjogIkZVTEwiLAogICAgIm5vZGVzIjogIjIxNDc0ODM2NDYiLAogICAgImlzc3VlZF9kYXRlIjogIjIwMTctMDktMDkiLAogICAgImV4cGlyeV9kYXRlIjogIjIwMjAtMDEtMDEiLAogICAgImlzc3VlZF90byI6ICJVbml0dGVzdCBHbWJIIiwKICAgICJpc3N1ZXIiOiAiZmxvcmFndW5uIEdtYkgiLAogICAgInN0YXJ0X2RhdGUiOiAiMjAxNy0wMS0wMSIsCiAgICAibWFqb3JfdmVyc2lvbiI6IDYsCiAgICAiY2x1c3Rlcl9uYW1lIjogIioiLAogICAgImFsbG93ZWRfbm9kZV9jb3VudF9wZXJfY2x1c3RlciI6IDIxNDc0ODM2NDYsCiAgICAibGljZW5zZV92ZXJzaW9uIjogMQp9Ci0tLS0tQkVHSU4gUEdQIFNJR05BVFVSRS0tLS0tCkNvbW1lbnQ6IEdQR1Rvb2xzIC0gaHR0cHM6Ly9ncGd0b29scy5vcmcKCmlRRWNCQUVCQ2dBR0JRSlp0QzRSQUFvSkVIVUNhTFpSN2JMK3FiRUlBSzlUM3JIcVFJZjI0ZFErNFcwaEpudmkKd1JDYUZaYUJyNXhkUHMwN1JTRkx1RGlkcm9uZk5DRHd0clJEUTRGbldldGd3ME4zWkc2MTJ6QWhLUGp5UzVvYwpsNE5wVkxjWkZFZ0N5WkdLQnZZUHNKK1pMY3ZBaXgwR0Vhc2paZnc5Ujd5MUdmcC9FZnREMFJEamZ4cDkxaEFxCkZFTEx2WE5rSFVRQUk0VFdpMzZhbU1YWnIzb3ZzZUdsbkFManZ2SWVuOEtzZi9ieUdENWVBMmcyUEFIWUc0b04KNFFpSDVnK1JnNnlKb3dtSm5KZTFMWUFWR3BHRlJkbnBaUXFKcWpBN1RqbnkvRld4S2VTYU1EWUo4NEVPUUgzMQpOSHAyR3ZZUXRNV1drYzFacUFVVjJBeGtUN3dlRDhCVm1QQ3REcjFtZHBFK2JnMFhZL2gxeUxTSVcwOFFGSkk9Cj1UT2NZCi0tLS0tRU5EIFBHUCBTSUdOQVRVUkUtLS0tLQo="
+    kibana:
+      multitenancy_enabled: true
+      server_username: "kibanaserver"
+      index: ".kibana"
+    http:
+      anonymous_auth_enabled: false
+      xff:
+        enabled: false
+        internalProxies: "192\\.168\\.0\\.10|192\\.168\\.0\\.11"
+        remoteIpHeader: "x-forwarded-for"
+
+
+    authc:
+      authentication_domain_kerb:
+        http_enabled: false
+        transport_enabled: false
+        order: 3
+        http_authenticator:
+          challenge: true
+          type: "kerberos"
+          config: {}
+        authentication_backend:
+          type: "noop"
+          config: {}
+        description: "Migrated from v6"
+      authentication_domain_proxy:
+        http_enabled: false
+        transport_enabled: false
+        order: 2
+        http_authenticator:
+          challenge: true
+          type: "proxy"
+          config:
+            user_header: "x-proxy-user"
+            roles_header: "x-proxy-roles"
+        authentication_backend:
+          type: "noop"
+          config: {}
+        description: "Migrated from v6"
+      authentication_domain_clientcert:
+        http_enabled: false
+        transport_enabled: false
+        order: 1
+        http_authenticator:
+          challenge: true
+          type: "clientcert"
+          config: {}
+        authentication_backend:
+          type: "noop"
+          config: {}
+        description: "Migrated from v6"
+      authentication_domain_basic_internal:
+        http_enabled: true
+        transport_enabled: true
+        order: 0
+        http_authenticator:
+          challenge: true
+          type: "basic"
+          config: {}
+        authentication_backend:
+          type: "intern"
+          config: {}
+        description: "Migrated from v6"
+    authz:
+      roles_from_xxx:
+        http_enabled: false
+        transport_enabled: false
+        authorization_backend:
+          type: "xxx"
+          config: {}
+        description: "Migrated from v6"
+      roles_from_myldap:
+        http_enabled: false
+        transport_enabled: false
+        authorization_backend:
+          type: "ldap"
+          config:
+            rolesearch: "(uniqueMember={0})"
+            resolve_nested_roles: true
+            rolebase: "ou=groups,o=TEST"
+            rolename: "cn"
+        description: "Migrated from v6"
+    do_not_fail_on_forbidden: false
+    multi_rolespan_enabled: false
+    hosts_resolver_mode: "ip-only"
+    transport_userrname_attribute: null

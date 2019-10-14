@@ -1,0 +1,49 @@
+---
+_sg_meta:
+  type: "roles"
+  config_version: 2
+sg_esb_1:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "CLUSTER_COMPOSITE_OPS"
+  index_permissions:
+  - index_patterns:
+    - "esb-prod-1"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  tenant_permissions: []
+sg_esb_5:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "CLUSTER_COMPOSITE_OPS"
+  index_permissions:
+  - index_patterns:
+    - "esb-prod-5"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  tenant_permissions: []
+sg_esb_3:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "CLUSTER_COMPOSITE_OPS"
+  index_permissions:
+  - index_patterns:
+    - "esb-prod-3"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  tenant_permissions: []

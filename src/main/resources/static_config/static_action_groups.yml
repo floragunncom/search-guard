@@ -1,0 +1,242 @@
+---
+_sg_meta:
+  type: "actiongroups"
+  config_version: 2
+SGS_KIBANA_ALL_WRITE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "kibana:saved_objects/*/write"
+  type: "kibana"
+  description: "Allow writing in all kibana apps"
+SGS_KIBANA_ALL_READ:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "kibana:saved_objects/*/read"
+  type: "kibana"
+  description: "Allow reading in all kibana apps"
+SGS_CLUSTER_ALL:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "cluster:*"
+  type: "cluster"
+  description: "Allow everything on cluster level"
+SGS_CRUD:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "SGS_READ"
+  - "SGS_WRITE"
+  type: "index"
+  description: "Allow all read/write operations on data"
+SGS_SEARCH:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/read/search*"
+  - "indices:data/read/msearch*"
+  - "SGS_SUGGEST"
+  type: "index"
+  description: "Allow searching"
+SGS_DATA_ACCESS:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/*"
+  - "SGS_CRUD"
+  type: "index"
+  description: "Allow all read/write operations on data"
+SGS_CREATE_INDEX:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:admin/create"
+  - "indices:admin/mapping/put"
+  type: "index"
+  description: "Allow creating new indices"
+SGS_WRITE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/write*"
+  - "indices:admin/mapping/put"
+  type: "index"
+  description: "Allow writing data"
+SGS_MANAGE_ALIASES:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:admin/aliases*"
+  type: "index"
+  description: "Allow managing index aliases"
+SGS_READ:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/read*"
+  - "indices:admin/mappings/fields/get*"
+  type: "index"
+  description: "Allow all read operations"
+SGS_INDICES_ALL:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:*"
+  type: "index"
+  description: "Allow readonly everything with indices and data"
+SGS_DELETE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/write/delete*"
+  type: "index"
+  description: "Allow deleting documents"
+SGS_CLUSTER_COMPOSITE_OPS:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/write/bulk"
+  - "indices:admin/aliases*"
+  - "indices:data/write/reindex"
+  - "SGS_CLUSTER_COMPOSITE_OPS_RO"
+  type: "cluster"
+  description: "Allow read/write bulk and m* operations"
+SGS_CLUSTER_COMPOSITE_OPS_RO:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/read/mget"
+  - "indices:data/read/msearch"
+  - "indices:data/read/mtv"
+  - "indices:admin/aliases/exists*"
+  - "indices:admin/aliases/get*"
+  - "indices:data/read/scroll"
+  type: "cluster"
+  description: "Allow readonly bulk and m* operations"
+SGS_GET:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/read/get*"
+  - "indices:data/read/mget*"
+  type: "index"
+  description: "Allow get"
+SGS_MANAGE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:monitor/*"
+  - "indices:admin/*"
+  type: "index"
+  description: "Allow indices management"
+SGS_CLUSTER_MONITOR:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "cluster:monitor/*"
+  type: "cluster"
+  description: "Allow monitoring the cluster"
+SGS_MANAGE_SNAPSHOTS:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "cluster:admin/snapshot/*"
+  - "cluster:admin/repository/*"
+  type: "cluster"
+  description: "Allow snapshots"
+SGS_INDEX:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/write/index*"
+  - "indices:data/write/update*"
+  - "indices:admin/mapping/put"
+  - "indices:data/write/bulk*"
+  type: "index"
+  description: "Allow indexing"
+SGS_UNLIMITED:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "*"
+  type: "all"
+  description: "Allow all"
+SGS_INDICES_MONITOR:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:monitor/*"
+  type: "index"
+  description: "Allow monitoring indices"
+SGS_SUGGEST:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/read/suggest*"
+  type: "index"
+  description: "Allow suggestions"
+SGS_CLUSTER_MANAGE_ILM:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "cluster:admin/ilm/*"
+  type: "cluster"
+  description: "Manage index lifecycles (cluster)"
+SGS_CLUSTER_READ_ILM:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "cluster:admin/ilm/get"
+  - "cluster:admin/ilm/operation_mode/get"
+  type: "cluster"
+  description: "Read index lifecycles (cluster)"
+SGS_INDICES_MANAGE_ILM:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:admin/ilm/*"
+  type: "index"
+  description: "Manage index lifecycles (index)"
+SGS_CLUSTER_MANAGE_INDEX_TEMPLATES:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:admin/template/*"
+  type: "cluster"
+  description: "Manage index templates"
+SGS_CLUSTER_MANAGE_PIPELINES:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "cluster:admin/ingest/pipeline/*"
+  type: "cluster"
+  description: "Manage pipelines"

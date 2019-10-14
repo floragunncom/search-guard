@@ -1,0 +1,97 @@
+---
+_sg_meta:
+  type: "config"
+  config_version: 2
+sg_config:
+  dynamic:
+    filtered_alias_mode: "disallow"
+    disable_rest_auth: false
+    disable_intertransport_auth: false
+    respect_request_indices_options: false
+    license: "LS0tLS1CRUdJTiBQR1AgU0lHTkVEIE1FU1NBR0UtLS0tLQpIYXNoOiBTSEE1MTIKCnsKICAgICJ1aWQiOiAiNTM2REI3QUItQjJEOS00RkY1LUFGNjEtOTQwQkQyMzgwQTQxIiwKICAgICJ0eXBlIjogIkZVTEwiLAogICAgImlzc3VlZF9kYXRlIjogIjIwMTgtMDYtMTAiLAogICAgImV4cGlyeV9kYXRlIjogIjIwMjctMTEtMTAiLAogICAgImlzc3VlZF90byI6ICJVbml0dGVzdHMgb25seSIsCiAgICAiaXNzdWVyIjogImZsb3JhZ3VubiBHbWJIIiwKICAgICJzdGFydF9kYXRlIjogIjIwMTgtMDEtMDEiLAogICAgIm1ham9yX3ZlcnNpb24iOiA2LAogICAgImNsdXN0ZXJfbmFtZSI6ICIqIiwKICAgICJhbGxvd2VkX25vZGVfY291bnRfcGVyX2NsdXN0ZXIiOiAzMjc2OCwKICAgICJmZWF0dXJlcyI6IFsiIl0sCiAgICAibGljZW5zZV92ZXJzaW9uIjogMQp9Ci0tLS0tQkVHSU4gUEdQIFNJR05BVFVSRS0tLS0tCkNvbW1lbnQ6IEdQR1Rvb2xzIC0gaHR0cHM6Ly9ncGd0b29scy5vcmcKCmlRSWJCQUVCQ2dBR0JRSmJIUU0wQUFvSkVCYzdOZVJLWWNpdTF0QVA5UnloTzVGUTA5YXdac2t6WnFaODVMRGQKNHBVQzFndWp4b2lFMWdPMjl4QkN6TTNaV2tsZTZPNkFFRlBKVzlha2tGQlU1R1VmcWg5RVZpRm5mMWcyZmsySQpqaDhSRVlhMDJ0eHVrdWQwMzFUcVNYUlBvZ2svZ1NiZVIxdy92MzdGM2FTNkFQNnF5ejRQVUhHVnRRMmJ1aHB6CjNoUWVESVlOaXQ4WkhOQytKcm9OeFpVeFNOL1hyc2E3MEwxRXBVTW5PMkppeTBmRG1aSFU1MWhlbU5sQ0M5NjMKbDFOTG81RkdTMGJKYUQvQVhXRll4SUNqM0pDZUw3SmpYR0VyRlJwdndOOWt4SENhTkN0eGpEbTdwcENUZlQ1WApTSUJzdlFRVUtjaWVYSlpXV2oweDVHWDcrczBSNktuREtBSjl2aDZvZG9hTlNURC9nNU9POFZLc3ZmanY0YVpjCk16NFduNkRxR0FMcUdpdDVoRmlWckd3NzFBU2J3OTA4TWZESmtPZGk4eG1KRTJYREx6anpjUXNYRXJCNDQ0UjkKcXdsRSs4aE51SXBuVEdPZStLeFh6QnZ4azQwekVSTzA1dWNPWk9lS1ZKajZ2NUtlWnZkdk4zZVB2Vy9maVoyRQpUUjBOOVRkOEZpdHZpc09IYVRVcFJIaGFsVEJLdXlpTTA3dzArUWJCQnJWVWxNQVBMZ2JmUHk0U2M5MHdGcHZiCjJOUHFIOVF3MTVOSTR5Z3grRGw4Zmt2ZWtiL1k3aXp0Nk5lTGtKdUo4TDVlL3RqamYyL0p0N1ZmMmZnaTV1RTkKZ1R5NEc3TEtlaklLM2pSWDdsZnpqaWI5eENJa25zRkNjY1Y4RkhtS1NHNldYU2FJNlRrN1FJODJsZ2pPTWYxMApSS0FkaGREUTNvenhiZVdHVlFBPQo9K21iQgotLS0tLUVORCBQR1AgU0lHTkFUVVJFLS0tLS0K"
+    kibana:
+      multitenancy_enabled: true
+      server_username: "kibanaserver"
+      index: ".kibana"
+    http:
+      anonymous_auth_enabled: false
+      xff:
+        enabled: false
+        internalProxies: "192\\.168\\.0\\.10|192\\.168\\.0\\.11"
+        remoteIpHeader: "x-forwarded-for"
+
+
+    authc:
+      authentication_domain_kerb:
+        http_enabled: false
+        transport_enabled: false
+        order: 3
+        http_authenticator:
+          challenge: true
+          type: "kerberos"
+          config: {}
+        authentication_backend:
+          type: "noop"
+          config: {}
+        description: "Migrated from v6"
+      authentication_domain_proxy:
+        http_enabled: false
+        transport_enabled: false
+        order: 2
+        http_authenticator:
+          challenge: true
+          type: "proxy"
+          config:
+            user_header: "x-proxy-user"
+            roles_header: "x-proxy-roles"
+        authentication_backend:
+          type: "noop"
+          config: {}
+        description: "Migrated from v6"
+      authentication_domain_clientcert:
+        http_enabled: false
+        transport_enabled: false
+        order: 1
+        http_authenticator:
+          challenge: true
+          type: "clientcert"
+          config: {}
+        authentication_backend:
+          type: "noop"
+          config: {}
+        description: "Migrated from v6"
+      authentication_domain_basic_internal:
+        http_enabled: true
+        transport_enabled: true
+        order: 0
+        http_authenticator:
+          challenge: true
+          type: "basic"
+          config: {}
+        authentication_backend:
+          type: "intern"
+          config: {}
+        description: "Migrated from v6"
+    authz:
+      roles_from_xxx:
+        http_enabled: false
+        transport_enabled: false
+        authorization_backend:
+          type: "xxx"
+          config: {}
+        description: "Migrated from v6"
+      roles_from_myldap:
+        http_enabled: false
+        transport_enabled: false
+        authorization_backend:
+          type: "ldap"
+          config:
+            rolesearch: "(uniqueMember={0})"
+            resolve_nested_roles: true
+            rolebase: "ou=groups,o=TEST"
+            rolename: "cn"
+        description: "Migrated from v6"
+    do_not_fail_on_forbidden: false
+    multi_rolespan_enabled: false
+    hosts_resolver_mode: "ip-only"
+    transport_userrname_attribute: null

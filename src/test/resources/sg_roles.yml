@@ -1,0 +1,1034 @@
+---
+_sg_meta:
+  type: "roles"
+  config_version: 2
+sg_unittest_1:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  tenant_permissions: []
+sg_rexclude:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "/(?!special|alsonotallowed)(\\S|\\s)*/"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_underscore:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "*abc_xyz_*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  tenant_permissions: []
+sg_shakespeare:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:monitor/nodes/info"
+  - "cluster:monitor/health"
+  - "indices:admin/template/get"
+  - "indices:admin/exists"
+  index_permissions:
+  - index_patterns:
+    - "shakespeare"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+    - "indices:data/write/bulk*"
+    - "indices:admin/validate/query*"
+    - "indices:admin/exists"
+    - "indices:admin/get*"
+    - "indices:admin/mappings/fields/get*"
+  tenant_permissions: []
+sg_aliasmngt:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "logstash-*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:admin/aliases*"
+    - "indices:data/write/*"
+    - "indices:data/read/*"
+    - "CREATE_INDEX"
+  tenant_permissions: []
+sg_transport_client:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:monitor/nodes/liveness"
+  index_permissions: []
+  tenant_permissions: []
+sg_user1:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "alias1"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_ccsresolv:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "?abc*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/read/*"
+  tenant_permissions: []
+sg_user2:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "alias2"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_role_starfleet_captains:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:monitor*"
+  index_permissions:
+  - index_patterns:
+    - "sf"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "CRUD"
+  - index_patterns:
+    - "public"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "CRUD"
+  tenant_permissions: []
+sg_restore:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:admin/snapshot/restore"
+  index_permissions:
+  - index_patterns:
+    - "vulcangov_restore_1"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/index"
+    - "indices:admin/create"
+  - index_patterns:
+    - "vulcangov_restore_2a"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:admin/create"
+  - index_patterns:
+    - "vulcangov_restore_2*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/index"
+  - index_patterns:
+    - "vulcangov_no_restore_1"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/index"
+    - "indices:admin/create"
+  - index_patterns:
+    - "vulcangov_no_restore_2"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/index"
+    - "indices:admin/create"
+  - index_patterns:
+    - "vulcangov_no_restore_3"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/index"
+  - index_patterns:
+    - "vulcangov_no_restore_4"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:admin/create"
+  tenant_permissions: []
+sg_baz:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "ALL"
+  index_permissions:
+  - index_patterns:
+    - "foo*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  - index_patterns:
+    - "foo"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_kibana4:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:monitor/nodes/info"
+  - "cluster:monitor/health"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/read/search-"
+    - "indices:data/read/msearch"
+    - "indices:admin/get"
+    - "indices:admin/validate/query"
+    - "indices:admin/mappings/fields/get"
+  - index_patterns:
+    - "?kibana"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/index"
+    - "indices:data/write/delete"
+    - "indices:data/write/update"
+    - "indices:admin/mapping/put"
+    - "indices:data/read/get"
+    - "indices:admin/refresh"
+    - "indices:admin/validate/query"
+    - "indices:data/read/search"
+    - "indices:admin/mappings/fields/get"
+    - "indices:admin/exists"
+    - "indices:data/read/mget"
+  tenant_permissions: []
+sg_dlsnoinvest:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "ALL"
+  index_permissions:
+  - index_patterns:
+    - "article"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  - index_patterns:
+    - "investment"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  - index_patterns:
+    - "company"
+    dls: "{\"term\" : {\"category_code\" : \"software\"}}"
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_remote_ccs:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:admin/shards/search_shards"
+  tenant_permissions: []
+sg_zdummy_all:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:*"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions:
+  - tenant_patterns:
+    - "admin_1"
+    allowed_actions:
+    - "SGS_KIBANA_ALL_WRITE"
+  - tenant_patterns:
+    - "abcdef_2_2"
+    allowed_actions:
+    - "SGS_KIBANA_ALL_READ"
+sg_multiget:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "indices:data/read/mget"
+  index_permissions:
+  - index_patterns:
+    - "mindex1"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  - index_patterns:
+    - "mindex2"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_public:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:monitor/main"
+  index_permissions:
+  - index_patterns:
+    - ".notexistingindexcvnjl9809991"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_ccsresolv1:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "?abc*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/read/*"
+  - index_patterns:
+    - "xyz"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/read/*"
+  - index_patterns:
+    - "*noexist"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/read/*"
+  tenant_permissions: []
+sg_role01_role02:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "role01_role02"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_kibana4_server:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:monitor/nodes/info"
+  - "cluster:monitor/health"
+  index_permissions:
+  - index_patterns:
+    - "?kibana"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/index"
+    - "indices:data/write/delete"
+    - "indices:data/write/update"
+    - "indices:admin/mapping/put"
+    - "indices:data/read/get"
+    - "indices:admin/refresh"
+    - "indices:admin/validate/query"
+    - "indices:data/read/search"
+    - "indices:admin/mappings/fields/get"
+    - "indices:admin/create"
+    - "indices:admin/exists"
+    - "indices:data/read/mget"
+  tenant_permissions: []
+sg_557:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "/\\S*/"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_role_starfleet:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:monitor*"
+  - "indices:data/read/scroll"
+  index_permissions:
+  - index_patterns:
+    - "sf"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+    - "indices:*"
+  - index_patterns:
+    - "pub*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_own_index:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "${user_name}"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_aliastest:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "?kibana"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/*"
+    - "indices:data/read/*"
+  - index_patterns:
+    - "calias-1"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/*"
+    - "indices:data/read/*"
+  tenant_permissions: []
+sg_admin:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "CLUSTER_ALL"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_ua:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "indexa*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  - index_patterns:
+    - "permitnotexistentindex*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/read/field_caps"
+  tenant_permissions: []
+sg_flsdls:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: "{\"term\" : {\"_type\" : \"legends\"}}"
+    fls:
+    - "fieldx"
+    - "field2.b"
+    - "field3.m.*"
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  tenant_permissions: []
+sg_ub:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "indexb"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  tenant_permissions: []
+sg_uc:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "indexc"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  - index_patterns:
+    - "beats-*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/*"
+    - "indices:data/read/*"
+    - "CREATE_INDEX"
+  tenant_permissions: []
+sg_dummy:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:monitor/health"
+  index_permissions: []
+  tenant_permissions: []
+sg_attr:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "${attr_internal_c2}"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/read/*"
+  tenant_permissions: []
+sg_mindex3:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "mindex_3"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write*"
+  tenant_permissions: []
+role.with.dot:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "index.with.dot"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_mindex2:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "mindex_2"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/read/search"
+  tenant_permissions: []
+sg_mindex1:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "mindex_1"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/read/search"
+  tenant_permissions: []
+sg_role_klingons1:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:admin/shards/search_shards"
+  - index_patterns:
+    - "klingonempire"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions:
+  - tenant_patterns:
+    - "kltentrw"
+    allowed_actions:
+    - "SGS_KIBANA_ALL_WRITE"
+  - tenant_patterns:
+    - "kltentro"
+    allowed_actions:
+    - "SGS_KIBANA_ALL_READ"
+sg_snapres:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "MANAGE_SNAPSHOTS"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/index"
+    - "indices:admin/create"
+  tenant_permissions: []
+sg_role_klingons2:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "klingonempire"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions:
+  - tenant_patterns:
+    - "praxisrw"
+    allowed_actions:
+    - "SGS_KIBANA_ALL_WRITE"
+  - tenant_patterns:
+    - "praxisro"
+    allowed_actions:
+    - "SGS_KIBANA_ALL_READ"
+sg_theindex_admin:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "CLUSTER_COMPOSITE_OPS"
+  index_permissions:
+  - index_patterns:
+    - "theindex"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_power_user:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "CLUSTER_MONITOR"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_remote_marvel_agent:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "indices:admin/template/put"
+  - "indices:admin/template/get"
+  index_permissions:
+  - index_patterns:
+    - "?marvel-es-*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_kibana_server:
+  reserved: true
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "CLUSTER_MONITOR"
+  - "CLUSTER_COMPOSITE_OPS"
+  - "cluster:admin/xpack/monitoring*"
+  - "indices:admin/template*"
+  - "indices:data/read/scroll*"
+  index_permissions:
+  - index_patterns:
+    - "?kibana"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "INDICES_ALL"
+  - index_patterns:
+    - "?kibana-6"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "INDICES_ALL"
+  - index_patterns:
+    - "?kibana_*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "INDICES_ALL"
+  - index_patterns:
+    - "?reporting*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "INDICES_ALL"
+  - index_patterns:
+    - "?monitoring*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "INDICES_ALL"
+  - index_patterns:
+    - "?tasks"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "INDICES_ALL"
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:admin/aliases*"
+  tenant_permissions: []
+sg_all_access:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  - index_patterns:
+    - ".notexistingindexcvnjl9809991"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_marvel_user:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "?marvel-es-*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  - index_patterns:
+    - "?kibana"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/read/get"
+    - "indices:admin/validate/query"
+    - "indices:data/read/search"
+    - "indices:admin/mappings/fields/get"
+    - "indices:admin/exists"
+    - "indices:data/read/mget"
+  tenant_permissions: []
+sg_writer:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "indices:data/write/bulk*"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "CREATE_INDEX"
+    - "WRITE"
+  tenant_permissions: []
+sg_logstash:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "indices:admin/template/get"
+  - "indices:admin/template/put"
+  - "indices:data/write*"
+  index_permissions:
+  - index_patterns:
+    - "logstash-*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "indices:data/write/*"
+    - "indices:data/read/*"
+    - "CREATE_INDEX"
+  tenant_permissions: []
+sg_user:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_twitter:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "CLUSTER_COMPOSITE_OPS_RO"
+  index_permissions:
+  - index_patterns:
+    - "twitter"
+    - "analytics"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "*"
+  tenant_permissions: []
+sg_env_test:
+  cluster_permissions:
+  - '*'
+  index_permissions:
+  - index_patterns:
+    - '${env.INDEXNAME1:-index1}'
+    - '${env.INDEXNAME2:-index2}'
+    - '${user_name}'
+    - '${env.INDEXNAME3}'
+    allowed_actions:
+    - "*"
+xyz_impsgr:
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    allowed_actions:
+    - "ALL"
+sg_role_foo_index:
+  cluster_permissions:
+    - '*'
+  index_permissions:
+  - index_patterns:
+    - foo-index
+    allowed_actions:
+    - indices:data/read/*
+    - indices:admin/*
+    - indices:monitor/*
+        
+sg_role_foo_all:
+  cluster_permissions:
+    - '*'
+  index_permissions:
+  - index_patterns:
+    - 'foo-*'
+    allowed_actions:
+    - indices:data/read/*
+    - indices:admin/*
+    - indices:monitor/*
