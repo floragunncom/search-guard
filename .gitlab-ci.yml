@@ -1,0 +1,39 @@
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository "
+  SG_JAVA_BUILD_VERSION: "11"
+
+image: circleci/openjdk:${SG_JAVA_BUILD_VERSION}-jdk-browsers
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+  - .m2/repository
+
+before_script:
+- sudo rm -rf /var/lib/apt/lists/* && sudo apt-get update -yqq && sudo apt-get install -yqq libapr1 openssl libxml2-utils
+- echo "VERSIONS:"
+- uname -a;java -version;openssl version
+
+stages:
+- test
+- deploy
+
+verify:
+  stage: test
+  script:
+  - ./smoketest.sh
+  - if [ "$CI_COMMIT_REF_NAME" == "master" ]; then mvn -U -Pcoverage verify; else mvn -U verify; fi
+  artifacts:
+    reports:
+      junit:
+      - target/surefire-reports/TEST-*.xml
+deploy:
+  stage: deploy
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "master"
+  script:
+  - mvn deploy -U -Penterprise -DskipTests -s settings.xml
+  #    - mvn -U -Pcoverage sonar:sonar -Dsonar.organization=floragunncom-github -Dsonar.login=$SONAR_LOGIN -Dsonar.host.url=https://sonarcloud.io || true
+  - mvn clean verify com.srcclr:srcclr-maven-plugin:scan -Penterprise -DskipTests -U
+#    -./dev/scan_veracode.sh
