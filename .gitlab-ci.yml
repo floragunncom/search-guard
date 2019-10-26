@@ -1,6 +1,6 @@
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository "
-  SG_JAVA_BUILD_VERSION: "8"
+  SG_JAVA_BUILD_VERSION: "11"
 
 image: circleci/openjdk:${SG_JAVA_BUILD_VERSION}-jdk-browsers
 
