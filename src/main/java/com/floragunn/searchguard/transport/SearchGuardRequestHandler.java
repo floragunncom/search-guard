@@ -32,7 +32,7 @@ import org.elasticsearch.action.support.replication.TransportReplicationAction.C
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.search.internal.ShardSearchTransportRequest;
+import org.elasticsearch.search.internal.ShardSearchRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportChannel;
@@ -117,12 +117,12 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
            getThreadContext().putTransient(ConfigConstants.SG_CHANNEL_TYPE, transportChannel.getChannelType());
            getThreadContext().putTransient(ConfigConstants.SG_ACTION_NAME, task.getAction());
            
-           if(request instanceof ShardSearchTransportRequest) {
-               ShardSearchTransportRequest sr = ((ShardSearchTransportRequest) request);
+           if(request instanceof ShardSearchRequest) {
+               ShardSearchRequest sr = ((ShardSearchRequest) request);
                if(sr.source() != null && sr.source().suggest() != null) {
                    getThreadContext().putTransient("_sg_issuggest", Boolean.TRUE);
                }
-            }
+           }
 
             //bypass non-netty requests
             if(transportChannel.getChannelType().equals("direct")) {

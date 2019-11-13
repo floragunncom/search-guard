@@ -52,6 +52,7 @@ public class OpenSSLTest extends SSLTest {
 
     @Test
     public void testEnsureOpenSSLAvailability() {
+        Assume.assumeTrue(SearchGuardSSLPlugin.OPENSSL_SUPPORTED);
         //Assert.assertTrue("OpenSSL not available: "+String.valueOf(OpenSsl.unavailabilityCause()), OpenSsl.isAvailable());
                 
         final String openSSLOptional = System.getenv("SG_TEST_OPENSSL_OPT");

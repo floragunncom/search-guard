@@ -19,7 +19,7 @@
   <artifactId>search-guard-7</artifactId>
   <packaging>jar</packaging>
   <!-- 7.x.y-a.b.c-->
-  <version>7.4-HEAD-SNAPSHOT</version>
+  <version>7.5-HEAD-SNAPSHOT</version>
   <name>Search Guard</name>
   <description>Provide access control related features for Elasticsearch 6</description>
   <url>https://github.com/floragunncom/search-guard</url>
@@ -34,11 +34,10 @@
   </licenses>
 
   <properties>
-    <enterprise-modules.version>7.4-enterprise-HEAD-SNAPSHOT</enterprise-modules.version>
-    <elasticsearch.version>7.4.0</elasticsearch.version>
+    <enterprise-modules.version>7.5-enterprise-HEAD-SNAPSHOT</enterprise-modules.version>
+    <elasticsearch.version>7.5.0-SNAPSHOT</elasticsearch.version>
     
     <!-- deps -->
-    <netty-native.version>2.0.25.Final</netty-native.version>
     <bc.version>1.62</bc.version>
     <log4j.version>2.11.1</log4j.version>
     <guava.version>25.1-jre</guava.version>
@@ -432,43 +431,6 @@
           <groupId>org.conscrypt</groupId>
           <artifactId>conscrypt-openjdk-uber</artifactId>
           <version>1.0.0.RC9</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>with-static-openssl-linux-non-fedora</id>
-      <dependencies>
-        <dependency>
-          <groupId>com.floragunn</groupId>
-          <artifactId>search-guard-static-tcnative-beta</artifactId>
-          <version>1.1.1c-${netty-native.version}-non-fedora-linux-x86_64</version>
-          <scope>provided</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>with-static-openssl-linux-fedora</id>
-      <dependencies>
-        <dependency>
-          <groupId>com.floragunn</groupId>
-          <artifactId>search-guard-static-tcnative-beta</artifactId>
-          <version>1.1.1c-${netty-native.version}-fedora-linux-x86_64</version>
-          <scope>provided</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>with-dynamic-openssl</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-tcnative</artifactId>
-          <version>${netty-native.version}</version>
-          <classifier>${os.detected.classifier}</classifier>
-          <scope>provided</scope>
         </dependency>
       </dependencies>
     </profile>
