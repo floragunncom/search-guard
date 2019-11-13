@@ -16,7 +16,7 @@
   </parent>
 
   <artifactId>dlic-search-guard-enterprise-modules</artifactId>
-  <version>7.4-enterprise-HEAD-SNAPSHOT</version>
+  <version>7.5-enterprise-HEAD-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Search Guard Enterprise Modules</name>
@@ -25,8 +25,8 @@
   <inceptionYear>2016</inceptionYear>
 
   <properties>
-    <sg2.version>7.4-HEAD-SNAPSHOT</sg2.version>
-    <elasticsearch.version>7.4.0</elasticsearch.version>
+    <sg2.version>7.5-HEAD-SNAPSHOT</sg2.version>
+    <elasticsearch.version>7.5.0-SNAPSHOT</elasticsearch.version>
 
     <!-- deps -->
     <log4j.version>2.11.1</log4j.version>
@@ -127,17 +127,7 @@
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpclient</artifactId>
         </exclusion>
-        <exclusion>
-          <groupId>org.elasticsearch.plugin</groupId>
-          <artifactId>mapper-extras</artifactId>
-        </exclusion>
       </exclusions>
-    </dependency>
-    
-    <dependency>
-    <groupId>org.codelibs.elasticsearch.module</groupId>
-    <artifactId>mapper-extras</artifactId>
-    <version>${elasticsearch.version}</version>
     </dependency>
 
     <dependency>
