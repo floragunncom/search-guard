@@ -11,6 +11,9 @@ NETTY_NATIVE_CLASSIFIER=non-fedora-linux-x86_64
 
 rm -rf elasticsearch-$ES_VERSION
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
+if [ "$CI" == "true" ]; then
+    chmod 777 elasticsearch-$ES_VERSION.tar.gz
+fi
 tar -xzf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 rm -rf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 #wget -O netty-tcnative-$NETTY_NATIVE_VERSION-$NETTY_NATIVE_CLASSIFIER.jar https://search.maven.org/remotecontent?filepath=io/netty/netty-tcnative/$NETTY_NATIVE_VERSION/netty-tcnative-$NETTY_NATIVE_VERSION-$NETTY_NATIVE_CLASSIFIER.jar
@@ -30,12 +33,28 @@ fi
 
 #cp netty-tcnative-$NETTY_NATIVE_VERSION-$NETTY_NATIVE_CLASSIFIER.jar elasticsearch-$ES_VERSION/plugins/search-guard-ssl/
 rm -f netty-tcnative-$NETTY_NATIVE_VERSION-$NETTY_NATIVE_CLASSIFIER.jar
+if [ "$CI" == "true" ]; then
+  echo "Adding esuser user"
+  useradd esuser
+  mkdir /home/esuser
+  chown esuser:esuser /home/esuser -R
+  chown esuser:esuser $DIR/elasticsearch-$ES_VERSION -R
+  usermod -aG sudo esuser
+fi
+
+echo "Plugin installation"
 
 chmod +x elasticsearch-$ES_VERSION/plugins/search-guard-7/tools/install_demo_configuration.sh
 ./elasticsearch-$ES_VERSION/plugins/search-guard-7/tools/install_demo_configuration.sh -y -i -c
 #ml does not work on cci anymore since 7.2 due to something related to https://github.com/elastic/elasticsearch/issues/41867
 echo "xpack.ml.enabled: false" >> ./elasticsearch-$ES_VERSION/config/elasticsearch.yml
-elasticsearch-$ES_VERSION/bin/elasticsearch -p es-smoketest-pid &
+
+echo "ES starting up"
+if [ "$CI" == "true" ]; then
+    sudo -E -u esuser elasticsearch-$ES_VERSION/bin/elasticsearch -p es-smoketest-pid &
+else
+    elasticsearch-$ES_VERSION/bin/elasticsearch -p es-smoketest-pid &
+fi
 
 while ! nc -z 127.0.0.1 9200; do
   sleep 0.1 # wait for 1/10 of the second before check again
