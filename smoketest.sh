@@ -12,7 +12,7 @@ NETTY_NATIVE_CLASSIFIER=non-fedora-linux-x86_64
 rm -rf elasticsearch-$ES_VERSION
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 if [ "$CI" == "true" ]; then
-    chmod 777 elasticsearch-$ES_VERSION.tar.gz
+    chmod 777 elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 fi
 tar -xzf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 rm -rf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
