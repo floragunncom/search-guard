@@ -26,7 +26,7 @@
 
   <properties>
     <sg2.version>7.5-HEAD-SNAPSHOT</sg2.version>
-    <elasticsearch.version>7.5.0-SNAPSHOT</elasticsearch.version>
+    <elasticsearch.version>7.5.0</elasticsearch.version>
 
     <!-- deps -->
     <log4j.version>2.11.1</log4j.version>
@@ -41,6 +41,19 @@
     <mockito.version>2.23.0</mockito.version>
     <unboundid-ldapsdk.version>4.0.9</unboundid-ldapsdk.version>
   </properties>
+
+  <repositories>
+    <repository>
+        <id>elasticsearch-releases</id>
+        <url>https://artifacts.elastic.co/maven</url>
+        <releases>
+          <enabled>true</enabled>
+        </releases>
+        <snapshots>
+          <enabled>true</enabled>
+        </snapshots>
+    </repository>
+  </repositories>
 
   <scm>
     <url>https://github.com/floragunncom/search-guard-enterprise-modules</url>
