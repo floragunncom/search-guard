@@ -164,7 +164,9 @@ SGS_KIBANA_SERVER:
     - ".tasks"
     - ".management-beats*"
     - "*:.tasks"
-    - "*:.management-beats*" 
+    - "*:.management-beats*"
+    - ".apm-*"
+    - "*:.apm-*"
     allowed_actions:
     - "SGS_INDICES_ALL"
   - index_patterns:
