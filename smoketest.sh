@@ -50,7 +50,7 @@ if [ "$CI" == "true" ]; then
   mkdir /home/esuser
   chown esuser:esuser /home/esuser -R
   chown esuser:esuser $DIR/elasticsearch-$ES_VERSION -R
-  usermod -aG sudo esuserq
+  usermod -aG sudo esuser
 fi
 
 echo "Plugin installation"
