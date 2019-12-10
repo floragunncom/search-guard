@@ -12,7 +12,7 @@
   <parent>
     <groupId>com.floragunn</groupId>
     <artifactId>search-guard-parent</artifactId>
-    <version>7.35.1</version>
+    <version>7.35.2</version>
   </parent>
 
   <artifactId>dlic-search-guard-enterprise-modules</artifactId>
@@ -41,19 +41,6 @@
     <mockito.version>2.23.0</mockito.version>
     <unboundid-ldapsdk.version>4.0.9</unboundid-ldapsdk.version>
   </properties>
-
-  <repositories>
-    <repository>
-        <id>elasticsearch-releases</id>
-        <url>https://artifacts.elastic.co/maven</url>
-        <releases>
-          <enabled>true</enabled>
-        </releases>
-        <snapshots>
-          <enabled>true</enabled>
-        </snapshots>
-    </repository>
-  </repositories>
 
   <scm>
     <url>https://github.com/floragunncom/search-guard-enterprise-modules</url>
