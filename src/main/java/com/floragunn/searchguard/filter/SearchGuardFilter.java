@@ -44,13 +44,16 @@ import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
@@ -180,25 +183,31 @@ public class SearchGuardFilter implements ActionFilter {
             }
             
             
-            if(complianceConfig != null && complianceConfig.isEnabled()) {
-            
-                boolean isImmutable = false;
-                
-                if(request instanceof BulkShardRequest) {
-                    for(BulkItemRequest bsr: ((BulkShardRequest) request).items()) {
-                        isImmutable = checkImmutableIndices(bsr.request(), listener);
-                        if(isImmutable) {
-                            break;
+            if (complianceConfig != null && complianceConfig.isEnabled()) {
+
+                Tuple<ImmutableState, ActionListener> immutableResult;
+
+                if (request instanceof BulkShardRequest) {
+                    for (BulkItemRequest bsr : ((BulkShardRequest) request).items()) {
+                        immutableResult = checkImmutableIndices(bsr.request(), request, listener, action, task, auditLog);
+                        if (immutableResult != null && immutableResult.v1() == ImmutableState.FAILURE) {
+                            return;
+                        }
+
+                        if (immutableResult != null && immutableResult.v1() == ImmutableState.LISTENER) {
+                            listener = immutableResult.v2();
                         }
                     }
                 } else {
-                    isImmutable = checkImmutableIndices(request, listener);
-                }
-    
-                if(isImmutable) {
-                    return;
-                }
+                    immutableResult = checkImmutableIndices(request, request, listener, action, task, auditLog);
+                    if (immutableResult != null && immutableResult.v1() == ImmutableState.FAILURE) {
+                        return;
+                    }
 
+                    if (immutableResult != null && immutableResult.v1() == ImmutableState.LISTENER) {
+                        listener = immutableResult.v2();
+                    }
+                }
             }
 
             if(Origin.LOCAL.toString().equals(threadContext.getTransient(ConfigConstants.SG_ORIGIN))
@@ -288,8 +297,49 @@ public class SearchGuardFilter implements ActionFilter {
         }
     }
     
+    private static class ImmutableIndexActionListener implements ActionListener {
+
+        private final ActionListener originalListener;
+        private final AuditLog auditLog;
+        private TransportRequest originalRequest;
+        private String action;
+        private Task task;
+
+        public ImmutableIndexActionListener(ActionListener originalListener, AuditLog auditLog, TransportRequest originalRequest, String action,
+                Task task) {
+            super();
+            this.originalListener = originalListener;
+            this.auditLog = auditLog;
+            this.originalRequest = originalRequest;
+            this.action = action;
+            this.task = task;
+        }
+
+        @Override
+        public void onResponse(Object response) {
+            originalListener.onResponse(response);
+        }
+
+        @Override
+        public void onFailure(Exception e) {
+            
+            if(e instanceof VersionConflictEngineException) {
+                auditLog.logImmutableIndexAttempt(originalRequest, action, task);
+                originalListener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
+            } else {
+                originalListener.onFailure(e);
+            }
+        }
+    }
+    
+    private enum ImmutableState {
+        FAILURE,
+        LISTENER
+    }
+
+    
     @SuppressWarnings("rawtypes")
-    private boolean checkImmutableIndices(Object request, ActionListener listener) {
+    private Tuple<ImmutableState, ActionListener> checkImmutableIndices(Object request, TransportRequest originalRequest, ActionListener originalListener, String action, Task task, AuditLog auditLog) {
 
         if(        request instanceof DeleteRequest 
                 || request instanceof UpdateRequest 
@@ -302,7 +352,6 @@ public class SearchGuardFilter implements ActionFilter {
                 ) {
             
             if(complianceConfig != null && complianceConfig.isIndexImmutable(request)) {
-                //auditLog.log
                 
                 //check index for type = remove index
                 //IndicesAliasesRequest iar = (IndicesAliasesRequest) request;
@@ -312,20 +361,21 @@ public class SearchGuardFilter implements ActionFilter {
                 //    }
                 //}
                 
+                auditLog.logImmutableIndexAttempt(originalRequest, action, task);
                 
-                
-                listener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
-                return true;
+                originalListener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
+                return new Tuple<ImmutableState, ActionListener>(ImmutableState.FAILURE, originalListener);
             }
         }
         
         if(request instanceof IndexRequest) {
             if(complianceConfig != null && complianceConfig.isIndexImmutable(request)) {
                 ((IndexRequest) request).opType(OpType.CREATE);
+                return new Tuple<ImmutableState, ActionListener>(ImmutableState.LISTENER, new ImmutableIndexActionListener(originalListener, auditLog, originalRequest, action, task));
             }
         }
         
-        return false;
+        return null;
     }
 
 }

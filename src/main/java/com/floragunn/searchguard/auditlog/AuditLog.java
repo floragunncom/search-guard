@@ -52,6 +52,8 @@ public interface AuditLog extends Closeable {
     void logBadHeaders(RestRequest request);
 
     void logSgIndexAttempt(TransportRequest request, String action, Task task);
+    
+    void logImmutableIndexAttempt(TransportRequest request, String action, Task task);
 
     void logSSLException(TransportRequest request, Throwable t, String action, Task task);
     void logSSLException(RestRequest request, Throwable t);

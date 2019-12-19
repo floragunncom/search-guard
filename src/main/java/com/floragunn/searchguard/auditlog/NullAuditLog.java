@@ -85,6 +85,11 @@ public class NullAuditLog implements AuditLog {
     public void logSgIndexAttempt(TransportRequest request, String action, Task task) {
         //noop, intentionally left empty
     }
+    
+    @Override
+    public void logImmutableIndexAttempt(TransportRequest request, String action, Task task) {
+        //noop, intentionally left empty
+    }
 
     @Override
     public void logSSLException(TransportRequest request, Throwable t, String action, Task task) {
