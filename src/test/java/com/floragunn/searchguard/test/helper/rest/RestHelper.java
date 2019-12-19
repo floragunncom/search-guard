@@ -51,6 +51,9 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
@@ -296,6 +299,10 @@ public class RestHelper {
             return header==null?Collections.emptyList():Arrays.asList(header);
         }
 
+		public JsonNode toJsonNode() throws JsonProcessingException, IOException {
+		    return DefaultObjectMapper.objectMapper.readTree(getBody());
+		}
+		
         @Override
         public String toString() {
             return "HttpResponse [inner=" + inner + ", body=" + body + ", header=" + Arrays.toString(header) + ", statusCode=" + statusCode
