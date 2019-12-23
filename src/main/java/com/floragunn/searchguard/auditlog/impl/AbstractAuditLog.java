@@ -403,6 +403,21 @@ public abstract class AbstractAuditLog implements AuditLog {
             save(msg);
         }
     }
+    
+    @Override
+    public void logImmutableIndexAttempt(TransportRequest request, String action, Task task) {
+
+        if(!checkTransportFilter(Category.COMPLIANCE_IMMUTABLE_INDEX_ATTEMPT, action, getUser(), request)) {
+            return;
+        }
+
+        final TransportAddress remoteAddress = getRemoteAddress();
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.COMPLIANCE_IMMUTABLE_INDEX_ATTEMPT, getOrigin(), action, null, getUser(), false, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, excludeSensitiveHeaders, null);
+
+        for(AuditMessage msg: msgs) {
+            save(msg);
+        }
+    }
 
     @Override
     public void logSSLException(TransportRequest request, Throwable t, String action, Task task) {

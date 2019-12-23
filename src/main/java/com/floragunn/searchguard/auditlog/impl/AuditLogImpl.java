@@ -168,6 +168,13 @@ public final class AuditLogImpl extends AbstractAuditLog {
             super.logSgIndexAttempt(request, action, task);
         }
     }
+    
+    @Override
+    public void logImmutableIndexAttempt(TransportRequest request, String action, Task task) {
+        if (enabled) {
+            super.logImmutableIndexAttempt(request, action, task);
+        }
+    }
 
     @Override
     public void logSSLException(TransportRequest request, Throwable t, String action, Task task) {
