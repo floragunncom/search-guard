@@ -44,18 +44,6 @@ fi
 
 echo "Plugin installation"
 
-if [ "$CI" == "true" ]; then
-  echo "Adding esuser user"
-  useradd esuser
-  mkdir /home/esuser
-  chown esuser:esuser /home/esuser -R
-  chown esuser:esuser $DIR/elasticsearch-$ES_VERSION -R
-  usermod -aG sudo esuser
-fi
-
-echo "Plugin installation"
-
-
 chmod +x elasticsearch-$ES_VERSION/plugins/search-guard-7/tools/install_demo_configuration.sh
 ./elasticsearch-$ES_VERSION/plugins/search-guard-7/tools/install_demo_configuration.sh -y -i -c
 #ml does not work on cci anymore since 7.2 due to something related to https://github.com/elastic/elasticsearch/issues/41867
