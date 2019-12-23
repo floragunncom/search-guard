@@ -399,7 +399,7 @@ public class TracingTests extends SingleClusterTest {
         HttpResponse res = rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(201, res.getStatusCode());
         res = rh.executePutRequest("myindex1/mytype1/1?refresh", data2, encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(409, res.getStatusCode());
+        Assert.assertEquals(403, res.getStatusCode());
         res = rh.executeDeleteRequest("myindex1/mytype1/1?refresh", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(403, res.getStatusCode());
         res = rh.executeGetRequest("myindex1/mytype1/1", encodeBasicHeader("admin", "admin"));
