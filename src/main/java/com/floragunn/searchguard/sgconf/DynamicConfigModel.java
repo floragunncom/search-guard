@@ -23,6 +23,7 @@ import com.floragunn.searchguard.auth.limiting.UserNameBasedRateLimiter;
 import com.floragunn.searchguard.http.HTTPBasicAuthenticator;
 import com.floragunn.searchguard.http.HTTPClientCertAuthenticator;
 import com.floragunn.searchguard.http.HTTPProxyAuthenticator;
+import com.floragunn.searchguard.http.HTTPProxyAuthenticator2;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
@@ -77,6 +78,7 @@ public abstract class DynamicConfigModel {
 
         authImplMap.put("basic_h", HTTPBasicAuthenticator.class.getName());
         authImplMap.put("proxy_h", HTTPProxyAuthenticator.class.getName());
+        authImplMap.put("proxy2_h", HTTPProxyAuthenticator2.class.getName());
         authImplMap.put("clientcert_h", HTTPClientCertAuthenticator.class.getName());
         authImplMap.put("kerberos_h", "com.floragunn.dlic.auth.http.kerberos.HTTPSpnegoAuthenticator");
         authImplMap.put("jwt_h", "com.floragunn.dlic.auth.http.jwt.HTTPJwtAuthenticator");
