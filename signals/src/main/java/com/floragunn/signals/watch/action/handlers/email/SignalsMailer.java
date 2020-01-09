@@ -1,0 +1,89 @@
+package com.floragunn.signals.watch.action.handlers.email;
+
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+
+import org.elasticsearch.SpecialPermission;
+import org.simplejavamail.MailException;
+import org.simplejavamail.email.Email;
+import org.simplejavamail.mailer.Mailer;
+import org.simplejavamail.mailer.MailerBuilder;
+import org.simplejavamail.mailer.config.TransportStrategy;
+
+public class SignalsMailer {
+
+    private final EmailAccount emailDestination;
+    private final Mailer mailer;
+
+    public SignalsMailer(EmailAccount emailDestination) {
+        super();
+        this.emailDestination = emailDestination;
+
+        MailerBuilder.MailerRegularBuilder mailerBuilder = MailerBuilder
+                .withSMTPServer(emailDestination.getHost(), emailDestination.getPort(), emailDestination.getUser(), emailDestination.getPassword())
+                .withProxy(emailDestination.getProxyHost(), emailDestination.getProxyPort(), emailDestination.getProxyUser(),
+                        emailDestination.getProxyPassword())
+                .withDebugLogging(Boolean.valueOf(emailDestination.isDebug()))
+                .withTransportModeLoggingOnly(Boolean.valueOf(emailDestination.isSimulate())).withTransportStrategy(evalTransportStrategy())
+                .trustingAllHosts(sslUsed() ? Boolean.valueOf(emailDestination.isTrustAll()) : Boolean.FALSE)
+                .trustingSSLHosts(sslUsed() ? emailDestination.getTrustedHosts() : new String[0]).withProperty("mail.smtps.ssl.checkserveridentity",
+                        (sslUsed() && (emailDestination.isTrustAll() || emailDestination.getTrustedHosts().length > 0)) ? "false" : "true");
+
+        if (emailDestination.getSessionTimeout() != null) {
+            mailerBuilder.withSessionTimeout(emailDestination.getSessionTimeout());
+        }
+
+        this.mailer = mailerBuilder.buildMailer();
+    }
+
+    private boolean sslUsed() {
+        return evalTransportStrategy() != TransportStrategy.SMTP;
+    }
+
+    private TransportStrategy evalTransportStrategy() {
+        if (emailDestination.isEnableStartTls()) {
+            return TransportStrategy.SMTP_TLS;
+        }
+        if (emailDestination.isEnableTls()) {
+            return TransportStrategy.SMTPS;
+        }
+        return TransportStrategy.SMTP;
+    }
+
+    public void sendMail(Email email) throws MailException {
+
+        final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        try {
+            AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
+                @Override
+                public Void run() {
+
+                    final ClassLoader originalContextClassoader = Thread.currentThread().getContextClassLoader();
+                    Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+                    try {
+                        mailer.sendMail(email);
+                    } finally {
+                        Thread.currentThread().setContextClassLoader(originalContextClassoader);
+                    }
+                    return null;
+                }
+            });
+        } catch (PrivilegedActionException e) {
+            if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            } else {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public void testConnection() {
+        this.mailer.testConnection();
+    }
+}

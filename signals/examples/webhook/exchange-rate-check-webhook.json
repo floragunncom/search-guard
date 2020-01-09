@@ -1,0 +1,38 @@
+{
+	"trigger": {
+		"schedule": {
+			"cron": [
+				"*/10 * * * * ?"
+			]
+		}
+	},
+	"checks": [
+		{
+			"type": "http",
+			"name": "testhttp",
+			"target": "eur_conversation_rates",
+			"request": {
+				"url": "https://api.exchangeratesapi.io/latest",
+				"method": "GET"
+			}
+		},
+		{
+			"type": "condition.script",
+			"name": "testcondition",
+			"source": "ctx.eur_conversation_rates.rates.GBP > 0.89"
+		}
+	],
+	"actions": [
+		{
+			"name": "my_webhook",
+			"type": "webhook",
+			"throttle_period": "1h",
+			"checks": [],
+			"request": {
+				"method": "POST",
+				"url": "https://hooks.slack.com/TXXXXX/BXXXXX/XXXXXXXXXX",
+				"body": "OMG, GBP @ {{eur_conversation_rates.rates.GBP}}"
+			}
+		}
+	]
+}

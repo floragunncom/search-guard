@@ -1,0 +1,68 @@
+{
+	"trigger": {
+		"schedule": {
+			"timezone": "Europe/Berlin",
+			"cron": [
+				"* * * * * ?"
+			]
+		}
+	},
+	"checks": [
+		{
+			"type": "search",
+			"name": "testsearch",
+			"target": "testsearch",
+			"request": {
+				"indices": [
+					"testsource_put_test_severity"
+				],
+				"body": {
+					"query": {
+						"match_all": {
+							
+						}
+					}
+				}
+			}
+		},
+		{
+			"type": "static",
+			"name": "teststatic",
+			"target": "teststatic",
+			"value": {
+				"bla": {
+					"blub": 42
+				}
+			}
+		}
+	],
+	"severity": {
+		"value": "data.testsearch.hits.total.value",
+		"mapping": [
+			{
+				"threshold": 1.0,
+				"level": "error"
+			}
+		]
+	},
+	"actions": [
+		{
+			"type": "index",
+			"name": "a1",
+			"severity": [
+				"error"
+			],
+			"index": "testsink_put_test_severity"
+		}
+	],
+	"resolve_actions": [
+		{
+			"type": "index",
+			"name": "r1",
+			"resolves_severity": [
+				"error"
+			],
+			"index": "testsink_resolve_put_test_severity"
+		}
+	]
+}

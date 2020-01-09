@@ -1,0 +1,181 @@
+package com.floragunn.signals;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+
+import org.apache.http.Header;
+import org.apache.http.HttpStatus;
+import org.apache.http.message.BasicHeader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+
+import com.floragunn.searchguard.test.helper.rest.RestHelper;
+import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.WatchBuilder;
+import com.floragunn.signals.watch.init.WatchInitializationService;
+
+public class RestApiTestMultiTenancyOff {
+    private static final Logger log = LogManager.getLogger(RestApiTestMultiTenancyOff.class);
+
+    private static RestHelper rh = null;
+    private static ScriptService scriptService;
+
+    @ClassRule
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals-no-mt")
+            .nodeSettings("signals.enabled", true).build();
+
+    @BeforeClass
+    public static void setupTestData() {
+
+        try (Client client = cluster.getInternalClient()) {
+            client.index(new IndexRequest("testsource").source(XContentType.JSON, "key1", "val1", "key2", "val2")).actionGet();
+
+            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
+                    .actionGet();
+            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
+                    .actionGet();
+        }
+    }
+
+    @BeforeClass
+    public static void setupDependencies() {
+        scriptService = cluster.getInjectable(ScriptService.class);
+
+        rh = cluster.restHelper();
+    }
+
+    @Test
+    public void testGetWatchInNotExistingTenantUnauthorized() throws Exception {
+
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "schnickschnack";
+        String watchId = "get_watch_unauth";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalClient()) {
+
+            HttpResponse response = rh.executeGetRequest(watchPath, auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+
+        }
+    }
+
+    @Test
+    public void testGetWatchInNonDefaultTenantUnauthorized() throws Exception {
+
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "redshirt_club";
+        String watchId = "get_watch_unauth";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalClient()) {
+
+            HttpResponse response = rh.executeGetRequest(watchPath, auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+
+        }
+    }
+
+    @Test
+    public void testPutWatch() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "put_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalClient()) {
+            client.admin().indices().create(new CreateIndexRequest("testsink_put_watch")).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
+            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = rh.executeGetRequest(watchPath, auth);
+
+            System.out.print(response.getBody());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+
+            awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
+        }
+    }
+
+    @Test
+    public void testPutWatchInNonExistingTenant() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "schnickschnack";
+        String watchId = "put_test_non_existing_tenant";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalClient()) {
+            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
+            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
+        }
+    }
+
+    private long getCountOfDocuments(Client client, String index) throws InterruptedException, ExecutionException {
+        SearchRequest request = new SearchRequest(index);
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+        request.source(searchSourceBuilder);
+
+        SearchResponse response = client.search(request).get();
+
+        return response.getHits().getTotalHits().value;
+    }
+
+    private long awaitMinCountOfDocuments(Client client, String index, long minCount) throws Exception {
+        long start = System.currentTimeMillis();
+
+        for (int i = 0; i < 1000; i++) {
+            Thread.sleep(10);
+            long count = getCountOfDocuments(client, index);
+
+            if (count >= minCount) {
+                log.info("Found " + count + " documents in " + index + " after " + (System.currentTimeMillis() - start) + " ms");
+
+                return count;
+            }
+        }
+
+        Assert.fail("Did not find " + minCount + " documents in " + index + " after " + (System.currentTimeMillis() - start) + " ms");
+
+        return 0;
+    }
+
+    private static Header basicAuth(String username, String password) {
+        return new BasicHeader("Authorization",
+                "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
+    }
+}

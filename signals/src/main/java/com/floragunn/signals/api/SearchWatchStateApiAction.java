@@ -1,0 +1,63 @@
+package com.floragunn.signals.api;
+
+import static org.elasticsearch.common.unit.TimeValue.parseTimeValue;
+import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestRequest.Method.POST;
+
+import java.io.IOException;
+
+import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.BaseRestHandler;
+import org.elasticsearch.rest.RestController;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.action.RestStatusToXContentListener;
+import org.elasticsearch.search.Scroll;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.threadpool.ThreadPool;
+
+import com.floragunn.searchguard.filter.TenantAwareRestHandler;
+import com.floragunn.signals.actions.watch.state.search.SearchWatchStateAction;
+import com.floragunn.signals.actions.watch.state.search.SearchWatchStateRequest;
+import com.floragunn.signals.actions.watch.state.search.SearchWatchStateResponse;
+
+public class SearchWatchStateApiAction extends BaseRestHandler implements TenantAwareRestHandler {
+
+    public SearchWatchStateApiAction(final Settings settings, final RestController controller, final ThreadPool threadPool) {
+        controller.registerHandler(GET, "/_signals/watch/{tenant}/_search/_state", this);
+        controller.registerHandler(POST, "/_signals/watch/{tenant}/_search/_state", this);
+
+    }
+
+    @Override
+    protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+        String scroll = request.param("scroll");
+        int from = request.paramAsInt("from", -1);
+        int size = request.paramAsInt("size", -1);
+
+        return channel -> {
+            SearchWatchStateRequest searchWatchRequest = new SearchWatchStateRequest();
+
+            if (scroll != null) {
+                searchWatchRequest.setScroll(new Scroll(parseTimeValue(scroll, null, "scroll")));
+            }
+
+            searchWatchRequest.setFrom(from);
+            searchWatchRequest.setSize(size);
+
+            if (request.hasContent()) {
+                SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(request.contentParser());
+
+                searchWatchRequest.setSearchSourceBuilder(searchSourceBuilder);
+            }
+
+            client.execute(SearchWatchStateAction.INSTANCE, searchWatchRequest, new RestStatusToXContentListener<SearchWatchStateResponse>(channel));
+        };
+
+    }
+
+    @Override
+    public String getName() {
+        return "Search Watch State Action";
+    }
+}
