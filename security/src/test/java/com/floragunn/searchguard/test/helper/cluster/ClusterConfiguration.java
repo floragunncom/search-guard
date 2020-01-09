@@ -36,73 +36,92 @@ import com.floragunn.searchguard.test.plugin.UserInjectorPlugin;
 import com.google.common.collect.Lists;
 
 public enum ClusterConfiguration {
-	//first one needs to be a master
+    //first one needs to be a master
     //HUGE(new NodeSettings(true, false, false), new NodeSettings(true, false, false), new NodeSettings(true, false, false), new NodeSettings(false, true,false), new NodeSettings(false, true, false)),
-	
+
     //3 nodes (1m, 2d)
     DEFAULT(new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true)),
-	
+
     //1 node (1md)
-	SINGLENODE(new NodeSettings(true, true)),
-    
-	//4 node (1m, 2d, 1c)
-	CLIENTNODE(new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true), new NodeSettings(false, false)),
+    SINGLENODE(new NodeSettings(true, true)),
+
+    //4 node (1m, 2d, 1c)
+    CLIENTNODE(new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true), new NodeSettings(false, false)),
 
     //3 nodes (1m, 2d) plus additional UserInjectorPlugin
-    USERINJECTOR(new NodeSettings(true, false, Lists.newArrayList(UserInjectorPlugin.class)), new NodeSettings(false, true, Lists.newArrayList(UserInjectorPlugin.class)), new NodeSettings(false, true, Lists.newArrayList(UserInjectorPlugin.class)));
+    USERINJECTOR(new NodeSettings(true, false, Lists.newArrayList(UserInjectorPlugin.class)),
+            new NodeSettings(false, true, Lists.newArrayList(UserInjectorPlugin.class)),
+            new NodeSettings(false, true, Lists.newArrayList(UserInjectorPlugin.class)));
 
-	private List<NodeSettings> nodeSettings = new LinkedList<>();
-	
-	private ClusterConfiguration(NodeSettings ... settings) {
-		nodeSettings.addAll(Arrays.asList(settings));
-	}
-	
-	public  List<NodeSettings> getNodeSettings() {
-		return Collections.unmodifiableList(nodeSettings);
-	}
-	
-	public  List<NodeSettings> getMasterNodeSettings() {
-        return Collections.unmodifiableList(nodeSettings.stream().filter(a->a.masterNode).collect(Collectors.toList()));
+    private List<NodeSettings> nodeSettings = new LinkedList<>();
+
+    private ClusterConfiguration(NodeSettings... settings) {
+        nodeSettings.addAll(Arrays.asList(settings));
     }
-	
-	public  List<NodeSettings> getNonMasterNodeSettings() {
-        return Collections.unmodifiableList(nodeSettings.stream().filter(a->!a.masterNode).collect(Collectors.toList()));
+
+    public List<NodeSettings> getNodeSettings() {
+        return Collections.unmodifiableList(nodeSettings);
     }
-	
-	public int getNodes() {
+
+    public List<NodeSettings> getMasterNodeSettings() {
+        return Collections.unmodifiableList(nodeSettings.stream().filter(a -> a.masterNode).collect(Collectors.toList()));
+    }
+
+    public List<NodeSettings> getNonMasterNodeSettings() {
+        return Collections.unmodifiableList(nodeSettings.stream().filter(a -> !a.masterNode).collect(Collectors.toList()));
+    }
+
+    public int getNodes() {
         return nodeSettings.size();
     }
-	
-	public int getMasterNodes() {
-        return (int) nodeSettings.stream().filter(a->a.masterNode).count();
+
+    public int getMasterNodes() {
+        return (int) nodeSettings.stream().filter(a -> a.masterNode).count();
     }
-	
-	public int getDataNodes() {
-        return (int) nodeSettings.stream().filter(a->a.dataNode).count();
+
+    public int getDataNodes() {
+        return (int) nodeSettings.stream().filter(a -> a.dataNode).count();
     }
-	
-	public int getClientNodes() {
-        return (int) nodeSettings.stream().filter(a->!a.masterNode && !a.dataNode).count();
+
+    public int getClientNodes() {
+        return (int) nodeSettings.stream().filter(a -> !a.masterNode && !a.dataNode).count();
     }
-	
-	public static class NodeSettings {
-		public boolean masterNode;
-		public boolean dataNode;
-		public List<Class<? extends Plugin>> plugins = Lists.newArrayList(Netty4Plugin.class, SearchGuardPlugin.class, MatrixAggregationPlugin.class, MustachePlugin.class, ParentJoinPlugin.class, PercolatorPlugin.class, ReindexPlugin.class);
-		
-		public NodeSettings(boolean masterNode, boolean dataNode) {
-			super();
-			this.masterNode = masterNode;
-			this.dataNode = dataNode;
-		}
-        
-		public NodeSettings(boolean masterNode, boolean dataNode, List<Class<? extends Plugin>> additionalPlugins) {
+
+    public static class NodeSettings {
+        public boolean masterNode;
+        public boolean dataNode;
+        public List<Class<? extends Plugin>> plugins = Lists.newArrayList(Netty4Plugin.class, SearchGuardPlugin.class, MatrixAggregationPlugin.class,
+                MustachePlugin.class, ParentJoinPlugin.class, PercolatorPlugin.class, ReindexPlugin.class);
+
+        public NodeSettings(boolean masterNode, boolean dataNode) {
+            super();
+            this.masterNode = masterNode;
+            this.dataNode = dataNode;
+
+            tryToIncludePainless();
+        }
+
+        public NodeSettings(boolean masterNode, boolean dataNode, List<Class<? extends Plugin>> additionalPlugins) {
             this(masterNode, dataNode);
+
             this.plugins.addAll(additionalPlugins);
         }
-		
-		public Class<? extends Plugin>[] getPlugins() {
-		    return plugins.toArray(new Class[0] );
-		}
-	}
+
+        @SuppressWarnings("unchecked")
+        public Class<? extends Plugin>[] getPlugins() {
+            return plugins.toArray(new Class[0]);
+        }
+
+        private void tryToIncludePainless() {
+            try {
+                @SuppressWarnings("unchecked")
+                Class<? extends Plugin> painlessPlugin = (Class<? extends Plugin>) Class.forName("org.elasticsearch.painless.PainlessPlugin");
+
+                plugins.add(painlessPlugin);
+
+            } catch (ClassNotFoundException e) {
+
+            }
+        }
+    }
 }

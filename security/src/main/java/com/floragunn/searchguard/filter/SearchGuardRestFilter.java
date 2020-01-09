@@ -77,14 +77,14 @@ public class SearchGuardRestFilter {
             @Override
             public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
                 org.apache.logging.log4j.ThreadContext.clearAll();
-                if(!checkAndAuthenticateRequest(request, channel, client)) {
+                if(!checkAndAuthenticateRequest(original, request, channel, client)) {
                     original.handleRequest(request, channel, client);
                 }
             }
         };
     }
 
-    private boolean checkAndAuthenticateRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
+    private boolean checkAndAuthenticateRequest(RestHandler restHandler, RestRequest request, RestChannel channel, NodeClient client) throws Exception {
 
         threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.REST.toString());
         
@@ -131,7 +131,7 @@ public class SearchGuardRestFilter {
         if(request.method() != Method.OPTIONS 
                 && !"/_searchguard/license".equals(request.path())
                 && !"/_searchguard/health".equals(request.path())) {
-            if (!registry.authenticate(request, channel, threadContext)) {
+            if (!registry.authenticate(restHandler, request, channel, threadContext)) {
                 // another roundtrip
                 org.apache.logging.log4j.ThreadContext.remove("user");
                 return true;

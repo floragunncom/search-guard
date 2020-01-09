@@ -41,6 +41,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
@@ -51,6 +52,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.auth.internal.NoOpAuthenticationBackend;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.filter.TenantAwareRestHandler;
 import com.floragunn.searchguard.http.XFFResolver;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
@@ -327,7 +329,7 @@ public class BackendRegistry implements DCFListener {
      * @return The authenticated user, null means another roundtrip
      * @throws ElasticsearchSecurityException
      */
-    public boolean authenticate(final RestRequest request, final RestChannel channel, final ThreadContext threadContext) {
+    public boolean authenticate(final RestHandler restHandler, final RestRequest request, final RestChannel channel, final ThreadContext threadContext) {
 
         if (request.getHttpChannel().getRemoteAddress() instanceof InetSocketAddress && isBlocked(((InetSocketAddress) request.getHttpChannel().getRemoteAddress()).getAddress())) {
             if (log.isDebugEnabled()) {
@@ -467,7 +469,7 @@ public class BackendRegistry implements DCFListener {
                 return false;
             }
 
-            final String tenant = Utils.coalesce(request.header("sgtenant"), request.header("sg_tenant"));
+            final String tenant = getRequestedTenant(restHandler, request);
 
             if (log.isDebugEnabled()) {
                 log.debug("Rest user '{}' is authenticated", authenticatedUser);
@@ -531,6 +533,14 @@ public class BackendRegistry implements DCFListener {
         return authenticated;
     }
 
+    private String getRequestedTenant(RestHandler restHandler, RestRequest request) {
+        if (restHandler instanceof TenantAwareRestHandler) {
+            return ((TenantAwareRestHandler) restHandler).getTenantName(request);
+        } else {
+             return Utils.coalesce(request.header("sgtenant"), request.header("sg_tenant"));
+        }
+    }
+    
     private void notifyIpAuthFailureListeners(RestRequest request, AuthCredentials authCredentials) {
         notifyIpAuthFailureListeners(
                 (request.getHttpChannel().getRemoteAddress() instanceof InetSocketAddress) ? ((InetSocketAddress) request.getHttpChannel().getRemoteAddress()).getAddress() : null,

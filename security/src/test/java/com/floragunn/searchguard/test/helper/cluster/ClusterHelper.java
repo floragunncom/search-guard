@@ -19,6 +19,7 @@ package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,7 +33,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configurator;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
@@ -60,86 +60,89 @@ public final class ClusterHelper {
         System.setProperty("es.enforce.bootstrap.checks", "true");
         System.setProperty("sg.default_init.dir", new File("./sgconfig").getAbsolutePath());
     }
-    
-	protected final Logger log = LogManager.getLogger(ClusterHelper.class);
 
-	protected final List<PluginAwareNode> esNodes = new LinkedList<>();
+    protected final Logger log = LogManager.getLogger(ClusterHelper.class);
 
-	private final String clustername;
-	
-	public ClusterHelper(String clustername) {
+    protected final List<PluginAwareNode> esNodes = new LinkedList<>();
+
+    private final String clustername;
+
+    public ClusterHelper(String clustername) {
         super();
         this.clustername = clustername;
     }
 
     /**
-	 * Start n Elasticsearch nodes with the provided settings
-	 * 
-	 * @return
+     * Start n Elasticsearch nodes with the provided settings
+     * 
+     * @return
      * @throws Exception 
-	 */
-	
-	public final ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration) throws Exception {
-	    return startCluster(nodeSettingsSupplier, clusterConfiguration, 10, null);
-	}
-	
-	
-	public final synchronized ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration, int timeout, Integer nodes)
-			throws Exception {
-	    
-		if (!esNodes.isEmpty()) {
-			throw new RuntimeException("There are still " + esNodes.size() + " nodes instantiated, close them first.");
-		}
+     */
 
-		FileUtils.deleteDirectory(new File("data/"+clustername));
+    public final ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration)
+            throws Exception {
+        return startCluster(nodeSettingsSupplier, clusterConfiguration, 10, null);
+    }
 
-		List<NodeSettings> internalNodeSettings = clusterConfiguration.getNodeSettings();
-		
-		final String forkno = System.getProperty("forkno");
-		int forkNumber = 1;
-		
-		if(forkno != null && forkno.length() > 0) {
-		    forkNumber = Integer.parseInt(forkno.split("_")[1]);
-		}
-	
-		final int min = SocketUtils.PORT_RANGE_MIN+(forkNumber*5000);
-		final int max = SocketUtils.PORT_RANGE_MIN+((forkNumber+1)*5000)-1;
-		
-		final SortedSet<Integer> freePorts = SocketUtils.findAvailableTcpPorts(internalNodeSettings.size()*2, min, max);
-		assert freePorts.size() == internalNodeSettings.size()*2;
-		final SortedSet<Integer> tcpMasterPortsOnly = new TreeSet<Integer>();
-		final SortedSet<Integer> tcpAllPorts = new TreeSet<Integer>();
-		freePorts.stream().limit(clusterConfiguration.getMasterNodes()).forEach(el->tcpMasterPortsOnly.add(el));
-	    freePorts.stream().limit(internalNodeSettings.size()).forEach(el->tcpAllPorts.add(el));
+    public final synchronized ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration,
+            int timeout, Integer nodes) throws Exception {
 
-		//final Iterator<Integer> tcpPortsMasterOnlyIt = tcpMasterPortsOnly.iterator();
-		final Iterator<Integer> tcpPortsAllIt = tcpAllPorts.iterator();
-		
-		final SortedSet<Integer> httpPorts = new TreeSet<Integer>();
-	    freePorts.stream().skip(internalNodeSettings.size()).limit(internalNodeSettings.size()).forEach(el->httpPorts.add(el));
-		final Iterator<Integer> httpPortsIt = httpPorts.iterator();
-		
-		System.out.println("tcpMasterPorts: "+tcpMasterPortsOnly+"/tcpAllPorts: "+tcpAllPorts+"/httpPorts: "+httpPorts+" for ("+min+"-"+max+") fork "+forkNumber);
-		
-		final CountDownLatch latch = new CountDownLatch(internalNodeSettings.size());
-		
-		final AtomicReference<Exception> err = new AtomicReference<Exception>();
-		
-		List<NodeSettings> internalMasterNodeSettings = clusterConfiguration.getMasterNodeSettings();
-		List<NodeSettings> internalNonMasterNodeSettings = clusterConfiguration.getNonMasterNodeSettings();
-		
-		int nodeNumCounter = internalNodeSettings.size();
+        if (!esNodes.isEmpty()) {
+            throw new RuntimeException("There are still " + esNodes.size() + " nodes instantiated, close them first.");
+        }
 
-		for (int i = 0; i < internalMasterNodeSettings.size(); i++) {
+        FileUtils.deleteDirectory(new File("data/" + clustername));
+
+        List<NodeSettings> internalNodeSettings = clusterConfiguration.getNodeSettings();
+
+        final String forkno = System.getProperty("forkno");
+        int forkNumber = 1;
+
+        if (forkno != null && forkno.length() > 0) {
+            forkNumber = Integer.parseInt(forkno.split("_")[1]);
+        }
+
+        final int min = SocketUtils.PORT_RANGE_MIN + (forkNumber * 5000);
+        final int max = SocketUtils.PORT_RANGE_MIN + ((forkNumber + 1) * 5000) - 1;
+
+        final SortedSet<Integer> freePorts = SocketUtils.findAvailableTcpPorts(internalNodeSettings.size() * 2, min, max);
+        assert freePorts.size() == internalNodeSettings.size() * 2;
+        final SortedSet<Integer> tcpMasterPortsOnly = new TreeSet<Integer>();
+        final SortedSet<Integer> tcpAllPorts = new TreeSet<Integer>();
+        freePorts.stream().limit(clusterConfiguration.getMasterNodes()).forEach(el -> tcpMasterPortsOnly.add(el));
+        freePorts.stream().limit(internalNodeSettings.size()).forEach(el -> tcpAllPorts.add(el));
+
+        //final Iterator<Integer> tcpPortsMasterOnlyIt = tcpMasterPortsOnly.iterator();
+        final Iterator<Integer> tcpPortsAllIt = tcpAllPorts.iterator();
+
+        final SortedSet<Integer> httpPorts = new TreeSet<Integer>();
+        freePorts.stream().skip(internalNodeSettings.size()).limit(internalNodeSettings.size()).forEach(el -> httpPorts.add(el));
+        final Iterator<Integer> httpPortsIt = httpPorts.iterator();
+
+        System.out.println("tcpMasterPorts: " + tcpMasterPortsOnly + "/tcpAllPorts: " + tcpAllPorts + "/httpPorts: " + httpPorts + " for (" + min
+                + "-" + max + ") fork " + forkNumber);
+
+        final CountDownLatch latch = new CountDownLatch(internalNodeSettings.size());
+
+        final AtomicReference<Exception> err = new AtomicReference<Exception>();
+
+        List<NodeSettings> internalMasterNodeSettings = clusterConfiguration.getMasterNodeSettings();
+        List<NodeSettings> internalNonMasterNodeSettings = clusterConfiguration.getNonMasterNodeSettings();
+
+        int nodeNumCounter = internalNodeSettings.size();
+
+        for (int i = 0; i < internalMasterNodeSettings.size(); i++) {
             NodeSettings setting = internalMasterNodeSettings.get(i);
             int nodeNum = nodeNumCounter--;
             PluginAwareNode node = new PluginAwareNode(setting.masterNode,
-                    getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, internalNodeSettings.size(), tcpMasterPortsOnly, tcpPortsAllIt.next(), httpPortsIt.next())
-                            .put(nodeSettingsSupplier == null ? Settings.Builder.EMPTY_SETTINGS : nodeSettingsSupplier.get(nodeNum)).build(), setting.getPlugins());
+                    getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, internalNodeSettings.size(), tcpMasterPortsOnly,
+                            tcpPortsAllIt.next(), httpPortsIt.next())
+                                    .put(nodeSettingsSupplier == null ? Settings.Builder.EMPTY_SETTINGS : nodeSettingsSupplier.get(nodeNum)).build(),
+                    setting.getPlugins());
             System.out.println(node.settings());
-            
+
             new Thread(new Runnable() {
-                
+
                 @Override
                 public void run() {
                     try {
@@ -147,7 +150,7 @@ public final class ClusterHelper {
                         latch.countDown();
                     } catch (Exception e) {
                         e.printStackTrace();
-                        log.error("Unable to start node: "+e);
+                        log.error("Unable to start node: " + e);
                         err.set(e);
                         latch.countDown();
                     }
@@ -155,17 +158,19 @@ public final class ClusterHelper {
             }).start();
             esNodes.add(node);
         }
-		
-		for (int i = 0; i < internalNonMasterNodeSettings.size(); i++) {
-			NodeSettings setting = internalNonMasterNodeSettings.get(i);
+
+        for (int i = 0; i < internalNonMasterNodeSettings.size(); i++) {
+            NodeSettings setting = internalNonMasterNodeSettings.get(i);
             int nodeNum = nodeNumCounter--;
-			PluginAwareNode node = new PluginAwareNode(setting.masterNode,
-					getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, internalNodeSettings.size(), tcpMasterPortsOnly, tcpPortsAllIt.next(), httpPortsIt.next())
-							.put(nodeSettingsSupplier == null ? Settings.Builder.EMPTY_SETTINGS : nodeSettingsSupplier.get(nodeNum)).build(), setting.getPlugins());
-			System.out.println(node.settings());
-			
-			new Thread(new Runnable() {
-                
+            PluginAwareNode node = new PluginAwareNode(setting.masterNode,
+                    getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, internalNodeSettings.size(), tcpMasterPortsOnly,
+                            tcpPortsAllIt.next(), httpPortsIt.next())
+                                    .put(nodeSettingsSupplier == null ? Settings.Builder.EMPTY_SETTINGS : nodeSettingsSupplier.get(nodeNum)).build(),
+                    setting.getPlugins());
+            System.out.println(node.settings());
+
+            new Thread(new Runnable() {
+
                 @Override
                 public void run() {
                     try {
@@ -173,189 +178,189 @@ public final class ClusterHelper {
                         latch.countDown();
                     } catch (Exception e) {
                         e.printStackTrace();
-                        log.error("Unable to start node: "+e);
+                        log.error("Unable to start node: " + e);
                         err.set(e);
                         latch.countDown();
                     }
                 }
             }).start();
-			esNodes.add(node);
-		}
-		
-		assert nodeNumCounter == 0;
-		
-		latch.await();
-		
-		if(err.get() != null) {
-		    throw new RuntimeException("Could not start all nodes "+err.get(),err.get());
-		}
-		
-		ClusterInfo cInfo = waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(timeout), nodes == null?esNodes.size():nodes.intValue());
-		cInfo.numNodes = internalNodeSettings.size();
-		cInfo.clustername = clustername;
-		cInfo.tcpMasterPortsOnly = tcpMasterPortsOnly.stream().map(s->"127.0.0.1:"+s).collect(Collectors.toList());
-		
-		final String defaultTemplate = "{\n" + 
-		        "          \"index_patterns\": [\"*\"],\n" + 
-		        "          \"order\": -1,\n" + 
-		        "          \"settings\": {\n" + 
-		        "            \"number_of_shards\": \"5\",\n" + 
-		        "            \"number_of_replicas\": \"1\"\n" + 
-		        "          }\n" + 
-		        "        }";
-		
-		final AcknowledgedResponse templateAck = nodeClient().admin().indices().putTemplate(new PutIndexTemplateRequest("default").source(defaultTemplate, XContentType.JSON)).actionGet();
-		
-		if(!templateAck.isAcknowledged()) {
-		    throw new RuntimeException("Default template could not be created");
-		}
-		
-		return cInfo;
-	}
+            esNodes.add(node);
+        }
 
-	public final void stopCluster() throws Exception {
-	    
-	    //close non master nodes
-	    esNodes.stream().filter(n->!n.isMasterEligible()).forEach(node->closeNode(node));
-	    
-	    //close master nodes
-	    esNodes.stream().filter(n->n.isMasterEligible()).forEach(node->closeNode(node));		
-		esNodes.clear();
-		
-		FileUtils.deleteDirectory(new File("data/"+clustername));
-	}
-	
-	private static void closeNode(Node node) {
-	    try {
+        assert nodeNumCounter == 0;
+
+        latch.await();
+
+        if (err.get() != null) {
+            throw new RuntimeException("Could not start all nodes " + err.get(), err.get());
+        }
+
+        ClusterInfo cInfo = waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(timeout),
+                nodes == null ? esNodes.size() : nodes.intValue());
+        cInfo.numNodes = internalNodeSettings.size();
+        cInfo.clustername = clustername;
+        cInfo.tcpMasterPortsOnly = tcpMasterPortsOnly.stream().map(s -> "127.0.0.1:" + s).collect(Collectors.toList());
+
+        final String defaultTemplate = "{\n" + "          \"index_patterns\": [\"*\"],\n" + "          \"order\": -1,\n"
+                + "          \"settings\": {\n" + "            \"number_of_shards\": \"5\",\n" + "            \"number_of_replicas\": \"1\"\n"
+                + "          }\n" + "        }";
+
+        final AcknowledgedResponse templateAck = nodeClient().admin().indices()
+                .putTemplate(new PutIndexTemplateRequest("default").source(defaultTemplate, XContentType.JSON)).actionGet();
+
+        if (!templateAck.isAcknowledged()) {
+            throw new RuntimeException("Default template could not be created");
+        }
+
+        return cInfo;
+    }
+
+    public final void stopCluster() throws Exception {
+
+        //close non master nodes
+        esNodes.stream().filter(n -> !n.isMasterEligible()).forEach(node -> closeNode(node));
+
+        //close master nodes
+        esNodes.stream().filter(n -> n.isMasterEligible()).forEach(node -> closeNode(node));
+        esNodes.clear();
+
+        FileUtils.deleteDirectory(new File("data/" + clustername));
+    }
+
+    private static void closeNode(Node node) {
+        try {
             LoggerContext context = (LoggerContext) LogManager.getContext(false);
-            Configurator.shutdown(context);
-	        node.close();
-	        Thread.sleep(250);
+            //Configurator.shutdown(context);
+            node.close();
+            Thread.sleep(250);
         } catch (Throwable e) {
             //ignore
         }
-	}
-	
+    }
 
-	public Client nodeClient() {
-	    return esNodes.get(0).client();
-	}
-	
-	public ClusterInfo waitForCluster(final ClusterHealthStatus status, final TimeValue timeout, final int expectedNodeCount) throws IOException {
-		if (esNodes.isEmpty()) {
-			throw new RuntimeException("List of nodes was empty.");
-		}
+    public Client nodeClient() {
+        return esNodes.get(0).client();
+    }
 
-		ClusterInfo clusterInfo = new ClusterInfo();
+    public PluginAwareNode node() {
+        return esNodes.get(0);
+    }
 
-		Node node = esNodes.get(0);
-		Client client = node.client();
-		try {
-			log.debug("waiting for cluster state {} and {} nodes", status.name(), expectedNodeCount);
-			final ClusterHealthResponse healthResponse = client.admin().cluster().prepareHealth()
-					.setWaitForStatus(status).setTimeout(timeout).setMasterNodeTimeout(timeout).setWaitForNodes("" + expectedNodeCount).execute()
-					.actionGet();
-			if (healthResponse.isTimedOut()) {
-				throw new IOException("cluster state is " + healthResponse.getStatus().name() + " with "
-						+ healthResponse.getNumberOfNodes() + " nodes");
-			} else {
-				log.debug("... cluster state ok " + healthResponse.getStatus().name() + " with "
-						+ healthResponse.getNumberOfNodes() + " nodes");
-			}
+    public List<PluginAwareNode> allNodes() {
+        return Collections.unmodifiableList(esNodes);
+    }
 
-			org.junit.Assert.assertEquals(expectedNodeCount, healthResponse.getNumberOfNodes());
+    public ClusterInfo waitForCluster(final ClusterHealthStatus status, final TimeValue timeout, final int expectedNodeCount) throws IOException {
+        if (esNodes.isEmpty()) {
+            throw new RuntimeException("List of nodes was empty.");
+        }
 
-			final NodesInfoResponse res = client.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet();
+        ClusterInfo clusterInfo = new ClusterInfo();
 
-			final List<NodeInfo> nodes = res.getNodes();
+        Node node = esNodes.get(0);
+        Client client = node.client();
+        try {
+            log.debug("waiting for cluster state {} and {} nodes", status.name(), expectedNodeCount);
+            final ClusterHealthResponse healthResponse = client.admin().cluster().prepareHealth().setWaitForStatus(status).setTimeout(timeout)
+                    .setMasterNodeTimeout(timeout).setWaitForNodes("" + expectedNodeCount).execute().actionGet();
+            if (healthResponse.isTimedOut()) {
+                throw new IOException(
+                        "cluster state is " + healthResponse.getStatus().name() + " with " + healthResponse.getNumberOfNodes() + " nodes");
+            } else {
+                log.debug("... cluster state ok " + healthResponse.getStatus().name() + " with " + healthResponse.getNumberOfNodes() + " nodes");
+            }
 
-			final List<NodeInfo> masterNodes = nodes.stream().filter(n->n.getNode().getRoles().contains(DiscoveryNodeRole.MASTER_ROLE)).collect(Collectors.toList());
-	        final List<NodeInfo> dataNodes = nodes.stream().filter(n->n.getNode().getRoles().contains(DiscoveryNodeRole.DATA_ROLE) && !n.getNode().getRoles().contains(DiscoveryNodeRole.MASTER_ROLE)).collect(Collectors.toList());
-	        final List<NodeInfo> clientNodes = nodes.stream().filter(n->!n.getNode().getRoles().contains(DiscoveryNodeRole.MASTER_ROLE) && !n.getNode().getRoles().contains(DiscoveryNodeRole.DATA_ROLE)).collect(Collectors.toList());
+            org.junit.Assert.assertEquals(expectedNodeCount, healthResponse.getNumberOfNodes());
 
-	        for (NodeInfo nodeInfo: masterNodes) {
-                final TransportAddress is = nodeInfo.getTransport().getAddress()
-                        .publishAddress();
+            final NodesInfoResponse res = client.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet();
+
+            final List<NodeInfo> nodes = res.getNodes();
+
+            final List<NodeInfo> masterNodes = nodes.stream().filter(n -> n.getNode().getRoles().contains(DiscoveryNodeRole.MASTER_ROLE))
+                    .collect(Collectors.toList());
+            final List<NodeInfo> dataNodes = nodes.stream().filter(n -> n.getNode().getRoles().contains(DiscoveryNodeRole.DATA_ROLE)
+                    && !n.getNode().getRoles().contains(DiscoveryNodeRole.MASTER_ROLE)).collect(Collectors.toList());
+            final List<NodeInfo> clientNodes = nodes.stream().filter(n -> !n.getNode().getRoles().contains(DiscoveryNodeRole.MASTER_ROLE)
+                    && !n.getNode().getRoles().contains(DiscoveryNodeRole.DATA_ROLE)).collect(Collectors.toList());
+
+            for (NodeInfo nodeInfo : masterNodes) {
+                final TransportAddress is = nodeInfo.getTransport().getAddress().publishAddress();
                 clusterInfo.nodePort = is.getPort();
                 clusterInfo.nodeHost = is.getAddress();
-            }  
+            }
 
-	        if(!clientNodes.isEmpty()) {
-	            NodeInfo nodeInfo = clientNodes.get(0);
-	            if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
-                    final TransportAddress his = nodeInfo.getHttp().address()
-                            .publishAddress();
+            if (!clientNodes.isEmpty()) {
+                NodeInfo nodeInfo = clientNodes.get(0);
+                if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
+                    final TransportAddress his = nodeInfo.getHttp().address().publishAddress();
                     clusterInfo.httpPort = his.getPort();
                     clusterInfo.httpHost = his.getAddress();
                     clusterInfo.httpAdresses.add(his);
                 } else {
                     throw new RuntimeException("no http host/port for client node");
                 }
-	        } else if(!dataNodes.isEmpty()) {
-	            
-	            for (NodeInfo nodeInfo: dataNodes) {
-	                if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
-	                    final TransportAddress his = nodeInfo.getHttp().address()
-	                            .publishAddress();
-	                    clusterInfo.httpPort = his.getPort();
-	                    clusterInfo.httpHost = his.getAddress();
-	                    clusterInfo.httpAdresses.add(his);
-	                    break;
-	                }  
-	            }  
-	        }  else  {
-                
-                for (NodeInfo nodeInfo: nodes) {
+            } else if (!dataNodes.isEmpty()) {
+
+                for (NodeInfo nodeInfo : dataNodes) {
                     if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
-                        final TransportAddress his = nodeInfo.getHttp().address()
-                                .publishAddress();
+                        final TransportAddress his = nodeInfo.getHttp().address().publishAddress();
                         clusterInfo.httpPort = his.getPort();
                         clusterInfo.httpHost = his.getAddress();
                         clusterInfo.httpAdresses.add(his);
                         break;
-                    }  
-                }  
-            }       	
-		} catch (final ElasticsearchTimeoutException e) {
-			throw new IOException(
-					"timeout, cluster does not respond to health request, cowardly refusing to continue with operations");
-		}
-		return clusterInfo;
-	}
+                    }
+                }
+            } else {
 
-	// @formatter:off
-	private Settings.Builder getMinimumNonSgNodeSettingsBuilder(final int nodenum, final boolean masterNode,
-			final boolean dataNode, int nodeCount, SortedSet<Integer> masterTcpPorts, /*SortedSet<Integer> nonMasterTcpPorts,*/ int tcpPort, int httpPort) {
-	    
-		return Settings.builder()
-		        .put("node.name", "node_"+clustername+ "_num" + nodenum)
-		        .put("node.data", dataNode)
-				.put("node.master", masterNode)
-				.put("cluster.name", clustername)
-				.put("path.data", "data/"+clustername+"/data")
-				.put("path.logs", "data/"+clustername+"/logs")
-				.put("node.max_local_storage_nodes", nodeCount)
-				//.put("discovery.zen.minimum_master_nodes", minMasterNodes(masterTcpPorts.size()))
-				.putList("cluster.initial_master_nodes", masterTcpPorts.stream().map(s->"127.0.0.1:"+s).collect(Collectors.toList()))
-				//.put("discovery.zen.no_master_block", "all")
-				//.put("discovery.zen.fd.ping_timeout", "5s")
-				.put("discovery.initial_state_timeout","8s")
-				.putList("discovery.seed_hosts", masterTcpPorts.stream().map(s->"127.0.0.1:"+s).collect(Collectors.toList()))
-				.put("transport.tcp.port", tcpPort)
-				.put("http.port", httpPort)
-				//.put("http.enabled", true)
-				.put("cluster.routing.allocation.disk.threshold_enabled", false)
-				.put("http.cors.enabled", true)
-				.put("path.home", ".");
-	}
-	// @formatter:on
-	
-	/*private int minMasterNodes(int masterEligibleNodes) {
-	    if(masterEligibleNodes <= 0) {
-	        throw new IllegalArgumentException("no master eligible nodes");
-	    }
-	    
-	    return (masterEligibleNodes/2) + 1;
-	    	    
-	}*/
+                for (NodeInfo nodeInfo : nodes) {
+                    if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
+                        final TransportAddress his = nodeInfo.getHttp().address().publishAddress();
+                        clusterInfo.httpPort = his.getPort();
+                        clusterInfo.httpHost = his.getAddress();
+                        clusterInfo.httpAdresses.add(his);
+                        break;
+                    }
+                }
+            }
+        } catch (final ElasticsearchTimeoutException e) {
+            throw new IOException("timeout, cluster does not respond to health request, cowardly refusing to continue with operations");
+        }
+        return clusterInfo;
+    }
+
+    // @formatter:off
+    private Settings.Builder getMinimumNonSgNodeSettingsBuilder(final int nodenum, final boolean masterNode,
+            final boolean dataNode, int nodeCount, SortedSet<Integer> masterTcpPorts, /*SortedSet<Integer> nonMasterTcpPorts,*/ int tcpPort, int httpPort) {
+        
+        return Settings.builder()
+                .put("node.name", "node_"+clustername+ "_num" + nodenum)
+                .put("node.data", dataNode)
+                .put("node.master", masterNode)
+                .put("cluster.name", clustername)
+                .put("path.data", "data/"+clustername+"/data")
+                .put("path.logs", "data/"+clustername+"/logs")
+                .put("node.max_local_storage_nodes", nodeCount)
+                //.put("discovery.zen.minimum_master_nodes", minMasterNodes(masterTcpPorts.size()))
+                .putList("cluster.initial_master_nodes", masterTcpPorts.stream().map(s->"127.0.0.1:"+s).collect(Collectors.toList()))
+                //.put("discovery.zen.no_master_block", "all")
+                //.put("discovery.zen.fd.ping_timeout", "5s")
+                .put("discovery.initial_state_timeout","8s")
+                .putList("discovery.seed_hosts", masterTcpPorts.stream().map(s->"127.0.0.1:"+s).collect(Collectors.toList()))
+                .put("transport.tcp.port", tcpPort)
+                .put("http.port", httpPort)
+                //.put("http.enabled", true)
+                .put("cluster.routing.allocation.disk.threshold_enabled", false)
+                .put("http.cors.enabled", true)
+                .put("path.home", ".");
+    }
+    // @formatter:on
+
+    /*private int minMasterNodes(int masterEligibleNodes) {
+        if(masterEligibleNodes <= 0) {
+            throw new IllegalArgumentException("no master eligible nodes");
+        }
+        
+        return (masterEligibleNodes/2) + 1;
+                
+    }*/
 }

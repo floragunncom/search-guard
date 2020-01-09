@@ -146,7 +146,7 @@ public final class IndexResolverReplacer implements DCFListener {
         return false;
     }
 
-    private Resolved resolveIndexPatterns(final IndicesOptions indicesOptions, final Object request, final String... requestedPatterns0) {
+    public Resolved resolveIndexPatterns(final IndicesOptions indicesOptions, final Object request, final String... requestedPatterns0) {
 
         if (log.isTraceEnabled()) {
             log.trace("resolve requestedPatterns: " + Arrays.toString(requestedPatterns0));

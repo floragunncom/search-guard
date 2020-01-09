@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.sgconf;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -45,9 +46,10 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
-import com.floragunn.searchguard.sgconf.ConfigModelV6.SgRole;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
@@ -59,6 +61,7 @@ import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder.SetMultimapBuilder;
@@ -76,47 +79,43 @@ public class ConfigModelV7 extends ConfigModel {
     private SgDynamicConfiguration<RoleV7> roles;
     private SgDynamicConfiguration<TenantV7> tenants;
 
-    public ConfigModelV7(
-            SgDynamicConfiguration<RoleV7> roles, 
-            SgDynamicConfiguration<RoleMappingsV7> rolemappings,
-            SgDynamicConfiguration<ActionGroupsV7> actiongroups, 
-            SgDynamicConfiguration<TenantV7> tenants, 
-            DynamicConfigModel dcm,
+    public ConfigModelV7(SgDynamicConfiguration<RoleV7> roles, SgDynamicConfiguration<RoleMappingsV7> rolemappings,
+            SgDynamicConfiguration<ActionGroupsV7> actiongroups, SgDynamicConfiguration<TenantV7> tenants, DynamicConfigModel dcm,
             Settings esSettings) {
 
         this.roles = roles;
         this.tenants = tenants;
-        
+
         try {
-            rolesMappingResolution = ConfigConstants.RolesMappingResolution.valueOf(
-                    esSettings.get(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, ConfigConstants.RolesMappingResolution.MAPPING_ONLY.toString())
-                            .toUpperCase());
+            rolesMappingResolution = ConfigConstants.RolesMappingResolution.valueOf(esSettings
+                    .get(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, ConfigConstants.RolesMappingResolution.MAPPING_ONLY.toString())
+                    .toUpperCase());
         } catch (Exception e) {
             log.error("Cannot apply roles mapping resolution", e);
             rolesMappingResolution = ConfigConstants.RolesMappingResolution.MAPPING_ONLY;
         }
-        
+
         agr = reloadActionGroups(actiongroups);
         sgRoles = reload(roles);
         tenantHolder = new TenantHolder(roles, tenants);
         roleMappingHolder = new RoleMappingHolder(rolemappings, dcm.getHostsResolverMode());
     }
-    
+
     public Set<String> getAllConfiguredTenantNames() {
         return Collections.unmodifiableSet(tenants.getCEntries().keySet());
     }
-    
+
     public SgRoles getSgRoles() {
         return sgRoles;
     }
     
-    private static interface ActionGroupResolver {
-        Set<String> resolvedActions(final List<String> actions);
+    public ActionGroupResolver getActionGroupResolver() {
+        return agr;
     }
-    
+
     private ActionGroupResolver reloadActionGroups(SgDynamicConfiguration<ActionGroupsV7> actionGroups) {
         return new ActionGroupResolver() {
-            
+
             private Set<String> getGroupMembers(final String groupname) {
 
                 if (actionGroups == null) {
@@ -125,55 +124,53 @@ public class ConfigModelV7 extends ConfigModel {
 
                 return Collections.unmodifiableSet(resolve(actionGroups, groupname));
             }
-            
+
             private Set<String> resolve(final SgDynamicConfiguration<?> actionGroups, final String entry) {
 
-                
                 // SG5 format, plain array
                 //List<String> en = actionGroups.getAsList(DotPath.of(entry));
                 //if (en.isEmpty()) {
-                    // try SG6 format including readonly and permissions key
+                // try SG6 format including readonly and permissions key
                 //  en = actionGroups.getAsList(DotPath.of(entry + "." + ConfigConstants.CONFIGKEY_ACTION_GROUPS_PERMISSIONS));
-                    //}
-                
-                if(!actionGroups.getCEntries().containsKey(entry)) {
+                //}
+
+                if (!actionGroups.getCEntries().containsKey(entry)) {
                     return Collections.emptySet();
                 }
-                
+
                 final Set<String> ret = new HashSet<String>();
-                
+
                 final Object actionGroupAsObject = actionGroups.getCEntries().get(entry);
-                
-                if(actionGroupAsObject != null && actionGroupAsObject instanceof List) {
-                    
-                    for (final String perm: ((List<String>) actionGroupAsObject)) {
+
+                if (actionGroupAsObject != null && actionGroupAsObject instanceof List) {
+
+                    for (final String perm : ((List<String>) actionGroupAsObject)) {
                         if (actionGroups.getCEntries().keySet().contains(perm)) {
-                            ret.addAll(resolve(actionGroups,perm));
+                            ret.addAll(resolve(actionGroups, perm));
                         } else {
                             ret.add(perm);
                         }
                     }
-                    
-                    
-                } else if(actionGroupAsObject != null &&  actionGroupAsObject instanceof ActionGroupsV7) {
-                    for (final String perm: ((ActionGroupsV7) actionGroupAsObject).getAllowed_actions()) {
+
+                } else if (actionGroupAsObject != null && actionGroupAsObject instanceof ActionGroupsV7) {
+                    for (final String perm : ((ActionGroupsV7) actionGroupAsObject).getAllowed_actions()) {
                         if (actionGroups.getCEntries().keySet().contains(perm)) {
-                            ret.addAll(resolve(actionGroups,perm));
+                            ret.addAll(resolve(actionGroups, perm));
                         } else {
                             ret.add(perm);
                         }
                     }
                 } else {
-                    throw new RuntimeException("Unable to handle "+actionGroupAsObject);
+                    throw new RuntimeException("Unable to handle " + actionGroupAsObject);
                 }
-                
+
                 return Collections.unmodifiableSet(ret);
             }
-            
+
             @Override
             public Set<String> resolvedActions(final List<String> actions) {
                 final Set<String> resolvedActions = new HashSet<String>();
-                for (String string: actions) {
+                for (String string : actions) {
                     final Set<String> groups = getGroupMembers(string);
                     if (groups.isEmpty()) {
                         resolvedActions.add(string);
@@ -192,62 +189,17 @@ public class ConfigModelV7 extends ConfigModel {
         final Set<Future<SgRole>> futures = new HashSet<>(5000);
         final ExecutorService execs = Executors.newFixedThreadPool(10);
 
-        for(Entry<String, RoleV7> sgRole: settings.getCEntries().entrySet()) {
+        for (Entry<String, RoleV7> sgRole : settings.getCEntries().entrySet()) {
 
             Future<SgRole> future = execs.submit(new Callable<SgRole>() {
 
                 @Override
                 public SgRole call() throws Exception {
-                    SgRole _sgRole = new SgRole(sgRole.getKey());
-                    
-                    if(sgRole.getValue() == null) {
+                    if (sgRole.getValue() == null) {
                         return null;
                     }
 
-                    final Set<String> permittedClusterActions = agr.resolvedActions(sgRole.getValue().getCluster_permissions());
-                    _sgRole.addClusterPerms(permittedClusterActions);
-
-                        /*for(RoleV7.Tenant tenant: sgRole.getValue().getTenant_permissions()) {
-
-                            //if(tenant.equals(user.getName())) {
-                            //    continue;
-                            //}
-
-                            if(isTenantsRw(tenant)) {
-                                _sgRole.addTenant(new Tenant(tenant.getKey(), true));
-                            } else {
-                                _sgRole.addTenant(new Tenant(tenant.getKey(), false));
-                            }
-                        }*/
-
-                        for (final Index permittedAliasesIndex : sgRole.getValue().getIndex_permissions()) {
-
-                            final String dls = permittedAliasesIndex.getDls();
-                            final List<String> fls = permittedAliasesIndex.getFls();
-                            final List<String> maskedFields = permittedAliasesIndex.getMasked_fields();
-
-                            for(String pat: permittedAliasesIndex.getIndex_patterns()) {
-                                IndexPattern _indexPattern = new IndexPattern(pat);
-                                _indexPattern.setDlsQuery(dls);
-                                _indexPattern.addFlsFields(fls);
-                                _indexPattern.addMaskedFields(maskedFields);
-                                _indexPattern.addPerm(agr.resolvedActions(permittedAliasesIndex.getAllowed_actions()));
-    
-                                /*for(Entry<String, List<String>> type: permittedAliasesIndex.getValue().getTypes(-).entrySet()) {
-                                    TypePerm typePerm = new TypePerm(type.getKey());
-                                    final List<String> perms = type.getValue();
-                                    typePerm.addPerms(agr.resolvedActions(perms));
-                                    _indexPattern.addTypePerms(typePerm);
-                                }*/
-    
-                                _sgRole.addIndexPattern(_indexPattern);
-                            
-                            }
-
-                        }
-            
-                            
-                        return _sgRole;
+                    return SgRole.create(sgRole.getKey(), sgRole.getValue(), agr);
                 }
             });
 
@@ -280,11 +232,27 @@ public class ConfigModelV7 extends ConfigModel {
         }
     }
 
-
     //beans
 
-    public static class SgRoles extends com.floragunn.searchguard.sgconf.SgRoles {
+    public static class SgRoles extends com.floragunn.searchguard.sgconf.SgRoles implements ToXContentObject {
 
+        public static SgRoles create(SgDynamicConfiguration<RoleV7> settings, ActionGroupResolver actionGroupResolver) {
+
+            SgRoles result = new SgRoles(settings.getCEntries().size());
+
+            for (Entry<String, RoleV7> entry : settings.getCEntries().entrySet()) {
+
+                if (entry.getValue() == null) {
+                    continue;
+                }
+                
+                result.addSgRole(SgRole.create(entry.getKey(), entry.getValue(), actionGroupResolver));
+            }
+            
+            return result;
+        }
+
+        
         protected final Logger log = LogManager.getLogger(this.getClass());
 
         final Set<SgRole> roles;
@@ -333,7 +301,7 @@ public class ConfigModelV7 extends ConfigModel {
         public Set<SgRole> getRoles() {
             return Collections.unmodifiableSet(roles);
         }
-        
+
         public Set<String> getRoleNames() {
             return getRoles().stream().map(r -> r.getName()).collect(Collectors.toSet());
         }
@@ -449,8 +417,9 @@ public class ConfigModelV7 extends ConfigModel {
 
         }
 
-      //kibana special only, terms eval
-        public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+        //kibana special only, terms eval
+        public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
+                ClusterService cs) {
             Set<String> retVal = new HashSet<>();
             for (SgRole sgr : roles) {
                 retVal.addAll(sgr.getAllResolvedPermittedIndices(Resolved._LOCAL_ALL, user, actions, resolver, cs));
@@ -492,10 +461,76 @@ public class ConfigModelV7 extends ConfigModel {
             roles.stream().forEach(p -> ipatterns.addAll(p.getIpatterns()));
             return ConfigModelV7.impliesTypePerm(ipatterns, resolved, user, actions, resolver, cs);
         }
+
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.startObject();
+
+            builder.startObject("_sg_meta");
+            builder.field("type", "roles");
+            builder.field("config_version", 2);
+            builder.endObject();
+            
+            for (SgRole role : roles) {
+                builder.field(role.getName(), role);
+            }
+
+            builder.endObject();
+            return builder;
+        }
     }
 
-    public static class SgRole {
+    public static class SgRole implements ToXContentObject {
 
+        static SgRole create(String roleName, RoleV7 roleConfig, ActionGroupResolver actionGroupResolver) {
+            SgRole result = new SgRole(roleName);
+
+            final Set<String> permittedClusterActions = actionGroupResolver.resolvedActions(roleConfig.getCluster_permissions());
+            result.addClusterPerms(permittedClusterActions);
+
+            // XXX
+            /*for(RoleV7.Tenant tenant: sgRole.getValue().getTenant_permissions()) {
+            
+                //if(tenant.equals(user.getName())) {
+                //    continue;
+                //}
+            
+                if(isTenantsRw(tenant)) {
+                    _sgRole.addTenant(new Tenant(tenant.getKey(), true));
+                } else {
+                    _sgRole.addTenant(new Tenant(tenant.getKey(), false));
+                }
+            }*/
+
+            for (final Index permittedAliasesIndex : roleConfig.getIndex_permissions()) {
+
+                final String dls = permittedAliasesIndex.getDls();
+                final List<String> fls = permittedAliasesIndex.getFls();
+                final List<String> maskedFields = permittedAliasesIndex.getMasked_fields();
+
+                for (String pat : permittedAliasesIndex.getIndex_patterns()) {
+                    IndexPattern _indexPattern = new IndexPattern(pat);
+                    _indexPattern.setDlsQuery(dls);
+                    _indexPattern.addFlsFields(fls);
+                    _indexPattern.addMaskedFields(maskedFields);
+                    _indexPattern.addPerm(actionGroupResolver.resolvedActions(permittedAliasesIndex.getAllowed_actions()));
+
+                    /*for(Entry<String, List<String>> type: permittedAliasesIndex.getValue().getTypes(-).entrySet()) {
+                        TypePerm typePerm = new TypePerm(type.getKey());
+                        final List<String> perms = type.getValue();
+                        typePerm.addPerms(agr.resolvedActions(perms));
+                        _indexPattern.addTypePerms(typePerm);
+                    }*/
+
+                    result.addIndexPattern(_indexPattern);
+
+                }
+
+            }
+
+            return result;
+        }
+        
         private final String name;
         //private final Set<Tenant> tenants = new HashSet<>();
         private final Set<IndexPattern> ipatterns = new HashSet<>();
@@ -519,13 +554,13 @@ public class ConfigModelV7 extends ConfigModel {
             for (IndexPattern p : ipatterns) {
                 //what if we cannot resolve one (for create purposes)
                 final boolean patternMatch = WildcardMatcher.matchAll(p.getPerms().toArray(new String[0]), actions);
-                
-//                final Set<TypePerm> tperms = p.getTypePerms();
-//                for (TypePerm tp : tperms) {
-//                    if (WildcardMatcher.matchAny(tp.typePattern, resolved.getTypes(-).toArray(new String[0]))) {
-//                        patternMatch = WildcardMatcher.matchAll(tp.perms.toArray(new String[0]), actions);
-//                    }
-//                }
+
+                //                final Set<TypePerm> tperms = p.getTypePerms();
+                //                for (TypePerm tp : tperms) {
+                //                    if (WildcardMatcher.matchAny(tp.typePattern, resolved.getTypes(-).toArray(new String[0]))) {
+                //                        patternMatch = WildcardMatcher.matchAll(tp.perms.toArray(new String[0]), actions);
+                //                    }
+                //                }
                 if (patternMatch) {
                     //resolved but can contain patterns for nonexistent indices
                     final String[] permitted = p.getResolvedIndexPattern(user, resolver, cs); //maybe they do not exist
@@ -609,18 +644,18 @@ public class ConfigModelV7 extends ConfigModel {
                     return false;
             } else if (!name.equals(other.name))
                 return false;
-//            if (tenants == null) {
-//                if (other.tenants != null)
-//                    return false;
-//            } else if (!tenants.equals(other.tenants))
-//                return false;
+            //            if (tenants == null) {
+            //                if (other.tenants != null)
+            //                    return false;
+            //            } else if (!tenants.equals(other.tenants))
+            //                return false;
             return true;
         }
 
         @Override
         public String toString() {
-            return System.lineSeparator() + "  " + name + System.lineSeparator()
-                    + "    ipatterns=" + ipatterns + System.lineSeparator() + "    clusterPerms=" + clusterPerms;
+            return System.lineSeparator() + "  " + name + System.lineSeparator() + "    ipatterns=" + ipatterns + System.lineSeparator()
+                    + "    clusterPerms=" + clusterPerms;
         }
 
         //public Set<Tenant> getTenants(User user) {
@@ -640,10 +675,32 @@ public class ConfigModelV7 extends ConfigModel {
             return name;
         }
 
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.startObject();
+
+            if (this.clusterPerms != null && this.clusterPerms.size() > 0) {
+                builder.field("cluster_permissions", this.clusterPerms);
+            }
+
+            if (ipatterns != null && ipatterns.size() > 0) {
+                builder.field("index_permissions", ipatterns);
+            }
+
+            /* TODO ????
+             * 
+            if (tenants != null && tenants.size() > 0) {
+                builder.array("tenant_permissions", tenants);
+            }
+            */
+            builder.endObject();
+
+            return builder;
+        }
     }
 
     //sg roles
-    public static class IndexPattern {
+    public static class IndexPattern implements ToXContentObject {
         private final String indexPattern;
         private String dlsQuery;
         private final Set<String> fls = new HashSet<>();
@@ -784,12 +841,38 @@ public class ConfigModelV7 extends ConfigModel {
             return Collections.unmodifiableSet(perms);
         }
 
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.startObject();
+            // TODO XXX
+            builder.field("index_patterns", Collections.singletonList(indexPattern));
+
+            if (dlsQuery != null) {
+                builder.field("dls", dlsQuery);
+            }
+
+            if (fls != null && fls.size() > 0) {
+                builder.field("fls", fls);
+            }
+
+            if (maskedFields != null && maskedFields.size() > 0) {
+                builder.field("masked_fields", maskedFields);
+            }
+
+            if (perms != null && perms.size() > 0) {
+                builder.field("allowed_actions", perms);
+            }
+
+            builder.endObject();
+            return builder;
+        }
+
     }
 
     /*public static class TypePerm {
         private final String typePattern;
         private final Set<String> perms = new HashSet<>();
-
+    
         private TypePerm(String typePattern) {
             super();
             this.typePattern = Objects.requireNonNull(typePattern);
@@ -797,14 +880,14 @@ public class ConfigModelV7 extends ConfigModel {
                 throw new RuntimeException("typepattern '"+typePattern+"' not allowed");
             }
         }
-
+    
         private TypePerm addPerms(Collection<String> perms) {
             if (perms != null) {
                 this.perms.addAll(perms);
             }
             return this;
         }
-
+    
         @Override
         public int hashCode() {
             final int prime = 31;
@@ -813,7 +896,7 @@ public class ConfigModelV7 extends ConfigModel {
             result = prime * result + ((typePattern == null) ? 0 : typePattern.hashCode());
             return result;
         }
-
+    
         @Override
         public boolean equals(Object obj) {
             if (this == obj)
@@ -835,20 +918,20 @@ public class ConfigModelV7 extends ConfigModel {
                 return false;
             return true;
         }
-
+    
         @Override
         public String toString() {
             return System.lineSeparator() + "             typePattern=" + typePattern + System.lineSeparator() + "             perms=" + perms;
         }
-
+    
         public String getTypePattern() {
             return typePattern;
         }
-
+    
         public Set<String> getPerms() {
             return Collections.unmodifiableSet(perms);
         }
-
+    
     }*/
 
     public static class Tenant {
@@ -948,16 +1031,16 @@ public class ConfigModelV7 extends ConfigModel {
                 if (WildcardMatcher.matchAny(p.getResolvedIndexPattern(user, resolver, cs), in)) {
                     //per resolved index per pattern
                     //for (String t : resolved.getTypes(-)) {
-                        //for (TypePerm tp : p.typePerms) {
-                            //if (WildcardMatcher.match(tp.typePattern, t)) {
-                                //matchingTypes.remove(t);
-                                for (String a : Arrays.asList(actions)) {
-                                    if (WildcardMatcher.matchAny(p.perms, a)) {
-                                        matchingActions.remove(a);
-                                    }
-                                }
-                            //}
-                        //}
+                    //for (TypePerm tp : p.typePerms) {
+                    //if (WildcardMatcher.match(tp.typePattern, t)) {
+                    //matchingTypes.remove(t);
+                    for (String a : Arrays.asList(actions)) {
+                        if (WildcardMatcher.matchAny(p.perms, a)) {
+                            matchingActions.remove(a);
+                        }
+                    }
+                    //}
+                    //}
                     //}
                 }
             }
@@ -969,43 +1052,44 @@ public class ConfigModelV7 extends ConfigModel {
 
         return matchingIndex.isEmpty();
     }
-    
-    
-    
+
     //#######
-    
+
     private class TenantHolder {
 
-        private SetMultimap<String, Tuple<String, Boolean>> tenantsMM = null;
+        private static final String KIBANA_ALL_SAVED_OBJECTS_WRITE = "kibana:saved_objects/*/write";
+        private final Set<String> KIBANA_ALL_SAVED_OBJECTS_WRITE_SET = ImmutableSet.of(KIBANA_ALL_SAVED_OBJECTS_WRITE);
+        
+        // TODO make this data structure more readable
+        private SetMultimap<String, Tuple<String, Set<String>>> tenantsMM = null;
 
         public TenantHolder(SgDynamicConfiguration<RoleV7> roles, SgDynamicConfiguration<TenantV7> definedTenants) {
-            final Set<Future<Tuple<String, Set<Tuple<String, Boolean>>>>> futures = new HashSet<>(roles.getCEntries().size());
+            final Set<Future<Tuple<String, Set<Tuple<String, Set<String>>>>>> futures = new HashSet<>(roles.getCEntries().size());
 
             final ExecutorService execs = Executors.newFixedThreadPool(10);
 
-            for(Entry<String, RoleV7> sgRole: roles.getCEntries().entrySet()) {
-                
-                if(sgRole.getValue() == null) {
+            for (Entry<String, RoleV7> sgRole : roles.getCEntries().entrySet()) {
+
+                if (sgRole.getValue() == null) {
                     continue;
                 }
 
-                Future<Tuple<String, Set<Tuple<String, Boolean>>>> future = execs.submit(new Callable<Tuple<String, Set<Tuple<String, Boolean>>>>() {
+                Future<Tuple<String, Set<Tuple<String, Set<String>>>>> future = execs.submit(new Callable<Tuple<String, Set<Tuple<String, Set<String>>>>>() {
                     @Override
-                    public Tuple<String, Set<Tuple<String, Boolean>>> call() throws Exception {
-                        final Set<Tuple<String, Boolean>> tuples = new HashSet<>();
+                    public Tuple<String, Set<Tuple<String, Set<String>>>> call() throws Exception {
+                        final Set<Tuple<String, Set<String>>> tuples = new HashSet<>();
                         final List<RoleV7.Tenant> tenants = sgRole.getValue().getTenant_permissions();
 
                         if (tenants != null) {
-                            
-                            for (RoleV7.Tenant tenant : tenants) {
-                                
+
+                            for (RoleV7.Tenant tenant : tenants) {                                
                                 for(String matchingTenant: WildcardMatcher.getMatchAny(tenant.getTenant_patterns(), definedTenants.getCEntries().keySet())) {
-                                    tuples.add(new Tuple<String, Boolean>(matchingTenant, agr.resolvedActions(tenant.getAllowed_actions()).contains("kibana:saved_objects/*/write")));
+                                    tuples.add(new Tuple<String, Set<String>>(matchingTenant, agr.resolvedActions(tenant.getAllowed_actions())));
                                 }
                             }
                         }
 
-                        return new Tuple<String, Set<Tuple<String, Boolean>>>(sgRole.getKey(), tuples);
+                        return new Tuple<String, Set<Tuple<String, Set<String>>>>(sgRole.getKey(), tuples);
                     }
                 });
 
@@ -1023,20 +1107,20 @@ public class ConfigModelV7 extends ConfigModel {
             }
 
             try {
-                final SetMultimap<String, Tuple<String, Boolean>> tenantsMM_ = SetMultimapBuilder.hashKeys(futures.size()).hashSetValues(16).build();
+                final SetMultimap<String, Tuple<String, Set<String>>> tenantsMM_ = SetMultimapBuilder.hashKeys(futures.size()).hashSetValues(16).build();
 
-                for (Future<Tuple<String, Set<Tuple<String, Boolean>>>> future : futures) {
-                    Tuple<String, Set<Tuple<String, Boolean>>> result = future.get();
+                for (Future<Tuple<String, Set<Tuple<String, Set<String>>>>> future : futures) {
+                    Tuple<String, Set<Tuple<String, Set<String>>>> result = future.get();
                     tenantsMM_.putAll(result.v1(), result.v2());
                 }
 
                 tenantsMM = tenantsMM_;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.error("Thread interrupted (2) while loading roles");
+                log.error("Thread interrupted (2) while loading tenants");
                 return;
             } catch (ExecutionException e) {
-                log.error("Error while updating roles: {}", e.getCause(), e.getCause());
+                log.error("Error while updating tenants: {}", e.getCause(), e.getCause());
                 throw ExceptionsHelper.convertToElastic(e);
             }
 
@@ -1052,11 +1136,39 @@ public class ConfigModelV7 extends ConfigModel {
             result.put(user.getName(), true);
 
             tenantsMM.entries().stream().filter(e -> roles.contains(e.getKey())).filter(e -> !user.getName().equals(e.getValue().v1())).forEach(e -> {
-                final String tenant = e.getValue().v1();
-                final boolean rw = e.getValue().v2();
+                String tenant = e.getValue().v1();
+                Set<String> permissions = e.getValue().v2();
+                
+                boolean rw = containsKibanaWritePermission(permissions);
 
                 if (rw || !result.containsKey(tenant)) { //RW outperforms RO
                     result.put(tenant, rw);
+                }
+            });
+
+            if (!result.containsKey("SGS_GLOBAL_TENANT") && (roles.contains("sg_kibana_user") || roles.contains("SGS_KIBANA_USER")
+                    || roles.contains("sg_all_access") || roles.contains("SGS_ALL_ACCESS"))) {
+                result.put("SGS_GLOBAL_TENANT", true);
+            }
+
+            return Collections.unmodifiableMap(result);
+        }
+        
+        public Map<String, Set<String>> mapTenantPermissions(final User user, Set<String> roles) {
+
+            if (user == null || tenantsMM == null) {
+                return Collections.emptyMap();
+            }
+
+            final Map<String, Set<String>> result = new HashMap<>(roles.size());
+            result.put(user.getName(), ImmutableSet.of("*"));
+            
+            tenantsMM.entries().stream().filter(e -> roles.contains(e.getKey())).filter(e -> !user.getName().equals(e.getValue().v1())).forEach(e -> {
+
+                if(result.get(e.getValue().v1()) != null) {
+                    result.get(e.getValue().v1()).addAll(e.getValue().v2());
+                } else {
+                    result.put(e.getValue().v1(), new HashSet<String>((e.getValue().v2())));
                 }
             });
             
@@ -1066,10 +1178,22 @@ public class ConfigModelV7 extends ConfigModel {
                     || roles.contains("sg_all_access")
                     || roles.contains("SGS_ALL_ACCESS")
                     )) {
-                result.put("SGS_GLOBAL_TENANT", true);
+                result.put("SGS_GLOBAL_TENANT", KIBANA_ALL_SAVED_OBJECTS_WRITE_SET);
             }
 
             return Collections.unmodifiableMap(result);
+        }
+        
+        private boolean containsKibanaWritePermission(Set<String> permissionsToBeSearched) {
+            if (permissionsToBeSearched.contains(KIBANA_ALL_SAVED_OBJECTS_WRITE)) {
+                return true;
+            }
+            
+            if (permissionsToBeSearched.contains("*")) {
+                return true;
+            }
+            
+            return WildcardMatcher.matchAny(permissionsToBeSearched, KIBANA_ALL_SAVED_OBJECTS_WRITE);
         }
     }
 
@@ -1084,7 +1208,7 @@ public class ConfigModelV7 extends ConfigModel {
         private RoleMappingHolder(final SgDynamicConfiguration<RoleMappingsV7> rolemappings, final String hostResolverMode) {
 
             this.hostResolverMode = hostResolverMode;
-            
+
             if (roles != null) {
 
                 final ListMultimap<String, String> users_ = ArrayListMultimap.create();
@@ -1186,14 +1310,17 @@ public class ConfigModelV7 extends ConfigModel {
         }
     }
     
-    
-    
-    
+    @Override
+    public Map<String, Set<String>> mapTenantPermissions(User user, Set<String> roles) {
+        return tenantHolder.mapTenantPermissions(user, roles);
+    }
 
+    @Override
     public Map<String, Boolean> mapTenants(User user, Set<String> roles) {
         return tenantHolder.mapTenants(user, roles);
     }
 
+    @Override
     public Set<String> mapSgRoles(User user, TransportAddress caller) {
         return roleMappingHolder.map(user, caller);
     }

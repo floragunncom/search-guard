@@ -240,3 +240,95 @@ SGS_CLUSTER_MANAGE_PIPELINES:
   - "cluster:admin/ingest/pipeline/*"
   type: "cluster"
   description: "Manage pipelines"
+
+### Signals
+
+SGS_SIGNALS_ALL:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:tenant:signals:*"
+    - "cluster:admin:searchguard:signals:*"
+  type: "signals"
+  description: "Grants alls permissions for Signals Alerting"
+
+### Watches
+
+SGS_SIGNALS_WATCH_READ:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:tenant:signals:watch/get"
+    - "cluster:admin:searchguard:tenant:signals:watch/search"
+    - "cluster:admin:searchguard:tenant:signals:watch:state/get"
+    - "cluster:admin:searchguard:tenant:signals:watch:state/search"
+  type: "signals"
+  description: "Grants permissions to read Signals Alerting watches"
+
+SGS_SIGNALS_WATCH_MANAGE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - SGS_SIGNALS_WATCH_READ
+    - "cluster:admin:searchguard:tenant:signals:watch/put"
+    - "cluster:admin:searchguard:tenant:signals:watch/delete"
+    - "cluster:admin:searchguard:tenant:signals:watch/execute"
+    - "cluster:admin:searchguard:tenant:signals:watch/activate_deactivate"
+    - "cluster:admin:searchguard:tenant:signals:watch/ack"
+  type: "signals"
+  description: "Grants permissions to write Signals Alerting watches"
+
+SGS_SIGNALS_WATCH_EXECUTE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:tenant:signals:watch/execute"
+  type: "signals"
+  description: "Grants permissions to execute Signals Alerting watches"
+
+SGS_SIGNALS_WATCH_ACTIVATE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:tenant:signals:watch/activate_deactivate"
+  type: "signals"
+  description: "Grants permissions to activate and deactivate Signals Alerting watches"
+
+SGS_SIGNALS_WATCH_ACKNOWLEDGE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:tenant:signals:watch/ack"
+  type: "signals"
+  description: "Grants permissions to acknowledge Signals Alerting watches"
+
+
+### Accounts
+
+SGS_SIGNALS_ACCOUNT_READ:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:signals:account/get"
+    - "cluster:admin:searchguard:signals:account/search"
+  type: "signals"
+  description: "Grants permissions to read Signals Accounts"
+
+SGS_SIGNALS_ACCOUNT_MANAGE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - SGS_SIGNALS_ACCOUNT_READ
+    - "cluster:admin:searchguard:signals:account/put"
+    - "cluster:admin:searchguard:signals:account/delete"
+  type: "signals"
+  description: "Grants permissions to write Signals Accounts"
+

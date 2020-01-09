@@ -163,6 +163,11 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
     public Multimap<String, ClientBlockRegistry<String>> getAuthBackendClientBlockRegistries() {
         return Multimaps.unmodifiableMultimap(authBackendClientBlockRegistries);
     }
+
+    @Override
+    public boolean isKibanaRbacEnabled() {
+        return false;
+    }
     
     private void buildAAA() {
         

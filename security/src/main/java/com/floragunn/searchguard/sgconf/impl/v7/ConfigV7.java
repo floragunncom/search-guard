@@ -106,10 +106,14 @@ public class ConfigV7 {
         public boolean multitenancy_enabled = true;
         public String server_username = "kibanaserver";
         public String index = ".kibana";
+        public boolean rbac_enabled;
         @Override
         public String toString() {
-            return "Kibana [multitenancy_enabled=" + multitenancy_enabled + ", server_username=" + server_username + ", index=" + index + "]";
+            return "Kibana [multitenancy_enabled=" + multitenancy_enabled + ", server_username=" + server_username + ", index=" + index
+                    + ", rbac_enabled=" + rbac_enabled + "]";
         }
+        
+        
         
         
         

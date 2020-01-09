@@ -63,6 +63,36 @@ public class SgDynamicConfiguration<T> implements ToXContent {
         return sdc;
     }
     
+    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype) throws IOException {
+        int configVersion = getConfigVersion(map, ctype);
+        
+        return fromMap(map, ctype, configVersion, -1, -1);
+    }
+    
+   
+    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype, int version, long seqNo, long primaryTerm) throws IOException {
+        SgDynamicConfiguration<T> sdc = null;
+        if(ctype != null) {
+            final Class<?> implementationClass = ctype.getImplementationClass().get(version);
+            if(implementationClass == null) {
+                throw new IllegalArgumentException("No implementation class found for "+ctype+" and config version "+version);
+            }
+            sdc = DefaultObjectMapper.convertValue(map, DefaultObjectMapper.getTypeFactory().constructParametricType(SgDynamicConfiguration.class, implementationClass));
+        
+            validate(sdc, version, ctype);
+        
+        } else {
+            sdc = new SgDynamicConfiguration<T>();
+        }
+        
+        sdc.ctype = ctype;
+        sdc.seqNo = seqNo;
+        sdc.primaryTerm = primaryTerm;
+        sdc.version = version;
+
+        return sdc;
+    }
+    
     public static void validate(SgDynamicConfiguration sdc, int version, CType ctype) throws IOException {
         if(version < 2 && sdc.get_sg_meta() != null) {
             throw new IOException("A version of "+version+" can not have a _sg_meta key for "+ctype);
@@ -85,6 +115,23 @@ public class SgDynamicConfiguration<T> implements ToXContent {
     public static <T> SgDynamicConfiguration<T> fromNode(JsonNode json, CType ctype, int version, long seqNo, long primaryTerm) throws IOException {
         return fromJson(DefaultObjectMapper.writeValueAsString(json, false), ctype, version, seqNo, primaryTerm);
     }
+    
+    private static int getConfigVersion(Map<String, Object> map, CType ctype) {
+        if (!(map.get("_sg_meta") instanceof Map)) {
+            return 1;
+        }
+        
+        Map<?,?> meta = (Map<?,?>) map.get("_sg_meta");
+        
+        Object version = meta.get("config_version");
+        
+        if (version instanceof Number) {
+            return ((Number) version).intValue();
+        } else {
+            return 1;
+        }
+    }
+    
     
     //for Jackson
     private SgDynamicConfiguration() {

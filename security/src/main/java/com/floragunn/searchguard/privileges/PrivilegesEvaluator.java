@@ -18,7 +18,9 @@
 package com.floragunn.searchguard.privileges;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -28,6 +30,7 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
@@ -66,6 +69,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider.AuthFromInternalAuthToken;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.ConfigModel;
@@ -102,10 +106,9 @@ public class PrivilegesEvaluator implements DCFListener {
     private final boolean enterpriseModulesEnabled;
     private DynamicConfigModel dcm;
 
-
     public PrivilegesEvaluator(final ClusterService clusterService, final ThreadPool threadPool,
-            final ConfigurationRepository configurationRepository, final IndexNameExpressionResolver resolver,
-            AuditLog auditLog, final Settings settings, final PrivilegesInterceptor privilegesInterceptor, final ClusterInfoHolder clusterInfoHolder,
+            final ConfigurationRepository configurationRepository, final IndexNameExpressionResolver resolver, AuditLog auditLog,
+            final Settings settings, final PrivilegesInterceptor privilegesInterceptor, final ClusterInfoHolder clusterInfoHolder,
             final IndexResolverReplacer irr, boolean enterpriseModulesEnabled) {
 
         super();
@@ -128,7 +131,6 @@ public class PrivilegesEvaluator implements DCFListener {
         this.enterpriseModulesEnabled = enterpriseModulesEnabled;
     }
 
-    
     @Override
     public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
         this.dcm = dcm;
@@ -140,10 +142,11 @@ public class PrivilegesEvaluator implements DCFListener {
     }
 
     public boolean isInitialized() {
-        return configModel !=null && configModel.getSgRoles() != null && dcm != null;
+        return configModel != null && configModel.getSgRoles() != null && dcm != null;
     }
 
-    public PrivilegesEvaluatorResponse evaluate(final User user, String action0, final ActionRequest request, Task task) {
+    public PrivilegesEvaluatorResponse evaluate(final User user, String action0, final ActionRequest request, Task task,
+            AuthFromInternalAuthToken authFromInternalAuthToken) {
 
         if (!isInitialized()) {
             throw new ElasticsearchSecurityException("Search Guard is not initialized.");
@@ -153,10 +156,19 @@ public class PrivilegesEvaluator implements DCFListener {
             action0 = "indices:admin/upgrade";
         }
 
-        final TransportAddress caller = Objects.requireNonNull((TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
+        TransportAddress caller;
+        Set<String> mappedRoles;
+        SgRoles sgRoles;
 
-        final Set<String> mappedRoles = mapSgRoles(user, caller);
-        final SgRoles sgRoles = getSgRoles(mappedRoles);
+        if (authFromInternalAuthToken == null) {
+            caller = Objects.requireNonNull((TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
+            mappedRoles = mapSgRoles(user, caller);
+            sgRoles = getSgRoles(mappedRoles);
+        } else {
+            caller = null;
+            mappedRoles = authFromInternalAuthToken.getSgRoles().getRoleNames();
+            sgRoles = authFromInternalAuthToken.getSgRoles();
+        }
 
         final PrivilegesEvaluatorResponse presponse = new PrivilegesEvaluatorResponse();
 
@@ -189,11 +201,11 @@ public class PrivilegesEvaluator implements DCFListener {
         }
 
         final boolean dnfofEnabled = dcm.isDnfofEnabled();
-        
-        if(log.isTraceEnabled()) {
+
+        if (log.isTraceEnabled()) {
             log.trace("dnfof enabled? {}", dnfofEnabled);
         }
-        
+
         if (isClusterPerm(action0)) {
             if (!sgRoles.impliesClusterPermissionPermission(action0)) {
                 presponse.missingPrivileges.add(action0);
@@ -262,6 +274,19 @@ public class PrivilegesEvaluator implements DCFListener {
             }
         }
 
+        if (isTenantPerm(action0)) {
+            if (!hasTenantPermission(user, mappedRoles, action0)) {
+                presponse.missingPrivileges.add(action0);
+                presponse.allowed = false;
+                log.info("No {}-level perm match for {} {} [Action [{}]] [RolesChecked {}]", "tenant", user, requestedResolved, action0, mappedRoles);
+                log.info("No permissions for {}", presponse.missingPrivileges);
+                return presponse;
+            } else {
+                presponse.allowed = true;
+                return presponse;
+            }
+        }
+
         // term aggregations
         if (termsAggregationEvaluator.evaluate(requestedResolved, request, clusterService, user, sgRoles, resolver, presponse).isComplete()) {
             return presponse;
@@ -319,26 +344,26 @@ public class PrivilegesEvaluator implements DCFListener {
             Set<String> reduced = sgRoles.reduce(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
 
             if (reduced.isEmpty()) {
-                
-                if(dcm.isDnfofForEmptyResultsEnabled()) {
+
+                if (dcm.isDnfofForEmptyResultsEnabled()) {
                     //ITT-1886
-                    if(request instanceof SearchRequest) {
+                    if (request instanceof SearchRequest) {
                         ((SearchRequest) request).indices(new String[0]);
                         ((SearchRequest) request).indicesOptions(IndicesOptions.fromOptions(true, true, false, false));
                         presponse.missingPrivileges.clear();
                         presponse.allowed = true;
                         return presponse;
                     }
-    
-                    if(request instanceof ClusterSearchShardsRequest) {
+
+                    if (request instanceof ClusterSearchShardsRequest) {
                         ((ClusterSearchShardsRequest) request).indices(new String[0]);
                         ((ClusterSearchShardsRequest) request).indicesOptions(IndicesOptions.fromOptions(true, true, false, false));
                         presponse.missingPrivileges.clear();
                         presponse.allowed = true;
                         return presponse;
                     }
-                    
-                    if(request instanceof GetFieldMappingsRequest) {
+
+                    if (request instanceof GetFieldMappingsRequest) {
                         ((GetFieldMappingsRequest) request).indices(new String[0]);
                         ((GetFieldMappingsRequest) request).indicesOptions(IndicesOptions.fromOptions(true, true, false, false));
                         presponse.missingPrivileges.clear();
@@ -360,7 +385,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
         //not bulk, mget, etc request here
         boolean permGiven = false;
-        
+
         if (log.isDebugEnabled()) {
             log.debug("sgr2: {}", sgRoles.getRoleNames());
         }
@@ -406,13 +431,11 @@ public class PrivilegesEvaluator implements DCFListener {
     }
 
     public boolean multitenancyEnabled() {
-        return privilegesInterceptor.getClass() != PrivilegesInterceptor.class
-                && dcm.isKibanaMultitenancyEnabled();
+        return privilegesInterceptor.getClass() != PrivilegesInterceptor.class && dcm.isKibanaMultitenancyEnabled();
     }
 
     public boolean notFailOnForbiddenEnabled() {
-        return privilegesInterceptor.getClass() != PrivilegesInterceptor.class
-                && dcm.isDnfofEnabled();
+        return privilegesInterceptor.getClass() != PrivilegesInterceptor.class && dcm.isDnfofEnabled();
     }
 
     public String kibanaIndex() {
@@ -491,12 +514,18 @@ public class PrivilegesEvaluator implements DCFListener {
     }
 
     private static boolean isClusterPerm(String action0) {
-        return (action0.startsWith("cluster:") || action0.startsWith("indices:admin/template/")
+        // TODO tenant permissions
 
-                || action0.startsWith(SearchScrollAction.NAME) || (action0.equals(BulkAction.NAME)) || (action0.equals(MultiGetAction.NAME))
-                || (action0.equals(MultiSearchAction.NAME)) || (action0.equals(MultiTermVectorsAction.NAME)) || (action0.equals(ReindexAction.NAME))
+        return !isTenantPerm(action0) && (action0.startsWith("searchguard:cluster:") || action0.startsWith("cluster:")
+                || action0.startsWith("indices:admin/template/") || action0.startsWith(SearchScrollAction.NAME) || (action0.equals(BulkAction.NAME))
+                || (action0.equals(MultiGetAction.NAME)) || (action0.equals(MultiSearchAction.NAME)) || (action0.equals(MultiTermVectorsAction.NAME))
+                || (action0.equals(ReindexAction.NAME))
 
         );
+    }
+
+    private static boolean isTenantPerm(String action0) {
+        return action0.startsWith("cluster:admin:searchguard:tenant:");
     }
 
     private boolean checkFilteredAliases(Set<String> requestedResolvedIndices, String action) {
@@ -575,6 +604,66 @@ public class PrivilegesEvaluator implements DCFListener {
         }
 
         return Collections.unmodifiableList(ret);
+    }
+
+    public Map<String, Boolean> evaluateKibanaApplicationPrivileges(User user, TransportAddress caller, Collection<String> privileges) {
+
+        if (privileges == null || privileges.isEmpty() || user == null) {
+            log.debug(() -> "Privileges or user empty");
+            return Collections.emptyMap();
+        }
+
+        final Set<String> mappedRoles = mapSgRoles(user, caller);
+        final Map<String, Set<String>> tenantsPerms = this.configModel.mapTenantPermissions(user, mappedRoles);
+
+        final String requestedTenant = user.getRequestedTenant();
+
+        if (requestedTenant != null && multitenancyEnabled()) {
+            //non-global tenant
+            log.debug(() -> "Non global tenant: " + requestedTenant);
+            return evaluateTenantPrivileges(tenantsPerms.get(requestedTenant.equals(User.USER_TENANT) ? user.getName() : requestedTenant),
+                    privileges);
+        } else {
+            //global tenant or no mt enabled
+            log.debug(() -> "Global tenant");
+            return evaluateTenantPrivileges(tenantsPerms.get("SGS_GLOBAL_TENANT"), privileges);
+        }
+    }
+
+    private Map<String, Boolean> evaluateTenantPrivileges(Set<String> privilegesGranted, Collection<String> privilegesAskedFor) {
+        log.debug(() -> "Check " + privilegesGranted + " against " + privilegesAskedFor);
+        final Map<String, Boolean> result = new HashMap<>();
+        for (String privilegeAskedFor : privilegesAskedFor) {
+
+            if (privilegesGranted == null || privilegesGranted.isEmpty()) {
+                result.put(privilegeAskedFor, false);
+            } else {
+                result.put(privilegeAskedFor, WildcardMatcher.matchAny(privilegesGranted, privilegeAskedFor));
+            }
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    public boolean hasTenantPermission(User user, Set<String> mappedRoles, String action) {
+        Map<String, Set<String>> tenantsPerms = this.configModel.mapTenantPermissions(user, mappedRoles);
+
+        String requestedTenant = Strings.isNotEmpty(user.getRequestedTenant()) ? user.getRequestedTenant() : "SGS_GLOBAL_TENANT";
+
+        if (!multitenancyEnabled() && !"SGS_GLOBAL_TENANT".equals(requestedTenant)) {
+            return false;
+        }
+
+        Set<String> permissions = tenantsPerms.get(requestedTenant);
+
+        if (permissions == null || permissions.isEmpty()) {
+            return false;
+        }
+
+        return WildcardMatcher.matchAny(permissions, action);
+    }
+
+    public boolean isKibanaRbacEnabled() {
+        return dcm.isKibanaRbacEnabled();
     }
 
 }

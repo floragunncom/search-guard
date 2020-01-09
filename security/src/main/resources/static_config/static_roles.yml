@@ -19,7 +19,7 @@ SGS_ALL_ACCESS:
     - tenant_patterns:
         - "*"
       allowed_actions:
-        - "SGS_KIBANA_ALL_WRITE"
+        - "*"
 
 SGS_KIBANA_USER:
   reserved: true

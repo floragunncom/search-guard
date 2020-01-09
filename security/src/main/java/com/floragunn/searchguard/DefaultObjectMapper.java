@@ -15,6 +15,8 @@
 package com.floragunn.searchguard;
 
 import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -22,6 +24,8 @@ import java.security.PrivilegedExceptionAction;
 import org.elasticsearch.SpecialPermission;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -35,7 +39,7 @@ public class DefaultObjectMapper {
     public static final ObjectMapper objectMapper = new ObjectMapper();
     public final static ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
     private static final ObjectMapper defaulOmittingObjectMapper = new ObjectMapper();
-    
+
     static {
         objectMapper.setSerializationInclusion(Include.NON_NULL);
         //objectMapper.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
@@ -64,7 +68,7 @@ public class DefaultObjectMapper {
             throw (IOException) e.getCause();
         }
     }
-    
+
     public static <T> T readValue(String string, Class<T> clazz) throws IOException {
 
         final SecurityManager sm = System.getSecurityManager();
@@ -84,7 +88,7 @@ public class DefaultObjectMapper {
             throw (IOException) e.getCause();
         }
     }
-    
+
     public static JsonNode readTree(String string) throws IOException {
 
         final SecurityManager sm = System.getSecurityManager();
@@ -105,6 +109,13 @@ public class DefaultObjectMapper {
         }
     }
 
+    public static String writeJsonTree(JsonNode jsonNode) throws IOException {
+        Writer writer = new StringWriter();
+        JsonGenerator jsonGenerator = new JsonFactory().createGenerator(writer);
+        objectMapper.writeTree(jsonGenerator, jsonNode);
+        return writer.toString();
+    }
+
     public static String writeValueAsString(Object value, boolean omitDefaults) throws JsonProcessingException {
 
         final SecurityManager sm = System.getSecurityManager();
@@ -117,7 +128,7 @@ public class DefaultObjectMapper {
             return AccessController.doPrivileged(new PrivilegedExceptionAction<String>() {
                 @Override
                 public String run() throws Exception {
-                    return (omitDefaults?defaulOmittingObjectMapper:objectMapper).writeValueAsString(value);
+                    return (omitDefaults ? defaulOmittingObjectMapper : objectMapper).writeValueAsString(value);
                 }
             });
         } catch (final PrivilegedActionException e) {
@@ -160,6 +171,50 @@ public class DefaultObjectMapper {
                 @Override
                 public T run() throws Exception {
                     return objectMapper.readValue(string, jt);
+                }
+            });
+        } catch (final PrivilegedActionException e) {
+            throw (IOException) e.getCause();
+        }
+    }
+
+    public static <T> T convertValue(Object value, JavaType jt) throws IOException {
+        return convertValue(value, jt, false);
+    }
+
+    public static <T> T convertValue(Object value, JavaType jt, boolean omitDefaults) throws IOException {
+
+        final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        try {
+            return AccessController.doPrivileged(new PrivilegedExceptionAction<T>() {
+                @Override
+                public T run() throws Exception {
+                    return (omitDefaults ? defaulOmittingObjectMapper : objectMapper).convertValue(value, jt);
+                }
+            });
+        } catch (final PrivilegedActionException e) {
+            throw (IOException) e.getCause();
+        }
+    }
+
+    public static <T> T convertValue(Object value, Class<T> clazz, boolean omitDefaults) throws IOException {
+
+        final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        try {
+            return AccessController.doPrivileged(new PrivilegedExceptionAction<T>() {
+                @Override
+                public T run() throws Exception {
+                    return (omitDefaults ? defaulOmittingObjectMapper : objectMapper).convertValue(value, clazz);
                 }
             });
         } catch (final PrivilegedActionException e) {

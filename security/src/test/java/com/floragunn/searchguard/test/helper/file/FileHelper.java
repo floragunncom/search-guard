@@ -19,7 +19,9 @@ package com.floragunn.searchguard.test.helper.file;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
@@ -83,7 +85,14 @@ public class FileHelper {
 
 	public static final String loadFile(final String file) throws IOException {
 		final StringWriter sw = new StringWriter();
-		IOUtils.copy(FileHelper.class.getResourceAsStream("/" + file), sw, StandardCharsets.UTF_8);
+		
+		InputStream is = FileHelper.class.getResourceAsStream("/" + file);
+		
+		if (is == null) {
+		    throw new FileNotFoundException("Could not find resource in class path: " + file);
+		}
+		
+		IOUtils.copy(is, sw, StandardCharsets.UTF_8);
 		return sw.toString();
 	}
 	

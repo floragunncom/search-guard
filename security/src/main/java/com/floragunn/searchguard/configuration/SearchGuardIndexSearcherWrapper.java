@@ -28,6 +28,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
 
+import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.User;
@@ -37,14 +38,12 @@ public class SearchGuardIndexSearcherWrapper implements CheckedFunction<Director
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final ThreadContext threadContext;
     protected final Index index;
-    protected final String searchguardIndex;
     private final AdminDNs adminDns;
 
     //constructor is called per index, so avoid costly operations here
-    public SearchGuardIndexSearcherWrapper(final IndexService indexService, final Settings settings, final AdminDNs adminDNs) {
-        index = indexService.index();
-        threadContext = indexService.getThreadPool().getThreadContext();
-        this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
+	public SearchGuardIndexSearcherWrapper(final IndexService indexService, final Settings settings, final AdminDNs adminDNs) {
+	    index = indexService.index();
+	    threadContext = indexService.getThreadPool().getThreadContext();
         this.adminDns = adminDNs;
     }
 
@@ -77,7 +76,7 @@ public class SearchGuardIndexSearcherWrapper implements CheckedFunction<Director
     }
 
     protected final boolean isSearchGuardIndexRequest() {
-        return index.getName().equals(searchguardIndex);
+        return SearchGuardPlugin.getProtectedIndices().isProtected(index.getName());
     }
 
 }

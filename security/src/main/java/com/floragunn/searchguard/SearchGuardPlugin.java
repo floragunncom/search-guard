@@ -28,6 +28,7 @@ import java.security.MessageDigest;
 import java.security.PrivilegedAction;
 import java.security.Security;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,12 +56,13 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.support.ActionFilter;
+import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.component.Lifecycle.State;
 import org.elasticsearch.common.CheckedFunction;
+import org.elasticsearch.common.component.Lifecycle.State;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.component.LifecycleListener;
 import org.elasticsearch.common.inject.Inject;
@@ -89,10 +91,12 @@ import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ClusterPlugin;
 import org.elasticsearch.plugins.MapperPlugin;
+import org.elasticsearch.plugins.ScriptPlugin;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.ScrollContext;
 import org.elasticsearch.search.internal.SearchContext;
@@ -135,10 +139,13 @@ import com.floragunn.searchguard.filter.SearchGuardRestFilter;
 import com.floragunn.searchguard.http.SearchGuardHttpServerTransport;
 import com.floragunn.searchguard.http.SearchGuardNonSslHttpServerTransport;
 import com.floragunn.searchguard.http.XFFResolver;
+import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer;
+import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.rest.KibanaInfoAction;
+import com.floragunn.searchguard.rest.PermissionAction;
 import com.floragunn.searchguard.rest.SearchGuardHealthAction;
 import com.floragunn.searchguard.rest.SearchGuardInfoAction;
 import com.floragunn.searchguard.rest.SearchGuardLicenseAction;
@@ -159,9 +166,11 @@ import com.floragunn.searchguard.transport.DefaultInterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.SearchGuardInterceptor;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.jobs.actions.SchedulerActions;
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
-public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements ClusterPlugin, MapperPlugin {
+public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements ClusterPlugin, MapperPlugin, ScriptPlugin {
 
     private static final String KEYWORD = ".keyword";
     private final boolean dlsFlsAvailable;
@@ -184,6 +193,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private volatile SearchGuardFilter sgf;
     private volatile ComplianceConfig complianceConfig;
     private volatile IndexResolverReplacer irr;
+    // XXX
+    private ScriptService scriptService;
+    // XXX
+    private NamedXContentRegistry xContentRegistry;
+
+    private static ProtectedIndices protectedIndices;
     private volatile NamedXContentRegistry namedXContentRegistry = null;
     private volatile DlsFlsRequestValve dlsFlsValve = null;
 
@@ -221,6 +236,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             this.enterpriseModulesEnabled = false;
             this.sslOnly = false;
             complianceConfig = null;
+            SearchGuardPlugin.protectedIndices = new ProtectedIndices();
             log.warn("Search Guard plugin installed but disabled. This can expose your configuration (including passwords) to the public.");
             return;
         }
@@ -232,9 +248,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             this.dlsFlsConstructor = null;
             this.enterpriseModulesEnabled = false;
             complianceConfig = null;
+            SearchGuardPlugin.protectedIndices = new ProtectedIndices();
             log.warn("Search Guard plugin run in ssl only mode. No authentication or authorization is performed");
             return;
         }
+
+        SearchGuardPlugin.protectedIndices = new ProtectedIndices(settings);
 
         demoCertHashes.add("54a92508de7a39d06242a0ffbf59414d7eb478633c719e6af03938daf6de8a1a");
         demoCertHashes.add("742e4659c79d7cad89ea86aab70aea490f23bbfc7e72abd5f0a5d3fb4c84d212");
@@ -272,7 +291,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         ReflectionHelper.init(enterpriseModulesEnabled);
 
         ReflectionHelper.registerMngtRestApiHandler(settings);
-        
+
         log.info("Clustername: {}", settings.get("cluster.name", "elasticsearch"));
 
         if (!transportSSLEnabled && !sslOnly) {
@@ -419,7 +438,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             Supplier<DiscoveryNodes> nodesInCluster) {
 
-        final List<RestHandler> handlers = new ArrayList<RestHandler>(1);
+        final List<RestHandler> handlers = new ArrayList<RestHandler>();
 
         if (!client && !disabled) {
 
@@ -434,11 +453,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(new SearchGuardHealthAction(settings, restController, Objects.requireNonNull(backendRegistry)));
                 handlers.add(new TenantInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool),
                         Objects.requireNonNull(cs), Objects.requireNonNull(adminDns)));
+                handlers.add(new PermissionAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
 
-                Collection<RestHandler> apiHandler = ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient,
-                        adminDns, cr, cs, Objects.requireNonNull(principalExtractor), evaluator, threadPool, Objects.requireNonNull(auditLog));
-                handlers.addAll(apiHandler);
-                log.debug("Added {} management rest handler(s)", apiHandler.size());
+                handlers.addAll(ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient, adminDns, cr, cs,
+                        Objects.requireNonNull(principalExtractor), evaluator, threadPool, Objects.requireNonNull(auditLog)));
+                handlers.addAll(ReflectionHelper.instantiateRestApiHandler("com.floragunn.signals.api.SignalsApiActions", settings, configPath,
+                        restController, localClient, adminDns, cr, cs, scriptService, xContentRegistry, principalExtractor, evaluator, threadPool,
+                        auditLog));
             }
         }
 
@@ -463,16 +484,32 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(LicenseInfoAction.INSTANCE, TransportLicenseInfoAction.class));
             actions.add(new ActionHandler<>(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));
         }
+
+        // TODO disable scheduling? Other way of hooking in?
+
+        actions.addAll(SchedulerActions.getActions());
+        actions.addAll(ReflectionHelper.getActions("com.floragunn.signals.Signals"));
+
         return actions;
+    }
+
+    @Override
+    public List<ScriptContext<?>> getContexts() {
+        ArrayList<ScriptContext<?>> result = new ArrayList<>();
+
+        result.addAll(ReflectionHelper.getContexts("com.floragunn.signals.Signals"));
+
+        return result;
     }
 
     private CheckedFunction<DirectoryReader, DirectoryReader, IOException> loadFlsDlsIndexSearcherWrapper(final IndexService indexService, final ComplianceIndexingOperationListener ciol,
             final ComplianceConfig complianceConfig) {
         namedXContentRegistry = indexService.xContentRegistry();
         try {
-            CheckedFunction<DirectoryReader, DirectoryReader, IOException> flsdlsWrapper = (CheckedFunction<DirectoryReader, DirectoryReader, IOException>) dlsFlsConstructor.newInstance(indexService, settings,
-                    Objects.requireNonNull(adminDns), Objects.requireNonNull(cs), Objects.requireNonNull(auditLog), Objects.requireNonNull(ciol),
-                    Objects.requireNonNull(complianceConfig));
+            namedXContentRegistry = indexService.xContentRegistry();
+            CheckedFunction<DirectoryReader, DirectoryReader, IOException> flsdlsWrapper = (CheckedFunction<DirectoryReader, DirectoryReader, IOException>) dlsFlsConstructor
+                    .newInstance(indexService, settings, Objects.requireNonNull(adminDns), Objects.requireNonNull(cs),
+                            Objects.requireNonNull(auditLog), Objects.requireNonNull(ciol), Objects.requireNonNull(complianceConfig));
             if (log.isDebugEnabled()) {
                 log.debug("FLS/DLS enabled for index {}", indexService.index().getName());
             }
@@ -715,6 +752,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         this.threadPool = threadPool;
         this.cs = clusterService;
         this.localClient = localClient;
+        this.scriptService = scriptService;
+        this.xContentRegistry = xContentRegistry;
 
         final List<Object> components = new ArrayList<Object>();
 
@@ -759,23 +798,23 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         final XFFResolver xffResolver = new XFFResolver(threadPool);
         backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, auditLog, threadPool);
         final CompatConfig compatConfig = new CompatConfig(environment);
-        
-        
-        
-        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, resolver, auditLog, 
-                settings, privilegesInterceptor, cih, irr, enterpriseModulesEnabled);
 
-        
+        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, resolver, auditLog, settings, privilegesInterceptor, cih, irr,
+                enterpriseModulesEnabled);
+
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, settings, configPath, localClient, threadPool, cih);
         dcf.registerDCFListener(backendRegistry);
         dcf.registerDCFListener(compatConfig);
         dcf.registerDCFListener(irr);
         dcf.registerDCFListener(xffResolver);
         dcf.registerDCFListener(evaluator);
-        
+
         cr.setDynamicConfigFactory(dcf);
 
-        sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, complianceConfig, compatConfig);
+        InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(dcf);
+
+        sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, complianceConfig, compatConfig,
+                internalAuthTokenProvider);
 
         final String principalExtractorClass = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, null);
 
@@ -796,6 +835,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(evaluator);
         components.add(sgi);
         components.add(dcf);
+        components.add(internalAuthTokenProvider);
+
+        components.addAll(
+                ReflectionHelper.createAlertingComponents(settings, configPath, localClient, clusterService, threadPool, resourceWatcherService,
+                        scriptService, xContentRegistry, environment, nodeEnvironment, internalAuthTokenProvider, protectedIndices, namedWriteableRegistry, dcf));
 
         sgRestHandler = new SearchGuardRestFilter(backendRegistry, auditLog, threadPool, principalExtractor, settings, configPath, compatConfig);
 
@@ -855,7 +899,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false, Property.NodeScope, Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_ALLOW_DEFAULT_INIT_SGINDEX, false, Property.NodeScope, Property.Filtered));
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, true, Property.NodeScope, Property.Filtered));
+            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, true, Property.NodeScope,
+                    Property.Filtered));
 
             settings.add(Setting.groupSetting(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS + ".", Property.NodeScope)); //not filtered here
 
@@ -1008,9 +1053,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT, Property.NodeScope, Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, false, Property.NodeScope,
                     Property.Filtered));
-            
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_FILTER_SGINDEX_FROM_ALL_REQUESTS, false, Property.NodeScope,
-                    Property.Filtered));
+
+            settings.add(
+                    Setting.boolSetting(ConfigConstants.SEARCHGUARD_FILTER_SGINDEX_FROM_ALL_REQUESTS, false, Property.NodeScope, Property.Filtered));
 
             //compat
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_DISABLE_INTERTRANSPORT_AUTH_INITIALLY, false, Property.NodeScope,
@@ -1026,11 +1071,15 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_INJECT_ADMIN_USER_ENABLED, false, Property.NodeScope,
                     Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_ALLOW_NOW_IN_DLS, false, Property.NodeScope, Property.Filtered));
-        
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTAPI_ALLOW_SGCONFIG_MODIFICATION, false, Property.NodeScope, Property.Filtered));
-        
-        
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true, Property.NodeScope, Property.Filtered));
+
+            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTAPI_ALLOW_SGCONFIG_MODIFICATION, false, Property.NodeScope,
+                    Property.Filtered));
+
+            settings.add(
+                    Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true, Property.NodeScope, Property.Filtered));
+
+            settings.addAll(ReflectionHelper.getSettings("com.floragunn.signals.Signals"));
+
         }
 
         return settings;
@@ -1051,7 +1100,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public void onNodeStarted() {
         log.info("Node started");
-        if(!sslOnly && !client && !disabled) {
+        if (!sslOnly && !client && !disabled) {
             cr.initOnNodeStart();
         }
         final Set<ModuleInfo> sgModules = ReflectionHelper.getModulesLoaded();
@@ -1167,5 +1216,64 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         public void stop() {
         }
 
+    }
+
+    public static ProtectedIndices getProtectedIndices() {
+        return Objects.requireNonNull(SearchGuardPlugin.protectedIndices);
+    }
+
+    public static final class ProtectedIndices {
+        final Set<String> protectedPatterns;
+
+        private ProtectedIndices() {
+            protectedPatterns = null;
+        }
+
+        private ProtectedIndices(Settings settings, String... patterns) {
+            protectedPatterns = new HashSet<>();
+            protectedPatterns.add(settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX));
+            if (patterns != null && patterns.length > 0) {
+                protectedPatterns.addAll(Arrays.asList(patterns));
+            }
+        }
+
+        public void add(String pattern) {
+            protectedPatterns.add(pattern);
+        }
+
+        public boolean isProtected(String index) {
+            return protectedPatterns == null ? false : WildcardMatcher.matchAny(protectedPatterns, index);
+        }
+
+        public boolean containsProtected(Collection<String> indices) {
+            return protectedPatterns == null ? false : WildcardMatcher.matchAny(protectedPatterns, indices);
+        }
+
+        public String printProtectedIndices() {
+            return protectedPatterns == null ? "" : Joiner.on(',').join(protectedPatterns);
+        }
+
+        public String[] getProtectedIndicesAsMinusPattern(IndexResolverReplacer irr, Object request) {
+            if (protectedPatterns == null) {
+                return new String[0];
+            }
+
+            final Resolved resolved = irr.resolveIndexPatterns(IndicesOptions.lenientExpandOpen(), request, protectedPatterns.toArray(new String[0]));
+
+            String[] res = new String[resolved.getAllIndices().size()];
+            int i = 0;
+            for (String p : resolved.getAllIndices()) {
+                res[i++] = "-" + p;
+            }
+
+            return res.clone();
+        }
+
+        public void filterIndices(Set<String> indices) {
+            for (String p : protectedPatterns) {
+                WildcardMatcher.wildcardRemoveFromSet(indices, p);
+            }
+
+        }
     }
 }

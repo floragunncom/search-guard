@@ -145,6 +145,11 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
     }
     
     @Override
+    public boolean isKibanaRbacEnabled() {
+        return config.dynamic.kibana.rbac_enabled;
+    }
+    
+    @Override
     public List<AuthFailureListener> getIpAuthFailureListeners() {
         return Collections.unmodifiableList(ipAuthFailureListeners);
     }

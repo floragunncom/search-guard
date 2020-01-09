@@ -6,11 +6,12 @@ import java.util.Set;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.xcontent.ToXContentObject;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.user.User;
 
-public abstract class SgRoles {
+public abstract class SgRoles implements ToXContentObject {
 
     public abstract boolean impliesClusterPermissionPermission(String action0);
 

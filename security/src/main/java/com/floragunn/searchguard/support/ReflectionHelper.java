@@ -19,11 +19,14 @@ package com.floragunn.searchguard.support;
 
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
@@ -31,24 +34,38 @@ import java.util.jar.Manifest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
+import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.env.Environment;
+import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.IndexService;
+import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.script.ScriptContext;
+import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.watcher.ResourceWatcherService;
 
+import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
+import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
+import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.ssl.transport.DefaultPrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.transport.DefaultInterClusterRequestEvaluator;
@@ -73,42 +90,170 @@ public class ReflectionHelper {
         if (enterpriseModulesDisabled()) {
             return;
         }
-        
-        if(!settings.getAsBoolean("http.enabled", true)) {
-    
+
+        if (!settings.getAsBoolean("http.enabled", true)) {
+
             try {
                 final Class<?> clazz = Class.forName("com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions");
                 addLoadedModule(clazz);
             } catch (final Throwable e) {
                 log.warn("Unable to register Rest Management Api Module due to {}", e.toString());
-                if(log.isDebugEnabled()) {
-                    log.debug("Stacktrace: ",e);
+                if (log.isDebugEnabled()) {
+                    log.debug("Stacktrace: ", e);
                 }
             }
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public static Collection<RestHandler> instantiateMngtRestApiHandler(final Settings settings, final Path configPath, final RestController restController,
-            final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr, final ClusterService cs, final PrincipalExtractor principalExtractor,
-            final PrivilegesEvaluator evaluator, final ThreadPool threadPool, final AuditLog auditlog) {
+    public static Collection<RestHandler> instantiateMngtRestApiHandler(final Settings settings, final Path configPath,
+            final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
+            final ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator, final ThreadPool threadPool,
+            final AuditLog auditlog) {
 
         if (enterpriseModulesDisabled()) {
             return Collections.emptyList();
         }
 
+        return instantiateRestApiHandler("com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions", settings, configPath, restController,
+                localClient, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditlog);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Collection<RestHandler> instantiateRestApiHandler(final String className, final Settings settings, final Path configPath,
+            final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
+            final ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator, final ThreadPool threadPool,
+            final AuditLog auditlog) {
+
         try {
-            final Class<?> clazz = Class.forName("com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions");
-            final Collection<RestHandler> ret = (Collection<RestHandler>) clazz
-                    .getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class, Client.class, AdminDNs.class, ConfigurationRepository.class,
-                            ClusterService.class, PrincipalExtractor.class, PrivilegesEvaluator.class, ThreadPool.class, AuditLog.class)
-                    .invoke(null, settings, configPath, restController, localClient, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditlog);
+            final Class<?> clazz = Class.forName(className);
+            Collection<RestHandler> result;
+            try {
+                result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
+                        Client.class, AdminDNs.class, ConfigurationRepository.class, ClusterService.class, PrincipalExtractor.class,
+                        PrivilegesEvaluator.class, ThreadPool.class, AuditLog.class).invoke(null, settings, configPath, restController, localClient,
+                                adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditlog);
+            } catch (NoSuchMethodException e) {
+                result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
+                        Client.class, ClusterService.class, ThreadPool.class)
+                        .invoke(null, settings, configPath, restController, localClient, cs, threadPool);
+            }
             addLoadedModule(clazz);
-            return ret;
+
+            if (log.isDebugEnabled()) {
+                log.debug("Found " + result.size() + " REST API handlers in " + className);
+            }
+
+            return result;
         } catch (final Throwable e) {
-            log.warn("Unable to enable Rest Management Api Module due to {}", e.toString());
-            if(log.isDebugEnabled()) {
-                log.debug("Stacktrace: ",e);
+            log.warn("Unable to enable REST API module {} due to {}", className,
+                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
+            }
+            return Collections.emptyList();
+        }
+    }
+
+    // XXX Pfusch
+    @SuppressWarnings("unchecked")
+    public static Collection<RestHandler> instantiateRestApiHandler(final String className, final Settings settings, final Path configPath,
+            final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
+            final ClusterService cs, ScriptService scriptService, NamedXContentRegistry xContentRegistry, final PrincipalExtractor principalExtractor,
+            final PrivilegesEvaluator evaluator, final ThreadPool threadPool, final AuditLog auditlog) {
+
+        try {
+            final Class<?> clazz = Class.forName(className);
+            Collection<RestHandler> result;
+            try {
+                result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
+                        Client.class, AdminDNs.class, ConfigurationRepository.class, ClusterService.class, PrincipalExtractor.class,
+                        PrivilegesEvaluator.class, ThreadPool.class, AuditLog.class).invoke(null, settings, configPath, restController, localClient,
+                                adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditlog);
+            } catch (NoSuchMethodException e) {
+                result = (Collection<RestHandler>) clazz
+                        .getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class, Client.class, ClusterService.class,
+                                ScriptService.class, NamedXContentRegistry.class, ThreadPool.class)
+                        .invoke(null, settings, configPath, restController, localClient, cs, scriptService, xContentRegistry, threadPool);
+            }
+            addLoadedModule(clazz);
+
+            if (log.isDebugEnabled()) {
+                log.debug("Found " + result.size() + " REST API handlers in " + className);
+            }
+
+            return result;
+        } catch (final Throwable e) {
+            log.warn("Unable to enable REST API module {} due to {}", className,
+                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
+            }
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * TODO ugly
+     * @param className
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public static List<Setting<?>> getSettings(final String className) {
+
+        try {
+            final Class<?> clazz = Class.forName(className);
+
+            return (List<Setting<?>>) clazz.getDeclaredMethod("getSettings").invoke(null);
+
+        } catch (final Throwable e) {
+            log.warn("Unable to retrieve settings from {} due to {}", className,
+                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
+            }
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * TODO ugly
+     * @param className
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public static List<ScriptContext<?>> getContexts(final String className) {
+        try {
+            final Class<?> clazz = Class.forName(className);
+
+            return (List<ScriptContext<?>>) clazz.getDeclaredMethod("getContexts").invoke(null);
+
+        } catch (final Throwable e) {
+            log.warn("Unable to retrieve contexts from {} due to {}", className,
+                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
+            }
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * TODO ugly
+     * @param className
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public static List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions(String className) {
+        try {
+            final Class<?> clazz = Class.forName(className);
+
+            return (List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>>) clazz.getDeclaredMethod("getActions").invoke(null);
+
+        } catch (final Throwable e) {
+            log.warn("Unable to retrieve actions from {} due to {}", className,
+                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
             }
             return Collections.emptyList();
         }
@@ -123,15 +268,14 @@ public class ReflectionHelper {
 
         try {
             final Class<?> clazz = Class.forName("com.floragunn.searchguard.configuration.SearchGuardFlsDlsIndexSearcherWrapper");
-            final Constructor<?> ret = clazz.getConstructor(IndexService.class,
-                    Settings.class, AdminDNs.class, ClusterService.class, AuditLog.class,
+            final Constructor<?> ret = clazz.getConstructor(IndexService.class, Settings.class, AdminDNs.class, ClusterService.class, AuditLog.class,
                     ComplianceIndexingOperationListener.class, ComplianceConfig.class);
             addLoadedModule(clazz);
             return ret;
         } catch (final Throwable e) {
             log.warn("Unable to enable DLS/FLS Module due to {}", e.toString());
-            if(log.isDebugEnabled()) {
-                log.debug("Stacktrace: ",e);
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
             }
             return null;
         }
@@ -149,8 +293,8 @@ public class ReflectionHelper {
             return ret;
         } catch (final Throwable e) {
             log.warn("Unable to enable DLS/FLS Valve Module due to {}", e.toString());
-            if(log.isDebugEnabled()) {
-                log.debug("Stacktrace: ",e);
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
             }
             return new DlsFlsRequestValve.NoopDlsFlsRequestValve();
         }
@@ -165,15 +309,15 @@ public class ReflectionHelper {
 
         try {
             final Class<?> clazz = Class.forName("com.floragunn.searchguard.auditlog.impl.AuditLogImpl");
-            final AuditLog impl = (AuditLog) clazz
-                    .getConstructor(Settings.class, Path.class, Client.class, ThreadPool.class, IndexNameExpressionResolver.class, ClusterService.class)
+            final AuditLog impl = (AuditLog) clazz.getConstructor(Settings.class, Path.class, Client.class, ThreadPool.class,
+                    IndexNameExpressionResolver.class, ClusterService.class)
                     .newInstance(settings, configPath, localClient, threadPool, resolver, clusterService);
             addLoadedModule(clazz);
             return impl;
         } catch (final Throwable e) {
             log.warn("Unable to enable Auditlog Module due to {}", e.toString());
-            if(log.isDebugEnabled()) {
-                log.debug("Stacktrace: ",e);
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
             }
             return new NullAuditLog();
         }
@@ -188,29 +332,28 @@ public class ReflectionHelper {
         try {
             final Class<?> clazz = Class.forName("com.floragunn.searchguard.compliance.ComplianceIndexingOperationListenerImpl");
             final ComplianceIndexingOperationListener impl = (ComplianceIndexingOperationListener) clazz
-                    .getConstructor(ComplianceConfig.class, AuditLog.class)
-                    .newInstance(complianceConfig, auditlog);
+                    .getConstructor(ComplianceConfig.class, AuditLog.class).newInstance(complianceConfig, auditlog);
             //no addLoadedModule(clazz) here because its not a typical module
             //and it is not loaded in every case/on every node
             return impl;
         } catch (final ClassNotFoundException e) {
             //TODO produce a single warn msg, this here is issued for every index
-           log.debug("Unable to enable Compliance Module due to {}", e.toString());
-           if(log.isDebugEnabled()) {
-               log.debug("Stacktrace: ",e);
-           }
-           return new ComplianceIndexingOperationListener();
+            log.debug("Unable to enable Compliance Module due to {}", e.toString());
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
+            }
+            return new ComplianceIndexingOperationListener();
         } catch (final Throwable e) {
             log.error("Unable to enable Compliance Module due to {}", e.toString());
-            if(log.isDebugEnabled()) {
-                log.debug("Stacktrace: ",e);
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
             }
             return new ComplianceIndexingOperationListener();
         }
     }
 
-    public static PrivilegesInterceptor instantiatePrivilegesInterceptorImpl(final IndexNameExpressionResolver resolver, final ClusterService clusterService,
-            final Client localClient, final ThreadPool threadPool) {
+    public static PrivilegesInterceptor instantiatePrivilegesInterceptorImpl(final IndexNameExpressionResolver resolver,
+            final ClusterService clusterService, final Client localClient, final ThreadPool threadPool) {
 
         final PrivilegesInterceptor noop = new PrivilegesInterceptor(resolver, clusterService, localClient, threadPool);
 
@@ -220,16 +363,47 @@ public class ReflectionHelper {
 
         try {
             final Class<?> clazz = Class.forName("com.floragunn.searchguard.configuration.PrivilegesInterceptorImpl");
-            final PrivilegesInterceptor ret = (PrivilegesInterceptor) clazz.getConstructor(IndexNameExpressionResolver.class, ClusterService.class, Client.class, ThreadPool.class)
+            final PrivilegesInterceptor ret = (PrivilegesInterceptor) clazz
+                    .getConstructor(IndexNameExpressionResolver.class, ClusterService.class, Client.class, ThreadPool.class)
                     .newInstance(resolver, clusterService, localClient, threadPool);
             addLoadedModule(clazz);
             return ret;
         } catch (final Throwable e) {
             log.warn("Unable to enable Kibana Module due to {}", e.toString());
-            if(log.isDebugEnabled()) {
-                log.debug("Stacktrace: ",e);
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
             }
             return noop;
+        }
+    }
+
+    public static Collection<Object> createAlertingComponents(Settings settings, Path configPath, Client client, ClusterService clusterService,
+            ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
+            Environment environment, NodeEnvironment nodeEnvironment, InternalAuthTokenProvider internalAuthTokenProvider, ProtectedIndices protectedIndices,
+            NamedWriteableRegistry namedWriteableRegistry, DynamicConfigFactory dcf) {
+
+        try {
+            Class<?> clazz = Class.forName("com.floragunn.signals.Signals");
+            Constructor<?> constructor = clazz.getConstructor(Settings.class, Path.class);
+            Object impl = constructor.newInstance(settings, configPath);
+            Method createComponentsMethod = impl.getClass().getMethod("createComponents", Client.class, ClusterService.class, ThreadPool.class,
+                    ResourceWatcherService.class, ScriptService.class, NamedXContentRegistry.class, Environment.class, NodeEnvironment.class,
+                    InternalAuthTokenProvider.class, ProtectedIndices.class, NamedWriteableRegistry.class, DynamicConfigFactory.class);
+
+            @SuppressWarnings("unchecked")
+            Collection<Object> result = (Collection<Object>) createComponentsMethod.invoke(impl, client, clusterService, threadPool,
+                    resourceWatcherService, scriptService, xContentRegistry, environment, nodeEnvironment, internalAuthTokenProvider, protectedIndices,
+                    namedWriteableRegistry, dcf);
+
+            addLoadedModule(clazz);
+            return result;
+        } catch (final Throwable e) {
+            log.warn("Unable to enable Alerting due to {}",
+                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
+            }
+            return Collections.emptyList();
         }
     }
 
@@ -250,8 +424,8 @@ public class ReflectionHelper {
 
         } catch (final Throwable e) {
             log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
-            if(log.isDebugEnabled()) {
-                log.debug("Stacktrace: ",e);
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
             }
             throw new ElasticsearchException(e);
         }
@@ -266,8 +440,8 @@ public class ReflectionHelper {
             return ret;
         } catch (final Throwable e) {
             log.warn("Unable to load inter cluster request evaluator '{}' due to {}", clazz, e.toString());
-            if(log.isDebugEnabled()) {
-                log.debug("Stacktrace: ",e);
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
             }
             return new DefaultInterClusterRequestEvaluator(settings);
         }
@@ -282,8 +456,8 @@ public class ReflectionHelper {
             return ret;
         } catch (final Throwable e) {
             log.warn("Unable to load pricipal extractor '{}' due to {}", clazz, e.toString());
-            if(log.isDebugEnabled()) {
-                log.debug("Stacktrace: ",e);
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
             }
             return new DefaultPrincipalExtractor();
         }
@@ -303,7 +477,7 @@ public class ReflectionHelper {
         if (clazz.equalsIgnoreCase("com.floragunn.dlic.auth.http.jwt.HTTPJwtAuthenticator")) {
             enterpriseModuleInstalled = true;
         }
-        
+
         if (clazz.equalsIgnoreCase("com.floragunn.dlic.auth.http.jwt.keybyoidc.HTTPJwtKeyByOpenIdConnectAuthenticator")) {
             enterpriseModuleInstalled = true;
         }
@@ -311,7 +485,7 @@ public class ReflectionHelper {
         if (clazz.equalsIgnoreCase("com.floragunn.dlic.auth.http.kerberos.HTTPSpnegoAuthenticator")) {
             enterpriseModuleInstalled = true;
         }
-        
+
         if (clazz.equalsIgnoreCase("com.floragunn.dlic.auth.http.saml.HTTPSamlAuthenticator")) {
             enterpriseModuleInstalled = true;
         }

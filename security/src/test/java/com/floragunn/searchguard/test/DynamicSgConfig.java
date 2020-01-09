@@ -77,6 +77,10 @@ public class DynamicSgConfig {
         this.sgActionGroups = sgActionGroups;
         return this;
     }
+    public DynamicSgConfig setSgTenants(String sgTenants) {
+        this.sgTenants = sgTenants;
+        return this;
+    }
     
     public DynamicSgConfig setLegacy() {
         this.type = "sg";

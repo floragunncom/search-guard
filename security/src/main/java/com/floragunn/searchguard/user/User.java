@@ -42,6 +42,7 @@ import com.google.common.collect.Lists;
 public class User implements Serializable, Writeable, CustomAttributesAware {
 
     public static final User ANONYMOUS = new User("sg_anonymous", Lists.newArrayList("sg_anonymous_backendrole"), null);
+    public static final String USER_TENANT = "__user__";
     
     private static final long serialVersionUID = -5500938501822658596L;
     private final String name;
