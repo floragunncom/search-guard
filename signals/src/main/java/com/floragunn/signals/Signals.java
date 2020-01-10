@@ -3,6 +3,7 @@ package com.floragunn.signals;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -42,6 +43,7 @@ import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
 import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.jobs.actions.SchedulerActions;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.actions.SignalsActions;
 import com.floragunn.signals.script.SignalsScriptContexts;
@@ -130,7 +132,9 @@ public class Signals extends AbstractLifecycleComponent {
     }
 
     public static List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return SignalsActions.getActions();
+        List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> result = new ArrayList<>(SchedulerActions.getActions());
+        result.addAll(SignalsActions.getActions());
+        return result;
     }
 
     private void waitForYellowStatus() throws InterruptedException {

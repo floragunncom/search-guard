@@ -51,7 +51,7 @@ public class TransportDeleteAccountAction extends HandledTransportAction<DeleteA
                 return;
             }
 
-            Account account = signals.getAccountRegistry().lookupAccount(request.getAccountId(), request.getAccountType().getImplClass());
+            Account account = signals.getAccountRegistry().lookupAccount(request.getAccountId(), request.getAccountType());
 
             Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);

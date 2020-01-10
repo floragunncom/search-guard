@@ -21,7 +21,6 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.signals.accounts.AccountType;
 import com.floragunn.signals.actions.account.delete.DeleteAccountAction;
 import com.floragunn.signals.actions.account.delete.DeleteAccountRequest;
 import com.floragunn.signals.actions.account.delete.DeleteAccountResponse;
@@ -46,19 +45,11 @@ public class AccountApiAction extends SignalsBaseRestHandler {
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
-        String type = request.param("type");
-
-        if (type == null) {
-            return channel -> {
-                errorResponse(channel, RestStatus.BAD_REQUEST, "No type specified");
-            };
-        }
-
-        AccountType accountType = AccountType.getByName(type);
+        String accountType = request.param("type");
 
         if (accountType == null) {
             return channel -> {
-                errorResponse(channel, RestStatus.BAD_REQUEST, "Unknown account type specified: " + type);
+                errorResponse(channel, RestStatus.BAD_REQUEST, "No type specified");
             };
         }
 
@@ -75,7 +66,7 @@ public class AccountApiAction extends SignalsBaseRestHandler {
         };
     }
 
-    protected void handleApiRequest(AccountType accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected void handleApiRequest(String accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
 
         switch (request.method()) {
         case GET:
@@ -92,7 +83,7 @@ public class AccountApiAction extends SignalsBaseRestHandler {
         }
     }
 
-    protected void handleGet(AccountType accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected void handleGet(String accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
 
         client.execute(GetAccountAction.INSTANCE, new GetAccountRequest(accountType, id), new ActionListener<GetAccountResponse>() {
 
@@ -112,7 +103,7 @@ public class AccountApiAction extends SignalsBaseRestHandler {
         });
     }
 
-    protected void handleDelete(AccountType accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected void handleDelete(String accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
 
         client.execute(DeleteAccountAction.INSTANCE, new DeleteAccountRequest(accountType, id), new ActionListener<DeleteAccountResponse>() {
 
@@ -133,7 +124,7 @@ public class AccountApiAction extends SignalsBaseRestHandler {
 
     }
 
-    protected void handlePut(AccountType accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected void handlePut(String accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
 
         if (request.getXContentType() != XContentType.JSON) {
             errorResponse(channel, RestStatus.UNPROCESSABLE_ENTITY, "Accounts must be of content type application/json");

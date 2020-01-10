@@ -7,15 +7,15 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.Account;
-import com.floragunn.signals.accounts.AccountType;
 
 public class EmailAccount extends Account {
+
+    public static final String TYPE = "email";
 
     private String host;
     private int port = 25;
@@ -217,47 +217,6 @@ public class EmailAccount extends Account {
                 .must(QueryBuilders.termQuery("actions.account", getId())));
     }
 
-    public static EmailAccount create(String id, JsonNode jsonNode) throws ConfigValidationException {
-        ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
-
-        EmailAccount result = new EmailAccount();
-
-        result.setId(id);
-        result.host = vJsonNode.requiredString("host");
-        result.port = vJsonNode.requiredInt("port");
-
-        if (jsonNode.hasNonNull("user")) {
-            result.user = vJsonNode.requiredString("user");
-            result.password = vJsonNode.string("password");
-        } else {
-            if (jsonNode.hasNonNull("password")) {
-                validationErrors.add(new ValidationError("user", "A user must be specified if a password is specified"));
-            }
-        }
-
-        // TODO move proxy stuff to a sub-object
-        result.proxyHost = vJsonNode.string("proxy_host");
-        result.proxyPort = vJsonNode.intNumber("proxy_port", null);
-        result.proxyUser = vJsonNode.string("proxy_user");
-        result.proxyPassword = vJsonNode.string("proxy_password");
-        result.sessionTimeout = vJsonNode.intNumber("session_timeout", null);
-        result.simulate = vJsonNode.booleanAttribute("simulate", Boolean.FALSE);
-        result.debug = vJsonNode.booleanAttribute("debug", Boolean.FALSE);
-        result.enableTls = vJsonNode.booleanAttribute("enable_tls", Boolean.FALSE);
-        result.enableStartTls = vJsonNode.booleanAttribute("enable_start_tls", Boolean.FALSE);
-        result.trustAll = vJsonNode.booleanAttribute("trust_all", Boolean.FALSE);
-        result.trustedHosts = vJsonNode.stringArray("trusted_hosts");
-        result.defaultFrom = vJsonNode.emailAddress("default_from");
-        result.defaultTo = vJsonNode.emailAddressArray("default_to");
-        result.defaultCc = vJsonNode.emailAddressArray("default_cc");
-        result.defaultBcc = vJsonNode.emailAddressArray("default_bcc");
-
-        validationErrors.throwExceptionForPresentErrors();
-
-        return result;
-    }
-
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
@@ -335,7 +294,58 @@ public class EmailAccount extends Account {
     }
 
     @Override
-    public AccountType getType() {
-        return AccountType.EMAIL;
+    public String getType() {
+        return TYPE;
+    }
+
+    public static class Factory extends Account.Factory<EmailAccount> {
+        public Factory() {
+            super(EmailAccount.TYPE);
+        }
+
+        @Override
+        protected EmailAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
+
+            EmailAccount result = new EmailAccount();
+
+            result.setId(id);
+            result.host = vJsonNode.requiredString("host");
+            result.port = vJsonNode.requiredInt("port");
+
+            if (vJsonNode.hasNonNull("user")) {
+                result.user = vJsonNode.requiredString("user");
+                result.password = vJsonNode.string("password");
+            } else {
+                if (vJsonNode.hasNonNull("password")) {
+                    validationErrors.add(new ValidationError("user", "A user must be specified if a password is specified"));
+                }
+            }
+
+            // TODO move proxy stuff to a sub-object
+            result.proxyHost = vJsonNode.string("proxy_host");
+            result.proxyPort = vJsonNode.intNumber("proxy_port", null);
+            result.proxyUser = vJsonNode.string("proxy_user");
+            result.proxyPassword = vJsonNode.string("proxy_password");
+            result.sessionTimeout = vJsonNode.intNumber("session_timeout", null);
+            result.simulate = vJsonNode.booleanAttribute("simulate", Boolean.FALSE);
+            result.debug = vJsonNode.booleanAttribute("debug", Boolean.FALSE);
+            result.enableTls = vJsonNode.booleanAttribute("enable_tls", Boolean.FALSE);
+            result.enableStartTls = vJsonNode.booleanAttribute("enable_start_tls", Boolean.FALSE);
+            result.trustAll = vJsonNode.booleanAttribute("trust_all", Boolean.FALSE);
+            result.trustedHosts = vJsonNode.stringArray("trusted_hosts");
+            result.defaultFrom = vJsonNode.emailAddress("default_from");
+            result.defaultTo = vJsonNode.emailAddressArray("default_to");
+            result.defaultCc = vJsonNode.emailAddressArray("default_cc");
+            result.defaultBcc = vJsonNode.emailAddressArray("default_bcc");
+
+            validationErrors.throwExceptionForPresentErrors();
+
+            return result;
+        }
+
+        @Override
+        public Class<EmailAccount> getImplClass() {
+            return EmailAccount.class;
+        }
     }
 }

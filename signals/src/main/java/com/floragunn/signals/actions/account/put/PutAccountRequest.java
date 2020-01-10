@@ -9,11 +9,9 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentType;
 
-import com.floragunn.signals.accounts.AccountType;
-
 public class PutAccountRequest extends ActionRequest {
 
-    private AccountType accountType;
+    private String accountType;
     private String accountId;
     private BytesReference body;
     private XContentType bodyContentType;
@@ -22,7 +20,7 @@ public class PutAccountRequest extends ActionRequest {
         super();
     }
 
-    public PutAccountRequest(AccountType accountType, String accountId, BytesReference body, XContentType bodyContentType) {
+    public PutAccountRequest(String accountType, String accountId, BytesReference body, XContentType bodyContentType) {
         super();
         this.accountType = accountType;
         this.accountId = accountId;
@@ -33,7 +31,7 @@ public class PutAccountRequest extends ActionRequest {
     public PutAccountRequest(StreamInput in) throws IOException {
         super(in);
         this.accountId = in.readString();
-        this.accountType = in.readEnum(AccountType.class);
+        this.accountType = in.readString();
         this.body = in.readBytesReference();
         this.bodyContentType = in.readEnum(XContentType.class);
     }
@@ -42,7 +40,7 @@ public class PutAccountRequest extends ActionRequest {
     public void writeTo(final StreamOutput out) throws IOException {
         super.writeTo(out);
         out.writeString(accountId);
-        out.writeEnum(accountType);
+        out.writeString(accountType);
         out.writeBytesReference(body);
         out.writeEnum(bodyContentType);
     }
@@ -55,11 +53,11 @@ public class PutAccountRequest extends ActionRequest {
         return null;
     }
 
-    public AccountType getAccountType() {
+    public String getAccountType() {
         return accountType;
     }
 
-    public void setAccountType(AccountType accountType) {
+    public void setAccountType(String accountType) {
         this.accountType = accountType;
     }
 

@@ -49,7 +49,7 @@ public class TransportGetAccountAction extends HandledTransportAction<GetAccount
                 threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
 
-                String scopedId = request.getAccountType().getPrefix() + "/" + request.getAccountId();
+                String scopedId = request.getAccountType() + "/" + request.getAccountId();
 
                 client.prepareGet(this.signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts(), null, scopedId)
                         .execute(new ActionListener<GetResponse>() {

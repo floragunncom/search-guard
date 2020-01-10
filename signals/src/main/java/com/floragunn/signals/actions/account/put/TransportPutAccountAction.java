@@ -43,7 +43,7 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
 
     @Override
     protected final void doExecute(Task task, PutAccountRequest request, ActionListener<PutAccountResponse> listener) {
-        String scopedId = request.getAccountType().getPrefix() + "/" + request.getAccountId();
+        String scopedId = request.getAccountType() + "/" + request.getAccountId();
 
         try {
 

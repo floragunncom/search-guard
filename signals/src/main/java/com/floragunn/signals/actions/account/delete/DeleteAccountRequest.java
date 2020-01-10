@@ -7,14 +7,12 @@ import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 
-import com.floragunn.signals.accounts.AccountType;
-
 public class DeleteAccountRequest extends ActionRequest {
 
-    private AccountType accountType;
+    private String accountType;
     private String accountId;
 
-    public DeleteAccountRequest(AccountType accountType, String accountId) {
+    public DeleteAccountRequest(String accountType, String accountId) {
         super();
         this.accountType = accountType;
         this.accountId = accountId;
@@ -23,14 +21,14 @@ public class DeleteAccountRequest extends ActionRequest {
     public DeleteAccountRequest(StreamInput in) throws IOException {
         super(in);
         this.accountId = in.readString();
-        this.accountType = in.readEnum(AccountType.class);
+        this.accountType = in.readString();
     }
 
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         super.writeTo(out);
         out.writeString(accountId);
-        out.writeEnum(accountType);
+        out.writeString(accountType);
 
     }
 
@@ -42,11 +40,11 @@ public class DeleteAccountRequest extends ActionRequest {
         return null;
     }
 
-    public AccountType getAccountType() {
+    public String getAccountType() {
         return accountType;
     }
 
-    public void setAccountType(AccountType accountType) {
+    public void setAccountType(String accountType) {
         this.accountType = accountType;
     }
 

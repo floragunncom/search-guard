@@ -7,14 +7,14 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.Account;
-import com.floragunn.signals.accounts.AccountType;
 
 public class SlackAccount extends Account {
+
+    public static final String TYPE = "slack";
 
     private URI url;
 
@@ -42,20 +42,30 @@ public class SlackAccount extends Account {
     }
 
     @Override
-    public AccountType getType() {
-        return AccountType.SLACK;
+    public String getType() {
+        return TYPE;
     }
 
-    public static SlackAccount create(String id, JsonNode jsonNode) throws ConfigValidationException {
-        ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+    public static class Factory extends Account.Factory<SlackAccount> {
+        public Factory() {
+            super(SlackAccount.TYPE);
+        }
 
-        SlackAccount result = new SlackAccount();
-        result.setId(id);
-        result.url = vJsonNode.requiredURI("url");
+        @Override
+        protected SlackAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
 
-        validationErrors.throwExceptionForPresentErrors();
+            SlackAccount result = new SlackAccount();
+            result.setId(id);
+            result.url = vJsonNode.requiredURI("url");
 
-        return result;
+            validationErrors.throwExceptionForPresentErrors();
+
+            return result;
+        }
+
+        @Override
+        public Class<SlackAccount> getImplClass() {
+            return SlackAccount.class;
+        }
     }
 }

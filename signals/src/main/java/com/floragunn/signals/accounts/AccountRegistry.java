@@ -63,7 +63,7 @@ public class AccountRegistry {
 
                 try {
                     String id = unscopeId(hit.getId());
-                    AccountType accountType = getAccountType(hit.getId());
+                    String accountType = getAccountType(hit.getId());
 
                     tmp.put(hit.getId(), Account.parse(accountType, id, hit.getSourceAsString()));
                 } catch (Exception e) {
@@ -81,17 +81,17 @@ public class AccountRegistry {
             throw new IllegalStateException("AccountRegistry is not intialized yet");
         }
 
-        AccountType accountType = AccountType.getByClass(accountClass);
-
-        if (accountType == null) {
-            throw new IllegalArgumentException("Illegal account class: " + accountClass);
-        }
-
         if (id == null) {
             id = "default";
         }
 
-        String scopedId = accountType.getPrefix() + "/" + id;
+        Account.Factory<T> accountFactory = Account.factoryRegistry.get(accountClass);
+
+        if (accountFactory == null) {
+            throw new NoSuchAccountException("Illegal account class: " + accountClass);
+        }
+
+        String scopedId = accountFactory.getType() + "/" + id;
         Account result = accounts.get(scopedId);
 
         if (result == null) {
@@ -106,6 +106,25 @@ public class AccountRegistry {
         return accountClass.cast(result);
     }
 
+    public Account lookupAccount(String id, String accountType) throws NoSuchAccountException {
+        if (this.accounts == null) {
+            throw new IllegalStateException("AccountRegistry is not intialized yet");
+        }
+
+        if (id == null) {
+            id = "default";
+        }
+
+        String scopedId = accountType + "/" + id;
+        Account result = accounts.get(scopedId);
+
+        if (result == null) {
+            throw new NoSuchAccountException("Account does not exist: " + scopedId, null);
+        }
+
+        return result;
+    }
+
     private static String unscopeId(String scopedId) {
         int slash = scopedId.indexOf('/');
 
@@ -116,11 +135,11 @@ public class AccountRegistry {
         }
     }
 
-    private static AccountType getAccountType(String scopedId) {
+    private static String getAccountType(String scopedId) {
         int slash = scopedId.indexOf('/');
 
         if (slash != -1) {
-            return AccountType.getByName(scopedId.substring(0, slash));
+            return scopedId.substring(0, slash);
         } else {
             throw new IllegalArgumentException("Illegal scopedId: " + scopedId);
         }

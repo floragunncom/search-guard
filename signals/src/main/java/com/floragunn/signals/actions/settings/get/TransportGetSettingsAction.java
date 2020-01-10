@@ -51,7 +51,8 @@ public class TransportGetSettingsAction extends HandledTransportAction<GetSettin
                     listener.onResponse(new GetSettingsResponse(GetSettingsResponse.Status.OK, value, "text/plain"));
 
                 } else {
-                    String value = setting.getRaw(settings);
+                    // XXX
+                    String value = String.valueOf(setting.get(settings));
 
                     listener.onResponse(new GetSettingsResponse(GetSettingsResponse.Status.OK, value, "text/plain"));
                 }

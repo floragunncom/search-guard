@@ -17,8 +17,6 @@ import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.watch.action.handlers.email.EmailAction;
-import com.floragunn.signals.watch.action.handlers.jira.JiraAction;
-import com.floragunn.signals.watch.action.handlers.pagerduty.PagerDutyAction;
 import com.floragunn.signals.watch.action.handlers.slack.SlackAction;
 import com.floragunn.signals.watch.common.WatchElement;
 import com.floragunn.signals.watch.init.WatchInitializationService;
@@ -118,19 +116,15 @@ public abstract class ActionHandler extends WatchElement {
         }
     }
 
-    static final class FactoryRegistry {
+    public static final class FactoryRegistry {
         private final Map<String, Factory<?>> factories = new HashMap<>();
         private String factoryNames;
 
         FactoryRegistry(ActionHandler.Factory<?>... factories) {
-            for (Factory<?> factory : factories) {
-                addFactory(factory);
-            }
-
-            factoryNames = String.join("|", new TreeSet<>(this.factories.keySet()));
+            add(factories);
         }
 
-        private void addFactory(ActionHandler.Factory<?> factory) {
+        private void internalAddFactory(ActionHandler.Factory<?> factory) {
             if (factory.getType() == null) {
                 throw new IllegalArgumentException("type of factory is null: " + factory);
             }
@@ -142,6 +136,14 @@ public abstract class ActionHandler extends WatchElement {
             factories.put(factory.getType().toLowerCase(), factory);
         }
 
+        public void add(ActionHandler.Factory<?>... factories) {
+            for (Factory<?> factory : factories) {
+                internalAddFactory(factory);
+            }
+
+            factoryNames = String.join("|", new TreeSet<>(this.factories.keySet()));
+        }
+
         Factory<?> get(String type) {
             return factories.get(type.toLowerCase());
         }
@@ -151,7 +153,7 @@ public abstract class ActionHandler extends WatchElement {
         }
     }
 
-    private static final FactoryRegistry factoryRegistry = new FactoryRegistry(new IndexAction.Factory(), new WebhookAction.Factory(),
-            new EmailAction.Factory(), new SlackAction.Factory(), new PagerDutyAction.Factory(), new JiraAction.Factory());
+    public static final FactoryRegistry factoryRegistry = new FactoryRegistry(new IndexAction.Factory(), new WebhookAction.Factory(),
+            new EmailAction.Factory(), new SlackAction.Factory());
 
 }
