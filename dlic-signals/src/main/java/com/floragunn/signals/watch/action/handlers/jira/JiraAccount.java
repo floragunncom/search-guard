@@ -12,7 +12,6 @@ import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationExcept
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.Account;
-import com.floragunn.signals.accounts.AccountType;
 
 public class JiraAccount extends Account {
 
@@ -45,9 +44,9 @@ public class JiraAccount extends Account {
     }
 
     @Override
-    public AccountType getType() {
-        return AccountType.JIRA;
-    }
+	public String getType() {
+		return "jira";
+	}
 
     public static JiraAccount create(String id, JsonNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();

@@ -11,7 +11,6 @@ import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationExcept
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.Account;
-import com.floragunn.signals.accounts.AccountType;
 
 public class PagerDutyAccount extends Account {
 
@@ -43,9 +42,9 @@ public class PagerDutyAccount extends Account {
     }
 
     @Override
-    public AccountType getType() {
-        return AccountType.PAGERDUTY;
-    }
+	public String getType() {
+		return "pagerduty";
+	}
 
     public String getIntegrationKey() {
         return integrationKey;
