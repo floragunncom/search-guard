@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Copyright 2016-2017 by floragunn GmbH - All rights reserved Unless required 
+	by applicable law or agreed to in writing, software distributed here is distributed 
+	on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either 
+	express or implied. -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.search-guard</groupId>
+		<artifactId>dlic-sg-suite-parent</artifactId>
+		<version>${revision}</version>
+		<relativePath>../</relativePath>
+	</parent>
+
+	<artifactId>dlic-sg-suite-signals</artifactId>
+	<packaging>jar</packaging>
+	<name>SG Suite - Signals (Enterprise)</name>
+
+	<properties />
+
+
+
+	<dependencies>
+
+		<dependency>
+			<groupId>org.codelibs.elasticsearch.module</groupId>
+			<artifactId>lang-painless</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Signals -->
+		<dependency>
+			<groupId>com.search-guard</groupId>
+			<artifactId>sg-suite-signals</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Signals Test -->
+		<dependency>
+			<groupId>com.search-guard</groupId>
+			<artifactId>sg-suite-signals</artifactId>
+			<version>${project.version}</version>
+			<classifier>tests</classifier>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Security -->
+		<dependency>
+			<groupId>com.search-guard</groupId>
+			<artifactId>sg-suite-security</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Security Test -->
+		<dependency>
+			<groupId>com.search-guard</groupId>
+			<artifactId>sg-suite-security</artifactId>
+			<classifier>tests</classifier>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Scheduler -->
+		<dependency>
+			<groupId>com.search-guard</groupId>
+			<artifactId>sg-suite-scheduler</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+
+		<!-- Guava -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.icegreen</groupId>
+			<artifactId>greenmail</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-module-junit4</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-api-mockito2</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+</project>
