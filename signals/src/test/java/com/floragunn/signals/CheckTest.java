@@ -24,6 +24,7 @@ import org.elasticsearch.script.ScriptService;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
@@ -128,6 +129,7 @@ public class CheckTest {
     }
 
     @Test
+    @Ignore
     public void searchWithScheduleDateTest() throws Exception {
 
         try (Client client = cluster.getInternalClient()) {

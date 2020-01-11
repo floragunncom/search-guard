@@ -314,7 +314,7 @@
 				<directory>${basedir}/src/main/resources</directory>
 				<filtering>false</filtering>
 				<includes>
-					<include>static_config/**/*.yml</include>
+					<include>**/*</include>
 				</includes>
 			</resource>
 		</resources>

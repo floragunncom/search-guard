@@ -49,7 +49,7 @@ public class HttpClient extends CloseableHttpClient {
                 e2.initCause(e);
 
                 throw e2;
-            } else if (e.getMessage().contains("Received fatal alert: bad_certificate")) {
+            } else if (e.getMessage().contains("Received fatal alert: bad_certificate")) {                
                 SSLHandshakeException e2 = new SSLHandshakeException(
                         "Certificate validation failed. Check if the host requires client certificate authentication");
                 e2.initCause(e);

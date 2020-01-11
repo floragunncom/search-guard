@@ -72,7 +72,11 @@ public class InlineMustacheTemplate<ResultType> implements ToXContent {
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.value(source);
+        if (constant) {
+            builder.value(String.valueOf(parsedConstantValue));
+        } else {
+            builder.value(source);
+        }
         return builder;
     }
 

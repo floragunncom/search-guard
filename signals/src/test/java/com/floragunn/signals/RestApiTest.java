@@ -764,6 +764,8 @@ public class RestApiTest {
             HttpResponse response = rh.executePostRequest("/_signals/watch/_main/_execute",
                     "{\"watch\": " + watch.toJson() + ", \"goto\": \"teststatic\"}", basicAuth("uhura", "uhura"));
 
+            System.out.println(watch.toJson());
+            
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             GetResponse getResponse = client.get(new GetRequest(testSink, "1")).actionGet();
