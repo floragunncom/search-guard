@@ -55,6 +55,14 @@
 			<artifactId>sg-suite-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
+		
+		<!-- Security Enterprise -->
+		<dependency>
+			<groupId>com.search-guard</groupId>
+			<artifactId>dlic-sg-suite-security</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
 
 		<!-- Security Test -->
 		<dependency>
