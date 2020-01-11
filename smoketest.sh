@@ -5,9 +5,7 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR
 
-ES_VERSION=7.5.0
-NETTY_NATIVE_VERSION=2.0.7.Final
-NETTY_NATIVE_CLASSIFIER=non-fedora-linux-x86_64
+ES_VERSION=7.5.1
 
 rm -rf elasticsearch-$ES_VERSION
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
@@ -16,9 +14,15 @@ if [ "$CI" == "true" ]; then
 fi
 tar -xzf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 rm -rf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
-#wget -O netty-tcnative-$NETTY_NATIVE_VERSION-$NETTY_NATIVE_CLASSIFIER.jar https://search.maven.org/remotecontent?filepath=io/netty/netty-tcnative/$NETTY_NATIVE_VERSION/netty-tcnative-$NETTY_NATIVE_VERSION-$NETTY_NATIVE_CLASSIFIER.jar
-mvn clean package -Penterprise -DskipTests -s settings.xml
-PLUGIN_FILE=($DIR/target/releases/search-guard!(*sgadmin*).zip)
+
+if [ "$CI" == "true" ]; then
+    mvn clean package -Penterprise -DskipTests -s settings.xml
+else
+    mvn clean package -Penterprise -DskipTests
+fi
+
+mvn clean package -Penterprise -DskipTests #-s settings.xml
+PLUGIN_FILE=($DIR/plugin/target/releases/sg-suite!(*sgadmin*).zip)
 URL=file://$PLUGIN_FILE
 echo $URL
 elasticsearch-$ES_VERSION/bin/elasticsearch-plugin install -b $URL
@@ -31,8 +35,6 @@ else
     exit -1
 fi
 
-#cp netty-tcnative-$NETTY_NATIVE_VERSION-$NETTY_NATIVE_CLASSIFIER.jar elasticsearch-$ES_VERSION/plugins/search-guard-ssl/
-rm -f netty-tcnative-$NETTY_NATIVE_VERSION-$NETTY_NATIVE_CLASSIFIER.jar
 if [ "$CI" == "true" ]; then
   echo "Adding esuser user"
   useradd esuser
