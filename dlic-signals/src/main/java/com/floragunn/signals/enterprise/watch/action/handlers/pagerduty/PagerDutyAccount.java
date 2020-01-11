@@ -6,12 +6,10 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.Account;
-import com.floragunn.signals.enterprise.watch.action.handlers.jira.JiraAccount;
 
 public class PagerDutyAccount extends Account {
 

@@ -134,7 +134,7 @@ public class ActionTest {
             jiraAction.execute(ctx);
 
             Assert.assertEquals(
-                    "{\"routing_key\":\"bla\",\"event_action\":\"trigger\",\"dedup_key\":\"my_key\",\"payload\":{\"summary\":\"kaputt\",\"source\":\"hell\",\"severity\":\"error\",\"component\":\"stuff\",\"group\":null,\"class\":\"my_class\",\"custom_details\":null}}",
+                    "{\"fields\":{\"project\":{\"key\":\"Project\"},\"summary\":\"Look: kaputt\",\"description\":\"Indeed: kaputt\",\"issuetype\":{\"name\":\"bug\"},\"components\":[{\"name\":\"stuff\"}]}}",
                     webhookProvider.getLastRequestBody());
         }
     }
