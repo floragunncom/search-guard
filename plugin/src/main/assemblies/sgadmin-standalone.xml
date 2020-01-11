@@ -27,13 +27,13 @@
   <dependencySets>
     <dependencySet>
       <outputDirectory>${file.separator}deps</outputDirectory>
-      <useProjectArtifact>true</useProjectArtifact>
+      <useProjectArtifact>false</useProjectArtifact>
       <unpack>false</unpack>
       <scope>provided</scope>
     </dependencySet>
     <dependencySet>
       <outputDirectory>${file.separator}deps</outputDirectory>
-      <useProjectArtifact>true</useProjectArtifact>
+      <useProjectArtifact>false</useProjectArtifact>
       <unpack>false</unpack>
       <excludes>
         <exclude>*:dlic*</exclude>

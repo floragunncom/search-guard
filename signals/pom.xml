@@ -7,7 +7,6 @@
 		<groupId>com.search-guard</groupId>
 		<artifactId>sg-suite-parent</artifactId>
 		<version>${revision}</version>
-		<relativePath>../</relativePath>
 	</parent>
 
 	<artifactId>sg-suite-signals</artifactId>
