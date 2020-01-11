@@ -11,19 +11,14 @@
 	<parent>
 		<groupId>com.search-guard</groupId>
 		<artifactId>sg-suite-parent</artifactId>
-		<version>${revision}</version>
-		<relativePath>../sg-suite</relativePath>
+		<version>7.5.1-40.0.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>dlic-sg-suite-parent</artifactId>
+	<version>${revision}</version>
 	<packaging>pom</packaging>
 
 	<name>SG Suite - Parent (Enterprise)</name>
-
-	<properties>
-		<elasticsearch.version>7.5.1</elasticsearch.version>
-		<revision>${elasticsearch.version}-40.0.0-SNAPSHOT</revision>
-	</properties>
 
 	<modules>
 		<module>dlic-security</module>
