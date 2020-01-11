@@ -243,6 +243,19 @@ public final class ClusterHelper {
     }
 
     public PluginAwareNode node() {
+        if (esNodes.size() == 0) {
+            for (int i = 0; i < 20; i++) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                
+                if (esNodes.size() != 0) {
+                    break;
+                }
+            }
+        }
         return esNodes.get(0);
     }
 

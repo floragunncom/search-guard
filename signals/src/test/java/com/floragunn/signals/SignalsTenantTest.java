@@ -88,7 +88,7 @@ public class SignalsTenantTest {
             try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, scriptService, xContentRegistry, nodeEnvironment,
                     internalAuthTokenProvider, new SignalsSettings(settings), null)) {
                 tenant.init();
-                
+
                 Assert.assertEquals(1, tenant.getLocalWatchCount());
                 Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
             }
@@ -130,12 +130,18 @@ public class SignalsTenantTest {
 
                 tenant.addWatch(watch, UHURA);
 
-                Thread.sleep(100);
+                for (int i = 0; i < 20; i++) {
+                    Thread.sleep(100);
+
+                    if (tenant.getLocalWatchCount() != 0) {
+                        break;
+                    }
+                }
 
                 Assert.assertEquals(1, tenant.getLocalWatchCount());
                 Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
 
-                Thread.sleep(300);
+                Thread.sleep(500);
 
                 List<String> ackedActions = tenant.getWatchStateManager().getWatchState("test_watch").ack("horst");
                 Assert.assertEquals(Arrays.asList("testsink"), ackedActions);
@@ -145,13 +151,19 @@ public class SignalsTenantTest {
                 Assert.assertNotNull(ackedTime1);
             }
 
-            Thread.sleep(500);
+            Thread.sleep(1000);
 
             try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, scriptService, xContentRegistry, nodeEnvironment,
                     internalAuthTokenProvider, new SignalsSettings(settings), null)) {
                 tenant.init();
 
-                Thread.sleep(100);
+                for (int i = 0; i < 20; i++) {
+                    Thread.sleep(100);
+
+                    if (tenant.getLocalWatchCount() != 0) {
+                        break;
+                    }
+                }
 
                 Assert.assertEquals(1, tenant.getLocalWatchCount());
                 Assert.assertTrue(tenant.runsWatchLocally("test_watch"));

@@ -875,11 +875,11 @@ public class RestApiTest {
 
             Assert.assertFalse(updatedWatch.isActive());
 
-            Thread.sleep(210);
+            Thread.sleep(1000);
 
             long executionCountWhenDeactivated = getCountOfDocuments(client, "testsink_deactivate_watch");
 
-            Thread.sleep(310);
+            Thread.sleep(1000);
 
             long lastExecutionCount = getCountOfDocuments(client, "testsink_deactivate_watch");
 
