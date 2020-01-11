@@ -1,4 +1,4 @@
-package com.floragunn.signals.watch.action.handlers.jira;
+package com.floragunn.signals.enterprise.watch.action.handlers.jira;
 
 import java.io.IOException;
 import java.net.URI;

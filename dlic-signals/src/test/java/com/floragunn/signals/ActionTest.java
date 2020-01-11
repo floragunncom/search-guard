@@ -20,16 +20,16 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.floragunn.searchsupport.jobs.config.elements.InlineMustacheTemplate;
 import com.floragunn.signals.accounts.AccountRegistry;
+import com.floragunn.signals.enterprise.watch.action.handlers.jira.JiraAccount;
+import com.floragunn.signals.enterprise.watch.action.handlers.jira.JiraAction;
+import com.floragunn.signals.enterprise.watch.action.handlers.jira.JiraIssueConfig;
+import com.floragunn.signals.enterprise.watch.action.handlers.pagerduty.PagerDutyAccount;
+import com.floragunn.signals.enterprise.watch.action.handlers.pagerduty.PagerDutyAction;
+import com.floragunn.signals.enterprise.watch.action.handlers.pagerduty.PagerDutyEventConfig;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.support.NestedValueMap;
-import com.floragunn.signals.watch.action.handlers.jira.JiraAccount;
-import com.floragunn.signals.watch.action.handlers.jira.JiraAction;
-import com.floragunn.signals.watch.action.handlers.jira.JiraIssueConfig;
-import com.floragunn.signals.watch.action.handlers.pagerduty.PagerDutyAccount;
-import com.floragunn.signals.watch.action.handlers.pagerduty.PagerDutyAction;
-import com.floragunn.signals.watch.action.handlers.pagerduty.PagerDutyEventConfig;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 

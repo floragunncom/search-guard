@@ -1,4 +1,4 @@
-package com.floragunn.signals.watch.action.handlers.pagerduty;
+package com.floragunn.signals.enterprise.watch.action.handlers.pagerduty;
 
 import java.io.IOException;
 import java.security.AccessController;

@@ -1,4 +1,4 @@
-package com.floragunn.signals.watch.action.handlers.pagerduty;
+package com.floragunn.signals.enterprise.watch.action.handlers.pagerduty;
 
 import java.io.IOException;
 
@@ -11,7 +11,7 @@ import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationExcept
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.Account;
-import com.floragunn.signals.watch.action.handlers.jira.JiraAccount;
+import com.floragunn.signals.enterprise.watch.action.handlers.jira.JiraAccount;
 
 public class PagerDutyAccount extends Account {
 
