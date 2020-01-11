@@ -21,7 +21,7 @@ stages:
 verify:
   stage: test
   script:
-  - if [ "$CI_COMMIT_REF_NAME" == "master" ]; then mvn -U -Pcoverage verify; else mvn -U verify; fi
+  - if [ "$CI_COMMIT_REF_NAME" == "master" ]; then mvn -U -Pcoverage verify -s settings.xml; else mvn -U verify -s settings.xml; fi
   artifacts:
     reports:
       junit:
