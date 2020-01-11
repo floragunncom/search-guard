@@ -26,11 +26,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleImpl;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.WeeklyTrigger;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.util.duration.DurationExpression;
 import com.floragunn.searchsupport.util.duration.DurationFormat;
+import com.floragunn.signals.support.NestedValueMap;
+import com.floragunn.signals.support.NestedValueMap.Path;
 import com.floragunn.signals.watch.action.handlers.ActionHandler;
 import com.floragunn.signals.watch.action.handlers.IndexAction;
 import com.floragunn.signals.watch.action.handlers.WebhookAction;
@@ -48,6 +51,7 @@ import com.floragunn.signals.watch.common.HttpClientConfig;
 import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.common.auth.Auth;
 import com.floragunn.signals.watch.common.auth.BasicAuth;
+import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.severity.SeverityLevel;
 import com.floragunn.signals.watch.severity.SeverityMapping;
 import com.floragunn.signals.watch.severity.SeverityMapping.Element;
@@ -229,6 +233,27 @@ public class WatchBuilder {
 
         public ResolveActionBuilder whenResolved(SeverityLevel severityLevel1, SeverityLevel... severityLevel2) {
             return new ResolveActionBuilder(parent, severityLevel1, severityLevel2);
+        }
+
+        public GenericActionBuilder act(ActionHandler actionHandler) {
+            return new GenericActionBuilder(this, actionHandler);
+        }
+
+        public GenericActionBuilder act(String actionType, Object... properties) throws ConfigValidationException {
+            NestedValueMap propertyMap = new NestedValueMap();
+
+            for (int i = 0; i < properties.length; i += 2) {
+                propertyMap.put(Path.parse(String.valueOf(properties[i])), properties[i + 1]);
+            }
+
+            try {
+                ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(new WatchInitializationService(null, null),
+                        DefaultObjectMapper.objectMapper.readTree(propertyMap.toJsonString()));
+
+                return new GenericActionBuilder(this, actionHandler);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         protected abstract void addActionHandler(ActionHandler actionHandler, AbstractActionBuilder abstractActionBuilder);
@@ -438,6 +463,20 @@ public class WatchBuilder {
             result.setAttachments(attachments);
 
             return result;
+        }
+    }
+
+    public static class GenericActionBuilder extends AbstractActionBuilder {
+
+        private final ActionHandler actionHandler;
+
+        GenericActionBuilder(BaseActionBuilder parent, ActionHandler actionHandler) {
+            super(parent);
+            this.actionHandler = actionHandler;
+        }
+
+        protected ActionHandler finish() {
+            return actionHandler;
         }
     }
 

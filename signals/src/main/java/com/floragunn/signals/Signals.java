@@ -1,6 +1,7 @@
 package com.floragunn.signals;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -42,6 +43,7 @@ import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
 import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.InternalUsersModel;
+import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.jobs.actions.SchedulerActions;
 import com.floragunn.signals.accounts.AccountRegistry;
@@ -65,10 +67,12 @@ public class Signals extends AbstractLifecycleComponent {
     private AccountRegistry accountRegistry;
     private boolean initialized = false;
     private ThreadPool threadPool;
+    private boolean enterpriseModulesEnabled;
 
     public Signals(Settings settings, Path configPath) {
         this.signalsSettings = new SignalsSettings(settings);
         this.signalsSettings.addChangeListener(this.settingsChangeListener);
+        this.enterpriseModulesEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true);
     }
 
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
@@ -93,6 +97,10 @@ public class Signals extends AbstractLifecycleComponent {
             this.signalsIndexes = new SignalsIndexes(signalsSettings, client);
             this.signalsIndexes.protectIndexes(protectedIndices);
             clusterService.addListener(this.signalsIndexes.getClusterStateListener());
+
+            if (enterpriseModulesEnabled) {
+                initEnterpriseModules();
+            }
 
             this.accountRegistry = new AccountRegistry(signalsSettings);
             this.threadPool = threadPool;
@@ -281,6 +289,25 @@ public class Signals extends AbstractLifecycleComponent {
         byte bytes[] = new byte[bits / 8];
         random.nextBytes(bytes);
         return BaseEncoding.base64().encode(bytes);
+    }
+
+    private void initEnterpriseModules() {
+        Class<?> signalsEnterpriseFeatures;
+
+        try {
+
+            signalsEnterpriseFeatures = Class.forName("com.floragunn.signals.enterprise.SignalsEnterpriseFeatures");
+
+        } catch (ClassNotFoundException e) {
+            log.error("Signals enterprise features not found", e);
+            return;
+        }
+
+        try {
+            signalsEnterpriseFeatures.getDeclaredMethod("init").invoke(null);
+        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+            log.error("Error while initializing Signals enterprise features", e);
+        }
     }
 
     @Override

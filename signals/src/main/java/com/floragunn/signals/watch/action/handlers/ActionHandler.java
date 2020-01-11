@@ -144,7 +144,7 @@ public abstract class ActionHandler extends WatchElement {
             factoryNames = String.join("|", new TreeSet<>(this.factories.keySet()));
         }
 
-        Factory<?> get(String type) {
+        public Factory<?> get(String type) {
             return factories.get(type.toLowerCase());
         }
 
