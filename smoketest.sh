@@ -17,7 +17,7 @@ fi
 tar -xzf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 rm -rf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 #wget -O netty-tcnative-$NETTY_NATIVE_VERSION-$NETTY_NATIVE_CLASSIFIER.jar https://search.maven.org/remotecontent?filepath=io/netty/netty-tcnative/$NETTY_NATIVE_VERSION/netty-tcnative-$NETTY_NATIVE_VERSION-$NETTY_NATIVE_CLASSIFIER.jar
-mvn clean package -Penterprise -DskipTests
+mvn clean package -Penterprise -DskipTests -s settings.xml
 PLUGIN_FILE=($DIR/target/releases/search-guard!(*sgadmin*).zip)
 URL=file://$PLUGIN_FILE
 echo $URL
