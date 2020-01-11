@@ -9,7 +9,7 @@
         <dependencySet>
             <useStrictFiltering>true</useStrictFiltering>
             <outputDirectory>${file.separator}</outputDirectory>
-            <useProjectArtifact>true</useProjectArtifact>
+            <useProjectArtifact>false</useProjectArtifact>
             <useTransitiveFiltering>true</useTransitiveFiltering>
         </dependencySet>
     </dependencySets>
