@@ -22,7 +22,7 @@ verify:
   stage: test
   script:
   - ./smoketest.sh
-  - if [ "$CI_COMMIT_REF_NAME" == "master" ]; then mvn -U -Pcoverage verify; else mvn -U verify; fi
+  - if [ "$CI_COMMIT_REF_NAME" == "master" ]; then mvn -U -Pcoverage verify -s settings.xml; else mvn -U verify -s settings.xml; fi
   artifacts:
     reports:
       junit:
@@ -34,6 +34,6 @@ deploy:
     - $CI_COMMIT_REF_NAME == "master"
   script:
   - mvn deploy -U -Penterprise -DskipTests -s settings.xml
-  #    - mvn -U -Pcoverage sonar:sonar -Dsonar.organization=floragunncom-github -Dsonar.login=$SONAR_LOGIN -Dsonar.host.url=https://sonarcloud.io || true
-  - mvn clean verify com.srcclr:srcclr-maven-plugin:scan -Penterprise -DskipTests -U
+  #    - mvn -U -s settings.xml -Pcoverage sonar:sonar -Dsonar.organization=floragunncom-github -Dsonar.login=$SONAR_LOGIN -Dsonar.host.url=https://sonarcloud.io || true
+  - mvn clean verify com.srcclr:srcclr-maven-plugin:scan -Penterprise -DskipTests -U -s settings.xml
 #    -./dev/scan_veracode.sh
