@@ -24,6 +24,30 @@
 		<module>dlic-security</module>
 		<module>dlic-signals</module>
 	</modules>
+	
+	<!-- we this here so that we can resolve our own parent -->
+	<repositories>
+		<repository>
+			<id>io.cloudrepo</id>
+			<url>https://floragunn.mycloudrepo.io/repositories/fgmpriv</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>io.cloudrepo.snapshots</id>
+			<url>https://floragunn.mycloudrepo.io/repositories/fgmpriv-snapshots</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
 
 	<dependencies />
 
