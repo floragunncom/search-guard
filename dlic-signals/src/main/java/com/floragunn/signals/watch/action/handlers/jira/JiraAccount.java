@@ -7,13 +7,14 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.Account;
 
 public class JiraAccount extends Account {
+
+    public static final String TYPE = "jira";
 
     private URI url;
     private String userName;
@@ -44,21 +45,8 @@ public class JiraAccount extends Account {
     }
 
     @Override
-	public String getType() {
-		return "jira";
-	}
-
-    public static JiraAccount create(String id, JsonNode jsonNode) throws ConfigValidationException {
-        ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
-
-        JiraAccount result = new JiraAccount(vJsonNode.requiredURI("url"), vJsonNode.requiredString("user_name"),
-                vJsonNode.requiredString("auth_token"));
-        result.setId(id);
-
-        validationErrors.throwExceptionForPresentErrors();
-
-        return result;
+    public String getType() {
+        return "jira";
     }
 
     public URI getUrl() {
@@ -83,6 +71,29 @@ public class JiraAccount extends Account {
 
     public void setAuthToken(String authToken) {
         this.authToken = authToken;
+    }
+
+    public static class Factory extends Account.Factory<JiraAccount> {
+        public Factory() {
+            super(JiraAccount.TYPE);
+        }
+
+        @Override
+        protected JiraAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
+
+            JiraAccount result = new JiraAccount(vJsonNode.requiredURI("url"), vJsonNode.requiredString("user_name"),
+                    vJsonNode.requiredString("auth_token"));
+            result.setId(id);
+
+            validationErrors.throwExceptionForPresentErrors();
+
+            return result;
+        }
+
+        @Override
+        public Class<JiraAccount> getImplClass() {
+            return JiraAccount.class;
+        }
     }
 
 }

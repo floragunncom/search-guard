@@ -11,8 +11,11 @@ import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationExcept
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.Account;
+import com.floragunn.signals.watch.action.handlers.jira.JiraAccount;
 
 public class PagerDutyAccount extends Account {
+
+    public static final String TYPE = "pagerduty";
 
     private String url;
     private String integrationKey;
@@ -24,7 +27,7 @@ public class PagerDutyAccount extends Account {
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
-        builder.field("type", "pagerduty");
+        builder.field("type", TYPE);
         builder.field("integration_key", integrationKey);
 
         if (url != null) {
@@ -42,9 +45,9 @@ public class PagerDutyAccount extends Account {
     }
 
     @Override
-	public String getType() {
-		return "pagerduty";
-	}
+    public String getType() {
+        return "pagerduty";
+    }
 
     public String getIntegrationKey() {
         return integrationKey;
@@ -62,17 +65,27 @@ public class PagerDutyAccount extends Account {
         this.url = url;
     }
 
-    public static PagerDutyAccount create(String id, JsonNode jsonNode) throws ConfigValidationException {
-        ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+    public static class Factory extends Account.Factory<PagerDutyAccount> {
+        public Factory() {
+            super(PagerDutyAccount.TYPE);
+        }
 
-        PagerDutyAccount result = new PagerDutyAccount(vJsonNode.requiredString("integration_key"));
-        result.setId(id);
-        result.url = vJsonNode.string("url");
+        @Override
+        protected PagerDutyAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors)
+                throws ConfigValidationException {
+            PagerDutyAccount result = new PagerDutyAccount(vJsonNode.requiredString("integration_key"));
+            result.setId(id);
+            result.url = vJsonNode.string("url");
 
-        validationErrors.throwExceptionForPresentErrors();
+            validationErrors.throwExceptionForPresentErrors();
 
-        return result;
+            return result;
+        }
+
+        @Override
+        public Class<PagerDutyAccount> getImplClass() {
+            return PagerDutyAccount.class;
+        }
     }
 
 }
