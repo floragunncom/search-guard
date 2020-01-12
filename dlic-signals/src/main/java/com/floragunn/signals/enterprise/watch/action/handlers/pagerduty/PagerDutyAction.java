@@ -17,6 +17,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.jobs.config.validation.MissingAttribute;
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.NoSuchAccountException;
@@ -153,10 +154,14 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
 
             PagerDutyEventConfig eventConfig = null;
 
-            try {
-                eventConfig = PagerDutyEventConfig.create(watchInitializationService, vJsonNode.get("event"));
-            } catch (ConfigValidationException e) {
-                validationErrors.add("event", e);
+            if (vJsonNode.hasNonNull("event")) {
+                try {
+                    eventConfig = PagerDutyEventConfig.create(watchInitializationService, vJsonNode.get("event"));
+                } catch (ConfigValidationException e) {
+                    validationErrors.add("event", e);
+                }
+            } else {
+                validationErrors.add(new MissingAttribute("event", vJsonNode));
             }
 
             boolean autoResolve = vJsonNode.booleanAttribute("auto_resolve", Boolean.TRUE);
