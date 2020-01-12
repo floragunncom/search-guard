@@ -33,6 +33,7 @@ import com.floragunn.searchsupport.jobs.config.DefaultJobConfig;
 public class JobExecutionEngineTest extends SingleClusterTest {
     private static final Logger log = LogManager.getLogger(JobExecutionEngineTest.class);
 
+    @Ignore
     @Test
     public void emptyNodeFilterTest() throws Exception {
         final Settings settings = Settings.builder().build();
