@@ -85,6 +85,12 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
                             errorResponse(channel, RestStatus.NOT_FOUND, "Tenant does not exist");
                         } else if (response.getStatus() == ExecuteWatchResponse.Status.ERROR_WHILE_EXECUTING) {
                             channel.sendResponse(new BytesRestResponse(RestStatus.UNPROCESSABLE_ENTITY, "application/json", response.getResult()));
+                        } else if (response.getStatus() == ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION) {
+                            if (requestBody.getWatch() != null) {
+                                channel.sendResponse(new BytesRestResponse(RestStatus.BAD_REQUEST, "application/json", response.getResult()));
+                            } else {
+                                errorResponse(channel, RestStatus.INTERNAL_SERVER_ERROR, "Internal Server Error: Stored watch cannot be parsed");
+                            }
                         } else if (response.getStatus() == ExecuteWatchResponse.Status.INVALID_GOTO) {
                             errorResponse(channel, RestStatus.BAD_REQUEST, "Invalid goto value: " + requestBody.getGoTo());
                         } else {

@@ -128,9 +128,10 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                 }
 
                             } catch (ConfigValidationException e) {
-                                // TODO
+                                log.error("Invalid watch definition in fetchAndExecuteWatch(). This should not happen\n"
+                                        + response.getSourceAsString() + "\n" + e.getValidationErrors(), e);
                                 listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
-                                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, null));
+                                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e)));
                             }
                         }
 
@@ -159,7 +160,10 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
         } catch (ConfigValidationException e) {
             listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
-                    ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, null));
+                    ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e)));
+        } catch (Exception e) {
+            log.error("Error while executing anonymous watch " + request, e);
+            listener.onFailure(e);
         }
     }
 
