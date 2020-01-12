@@ -19,18 +19,18 @@ public class DeActivateTenantAction extends SignalsBaseRestHandler implements Te
 
     public DeActivateTenantAction(Settings settings, RestController controller) {
         super(settings);
-        controller.registerHandler(Method.PUT, "/_signals/tenant/{tenant}/_activate", this);
-        controller.registerHandler(Method.PUT, "/_signals/tenant/{tenant}/_deactivate", this);
+        controller.registerHandler(Method.PUT, "/_signals/tenant/{tenant}/_active", this);
+        controller.registerHandler(Method.DELETE, "/_signals/tenant/{tenant}/_active", this);
     }
 
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
-        final boolean activate = request.path().endsWith("/_activate");
+        final boolean active = request.method().equals(Method.PUT);
 
         return channel -> {
 
-            client.execute(StartStopTenantAction.INSTANCE, new StartStopTenantRequest(activate), new ActionListener<StartStopTenantResponse>() {
+            client.execute(StartStopTenantAction.INSTANCE, new StartStopTenantRequest(active), new ActionListener<StartStopTenantResponse>() {
 
                 @Override
                 public void onResponse(StartStopTenantResponse response) {

@@ -19,18 +19,18 @@ public class DeActivateGloballyAction extends SignalsBaseRestHandler implements 
 
     public DeActivateGloballyAction(Settings settings, RestController controller) {
         super(settings);
-        controller.registerHandler(Method.PUT, "/_signals/admin/_activate", this);
-        controller.registerHandler(Method.PUT, "/_signals/admin/_deactivate", this);
+        controller.registerHandler(Method.PUT, "/_signals/admin/_active", this);
+        controller.registerHandler(Method.DELETE, "/_signals/admin/_active", this);
     }
 
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
-        final boolean activate = request.path().endsWith("/_activate");
+        final boolean active = request.method().equals(Method.PUT);
 
         return channel -> {
 
-            client.execute(StartStopAction.INSTANCE, new StartStopRequest(activate), new ActionListener<StartStopResponse>() {
+            client.execute(StartStopAction.INSTANCE, new StartStopRequest(active), new ActionListener<StartStopResponse>() {
 
                 @Override
                 public void onResponse(StartStopResponse response) {

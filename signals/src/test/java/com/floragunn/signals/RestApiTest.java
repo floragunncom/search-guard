@@ -765,7 +765,7 @@ public class RestApiTest {
                     "{\"watch\": " + watch.toJson() + ", \"goto\": \"teststatic\"}", basicAuth("uhura", "uhura"));
 
             System.out.println(watch.toJson());
-            
+
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             GetResponse getResponse = client.get(new GetRequest(testSink, "1")).actionGet();
@@ -816,7 +816,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executePutRequest(watchPath + "/_activate", "", auth);
+            response = rh.executePutRequest(watchPath + "/_active", "", auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -824,19 +824,19 @@ public class RestApiTest {
 
             Assert.assertEquals(true, watch.isActive());
 
-            response = rh.executePutRequest(watchPath + "/_deactivate", "", auth);
+            response = rh.executeDeleteRequest(watchPath + "/_active", auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             watch = getWatchByRest(tenant, watchId, auth);
             Assert.assertFalse(watch.isActive());
 
-            response = rh.executePutRequest(watchPath + "/_deactivate", "", auth);
+            response = rh.executeDeleteRequest(watchPath + "/_active", auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             watch = getWatchByRest(tenant, watchId, auth);
             Assert.assertFalse(watch.isActive());
 
-            response = rh.executePutRequest(watchPath + "/_activate", "", auth);
+            response = rh.executePutRequest(watchPath + "/_active", "", auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             watch = getWatchByRest(tenant, watchId, auth);
@@ -867,7 +867,7 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, "testsink_deactivate_watch", 1);
 
-            response = rh.executePutRequest(watchPath + "/_deactivate", "", auth);
+            response = rh.executeDeleteRequest(watchPath + "/_active", auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -885,7 +885,7 @@ public class RestApiTest {
 
             Assert.assertEquals(executionCountWhenDeactivated, lastExecutionCount);
 
-            response = rh.executePutRequest(watchPath + "/_activate", "", auth);
+            response = rh.executePutRequest(watchPath + "/_active", "", auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, "testsink_deactivate_watch", lastExecutionCount + 1);
@@ -915,7 +915,7 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, testSink, 1);
 
-            response = rh.executePutRequest("/_signals/tenant/" + tenant + "/_deactivate", "", auth);
+            response = rh.executeDeleteRequest("/_signals/tenant/" + tenant + "/_active", auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -929,7 +929,7 @@ public class RestApiTest {
 
             Assert.assertEquals(executionCountWhenDeactivated, lastExecutionCount);
 
-            response = rh.executePutRequest("/_signals/tenant/" + tenant + "/_activate", "", auth);
+            response = rh.executePutRequest("/_signals/tenant/" + tenant + "/_active", "", auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, testSink, lastExecutionCount + 1);
@@ -959,7 +959,7 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, testSink, 1);
 
-            response = rh.executePutRequest("/_signals/admin/_deactivate", "", auth);
+            response = rh.executeDeleteRequest("/_signals/admin/_active", auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -973,7 +973,7 @@ public class RestApiTest {
 
             Assert.assertEquals(executionCountWhenDeactivated, lastExecutionCount);
 
-            response = rh.executePutRequest("/_signals/admin/_activate", "", auth);
+            response = rh.executePutRequest("/_signals/admin/_active", "", auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, testSink, lastExecutionCount + 1);
@@ -1065,7 +1065,7 @@ public class RestApiTest {
 
             Assert.assertNotEquals(executionCountAfterAck, currentExecutionCount);
 
-            response = rh.executePutRequest(watchPath + "/_deactivate", "", auth);
+            response = rh.executeDeleteRequest(watchPath + "/_active", auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
         } finally {

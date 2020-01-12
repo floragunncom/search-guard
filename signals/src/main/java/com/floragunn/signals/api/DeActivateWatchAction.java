@@ -18,8 +18,8 @@ public class DeActivateWatchAction extends SignalsBaseRestHandler implements Ten
 
     public DeActivateWatchAction(Settings settings, RestController controller) {
         super(settings);
-        controller.registerHandler(Method.PUT, "/_signals/watch/{tenant}/{id}/_activate", this);
-        controller.registerHandler(Method.PUT, "/_signals/watch/{tenant}/{id}/_deactivate", this);
+        controller.registerHandler(Method.PUT, "/_signals/watch/{tenant}/{id}/_active", this);
+        controller.registerHandler(Method.DELETE, "/_signals/watch/{tenant}/{id}/_active", this);
     }
 
     @Override
@@ -27,12 +27,12 @@ public class DeActivateWatchAction extends SignalsBaseRestHandler implements Ten
 
         final String id = request.param("id");
 
-        final boolean activate = request.path().endsWith("/_activate");
+        final boolean active = request.method().equals(Method.PUT);
 
         return channel -> {
 
             client.execute(com.floragunn.signals.actions.watch.activate_deactivate.DeActivateWatchAction.INSTANCE,
-                    new DeActivateWatchRequest(id, activate), new ActionListener<DeActivateWatchResponse>() {
+                    new DeActivateWatchRequest(id, active), new ActionListener<DeActivateWatchResponse>() {
 
                         @Override
                         public void onResponse(DeActivateWatchResponse response) {
