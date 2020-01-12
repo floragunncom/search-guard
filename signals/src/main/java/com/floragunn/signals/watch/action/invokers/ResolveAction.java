@@ -72,7 +72,7 @@ public class ResolveAction extends ActionInvoker {
         ActionHandler handler = null;
 
         try {
-            severityLevels = SeverityLevel.Set.create(vJsonNode.requiredArray("resolves_severity"));
+            severityLevels = SeverityLevel.Set.createWithNoneDisallowed(vJsonNode.requiredArray("resolves_severity"));
             validateSeverityLevelsAgainstSeverityMapping(severityLevels, severityMapping);
         } catch (ConfigValidationException e) {
             validationErrors.add("resolves_severity", e);

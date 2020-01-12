@@ -96,7 +96,7 @@ public class AlertAction extends ActionInvoker {
         Integer foreachLimit = null;
 
         try {
-            severityLevels = SeverityLevel.Set.create(vJsonNode.get("severity"));
+            severityLevels = SeverityLevel.Set.createWithNoneDisallowed(vJsonNode.get("severity"));
 
             if (severityLevels != null) {
                 validateSeverityLevelsAgainstSeverityMapping(severityLevels, severityMapping);

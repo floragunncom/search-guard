@@ -173,7 +173,7 @@ public enum SeverityLevel implements Comparable<SeverityLevel> {
             return false;
         }
 
-        public static Set create(JsonNode jsonNode) throws ConfigValidationException {
+        public static Set createWithNoneDisallowed(JsonNode jsonNode) throws ConfigValidationException {
             if (jsonNode == null) {
                 return null;
             }
@@ -190,12 +190,16 @@ public enum SeverityLevel implements Comparable<SeverityLevel> {
 
             for (JsonNode severityLevelNode : jsonNode) {
                 try {
+                    if (severityLevelNode.asText().equalsIgnoreCase("none")) {
+                        throw new IllegalArgumentException();
+                    }
+
                     SeverityLevel severityLevel = SeverityLevel.valueOf(severityLevelNode.asText().toUpperCase());
 
                     result.add(severityLevel);
                 } catch (IllegalArgumentException e) {
-                    validationErrors
-                            .add(new InvalidAttributeValue(i + "", severityLevelNode.asText(), "info|warning|error|critical", severityLevelNode));
+                    validationErrors.add(
+                            new InvalidAttributeValue(i + "", severityLevelNode.asText(), "info|warning|error|critical", severityLevelNode).cause(e));
                 }
 
                 i++;
