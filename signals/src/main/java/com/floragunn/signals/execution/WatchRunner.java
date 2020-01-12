@@ -121,7 +121,8 @@ public class WatchRunner implements Job {
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
         try {
-            contextData.setTriggerInfo(new WatchExecutionContextData.TriggerInfo(context.getFireTime(), context.getScheduledFireTime()));
+            contextData.setTriggerInfo(new WatchExecutionContextData.TriggerInfo(context.getFireTime(), context.getScheduledFireTime(),
+                    context.getPreviousFireTime(), context.getNextFireTime()));
             execute();
         } catch (WatchExecutionException e) {
             log.info("Error while executing " + watch, e);

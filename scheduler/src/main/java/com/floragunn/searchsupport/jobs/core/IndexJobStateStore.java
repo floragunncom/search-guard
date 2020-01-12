@@ -843,16 +843,19 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
                     continue;
                 }
 
-                Date prevFireTime = trigger.getPreviousFireTime();
+                Date previousFireTime = trigger.getPreviousFireTime();
+                Date scheduledFireTime = trigger.getNextFireTime();
 
                 activeTriggers.remove(internalOperableTrigger);
+
+                // fire time attributes are updated here
                 internalOperableTrigger.triggered(null);
                 internalOperableTrigger.state = InternalOperableTrigger.State.EXECUTING;
                 internalOperableTrigger.node = nodeId;
                 markDirty(internalOperableTrigger);
 
-                TriggerFiredBundle triggerFiredBundle = new TriggerFiredBundle(jobDetail, trigger, null, false, new Date(),
-                        trigger.getPreviousFireTime(), prevFireTime, trigger.getNextFireTime());
+                TriggerFiredBundle triggerFiredBundle = new TriggerFiredBundle(jobDetail, trigger, null, false, new Date(), scheduledFireTime,
+                        previousFireTime, trigger.getNextFireTime());
 
                 if (jobDetail.isConcurrentExectionDisallowed()) {
                     jobDetail.blockIdleTriggers();
