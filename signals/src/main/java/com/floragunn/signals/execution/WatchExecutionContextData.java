@@ -202,6 +202,13 @@ public class WatchExecutionContextData implements ToXContentObject {
             return scheduledTime;
         }
 
+        public JodaCompatibleZonedDateTime getTriggered_time() {
+            return triggeredTime;
+        }
+
+        public JodaCompatibleZonedDateTime getScheduled_time() {
+            return scheduledTime;
+        }
     }
 
     static JodaCompatibleZonedDateTime parseJodaCompatibleZonedDateTime(String value) {
