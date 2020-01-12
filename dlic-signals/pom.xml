@@ -14,7 +14,6 @@
 		<groupId>com.search-guard</groupId>
 		<artifactId>dlic-sg-suite-parent</artifactId>
 		<version>${revision}</version>
-		<relativePath>../</relativePath>
 	</parent>
 
 	<artifactId>dlic-sg-suite-signals</artifactId>
@@ -54,6 +53,14 @@
 		<dependency>
 			<groupId>com.search-guard</groupId>
 			<artifactId>sg-suite-security</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		
+		<!-- Security Enterprise -->
+		<dependency>
+			<groupId>com.search-guard</groupId>
+			<artifactId>dlic-sg-suite-security</artifactId>
+			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
