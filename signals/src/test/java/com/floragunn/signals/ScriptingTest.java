@@ -48,7 +48,7 @@ public class ScriptingTest {
         Assert.assertFalse(validationErrors.toString(), validationErrors.hasErrors());
 
         WatchExecutionContextData watchExecutionContextData = new WatchExecutionContextData(new NestedValueMap(),
-                new TriggerInfo(new Date(1234), new Date(4567)), null);
+                new TriggerInfo(new Date(1234), new Date(4567), new Date(), new Date()), null);
 
         WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.TEST,
                 ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null);
