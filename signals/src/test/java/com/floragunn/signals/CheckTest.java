@@ -373,7 +373,7 @@ public class CheckTest {
 
         try (Client client = cluster.getInternalClient()) {
 
-            Calc calc = new Calc(null, null, "data.x.y = 5", "painless", Collections.emptyMap());
+            Calc calc = new Calc(null, "data.x.y = 5", "painless", Collections.emptyMap());
             calc.compileScripts(new WatchInitializationService(null, scriptService));
 
             NestedValueMap runtimeData = new NestedValueMap();

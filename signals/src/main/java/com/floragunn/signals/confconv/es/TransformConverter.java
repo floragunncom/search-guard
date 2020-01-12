@@ -134,13 +134,13 @@ public class TransformConverter {
         List<Check> result = new ArrayList<>();
 
         if (jsonNode.isTextual()) {
-            result.add(new Transform(null, null, null, jsonNode.asText(), null, null));
+            result.add(new Transform(null, null, jsonNode.asText(), null, null));
         } else if (jsonNode.isObject()) {
             if (jsonNode.hasNonNull("id")) {
                 validationErrors.add(new ValidationError("id", "Script references are not supported"));
             }
 
-            result.add(new Transform(null, null, null, vJsonNode.string("source", ""), vJsonNode.string("lang"), null));
+            result.add(new Transform(null, null, vJsonNode.string("source", ""), vJsonNode.string("lang"), null));
 
         } else {
             validationErrors.add(new InvalidAttributeValue(null, jsonNode, "JSON object or string"));

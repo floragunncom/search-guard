@@ -22,25 +22,19 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 
 public class Calc extends Check {
 
-    private String id;
     private String source;
     private String lang;
     private Map<String, Object> params;
     private Script script;
     private CalcScript.Factory scriptFactory;
 
-    public Calc(String name, String id, String source, String lang, Map<String, Object> params) {
+    public Calc(String name, String source, String lang, Map<String, Object> params) {
         super(name);
-        this.id = id;
         this.source = source;
         this.lang = lang;
         this.params = params != null ? params : Collections.emptyMap();
 
-        if (id != null) {
-            script = new Script(ScriptType.STORED, null, id, this.params);
-        } else {
-            script = new Script(ScriptType.INLINE, lang != null ? lang : "painless", source, this.params);
-        }
+        script = new Script(ScriptType.INLINE, lang != null ? lang : "painless", source, this.params);
     }
 
     static Calc create(WatchInitializationService watchInitService, ObjectNode jsonObject) throws ConfigValidationException {
@@ -49,7 +43,6 @@ public class Calc extends Check {
 
         vJsonNode.used("type");
 
-        String id = vJsonNode.string("script_id");
         String name = vJsonNode.string("name");
         String lang = vJsonNode.string("lang");
         String source = vJsonNode.string("source");
@@ -57,10 +50,10 @@ public class Calc extends Check {
         Map<String, Object> params = JacksonTools.toMap(vJsonNode.get("params"));
 
         vJsonNode.validateUnusedAttributes();
-        
+
         validationErrors.throwExceptionForPresentErrors();
 
-        Calc result = new Calc(name, id, source, lang, params);
+        Calc result = new Calc(name, source, lang, params);
 
         result.compileScripts(watchInitService);
 
@@ -77,10 +70,6 @@ public class Calc extends Check {
 
         builder.field("type", "calc");
 
-        if (id != null) {
-            builder.field("script_id", id);
-        }
-
         if (source != null) {
             builder.field("source", source);
         }
@@ -94,10 +83,6 @@ public class Calc extends Check {
 
         builder.endObject();
         return builder;
-    }
-
-    public String getId() {
-        return id;
     }
 
     public String getSource() {
@@ -127,7 +112,7 @@ public class Calc extends Check {
     public void compileScripts(WatchInitializationService watchInitService) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
 
-        this.scriptFactory = watchInitService.compile(this.id != null ? "script_id" : "source", script, CalcScript.CONTEXT, validationErrors);
+        this.scriptFactory = watchInitService.compile("source", script, CalcScript.CONTEXT, validationErrors);
 
         validationErrors.throwExceptionForPresentErrors();
     }

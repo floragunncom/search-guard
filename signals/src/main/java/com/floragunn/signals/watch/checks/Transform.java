@@ -22,25 +22,20 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 
 public class Transform extends AbstractInput {
 
-    private String id;
     private String source;
     private String lang;
     private Map<String, Object> params;
     private Script script;
     private TransformScript.Factory scriptFactory;
 
-    public Transform(String name, String id, String target, String source, String lang, Map<String, Object> params) {
+    public Transform(String name, String target, String source, String lang, Map<String, Object> params) {
         super(name, target);
-        this.id = id;
         this.source = source;
         this.lang = lang;
         this.params = params != null ? params : Collections.emptyMap();
 
-        if (id != null) {
-            script = new Script(ScriptType.STORED, null, id, this.params);
-        } else {
-            script = new Script(ScriptType.INLINE, lang != null ? lang : "painless", source, this.params);
-        }
+        script = new Script(ScriptType.INLINE, lang != null ? lang : "painless", source, this.params);
+
     }
 
     static Transform create(WatchInitializationService watchInitService, ObjectNode jsonObject) throws ConfigValidationException {
@@ -49,7 +44,6 @@ public class Transform extends AbstractInput {
 
         vJsonNode.used("type");
 
-        String id = vJsonNode.string("id");
         String name = vJsonNode.string("name");
         String target = vJsonNode.string("target");
         String lang = vJsonNode.string("lang");
@@ -61,7 +55,7 @@ public class Transform extends AbstractInput {
 
         validationErrors.throwExceptionForPresentErrors();
 
-        Transform result = new Transform(name, id, target, source, lang, params);
+        Transform result = new Transform(name, target, source, lang, params);
 
         result.compileScripts(watchInitService);
 
@@ -77,10 +71,6 @@ public class Transform extends AbstractInput {
             builder.field("target", target);
         }
 
-        if (id != null) {
-            builder.field("id", id);
-        }
-
         builder.field("type", "transform");
 
         if (source != null) {
@@ -92,10 +82,6 @@ public class Transform extends AbstractInput {
 
         builder.endObject();
         return builder;
-    }
-
-    public String getId() {
-        return id;
     }
 
     public String getSource() {
@@ -113,7 +99,7 @@ public class Transform extends AbstractInput {
     private void compileScripts(WatchInitializationService watchInitializationService) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
 
-        this.scriptFactory = watchInitializationService.compile(this.id != null ? "id" : "source", script, TransformScript.CONTEXT, validationErrors);
+        this.scriptFactory = watchInitializationService.compile("source", script, TransformScript.CONTEXT, validationErrors);
 
         validationErrors.throwExceptionForPresentErrors();
     }
