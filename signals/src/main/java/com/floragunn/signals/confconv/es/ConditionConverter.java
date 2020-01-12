@@ -237,13 +237,19 @@ public class ConditionConverter {
         List<Check> result = new ArrayList<>();
 
         if (jsonNode.isTextual()) {
-            result.add(new Condition(null, jsonNode.asText(), null, null));
+            ConversionResult<String> convertedScript = new PainlessScriptConverter(jsonNode.asText()).convertToSignals();
+
+            result.add(new Condition(null, convertedScript.getElement(), null, null));
+            validationErrors.add(null, convertedScript.getSourceValidationErrors());
         } else if (jsonNode.isObject()) {
             if (jsonNode.hasNonNull("id")) {
                 validationErrors.add(new ValidationError("id", "Script references are not supported"));
             }
 
-            result.add(new Condition(null, vJsonNode.string("source", ""), vJsonNode.string("lang"), null));
+            ConversionResult<String> convertedScript = new PainlessScriptConverter(vJsonNode.string("source", "")).convertToSignals();
+
+            result.add(new Condition(null, convertedScript.getElement(), vJsonNode.string("lang"), null));
+            validationErrors.add("source", convertedScript.getSourceValidationErrors());
 
         } else {
             validationErrors.add(new InvalidAttributeValue(null, jsonNode, "JSON object or string"));

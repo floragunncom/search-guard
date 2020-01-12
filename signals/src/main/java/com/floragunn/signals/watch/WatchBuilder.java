@@ -583,7 +583,7 @@ public class WatchBuilder {
 
         public WatchBuilder as(String name) throws JsonProcessingException, IOException {
 
-            Transform transform = new Transform(name, null, name, script, "painless", Collections.emptyMap());
+            Transform transform = new Transform(name, name, script, "painless", Collections.emptyMap());
 
             parent.inputs.add(transform);
 

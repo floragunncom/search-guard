@@ -198,7 +198,7 @@ public class ActionConverter {
         List<Check> checks = new ArrayList<>();
 
         if (executionTimeField != null && executionTimeField.length() > 0) {
-            checks.add(new Calc(null, null, "data." + executionTimeField + " = execution_time;", null, null));
+            checks.add(new Calc(null, "data." + executionTimeField + " = execution_time;", null, null));
         }
 
         ConversionResult<AlertAction> alertAction = createAlertAction(name, type, actionJsonNode,

@@ -24,6 +24,9 @@ import com.floragunn.signals.watch.common.auth.BasicAuth;
 
 public class EsWatcherConverter {
 
+    
+    // TODO metadata
+    
     private final JsonNode watcherJson;
 
     public EsWatcherConverter(JsonNode watcherJson) {
