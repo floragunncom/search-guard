@@ -66,7 +66,7 @@ public class TlsConfig implements ToXContentObject {
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
 
         this.inlineTruststorePem = vJsonNode.string("trusted_certs");
-        this.verifyHostnames = vJsonNode.booleanAttribute("verify_hostnames", false);
+        this.verifyHostnames = vJsonNode.booleanAttribute("verify_hostnames", true);
         this.trustAll = vJsonNode.booleanAttribute("trust_all", false);
 
         JsonNode clientAuthJsonNode = vJsonNode.get("client_auth");
