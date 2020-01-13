@@ -78,8 +78,8 @@ public class ActionConverter {
                 validationErrors.add("webhook", alertAction.getSourceValidationErrors());
             }
 
-            if (actionNode.hasNonNull("log")) {
-                validationErrors.add(new ValidationError("log", "log action is not supported"));
+            if (actionNode.hasNonNull("logging")) {
+                validationErrors.add(new ValidationError("logging", "logging action is not supported"));
             }
 
             if (actionNode.hasNonNull("pagerduty")) {
