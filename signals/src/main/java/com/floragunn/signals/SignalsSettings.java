@@ -280,6 +280,7 @@ public class SignalsSettings {
 
     public static class StaticSettings {
         public static Setting<Boolean> ENABLED = Setting.boolSetting("signals.enabled", true, Property.NodeScope);
+        public static Setting<Boolean> ENTERPRISE_ENABLED = Setting.boolSetting("signals.enterprise.enabled", true, Property.NodeScope);
 
         public static class IndexNames {
             public static Setting<String> WATCHES = Setting.simpleString("signals.index_names.watches", ".signals_watches", Property.NodeScope);
@@ -323,7 +324,7 @@ public class SignalsSettings {
         }
 
         public static List<Setting<?>> getAvailableSettings() {
-            return Arrays.asList(ENABLED, IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE, IndexNames.ACCOUNTS,
+            return Arrays.asList(ENABLED, ENTERPRISE_ENABLED, IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE, IndexNames.ACCOUNTS,
                     IndexNames.LOG);
         }
 
@@ -337,6 +338,10 @@ public class SignalsSettings {
 
         public boolean isEnabled() {
             return ENABLED.get(settings);
+        }
+        
+        public boolean isEnterpriseEnabled() {
+            return ENTERPRISE_ENABLED.get(settings);
         }
 
         public IndexNames getIndexNames() {

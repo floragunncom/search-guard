@@ -67,12 +67,12 @@ public class Signals extends AbstractLifecycleComponent {
     private AccountRegistry accountRegistry;
     private boolean initialized = false;
     private ThreadPool threadPool;
-    private boolean enterpriseModulesEnabled;
+    private Settings settings;
 
     public Signals(Settings settings, Path configPath) {
+        this.settings = settings;
         this.signalsSettings = new SignalsSettings(settings);
         this.signalsSettings.addChangeListener(this.settingsChangeListener);
-        this.enterpriseModulesEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true);
     }
 
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
@@ -98,7 +98,8 @@ public class Signals extends AbstractLifecycleComponent {
             this.signalsIndexes.protectIndexes(protectedIndices);
             clusterService.addListener(this.signalsIndexes.getClusterStateListener());
 
-            if (enterpriseModulesEnabled) {
+            if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true)
+                    && signalsSettings.getStaticSettings().isEnterpriseEnabled()) {
                 initEnterpriseModules();
             }
 
