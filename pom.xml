@@ -21,7 +21,8 @@
 
 	<properties>
 		<elasticsearch.version>7.5.1</elasticsearch.version>
-		<revision>${elasticsearch.version}-40.0.0-SNAPSHOT</revision>
+		<sg-suite.version>40.0.0-SNAPSHOT</sg-suite.version>
+		<revision>${elasticsearch.version}-${sg-suite.version}</revision>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -52,7 +53,6 @@
 		<module>security</module>
 		<module>scheduler</module>
 		<module>signals</module>
-		<module>plugin</module>
 	</modules>
 
 	<repositories>
@@ -112,6 +112,13 @@
 			<url>https://floragunn.mycloudrepo.io/repositories/fgmpriv-snapshots</url>
 		</snapshotRepository>
 	</distributionManagement>
+
+	<scm>
+		<url>https://git.floragunn.com/private/sg-suite</url>
+		<connection>scm:git:git@git.floragunn.com:private/sg-suite.git</connection>
+		<developerConnection>scm:git:git@git.floragunn.com:private/sg-suite.git</developerConnection>
+		<tag>HEAD</tag>
+	</scm>
 
 	<dependencies>
 
@@ -546,6 +553,22 @@
 	</build>
 
 	<profiles>
+	<profile>
+	<id>enterprise</id>
+	<activation>
+		<file>
+			<exists>../sg-suite-enterprise</exists>
+		</file>
+	</activation>
+	<modules>
+		<module>security</module>
+		<module>scheduler</module>
+		<module>signals</module>
+		<module>../sg-suite-enterprise</module>
+		<module>plugin</module>
+	</modules>
+
+</profile>
 		<profile>
 			<id>release</id>
 			<build>

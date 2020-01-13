@@ -70,7 +70,10 @@
 	</build>
 	<profiles>
 		<profile>
-			<id>enterprise</id>
+			<id>dlic</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
 			<build>
 				<plugins>
 					<plugin>

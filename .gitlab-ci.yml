@@ -1,39 +1,41 @@
 variables:
-  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository "
   SG_JAVA_BUILD_VERSION: "11"
+  MAVEN_OPTS: "-Dmaven.repo.local=m2repository"
 
 image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   paths:
-  - .m2/repository
+  - "sgbuild0/sg-suite/m2repository" #path look like this because of mv we do below
 
 before_script:
-- rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 netcat pinentry-tty expect psmisc xmlstarlet sudo
-- echo "VERSIONS:"
-- uname -a;java -version;openssl version
+- rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 netcat pinentry-tty expect psmisc xmlstarlet sudo > /dev/null 2>&1
+- eval $(ssh-agent -s)
+- echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+- mkdir -p ~/.ssh
+- chmod 700 ~/.ssh
+- ssh-keyscan git.floragunn.com >> ~/.ssh/known_hosts
+- chmod 644 ~/.ssh/known_hosts
+- mkdir -p sgbuild0/sg-suite
+- mv -f * sgbuild0/sg-suite || true #mv sg-suite to be able to have sg-suite and sg-suite-enterprise on the same level -> https://gitlab.com/gitlab-org/gitlab-runner/issues/4672#note_212006686
+- mv -f .git* sgbuild0/sg-suite || true #dot files/directory need to be moved explicitly
+# clone sg-suite-enterprise on the same level as sg-suite
+- git clone git@git.floragunn.com:private/sg-suite-enterprise.git sgbuild0/sg-suite-enterprise; cd sgbuild0/sg-suite-enterprise; git checkout $CI_COMMIT_REF_NAME; cd ../sg-suite
 
-stages:
-- test
-- deploy
-
-verify:
-  stage: test
+build_and_deploy:
   script:
   - ./smoketest.sh
-  - if [ "$CI_COMMIT_REF_NAME" == "master" ]; then mvn --fail-at-end -U -Pcoverage verify -s settings.xml; else mvn --fail-at-end -U verify -s settings.xml; fi
-  artifacts:
-    reports:
-      junit:
-      - target/surefire-reports/TEST-*.xml
-deploy:
-  stage: deploy
-  only:
-    variables:
-    - $CI_COMMIT_REF_NAME == "master"
-  script:
-  - mvn deploy --fail-at-end -U -Penterprise -DskipTests -s settings.xml
-  #    - mvn -U --fail-at-end -s settings.xml -Pcoverage sonar:sonar -Dsonar.organization=floragunncom-github -Dsonar.login=$SONAR_LOGIN -Dsonar.host.url=https://sonarcloud.io || true
-  - mvn --fail-at-end clean verify com.srcclr:srcclr-maven-plugin:scan -Penterprise -DskipTests -U -s settings.xml
-#    -./dev/scan_veracode.sh
+  - echo "Smoketest done"
+  #- mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml clean verify #run tests incl enterprise modules ?
+  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml -P!enterprise clean verify #run tests, no enterprise
+  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -DskipTests -s settings.xml -Penterprise clean deploy #deploy snapshot incl enterprise and zip
+  #- missing: veracode, coverage, srcclr, sonar, scan_veracode.sh
+  
+  
+  
+  #only used in merge request so far, so it makes not much sense to upload them
+  #artifacts:
+  #  reports:
+  #    junit:
+  #    - target/surefire-reports/TEST-*.xml
