@@ -16,12 +16,11 @@ tar -xzf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 rm -rf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 
 if [ "$CI" == "true" ]; then
-    mvn clean package -Penterprise -DskipTests -s settings.xml
+    mvn clean package -DskipTests -s settings.xml
 else
-    mvn clean package -Penterprise -DskipTests
+    mvn clean package -DskipTests
 fi
 
-mvn clean package -Penterprise -DskipTests #-s settings.xml
 PLUGIN_FILE=($DIR/plugin/target/releases/sg-suite!(*sgadmin*).zip)
 URL=file://$PLUGIN_FILE
 echo $URL
