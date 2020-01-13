@@ -271,6 +271,10 @@ public class SignalsTenant implements Closeable {
     }
 
     public List<String> ack(String watchId, User user) {
+        if (log.isInfoEnabled()) {
+            log.info("ack(" + watchId + ", " + user + ")");
+        }
+
         WatchState watchState = watchStateManager.getWatchState(watchId);
 
         List<String> result = watchState.ack(user != null ? user.getName() : null);
@@ -281,6 +285,10 @@ public class SignalsTenant implements Closeable {
     }
 
     public void ack(String watchId, String actionId, User user) {
+        if (log.isInfoEnabled()) {
+            log.info("ack(" + watchId + ", " + actionId + ", " + user + ")");
+        }
+
         WatchState watchState = watchStateManager.getWatchState(watchId);
 
         watchState.getActionState(actionId).ack(user != null ? user.getName() : null);
@@ -289,6 +297,10 @@ public class SignalsTenant implements Closeable {
     }
 
     public List<String> unack(String watchId, User user) {
+        if (log.isInfoEnabled()) {
+            log.info("unack(" + watchId + ", " + user + ")");
+        }
+
         WatchState watchState = watchStateManager.getWatchState(watchId);
 
         List<String> result = watchState.unack(user != null ? user.getName() : null);
@@ -299,6 +311,10 @@ public class SignalsTenant implements Closeable {
     }
 
     public boolean unack(String watchId, String actionId, User user) {
+        if (log.isInfoEnabled()) {
+            log.info("unack(" + watchId + ", " + actionId + ", " + user + ")");
+        }
+
         WatchState watchState = watchStateManager.getWatchState(watchId);
 
         boolean result = watchState.getActionState(actionId).unackIfPossible(user != null ? user.getName() : null);

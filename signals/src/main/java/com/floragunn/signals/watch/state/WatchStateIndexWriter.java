@@ -12,6 +12,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -30,7 +31,7 @@ public class WatchStateIndexWriter implements WatchStateWriter {
     }
 
     public void put(String watchId, WatchState watchState) {
-
+        
         try {
             IndexRequest indexRequest = createIndexRequest(watchId, watchState, RefreshPolicy.IMMEDIATE);
 
@@ -39,7 +40,7 @@ public class WatchStateIndexWriter implements WatchStateWriter {
                 @Override
                 public void onResponse(IndexResponse response) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Updated " + watchId);
+                        log.debug("Updated " + watchId + " to:\n" + watchState + "\n" + Strings.toString(response));
                     }
                 }
 
@@ -70,7 +71,7 @@ public class WatchStateIndexWriter implements WatchStateWriter {
             @Override
             public void onResponse(BulkResponse response) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Updated " + response);
+                    log.debug("Updated " + idToStateMap.keySet() + "\n" + Strings.toString(response));
                 }
             }
 

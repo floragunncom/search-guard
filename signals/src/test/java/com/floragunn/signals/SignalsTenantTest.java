@@ -143,7 +143,7 @@ public class SignalsTenantTest {
 
                 Thread.sleep(500);
 
-                List<String> ackedActions = tenant.getWatchStateManager().getWatchState("test_watch").ack("horst");
+                List<String> ackedActions = tenant.ack("test_watch", new User("horst"));
                 Assert.assertEquals(Arrays.asList("testsink"), ackedActions);
 
                 ackedTime1 = tenant.getWatchStateManager().getWatchState("test_watch").getActionState("testsink").getAcked();

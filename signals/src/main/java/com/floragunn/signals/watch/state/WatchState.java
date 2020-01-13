@@ -212,4 +212,7 @@ public class WatchState implements ToXContentObject {
         this.refreshBeforeExecuting = refreshBeforeExecuting;
     }
 
+    public String toString() {
+        return Strings.toString(this);
+    }
 }

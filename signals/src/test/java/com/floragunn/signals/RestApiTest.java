@@ -327,6 +327,14 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, "testsink_put_watch_with_dash", 1);
 
+            rh.executeDeleteRequest(watchPath, auth);
+
+            Thread.sleep(500);
+            
+            response = rh.executeGetRequest(watchPath, auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            
         } finally {
             rh.executeDeleteRequest(watchPath, auth);
         }
@@ -875,7 +883,7 @@ public class RestApiTest {
 
             Assert.assertFalse(updatedWatch.isActive());
 
-            Thread.sleep(1000);
+            Thread.sleep(1500);
 
             long executionCountWhenDeactivated = getCountOfDocuments(client, "testsink_deactivate_watch");
 
