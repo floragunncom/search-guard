@@ -1033,7 +1033,7 @@ public class RestApiTest {
 
             System.out.println(response.getBody());
             JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(response.getBody(), "uhura", statusDoc.get("actions").get("testaction").get("acked").get("by").textValue());
+            Assert.assertEquals(response.getBody(), "uhura", statusDoc.at("/actions/testaction/acked/by").textValue());
 
             Thread.sleep(200);
 
