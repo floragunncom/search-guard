@@ -176,9 +176,8 @@ public class ActionConverter {
         result.setBcc(bcc);
         result.setSubject(subject);
         result.setBody(textBody);
+        result.setReplyTo(replyTo);
 
-        
-        
         return new ConversionResult<ActionHandler>(result, validationErrors);
     }
 

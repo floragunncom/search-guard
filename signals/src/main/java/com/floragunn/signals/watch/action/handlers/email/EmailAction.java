@@ -56,6 +56,7 @@ public class EmailAction extends ActionHandler {
     private List<String> to;
     private List<String> cc;
     private List<String> bcc;
+    private String replyTo;
 
     // TODO is map here a good data structure? We should be able to preserve the order.
     private Map<String, Attachment> attachments = Collections.emptyMap();
@@ -68,6 +69,7 @@ public class EmailAction extends ActionHandler {
     private List<TemplateScript.Factory> bccScript;
     private TemplateScript.Factory subjectScript;
     private TemplateScript.Factory bodyScript;
+    private TemplateScript.Factory replyToScript;
 
     public EmailAction() {
     }
@@ -81,6 +83,7 @@ public class EmailAction extends ActionHandler {
         this.toScript = watchInitService.compileTemplates("to", to, validationErrors);
         this.ccScript = watchInitService.compileTemplates("cc", cc, validationErrors);
         this.bccScript = watchInitService.compileTemplates("bcc", bcc, validationErrors);
+        this.replyToScript = watchInitService.compileTemplate("reply_to", replyTo, validationErrors);
 
         validationErrors.throwExceptionForPresentErrors();
     }
@@ -144,6 +147,10 @@ public class EmailAction extends ActionHandler {
             } else if (destination.getDefaultCc() != null) {
                 emailBuilder.bccMultiple(destination.getDefaultBcc());
             }
+            
+            if (replyToScript != null) {
+                emailBuilder.withReplyTo(render(ctx, replyToScript));
+            }
 
             emailBuilder.withSubject(render(ctx, subjectScript));
             emailBuilder.withPlainText(render(ctx, bodyScript));
@@ -191,6 +198,10 @@ public class EmailAction extends ActionHandler {
         if (bcc != null) {
             builder.field("bcc", bcc);
         }
+        
+        if (replyTo != null) {
+            builder.field("reply_to", replyTo);
+        }
 
         builder.field("subject", subject);
 
@@ -217,6 +228,7 @@ public class EmailAction extends ActionHandler {
             List<String> bcc = vJsonNode.stringList("bcc");
             String subject = vJsonNode.requiredString("subject");
             String account = vJsonNode.string("account");
+            String replyTo = vJsonNode.string("reply_to");
 
             watchInitService.verifyAccount(account, EmailAccount.class, validationErrors, (ObjectNode) vJsonNode.getDelegate());
 
@@ -243,6 +255,7 @@ public class EmailAction extends ActionHandler {
             result.setSubject(subject);
             result.setFrom(from);
             result.setAttachments(attachments);
+            result.setReplyTo(replyTo);
 
             result.compileScripts(watchInitService);
 
@@ -421,6 +434,14 @@ public class EmailAction extends ActionHandler {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public String getReplyTo() {
+        return replyTo;
+    }
+
+    public void setReplyTo(String replyTo) {
+        this.replyTo = replyTo;
     }
 
 }
