@@ -167,8 +167,8 @@ public class ActionTest {
     private static ScriptService scriptService;
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().nodeSettings("signals.enabled", true)
-            .resources("sg_config/signals").build();
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
+            .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).resources("sg_config/signals").build();
 
     @BeforeClass
     public static void setupTestData() {

@@ -33,7 +33,8 @@ public class SignalsTenantTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/no-tenants")
-            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log").build();
+            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "searchguard.enterprise_modules_enabled", false)
+            .build();
 
     private static ClusterService clusterService;
     private static NamedXContentRegistry xContentRegistry;

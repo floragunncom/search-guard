@@ -39,7 +39,7 @@ public class RestApiTestMultiTenancyOff {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals-no-mt")
-            .nodeSettings("signals.enabled", true).build();
+            .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).build();
 
     @BeforeClass
     public static void setupTestData() {

@@ -67,7 +67,8 @@ public class RestApiTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
-            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log").build();
+            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "searchguard.enterprise_modules_enabled", false)
+            .build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -330,11 +331,11 @@ public class RestApiTest {
             rh.executeDeleteRequest(watchPath, auth);
 
             Thread.sleep(500);
-            
+
             response = rh.executeGetRequest(watchPath, auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
-            
+
         } finally {
             rh.executeDeleteRequest(watchPath, auth);
         }
