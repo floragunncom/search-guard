@@ -102,10 +102,12 @@ public class ValidatingJsonNode {
     public ObjectNode getObjectNode(String attribute) {
         JsonNode attributeNode = get(attribute);
 
-        if (attributeNode instanceof ObjectNode) {
+        if (attributeNode == null) {
+            return null;
+        } else if (attributeNode instanceof ObjectNode) {
             return (ObjectNode) attributeNode;
         } else {
-            validationErrors.add(new InvalidAttributeValue(attribute, jsonNode.toString(), "JSON object", attributeNode));
+            validationErrors.add(new InvalidAttributeValue(attribute, attributeNode, "JSON object", attributeNode));
             return null;
         }
     }

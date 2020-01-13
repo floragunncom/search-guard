@@ -123,7 +123,11 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
     @Override
     public List<Trigger> getTriggers() {
-        return schedule.getTriggers();
+        if (schedule != null) {
+            return schedule.getTriggers();
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     public List<Check> getChecks() {
@@ -230,12 +234,14 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             builder.field("_tenant", tenant);
         }
 
-        builder.field("trigger");
-        builder.startObject();
+        if (schedule != null) {
+            builder.field("trigger");
+            builder.startObject();
 
-        builder.field("schedule", schedule);
+            builder.field("schedule", schedule);
 
-        builder.endObject();
+            builder.endObject();
+        }
 
         if (throttlePeriod != null) {
             builder.field("throttle_period", throttlePeriod.toString());
