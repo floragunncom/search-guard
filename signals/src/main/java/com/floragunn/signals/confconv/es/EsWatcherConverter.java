@@ -23,9 +23,6 @@ import com.floragunn.signals.watch.common.auth.Auth;
 import com.floragunn.signals.watch.common.auth.BasicAuth;
 
 public class EsWatcherConverter {
-
-    
-    // TODO metadata
     
     private final JsonNode watcherJson;
 
@@ -38,6 +35,12 @@ public class EsWatcherConverter {
         Schedule schedule = null;
         List<Check> checks = new ArrayList<>();
         List<AlertAction> actions = Collections.emptyList();
+        
+        if (watcherJson.hasNonNull("metadata")) {
+            ConversionResult<List<Check>> conversionResult = new MetaConverter(watcherJson.get("metadata")).convertToSignals();
+            checks.addAll(conversionResult.getElement());
+            validationErrors.add("metadata", conversionResult.getSourceValidationErrors());
+        }
 
         if (watcherJson.hasNonNull("trigger") && watcherJson.get("trigger").hasNonNull("schedule")) {
             ConversionResult<Schedule> conversionResult = new ScheduleConverter(watcherJson.get("trigger").get("schedule")).convertToSignals();

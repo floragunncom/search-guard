@@ -24,8 +24,10 @@ public class PainlessScriptConverter {
             validationErrors.add(new ValidationError(null, "params script attribute is not supported by Signals"));
         }
         
-        // TODO metadata
-
+        if (script.contains("ctx.metadata.")) {
+            convertedScript = convertedScript.replace("ctx.metadata.", "data.");
+        }
+        
         return new ConversionResult<String>(convertedScript);
     }
 
