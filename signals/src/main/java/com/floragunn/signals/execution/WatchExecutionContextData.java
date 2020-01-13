@@ -170,10 +170,10 @@ public class WatchExecutionContextData implements ToXContentObject {
         }
 
         public TriggerInfo(Date triggeredTime, Date scheduledTime, Date previousScheduledTime, Date nextScheduledTime) {
-            this.triggeredTime = new JodaCompatibleZonedDateTime(triggeredTime.toInstant(), ZoneOffset.UTC);
-            this.scheduledTime = new JodaCompatibleZonedDateTime(scheduledTime.toInstant(), ZoneOffset.UTC);
-            this.previousScheduledTime = new JodaCompatibleZonedDateTime(previousScheduledTime.toInstant(), ZoneOffset.UTC);
-            this.nextScheduledTime = new JodaCompatibleZonedDateTime(nextScheduledTime.toInstant(), ZoneOffset.UTC);
+            this.triggeredTime = toJoda(triggeredTime);
+            this.scheduledTime = toJoda(scheduledTime);
+            this.previousScheduledTime = toJoda(previousScheduledTime);
+            this.nextScheduledTime = toJoda(nextScheduledTime);
         }
 
         @Override
@@ -227,7 +227,7 @@ public class WatchExecutionContextData implements ToXContentObject {
         public JodaCompatibleZonedDateTime getNextScheduledTime() {
             return nextScheduledTime;
         }
-        
+
         public JodaCompatibleZonedDateTime getTriggered_time() {
             return triggeredTime;
         }
@@ -242,6 +242,14 @@ public class WatchExecutionContextData implements ToXContentObject {
 
         public JodaCompatibleZonedDateTime getNext_scheduled_time() {
             return nextScheduledTime;
+        }
+    }
+
+    private static JodaCompatibleZonedDateTime toJoda(Date date) {
+        if (date == null) {
+            return null;
+        } else {
+            return new JodaCompatibleZonedDateTime(date.toInstant(), ZoneOffset.UTC);
         }
     }
 
