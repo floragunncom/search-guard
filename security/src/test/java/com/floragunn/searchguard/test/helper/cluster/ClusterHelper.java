@@ -244,7 +244,7 @@ public final class ClusterHelper {
 
     public PluginAwareNode node() {
         if (esNodes.size() == 0) {
-            for (int i = 0; i < 20; i++) {
+            for (int i = 0; i < 100; i++) {
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
@@ -256,6 +256,11 @@ public final class ClusterHelper {
                 }
             }
         }
+        
+        if (esNodes.size() == 0) {
+            throw new RuntimeException("Could not get intialized cluster");
+        }
+        
         return esNodes.get(0);
     }
 
