@@ -317,7 +317,7 @@ public class WatchRunner implements Job {
 
                 ActionState.BasicState basicActionState = actionState.beforeExecution(getThrottlePeriod(action));
 
-                if (action.getSeverityLevels() != null) {
+                if (action.getSeverityLevels() != null && action.getSeverityLevels().size() != 0) {
 
                     if (newSeverityLevel == null) {
                         actionLog.setStatus(new Status(Status.Code.ACTION_FAILED,
