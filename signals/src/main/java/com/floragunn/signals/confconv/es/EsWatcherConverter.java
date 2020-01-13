@@ -96,8 +96,23 @@ public class EsWatcherConverter {
         }
 
         String path = vJsonNode.string("path");
+        
+        ConversionResult<String> convertedPath = new MustacheTemplateConverter(path).convertToSignals();
+        validationErrors.add("path", convertedPath.getSourceValidationErrors());
+        path = convertedPath.getElement();
+        
         String query = vJsonNode.string("params");
+        
+        ConversionResult<String> convertedQuery = new MustacheTemplateConverter(query).convertToSignals();
+        validationErrors.add("params", convertedQuery.getSourceValidationErrors());
+        query = convertedQuery.getElement();
+        
         String body = vJsonNode.string("body");
+        
+        ConversionResult<String> convertedBody = new MustacheTemplateConverter(body).convertToSignals();
+        validationErrors.add("body", convertedBody.getSourceValidationErrors());
+        body = convertedBody.getElement();
+        
         Method method = vJsonNode.caseInsensitiveEnum("method", Method.class, Method.GET);
 
         Map<String, Object> headers = vJsonNode.hasNonNull("headers") ? JacksonTools.toMap(vJsonNode.get("headers")) : null;

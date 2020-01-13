@@ -149,14 +149,25 @@ public class ActionConverter {
 
         if (vJsonNode.get("body") instanceof ObjectNode && vJsonNode.get("body").hasNonNull("text")) {
             textBody = vJsonNode.get("body").get("text").textValue();
+            
+            ConversionResult<String> convertedBody = new MustacheTemplateConverter(textBody).convertToSignals();
+            validationErrors.add("body.text", convertedBody.getSourceValidationErrors());
+            
+            textBody = convertedBody.getElement();
+            
         } else if (vJsonNode.hasNonNull("body")) {
             textBody = vJsonNode.get("body").textValue();
+            
+            ConversionResult<String> convertedBody = new MustacheTemplateConverter(textBody).convertToSignals();
+            validationErrors.add("body", convertedBody.getSourceValidationErrors());
+            
+            textBody = convertedBody.getElement();
         }
 
         if (jsonNode.hasNonNull("attachments") || jsonNode.hasNonNull("attach_data")) {
             validationErrors.add(new ValidationError("attachments", "Attachments are not supported"));
         }
-
+        
         EmailAction result = new EmailAction();
 
         result.setFrom(from);
@@ -166,12 +177,13 @@ public class ActionConverter {
         result.setSubject(subject);
         result.setBody(textBody);
 
+        
+        
         return new ConversionResult<ActionHandler>(result, validationErrors);
     }
 
     private ConversionResult<ActionHandler> createWebhookAction(JsonNode jsonNode) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
 
         ConversionResult<HttpRequestConfig> httpRequestConfig = EsWatcherConverter.createHttpRequestConfig(jsonNode);
         validationErrors.add(null, httpRequestConfig.sourceValidationErrors);
@@ -222,6 +234,11 @@ public class ActionConverter {
         String icon = messageNode.string("icon");
         String text = messageNode.string("text");
 
+        
+        ConversionResult<String> convertedText = new MustacheTemplateConverter(text).convertToSignals();
+        validationErrors.add("text", convertedText.getSourceValidationErrors());
+        text = convertedText.getElement();
+        
         if (messageNode.hasNonNull("attachments") || messageNode.hasNonNull("dynamic_attachments")) {
             validationErrors.add(new ValidationError("attachments", "Attachments are not supported"));
         }

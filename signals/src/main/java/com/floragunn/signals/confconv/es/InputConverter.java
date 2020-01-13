@@ -38,21 +38,21 @@ public class InputConverter {
     }
 
     ConversionResult<List<Check>> convertToSignals() {
-        return convertToSignals(inputJsonNode, null);
+        return convertToSignals(inputJsonNode, null, "_top");
     }
 
-    private ConversionResult<List<Check>> convertToSignals(JsonNode inputJsonNode, String name) {
+    private ConversionResult<List<Check>> convertToSignals(JsonNode inputJsonNode, String name, String target) {
         ValidationErrors validationErrors = new ValidationErrors();
 
         List<Check> result = new ArrayList<>();
 
         if (inputJsonNode.hasNonNull("simple")) {
-            result.add(new StaticInput(name, null, JacksonTools.toMap(inputJsonNode.get("simple"))));
+            result.add(new StaticInput(name, target, JacksonTools.toMap(inputJsonNode.get("simple"))));
             name = null;
         }
 
         if (inputJsonNode.hasNonNull("search")) {
-            ConversionResult<List<Check>> convertedSearch = createSearchInput(inputJsonNode.get("search"), name);
+            ConversionResult<List<Check>> convertedSearch = createSearchInput(inputJsonNode.get("search"), name, target);
 
             result.addAll(convertedSearch.getElement());
             validationErrors.add("search", convertedSearch.getSourceValidationErrors());
@@ -61,7 +61,7 @@ public class InputConverter {
         }
 
         if (inputJsonNode.hasNonNull("http")) {
-            ConversionResult<List<Check>> convertedSearch = createHttpInput(inputJsonNode.get("http"), name);
+            ConversionResult<List<Check>> convertedSearch = createHttpInput(inputJsonNode.get("http"), name, target);
 
             result.addAll(convertedSearch.getElement());
             validationErrors.add("http", convertedSearch.getSourceValidationErrors());
@@ -70,7 +70,7 @@ public class InputConverter {
         }
 
         if (inputJsonNode.hasNonNull("chain") && inputJsonNode.get("chain").hasNonNull("inputs")) {
-            ConversionResult<List<Check>> convertedChain = createInputChain(inputJsonNode.get("chain").get("inputs"));
+            ConversionResult<List<Check>> convertedChain = createInputChain(inputJsonNode.get("chain").get("inputs"), target);
 
             result.addAll(convertedChain.getElement());
             validationErrors.add("chain", convertedChain.getSourceValidationErrors());
@@ -80,7 +80,7 @@ public class InputConverter {
         return new ConversionResult<List<Check>>(result, validationErrors);
     }
 
-    private ConversionResult<List<Check>> createSearchInput(JsonNode jsonNode, String name) {
+    private ConversionResult<List<Check>> createSearchInput(JsonNode jsonNode, String name, String target) {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
 
@@ -96,6 +96,9 @@ public class InputConverter {
         List<String> indices = vRequestNode.stringList("indices");
         SearchType searchType = vRequestNode.caseInsensitiveEnum("search_type", SearchType.class, null);
         String body = bodyNodeToString(vRequestNode.requiredObject("body"), requestValidationErrors);
+        ConversionResult<String> convertedBody = new MustacheTemplateConverter(body).convertToSignals();
+        requestValidationErrors.add("body", convertedBody.getSourceValidationErrors());
+
         IndicesOptions indicesOptions = null;
         TimeValue timeout = vJsonNode.timeValue("timeout");
 
@@ -115,7 +118,7 @@ public class InputConverter {
             validationErrors.add(new ValidationError("extract", "Signals does not support the extract attribute. Use a transform instead."));
         }
 
-        SearchInput searchInput = new SearchInput(name, null, indices, body, searchType, indicesOptions);
+        SearchInput searchInput = new SearchInput(name, target, indices, convertedBody.getElement(), searchType, indicesOptions);
 
         if (timeout != null) {
             searchInput.setTimeout(timeout);
@@ -125,7 +128,7 @@ public class InputConverter {
         return new ConversionResult<List<Check>>(Collections.singletonList(searchInput), validationErrors);
     }
 
-    private ConversionResult<List<Check>> createHttpInput(JsonNode jsonNode, String name) {
+    private ConversionResult<List<Check>> createHttpInput(JsonNode jsonNode, String name, String target) {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
 
@@ -145,16 +148,16 @@ public class InputConverter {
         }
 
         return new ConversionResult<List<Check>>(
-                Collections.singletonList(new HttpInput(name, null, httpRequestConfig.getElement(), httpClientConfig)));
+                Collections.singletonList(new HttpInput(name, target, httpRequestConfig.getElement(), httpClientConfig)));
     }
 
-    private ConversionResult<List<Check>> createInputChain(JsonNode chain) {
+    private ConversionResult<List<Check>> createInputChain(JsonNode chain, String target) {
         ValidationErrors validationErrors = new ValidationErrors();
         List<Check> result = new ArrayList<>();
 
         if (chain instanceof ArrayNode) {
             for (JsonNode chainMember : chain) {
-                ConversionResult<List<Check>> subResult = createInputChain(chainMember);
+                ConversionResult<List<Check>> subResult = createInputChain(chainMember, target);
                 result.addAll(subResult.getElement());
                 validationErrors.add(null, subResult.getSourceValidationErrors());
             }
@@ -166,7 +169,9 @@ public class InputConverter {
             while (iter.hasNext()) {
                 Map.Entry<String, JsonNode> entry = iter.next();
 
-                ConversionResult<List<Check>> subResult = convertToSignals(entry.getValue(), entry.getKey());
+                String subTarget = target == null || target.equals("_top") ? entry.getKey() : target + "." + entry.getKey();
+
+                ConversionResult<List<Check>> subResult = convertToSignals(entry.getValue(), entry.getKey(), subTarget);
 
                 result.addAll(subResult.getElement());
                 validationErrors.add(entry.getKey(), subResult.getSourceValidationErrors());

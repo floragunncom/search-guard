@@ -167,7 +167,7 @@ public class InlineMustacheTemplate<ResultType> implements ToXContent {
     }
 
     public static <ResultType> InlineMustacheTemplate<ResultType> constant(ResultType value) {
-        return new InlineMustacheTemplate<ResultType>(value);
+        return value != null ? new InlineMustacheTemplate<ResultType>(value) : null;
     }
 
     public static class Parser<ResultType> implements ValueParser<InlineMustacheTemplate<ResultType>> {

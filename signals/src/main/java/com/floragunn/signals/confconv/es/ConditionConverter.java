@@ -81,10 +81,15 @@ public class ConditionConverter {
                 continue;
             }
 
+            ConversionResult<String> convertedOperand1 = new PainlessScriptConverter(operand1).convertToSignals();
+            validationErrors.add(operand1, convertedOperand1.getSourceValidationErrors());
+
+            operand1 = convertedOperand1.getElement();
+
             Iterator<Map.Entry<String, JsonNode>> subIter = ((ObjectNode) entry.getValue()).fields();
 
             while (subIter.hasNext()) {
-                Map.Entry<String, JsonNode> subEntry = iter.next();
+                Map.Entry<String, JsonNode> subEntry = subIter.next();
                 String operator;
                 try {
                     operator = operatorToPainless(subEntry.getKey());
@@ -101,6 +106,8 @@ public class ConditionConverter {
                     String operand2 = subEntry.getValue().asText();
 
                     if (operand2.contains("{{")) {
+                        
+                        
                         operand2 = mustacheToPainless(operand2);
 
                         result.add(new Condition(null, operand1 + " " + operator + " " + operand2, null, null));
@@ -142,17 +149,21 @@ public class ConditionConverter {
 
             String operand1 = entry.getKey();
 
+            ConversionResult<String> convertedOperand1 = new PainlessScriptConverter(operand1).convertToSignals();
+            validationErrors.add(operand1, convertedOperand1.getSourceValidationErrors());
+
+            operand1 = convertedOperand1.getElement();
+            
             if (!(entry.getValue() instanceof ObjectNode)) {
                 validationErrors.add(new InvalidAttributeValue(entry.getKey(), entry.getValue(), "JSON Object"));
                 continue;
             }
 
-            if (!entry.getValue().hasNonNull("path")) {
-                validationErrors.add(new MissingAttribute(entry.getKey() + "." + "path", entry.getValue()));
-                continue;
-            }
+            String path = null;
 
-            String path = entry.getValue().get("path").asText();
+            if (entry.getValue().hasNonNull("path")) {
+                path = entry.getValue().get("path").asText();
+            }
 
             Iterator<Map.Entry<String, JsonNode>> subIter = ((ObjectNode) entry.getValue()).fields();
 
@@ -182,11 +193,16 @@ public class ConditionConverter {
                     }
 
                     if (operand2Node.get("value").isNumber()) {
-                        operand2 = subEntry.getValue().asText();
+                        operand2 = operand2Node.asText();
                     } else {
-                        operand2 = subEntry.getValue().asText();
+                        operand2 = operand2Node.asText();
 
                         if (operand2.contains("{{")) {
+                            
+                            ConversionResult<String> convertedOperand2 = new MustacheTemplateConverter(operand2).convertToSignals();
+                            validationErrors.add(entry.getKey() + "." + subEntry.getKey(), convertedOperand2.getSourceValidationErrors());
+                            operand2 = convertedOperand2.getElement();
+                            
                             operand2 = mustacheToPainless(operand2);
                         } else if (operand2.startsWith("<") && operand2.endsWith(">")) {
                             operand2 = '"' + operand2 + '"';
@@ -208,6 +224,10 @@ public class ConditionConverter {
                         operand2 = subEntry.getValue().asText();
 
                         if (operand2.contains("{{")) {
+                            ConversionResult<String> convertedOperand2 = new MustacheTemplateConverter(operand2).convertToSignals();
+                            validationErrors.add(entry.getKey() + "." + subEntry.getKey(), convertedOperand2.getSourceValidationErrors());
+                            operand2 = convertedOperand2.getElement();
+
                             operand2 = mustacheToPainless(operand2);
                         } else if (operand2.startsWith("<") && operand2.endsWith(">")) {
                             operand2 = '"' + operand2 + '"';
@@ -219,7 +239,8 @@ public class ConditionConverter {
                 }
 
                 String matchMethod = all ? "allMatch" : "anyMatch";
-                String painless = operand1 + ".stream()." + matchMethod + "(current -> current " + operator + " " + operand2 + ")";
+                String painless = operand1 + ".stream()." + matchMethod + "(current -> current"
+                        + (path != null && path.length() > 0 ? "." + path : "") + " " + operator + " " + operand2 + ")";
 
                 result.add(new Condition(null, painless, null, null));
 

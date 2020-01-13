@@ -65,8 +65,11 @@ public class Transform extends AbstractInput {
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
-        builder.field("name", name);
 
+        if (name != null) {
+            builder.field("name", name);
+        }
+        
         if (target != null) {
             builder.field("target", target);
         }
