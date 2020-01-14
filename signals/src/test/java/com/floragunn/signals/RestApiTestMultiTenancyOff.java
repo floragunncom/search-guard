@@ -31,6 +31,9 @@ import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
+import net.jcip.annotations.NotThreadSafe;
+
+@NotThreadSafe
 public class RestApiTestMultiTenancyOff {
     private static final Logger log = LogManager.getLogger(RestApiTestMultiTenancyOff.class);
 

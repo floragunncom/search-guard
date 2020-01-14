@@ -21,6 +21,9 @@ import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
+import net.jcip.annotations.NotThreadSafe;
+
+@NotThreadSafe
 public class ScriptingTest {
 
     private static NamedXContentRegistry xContentRegistry;

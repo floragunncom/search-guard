@@ -53,10 +53,13 @@ import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.GreenMailUtil;
 import com.icegreen.greenmail.util.ServerSetup;
 
+import net.jcip.annotations.NotThreadSafe;
+
 @PowerMockIgnore({ "javax.script.*", "javax.crypto.*", "javax.management.*", "sun.security.*", "java.security.*", "javax.net.ssl.*", "javax.net.*",
         "javax.security.*" })
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(AccountRegistry.class)
+@NotThreadSafe
 public class ActionTest {
 
     private final static String ROOT_CA_CERT = "-----BEGIN CERTIFICATE-----\n" + "MIIDyDCCArCgAwIBAgIBATANBgkqhkiG9w0BAQsFADB1MRMwEQYKCZImiZPyLGQB\n"

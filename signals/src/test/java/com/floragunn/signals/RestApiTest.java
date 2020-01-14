@@ -42,9 +42,9 @@ import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
-import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.support.JsonBuilder;
 import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
 import com.floragunn.signals.watch.action.handlers.email.EmailAction;
 import com.floragunn.signals.watch.action.handlers.email.EmailAction.Attachment;
@@ -59,6 +59,9 @@ import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.GreenMailUtil;
 import com.icegreen.greenmail.util.ServerSetup;
 
+import net.jcip.annotations.NotThreadSafe;
+
+@NotThreadSafe
 public class RestApiTest {
     private static final Logger log = LogManager.getLogger(RestApiTest.class);
 
@@ -67,8 +70,7 @@ public class RestApiTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
-            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "signals.enterprise.enabled", false)
-            .build();
+            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "signals.enterprise.enabled", false).build();
 
     @BeforeClass
     public static void setupTestData() {

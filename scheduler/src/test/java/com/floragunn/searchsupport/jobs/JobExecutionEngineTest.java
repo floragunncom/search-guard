@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
@@ -30,6 +31,9 @@ import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.searchsupport.jobs.cluster.NodeNameComparator;
 import com.floragunn.searchsupport.jobs.config.DefaultJobConfig;
 
+import net.jcip.annotations.NotThreadSafe;
+
+@NotThreadSafe
 public class JobExecutionEngineTest extends SingleClusterTest {
     private static final Logger log = LogManager.getLogger(JobExecutionEngineTest.class);
 

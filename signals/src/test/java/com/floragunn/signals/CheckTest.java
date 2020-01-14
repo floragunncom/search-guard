@@ -35,17 +35,20 @@ import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.execution.WatchExecutionContextData.TriggerInfo;
 import com.floragunn.signals.support.NestedValueMap;
-import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.checks.Calc;
-import com.floragunn.signals.watch.checks.HttpInput;
 import com.floragunn.signals.watch.checks.Condition;
+import com.floragunn.signals.watch.checks.HttpInput;
 import com.floragunn.signals.watch.checks.SearchInput;
 import com.floragunn.signals.watch.common.HttpClientConfig;
 import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
+import net.jcip.annotations.NotThreadSafe;
+
+@NotThreadSafe
 public class CheckTest {
 
     private static NamedXContentRegistry xContentRegistry;
