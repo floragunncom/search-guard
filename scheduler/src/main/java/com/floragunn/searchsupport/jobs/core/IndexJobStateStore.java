@@ -1236,7 +1236,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         long start = System.currentTimeMillis();
 
         try {
-            Set<JobType> jobConfigSet = this.loadJobConfig();
+            Set<JobType> jobConfigSet = this.loadJobConfigAfterReachingYellowStatus();
 
             notifyJobConfigInitListeners(jobConfigSet);
 
@@ -1272,7 +1272,9 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         Set<JobType> deletedJobTypes = new HashSet<>();
         Set<JobKey> newJobKeys = new HashSet<>(newJobConfig.size());
 
-        log.info("Updating jobs:\n" + newJobConfig + "\n");
+        if (log.isInfoEnabled()) {
+            log.info("Updating jobs:\n " + newJobConfig + "\n");
+        }
 
         synchronized (this) {
             Map<JobKey, JobType> loadedJobConfig = this.getLoadedJobConfig();
@@ -1740,7 +1742,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         return result;
     }
 
-    private Set<JobType> loadJobConfig() {
+    private Set<JobType> loadJobConfigAfterReachingYellowStatus() {
         try {
             ClusterHealthResponse clusterHealthResponse = client.admin().cluster().prepareHealth().setWaitForYellowStatus()
                     .setWaitForNoInitializingShards(true).setTimeout(TimeValue.timeValueSeconds(30)).execute().actionGet();
@@ -1758,6 +1760,10 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             throw e;
         }
 
+        return Sets.newHashSet(this.jobConfigSource);
+    }
+
+    private Set<JobType> loadJobConfig() {
         return Sets.newHashSet(this.jobConfigSource);
     }
 
