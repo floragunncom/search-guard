@@ -36,8 +36,14 @@ import org.quartz.Trigger;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerKey;
 import org.quartz.UnableToInterruptJobException;
-import org.quartz.impl.DirectSchedulerFactory;
+import org.quartz.core.JobRunShellFactory;
+import org.quartz.core.QuartzScheduler;
+import org.quartz.core.QuartzSchedulerResources;
+import org.quartz.impl.DefaultThreadExecutor;
+import org.quartz.impl.StdJobRunShellFactory;
+import org.quartz.impl.StdScheduler;
 import org.quartz.impl.matchers.GroupMatcher;
+import org.quartz.simpl.CascadingClassLoadHelper;
 import org.quartz.simpl.PropertySettingJobFactory;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.spi.ClassLoadHelper;
@@ -59,6 +65,8 @@ import com.floragunn.searchsupport.jobs.execution.AuthorizingJobDecorator;
 public class SchedulerBuilder<JobType extends JobConfig> {
     private final static Logger log = LogManager.getLogger(SchedulerBuilder.class);
 
+    private static final DefaultThreadExecutor DEFAULT_THREAD_EXECUTOR = new DefaultThreadExecutor();
+
     private String name;
     private String configIndex;
     private String stateIndex;
@@ -66,6 +74,10 @@ public class SchedulerBuilder<JobType extends JobConfig> {
     private QueryBuilder configIndexQuery;
     private Client client;
     private int maxThreads = 3;
+    private int maxBatchSize = 1;
+    private long batchTimeWindow = 0;
+    private int idleWaitTime = -1;
+    private long dbFailureRetryInterval = -1;
     private int threadPriority = Thread.NORM_PRIORITY;
     private JobConfigFactory<JobType> jobConfigFactory;
     private Iterable<JobType> jobConfigSource;
@@ -217,14 +229,17 @@ public class SchedulerBuilder<JobType extends JobConfig> {
 
         schedulerPluginMap.put(CleanupSchedulerPlugin.class.getName(), new CleanupSchedulerPlugin(clusterService, jobDistributor, jobStore));
 
+        return buildImpl();
+
         // TODO reduce scope of privileged execution
+        /*
         try {
             final SecurityManager sm = System.getSecurityManager();
-
+        
             if (sm != null) {
                 sm.checkPermission(new SpecialPermission());
             }
-
+        
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
                 DirectSchedulerFactory.getInstance().createScheduler(name, name, threadPool, jobStore, schedulerPluginMap, null, -1, -1, -1, false,
                         null);
@@ -237,10 +252,57 @@ public class SchedulerBuilder<JobType extends JobConfig> {
                 throw new RuntimeException(e);
             }
         }
-
+        
         // TODO well, change this somehow:
-
+        
         Scheduler scheduler = DirectSchedulerFactory.getInstance().getScheduler(name);
+        
+        if (jobFactory != null) {
+            scheduler.setJobFactory(new AuthorizingJobDecorator.DecoratingJobFactory(client.threadPool().getThreadContext(), jobFactory));
+        } else {
+            scheduler.setJobFactory(
+                    new AuthorizingJobDecorator.DecoratingJobFactory(client.threadPool().getThreadContext(), new PropertySettingJobFactory()));
+        }
+        
+        return scheduler;
+        */
+    }
+
+    private Scheduler buildImpl() throws SchedulerException {
+        JobRunShellFactory jobRunShellFactory = new StdJobRunShellFactory();
+
+        threadPool.setInstanceName(name);
+        threadPool.initialize();
+
+        QuartzSchedulerResources qrs = new QuartzSchedulerResources();
+
+        qrs.setName(name);
+        qrs.setInstanceId(name);
+        qrs.setJobRunShellFactory(jobRunShellFactory);
+        qrs.setThreadPool(threadPool);
+        qrs.setThreadExecutor(DEFAULT_THREAD_EXECUTOR);
+        qrs.setJobStore(jobStore);
+        qrs.setMaxBatchSize(maxBatchSize);
+        qrs.setBatchTimeWindow(batchTimeWindow);
+
+        for (SchedulerPlugin plugin : schedulerPluginMap.values()) {
+            qrs.addSchedulerPlugin(plugin);
+        }
+
+        QuartzScheduler quartzScheduler = new QuartzScheduler(qrs, idleWaitTime, dbFailureRetryInterval);
+        ClassLoadHelper classLoadHelper = initClassLoadHelper();
+        
+        jobStore.initialize(classLoadHelper, quartzScheduler.getSchedulerSignaler());
+
+        Scheduler scheduler = new StdScheduler(quartzScheduler);
+
+        jobRunShellFactory.initialize(scheduler);
+
+        quartzScheduler.initialize();
+
+        for (Map.Entry<String, SchedulerPlugin> entry : schedulerPluginMap.entrySet()) {
+            entry.getValue().initialize(entry.getKey(), scheduler, classLoadHelper);
+        }
 
         if (jobFactory != null) {
             scheduler.setJobFactory(new AuthorizingJobDecorator.DecoratingJobFactory(client.threadPool().getThreadContext(), jobFactory));
@@ -250,6 +312,25 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         }
 
         return scheduler;
+    }
+
+    private ClassLoadHelper initClassLoadHelper() {
+
+        try {
+            final SecurityManager sm = System.getSecurityManager();
+
+            if (sm != null) {
+                sm.checkPermission(new SpecialPermission());
+            }
+
+            return AccessController.doPrivileged((PrivilegedExceptionAction<ClassLoadHelper>) () -> {
+                ClassLoadHelper classLoaderHelper = new CascadingClassLoadHelper();
+                classLoaderHelper.initialize();
+                return classLoaderHelper;
+            });
+        } catch (PrivilegedActionException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private boolean isSchedulerPermanentlyDisabledForLocalNode() {
