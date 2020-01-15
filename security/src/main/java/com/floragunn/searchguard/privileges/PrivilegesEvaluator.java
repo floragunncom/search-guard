@@ -618,7 +618,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
         final String requestedTenant = user.getRequestedTenant();
 
-        if (requestedTenant != null && multitenancyEnabled()) {
+        if (requestedTenant != null && !"".equals(requestedTenant) && multitenancyEnabled()) {
             //non-global tenant
             log.debug(() -> "Non global tenant: " + requestedTenant);
             return evaluateTenantPrivileges(tenantsPerms.get(requestedTenant.equals(User.USER_TENANT) ? user.getName() : requestedTenant),
