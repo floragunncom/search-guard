@@ -65,7 +65,7 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
     }
 
     protected void handleGet(String key, RestChannel channel, RestRequest request, Client client) throws IOException {
-
+        
         client.execute(GetSettingsAction.INSTANCE, new GetSettingsRequest(key), new ActionListener<GetSettingsResponse>() {
 
             @Override

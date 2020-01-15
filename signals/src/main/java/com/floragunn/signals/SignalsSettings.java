@@ -245,7 +245,7 @@ public class SignalsSettings {
 
             return null;
         }
-
+       
         public Settings getSettings() {
             return settings;
         }
