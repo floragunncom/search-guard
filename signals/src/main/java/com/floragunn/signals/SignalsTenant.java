@@ -254,6 +254,7 @@ public class SignalsTenant implements Closeable {
 
         watchJson.put("_tenant", watch.getTenant());
         watchJson.set("_meta", watch.getMeta().toJsonNode());
+        watchJson.put("_name", watchId);
 
         String newWatchJsonString = DefaultObjectMapper.writeJsonTree(watchJson);
 

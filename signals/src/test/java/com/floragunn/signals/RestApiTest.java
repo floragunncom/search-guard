@@ -1117,6 +1117,13 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"hits\":{\"total\":{\"value\":2,\"relation\":\"eq\"}"));
+            
+            response = rh.executePostRequest("/_signals/watch/" + tenant + "/_search", "{ \"query\": {\"match\": {\"_name\": \"search_watch3\"}}}",
+                    auth);
+            
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Assert.assertTrue(response.getBody(), response.getBody().contains("\"hits\":{\"total\":{\"value\":1,\"relation\":\"eq\"}"));
 
         } finally {
             rh.executeDeleteRequest(watchPath + "1", auth);

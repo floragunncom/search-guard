@@ -396,7 +396,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
         boolean severityHasErrors = false;
 
-        vJsonNode.used("trigger", "_tenant");
+        vJsonNode.used("trigger", "_tenant", "_name");
 
         Watch result = new Watch();
         JobKey jobKey = createJobKey(id);
@@ -642,7 +642,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
     public static class HiddenAttributes {
 
-        public static final List<String> LIST = Arrays.asList("_meta.auth_token");
+        public static final List<String> LIST = Arrays.asList("_meta.auth_token", "_name");
         public static final FetchSourceContext FETCH_SOURCE_CONTEXT = new FetchSourceContext(true, Strings.EMPTY_ARRAY, asArray());
 
         public static String[] asArray() {
