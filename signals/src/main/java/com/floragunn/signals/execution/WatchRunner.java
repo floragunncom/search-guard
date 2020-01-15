@@ -404,14 +404,14 @@ public class WatchRunner implements Job {
                         ActionExecutionResult result = action.execute(ctx);
 
                         if (simulationMode == SimulationMode.FOR_REAL) {
-                            actionLog.setStatus(new Status(Status.Code.ACTION_TRIGGERED, null));
+                            actionLog.setStatus(new Status(Status.Code.ACTION_EXECUTED, null));
                         } else {
                             actionLog.setRequest(result.getRequest());
                             actionLog.setStatus(
-                                    new Status(Status.Code.SIMULATED_ACTION_TRIGGERED, "Simulate mode: Action was triggered in simulation mode"));
+                                    new Status(Status.Code.SIMULATED_ACTION_EXECUTED, "Simulate mode: Action was triggered in simulation mode"));
                         }
                     } else {
-                        actionLog.setStatus(new Status(Status.Code.SIMULATED_ACTION_TRIGGERED,
+                        actionLog.setStatus(new Status(Status.Code.SIMULATED_ACTION_EXECUTED,
                                 "Simulate mode: Action would have been triggered but was skipped."));
                     }
 
@@ -500,15 +500,15 @@ public class WatchRunner implements Job {
                     ActionExecutionResult result = action.execute(ctx);
 
                     if (simulationMode == SimulationMode.FOR_REAL) {
-                        elementLog.setStatus(new Status(Status.Code.ACTION_TRIGGERED, null));
+                        elementLog.setStatus(new Status(Status.Code.ACTION_EXECUTED, null));
                     } else {
                         elementLog.setRequest(result.getRequest());
                         elementLog.setStatus(
-                                new Status(Status.Code.SIMULATED_ACTION_TRIGGERED, "Simulate mode: Action was triggered in simulation mode"));
+                                new Status(Status.Code.SIMULATED_ACTION_EXECUTED, "Simulate mode: Action was triggered in simulation mode"));
                     }
                 } else {
                     elementLog.setStatus(
-                            new Status(Status.Code.SIMULATED_ACTION_TRIGGERED, "Simulate mode: Action would have been triggered but was skipped."));
+                            new Status(Status.Code.SIMULATED_ACTION_EXECUTED, "Simulate mode: Action would have been triggered but was skipped."));
                 }
 
                 executedActions++;
@@ -544,9 +544,9 @@ public class WatchRunner implements Job {
             actionLog.setStatus(new Status(Status.Code.NO_ACTION, "No action due to check conditions"));
         } else if (executedActions == totalElements) {
             if (simulationMode == SimulationMode.FOR_REAL || simulationMode == SimulationMode.SIMULATE_ACTIONS) {
-                actionLog.setStatus(new Status(Status.Code.ACTION_TRIGGERED, "Action executed for all " + totalElements + " elements"));
+                actionLog.setStatus(new Status(Status.Code.ACTION_EXECUTED, "Action executed for all " + totalElements + " elements"));
             } else {
-                actionLog.setStatus(new Status(Status.Code.SIMULATED_ACTION_TRIGGERED, "Simulate mode: Action would have been triggered."));
+                actionLog.setStatus(new Status(Status.Code.SIMULATED_ACTION_EXECUTED, "Simulate mode: Action would have been triggered."));
             }
 
             this.executedActions++;
@@ -555,9 +555,9 @@ public class WatchRunner implements Job {
         } else {
             if (simulationMode == SimulationMode.FOR_REAL || simulationMode == SimulationMode.SIMULATE_ACTIONS) {
                 actionLog.setStatus(
-                        new Status(Status.Code.ACTION_TRIGGERED, "Action executed for " + executedActions + " of " + totalElements + " elements"));
+                        new Status(Status.Code.ACTION_EXECUTED, "Action executed for " + executedActions + " of " + totalElements + " elements"));
             } else {
-                actionLog.setStatus(new Status(Status.Code.SIMULATED_ACTION_TRIGGERED, "Simulate mode: Action would have been triggered."));
+                actionLog.setStatus(new Status(Status.Code.SIMULATED_ACTION_EXECUTED, "Simulate mode: Action would have been triggered."));
             }
             this.executedActions++;
 
@@ -607,9 +607,9 @@ public class WatchRunner implements Job {
 
                 if (simulationMode == SimulationMode.FOR_REAL || simulationMode == SimulationMode.SIMULATE_ACTIONS) {
                     action.execute(actionCtx);
-                    actionLog.setStatus(new Status(Status.Code.ACTION_TRIGGERED, null));
+                    actionLog.setStatus(new Status(Status.Code.ACTION_EXECUTED, null));
                 } else {
-                    actionLog.setStatus(new Status(Status.Code.SIMULATED_ACTION_TRIGGERED, "Simulate mode: Action would have been triggered."));
+                    actionLog.setStatus(new Status(Status.Code.SIMULATED_ACTION_EXECUTED, "Simulate mode: Action would have been triggered."));
                 }
 
                 executedResolveActions++;
@@ -639,7 +639,7 @@ public class WatchRunner implements Job {
         String statusMessage = getStatusMessage();
 
         if (executedActions + executedResolveActions > 0) {
-            watchLog.setStatus(new Status(Status.Code.ACTION_TRIGGERED, statusMessage));
+            watchLog.setStatus(new Status(Status.Code.ACTION_EXECUTED, statusMessage));
         } else if (failedActions + executedResolveActions > 0) {
             watchLog.setStatus(new Status(Status.Code.ACTION_FAILED, statusMessage));
         } else if (throttledActions > 0) {

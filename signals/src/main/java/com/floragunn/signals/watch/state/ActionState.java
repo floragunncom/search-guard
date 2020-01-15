@@ -23,8 +23,8 @@ public class ActionState implements ToXContentObject {
     private static final DateFormatter DATE_FORMATTER = DateFormatter.forPattern("strict_date_time").withZone(ZoneOffset.UTC);
 
     private Instant lastTriggered;
-    private Instant lastTriage;
-    private boolean lastTriageResult;
+    private Instant lastCheck;
+    private boolean lastCheckResult;
     private Ack acked;
     private Instant lastExecution;
     private SeverityLevel lastSeverityLevel;
@@ -64,34 +64,34 @@ public class ActionState implements ToXContentObject {
     }
 
     public synchronized Ack afterPositiveTriage() {
-        this.lastTriage = this.lastTriggered;
+        this.lastCheck = this.lastTriggered;
 
-        if (this.lastTriageResult == true && this.acked != null) {
+        if (this.lastCheckResult == true && this.acked != null) {
             return this.acked;
         } else {
-            this.lastTriageResult = true;
+            this.lastCheckResult = true;
             return null;
         }
     }
 
     public synchronized void afterNegativeTriage() {
-        this.lastTriage = this.lastTriggered;
-        this.lastTriageResult = false;
+        this.lastCheck = this.lastTriggered;
+        this.lastCheckResult = false;
         this.acked = null;
         this.executionCount = 0;
     }
 
     public synchronized void ack(String user) {
-        if (this.lastTriageResult == false) {
+        if (this.lastCheckResult == false) {
             throw new IllegalStateException(
-                    "Cannot ack this action because it was not positively triaged recently. Last triage was at " + lastTriage);
+                    "Cannot ack this action because it was not positively triaged recently. Last triage was at " + lastCheck);
         }
 
         this.acked = new Ack(Instant.now(), user);
     }
 
     public synchronized boolean ackIfPossible(String user) {
-        if (this.lastTriageResult == false) {
+        if (this.lastCheckResult == false) {
             return false;
         }
 
@@ -119,7 +119,7 @@ public class ActionState implements ToXContentObject {
 
     @Override
     public String toString() {
-        return "ActionState [lastTriggered=" + lastTriggered + ", lastTriage=" + lastTriage + ", lastTriageResult=" + lastTriageResult + ", acked="
+        return "ActionState [lastTriggered=" + lastTriggered + ", lastCheck=" + lastCheck + ", lastCheckResult=" + lastCheckResult + ", acked="
                 + acked + ", lastExecution=" + lastExecution + "]";
     }
 
@@ -128,8 +128,8 @@ public class ActionState implements ToXContentObject {
         builder.startObject();
 
         builder.field("last_triggered", lastTriggered != null ? DATE_FORMATTER.format(lastTriggered) : null);
-        builder.field("last_triage", lastTriage != null ? DATE_FORMATTER.format(lastTriage) : null);
-        builder.field("last_triage_result", lastTriageResult);
+        builder.field("last_check", lastCheck != null ? DATE_FORMATTER.format(lastCheck) : null);
+        builder.field("last_check_result", lastCheckResult);
         builder.field("last_execution", lastExecution != null ? DATE_FORMATTER.format(lastExecution) : null);
         builder.field("last_error", lastError != null ? DATE_FORMATTER.format(lastError) : null);
         builder.field("last_status", lastStatus);
@@ -155,8 +155,10 @@ public class ActionState implements ToXContentObject {
             result.lastTriggered = Instant.from(DATE_FORMATTER.parse(jsonNode.get("last_triggered").asText()));
         }
 
-        if (jsonNode.hasNonNull("last_triage")) {
-            result.lastTriage = Instant.from(DATE_FORMATTER.parse(jsonNode.get("last_triage").asText()));
+        if (jsonNode.hasNonNull("last_check")) {
+            result.lastCheck = Instant.from(DATE_FORMATTER.parse(jsonNode.get("last_check").asText()));
+        } else if (jsonNode.hasNonNull("last_triage")) {
+            result.lastCheck = Instant.from(DATE_FORMATTER.parse(jsonNode.get("last_triage").asText()));
         }
 
         if (jsonNode.hasNonNull("last_execution")) {
@@ -167,8 +169,10 @@ public class ActionState implements ToXContentObject {
             result.lastError = Instant.from(DATE_FORMATTER.parse(jsonNode.get("last_error").asText()));
         }
 
-        if (jsonNode.hasNonNull("last_triage_result")) {
-            result.lastTriageResult = jsonNode.get("last_triage_result").asBoolean();
+        if (jsonNode.hasNonNull("last_check_result")) {
+            result.lastCheckResult = jsonNode.get("last_check_result").asBoolean();
+        } else if (jsonNode.hasNonNull("last_triage_result")) {
+            result.lastCheckResult = jsonNode.get("last_triage_result").asBoolean();
         }
 
         if (jsonNode.hasNonNull("last_status")) {
