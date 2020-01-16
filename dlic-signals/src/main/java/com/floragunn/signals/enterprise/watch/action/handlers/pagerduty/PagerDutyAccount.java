@@ -26,6 +26,7 @@ public class PagerDutyAccount extends Account {
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
         builder.field("type", TYPE);
+        builder.field("_name", getId());
         builder.field("integration_key", integrationKey);
 
         if (url != null) {

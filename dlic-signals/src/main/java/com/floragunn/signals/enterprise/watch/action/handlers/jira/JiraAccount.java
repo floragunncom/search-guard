@@ -30,6 +30,7 @@ public class JiraAccount extends Account {
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
         builder.field("type", "jira");
+        builder.field("_name", getId());
         builder.field("url", url != null ? url.toString() : null);
         builder.field("user_name", userName);
         builder.field("auth_token", authToken);
