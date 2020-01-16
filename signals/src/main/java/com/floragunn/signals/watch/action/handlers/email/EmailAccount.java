@@ -222,6 +222,7 @@ public class EmailAccount extends Account {
         builder.startObject();
 
         builder.field("type", "email");
+        builder.field("_name", getId());
         builder.field("host", host);
         builder.field("port", port);
 
@@ -307,7 +308,7 @@ public class EmailAccount extends Account {
         protected EmailAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
 
             EmailAccount result = new EmailAccount();
-
+            
             result.setId(id);
             result.host = vJsonNode.requiredString("host");
             result.port = vJsonNode.requiredInt("port");

@@ -36,6 +36,7 @@ public class SlackAccount extends Account {
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
         builder.field("type", "slack");
+        builder.field("_name", getId());
         builder.field("url", url != null ? url.toString() : null);
         builder.endObject();
         return builder;
@@ -53,7 +54,7 @@ public class SlackAccount extends Account {
 
         @Override
         protected SlackAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
-
+            
             SlackAccount result = new SlackAccount();
             result.setId(id);
             result.url = vJsonNode.requiredURI("url");

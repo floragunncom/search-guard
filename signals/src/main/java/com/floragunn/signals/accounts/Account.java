@@ -101,6 +101,8 @@ public abstract class Account implements ToXContentObject {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
 
+            vJsonNode.used("type", "_name");
+
             A result = create(id, vJsonNode, validationErrors);
 
             validationErrors.throwExceptionForPresentErrors();
@@ -111,6 +113,8 @@ public abstract class Account implements ToXContentObject {
         public final A create(String id, ValidatingJsonNode vJsonNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             vJsonNode = new ValidatingJsonNode(vJsonNode, validationErrors);
+            
+            vJsonNode.used("type", "_name");
 
             A result = create(id, vJsonNode, validationErrors);
 
