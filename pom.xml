@@ -162,17 +162,14 @@
 		</dependency>
 
 
-
-		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
-			<artifactId>percolator-client</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
-		</dependency>
-
 		<dependency>
 			<groupId>org.elasticsearch.plugin</groupId>
 			<artifactId>lang-mustache-client</artifactId>
+		</dependency>
+			
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>percolator-client</artifactId>
 			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 		</dependency>
