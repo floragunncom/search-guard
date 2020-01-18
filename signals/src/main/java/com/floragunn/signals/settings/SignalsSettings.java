@@ -1,6 +1,7 @@
-package com.floragunn.signals;
+package com.floragunn.signals.settings;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -10,6 +11,7 @@ import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -23,6 +25,12 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
+import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.util.duration.ConstantDurationExpression;
 import com.floragunn.searchsupport.util.duration.DurationExpression;
 import com.floragunn.signals.actions.settings.update.SettingsUpdateAction;
@@ -64,7 +72,7 @@ public class SignalsSettings {
         this.dynamicSettings.removeChangeListener(changeListener);
     }
 
-    public void update(Client client, String key, String value) {
+    public void update(Client client, String key, Object value) throws ConfigValidationException {
         this.dynamicSettings.update(client, key, value);
     }
 
@@ -103,7 +111,7 @@ public class SignalsSettings {
             this.staticSettings = staticSettings;
         }
 
-        boolean isActive() {
+        public boolean isActive() {
             return ACTIVE.get(settings);
         }
 
@@ -170,25 +178,107 @@ public class SignalsSettings {
             }
         }
 
-        public void update(Client client, String key, String value) {
-            PrivilegedConfigClient.adapt(client)
-                    .index(new IndexRequest(indexName).id(key).source("value", value).setRefreshPolicy(RefreshPolicy.IMMEDIATE)).actionGet();
+        private void validate(String key, Object value) throws ConfigValidationException {
+            ParsedSettingsKey parsedKey = matchSetting(key);
+
+            Settings.Builder settingsBuilder = Settings.builder();
+
+            if (value instanceof List) {
+                settingsBuilder.putList(key, toStringList((List<?>) value));
+            } else if (value != null) {
+                settingsBuilder.put(key, String.valueOf(value));
+            }
+
+            Settings newSettings = settingsBuilder.build();
+
+            if (!parsedKey.isGroup()) {
+                try {
+                    parsedKey.setting.get(newSettings);
+                } catch (Exception e) {
+                    throw new ConfigValidationException(new ValidationError(key, e.getMessage()).cause(e));
+                }
+            } else {
+                Settings subSettings = newSettings.getAsSettings(parsedKey.setting.getKey() + parsedKey.groupName);
+                try {
+                    parsedKey.subSetting.get(subSettings);
+                } catch (Exception e) {
+                    throw new ConfigValidationException(new ValidationError(key, e.getMessage()).cause(e));
+                }
+            }
+
+        }
+
+        private void validate(String key, Object value, Object... moreKeyValue) throws ConfigValidationException {
+            ValidationErrors validationErrors = new ValidationErrors();
+
+            try {
+                validate(key, value);
+            } catch (ConfigValidationException e) {
+                validationErrors.add(null, e);
+            }
+
+            if (moreKeyValue != null) {
+                for (int i = 0; i < moreKeyValue.length; i += 2) {
+                    try {
+                        validate(String.valueOf(moreKeyValue[i]), moreKeyValue[i + 1]);
+                    } catch (ConfigValidationException e) {
+                        validationErrors.add(null, e);
+                    }
+                }
+            }
+
+            validationErrors.throwExceptionForPresentErrors();
+        }
+
+        private List<String> toStringList(List<?> value) {
+            List<String> result = new ArrayList<>(value.size());
+
+            for (Object o : value) {
+                result.add(String.valueOf(o));
+            }
+
+            return result;
+        }
+
+        public void update(Client client, String key, Object value) throws ConfigValidationException {
+
+            validate(key, value);
+
+            updateIndex(client, key, value);
 
             SettingsUpdateAction.send(client);
         }
 
-        public void update(Client client, String key, String value, String... moreKeyValue) {
-            PrivilegedConfigClient.adapt(client)
-                    .index(new IndexRequest(indexName).id(key).source("value", value).setRefreshPolicy(RefreshPolicy.IMMEDIATE)).actionGet();
+        public void update(Client client, String key, Object value, Object... moreKeyValue) throws ConfigValidationException {
+            validate(key, value, moreKeyValue);
+
+            updateIndex(client, key, value);
 
             if (moreKeyValue != null) {
                 for (int i = 0; i < moreKeyValue.length; i += 2) {
-                    PrivilegedConfigClient.adapt(client).index(new IndexRequest(indexName).id(moreKeyValue[i]).source("value", moreKeyValue[i + 1])
-                            .setRefreshPolicy(RefreshPolicy.IMMEDIATE)).actionGet();
+                    updateIndex(client, String.valueOf(moreKeyValue[i]), moreKeyValue[i + 1]);
                 }
             }
 
             SettingsUpdateAction.send(client);
+        }
+
+        public void updateIndex(Client client, String key, Object value) throws ConfigValidationException {
+
+            if (value != null) {
+                String json;
+                try {
+                    json = DefaultObjectMapper.objectMapper.writeValueAsString(value);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+
+                PrivilegedConfigClient.adapt(client)
+                        .index(new IndexRequest(indexName).id(key).source("value", json).setRefreshPolicy(RefreshPolicy.IMMEDIATE)).actionGet();
+            } else {
+                PrivilegedConfigClient.adapt(client).delete(new DeleteRequest(indexName).id(key).setRefreshPolicy(RefreshPolicy.IMMEDIATE))
+                        .actionGet();
+            }
         }
 
         void refresh(Client client) {
@@ -201,7 +291,23 @@ public class SignalsSettings {
 
                 for (SearchHit hit : response.getHits()) {
                     if (hit.getSourceAsMap().get("value") != null) {
-                        newDynamicSettings.put(hit.getId(), hit.getSourceAsMap().get("value").toString());
+                        try {
+                            String json = hit.getSourceAsMap().get("value").toString();
+                            JsonNode jsonNode = DefaultObjectMapper.readTree(json);
+
+                            if (jsonNode.isArray()) {
+                                List<String> list = new ArrayList<>();
+                                for (JsonNode subNode : jsonNode) {
+                                    list.add(subNode.asText());
+                                }
+                                newDynamicSettings.putList(hit.getId(), list);
+
+                            } else {
+                                newDynamicSettings.put(hit.getId(), jsonNode.asText());
+                            }
+                        } catch (Exception e) {
+                            log.error("Error while parsing setting " + hit, e);
+                        }
                     }
                 }
 
@@ -236,20 +342,80 @@ public class SignalsSettings {
                     INTERNAL_AUTH_TOKEN_SIGNING_KEY, INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY, WATCH_LOG_INDEX);
         }
 
-        public static Setting<?> getSetting(String key) {
+        public static Setting<?> getSetting(String key) throws ConfigValidationException {
+
             for (Setting<?> setting : getAvailableSettings()) {
                 if (setting.match(key)) {
                     return setting;
                 }
             }
 
-            return null;
+            throw new ConfigValidationException(new ValidationError(key, "Unknown key"));
         }
-       
+
+        public static ParsedSettingsKey matchSetting(String key) throws ConfigValidationException {
+
+            Setting<?> setting = getSetting(key);
+
+            if (!setting.getKey().endsWith(".")) {
+                return new ParsedSettingsKey(setting);
+            } else {
+                String remainingKey = key.substring(TENANT.getKey().length());
+                int nextPeriod = remainingKey.indexOf('.');
+
+                if (nextPeriod == -1 && nextPeriod == remainingKey.length() - 1) {
+                    throw new ConfigValidationException(new ValidationError(key, "Illegal key"));
+                }
+
+                String groupName = remainingKey.substring(0, nextPeriod);
+                String subSettingKey = remainingKey.substring(nextPeriod + 1);
+
+                if (TENANT.match(key)) {
+                    return new ParsedSettingsKey(setting, groupName, Tenant.getSetting(subSettingKey));
+                } else {
+                    throw new ConfigValidationException(new ValidationError(key, "Unknown key"));
+                }
+            }
+        }
+
         public Settings getSettings() {
             return settings;
         }
 
+    }
+
+    public static class ParsedSettingsKey {
+        public final Setting<?> setting;
+        public final String groupName;
+        public final Setting<?> subSetting;
+
+        ParsedSettingsKey(Setting<?> setting) {
+            this.setting = setting;
+            this.groupName = null;
+            this.subSetting = null;
+        }
+
+        ParsedSettingsKey(Setting<?> setting, String groupName, Setting<?> subSetting) {
+            this.setting = setting;
+            this.groupName = groupName;
+            this.subSetting = subSetting;
+        }
+
+        public Setting<?> getSetting() {
+            return setting;
+        }
+
+        public String getGroupName() {
+            return groupName;
+        }
+
+        public Setting<?> getSubSetting() {
+            return subSetting;
+        }
+
+        public boolean isGroup() {
+            return groupName != null;
+        }
     }
 
     public static class Tenant {
@@ -276,6 +442,16 @@ public class SignalsSettings {
             return ACTIVE.get(settings);
         }
 
+        public static Setting<?> getSetting(String key) {
+
+            if (NODE_FILTER.match(key)) {
+                return NODE_FILTER;
+            } else if (ACTIVE.match(key)) {
+                return ACTIVE;
+            }
+
+            throw new IllegalArgumentException("Unkown key: " + key);
+        }
     }
 
     public static class StaticSettings {
@@ -324,8 +500,8 @@ public class SignalsSettings {
         }
 
         public static List<Setting<?>> getAvailableSettings() {
-            return Arrays.asList(ENABLED, ENTERPRISE_ENABLED, IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE, IndexNames.ACCOUNTS,
-                    IndexNames.LOG);
+            return Arrays.asList(ENABLED, ENTERPRISE_ENABLED, IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE,
+                    IndexNames.ACCOUNTS, IndexNames.LOG);
         }
 
         private final Settings settings;
@@ -339,7 +515,7 @@ public class SignalsSettings {
         public boolean isEnabled() {
             return ENABLED.get(settings);
         }
-        
+
         public boolean isEnterpriseEnabled() {
             return ENTERPRISE_ENABLED.get(settings);
         }

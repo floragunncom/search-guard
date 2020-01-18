@@ -12,7 +12,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.signals.Signals;
-import com.floragunn.signals.SignalsSettings;
+import com.floragunn.signals.settings.SignalsSettings;
 
 public class TransportStartStopAction extends HandledTransportAction<StartStopRequest, StartStopResponse> {
     private static final Logger log = LogManager.getLogger(TransportStartStopAction.class);

@@ -11,21 +11,24 @@ public class PutSettingsRequest extends ActionRequest {
 
     private String key;
     private String value;
+    private boolean valueJson;
 
     public PutSettingsRequest() {
         super();
     }
 
-    public PutSettingsRequest(String key, String value) {
+    public PutSettingsRequest(String key, String value, boolean valueJson) {
         super();
         this.key = key;
         this.value = value;
+        this.valueJson = valueJson;
     }
 
     public PutSettingsRequest(StreamInput in) throws IOException {
         super(in);
         this.key = in.readString();
         this.value = in.readOptionalString();
+        this.valueJson = in.readBoolean();
     }
 
     @Override
@@ -33,6 +36,7 @@ public class PutSettingsRequest extends ActionRequest {
         super.writeTo(out);
         out.writeString(key);
         out.writeOptionalString(value);
+        out.writeBoolean(valueJson);
     }
 
     @Override
@@ -59,5 +63,17 @@ public class PutSettingsRequest extends ActionRequest {
         this.value = value;
     }
 
-   
+    public boolean isValueJson() {
+        return valueJson;
+    }
+
+    public void setValueJson(boolean valueJson) {
+        this.valueJson = valueJson;
+    }
+
+    @Override
+    public String toString() {
+        return "PutSettingsRequest [key=" + key + ", value=" + value + ", valueJson=" + valueJson + "]";
+    }
+
 }

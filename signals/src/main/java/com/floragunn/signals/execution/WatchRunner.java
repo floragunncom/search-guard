@@ -20,9 +20,9 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
 import com.floragunn.searchsupport.util.duration.DurationExpression;
-import com.floragunn.signals.SignalsSettings;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
+import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;

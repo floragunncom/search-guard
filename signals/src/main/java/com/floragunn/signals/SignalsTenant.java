@@ -52,6 +52,7 @@ import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.SimulationMode;
 import com.floragunn.signals.execution.WatchRunner;
+import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.support.PrivilegedConfigClient;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.init.WatchInitializationService;

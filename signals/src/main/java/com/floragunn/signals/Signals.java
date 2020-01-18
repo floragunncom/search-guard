@@ -46,9 +46,11 @@ import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.jobs.actions.SchedulerActions;
+import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.actions.SignalsActions;
 import com.floragunn.signals.script.SignalsScriptContexts;
+import com.floragunn.signals.settings.SignalsSettings;
 import com.google.common.io.BaseEncoding;
 
 public class Signals extends AbstractLifecycleComponent {
@@ -247,8 +249,13 @@ public class Signals extends AbstractLifecycleComponent {
                 encryptionKey = generateKey(256);
             }
 
-            signalsSettings.getDynamicSettings().update(client, SignalsSettings.DynamicSettings.INTERNAL_AUTH_TOKEN_SIGNING_KEY.getKey(), signingKey,
-                    SignalsSettings.DynamicSettings.INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY.getKey(), encryptionKey);
+            try {
+                signalsSettings.getDynamicSettings().update(client, SignalsSettings.DynamicSettings.INTERNAL_AUTH_TOKEN_SIGNING_KEY.getKey(), signingKey,
+                        SignalsSettings.DynamicSettings.INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY.getKey(), encryptionKey);
+            } catch (ConfigValidationException e) {
+               log.error("Could not init encryption keys. This should not happen", e);
+               throw new RuntimeException("Could not init encryption keys. This should not happen", e);
+            }
         }
 
         if (configuredTenants != null) {
@@ -261,7 +268,7 @@ public class Signals extends AbstractLifecycleComponent {
 
         initialized = true;
     }
-
+    
     private synchronized void updateTenants(Set<String> configuredTenants) {
         configuredTenants = new HashSet<>(configuredTenants);
 

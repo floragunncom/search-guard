@@ -6,7 +6,6 @@ import static org.elasticsearch.rest.RestRequest.Method.PUT;
 
 import java.io.IOException;
 
-import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.client.Client;
@@ -14,6 +13,7 @@ import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
@@ -28,6 +28,7 @@ import com.floragunn.signals.actions.settings.put.PutSettingsRequest;
 import com.floragunn.signals.actions.settings.put.PutSettingsResponse;
 
 public class SettingsApiAction extends SignalsBaseRestHandler {
+
     public SettingsApiAction(final Settings settings, final RestController controller) {
         super(settings);
         controller.registerHandler(GET, "/_signals/settings", this);
@@ -65,8 +66,8 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
     }
 
     protected void handleGet(String key, RestChannel channel, RestRequest request, Client client) throws IOException {
-        
-        client.execute(GetSettingsAction.INSTANCE, new GetSettingsRequest(key), new ActionListener<GetSettingsResponse>() {
+
+        client.execute(GetSettingsAction.INSTANCE, new GetSettingsRequest(key, jsonRequested(request)), new ActionListener<GetSettingsResponse>() {
 
             @Override
             public void onResponse(GetSettingsResponse response) {
@@ -85,7 +86,7 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
     }
 
     protected void handleDelete(String key, RestChannel channel, RestRequest request, Client client) throws IOException {
-        client.execute(PutSettingsAction.INSTANCE, new PutSettingsRequest(key, null), new ActionListener<PutSettingsResponse>() {
+        client.execute(PutSettingsAction.INSTANCE, new PutSettingsRequest(key, null, false), new ActionListener<PutSettingsResponse>() {
 
             @Override
             public void onResponse(PutSettingsResponse response) {
@@ -106,7 +107,8 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
 
     protected void handlePut(String key, RestChannel channel, RestRequest request, Client client) throws IOException {
 
-        client.execute(PutSettingsAction.INSTANCE, new PutSettingsRequest(key, request.content().utf8ToString()),
+        client.execute(PutSettingsAction.INSTANCE,
+                new PutSettingsRequest(key, request.content().utf8ToString(), request.getXContentType() == XContentType.JSON),
                 new ActionListener<PutSettingsResponse>() {
 
                     @Override
@@ -134,8 +136,26 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
             toXContent.toXContent(builder, params);
             return builder;
         } catch (IOException e) {
-            throw ExceptionsHelper.convertToElastic(e);
+            throw new RuntimeException(e);
         }
+    }
+
+    private boolean jsonRequested(RestRequest request) {
+        String accept = request.header("Accept");
+
+        if (accept == null) {
+            return false;
+        }
+
+        String[] array = accept.split("\\s*,\\s*");
+
+        for (String value : array) {
+            if (value.startsWith("application/json")) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     @Override

@@ -16,7 +16,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.signals.SignalsSettings;
+import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.support.LuckySisyphos;
 
 public class AccountRegistry {

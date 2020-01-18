@@ -13,7 +13,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
-import com.floragunn.signals.SignalsSettings;
+import com.floragunn.signals.settings.SignalsSettings;
 
 /**
  * TODO maybe integrate this with scheduler framework? We won't get logs right now if something

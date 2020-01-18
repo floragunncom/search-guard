@@ -15,6 +15,7 @@ import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.common.Strings;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
+import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.state.WatchState;
 

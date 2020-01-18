@@ -25,6 +25,7 @@ import org.mockito.Mockito;
 
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.common.Ack;

@@ -20,7 +20,7 @@ import com.floragunn.searchsupport.jobs.config.validation.InvalidAttributeValue;
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
-import com.floragunn.signals.SignalsSettings;
+import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
 import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
 

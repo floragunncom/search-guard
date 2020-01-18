@@ -1117,10 +1117,10 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"hits\":{\"total\":{\"value\":2,\"relation\":\"eq\"}"));
-            
+
             response = rh.executePostRequest("/_signals/watch/" + tenant + "/_search", "{ \"query\": {\"match\": {\"_name\": \"search_watch3\"}}}",
                     auth);
-            
+
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"hits\":{\"total\":{\"value\":1,\"relation\":\"eq\"}"));
@@ -1545,6 +1545,31 @@ public class RestApiTest {
             System.out.println(response.getBody());
 
         }
+    }
+
+    @Test
+    public void testPutAllowedEndpointsSetting() throws Exception {
+
+        Header auth = basicAuth("uhura", "uhura");
+        String endpointJson = "[\"x\", \"y\"]";
+
+        try {
+            HttpResponse response = rh.executePutRequest("/_signals/settings/http.allowed_endpoints", endpointJson, auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Thread.sleep(1000l);
+
+            response = rh.executeGetRequest("/_signals/settings/http.allowed_endpoints", auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Assert.assertEquals(endpointJson, response.getBody());
+
+        } finally {
+            rh.executePutRequest("/_signals/settings/http.allowed_endpoints", "*", auth);
+        }
+
     }
 
     private long getCountOfDocuments(Client client, String index) throws InterruptedException, ExecutionException {
