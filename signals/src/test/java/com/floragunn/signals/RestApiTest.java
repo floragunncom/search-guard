@@ -508,7 +508,7 @@ public class RestApiTest {
 
             Assert.assertTrue(webhookProvider.getRequestCount() > 0);
 
-            response = rh.executePutRequest("/_signals/settings/http.allowed_endpoints", "https://unkown*,https://whatever*", auth);
+            response = rh.executePutRequest("/_signals/settings/http.allowed_endpoints", "[\"https://unkown*\",\"https://whatever*\"]", auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
