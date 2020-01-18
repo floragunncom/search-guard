@@ -1551,7 +1551,7 @@ public class RestApiTest {
     public void testPutAllowedEndpointsSetting() throws Exception {
 
         Header auth = basicAuth("uhura", "uhura");
-        String endpointJson = "[\"x\", \"y\"]";
+        String endpointJson = "[\"x\",\"y\"]";
 
         try {
             HttpResponse response = rh.executePutRequest("/_signals/settings/http.allowed_endpoints", endpointJson, auth);
@@ -1567,7 +1567,7 @@ public class RestApiTest {
             Assert.assertEquals(endpointJson, response.getBody());
 
         } finally {
-            rh.executePutRequest("/_signals/settings/http.allowed_endpoints", "*", auth);
+            rh.executePutRequest("/_signals/settings/http.allowed_endpoints", "\"*\"", auth);
         }
 
     }
