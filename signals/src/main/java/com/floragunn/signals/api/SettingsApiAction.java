@@ -144,18 +144,18 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
         String accept = request.header("Accept");
 
         if (accept == null) {
-            return false;
+            return true;
         }
 
         String[] array = accept.split("\\s*,\\s*");
 
         for (String value : array) {
-            if (value.startsWith("application/json")) {
-                return true;
+            if (value.startsWith("text/plain")) {
+                return false;
             }
         }
 
-        return false;
+        return true;
     }
 
     @Override
