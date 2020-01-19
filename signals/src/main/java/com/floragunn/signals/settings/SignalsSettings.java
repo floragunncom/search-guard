@@ -97,6 +97,7 @@ public class SignalsSettings {
 
         public static Setting<List<String>> ALLOWED_HTTP_ENDPOINTS = Setting.listSetting("http.allowed_endpoints", Collections.singletonList("*"),
                 Function.identity());
+        public static final Setting<String> NODE_FILTER = Setting.simpleString("node_filter");
 
         private final String indexName;
         private final StaticSettings staticSettings;
@@ -133,6 +134,10 @@ public class SignalsSettings {
             }
         }
 
+        String getNodeFilter() {
+            return NODE_FILTER.get(settings);
+        }
+
         public String getInternalAuthTokenEncryptionKey() {
             String result = INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY.get(settings);
 
@@ -158,7 +163,7 @@ public class SignalsSettings {
         }
 
         Tenant getTenant(String name) {
-            return new Tenant(settings.getAsSettings("tenant." + name));
+            return new Tenant(settings.getAsSettings("tenant." + name), this);
         }
 
         void addChangeListener(ChangeListener changeListener) {
@@ -339,7 +344,7 @@ public class SignalsSettings {
 
         static List<Setting<?>> getAvailableSettings() {
             return Arrays.asList(ACTIVE, DEFAULT_THROTTLE_PERIOD, INCLUDE_NODE_IN_WATCHLOG, ALLOWED_HTTP_ENDPOINTS, TENANT,
-                    INTERNAL_AUTH_TOKEN_SIGNING_KEY, INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY, WATCH_LOG_INDEX);
+                    INTERNAL_AUTH_TOKEN_SIGNING_KEY, INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY, WATCH_LOG_INDEX, NODE_FILTER);
         }
 
         public static Setting<?> getSetting(String key) throws ConfigValidationException {
@@ -423,15 +428,21 @@ public class SignalsSettings {
         static final Setting<Boolean> ACTIVE = Setting.boolSetting("active", Boolean.TRUE);
 
         private final Settings settings;
+        private final DynamicSettings parent;
 
-        Tenant(Settings settings) {
+        Tenant(Settings settings, DynamicSettings parent) {
             this.settings = settings;
+            this.parent = parent;
         }
 
         public String getNodeFilter() {
             String result = NODE_FILTER.get(settings);
 
-            if (result.isEmpty()) {
+            if (result == null || result.isEmpty()) {
+                result = parent.getNodeFilter();
+            }
+
+            if (result == null || result.isEmpty()) {
                 return null;
             } else {
                 return result;
