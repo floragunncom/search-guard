@@ -230,9 +230,11 @@ public class SeverityMapping implements ToXContentObject {
 
             for (int i = 0; i < sortedElements.size() - 1; i++) {
                 if (SeverityLevel.compare(sortedElements.get(i).level, sortedElements.get(i + 1).level) > 0) {
+                    String relation = order == Order.ASCENDING ? " > " : " < ";
+
                     validationErrors.add(new ValidationError(null,
                             "The ordering of the thresholds is not consistent to the ordering of the levels: " + sortedElements.get(i).threshold
-                                    + " < " + sortedElements.get(i + 1).threshold + " but " + sortedElements.get(i).level + " > "
+                                    + relation + sortedElements.get(i + 1).threshold + " but " + sortedElements.get(i).level + " > "
                                     + sortedElements.get(i + 1).level));
 
                     validationErrors.throwExceptionForPresentErrors();
