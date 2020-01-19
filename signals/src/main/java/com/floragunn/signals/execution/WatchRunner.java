@@ -55,7 +55,7 @@ public class WatchRunner implements Job {
 
     private final ScriptService scriptService;
     private final WatchLogWriter watchLogWriter;
-    private final WatchStateWriter watchStateWriter;
+    private final WatchStateWriter<?> watchStateWriter;
     private final WatchState watchState;
     private final SignalsSettings signalsSettings;
     private final String nodeName;
@@ -77,7 +77,7 @@ public class WatchRunner implements Job {
     private int failedResolveActions = 0;
 
     public WatchRunner(Watch watch, Client client, AccountRegistry accountRegistry, ScriptService scriptService, WatchLogWriter watchLogWriter,
-            WatchStateWriter watchStateWriter, WatchState watchState, ExecutionEnvironment executionEnvironment, SimulationMode simulationMode,
+            WatchStateWriter<?> watchStateWriter, WatchState watchState, ExecutionEnvironment executionEnvironment, SimulationMode simulationMode,
             NamedXContentRegistry xContentRegistry, SignalsSettings signalsSettings, String nodeName, GotoCheckSelector checkSelector,
             NestedValueMap input) {
         this.watch = watch;

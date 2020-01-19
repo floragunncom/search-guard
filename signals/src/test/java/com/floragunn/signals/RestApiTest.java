@@ -1028,7 +1028,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            Thread.sleep(100);
+            Thread.sleep(500);
 
             response = rh.executeGetRequest(watchPath + "/_state", auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());

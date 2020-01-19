@@ -91,7 +91,7 @@ public class SignalsTenant implements Closeable {
     private final ScriptService scriptService;
     private final WatchLogWriter watchLogWriter;
     private final WatchStateManager watchStateManager;
-    private final WatchStateWriter watchStateWriter;
+    private final WatchStateWriter<?> watchStateWriter;
     private final WatchStateIndexReader watchStateReader;
     private final InternalAuthTokenProvider internalAuthTokenProvider;
     private final AccountRegistry accountRegistry;

@@ -17,7 +17,7 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 
-public class WatchStateIndexWriter implements WatchStateWriter {
+public class WatchStateIndexWriter implements WatchStateWriter<IndexResponse> {
     private static final Logger log = LogManager.getLogger(WatchStateIndexWriter.class);
 
     private final String indexName;
@@ -31,11 +31,9 @@ public class WatchStateIndexWriter implements WatchStateWriter {
     }
 
     public void put(String watchId, WatchState watchState) {
-        
-        try {
-            IndexRequest indexRequest = createIndexRequest(watchId, watchState, RefreshPolicy.IMMEDIATE);
 
-            client.index(indexRequest, new ActionListener<IndexResponse>() {
+        try {
+            put(watchId, watchState, new ActionListener<IndexResponse>() {
 
                 @Override
                 public void onResponse(IndexResponse response) {
@@ -53,6 +51,12 @@ public class WatchStateIndexWriter implements WatchStateWriter {
         } catch (Exception e) {
             log.error("Error while writing WatchState " + watchState, e);
         }
+    }
+
+    public void put(String watchId, WatchState watchState, ActionListener<IndexResponse> actionListener) {
+        IndexRequest indexRequest = createIndexRequest(watchId, watchState, RefreshPolicy.IMMEDIATE);
+
+        client.index(indexRequest, actionListener);
     }
 
     public void putAll(Map<String, WatchState> idToStateMap) {
@@ -82,7 +86,7 @@ public class WatchStateIndexWriter implements WatchStateWriter {
         });
     }
 
-    private IndexRequest createIndexRequest(String watchId, WatchState watchState, RefreshPolicy refreshPolicy) throws IOException {
+    private IndexRequest createIndexRequest(String watchId, WatchState watchState, RefreshPolicy refreshPolicy) {
         try (XContentBuilder jsonBuilder = XContentFactory.jsonBuilder()) {
             IndexRequest indexRequest = new IndexRequest(indexName).id(watchIdPrefix + watchId);
             watchState.toXContent(jsonBuilder, ToXContent.EMPTY_PARAMS);
@@ -90,6 +94,8 @@ public class WatchStateIndexWriter implements WatchStateWriter {
             indexRequest.setRefreshPolicy(refreshPolicy);
 
             return indexRequest;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 }
