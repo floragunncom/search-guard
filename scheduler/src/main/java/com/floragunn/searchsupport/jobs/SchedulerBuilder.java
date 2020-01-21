@@ -230,42 +230,6 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         schedulerPluginMap.put(CleanupSchedulerPlugin.class.getName(), new CleanupSchedulerPlugin(clusterService, jobDistributor, jobStore));
 
         return buildImpl();
-
-        // TODO reduce scope of privileged execution
-        /*
-        try {
-            final SecurityManager sm = System.getSecurityManager();
-        
-            if (sm != null) {
-                sm.checkPermission(new SpecialPermission());
-            }
-        
-            AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
-                DirectSchedulerFactory.getInstance().createScheduler(name, name, threadPool, jobStore, schedulerPluginMap, null, -1, -1, -1, false,
-                        null);
-                return null;
-            });
-        } catch (PrivilegedActionException e) {
-            if (e.getCause() instanceof SchedulerException) {
-                throw (SchedulerException) e.getCause();
-            } else {
-                throw new RuntimeException(e);
-            }
-        }
-        
-        // TODO well, change this somehow:
-        
-        Scheduler scheduler = DirectSchedulerFactory.getInstance().getScheduler(name);
-        
-        if (jobFactory != null) {
-            scheduler.setJobFactory(new AuthorizingJobDecorator.DecoratingJobFactory(client.threadPool().getThreadContext(), jobFactory));
-        } else {
-            scheduler.setJobFactory(
-                    new AuthorizingJobDecorator.DecoratingJobFactory(client.threadPool().getThreadContext(), new PropertySettingJobFactory()));
-        }
-        
-        return scheduler;
-        */
     }
 
     private Scheduler buildImpl() throws SchedulerException {
