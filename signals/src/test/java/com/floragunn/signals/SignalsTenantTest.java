@@ -154,6 +154,8 @@ public class SignalsTenantTest {
                 ackedTime1 = tenant.getWatchStateManager().getWatchState("test_watch").getActionState("testsink").getAcked();
 
                 Assert.assertNotNull(ackedTime1);
+
+                Thread.sleep(500);
             }
 
             Thread.sleep(1000);
