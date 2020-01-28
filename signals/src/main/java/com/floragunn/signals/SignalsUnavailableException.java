@@ -43,7 +43,14 @@ public class SignalsUnavailableException extends Exception {
     }
 
     public ElasticsearchException toElasticsearchException() {
-        return new ElasticsearchStatusException(getMessage() + "\nNode: " + nodeId, getRestStatus(), this);
+        return new ElasticsearchStatusException(getLongMessage(), getRestStatus(), this);
     }
 
+    private String getLongMessage() {
+        if (getCause() != null && getCause().getMessage() != null) {
+            return getMessage() + "\n" + getCause().getMessage();
+        } else {
+            return getMessage();
+        }
+    }
 }
