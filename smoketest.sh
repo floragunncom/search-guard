@@ -5,7 +5,7 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR
 
-ES_VERSION=7.5.1
+ES_VERSION=7.5.2
 
 rm -rf elasticsearch-$ES_VERSION
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
