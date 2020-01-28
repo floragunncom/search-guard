@@ -27,8 +27,10 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
+import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
+import com.floragunn.signals.SignalsUnavailableException;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchResponse.Status;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.GotoCheckSelector;
@@ -71,21 +73,24 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
     @Override
     protected final void doExecute(Task task, ExecuteWatchRequest request, ActionListener<ExecuteWatchResponse> listener) {
 
-        ThreadContext threadContext = threadPool.getThreadContext();
+        try {
+            ThreadContext threadContext = threadPool.getThreadContext();
 
-        User user = threadContext.getTransient(ConfigConstants.SG_USER);
-        SignalsTenant signalsTenant = signals.getTenant(user);
+            User user = threadContext.getTransient(ConfigConstants.SG_USER);
+            SignalsTenant signalsTenant = signals.getTenant(user);
 
-        if (signalsTenant == null) {
-            listener.onResponse(new ExecuteWatchResponse(user != null ? user.getRequestedTenant() : null, request.getWatchId(),
+            if (request.getWatchJson() != null) {
+                executeAnonymousWatch(user, signalsTenant, task, request, listener);
+            } else if (request.getWatchId() != null) {
+                fetchAndExecuteWatch(user, signalsTenant, task, request, listener);
+            }
+        } catch (NoSuchTenantException e) {
+            listener.onResponse(new ExecuteWatchResponse(e.getTenant(), request.getWatchId(),
                     ExecuteWatchResponse.Status.TENANT_NOT_FOUND, null));
-            return;
-        }
-
-        if (request.getWatchJson() != null) {
-            executeAnonymousWatch(user, signalsTenant, task, request, listener);
-        } else if (request.getWatchId() != null) {
-            fetchAndExecuteWatch(user, signalsTenant, task, request, listener);
+        } catch (SignalsUnavailableException e) {
+            listener.onFailure(e.toElasticsearchException());
+        } catch (Exception e) {
+            listener.onFailure(e);
         }
     }
 

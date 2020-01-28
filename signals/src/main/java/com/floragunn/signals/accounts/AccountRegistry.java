@@ -16,6 +16,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.signals.SignalsInitializationException;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.support.LuckySisyphos;
 
@@ -28,14 +29,14 @@ public class AccountRegistry {
         this.settings = settings;
     }
 
-    public void init(Client client) {
+    public void init(Client client) throws SignalsInitializationException {
         try {
             if (this.accounts == null) {
                 this.updateAtomic(client);
             }
         } catch (Exception e) {
             log.error("Error while initializing AccountRegistry", e);
-            throw new RuntimeException("Error while initializing AccountRegistry", e);
+            throw new SignalsInitializationException("Error while initializing AccountRegistry", e);
         }
     }
 
