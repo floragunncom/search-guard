@@ -20,8 +20,8 @@
 	<name>SG Suite - Parent</name>
 
 	<properties>
-		<elasticsearch.version>7.5.2</elasticsearch.version>
-		<sg-suite.version>40.1.0-SNAPSHOT</sg-suite.version>
+		<elasticsearch.version>7.6.0</elasticsearch.version>
+		<sg-suite.version>40.0.0-SNAPSHOT</sg-suite.version>
 		<revision>${elasticsearch.version}-${sg-suite.version}</revision>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

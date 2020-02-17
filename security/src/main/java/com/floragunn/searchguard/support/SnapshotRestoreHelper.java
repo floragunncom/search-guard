@@ -21,13 +21,16 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
+import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.snapshots.SnapshotUtils;
@@ -59,18 +62,13 @@ public class SnapshotRestoreHelper {
         SnapshotInfo snapshotInfo = null;
         
         try {
-            setCurrentThreadName(ThreadPool.Names.GENERIC);            
-            for (final SnapshotId snapshotId : repository.getRepositoryData().getSnapshotIds()) {
-                if (snapshotId.getName().equals(restoreRequest.snapshot())) {
+            setCurrentThreadName(ThreadPool.Names.GENERIC);
+            
+            final RepositoryDataListener repositoryDataListener = new RepositoryDataListener(restoreRequest, repository);
+            repository.getRepositoryData(repositoryDataListener);
+            repositoryDataListener.waitForCompletion();
+            snapshotInfo = repositoryDataListener.getSnapshotInfo();
 
-                    if(log.isDebugEnabled()) {
-                        log.debug("snapshot found: {} (UUID: {})", snapshotId.getName(), snapshotId.getUUID());
-                    }
-
-                    snapshotInfo = repository.getSnapshotInfo(snapshotId);
-                    break;
-                }
-            }
         } finally {
             setCurrentThreadName(threadName);
         }
@@ -91,6 +89,60 @@ public class SnapshotRestoreHelper {
                 return null;
             }
         });
+    }
+    
+    private static final class RepositoryDataListener implements ActionListener<RepositoryData> {
+    	
+    	private final RestoreSnapshotRequest restoreRequest;
+    	private final Repository repository;
+    	private SnapshotInfo snapshotInfo = null;
+    	private Exception repositoryException = null;
+    	private final CountDownLatch latch = new CountDownLatch(1); 
+
+		public RepositoryDataListener(RestoreSnapshotRequest restoreRequest, Repository repository) {
+			super();
+			this.restoreRequest = restoreRequest;
+			this.repository = repository;
+		}
+
+		@Override
+		public void onResponse(RepositoryData repositoryData) {
+			for (final SnapshotId snapshotId : repositoryData.getSnapshotIds()) {
+                if (snapshotId.getName().equals(restoreRequest.snapshot())) {
+
+                    if(log.isDebugEnabled()) {
+                        log.debug("snapshot found: {} (UUID: {})", snapshotId.getName(), snapshotId.getUUID());
+                    }
+
+                    snapshotInfo = repository.getSnapshotInfo(snapshotId);
+                    break;
+                }
+            }
+			latch.countDown();
+		}
+
+		@Override
+		public void onFailure(Exception e) {
+			repositoryException = e;
+			latch.countDown();
+		}
+
+		public SnapshotInfo getSnapshotInfo() {
+			return snapshotInfo;
+		}
+
+		public Exception getRepositoryException() {
+			return repositoryException;
+		}
+		
+		public void waitForCompletion() {
+			try {
+				latch.await();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
     }
     
 }
