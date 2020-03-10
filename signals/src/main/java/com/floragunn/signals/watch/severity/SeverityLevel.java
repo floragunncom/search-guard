@@ -2,6 +2,7 @@ package com.floragunn.signals.watch.severity;
 
 import java.io.IOException;
 import java.util.EnumSet;
+import java.util.Map;
 
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -10,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.validation.InvalidAttributeValue;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.google.common.collect.ImmutableMap;
 
 public enum SeverityLevel implements Comparable<SeverityLevel> {
     NONE(0, "None"), INFO(1, "Info"), WARNING(2, "Warning"), ERROR(3, "Error"), CRITICAL(4, "Critical");
@@ -17,11 +19,13 @@ public enum SeverityLevel implements Comparable<SeverityLevel> {
     private final int level;
     private final String name;
     private final String id;
+    private final Map<String, Object> map;
 
     SeverityLevel(int level, String name) {
         this.level = level;
         this.name = name;
         this.id = name().toLowerCase();
+        this.map = ImmutableMap.of("level", Integer.valueOf(level), "name", name, "id", id);
     }
 
     public int getLevel() {
@@ -54,6 +58,10 @@ public enum SeverityLevel implements Comparable<SeverityLevel> {
         }
 
         return this.level < other.level;
+    }
+
+    public Map<String, Object> toMap() {
+        return map;
     }
 
     public boolean isGained(SeverityLevel oldLevel, SeverityLevel newLevel) {

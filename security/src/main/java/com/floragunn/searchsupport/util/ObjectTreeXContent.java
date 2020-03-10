@@ -34,15 +34,15 @@ import org.elasticsearch.common.xcontent.XContentType;
 public class ObjectTreeXContent implements XContent {
     private final static Logger log = LogManager.getLogger(ObjectTreeXContent.class);
 
-    public static Object toObjectTree(ToXContent toXContent) throws IOException {
+    public static Object toObjectTree(ToXContent toXContent) {
         return toObjectTree(toXContent, new MapParams(Collections.emptyMap()));
     }
 
-    public static Object toObjectTree(ToXContent toXContent, Params params) throws IOException {
+    public static Object toObjectTree(ToXContent toXContent, Params params) {
         return toObjectTree(toXContent, params, () -> new HashMap<>());
     }
 
-    public static Object toObjectTree(ToXContent toXContent, Params params, Supplier<Map<?, ?>> mapFactory) throws IOException {
+    public static Object toObjectTree(ToXContent toXContent, Params params, Supplier<Map<?, ?>> mapFactory) {
         try (XContentBuilder builder = XContentBuilder.builder(new ObjectTreeXContent(mapFactory))) {
             if (toXContent.isFragment()) {
                 builder.startObject();
@@ -54,6 +54,24 @@ public class ObjectTreeXContent implements XContent {
 
             Generator generator = (Generator) builder.generator();
             return generator.getTopLevelObject();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Map<String, Object> toMap(ToXContent toXContent) {
+        Object object = toObjectTree(toXContent);
+
+        if (object instanceof Map) {
+            HashMap<String, Object> result = new HashMap<>();
+
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) object).entrySet()) {
+                result.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+
+            return result;
+        } else {
+            return Collections.singletonMap("_value", object);
         }
     }
 

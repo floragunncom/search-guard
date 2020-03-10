@@ -16,6 +16,7 @@ import org.elasticsearch.script.JodaCompatibleZonedDateTime;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchsupport.util.ObjectTreeXContent;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.severity.SeverityMapping;
 
@@ -63,8 +64,8 @@ public class WatchExecutionContextData implements ToXContentObject {
         Map<String, Object> result = new HashMap<>();
         result.put("data", getData());
         result.put("item", getItem());
-        result.put("severity", severity);
-        result.put("trigger", triggerInfo);
+        result.put("severity", severity.toMap());
+        result.put("trigger", triggerInfo.toMap());
         result.put("execution_time", executionTime);
 
         return result;
@@ -189,6 +190,10 @@ public class WatchExecutionContextData implements ToXContentObject {
                     nextScheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(nextScheduledTime.getZonedDateTime()) : null);
             builder.endObject();
             return builder;
+        }
+        
+        public Map<String, Object> toMap() {
+            return ObjectTreeXContent.toMap(this);
         }
 
         public static TriggerInfo create(JsonNode jsonNode) {

@@ -131,6 +131,10 @@ public class SignalsTenant implements Closeable {
     public void init() throws SchedulerException {
         log.info("Initializing alerting tenant " + name + "\nnodeFilter: " + nodeFilter);
 
+        SecurityManager s = System.getSecurityManager();
+
+        log.info("************ " + s.getThreadGroup() + " " + Thread.currentThread().getThreadGroup() + "  " + s.getSecurityContext());
+        
         this.scheduler = new SchedulerBuilder<Watch>().client(privilegedConfigClient).name(scopedName)
                 .configIndex(configIndexName, getActiveConfigQuery(name))
                 .stateIndex(settings.getStaticSettings().getIndexNames().getWatchesTriggerState()).stateIndexIdPrefix(watchIdPrefix)
