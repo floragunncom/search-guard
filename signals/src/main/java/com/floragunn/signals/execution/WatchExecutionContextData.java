@@ -64,8 +64,8 @@ public class WatchExecutionContextData implements ToXContentObject {
         Map<String, Object> result = new HashMap<>();
         result.put("data", getData());
         result.put("item", getItem());
-        result.put("severity", severity.toMap());
-        result.put("trigger", triggerInfo.toMap());
+        result.put("severity", severity != null ? severity.toMap() : null);
+        result.put("trigger", triggerInfo != null ? triggerInfo.toMap() : null);
         result.put("execution_time", executionTime);
 
         return result;

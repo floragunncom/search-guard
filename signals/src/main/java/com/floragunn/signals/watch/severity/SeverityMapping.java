@@ -436,7 +436,8 @@ public class SeverityMapping implements ToXContentObject {
         }
 
         public Map<String, Object> toMap() {
-            return ImmutableMap.of("level", level.toMap(), "mapping_element", mappingElement.toMap(), "value", value);
+            return ImmutableMap.of("level", level != null ? level.toMap() : null, "mapping_element",
+                    mappingElement != null ? mappingElement.toMap() : null, "value", value);
         }
 
         public static EvaluationResult create(JsonNode jsonNode) throws ConfigValidationException {
