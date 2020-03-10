@@ -98,13 +98,9 @@ public abstract class AbstractSearchInput extends AbstractInput {
             log.debug("Response: " + searchResponse);
         }
 
-        try {
-            Object result = ObjectTreeXContent.toObjectTree(searchResponse, new MapParams(Collections.emptyMap()),
-                    () -> NestedValueMap.createNonCloningMap());
-            setResult(ctx, result);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        Object result = ObjectTreeXContent.toObjectTree(searchResponse, new MapParams(Collections.emptyMap()),
+                () -> NestedValueMap.createNonCloningMap());
+        setResult(ctx, result);
 
         return true;
     }
