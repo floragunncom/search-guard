@@ -7,13 +7,12 @@ import java.util.regex.Pattern;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.validation.InvalidAttributeValue;
 
-// TODO unit test
 public class DurationFormat {
 
     public static final DurationFormat INSTANCE = new DurationFormat();
 
     private final Pattern pattern = Pattern
-            .compile("((?<w>[0-9]+)w)?((?<d>[0-9]+)d)?((?<h>[0-9]+)h)?((?<m>[0-9]+)m)?((?<s>[0-9]+)s)?((?<ms>[0-9]+)ms)?");
+            .compile("((?<w>[0-9]+)w)?\\s*((?<d>[0-9]+)d)?\\s*((?<h>[0-9]+)h)?\\s*((?<m>[0-9]+)m)?\\s*((?<s>[0-9]+)s)?\\s*((?<ms>[0-9]+)ms)?");
 
     public Duration parse(String durationString) throws ConfigValidationException {
         if (durationString == null) {
