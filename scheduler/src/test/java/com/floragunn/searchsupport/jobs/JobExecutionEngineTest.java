@@ -7,16 +7,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.node.PluginAwareNode;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.quartz.DisallowConcurrentExecution;
@@ -26,7 +25,6 @@ import org.quartz.JobExecutionException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 
-import com.floragunn.searchguard.test.SingleClusterTest;
 import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.searchsupport.jobs.cluster.NodeNameComparator;
 import com.floragunn.searchsupport.jobs.config.DefaultJobConfig;
@@ -34,33 +32,35 @@ import com.floragunn.searchsupport.jobs.config.DefaultJobConfig;
 import net.jcip.annotations.NotThreadSafe;
 
 @NotThreadSafe
-public class JobExecutionEngineTest extends SingleClusterTest {
+public class JobExecutionEngineTest {
     private static final Logger log = LogManager.getLogger(JobExecutionEngineTest.class);
 
-    @Ignore
+    @ClassRule
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().build();
+
     @Test
     public void emptyNodeFilterTest() throws Exception {
-        final Settings settings = Settings.builder().build();
 
-        setup(settings);
+        String test = "empty_node_filter";
+        String jobConfigIndex = "test_job_config_" + test;
 
-        try (Client tc = getInternalTransportClient()) {
+        Scheduler scheduler = null;
 
-            String jobConfig = createCronJobConfig(1, "emptyNodeFilterTest", null, "*/1 * * * * ?");
+        try (Client tc = cluster.getInternalClient()) {
 
-            tc.index(new IndexRequest("testjobconfig").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
+            String jobConfig = createIntervalJobConfig(1, "emptyNodeFilterTest", "100ms");
 
-            for (PluginAwareNode node : this.clusterHelper.allNodes()) {
-                ClusterService clusterService = node.injector().getInstance(ClusterService.class);
+            tc.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
 
-                Scheduler scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test_" + clusterService.getNodeName())
-                        .nodeFilter("node_group_1:xxx").configIndex("testjobconfig")
-                        .jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService)
-                        .nodeComparator(new NodeNameComparator(clusterService)).build();
+            PluginAwareNode node = cluster.node();
 
-                scheduler.start();
+            ClusterService clusterService = node.injector().getInstance(ClusterService.class);
 
-            }
+            scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test_" + test).nodeFilter("node_group_1:xxx")
+                    .configIndex(jobConfigIndex).jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService)
+                    .nodeComparator(new NodeNameComparator(clusterService)).build();
+
+            scheduler.start();
 
             Thread.sleep(3 * 1000);
 
@@ -68,8 +68,10 @@ public class JobExecutionEngineTest extends SingleClusterTest {
 
             assertEquals(0, count);
 
-            clusterHelper.stopCluster();
-
+        } finally {
+            if (scheduler != null) {
+                scheduler.shutdown();
+            }
         }
 
     }
@@ -77,34 +79,33 @@ public class JobExecutionEngineTest extends SingleClusterTest {
     @Ignore
     @Test
     public void configUpdateTest() throws Exception {
-        final Settings settings = Settings.builder().build();
 
-        setup(settings);
+        String test = "config_update";
+        String jobConfigIndex = "test_job_config_" + test;
 
-        try (Client tc = getInternalTransportClient()) {
+        Scheduler scheduler = null;
 
-            String jobConfig = createCronJobConfig(1, "basic", null, "*/1 * * * * ?");
+        try (Client tc = cluster.getInternalClient()) {
 
-            tc.index(new IndexRequest("testjobconfig").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
+            String jobConfig = createIntervalJobConfig(1, "basic", "100ms");
 
-            for (PluginAwareNode node : this.clusterHelper.allNodes()) {
-                if ("1".equals(node.settings().get("node.attr.node_index"))) {
+            tc.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
 
-                    ClusterService clusterService = node.injector().getInstance(ClusterService.class);
+            PluginAwareNode node = cluster.node();
 
-                    Scheduler scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test").configIndex("testjobconfig")
-                            .nodeFilter("node_index:1").jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService)
-                            .nodeComparator(new NodeNameComparator(clusterService)).build();
+            ClusterService clusterService = node.injector().getInstance(ClusterService.class);
 
-                    scheduler.start();
-                }
-            }
+            scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test_" + test).configIndex(jobConfigIndex)
+                    .jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService)
+                    .nodeComparator(new NodeNameComparator(clusterService)).build();
+
+            scheduler.start();
 
             Thread.sleep(500);
 
-            jobConfig = createCronJobConfig(1, "late", null, "*/1 * * * * ?");
-            tc.index(new IndexRequest("testjobconfig").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
-            SchedulerConfigUpdateAction.send(tc, "test");
+            jobConfig = createIntervalJobConfig(1, "late", "100ms");
+            tc.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
+            SchedulerConfigUpdateAction.send(tc, scheduler.getSchedulerName());
 
             Thread.sleep(3 * 1000);
 
@@ -112,35 +113,32 @@ public class JobExecutionEngineTest extends SingleClusterTest {
 
             assertTrue("count is " + count, count >= 1);
 
+        } finally {
+            if (scheduler != null) {
+                scheduler.shutdown();
+            }
         }
     }
 
     @Ignore
     @Test
     public void triggerUpdateTest() throws Exception {
-        final Settings settings = Settings.builder().build();
-
-        setup(settings);
-
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = cluster.getInternalClient()) {
 
             String jobConfig = createCronJobConfig(1, "basic", null, "*/1 * * * * ?");
 
             tc.index(new IndexRequest("testjobconfig").id("trigger_update_test_job").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig,
                     XContentType.JSON)).actionGet();
 
-            for (PluginAwareNode node : this.clusterHelper.allNodes()) {
-                if ("1".equals(node.settings().get("node.attr.node_index"))) {
+            PluginAwareNode node = cluster.node();
 
-                    ClusterService clusterService = node.injector().getInstance(ClusterService.class);
+            ClusterService clusterService = node.injector().getInstance(ClusterService.class);
 
-                    Scheduler scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test").configIndex("testjobconfig")
-                            .nodeFilter("node_index:1").jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService)
-                            .nodeComparator(new NodeNameComparator(clusterService)).build();
+            Scheduler scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test").configIndex("testjobconfig")
+                    .nodeFilter("node_index:1").jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService)
+                    .nodeComparator(new NodeNameComparator(clusterService)).build();
 
-                    scheduler.start();
-                }
-            }
+            scheduler.start();
 
             Thread.sleep(3 * 1000);
 
@@ -160,6 +158,25 @@ public class JobExecutionEngineTest extends SingleClusterTest {
             assertTrue("count is " + count2, count2 > count1);
 
         }
+
+    }
+
+    private String createIntervalJobConfig(int hash, String name, String interval) {
+        StringBuilder result = new StringBuilder("{");
+
+        result.append("\"hash\": ").append(hash).append(",");
+
+        if (name != null) {
+            result.append("\"name\": \"").append(name).append("\",");
+        }
+
+        result.append("\"trigger\": {\"schedule\": {\"interval\": ");
+
+        result.append("\"").append(interval).append("\"");
+
+        result.append("}}}");
+
+        return result.toString();
     }
 
     private String createCronJobConfig(int hash, String name, Integer delay, String... cronSchedule) {
@@ -213,27 +230,6 @@ public class JobExecutionEngineTest extends SingleClusterTest {
             }
         }
 
-    }
-
-    @Override
-    protected Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly) {
-        Settings.Builder builder = super.minimumSearchGuardSettingsBuilder(node, sslOnly);
-
-        builder.put("node.attr.node_index", node);
-
-        if (node == 1 || node == 2) {
-            builder.put("node.attr.node_group_1", "a");
-        } else {
-            builder.put("node.attr.node_group_1", "b");
-        }
-
-        if (node == 2 || node == 3) {
-            builder.put("node.attr.node_group_2", "x");
-        } else {
-            builder.put("node.attr.node_group_2", "y");
-        }
-
-        return builder;
     }
 
     public static class TestJob implements Job {
