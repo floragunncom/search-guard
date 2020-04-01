@@ -25,6 +25,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.floragunn.searchsupport.jobs.config.elements.InlineMustacheTemplate;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonParser;
 import com.floragunn.signals.accounts.AccountRegistry;
@@ -374,6 +375,32 @@ public class ActionTest {
         }
     }
 
+    @Test
+    public void testIndexActionWithIdTemplate() throws Exception {
+
+        try (Client client = cluster.getInternalClient()) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("id_from_data", "my_doc_2");
+            runtimeData.put(new NestedValueMap.Path("o1", "oa"), 10);
+            runtimeData.put(new NestedValueMap.Path("o1", "ob"), 20);
+            runtimeData.put(new NestedValueMap.Path("o2"), "test_2");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
+
+            indexAction.setDocId(InlineMustacheTemplate.parse(scriptService, "{{data.id_from_data}}"));
+            
+            indexAction.execute(ctx);
+
+            GetResponse getResponse = client.get(new GetRequest("index_action_sink", "my_doc_2")).actionGet();
+
+            Assert.assertEquals("test_2", getResponse.getSource().get("o2"));
+        }
+    }
+    
     @Test
     public void testMultiDocIndexAction() throws Exception {
 
