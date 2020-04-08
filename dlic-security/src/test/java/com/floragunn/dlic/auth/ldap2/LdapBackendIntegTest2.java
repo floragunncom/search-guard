@@ -33,8 +33,7 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 public class LdapBackendIntegTest2 extends SingleClusterTest {
 
     private static EmbeddedLDAPServer ldapServer = null;
-    
-    private static int ldapPort;
+
     private static int ldapsPort;
     
     @BeforeClass
@@ -42,10 +41,16 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
         ldapServer = new EmbeddedLDAPServer();
         ldapServer.start();
         ldapServer.applyLdif("base.ldif");
-        ldapPort = ldapServer.getLdapPort();
         ldapsPort = ldapServer.getLdapsPort();
     }
-    
+
+    @AfterClass
+    public static void tearDownLdap() throws Exception {
+        if (ldapServer != null) {
+            ldapServer.stop();
+        }
+    }
+
     @Override
     protected String getResourceFolder() {
         return "ldap";
@@ -60,7 +65,7 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
         final RestHelper rh = nonSslRestHelper();
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("jacksonm", "secret")).getStatusCode());
     }
-    
+
     @Test
     public void testIntegLdapAuthenticationSSLFail() throws Exception {
         String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_ldap2.yml");
@@ -70,7 +75,7 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
         final RestHelper rh = nonSslRestHelper();
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", encodeBasicHeader("wrong", "wrong")).getStatusCode());
     }
-    
+
     @Test
     public void testAttributesWithImpersonation() throws Exception {
         String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_ldap2.yml");
@@ -87,15 +92,20 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
         Assert.assertTrue(res.getBody().contains("ldap.dn"));
         Assert.assertTrue(res.getBody().contains("attr.ldap.entryDN"));
         Assert.assertTrue(res.getBody().contains("attr.ldap.subschemaSubentry"));
-
     }
-    
-    @AfterClass
-    public static void tearDownLdap() throws Exception {
 
-        if (ldapServer != null) {
-            ldapServer.stop();
-        }
+    @Test
+    public void testSkipUser() throws Exception {
+        String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_skip_users.yml");
+        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(ldapsPort));
+        final Settings settings = Settings.builder()
+                .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".cn=Captain Spock,ou=people,o=TEST", "*")
+                .build();
+        setup(Settings.EMPTY, new DynamicSgConfig().setSgConfigAsYamlString(sgConfigAsYamlString), settings);
+        final RestHelper rh = nonSslRestHelper();
+        int actual = rh.executeGetRequest("_searchguard/authinfo", new BasicHeader("sg_impersonate_as", "jacksonm")
+                , encodeBasicHeader("spock", "spocksecret")).getStatusCode();
 
+        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, actual);
     }
 }
