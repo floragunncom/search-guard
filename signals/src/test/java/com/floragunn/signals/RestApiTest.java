@@ -335,6 +335,34 @@ public class RestApiTest {
         }
     }
 
+    
+    @Test
+    public void testPutWatchWithoutSchedule() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "without_schedule";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalClient()) {
+            Watch watch = new WatchBuilder(watchId).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch_with_dash").name("testsink").build();
+            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = rh.executeGetRequest(watchPath, auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+
+            Assert.assertTrue(response.getBody(), watch.getSchedule().getTriggers().isEmpty());
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
+        }
+    }
+
     @Test
     public void testAuthTokenFilter() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
