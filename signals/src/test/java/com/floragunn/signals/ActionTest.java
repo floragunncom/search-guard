@@ -344,10 +344,37 @@ public class ActionTest {
 
             Assert.fail();
         } catch (ActionExecutionException e) {
-            e.printStackTrace();
             // TODO
             // Assert.assertTrue(e.getCause().getMessage(), e.getCause().getMessage()
             //       .contains("Certificate validation failed. Check if the host requires client certificate authentication"));
+        }
+    }
+
+    @Test
+    public void testWebhookActionTimeout() throws Exception {
+
+        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+            webhookProvider.setResponseDelayMs(3330);
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(1, 1, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+
+            webhookAction.execute(ctx);
+
+            Assert.fail();
+        } catch (ActionExecutionException e) {
+            Assert.assertTrue(e.toString(), e.getCause().toString().contains("Read timed out"));
         }
     }
 
@@ -392,7 +419,7 @@ public class ActionTest {
             IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
 
             indexAction.setDocId(InlineMustacheTemplate.parse(scriptService, "{{data.id_from_data}}"));
-            
+
             indexAction.execute(ctx);
 
             GetResponse getResponse = client.get(new GetRequest("index_action_sink", "my_doc_2")).actionGet();
@@ -400,7 +427,7 @@ public class ActionTest {
             Assert.assertEquals("test_2", getResponse.getSource().get("o2"));
         }
     }
-    
+
     @Test
     public void testMultiDocIndexAction() throws Exception {
 
