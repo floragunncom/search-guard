@@ -1444,29 +1444,70 @@ public class RestApiTest {
     }
 
     @Test
-    public void testSearchDestinationScroll() throws Exception {
+    public void testSearchAccount() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
-        String destinationId = "search_destination_scroll";
-        String destinationPath = "/_signals/account/slack/" + destinationId;
+        String accountId = "search_account";
+        String accountPath = "/_signals/account/slack/" + accountId;
 
         try (Client client = cluster.getInternalClient()) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI("https://xyz.test.com"));
 
-            HttpResponse response = rh.executePutRequest(destinationPath + "1", slackDestination.toJson(), auth);
+            HttpResponse response = rh.executePutRequest(accountPath + "1", slackDestination.toJson(), auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             slackDestination.setUrl(new URI("https://abc.test.com"));
-            response = rh.executePutRequest(destinationPath + "2", slackDestination.toJson(), auth);
+            response = rh.executePutRequest(accountPath + "2", slackDestination.toJson(), auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI("https://abcdef.test.com"));
 
-            response = rh.executePutRequest(destinationPath + "3", slackDestination.toJson(), auth);
+            response = rh.executePutRequest(accountPath + "3", slackDestination.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = rh.executePostRequest("/_signals/account/_search",
+                    "{ \"sort\": [{\"type.keyword\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"_name\": \"" + accountId + "1\"}}}", auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Assert.assertTrue(response.getBody(), response.getBody().contains("https://xyz.test.com"));
+
+        } finally {
+            rh.executeDeleteRequest(accountPath + "1", auth);
+            rh.executeDeleteRequest(accountPath + "2", auth);
+            rh.executeDeleteRequest(accountPath + "3", auth);
+        }
+    }
+    
+    @Test
+    public void testSearchAccountScroll() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String accountId = "search_destination_scroll";
+        String accountPath = "/_signals/account/slack/" + accountId;
+
+        try (Client client = cluster.getInternalClient()) {
+
+            SlackAccount slackDestination = new SlackAccount();
+            slackDestination.setUrl(new URI("https://xyz.test.com"));
+
+            HttpResponse response = rh.executePutRequest(accountPath + "1", slackDestination.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            slackDestination.setUrl(new URI("https://abc.test.com"));
+            response = rh.executePutRequest(accountPath + "2", slackDestination.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            slackDestination = new SlackAccount();
+            slackDestination.setUrl(new URI("https://abcdef.test.com"));
+
+            response = rh.executePutRequest(accountPath + "3", slackDestination.toJson(), auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
@@ -1490,9 +1531,9 @@ public class RestApiTest {
             Assert.assertTrue(response.getBody(), response.getBody().contains("slack"));
 
         } finally {
-            rh.executeDeleteRequest(destinationPath + "1", auth);
-            rh.executeDeleteRequest(destinationPath + "2", auth);
-            rh.executeDeleteRequest(destinationPath + "3", auth);
+            rh.executeDeleteRequest(accountPath + "1", auth);
+            rh.executeDeleteRequest(accountPath + "2", auth);
+            rh.executeDeleteRequest(accountPath + "3", auth);
         }
     }
 
