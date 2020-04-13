@@ -129,8 +129,6 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            
-            
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
@@ -335,7 +333,6 @@ public class RestApiTest {
         }
     }
 
-    
     @Test
     public void testPutWatchWithoutSchedule() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
@@ -1307,6 +1304,32 @@ public class RestApiTest {
     }
 
     @Test
+    public void testNonExistingEmailAccount() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "smtp_test_non_existing_account";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        rh.executeDeleteRequest("/_signals/account/email/default", auth);
+
+        try {
+
+            Watch watch = new WatchBuilder("smtp_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                    .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx")
+                    .body("We searched {{data.testsearch._shards.total}} shards").name("testsmtpsink").build();
+
+            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Account does not exist: email/default"));
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
+            rh.executeDeleteRequest("/_signals/account/email/default", auth);
+        }
+
+    }
+
+    @Test
     public void testSlackDestination() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
@@ -1511,7 +1534,7 @@ public class RestApiTest {
             rh.executeDeleteRequest(accountPath + "3", auth);
         }
     }
-    
+
     @Test
     public void testSearchAccountScroll() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
