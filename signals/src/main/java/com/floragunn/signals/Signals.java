@@ -235,7 +235,7 @@ public class Signals extends AbstractLifecycleComponent {
 
         if ((signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey() == null
                 || signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey() == null)
-                && clusterService.state().getNodes().getLocalNode().isMasterNode()) {
+                && clusterService.state().nodes().isLocalNodeElectedMaster()) {
             log.info("Generating keys for internal auth token");
 
             String signingKey = signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey();
