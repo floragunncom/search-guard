@@ -17,21 +17,26 @@
 
 package com.floragunn.searchguard.auth;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
-public class AuthDomain implements Comparable<AuthDomain> {
+public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
 
     private final AuthenticationBackend backend;
     private final HTTPAuthenticator httpAuthenticator;
     private final int order;
     private final boolean challenge;
+    private final List<String> skippedUsers;
 
-    public AuthDomain(final AuthenticationBackend backend, final HTTPAuthenticator httpAuthenticator, boolean challenge, final int order) {
+    public AuthenticationDomain(final AuthenticationBackend backend, final HTTPAuthenticator httpAuthenticator, boolean challenge,
+                                final int order, List<String> skippedUsers) {
         super();
         this.backend = Objects.requireNonNull(backend);
         this.httpAuthenticator = httpAuthenticator;
         this.order = order;
         this.challenge = challenge;
+        this.skippedUsers = skippedUsers;
     }
 
     public boolean isChallenge() {
@@ -52,12 +57,16 @@ public class AuthDomain implements Comparable<AuthDomain> {
 
     @Override
     public String toString() {
-        return "AuthDomain [backend=" + backend + ", httpAuthenticator=" + httpAuthenticator + ", order=" + order + ", challenge="
+        return "AuthenticationDomain [backend=" + backend + ", httpAuthenticator=" + httpAuthenticator + ", order=" + order + ", challenge="
                 + challenge + "]";
     }
 
     @Override
-    public int compareTo(final AuthDomain o) {
+    public int compareTo(final AuthenticationDomain o) {
         return Integer.compare(this.order, o.order);
+    }
+
+    public List<String> getSkippedUsers() {
+        return Collections.unmodifiableList(skippedUsers);
     }
 }

@@ -2,25 +2,13 @@ package com.floragunn.searchguard.sgconf;
 
 import java.net.InetAddress;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 
+import com.floragunn.searchguard.auth.*;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 
-import com.floragunn.searchguard.auth.AuthDomain;
-import com.floragunn.searchguard.auth.AuthFailureListener;
-import com.floragunn.searchguard.auth.AuthenticationBackend;
-import com.floragunn.searchguard.auth.AuthorizationBackend;
-import com.floragunn.searchguard.auth.Destroyable;
-import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
@@ -35,14 +23,13 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
 public class DynamicConfigModelV7 extends DynamicConfigModel {
-    
     private final ConfigV7 config;
     private final Settings esSettings;
     private final Path configPath;
-    private SortedSet<AuthDomain> restAuthDomains;
-    private Set<AuthorizationBackend> restAuthorizers;
-    private SortedSet<AuthDomain> transportAuthDomains;
-    private Set<AuthorizationBackend> transportAuthorizers;
+    private SortedSet<AuthenticationDomain> restAuthenticationDomains;
+    private SortedSet<AuthenticationDomain> transportAuthenticationDomains;
+    private Set<AuthorizationDomain> restAuthorizationDomains;
+    private Set<AuthorizationDomain> transportAuthorizationDomains;
     private List<Destroyable> destroyableComponents;
     private final InternalAuthenticationBackend iab;
 
@@ -60,21 +47,25 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
         buildAAA();
     }
     @Override
-    public SortedSet<AuthDomain> getRestAuthDomains() {
-        return Collections.unmodifiableSortedSet(restAuthDomains);
+    public SortedSet<AuthenticationDomain> getRestAuthenticationDomains() {
+        return Collections.unmodifiableSortedSet(restAuthenticationDomains);
     }
+
     @Override
-    public Set<AuthorizationBackend> getRestAuthorizers() {
-        return Collections.unmodifiableSet(restAuthorizers);
+    public Set<AuthorizationDomain> getRestAuthorizationDomains() {
+        return Collections.unmodifiableSet(restAuthorizationDomains);
     }
+
     @Override
-    public SortedSet<AuthDomain> getTransportAuthDomains() {
-        return Collections.unmodifiableSortedSet(transportAuthDomains);
+    public SortedSet<AuthenticationDomain> getTransportAuthenticationDomains() {
+        return Collections.unmodifiableSortedSet(transportAuthenticationDomains);
     }
+
     @Override
-    public Set<AuthorizationBackend> getTransportAuthorizers() {
-        return Collections.unmodifiableSet(transportAuthorizers);
+    public Set<AuthorizationDomain> getTransportAuthorizationDomains() {
+        return Collections.unmodifiableSet(transportAuthorizationDomains);
     }
+
     @Override
     public String getTransportUsernameAttribute() {
         return config.dynamic.transport_userrname_attribute;
@@ -172,10 +163,10 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
     
     private void buildAAA() {
         
-        final SortedSet<AuthDomain> restAuthDomains0 = new TreeSet<>();
-        final Set<AuthorizationBackend> restAuthorizers0 = new HashSet<>();
-        final SortedSet<AuthDomain> transportAuthDomains0 = new TreeSet<>();
-        final Set<AuthorizationBackend> transportAuthorizers0 = new HashSet<>();
+        final SortedSet<AuthenticationDomain> restAuthenticationDomains0 = new TreeSet<>();
+        final SortedSet<AuthenticationDomain> transportAuthenticationDomains0 = new TreeSet<>();
+        final Set<AuthorizationDomain> restAuthorizationDomains0 = new HashSet<>();
+        final Set<AuthorizationDomain> transportAuthorizationDomains0 = new HashSet<>();
         final List<Destroyable> destroyableComponents0 = new LinkedList<>();
         final List<AuthFailureListener> ipAuthFailureListeners0 = new ArrayList<>();
         final Multimap<String, AuthFailureListener> authBackendFailureListeners0 = ArrayListMultimap.create();
@@ -209,13 +200,16 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
                                 .put(Settings.builder().loadFromSource(ad.getValue().authorization_backend.configAsJson(), XContentType.JSON).build()).build()
                                 , configPath);
                     }
-                    
+
+                    List<String> skippedUsers = ad.getValue().skipped_users;
                     if (httpEnabled) {
-                        restAuthorizers0.add(authorizationBackend);
+                        AuthorizationDomain domain = new AuthorizationDomain(authorizationBackend, skippedUsers);
+                        restAuthorizationDomains0.add(domain);
                     }
 
                     if (transportEnabled) {
-                        transportAuthorizers0.add(authorizationBackend);
+                        AuthorizationDomain domain = new AuthorizationDomain(authorizationBackend, skippedUsers);
+                        transportAuthorizationDomains0.add(domain);
                     }
                     
                     if (authorizationBackend instanceof Destroyable) {
@@ -260,15 +254,15 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
 
                             , configPath);
 
-                    final AuthDomain _ad = new AuthDomain(authenticationBackend, httpAuthenticator,
-                            ad.getValue().http_authenticator.challenge, ad.getValue().order);
+                    final AuthenticationDomain _ad = new AuthenticationDomain(authenticationBackend, httpAuthenticator,
+                            ad.getValue().http_authenticator.challenge, ad.getValue().order, ad.getValue().skip_users);
 
                     if (httpEnabled && _ad.getHttpAuthenticator() != null) {
-                        restAuthDomains0.add(_ad);
+                        restAuthenticationDomains0.add(_ad);
                     }
 
                     if (transportEnabled) {
-                        transportAuthDomains0.add(_ad);
+                        transportAuthenticationDomains0.add(_ad);
                     }
                     
                     if (httpAuthenticator instanceof Destroyable) {
@@ -288,18 +282,16 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
 
         List<Destroyable> originalDestroyableComponents = destroyableComponents;
         
-        restAuthDomains = Collections.unmodifiableSortedSet(restAuthDomains0);
-        transportAuthDomains = Collections.unmodifiableSortedSet(transportAuthDomains0);
-        restAuthorizers = Collections.unmodifiableSet(restAuthorizers0);
-        transportAuthorizers = Collections.unmodifiableSet(transportAuthorizers0);
+        restAuthenticationDomains = Collections.unmodifiableSortedSet(restAuthenticationDomains0);
+        transportAuthenticationDomains = Collections.unmodifiableSortedSet(transportAuthenticationDomains0);
+        restAuthorizationDomains = Collections.unmodifiableSet(restAuthorizationDomains0);
+        transportAuthorizationDomains = Collections.unmodifiableSet(transportAuthorizationDomains0);
         
         destroyableComponents = Collections.unmodifiableList(destroyableComponents0);
         
         if(originalDestroyableComponents != null) {
             destroyDestroyables(originalDestroyableComponents);
         }
-        
-        originalDestroyableComponents = null;
 
         createAuthFailureListeners(ipAuthFailureListeners0,
                 authBackendFailureListeners0, ipClientBlockRegistries0, authBackendClientBlockRegistries0, destroyableComponents0);
@@ -308,7 +300,6 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
         ipClientBlockRegistries = Collections.unmodifiableList(ipClientBlockRegistries0);
         authBackendClientBlockRegistries = Multimaps.unmodifiableMultimap(authBackendClientBlockRegistries0);
         authBackendFailureListeners = Multimaps.unmodifiableMultimap(authBackendFailureListeners0);
-
     }
 
     private void destroyDestroyables(List<Destroyable> destroyableComponents) {
@@ -322,7 +313,6 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
     }
     
     private <T> T newInstance(final String clazzOrShortcut, String type, final Settings settings, final Path configPath) {
-
         String clazz = clazzOrShortcut;
         boolean isEnterprise = false;
 
@@ -339,13 +329,8 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
         return ReflectionHelper.instantiateAAA(clazz, settings, configPath, isEnterprise);
     }
     
-    private String translateShortcutToClassName(final String clazzOrShortcut, final String type) {
-
-        if (authImplMap.containsKey(clazzOrShortcut + "_" + type)) {
-            return authImplMap.get(clazzOrShortcut + "_" + type);
-        } else {
-            return clazzOrShortcut;
-        }
+    private String translateShortcutToClassName(final String clazzOrShortcut) {
+        return authImplMap.getOrDefault(clazzOrShortcut + "_" + "c", clazzOrShortcut);
     }
     
     private void createAuthFailureListeners(List<AuthFailureListener> ipAuthFailureListeners,
@@ -380,7 +365,7 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
 
             } else {
 
-                authenticationBackend = translateShortcutToClassName(authenticationBackend, "c");
+                authenticationBackend = translateShortcutToClassName(authenticationBackend);
 
                 authBackendFailureListeners.put(authenticationBackend, authFailureListener);
 

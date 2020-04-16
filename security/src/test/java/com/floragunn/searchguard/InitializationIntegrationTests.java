@@ -17,7 +17,6 @@
 
 package com.floragunn.searchguard;
 
-import java.io.File;
 import java.util.Iterator;
 
 import org.apache.http.Header;

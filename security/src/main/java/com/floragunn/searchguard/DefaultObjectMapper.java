@@ -167,12 +167,7 @@ public class DefaultObjectMapper {
         }
 
         try {
-            return AccessController.doPrivileged(new PrivilegedExceptionAction<T>() {
-                @Override
-                public T run() throws Exception {
-                    return objectMapper.readValue(string, jt);
-                }
-            });
+            return AccessController.doPrivileged((PrivilegedExceptionAction<T>) () -> objectMapper.readValue(string, jt));
         } catch (final PrivilegedActionException e) {
             throw (IOException) e.getCause();
         }
