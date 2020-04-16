@@ -138,8 +138,8 @@ public class ConfigurationLoaderSG7 {
         
         final MultiGetRequest mget = new MultiGetRequest();
 
-        for (int i = 0; i < events.length; i++) {
-            final String event = events[i].toLCString();
+        for (CType cType : events) {
+            final String event = cType.toLCString();
             mget.add(searchguardIndex, event);
         }
         
@@ -150,21 +150,20 @@ public class ConfigurationLoaderSG7 {
             @Override
             public void onResponse(MultiGetResponse response) {
                 MultiGetItemResponse[] responses = response.getResponses();
-                for (int i = 0; i < responses.length; i++) {
-                    MultiGetItemResponse singleResponse = responses[i];
-                    if(singleResponse != null && !singleResponse.isFailed()) {
+                for (MultiGetItemResponse singleResponse : responses) {
+                    if (singleResponse != null && !singleResponse.isFailed()) {
                         GetResponse singleGetResponse = singleResponse.getResponse();
-                        if(singleGetResponse.isExists() && !singleGetResponse.isSourceEmpty()) {
+                        if (singleGetResponse.isExists() && !singleGetResponse.isSourceEmpty()) {
                             //success
                             try {
                                 final SgDynamicConfiguration<?> dConf = toConfig(singleGetResponse);
-                                if(dConf != null) {
+                                if (dConf != null) {
                                     callback.success(dConf.deepClone());
                                 } else {
-                                    callback.failure(new Exception("Cannot parse settings for "+singleGetResponse.getId()));
+                                    callback.failure(new Exception("Cannot parse settings for " + singleGetResponse.getId()));
                                 }
                             } catch (Exception e) {
-                                log.error(e.toString(),e);
+                                log.error(e.toString(), e);
                                 callback.failure(e);
                             }
                         } else {
@@ -173,7 +172,7 @@ public class ConfigurationLoaderSG7 {
                         }
                     } else {
                         //failure
-                        callback.singleFailure(singleResponse==null?null:singleResponse.getFailure());
+                        callback.singleFailure(singleResponse == null ? null : singleResponse.getFailure());
                     }
                 }
             }

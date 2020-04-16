@@ -1,8 +1,6 @@
 package com.floragunn.searchguard.sgconf.impl.v6;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
@@ -16,8 +14,6 @@ public class ConfigV6 {
 
     public Dynamic dynamic;
 
-    
-    
     @Override
     public String toString() {
         return "Config [dynamic=" + dynamic + "]";
@@ -162,19 +158,20 @@ public class ConfigV6 {
     }
     
     public static class AuthcDomain {
-        public boolean http_enabled= true;
-        public boolean transport_enabled= true;
-        public boolean enabled= true;
+        public boolean http_enabled = true;
+        public boolean transport_enabled = true;
+        public boolean enabled = true;
         public int order = 0;
         public HttpAuthenticator http_authenticator = new HttpAuthenticator();
         public AuthcBackend authentication_backend = new AuthcBackend();
+        public List<String> skip_users = new ArrayList<>();
+
         @Override
         public String toString() {
             return "AuthcDomain [http_enabled=" + http_enabled + ", transport_enabled=" + transport_enabled + ", enabled=" + enabled + ", order="
-                    + order + ", http_authenticator=" + http_authenticator + ", authentication_backend=" + authentication_backend + "]";
+                    + order + ", http_authenticator=" + http_authenticator + ", authentication_backend=" + authentication_backend + ", skip_users=" + skip_users + "]";
         }
-        
-        
+
     }
 
     public static class HttpAuthenticator {
@@ -265,15 +262,20 @@ public class ConfigV6 {
     
     public static class AuthzDomain {
         public boolean http_enabled = true;
+
         public boolean transport_enabled = true;
+
         public boolean enabled = true;
+
         public AuthzBackend authorization_backend = new AuthzBackend();
+
+        public List<String> skipped_users = new ArrayList<>();
+
         @Override
         public String toString() {
-            return "AuthzDomain [http_enabled=" + http_enabled + ", transport_enabled=" + transport_enabled + ", enabled=" + enabled + ", authorization_backend=" + authorization_backend + "]";
+            return "AuthzDomain [http_enabled=" + http_enabled + ", transport_enabled=" + transport_enabled + ", enabled="
+                    + enabled + ", authorization_backend=" + authorization_backend + ", skipped_users=" + skipped_users + "]";
         }
-        
-        
     }
    
 }

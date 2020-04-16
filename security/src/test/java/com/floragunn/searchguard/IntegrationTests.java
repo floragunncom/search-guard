@@ -19,7 +19,6 @@ package com.floragunn.searchguard;
 
 import io.netty.handler.ssl.OpenSsl;
 
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.TreeSet;
 
 import org.apache.http.HttpStatus;
@@ -60,14 +59,7 @@ public class IntegrationTests extends SingleClusterTest {
     @Test
     public void testSearchScroll() throws Exception {
         
-        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {
-            
-            @Override
-            public void uncaughtException(Thread t, Throwable e) {
-                e.printStackTrace();
-                
-            }
-        });
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> e.printStackTrace());
         
     final Settings settings = Settings.builder()
             .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
@@ -947,10 +939,6 @@ public class IntegrationTests extends SingleClusterTest {
         res = rh.executeDeleteRequest("_all",
                 encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-//        res = rh.executePostRequest("searchguard/_freeze", "",
-//                encodeBasicHeader("nagilum", "nagilum"));
-//        Assert.assertTrue(res.getStatusCode() >= 400);
-
     }
 
 }

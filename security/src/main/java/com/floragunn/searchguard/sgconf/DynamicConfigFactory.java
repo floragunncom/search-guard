@@ -112,7 +112,6 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     
     @Override
     public void onChange(Map<CType, SgDynamicConfiguration<?>> typeToConfig) {
-
         SgDynamicConfiguration<?> actionGroups = cr.getConfiguration(CType.ACTIONGROUPS);
         config = cr.getConfiguration(CType.CONFIG);
         SgDynamicConfiguration<?> internalusers = cr.getConfiguration(CType.INTERNALUSERS);
@@ -180,7 +179,6 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             }
         
         } else {
-
             //rebuild v6 Models
             DynamicConfigModel dcmv6 = new DynamicConfigModelV6(getConfigV6(config), esSettings, configPath, iab);
             InternalUsersModel iumv6 = new InternalUsersModelV6((SgDynamicConfiguration<InternalUserV6>) internalusers);
@@ -283,10 +281,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     }
     
     private static class InternalUsersModelV6 extends InternalUsersModel {
-        
         SgDynamicConfiguration<InternalUserV6> configuration;
-        
-        
 
         public InternalUsersModelV6(SgDynamicConfiguration<InternalUserV6> configuration) {
             super();
