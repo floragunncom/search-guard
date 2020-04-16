@@ -1,24 +1,27 @@
 /*
  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+ *
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
 
 package com.floragunn.dlic.auth.ldap;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.TreeSet;
-
+import com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend;
+import com.floragunn.dlic.auth.ldap.backend.LDAPAuthorizationBackend;
+import com.floragunn.dlic.auth.ldap.srv.EmbeddedLDAPServer;
+import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
+import com.floragunn.dlic.auth.ldap.util.LdapHelper;
+import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.user.User;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.AfterClass;
@@ -29,17 +32,13 @@ import org.ldaptive.Connection;
 import org.ldaptive.LdapAttribute;
 import org.ldaptive.LdapEntry;
 
-import com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend;
-import com.floragunn.dlic.auth.ldap.backend.LDAPAuthorizationBackend;
-import com.floragunn.dlic.auth.ldap.srv.EmbeddedLDAPServer;
-import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
-import com.floragunn.dlic.auth.ldap.util.LdapHelper;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchguard.user.User;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.TreeSet;
 
 public class LdapBackendTest {
-    
+
     static {
         System.setProperty("sg.display_lic_none", "true");
     }
@@ -47,12 +46,14 @@ public class LdapBackendTest {
     private static EmbeddedLDAPServer ldapServer = null;
     private static int ldapPort;
     private static int ldapsPort;
-    
+
     @BeforeClass
     public static void startLdapServer() throws Exception {
         ldapServer = new EmbeddedLDAPServer();
         ldapServer.start();
+
         ldapServer.applyLdif("base.ldif");
+
         ldapPort = ldapServer.getLdapPort();
         ldapsPort = ldapServer.getLdapsPort();
     }
@@ -70,8 +71,8 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
-    
-    @Test(expected=ElasticsearchSecurityException.class)
+
+    @Test(expected = ElasticsearchSecurityException.class)
     public void testLdapAuthenticationFakeLogin() throws Exception {
 
 
@@ -84,8 +85,8 @@ public class LdapBackendTest {
         new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("unknown", "unknown"
                 .getBytes(StandardCharsets.UTF_8)));
     }
-    
-    @Test(expected=ElasticsearchSecurityException.class)
+
+    @Test(expected = ElasticsearchSecurityException.class)
     public void testLdapInjection() throws Exception {
 
 
@@ -95,17 +96,17 @@ public class LdapBackendTest {
 
         String injectString = "*jack*";
 
-        
+
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials(injectString, "secret"
                 .getBytes(StandardCharsets.UTF_8)));
     }
-    
+
     @Test
     public void testLdapAuthenticationBindDn() throws Exception {
 
 
         final Settings settings = Settings.builder()
-                .putList(ConfigConstants.LDAP_HOSTS,  "localhost:" + ldapPort)
+                .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
                 .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})")
                 .put(ConfigConstants.LDAP_AUTHC_USERBASE, "ou=people,o=TEST")
                 .put(ConfigConstants.LDAP_BIND_DN, "cn=Captain Spock,ou=people,o=TEST")
@@ -117,13 +118,13 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
-    
-    @Test(expected=ElasticsearchSecurityException.class)
+
+    @Test(expected = ElasticsearchSecurityException.class)
     public void testLdapAuthenticationWrongBindDn() throws Exception {
 
 
         final Settings settings = Settings.builder()
-                .putList(ConfigConstants.LDAP_HOSTS,  "localhost:" + ldapPort)
+                .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
                 .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})")
                 .put(ConfigConstants.LDAP_AUTHC_USERBASE, "ou=people,o=TEST")
                 .put(ConfigConstants.LDAP_BIND_DN, "cn=Captain Spock,ou=people,o=TEST")
@@ -133,24 +134,24 @@ public class LdapBackendTest {
         new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
                 .getBytes(StandardCharsets.UTF_8)));
     }
-    
-    @Test(expected=ElasticsearchSecurityException.class)
+
+    @Test(expected = ElasticsearchSecurityException.class)
     public void testLdapAuthenticationBindFail() throws Exception {
 
 
         final Settings settings = Settings.builder()
-                .putList(ConfigConstants.LDAP_HOSTS,  "localhost:" + ldapPort)
+                .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
                 .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})").build();
 
         new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "wrong".getBytes(StandardCharsets.UTF_8)));
     }
-    
-    @Test(expected=ElasticsearchSecurityException.class)
+
+    @Test(expected = ElasticsearchSecurityException.class)
     public void testLdapAuthenticationNoUser() throws Exception {
 
 
         final Settings settings = Settings.builder()
-                .putList(ConfigConstants.LDAP_HOSTS,  "localhost:" + ldapPort)
+                .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
                 .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})").build();
 
         new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("UNKNOWN", "UNKNOWN".getBytes(StandardCharsets.UTF_8)));
@@ -177,7 +178,7 @@ public class LdapBackendTest {
                 .put(ConfigConstants.LDAPS_ENABLE_SSL, true)
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("ldap/truststore.jks"))
                 .put("verify_hostnames", false)
-                .put("path.home",".")
+                .put("path.home", ".")
                 .build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
@@ -185,7 +186,7 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
-    
+
     @Test
     public void testLdapAuthenticationSSLPEMFile() throws Exception {
 
@@ -196,33 +197,33 @@ public class LdapBackendTest {
                 .put(ConfigConstants.LDAPS_ENABLE_SSL, true)
                 .put(ConfigConstants.LDAPS_PEMTRUSTEDCAS_FILEPATH, FileHelper.getAbsoluteFilePathFromClassPath("ldap/root-ca.pem").toFile().getName())
                 .put("verify_hostnames", false)
-                .put("path.home",".")
-                .put("path.conf",FileHelper.getAbsoluteFilePathFromClassPath("ldap/root-ca.pem").getParent())
+                .put("path.home", ".")
+                .put("path.conf", FileHelper.getAbsoluteFilePathFromClassPath("ldap/root-ca.pem").getParent())
                 .build();
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, Paths.get("src/test/resources/ldap")).authenticate(new AuthCredentials("jacksonm", "secret"
                 .getBytes(StandardCharsets.UTF_8)));
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
-    
+
     @Test
     public void testLdapAuthenticationSSLPEMText() throws Exception {
         final Settings settingsFromFile = Settings
                 .builder()
                 .loadFromPath(
                         Paths
-                        .get(FileHelper
-                                .getAbsoluteFilePathFromClassPath("ldap/test1.yml")
-                                .toFile()
-                                .getAbsolutePath()))
+                                .get(FileHelper
+                                        .getAbsoluteFilePathFromClassPath("ldap/test1.yml")
+                                        .toFile()
+                                        .getAbsolutePath()))
                 .build();
-        Settings settings = Settings.builder().put(settingsFromFile).putList("hosts", "localhost:"+ldapsPort).build();
+        Settings settings = Settings.builder().put(settingsFromFile).putList("hosts", "localhost:" + ldapsPort).build();
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
                 .getBytes(StandardCharsets.UTF_8)));
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
-    
+
     @Test
     public void testLdapAuthenticationSSLSSLv3() throws Exception {
 
@@ -234,7 +235,7 @@ public class LdapBackendTest {
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("ldap/truststore.jks"))
                 .put("verify_hostnames", false)
                 .putList("enabled_ssl_protocols", "SSLv3")
-                .put("path.home",".")
+                .put("path.home", ".")
                 .build();
 
         try {
@@ -244,9 +245,9 @@ public class LdapBackendTest {
             Assert.assertEquals(e.getCause().getClass(), org.ldaptive.LdapException.class);
             Assert.assertTrue(e.getCause().getMessage().contains("Unable to connec"));
         }
-        
+
     }
-    
+
     @Test
     public void testLdapAuthenticationSSLUnknowCipher() throws Exception {
 
@@ -258,7 +259,7 @@ public class LdapBackendTest {
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("ldap/truststore.jks"))
                 .put("verify_hostnames", false)
                 .putList("enabled_ssl_ciphers", "AAA")
-                .put("path.home",".")
+                .put("path.home", ".")
                 .build();
 
         try {
@@ -268,9 +269,9 @@ public class LdapBackendTest {
             Assert.assertEquals(e.getCause().getClass(), org.ldaptive.LdapException.class);
             Assert.assertTrue(e.getCause().getMessage().contains("Unable to connec"));
         }
-        
+
     }
-    
+
     @Test
     public void testLdapAuthenticationSpecialCipherProtocol() throws Exception {
 
@@ -283,16 +284,16 @@ public class LdapBackendTest {
                 .put("verify_hostnames", false)
                 .putList("enabled_ssl_protocols", "TLSv1")
                 .putList("enabled_ssl_ciphers", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA")
-                .put("path.home",".")
+                .put("path.home", ".")
                 .build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
                 .getBytes(StandardCharsets.UTF_8)));
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
-        
+
     }
-    
+
     @Test
     public void testLdapAuthenticationSSLNoKeystore() throws Exception {
 
@@ -303,7 +304,7 @@ public class LdapBackendTest {
                 .put(ConfigConstants.LDAPS_ENABLE_SSL, true)
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("ldap/truststore.jks"))
                 .put("verify_hostnames", false)
-                .put("path.home",".")
+                .put("path.home", ".")
                 .build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
@@ -386,8 +387,8 @@ public class LdapBackendTest {
         }
 
     }
-    
-    
+
+
     @Test
     public void testLdapEscape() throws Exception {
 
@@ -412,7 +413,7 @@ public class LdapBackendTest {
         Assert.assertEquals(4, user.getRoles().size());
         Assert.assertTrue(user.getRoles().toString().contains("ceo"));
     }
-    
+
     @Test
     public void testLdapAuthorizationRoleSearchUsername() throws Exception {
 
@@ -438,7 +439,7 @@ public class LdapBackendTest {
         Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
         Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
     }
-    
+
     @Test
     public void testLdapAuthorizationOnly() throws Exception {
 
@@ -461,7 +462,7 @@ public class LdapBackendTest {
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
     }
-    
+
     @Test
     public void testLdapAuthorizationNonDNEntry() throws Exception {
 
@@ -483,7 +484,7 @@ public class LdapBackendTest {
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals("ceo-ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
     }
-    
+
     @Test
     public void testLdapAuthorizationNested() throws Exception {
 
@@ -507,7 +508,7 @@ public class LdapBackendTest {
         Assert.assertEquals(4, user.getRoles().size());
         Assert.assertEquals("nested1", new ArrayList(new TreeSet(user.getRoles())).get(1));
     }
-    
+
     @Test
     public void testLdapAuthorizationNestedFilter() throws Exception {
 
@@ -533,7 +534,7 @@ public class LdapBackendTest {
         Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
         Assert.assertEquals("nested2", new ArrayList(new TreeSet(user.getRoles())).get(1));
     }
-    
+
     @Test
     public void testLdapAuthorizationDnNested() throws Exception {
 
@@ -557,7 +558,7 @@ public class LdapBackendTest {
         Assert.assertEquals(4, user.getRoles().size());
         Assert.assertEquals("cn=nested1,ou=groups,o=TEST", new ArrayList(new TreeSet(user.getRoles())).get(1));
     }
-    
+
     @Test
     public void testLdapAuthorizationDn() throws Exception {
 
@@ -614,7 +615,7 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
-    
+
     @Test
     public void testLdapAuthorizationSkipUsers() throws Exception {
 
@@ -639,7 +640,7 @@ public class LdapBackendTest {
         Assert.assertEquals(0, user.getRoles().size());
         Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
     }
-    
+
     @Test
     public void testLdapAuthorizationSkipUsersNoDn() throws Exception {
 
@@ -663,7 +664,7 @@ public class LdapBackendTest {
         Assert.assertEquals(0, user.getRoles().size());
         Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
     }
-    
+
     @Test
     public void testLdapAuthorizationNestedAttr() throws Exception {
 
@@ -690,7 +691,7 @@ public class LdapBackendTest {
         Assert.assertEquals("nested3", new ArrayList(new TreeSet(user.getRoles())).get(4));
         Assert.assertEquals("rolemo4", new ArrayList(new TreeSet(user.getRoles())).get(7));
     }
-    
+
     @Test
     public void testLdapAuthorizationNestedAttrFilter() throws Exception {
 
@@ -717,9 +718,9 @@ public class LdapBackendTest {
         Assert.assertEquals(6, user.getRoles().size());
         Assert.assertEquals("role2", new ArrayList(new TreeSet(user.getRoles())).get(4));
         Assert.assertEquals("nested1", new ArrayList(new TreeSet(user.getRoles())).get(2));
-        
+
     }
-    
+
     @Test
     public void testLdapAuthorizationNestedAttrFilterAll() throws Exception {
 
@@ -744,9 +745,9 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(4, user.getRoles().size());
-        
+
     }
-    
+
     @Test
     public void testLdapAuthorizationNestedAttrFilterAllEqualsNestedFalse() throws Exception {
 
@@ -770,9 +771,9 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(4, user.getRoles().size());
-        
+
     }
-    
+
     @Test
     public void testLdapAuthorizationNestedAttrNoRoleSearch() throws Exception {
 
@@ -813,7 +814,7 @@ public class LdapBackendTest {
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
         Assert.assertEquals(user.getCustomAttributesMap().toString(), 16, user.getCustomAttributesMap().size());
         Assert.assertFalse(user.getCustomAttributesMap().toString(), user.getCustomAttributesMap().keySet().contains("attr.ldap.userpassword"));
-    
+
         settings = Settings.builder()
                 .putList(ConfigConstants.LDAP_HOSTS, "127.0.0.1:4", "localhost:" + ldapPort)
                 .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})")
@@ -822,22 +823,22 @@ public class LdapBackendTest {
 
         user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
                 .getBytes(StandardCharsets.UTF_8)));
-    
+
         Assert.assertEquals(user.getCustomAttributesMap().toString(), 2, user.getCustomAttributesMap().size());
-        
+
         settings = Settings.builder()
                 .putList(ConfigConstants.LDAP_HOSTS, "127.0.0.1:4", "localhost:" + ldapPort)
                 .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})")
-                .putList(ConfigConstants.LDAP_CUSTOM_ATTR_WHITELIST, "*objectclass*","entryParentId")
+                .putList(ConfigConstants.LDAP_CUSTOM_ATTR_WHITELIST, "*objectclass*", "entryParentId")
                 .build();
 
         user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
                 .getBytes(StandardCharsets.UTF_8)));
-    
+
         Assert.assertEquals(user.getCustomAttributesMap().toString(), 2, user.getCustomAttributesMap().size());
-    
+
     }
-    
+
     @Test
     public void testLdapAuthorizationNonDNRoles() throws Exception {
 
@@ -891,23 +892,23 @@ public class LdapBackendTest {
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLEx(186n) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186nn) consists of\\, special="));
-        
+
         new LDAPAuthorizationBackend(settings, null).fillRoles(new User("spec186"), null);
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLEx(186n) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186nn) consists of\\, special="));
-        
+
         new LDAPAuthorizationBackend(settings, null).fillRoles(new User("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLEx(186n) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186nn) consists of\\, special="));
-        
+
         new LDAPAuthorizationBackend(settings, null).fillRoles(new User("CN=AA BB\\/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLEx(186n) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186nn) consists of\\, special="));
     }
-    
+
     @Test
     public void testLdapSpecial186_2() throws Exception {
 
@@ -932,24 +933,24 @@ public class LdapBackendTest {
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186n) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186nn) consists of\\, special\\=chars\\ "));
-        
+
         new LDAPAuthorizationBackend(settings, null).fillRoles(new User("spec186"), null);
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186n) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186nn) consists of\\, special\\=chars\\ "));
 
-        
+
         new LDAPAuthorizationBackend(settings, null).fillRoles(new User("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186n) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186nn) consists of\\, special\\=chars\\ "));
-        
+
         new LDAPAuthorizationBackend(settings, null).fillRoles(new User("CN=AA BB\\/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186n) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186nn) consists of\\, special\\=chars\\ "));
     }
-    
+
     @Test
     public void testOperationalAttributes() throws Exception {
 
@@ -967,10 +968,9 @@ public class LdapBackendTest {
         Assert.assertTrue(operationAttribute.getStringValue().length() > 10);
         Assert.assertTrue(operationAttribute.getStringValue().split("-").length == 5);
     }
-    
+
     @Test
     public void testMultiCn() throws Exception {
-
         final Settings settings = Settings.builder()
                 .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
                 .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})")
@@ -985,12 +985,10 @@ public class LdapBackendTest {
                 .getBytes(StandardCharsets.UTF_8)));
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=cabc,ou=people,o=TEST", user.getName());
-        System.out.println(user.getUserEntry().getAttribute("cn"));
     }
-    
+
     @AfterClass
     public static void tearDown() throws Exception {
-
         if (ldapServer != null) {
             ldapServer.stop();
         }
