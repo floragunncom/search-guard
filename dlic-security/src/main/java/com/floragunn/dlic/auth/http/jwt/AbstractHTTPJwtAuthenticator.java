@@ -1,25 +1,30 @@
 /*
  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- * 
+ *
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
 
 package com.floragunn.dlic.auth.http.jwt;
 
-import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.Collection;
-import java.util.Map.Entry;
-
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.AuthenticatorUnavailableException;
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.BadCredentialsException;
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.JwtVerifier;
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.KeyProvider;
+import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
+import com.jayway.jsonpath.PathNotFoundException;
+import net.minidev.json.JSONArray;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
@@ -34,12 +39,14 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.dlic.auth.http.jwt.keybyoidc.AuthenticatorUnavailableException;
-import com.floragunn.dlic.auth.http.jwt.keybyoidc.BadCredentialsException;
-import com.floragunn.dlic.auth.http.jwt.keybyoidc.JwtVerifier;
-import com.floragunn.dlic.auth.http.jwt.keybyoidc.KeyProvider;
-import com.floragunn.searchguard.auth.HTTPAuthenticator;
-import com.floragunn.searchguard.user.AuthCredentials;
+import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map.Entry;
 
 public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator {
     private final static Logger log = LogManager.getLogger(AbstractHTTPJwtAuthenticator.class);
@@ -52,21 +59,30 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
     private final String jwtUrlParameter;
     private final String subjectKey;
     private final String rolesKey;
+    private final String jsonSubjectPath;
+    private final String jsonRolesPath;
+    private Configuration jsonPathConfig;
 
     public AbstractHTTPJwtAuthenticator(Settings settings, Path configPath) {
         jwtUrlParameter = settings.get("jwt_url_parameter");
         jwtHeaderName = settings.get("jwt_header", "Authorization");
         rolesKey = settings.get("roles_key");
         subjectKey = settings.get("subject_key");
+        jsonRolesPath = settings.get("roles_path");
+        jsonSubjectPath = settings.get("subject_path");
 
         try {
             this.keyProvider = this.initKeyProvider(settings, configPath);
-
             jwtVerifier = new JwtVerifier(keyProvider);
-
         } catch (Exception e) {
             log.error("Error creating JWT authenticator: " + e + ". JWT authentication will not work", e);
         }
+
+        if ((subjectKey != null && jsonSubjectPath != null) || (rolesKey != null && jsonRolesPath != null)) {
+            throw new IllegalStateException("Both, subject_key and subject_path or roles_key and roles_path have simultaneously provided." +
+                    " Please provide only one combination.");
+        }
+        jsonPathConfig = Configuration.builder().options(Option.ALWAYS_RETURN_LIST).build();
     }
 
     @Override
@@ -78,14 +94,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
             sm.checkPermission(new SpecialPermission());
         }
 
-        AuthCredentials creds = AccessController.doPrivileged(new PrivilegedAction<AuthCredentials>() {
-            @Override
-            public AuthCredentials run() {
-                return extractCredentials0(request);
-            }
-        });
-
-        return creds;
+        return AccessController.doPrivileged((PrivilegedAction<AuthCredentials>) () -> extractCredentials0(request));
     }
 
     private AuthCredentials extractCredentials0(final RestRequest request) throws ElasticsearchSecurityException {
@@ -104,7 +113,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
             log.info(e);
             throw new ElasticsearchSecurityException(e.getMessage(), RestStatus.SERVICE_UNAVAILABLE);
         } catch (BadCredentialsException e) {
-            log.info("Extracting JWT token from " + jwtString + " failed", e);            
+            log.info("Extracting JWT token from " + jwtString + " failed", e);
             return null;
         }
 
@@ -175,14 +184,31 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
             } else {
                 subject = (String) subjectObject;
             }
+        } else if (jsonSubjectPath != null) {
+            try {
+                subject = JsonPath.read(claims.asMap(), jsonSubjectPath);
+            } catch (PathNotFoundException e) {
+                log.error("The provided JSON path {} could not be found ", jsonSubjectPath);
+                return null;
+            }
         }
         return subject;
     }
 
     @SuppressWarnings("unchecked")
     protected String[] extractRoles(JwtClaims claims) {
-        if (rolesKey == null) {
+        if (rolesKey == null && jsonRolesPath == null) {
             return new String[0];
+        }
+
+        if (jsonRolesPath != null) {
+            try {
+                Object roles = JsonPath.using(jsonPathConfig).parse(claims.asMap()).read(jsonRolesPath);
+                return splitRoles(roles);
+            } catch (PathNotFoundException e) {
+                log.error("The provided JSON path {} could not be found ", jsonRolesPath);
+                return null;
+            }
         }
 
         Object rolesObject = claims.getClaim(rolesKey);
@@ -193,7 +219,10 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
                     rolesKey);
             return new String[0];
         }
+        return splitRoles(rolesObject);
+    }
 
+    private String[] splitRoles(Object rolesObject) {
         String[] roles = String.valueOf(rolesObject).split(",");
 
         // We expect a String or Collection. If we find something else, convert to
@@ -202,6 +231,18 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
             log.warn(
                     "Expected type String or Collection for roles in the JWT for roles_key {}, but value was '{}' ({}). Will convert this value to String.",
                     rolesKey, rolesObject, rolesObject.getClass());
+        } else if (rolesObject instanceof JSONArray) {
+            List<String> roles0 = new ArrayList<>();
+            for (Object o : ((JSONArray) rolesObject)) {
+                if (o instanceof List) {
+                    for (Object oo : (List) o) {
+                        roles0.addAll(Arrays.asList(String.valueOf(oo).split(",")));
+                    }
+                } else {
+                    roles0.addAll(Arrays.asList(String.valueOf(o).split(",")));
+                }
+            }
+            roles = roles0.toArray(new String[0]);
         } else if (rolesObject instanceof Collection<?>) {
             roles = ((Collection<String>) rolesObject).toArray(new String[0]);
         }
