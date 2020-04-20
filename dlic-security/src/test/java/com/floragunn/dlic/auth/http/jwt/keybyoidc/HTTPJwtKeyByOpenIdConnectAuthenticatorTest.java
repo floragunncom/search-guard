@@ -14,17 +14,21 @@
 
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
-import java.util.HashMap;
-
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.util.FakeRestRequest;
+import com.google.common.collect.ImmutableMap;
 import org.elasticsearch.common.settings.Settings;
+import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchguard.util.FakeRestRequest;
-import com.google.common.collect.ImmutableMap;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+
+import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.*;
 
 public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
@@ -91,6 +95,65 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         Assert.assertNotNull(creds);
         Assert.assertEquals(TestJwts.MCCOY_SUBJECT, creds.getUsername());
         Assert.assertEquals(TestJwts.TEST_ROLES, creds.getBackendRoles());
+    }
+
+    @Test
+    public void testRolesJsonPath() throws Exception {
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.sub")
+                .build();
+
+        HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(
+                new FakeRestRequest(ImmutableMap.of("Authorization", TestJwts.MC_COY_SIGNED_OCT_1), new HashMap<>()), null);
+
+        Assert.assertNotNull(creds);
+        Assert.assertEquals(TestJwts.MCCOY_SUBJECT, creds.getUsername());
+        Assert.assertEquals(TestJwts.TEST_ROLES, creds.getBackendRoles());
+    }
+
+    @Test
+    public void testRolesCollectionJsonPath() throws Exception {
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.sub")
+                .build();
+
+        HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(
+                new FakeRestRequest(ImmutableMap.of("Authorization", createSigned(create(MCCOY_SUBJECT, TEST_AUDIENCE,
+                        ROLES_CLAIM, Arrays.asList("role 1", "role 2", "role 3, role 4")), TestJwk.OCT_1)), new HashMap<>()), null);
+
+        Assert.assertNotNull(creds);
+        Assert.assertEquals(TestJwts.MCCOY_SUBJECT, creds.getUsername());
+        Assert.assertThat(creds.getBackendRoles(), CoreMatchers.hasItems("role 1", "role 2", "role 3", "role 4"));
+    }
+
+    @Test
+    public void testInvalidSubjectJsonPath() throws Exception {
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.subasd")
+                .build();
+
+        HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(
+                new FakeRestRequest(ImmutableMap.of("Authorization", TestJwts.MC_COY_SIGNED_OCT_1), new HashMap<String, String>()), null);
+
+        Assert.assertNull(creds);
+    }
+
+    @Test
+    public void testInvalidRolesJsonPath() throws Exception {
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).put("roles_path", "$.asd" + TestJwts.ROLES_CLAIM).put("subject_path", "$.sub")
+                .build();
+
+        HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(
+                new FakeRestRequest(ImmutableMap.of("Authorization", TestJwts.MC_COY_SIGNED_OCT_1), new HashMap<String, String>()), null);
+
+        Assert.assertNotNull(creds);
+        Assert.assertEquals(TestJwts.MCCOY_SUBJECT, creds.getUsername());
+        Assert.assertEquals(Collections.emptySet(), creds.getBackendRoles());
     }
 
     @Test

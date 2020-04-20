@@ -14,18 +14,18 @@
 
 package com.floragunn.dlic.auth.http.jwt;
 
-import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.Key;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivilegedAction;
-import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Collection;
-import java.util.Map.Entry;
-
+import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
+import com.jayway.jsonpath.PathNotFoundException;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.WeakKeyException;
+import net.minidev.json.JSONArray;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -37,14 +37,15 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchguard.auth.HTTPAuthenticator;
-import com.floragunn.searchguard.user.AuthCredentials;
-
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtParser;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.WeakKeyException;
+import java.nio.file.Path;
+import java.security.*;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map.Entry;
 
 public class HTTPJwtAuthenticator implements HTTPAuthenticator {
 
@@ -57,6 +58,9 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
     private final String jwtUrlParameter;
     private final String rolesKey;
     private final String subjectKey;
+    private final String jsonSubjectPath;
+    private final String jsonRolesPath;
+    private Configuration jsonPathConfig;
 
     public HTTPJwtAuthenticator(final Settings settings, final Path configPath) {
         super();
@@ -103,9 +107,17 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
         jwtHeaderName = settings.get("jwt_header","Authorization");
         rolesKey = settings.get("roles_key");
         subjectKey = settings.get("subject_key");
+        jsonRolesPath = settings.get("roles_path");
+        jsonSubjectPath = settings.get("subject_path");
         jwtParser = _jwtParser;
+
+        if ((subjectKey != null && jsonSubjectPath != null) || (rolesKey != null && jsonRolesPath != null)) {
+            throw new IllegalStateException("Both, subject_key and subject_path or roles_key and roles_path have simultaneously provided." +
+                    " Please provide only one combination.");
+        }
+
+        jsonPathConfig = Configuration.builder().options(Option.ALWAYS_RETURN_LIST).build();
     }
-    
     
     @Override
     public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
@@ -115,14 +127,7 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
             sm.checkPermission(new SpecialPermission());
         }
 
-        AuthCredentials creds = AccessController.doPrivileged(new PrivilegedAction<AuthCredentials>() {
-            @Override
-            public AuthCredentials run() {                        
-                return extractCredentials0(request);
-            }
-        });
-        
-        return creds;
+        return AccessController.doPrivileged((PrivilegedAction<AuthCredentials>) () -> extractCredentials0(request));
     }
 
     private AuthCredentials extractCredentials0(final RestRequest request) {        
@@ -166,7 +171,7 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
             	return null;
             }
             
-            final String[] roles = extractRoles(claims, request);
+            final String[] roles = extractRoles(claims);
             
             final AuthCredentials ac = new AuthCredentials(subject, roles).markComplete(); 
             
@@ -209,47 +214,81 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
                 log.warn("Failed to get subject from JWT claims, check if subject_key '{}' is correct.", subjectKey);
                 return null;
             }
-        	// We expect a String. If we find something else, convert to String but issue a warning    	
+        	// We expect a String. If we find something else, convert to String but issue a warning
             if(!(subjectObject instanceof String)) {
         		log.warn("Expected type String for roles in the JWT for subject_key {}, but value was '{}' ({}). Will convert this value to String.", subjectKey, subjectObject, subjectObject.getClass());    					
             }
             subject = String.valueOf(subjectObject);
         }
+        else if (jsonSubjectPath != null) {
+            try {
+                subject = JsonPath.read(claims, jsonSubjectPath);
+            } catch (PathNotFoundException e) {
+                log.error("The provided JSON path {} could not be found ", jsonSubjectPath);
+            }
+        }
         return subject;
     }
     
-    @SuppressWarnings("unchecked")
-    protected String[] extractRoles(final Claims claims, final RestRequest request) {
-    	// no roles key specified
-    	if(rolesKey == null) {
+    protected String[] extractRoles(final Claims claims) {
+    	if(rolesKey == null && jsonRolesPath == null) {
     		return new String[0];
     	}
-		// try to get roles from claims, first as Object to avoid having to catch the ExpectedTypeException
+
+    	if (jsonRolesPath != null) {
+            try {
+                Object roles = JsonPath.using(jsonPathConfig).parse(claims).read(jsonRolesPath);
+                return splitRoles(roles);
+            } catch (PathNotFoundException e) {
+                log.error("The provided JSON path {} could not be found ", jsonRolesPath);
+                return null;
+            }
+        }
+    	// try to get roles from claims, first as Object to avoid having to catch the ExpectedTypeException
     	final Object rolesObject = claims.get(rolesKey, Object.class);
     	if(rolesObject == null) {
     		log.warn("Failed to get roles from JWT claims with roles_key '{}'. Check if this key is correct and available in the JWT payload.", rolesKey);   
     		return new String[0];
     	}
-    	
-    	String[] roles = String.valueOf(rolesObject).split(",");
-    	
-    	// We expect a String or Collection. If we find something else, convert to String but issue a warning    	
-    	if (!(rolesObject instanceof String) && !(rolesObject instanceof Collection<?>)) {
-    		log.warn("Expected type String or Collection for roles in the JWT for roles_key {}, but value was '{}' ({}). Will convert this value to String.", rolesKey, rolesObject, rolesObject.getClass());    					
-		} else if (rolesObject instanceof Collection<?>) {
-		    roles = ((Collection<String>) rolesObject).toArray(new String[0]);
-		}
-    	
-    	for (int i = 0; i < roles.length; i++) {
-    	    roles[i] = roles[i].trim();
-    	}
-    	
-    	return roles;
+
+        return splitRoles(rolesObject);
     }
 
     private static PublicKey getPublicKey(final byte[] keyBytes, final String algo) throws NoSuchAlgorithmException, InvalidKeySpecException {
         X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
         KeyFactory kf = KeyFactory.getInstance(algo);
         return kf.generatePublic(spec);
+    }
+
+    private String[] splitRoles(Object rolesObject) {
+        String[] roles = String.valueOf(rolesObject).split(",");
+
+        // We expect a String or Collection. If we find something else, convert to
+        // String but issue a warning
+        if (!(rolesObject instanceof String) && !(rolesObject instanceof Collection<?>)) {
+            log.warn(
+                    "Expected type String or Collection for roles in the JWT for roles_key {}, but value was '{}' ({}). Will convert this value to String.",
+                    rolesKey, rolesObject, rolesObject.getClass());
+        } else if (rolesObject instanceof JSONArray) {
+            List<String> roles0 = new ArrayList<>();
+            for (Object o : ((JSONArray) rolesObject)) {
+                if (o instanceof List) {
+                    for (Object oo : (List) o) {
+                        roles0.addAll(Arrays.asList(String.valueOf(oo).split(",")));
+                    }
+                } else {
+                    roles0.addAll(Arrays.asList(String.valueOf(o).split(",")));
+                }
+            }
+            roles = roles0.toArray(new String[0]);
+        } else if (rolesObject instanceof Collection<?>) {
+            roles = ((Collection<String>) rolesObject).toArray(new String[0]);
+        }
+
+        for (int i = 0; i < roles.length; i++) {
+            roles[i] = roles[i].trim();
+        }
+
+        return roles;
     }
 }
