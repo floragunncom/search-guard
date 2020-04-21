@@ -29,7 +29,8 @@ build_and_deploy:
   - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml clean verify #run tests
   #saving unittests reports in different folder before removing them on next step
   - cp -r /builds/private/sg-suite-enterprise/sgbuild0/sg-suite-enterprise/dlic-security/target/surefire-reports/ /builds/private/sg-suite-enterprise/sgbuild0/dlic-security/ || true
-  - cp -r /builds/private/sg-suite-enterprise/sgbuild0/sg-suite-enterprise/dlic-signals/target/surefire-reports/ /builds/private/sg-suite-enterprise/sgbuild0/dlic-signals/ || true  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -DskipTests -s settings.xml clean deploy #deploy snapshot
+  - cp -r /builds/private/sg-suite-enterprise/sgbuild0/sg-suite-enterprise/dlic-signals/target/surefire-reports/ /builds/private/sg-suite-enterprise/sgbuild0/dlic-signals/ || true  
+  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -DskipTests -s settings.xml clean deploy #deploy snapshot
   #- missing: veracode, coverage, srcclr, sonar, scan_veracode.sh
 
   #saving unittests reports
@@ -39,6 +40,8 @@ build_and_deploy:
       - sgbuild0/surefire-reports/
       - sgbuild0/dlic-security/
       - sgbuild0/dlic-signals/
+      - sgbuild0/sg-suite-enterprise/dlic-signals/
+      - sgbuild0/sg-suite-enterprise/dlic-security/
   #only used in merge request so far, so it makes not much sense to upload them
   #artifacts:
   #  reports:
