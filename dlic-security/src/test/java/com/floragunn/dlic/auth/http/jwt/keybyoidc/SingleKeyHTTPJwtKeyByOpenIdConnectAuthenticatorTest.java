@@ -28,7 +28,7 @@ public class SingleKeyHTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
 	@Test
 	public void basicTest() throws Exception {
-		MockIpdServer mockIdpServer = new MockIpdServer(TestJwk.Jwks.RSA_1);
+		MockIpdServer mockIdpServer = MockIpdServer.start(TestJwk.Jwks.RSA_1);
 		try {
 			Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).build();
 
