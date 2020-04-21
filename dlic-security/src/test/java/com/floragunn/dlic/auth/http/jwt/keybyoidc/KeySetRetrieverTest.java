@@ -47,7 +47,7 @@ public class KeySetRetrieverTest {
 
     @BeforeClass
     public static void setUp() throws Exception {
-        mockIdpServer = new MockIpdServer(TestJwk.Jwks.ALL);
+        mockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL);
     }
 
     @AfterClass
