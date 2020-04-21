@@ -139,6 +139,36 @@ public class RestApiTest {
     }
 
     @Test
+    public void testWatchStateAfterPutWatch() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "put_state_after_put_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalClient()) {
+            Watch watch = new WatchBuilder(watchId).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
+            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = awaitRestGet(watchPath + "/_state", auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            response = rh.executePostRequest("/_signals/watch/" + tenant + "/_search/_state",
+                    "{ \"query\": {\"match\": {\"_id\": \"_main/put_state_after_put_test\"}}}", auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Assert.assertTrue(response.getBody(), response.getBody().contains("\"hits\":{\"total\":{\"value\":1,\"relation\":\"eq\"}"));
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
+        }
+    }
+
+    @Test
     public void testPutWatchWithSeverity() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
@@ -1744,6 +1774,26 @@ public class RestApiTest {
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
         return Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", id, response.getBody(), -1);
+    }
+
+    private HttpResponse awaitRestGet(String request, Header... header) throws Exception {
+        HttpResponse response = null;
+        long start = System.currentTimeMillis();
+
+        for (int i = 0; i < 100; i++) {
+            response = rh.executeGetRequest(request, header);
+
+            if (response.getStatusCode() != HttpStatus.SC_NOT_FOUND) {
+                log.info(request + " returned " + response.getStatusCode() + " after " + (System.currentTimeMillis() - start) + "ms (" + i
+                        + " retries)");
+
+                return response;
+            }
+
+            Thread.sleep(10);
+        }
+
+        return response;
     }
 
     private static Header basicAuth(String username, String password) {
