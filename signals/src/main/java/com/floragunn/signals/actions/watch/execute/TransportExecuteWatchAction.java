@@ -153,7 +153,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
         try {
             Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService), signalsTenant.getName(),
-                    "inline_watch", request.getWatchJson(), -1);
+                    "__inline_watch", request.getWatchJson(), -1);
 
             threadPool.generic().submit(() -> {
                 listener.onResponse(executeWatch(watch, request, signalsTenant));

@@ -142,7 +142,7 @@ public class CheckTest {
             runtimeData.put(new NestedValueMap.Path("match"), "xx");
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
                     ActionInvocationType.ALERT,
-                    new WatchExecutionContextData(runtimeData, new TriggerInfo(new Date(), new Date(), new Date(), new Date()), null));
+                    new WatchExecutionContextData(runtimeData, null, new TriggerInfo(new Date(), new Date(), new Date(), new Date()), null));
 
             boolean result = searchInput.execute(ctx);
 

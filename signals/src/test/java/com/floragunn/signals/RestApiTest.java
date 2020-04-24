@@ -868,7 +868,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             
             JsonNode responseJson = DefaultObjectMapper.readTree(response.getBody());
-
+            
             Assert.assertEquals(response.getBody(), "error", responseJson.at("/runtime_attributes/severity/level").asText());
             Assert.assertFalse(response.getBody(), responseJson.at("/runtime_attributes/trigger").isNull());
             Assert.assertTrue(response.getBody(), responseJson.at("/runtime_attributes/trigger/triggered_time").isNull());

@@ -19,11 +19,17 @@ class com.floragunn.signals.execution.WatchExecutionContextData$TriggerInfo {
 	org.elasticsearch.script.JodaCompatibleZonedDateTime getScheduled_time()
 }
 
+class com.floragunn.signals.execution.WatchExecutionContextData$WatchInfo {
+	java.lang.String getId()
+	java.lang.String getTenant()
+}
+
 class com.floragunn.signals.execution.WatchExecutionContextData {
 	com.floragunn.signals.support.NestedValueMap getData()
     com.floragunn.signals.watch.severity.SeverityMapping.EvaluationResult getSeverity()
     com.floragunn.signals.execution.WatchExecutionContextData.TriggerInfo getTriggerInfo()
     org.elasticsearch.script.JodaCompatibleZonedDateTime getExecutionTime()
+    com.floragunn.signals.execution.WatchExecutionContextData.WatchInfo getWatch()
 }
 
 
