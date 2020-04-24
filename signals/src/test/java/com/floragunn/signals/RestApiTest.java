@@ -854,6 +854,31 @@ public class RestApiTest {
     }
 
     @Test
+    public void testExecuteAnonymousWatchWithShowAllRuntimeAttributes() throws Exception {
+
+        try (Client client = cluster.getInternalClient()) {
+
+            Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                    .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").consider("data.testsearch.hits.total.value").greaterOrEqual(1)
+                    .as(SeverityLevel.ERROR).when(SeverityLevel.ERROR).index("testsink").name("testsink").build();
+
+            HttpResponse response = rh.executePostRequest("/_signals/watch/_main/_execute",
+                    "{\"watch\": " + watch.toJson() + ", \"show_all_runtime_attributes\": true}", basicAuth("uhura", "uhura"));
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            
+            JsonNode responseJson = DefaultObjectMapper.readTree(response.getBody());
+
+            Assert.assertEquals(response.getBody(), "error", responseJson.at("/runtime_attributes/severity/level").asText());
+            Assert.assertFalse(response.getBody(), responseJson.at("/runtime_attributes/trigger").isNull());
+            Assert.assertTrue(response.getBody(), responseJson.at("/runtime_attributes/trigger/triggered_time").isNull());
+            Assert.assertEquals(response.getBody(), "42", responseJson.at("/runtime_attributes/data/teststatic/bla/blub").asText());
+
+            
+        }
+    }
+
+    @Test
     public void testActivateWatchAuth() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";

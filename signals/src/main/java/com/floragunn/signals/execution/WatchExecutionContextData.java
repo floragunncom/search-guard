@@ -31,10 +31,12 @@ public class WatchExecutionContextData implements ToXContentObject {
 
     public WatchExecutionContextData() {
         this.data = new NestedValueMap();
+        this.triggerInfo = new TriggerInfo();
     }
 
     public WatchExecutionContextData(NestedValueMap data) {
         this.data = data;
+        this.triggerInfo = new TriggerInfo();
     }
 
     public WatchExecutionContextData(NestedValueMap data, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime) {
@@ -162,6 +164,13 @@ public class WatchExecutionContextData implements ToXContentObject {
         public final JodaCompatibleZonedDateTime previousScheduledTime;
         public final JodaCompatibleZonedDateTime nextScheduledTime;
 
+        public TriggerInfo() {
+            this.triggeredTime = null;
+            this.scheduledTime = null;
+            this.previousScheduledTime = null;
+            this.nextScheduledTime = null;
+        }
+        
         public TriggerInfo(JodaCompatibleZonedDateTime triggeredTime, JodaCompatibleZonedDateTime scheduledTime,
                 JodaCompatibleZonedDateTime previousScheduledTime, JodaCompatibleZonedDateTime nextScheduledTime) {
             this.triggeredTime = triggeredTime;

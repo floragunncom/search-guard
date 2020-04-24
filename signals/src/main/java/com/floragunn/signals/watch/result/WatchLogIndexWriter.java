@@ -26,11 +26,13 @@ public class WatchLogIndexWriter implements WatchLogWriter {
     private final Client client;
     private final String tenant;
     private final SignalsSettings settings;
+    private final ToXContent.Params toXparams;
 
-    public WatchLogIndexWriter(Client client, String tenant, SignalsSettings settings) {
+    public WatchLogIndexWriter(Client client, String tenant, SignalsSettings settings, ToXContent.Params toXparams) {
         this.client = client;
         this.tenant = tenant;
         this.settings = settings;
+        this.toXparams = toXparams;
     }
 
     @Override
@@ -50,7 +52,7 @@ public class WatchLogIndexWriter implements WatchLogWriter {
             threadContext.putHeader(InternalAuthTokenProvider.TOKEN_HEADER, null);
             threadContext.putHeader(InternalAuthTokenProvider.AUDIENCE_HEADER, null);
 
-            watchLog.toXContent(jsonBuilder, ToXContent.EMPTY_PARAMS);
+            watchLog.toXContent(jsonBuilder, toXparams);
             indexRequest.source(jsonBuilder);
 
             client.index(indexRequest, new ActionListener<IndexResponse>() {
@@ -72,8 +74,7 @@ public class WatchLogIndexWriter implements WatchLogWriter {
 
     }
 
-    public static WatchLogIndexWriter forTenant(Client client, String tenantName, SignalsSettings settings) {
-        return new WatchLogIndexWriter(client, tenantName, settings);
-    }
-
+    public static WatchLogIndexWriter forTenant(Client client, String tenantName, SignalsSettings settings, ToXContent.Params toXparams) {
+        return new WatchLogIndexWriter(client, tenantName, settings, toXparams);
+    } 
 }

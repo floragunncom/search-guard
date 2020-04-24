@@ -17,17 +17,20 @@ public class ExecuteWatchRequest extends ActionRequest {
     private SimulationMode simulationMode;
     private String goTo;
     private String inputJson;
+    private boolean includeAllRuntimeAttributesInResponse;
 
     public ExecuteWatchRequest() {
         super();
     }
 
-    public ExecuteWatchRequest(String watchId, String watchJson, boolean recordExecution, SimulationMode simulationMode) {
+    public ExecuteWatchRequest(String watchId, String watchJson, boolean recordExecution, SimulationMode simulationMode,
+            boolean includeAllRuntimeAttributesInResponse) {
         super();
         this.watchId = watchId;
         this.watchJson = watchJson;
         this.recordExecution = recordExecution;
         this.simulationMode = simulationMode;
+        this.includeAllRuntimeAttributesInResponse = includeAllRuntimeAttributesInResponse;
     }
 
     public ExecuteWatchRequest(StreamInput in) throws IOException {
@@ -38,6 +41,7 @@ public class ExecuteWatchRequest extends ActionRequest {
         this.simulationMode = in.readEnum(SimulationMode.class);
         this.goTo = in.readOptionalString();
         this.inputJson = in.readOptionalString();
+        this.includeAllRuntimeAttributesInResponse = in.readBoolean();
     }
 
     @Override
@@ -49,6 +53,7 @@ public class ExecuteWatchRequest extends ActionRequest {
         out.writeEnum(simulationMode);
         out.writeOptionalString(goTo);
         out.writeOptionalString(inputJson);
+        out.writeBoolean(includeAllRuntimeAttributesInResponse);
     }
 
     @Override
@@ -102,6 +107,14 @@ public class ExecuteWatchRequest extends ActionRequest {
 
     public void setInputJson(String inputJson) {
         this.inputJson = inputJson;
+    }
+
+    public boolean isIncludeAllRuntimeAttributesInResponse() {
+        return includeAllRuntimeAttributesInResponse;
+    }
+
+    public void setIncludeAllRuntimeAttributesInResponse(boolean includeAllRuntimeAttributesInResponse) {
+        this.includeAllRuntimeAttributesInResponse = includeAllRuntimeAttributesInResponse;
     }
 
 }
