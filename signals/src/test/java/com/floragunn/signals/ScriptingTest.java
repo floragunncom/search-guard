@@ -16,6 +16,7 @@ import com.floragunn.signals.execution.SimulationMode;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.execution.WatchExecutionContextData.TriggerInfo;
+import com.floragunn.signals.execution.WatchExecutionContextData.WatchInfo;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
@@ -43,7 +44,7 @@ public class ScriptingTest {
     }
 
     @Test
-    public void testPropertyAccess() {
+    public void testPropertyAccessForTriggeredTime() {
         ValidationErrors validationErrors = new ValidationErrors();
 
         SignalsObjectFunctionScript.Factory factory = watchInitService.compile("test", "trigger.triggered_time", "painless",
@@ -52,7 +53,7 @@ public class ScriptingTest {
         Assert.assertFalse(validationErrors.toString(), validationErrors.hasErrors());
 
         WatchExecutionContextData watchExecutionContextData = new WatchExecutionContextData(new NestedValueMap(),
-                new TriggerInfo(new Date(1234), new Date(4567), new Date(), new Date()), null);
+                new WatchInfo("test_id", "test_tenant"), new TriggerInfo(new Date(1234), new Date(4567), new Date(), new Date()), null);
 
         WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.TEST,
                 ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null);
@@ -62,6 +63,28 @@ public class ScriptingTest {
         Object result = script.execute();
 
         Assert.assertEquals(watchExecutionContextData.getTriggerInfo().getTriggeredTime(), result);
+    }
+
+    @Test
+    public void testPropertyAccessForWatchId() {
+        ValidationErrors validationErrors = new ValidationErrors();
+
+        SignalsObjectFunctionScript.Factory factory = watchInitService.compile("test", "watch.id", "painless",
+                SignalsObjectFunctionScript.CONTEXT, validationErrors);
+
+        Assert.assertFalse(validationErrors.toString(), validationErrors.hasErrors());
+
+        WatchExecutionContextData watchExecutionContextData = new WatchExecutionContextData(new NestedValueMap(),
+                new WatchInfo("test_id", "test_tenant"), new TriggerInfo(new Date(1234), new Date(4567), new Date(), new Date()), null);
+
+        WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.TEST,
+                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null);
+
+        SignalsObjectFunctionScript script = factory.newInstance(new HashMap<String, Object>(), ctx);
+
+        Object result = script.execute();
+
+        Assert.assertEquals(watchExecutionContextData.getWatch().getId(), result);
     }
 
 }

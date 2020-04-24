@@ -87,7 +87,7 @@ public class WatchRunner implements Job {
         this.watchStateWriter = watchStateWriter;
         this.watchState = watchState;
         this.lastSeverityLevel = watchState != null ? watchState.getLastSeverityLevel() : null;
-        this.contextData = new WatchExecutionContextData();
+        this.contextData = new WatchExecutionContextData(new WatchExecutionContextData.WatchInfo(watch.getId(), watch.getTenant()));
         this.ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment,
                 ActionInvocationType.ALERT, this.contextData, watchState != null ? watchState.getLastExecutionContextData() : null, simulationMode,
                 new HttpEndpointWhitelist(signalsSettings.getDynamicSettings().getAllowedHttpEndpoints()));
@@ -143,6 +143,7 @@ public class WatchRunner implements Job {
             this.watchLog.setExecutionStart(Date.from(executionStart));
             this.watchLog.setActions(new ArrayList<ActionLog>(this.watch.getActions().size()));
             this.watchLog.setResolveActions(new ArrayList<ActionLog>(this.watch.getResolveActions().size()));
+            this.watchLog.setTenant(watch.getTenant());
 
             if (this.signalsSettings.isIncludeNodeInWatchLogEnabled()) {
                 this.watchLog.setNode(nodeName);

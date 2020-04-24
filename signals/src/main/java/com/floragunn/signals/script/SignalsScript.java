@@ -13,6 +13,7 @@ public abstract class SignalsScript {
     private final Map<String, Object> params;
     private final Map<String, Object> data;
     private final WatchExecutionContextData.TriggerInfo trigger;
+    private final WatchExecutionContextData.WatchInfo watch;
     private final Map<String, Object> item;
     private final SeverityMapping.EvaluationResult severity;
     private final JodaCompatibleZonedDateTime execution_time;
@@ -28,6 +29,7 @@ public abstract class SignalsScript {
 
         this.resolved = watchRuntimeContext.getResolvedContextData();
         this.item = watchRuntimeContext.getContextData().getItem();
+        this.watch = watchRuntimeContext.getContextData().getWatch();
     }
 
     public Map<String, Object> getParams() {
@@ -56,5 +58,9 @@ public abstract class SignalsScript {
 
     public Map<String, Object> getItem() {
         return item;
+    }
+
+    public WatchExecutionContextData.WatchInfo getWatch() {
+        return watch;
     }
 }

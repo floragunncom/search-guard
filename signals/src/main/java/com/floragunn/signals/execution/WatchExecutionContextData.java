@@ -28,38 +28,55 @@ public class WatchExecutionContextData implements ToXContentObject {
     private SeverityMapping.EvaluationResult severity;
     private TriggerInfo triggerInfo;
     private JodaCompatibleZonedDateTime executionTime;
+    private WatchInfo watch;
 
     public WatchExecutionContextData() {
         this.data = new NestedValueMap();
         this.triggerInfo = new TriggerInfo();
     }
+    
+    public WatchExecutionContextData(WatchInfo watch) {
+        this.data = new NestedValueMap();
+        this.triggerInfo = new TriggerInfo();
+        this.watch = watch;
+    }
 
     public WatchExecutionContextData(NestedValueMap data) {
         this.data = data;
         this.triggerInfo = new TriggerInfo();
+        this.watch = new WatchInfo(null, null);
+    }
+    
+    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch) {
+        this.data = data;
+        this.triggerInfo = new TriggerInfo();
+        this.watch = watch;
     }
 
-    public WatchExecutionContextData(NestedValueMap data, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime) {
+    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime) {
         this.data = data;
         this.triggerInfo = triggerInfo;
         this.executionTime = executionTime;
+        this.watch = watch;
     }
 
-    public WatchExecutionContextData(NestedValueMap data, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime,
+    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime,
             SeverityMapping.EvaluationResult severity) {
         this.data = data;
         this.triggerInfo = triggerInfo;
         this.executionTime = executionTime;
         this.severity = severity;
+        this.watch = watch;
     }
 
-    public WatchExecutionContextData(NestedValueMap data, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime,
+    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime,
             SeverityMapping.EvaluationResult severity, NestedValueMap item) {
         this.data = data;
         this.triggerInfo = triggerInfo;
         this.executionTime = executionTime;
         this.severity = severity;
         this.item = item;
+        this.watch = watch;
     }
 
     public Map<String, Object> getTemplateScriptParamsAsMap() {
@@ -69,6 +86,7 @@ public class WatchExecutionContextData implements ToXContentObject {
         result.put("severity", severity != null ? severity.toMap() : null);
         result.put("trigger", triggerInfo != null ? triggerInfo.toMap() : null);
         result.put("execution_time", executionTime);
+        result.put("watch", watch != null ? watch.toMap() : null);
 
         return result;
     }
@@ -106,12 +124,13 @@ public class WatchExecutionContextData implements ToXContentObject {
     }
 
     public WatchExecutionContextData clone() {
-        return new WatchExecutionContextData(data.clone(), triggerInfo, executionTime, severity, item);
+        return new WatchExecutionContextData(data.clone(), watch, triggerInfo, executionTime, severity, item);
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
+        builder.field("watch", watch);
         builder.field("data", data);
         builder.field("severity", severity);
         builder.field("trigger", triggerInfo);
@@ -136,6 +155,14 @@ public class WatchExecutionContextData implements ToXContentObject {
                 result.severity = SeverityMapping.EvaluationResult.create(jsonNode.get("severity"));
             } catch (Exception e) {
                 log.error("Error while parsing " + jsonNode.get("severity"), e);
+            }
+        }
+
+        if (jsonNode.hasNonNull("watch")) {
+            try {
+                result.watch = WatchInfo.create(jsonNode.get("watch"));
+            } catch (Exception e) {
+                log.error("Error while parsing " + jsonNode.get("watch"), e);
             }
         }
 
@@ -170,7 +197,7 @@ public class WatchExecutionContextData implements ToXContentObject {
             this.previousScheduledTime = null;
             this.nextScheduledTime = null;
         }
-        
+
         public TriggerInfo(JodaCompatibleZonedDateTime triggeredTime, JodaCompatibleZonedDateTime scheduledTime,
                 JodaCompatibleZonedDateTime previousScheduledTime, JodaCompatibleZonedDateTime nextScheduledTime) {
             this.triggeredTime = triggeredTime;
@@ -200,7 +227,7 @@ public class WatchExecutionContextData implements ToXContentObject {
             builder.endObject();
             return builder;
         }
-        
+
         public Map<String, Object> toMap() {
             return ObjectTreeXContent.toMap(this);
         }
@@ -259,6 +286,52 @@ public class WatchExecutionContextData implements ToXContentObject {
         }
     }
 
+    public static class WatchInfo implements ToXContentObject {
+        public final String id;
+        public final String tenant;
+
+        public WatchInfo(String id, String tenant) {
+            this.id = id;
+            this.tenant = tenant;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public String getTenant() {
+            return tenant;
+        }
+
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.startObject();
+            builder.field("id", id);
+            builder.field("tenant", tenant);
+            builder.endObject();
+            return builder;
+        }
+
+        public Map<String, Object> toMap() {
+            return ObjectTreeXContent.toMap(this);
+        }
+
+        public static WatchInfo create(JsonNode jsonNode) {
+            String id = null;
+            String tenant = null;
+
+            if (jsonNode.hasNonNull("id")) {
+                id = jsonNode.get("id").textValue();
+            }
+
+            if (jsonNode.hasNonNull("tenant")) {
+                tenant = jsonNode.get("tenant").textValue();
+            }
+
+            return new WatchInfo(id, tenant);
+        }
+    }
+
     private static JodaCompatibleZonedDateTime toJoda(Date date) {
         if (date == null) {
             return null;
@@ -280,5 +353,13 @@ public class WatchExecutionContextData implements ToXContentObject {
 
     public void setItem(NestedValueMap item) {
         this.item = item;
+    }
+
+    public WatchInfo getWatch() {
+        return watch;
+    }
+
+    public void setWatch(WatchInfo watch) {
+        this.watch = watch;
     }
 }
