@@ -36,6 +36,7 @@ import com.floragunn.signals.execution.WatchExecutionException;
 import com.floragunn.signals.execution.WatchRunner;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.support.NestedValueMap;
+import com.floragunn.signals.support.ToXParams;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.result.WatchLog;
@@ -131,7 +132,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                 log.error("Invalid watch definition in fetchAndExecuteWatch(). This should not happen\n"
                                         + response.getSourceAsString() + "\n" + e.getValidationErrors(), e);
                                 listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
-                                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e)));
+                                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e, ToXContent.EMPTY_PARAMS)));
                             }
                         }
 
@@ -160,7 +161,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
         } catch (ConfigValidationException e) {
             listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
-                    ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e)));
+                    ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e, ToXContent.EMPTY_PARAMS)));
         } catch (Exception e) {
             log.error("Error while executing anonymous watch " + request, e);
             listener.onFailure(e);
@@ -173,8 +174,11 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         NestedValueMap input = null;
         GotoCheckSelector checkSelector = null;
 
+        ToXContent.Params watchLogToXparams = ToXParams.of(WatchLog.ToXContentParams.INCLUDE_DATA, !request.isIncludeAllRuntimeAttributesInResponse(),
+                WatchLog.ToXContentParams.INCLUDE_RUNTIME_ATTRIBUTES, request.isIncludeAllRuntimeAttributesInResponse());
+
         if (request.isRecordExecution()) {
-            watchLogWriter = WatchLogIndexWriter.forTenant(client, signalsTenant.getName(), new SignalsSettings(settings));
+            watchLogWriter = WatchLogIndexWriter.forTenant(client, signalsTenant.getName(), new SignalsSettings(settings), watchLogToXparams);
         }
 
         if (request.getInputJson() != null) {
@@ -202,18 +206,19 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         try {
             WatchLog watchLog = watchRunner.execute();
 
-            return new ExecuteWatchResponse(null, request.getWatchId(), Status.EXECUTED, toBytesReference(watchLog));
+            return new ExecuteWatchResponse(null, request.getWatchId(), Status.EXECUTED, toBytesReference(watchLog, watchLogToXparams));
 
         } catch (WatchExecutionException e) {
             log.info("Error while manually executing watch", e);
-            return new ExecuteWatchResponse(null, request.getWatchId(), Status.ERROR_WHILE_EXECUTING, toBytesReference(e.getWatchLog()));
+            return new ExecuteWatchResponse(null, request.getWatchId(), Status.ERROR_WHILE_EXECUTING,
+                    toBytesReference(e.getWatchLog(), watchLogToXparams));
         }
     }
 
-    private BytesReference toBytesReference(ToXContent toXContent) {
+    private BytesReference toBytesReference(ToXContent toXContent, ToXContent.Params toXparams) {
         try {
             XContentBuilder builder = JsonXContent.contentBuilder();
-            toXContent.toXContent(builder, ToXContent.EMPTY_PARAMS);
+            toXContent.toXContent(builder, toXparams);
             return BytesReference.bytes(builder);
         } catch (IOException e) {
             throw new RuntimeException(e);

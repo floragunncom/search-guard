@@ -190,10 +190,9 @@ public class WatchRunner implements Job {
             }
 
             this.watchLog.setExecutionFinished(new Date());
-
-            if (this.watch.isLogRuntimeData() || ctx.getExecutionEnvironment() == ExecutionEnvironment.TEST) {
-                this.watchLog.setData(contextData.getData().clone());
-            }
+            
+            this.watchLog.setData(contextData.getData().clone());
+            this.watchLog.setRuntimeAttributes(contextData.clone());
 
             if (this.watchLogWriter != null) {
                 this.watchLogWriter.put(this.watchLog);

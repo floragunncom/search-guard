@@ -64,7 +64,8 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
                     : requestBody.isSimulate() ? SimulationMode.SIMULATE_ACTIONS : SimulationMode.FOR_REAL;
 
             ExecuteWatchRequest executeWatchRequest = new ExecuteWatchRequest(id,
-                    requestBody.getWatch() != null ? requestBody.getWatch().toJson() : null, requestBody.isRecordExecution(), simulationMode);
+                    requestBody.getWatch() != null ? requestBody.getWatch().toJson() : null, requestBody.isRecordExecution(), simulationMode,
+                    requestBody.isShowAllRuntimeAttributes());
 
             if (requestBody.getInput() != null) {
                 executeWatchRequest.setInputJson(DefaultObjectMapper.writeValueAsString(requestBody.getInput(), false));
@@ -126,6 +127,7 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
         private boolean recordExecution;
         private boolean simulate;
         private boolean skipActions;
+        private boolean showAllRuntimeAttributes;
         private String goTo;
         private Watch watch;
 
@@ -191,6 +193,10 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
                 result.goTo = rootNode.get("goto").asText();
             }
 
+            if (rootNode.hasNonNull("show_all_runtime_attributes")) {
+                result.showAllRuntimeAttributes = rootNode.get("show_all_runtime_attributes").asBoolean();
+            }
+
             validationErrors.throwExceptionForPresentErrors();
 
             return result;
@@ -224,6 +230,14 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
 
         public void setGoTo(String goTo) {
             this.goTo = goTo;
+        }
+
+        public boolean isShowAllRuntimeAttributes() {
+            return showAllRuntimeAttributes;
+        }
+
+        public void setShowAllRuntimeAttributes(boolean showAllRuntimeAttributes) {
+            this.showAllRuntimeAttributes = showAllRuntimeAttributes;
         }
     }
 }
