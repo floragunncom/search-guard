@@ -18,8 +18,10 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
+import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
+import com.floragunn.signals.SignalsUnavailableException;
 
 public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWatchRequest, DeleteWatchResponse> {
 
@@ -39,52 +41,50 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
 
     @Override
     protected final void doExecute(Task task, DeleteWatchRequest request, ActionListener<DeleteWatchResponse> listener) {
-        ThreadContext threadContext = threadPool.getThreadContext();
+        try {
+            ThreadContext threadContext = threadPool.getThreadContext();
 
-        User user = threadContext.getTransient(ConfigConstants.SG_USER);
+            User user = threadContext.getTransient(ConfigConstants.SG_USER);
 
-        if (user == null) {
-            listener.onResponse(
-                    new DeleteWatchResponse(request.getWatchId(), -1, Result.NOOP, RestStatus.UNAUTHORIZED, "Request did not contain user"));
-            return;
-        }
+            if (user == null) {
+                listener.onResponse(
+                        new DeleteWatchResponse(request.getWatchId(), -1, Result.NOOP, RestStatus.UNAUTHORIZED, "Request did not contain user"));
+                return;
+            }
 
-        SignalsTenant signalsTenant = signals.getTenant(user);
+            SignalsTenant signalsTenant = signals.getTenant(user);
+            Object originalRemoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+            Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
 
-        if (signalsTenant == null) {
-            listener.onResponse(new DeleteWatchResponse(request.getWatchId(), -1, Result.NOT_FOUND, RestStatus.NOT_FOUND,
-                    "No such tenant: " + (user != null ? user.getRequestedTenant() : null)));
-            return;
-        }
+            try (StoredContext ctx = threadContext.stashContext()) {
 
-        Object originalRemoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-        Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+                threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+                threadContext.putTransient(ConfigConstants.SG_USER, user);
+                threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
+                threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
+                client.prepareDelete(signalsTenant.getConfigIndexName(), null, signalsTenant.getWatchIdForConfigIndex(request.getWatchId()))
+                        .setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DeleteResponse>() {
+                            @Override
+                            public void onResponse(DeleteResponse response) {
 
-        try (StoredContext ctx = threadContext.stashContext()) {
+                                if (response.getResult() == Result.DELETED) {
+                                    SchedulerConfigUpdateAction.send(client, signalsTenant.getScopedName());
+                                }
 
-            threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            threadContext.putTransient(ConfigConstants.SG_USER, user);
-            threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
-            threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
-            client.prepareDelete(signalsTenant.getConfigIndexName(), null, signalsTenant.getWatchIdForConfigIndex(request.getWatchId()))
-                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DeleteResponse>() {
-                        @Override
-                        public void onResponse(DeleteResponse response) {
-
-                            if (response.getResult() == Result.DELETED) {
-                                SchedulerConfigUpdateAction.send(client, signalsTenant.getScopedName());
+                                listener.onResponse(new DeleteWatchResponse(request.getWatchId(), response.getVersion(), response.getResult(),
+                                        response.status(), null));
                             }
 
-                            listener.onResponse(new DeleteWatchResponse(request.getWatchId(), response.getVersion(), response.getResult(),
-                                    response.status(), null));
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            listener.onFailure(e);
-                        }
-                    });
-
+                            @Override
+                            public void onFailure(Exception e) {
+                                listener.onFailure(e);
+                            }
+                        });
+            }
+        } catch (NoSuchTenantException e) {
+            listener.onResponse(new DeleteWatchResponse(request.getWatchId(), -1, Result.NOT_FOUND, RestStatus.NOT_FOUND, e.getMessage()));
+        } catch (SignalsUnavailableException e) {
+            listener.onFailure(e.toElasticsearchException());
         } catch (Exception e) {
             listener.onFailure(e);
         }

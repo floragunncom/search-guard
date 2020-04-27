@@ -33,6 +33,7 @@ import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.util.duration.ConstantDurationExpression;
 import com.floragunn.searchsupport.util.duration.DurationExpression;
+import com.floragunn.signals.SignalsInitializationException;
 import com.floragunn.signals.actions.settings.update.SettingsUpdateAction;
 import com.floragunn.signals.support.LuckySisyphos;
 import com.floragunn.signals.support.PrivilegedConfigClient;
@@ -60,7 +61,7 @@ public class SignalsSettings {
         return dynamicSettings.isIncludeNodeInWatchLogEnabled();
     }
 
-    public void refresh(Client client) {
+    public void refresh(Client client) throws SignalsInitializationException {
         this.dynamicSettings.refresh(client);
     }
 
@@ -286,7 +287,7 @@ public class SignalsSettings {
             }
         }
 
-        void refresh(Client client) {
+        void refresh(Client client) throws SignalsInitializationException {
             try {
                 SearchResponse response = LuckySisyphos.tryHard(() -> PrivilegedConfigClient.adapt(client)
                         .search(new SearchRequest(indexName).source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(1000)))
@@ -325,7 +326,7 @@ public class SignalsSettings {
             } catch (IndexNotFoundException e) {
                 log.info("Settings index does not exist yet");
             } catch (Exception e) {
-                throw new RuntimeException("Error while loading settings", e);
+                throw new SignalsInitializationException("Error while loading settings", e);
             } finally {
                 initDefaultThrottlePeriod();
             }

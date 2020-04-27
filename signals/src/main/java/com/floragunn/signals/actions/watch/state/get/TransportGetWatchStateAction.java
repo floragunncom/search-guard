@@ -24,6 +24,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
+import com.floragunn.signals.SignalsUnavailableException;
 import com.floragunn.signals.watch.state.WatchState;
 
 public class TransportGetWatchStateAction extends HandledTransportAction<GetWatchStateRequest, GetWatchStateResponse> {
@@ -45,26 +46,27 @@ public class TransportGetWatchStateAction extends HandledTransportAction<GetWatc
     @Override
     protected void doExecute(Task task, GetWatchStateRequest request, ActionListener<GetWatchStateResponse> listener) {
 
-        ThreadContext threadContext = threadPool.getThreadContext();
+        try {
+            ThreadContext threadContext = threadPool.getThreadContext();
 
-        User user = threadContext.getTransient(ConfigConstants.SG_USER);
+            User user = threadContext.getTransient(ConfigConstants.SG_USER);
 
-        if (user == null) {
-            throw new RuntimeException("Request did not contain user");
+            if (user == null) {
+                throw new RuntimeException("Request did not contain user");
+            }
+
+            SignalsTenant signalsTenant = signals.getTenant(user);
+
+            threadPool.generic().submit(() -> {
+                Map<String, WatchState> watchStates = signalsTenant.getWatchStateReader().get(request.getWatchIds());
+
+                listener.onResponse(new GetWatchStateResponse(RestStatus.OK, toBytesReferenceMap(watchStates)));
+            });
+        } catch (SignalsUnavailableException e) {
+            listener.onFailure(e.toElasticsearchException());         
+        } catch (Exception e) {
+            listener.onFailure(e);
         }
-
-        SignalsTenant signalsTenant = signals.getTenant(user);
-
-        if (signalsTenant == null) {
-            throw new RuntimeException("No such tenant: " + user.getRequestedTenant());
-        }
-
-        threadPool.generic().submit(() -> {
-            Map<String, WatchState> watchStates = signalsTenant.getWatchStateReader().get(request.getWatchIds());
-
-            listener.onResponse(new GetWatchStateResponse(RestStatus.OK, toBytesReferenceMap(watchStates)));
-        });
-
     }
 
     private Map<String, BytesReference> toBytesReferenceMap(Map<String, WatchState> map) {

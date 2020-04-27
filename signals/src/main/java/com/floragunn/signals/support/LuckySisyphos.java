@@ -27,8 +27,8 @@ public class LuckySisyphos {
                     throw new RuntimeException(e1);
                 }
             }
-        } while (System.currentTimeMillis() < start + 60 * 60 * 1000);
+        } while (System.currentTimeMillis() < start + 5 * 60 * 1000);
 
-        throw new RuntimeException("Giving up after 60 minutes of trying. Don't say that I did not wait long enough! ^^", lastException);
+        throw new RuntimeException("Giving up after 5 minutes of trying. Don't say that I did not wait long enough! ^^", lastException);
     }
 }
