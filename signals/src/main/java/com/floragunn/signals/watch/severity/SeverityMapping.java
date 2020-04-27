@@ -431,13 +431,14 @@ public class SeverityMapping implements ToXContentObject {
             builder.field("level_numeric", level != null ? level.getLevel() : 0);
             builder.field("mapping_element", mappingElement);
             builder.field("value", value);
+            builder.field("threshold", getThreshold());
             builder.endObject();
             return builder;
         }
 
         public Map<String, Object> toMap() {
             return ImmutableMap.of("level", level != null ? level.toMap() : null, "mapping_element",
-                    mappingElement != null ? mappingElement.toMap() : null, "value", value);
+                    mappingElement != null ? mappingElement.toMap() : null, "value", value, "threshold", getThreshold());
         }
 
         public static EvaluationResult create(JsonNode jsonNode) throws ConfigValidationException {
