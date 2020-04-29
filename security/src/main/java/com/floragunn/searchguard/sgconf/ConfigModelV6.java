@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.sgconf;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +38,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
+import inet.ipaddr.IPAddressString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -50,7 +53,6 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
-import com.floragunn.searchguard.sgconf.ConfigModel.ActionGroupResolver;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v6.ActionGroupsV6;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
@@ -71,8 +73,8 @@ public class ConfigModelV6 extends ConfigModel {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     private ConfigConstants.RolesMappingResolution rolesMappingResolution;
-    private ActionGroupResolver agr = null;
-    private SgRoles sgRoles = null;
+    private ActionGroupResolver agr;
+    private SgRoles sgRoles;
     private TenantHolder tenantHolder;
     private RoleMappingHolder roleMappingHolder;
     private SgDynamicConfiguration<RoleV6> roles;
@@ -119,6 +121,20 @@ public class ConfigModelV6 extends ConfigModel {
         return agr;
     }
 
+    @Override
+    public List<ClientBlockRegistry<InetAddress>> getBlockIpAddresses() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public List<ClientBlockRegistry<String>> getBlockedUsers() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public List<ClientBlockRegistry<IPAddressString>> getBlockedNetmasks() {
+        return Collections.emptyList();
+    }
 
     private ActionGroupResolver reloadActionGroups(SgDynamicConfiguration<ActionGroupsV6> actionGroups) {
         return new ActionGroupResolver() {

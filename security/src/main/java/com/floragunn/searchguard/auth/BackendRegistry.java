@@ -18,35 +18,6 @@
 package com.floragunn.searchguard.auth;
 
 
-import java.net.InetAddress;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.concurrent.TimeUnit;
-
-import javax.naming.InvalidNameException;
-import javax.naming.ldap.LdapName;
-import javax.naming.ldap.Rdn;
-
-import com.floragunn.searchguard.support.WildcardMatcher;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
-
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.auth.internal.NoOpAuthenticationBackend;
@@ -60,15 +31,38 @@ import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.ssl.util.Utils;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HTTPHelper;
+import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalListener;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+import inet.ipaddr.IPAddressString;
+import org.apache.commons.collections.ListUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.*;
+import org.elasticsearch.tasks.Task;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
+
+import javax.naming.InvalidNameException;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
+import java.net.InetAddress;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class BackendRegistry implements DCFListener {
+    private static final String BLOCKED_USERS = "BLOCKED_USERS";
     protected final Logger log = LogManager.getLogger(this.getClass());
     private SortedSet<AuthenticationDomain> restAuthenticationDomains;
     private SortedSet<AuthenticationDomain> transportAuthenticationDomains;
@@ -79,6 +73,7 @@ public class BackendRegistry implements DCFListener {
     private Multimap<String, AuthFailureListener> authBackendFailureListeners;
     private List<ClientBlockRegistry<InetAddress>> ipClientBlockRegistries;
     private Multimap<String, ClientBlockRegistry<String>> authBackendClientBlockRegistries;
+    private List<ClientBlockRegistry<IPAddressString>> blockedNetmasks;
 
     private volatile boolean initialized;
     private final AdminDNs adminDns;
@@ -161,6 +156,7 @@ public class BackendRegistry implements DCFListener {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
         invalidateCache();
 
@@ -178,6 +174,27 @@ public class BackendRegistry implements DCFListener {
         ipClientBlockRegistries = dcm.getIpClientBlockRegistries();
         authBackendClientBlockRegistries = dcm.getAuthBackendClientBlockRegistries();
 
+        if (cm.getBlockIpAddresses() != null) {
+            if (ipClientBlockRegistries == null) {
+                ipClientBlockRegistries = Collections.emptyList();
+            }
+            ipClientBlockRegistries = Collections.unmodifiableList(ListUtils.union(cm.getBlockIpAddresses(), ipClientBlockRegistries));
+        }
+
+        if (cm.getBlockedUsers() != null) {
+            if (authBackendClientBlockRegistries == null) {
+                authBackendClientBlockRegistries = ArrayListMultimap.create();
+            }
+            ArrayListMultimap<String, ClientBlockRegistry<String>> registry = ArrayListMultimap.create();
+            registry.putAll(authBackendClientBlockRegistries);
+            registry.putAll(BLOCKED_USERS, cm.getBlockedUsers());
+            authBackendClientBlockRegistries = Multimaps.unmodifiableMultimap(registry);
+        }
+
+        if (cm.getBlockedNetmasks() != null) {
+            blockedNetmasks = cm.getBlockedNetmasks();
+        }
+
         //SG6 no default authc
         initialized = !restAuthenticationDomains.isEmpty() || anonymousAuthEnabled;
     }
@@ -187,18 +204,18 @@ public class BackendRegistry implements DCFListener {
             log.debug("Transport authentication request from {}", request.remoteAddress());
         }
 
-        if (request.remoteAddress() != null && isBlocked(request.remoteAddress().address().getAddress())) {
-            if (log.isDebugEnabled()) {
-                log.debug("Rejecting transport request because of blocked address: " + request.remoteAddress());
-            }
-            return null;
-        }
-
         User origPKIUser = new User(sslPrincipal);
 
         if (adminDns.isAdmin(origPKIUser)) {
             auditLog.logSucceededLogin(origPKIUser.getName(), true, null, request, action, task);
             return origPKIUser;
+        }
+
+        if (request.remoteAddress() != null && isIpBlocked(request.remoteAddress().address().getAddress())) {
+            if (log.isDebugEnabled()) {
+                log.debug("Rejecting transport request because of blocked address: " + request.remoteAddress());
+            }
+            return null;
         }
 
         if (!isInitialized()) {
@@ -290,15 +307,6 @@ public class BackendRegistry implements DCFListener {
     }
 
     public boolean authenticate(final RestHandler restHandler, final RestRequest request, final RestChannel channel, final ThreadContext threadContext) {
-        if (request.getHttpChannel().getRemoteAddress() != null && isBlocked(request.getHttpChannel().getRemoteAddress().getAddress())) {
-            if (log.isDebugEnabled()) {
-                log.debug("Rejecting REST request because of blocked address: " + request.getHttpChannel().getRemoteAddress());
-            }
-
-            channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
-            return false;
-        }
-
         final String sslPrincipal = threadPool.getThreadContext().getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
 
         if (adminDns.isAdminDN(sslPrincipal)) {
@@ -306,6 +314,15 @@ public class BackendRegistry implements DCFListener {
             threadPool.getThreadContext().putTransient(ConfigConstants.SG_USER, new User(sslPrincipal));
             auditLog.logSucceededLogin(sslPrincipal, true, null, request);
             return true;
+        }
+
+        if (request.getHttpChannel().getRemoteAddress() != null && isIpBlocked(request.getHttpChannel().getRemoteAddress().getAddress())) {
+            if (log.isDebugEnabled()) {
+                log.debug("Rejecting REST request because of blocked address: " + request.getHttpChannel().getRemoteAddress());
+            }
+
+            channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
+            return false;
         }
 
         if (userInjector.injectUser(request)) {
@@ -362,7 +379,7 @@ public class BackendRegistry implements DCFListener {
                 continue;
             }
 
-            if (ac != null && isBlocked(authenticationDomain.getBackend().getClass().getName(), ac.getUsername())) {
+            if (ac != null && isUserBlocked(authenticationDomain.getBackend().getClass().getName(), ac.getUsername())) {
                 if (log.isDebugEnabled()) {
                     log.debug("Rejecting REST request because of blocked user: " + ac.getUsername() + "; authDomain: " + authenticationDomain);
                 }
@@ -744,23 +761,44 @@ public class BackendRegistry implements DCFListener {
         return pkiUser;
     }
 
-    private boolean isBlocked(InetAddress address) {
-        if (this.ipClientBlockRegistries == null || this.ipClientBlockRegistries.isEmpty()) {
+    private boolean isIpBlocked(InetAddress address) {
+        if ((this.ipClientBlockRegistries == null || this.ipClientBlockRegistries.isEmpty()) &&
+                (this.blockedNetmasks == null || this.blockedNetmasks.isEmpty())) {
             return false;
         }
 
-        for (ClientBlockRegistry<InetAddress> clientBlockRegistry : ipClientBlockRegistries) {
-            if (clientBlockRegistry.isBlocked(address)) {
-                return true;
+        if (ipClientBlockRegistries != null) {
+            for (ClientBlockRegistry<InetAddress> clientBlockRegistry : ipClientBlockRegistries) {
+                if (clientBlockRegistry.isBlocked(address)) {
+                    return true;
+                }
+            }
+        }
+
+        if (blockedNetmasks != null) {
+            for (ClientBlockRegistry<IPAddressString> registry : blockedNetmasks) {
+                if (registry.isBlocked(new IPAddressString(address.getHostAddress()))) {
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
-    private boolean isBlocked(String authBackend, String userName) {
+    private boolean isUserBlocked(String authBackend, String userName) {
         if (this.authBackendClientBlockRegistries == null) {
             return false;
+        }
+
+        Collection<ClientBlockRegistry<String>> blockedUsers = authBackendClientBlockRegistries.get(BLOCKED_USERS);
+
+        if (blockedUsers != null) {
+            for (ClientBlockRegistry<String> registry : blockedUsers) {
+                if (registry.isBlocked(userName)) {
+                    return true;
+                }
+            }
         }
 
         Collection<ClientBlockRegistry<String>> clientBlockRegistries = this.authBackendClientBlockRegistries.get(authBackend);
