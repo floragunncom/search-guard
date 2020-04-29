@@ -13,12 +13,7 @@ import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6;
 import com.floragunn.searchguard.sgconf.impl.v6.InternalUserV6;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleV6;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
-import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
+import com.floragunn.searchguard.sgconf.impl.v7.*;
 
 public enum CType {
 
@@ -29,11 +24,12 @@ public enum CType {
     CONFIG(toMap(1, ConfigV6.class, 2, ConfigV7.class)),
     ROLES(toMap(1, RoleV6.class, 2, RoleV7.class)), 
     ROLESMAPPING(toMap(1, RoleMappingsV6.class, 2, RoleMappingsV7.class)),
-    TENANTS(toMap(2, TenantV7.class));
+    TENANTS(toMap(2, TenantV7.class)),
+    BLOCKS(toMap(2, BlocksV7.class));
 
     private Map<Integer, Class<?>> implementations;
 
-    private CType(Map<Integer, Class<?>> implementations) {
+    CType(Map<Integer, Class<?>> implementations) {
         this.implementations = implementations;
     }
 
@@ -50,15 +46,15 @@ public enum CType {
     }
 
     public static Set<String> lcStringValues() {
-        return Arrays.stream(CType.values()).map(c -> c.toLCString()).collect(Collectors.toSet());
+        return Arrays.stream(CType.values()).map(CType::toLCString).collect(Collectors.toSet());
     }
 
     public static Set<CType> fromStringValues(String[] strings) {
-        return Arrays.stream(strings).map(c -> CType.fromString(c)).collect(Collectors.toSet());
+        return Arrays.stream(strings).map(CType::fromString).collect(Collectors.toSet());
     }
 
     private static Map<Integer, Class<?>> toMap(Object... objects) {
-        final Map<Integer, Class<?>> map = new HashMap<Integer, Class<?>>();
+        final Map<Integer, Class<?>> map = new HashMap<>();
         for (int i = 0; i < objects.length; i = i + 2) {
             map.put((Integer) objects[i], (Class<?>) objects[i + 1]);
         }

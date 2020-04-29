@@ -17,14 +17,13 @@
 
 package com.floragunn.searchguard.configuration;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
+import com.floragunn.searchguard.support.SgUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
@@ -44,13 +43,12 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
-import com.floragunn.searchguard.support.SgUtils;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class ConfigurationLoaderSG7 {
 
@@ -95,7 +93,6 @@ public class ConfigurationLoaderSG7 {
             
             @Override
             public void noData(String id, String type) {
-                
                 //when index was created with ES 6 there are no separate tenants. So we load just empty ones.
                //when index was created with ES 7 and type not "sg" (ES 6 type) there are no rolemappings anymore.
                 if(cs.state().metaData().index(searchguardIndex).getCreationVersion().before(Version.V_7_0_0) || "sg".equals(type)) {
@@ -104,16 +101,22 @@ public class ConfigurationLoaderSG7 {
                     
                     if(log.isDebugEnabled()) {
                         log.debug("Skip tenants because we not yet migrated to ES 7 (index was created with ES 6 and type is legacy [{}])", type);
+                        log.debug("Skip blocks since they were added in v7+ ");
                     }
                     
-                    if(CType.fromString(id) == CType.TENANTS) {
+                    if(CType.fromString(id) == CType.TENANTS || CType.fromString(id) == CType.BLOCKS) {
                         rs.put(CType.fromString(id), SgDynamicConfiguration.empty());
                         latch.countDown();
                         return;
                     }
                 }
-                
-                log.warn("No data for {} while retrieving configuration for {}  (index={} and type={})", id, Arrays.toString(events), searchguardIndex, type);
+                if("blocks".equals(id)) {
+                    log.debug("No data for SG_Block found, creating empty SG_Block.");
+                    rs.put(CType.BLOCKS, SgDynamicConfiguration.empty());
+                    latch.countDown();
+                } else {
+                    log.warn("No data for {} while retrieving configuration for {}  (index={} and type={})", id, Arrays.toString(events), searchguardIndex, type);
+                }
             }
             
             @Override
@@ -197,40 +200,37 @@ public class ConfigurationLoaderSG7 {
             log.error("Empty or null byte reference for {}", id);
             return null;
         }
-        
-        XContentParser parser = null;
 
-        try {
-            parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, ref, XContentType.JSON);
+        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, ref, XContentType.JSON)) {
             parser.nextToken();
             parser.nextToken();
-         
-            if(!id.equals((parser.currentName()))) {
+
+            if (!id.equals((parser.currentName()))) {
                 log.error("Cannot parse config for type {} because {}!={}", id, id, parser.currentName());
                 return null;
             }
-            
+
             parser.nextToken();
-            
+
             final String jsonAsString = SgUtils.replaceEnvVars(new String(parser.binaryValue()), settings);
             final JsonNode jsonNode = DefaultObjectMapper.readTree(jsonAsString);
             int configVersion = 1;
-            
-            if(jsonNode.get("_sg_meta") != null) {
+
+            if (jsonNode.get("_sg_meta") != null) {
                 assert jsonNode.get("_sg_meta").get("type").asText().equals(id);
                 configVersion = jsonNode.get("_sg_meta").get("config_version").asInt();
             }
 
-            if(log.isDebugEnabled()) {
-                log.debug("Load "+id+" with version "+configVersion);
+            if (log.isDebugEnabled()) {
+                log.debug("Load " + id + " with version " + configVersion);
             }
-            
+
             if (CType.ACTIONGROUPS.toLCString().equals(id)) {
                 try {
                     return SgDynamicConfiguration.fromJson(jsonAsString, CType.fromString(id), configVersion, seqNo, primaryTerm);
                 } catch (Exception e) {
-                    if(log.isDebugEnabled()) {
-                        log.debug("Unable to load "+id+" with version "+configVersion+" - Try loading legacy format ...");
+                    if (log.isDebugEnabled()) {
+                        log.debug("Unable to load " + id + " with version " + configVersion + " - Try loading legacy format ...");
                     }
                     return SgDynamicConfiguration.fromJson(jsonAsString, CType.fromString(id), 0, seqNo, primaryTerm);
                 }
@@ -238,14 +238,7 @@ public class ConfigurationLoaderSG7 {
 
             return SgDynamicConfiguration.fromJson(jsonAsString, CType.fromString(id), configVersion, seqNo, primaryTerm);
 
-        } finally {
-            if(parser != null) {
-                try {
-                    parser.close();
-                } catch (IOException e) {
-                    //ignore
-                }
-            }
         }
+        //ignore
     }
 }

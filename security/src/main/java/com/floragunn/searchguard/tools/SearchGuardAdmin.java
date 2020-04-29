@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import com.floragunn.searchguard.sgconf.impl.Meta;
+import com.floragunn.searchguard.sgconf.impl.v7.*;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -107,12 +109,6 @@ import com.floragunn.searchguard.sgconf.Migration;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
-import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
@@ -754,6 +750,7 @@ public class SearchGuardAdmin {
                 success = retrieveFile(tc, cd+"sg_action_groups_"+date+".yml", index, "actiongroups", legacy) && success;
                 if(!legacy) {
                     success = retrieveFile(tc, cd+"sg_tenants_"+date+".yml", index, "tenants", legacy) && success;
+                    success = retrieveFile(tc, cd+"sg_blocks_"+date+".yml", index, "blocks", legacy) && success;
                 }
                 return (success?0:-1);
             }
@@ -1197,9 +1194,10 @@ public class SearchGuardAdmin {
         success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_roles_mapping.yml", index, "rolesmapping", legacy) && success;
         success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_internal_users.yml", index, "internalusers", legacy) && success;
         success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_action_groups.yml", index, "actiongroups", legacy) && success;
-        
+
         if(!legacy) {
             success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_tenants.yml", index, "tenants", legacy) && success;
+            success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_blocks.yml", index, "blocks", legacy) && success;
         }
         
         return success?0:-1;
@@ -1222,6 +1220,10 @@ public class SearchGuardAdmin {
         
         if(!legacy) {
             success = uploadFile(tc, cd+"sg_tenants.yml", index, "tenants", legacy, resolveEnvVars) && success;
+
+            if (new File(cd+"sg_blocks.yml").exists()) {
+                success = uploadFile(tc, cd+"sg_blocks.yml", index, "blocks", legacy, resolveEnvVars) && success;
+            }
         }
         
         if(!success) {
@@ -1262,6 +1264,12 @@ public class SearchGuardAdmin {
             SgDynamicConfiguration<RoleMappingsV6> rolesmappingV6 = SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_roles_mapping.yml")), CType.ROLESMAPPING, 1, 0, 0);
             Tuple<SgDynamicConfiguration<RoleV7>, SgDynamicConfiguration<TenantV7>> rolesTenantsV7 = Migration.migrateRoles(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_roles.yml")), CType.ROLES, 1, 0, 0), rolesmappingV6);
             SgDynamicConfiguration<RoleMappingsV7> rolesmappingV7 = Migration.migrateRoleMappings(rolesmappingV6);
+            SgDynamicConfiguration<BlocksV7> blocksV7 = SgDynamicConfiguration.empty();
+
+            blocksV7.setCType(CType.BLOCKS);
+            blocksV7.set_sg_meta(new Meta());
+            blocksV7.get_sg_meta().setConfig_version(2);
+            blocksV7.get_sg_meta().setType("blocks");
             
             DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_action_groups.yml"), actionGroupsV7);
             DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_config.yml"), configV7);
@@ -1269,6 +1277,7 @@ public class SearchGuardAdmin {
             DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_roles.yml"), rolesTenantsV7.v1());
             DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_tenants.yml"), rolesTenantsV7.v2());
             DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_roles_mapping.yml"), rolesmappingV7);
+            DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_blocks.yml"), blocksV7);
         } catch (Exception e) {
             System.out.println("ERR: Unable to migrate config files due to "+e);
             e.printStackTrace();
@@ -1331,6 +1340,10 @@ public class SearchGuardAdmin {
             
             if(new File(cd+"sg_tenants.yml").exists() && version != 6) {
                 success = validateConfigFile(cd+"sg_tenants.yml", CType.TENANTS, version) && success;
+            }
+
+            if(new File(cd+"sg_blocks.yml").exists() && version != 6) {
+                success = validateConfigFile(cd+"sg_blocks.yml", CType.BLOCKS, version) && success;
             }
             
             return success?0:-1;

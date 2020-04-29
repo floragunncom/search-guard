@@ -100,7 +100,7 @@ public class SgAdminMigrationTests extends SingleClusterTest {
         
         final String prefix = getResourceFolder()==null?"":getResourceFolder()+"/";
         
-        List<String> argsAsList = new ArrayList<>();
+        List<String> argsAsList;
         argsAsList = new ArrayList<>();
         argsAsList.add("-ts");
         argsAsList.add(FileHelper.getAbsoluteFilePathFromClassPath(prefix+"truststore.jks").toFile().getAbsolutePath());

@@ -160,7 +160,6 @@ public abstract class AbstractSGUnitTest {
     }
     
     protected void initialize(ClusterInfo info, Settings initTransportClientSettings, DynamicSgConfig sgconfig) {
-
         try (TransportClient tc = getInternalTransportClient(info, initTransportClientSettings)) {
 
             tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));
@@ -180,16 +179,15 @@ public abstract class AbstractSGUnitTest {
             ConfigUpdateResponse cur = tc
                     .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0])))
                     .actionGet();
+
             Assert.assertFalse(cur.failures().toString(), cur.hasFailures());
             Assert.assertEquals(info.numNodes, cur.getNodes().size());
             
             SearchResponse sr = tc.search(new SearchRequest("searchguard")).actionGet();
-            //Assert.assertEquals(5L, sr.getHits().getTotalHits());
 
             sr = tc.search(new SearchRequest("searchguard")).actionGet();
-            //Assert.assertEquals(5L, sr.getHits().getTotalHits());
-            
-            String type=sgconfig.getType();
+
+            String type = sgconfig.getType();
 
             Assert.assertTrue(tc.get(new GetRequest("searchguard", type, "config")).actionGet().isExists());
             Assert.assertTrue(tc.get(new GetRequest("searchguard",type,"internalusers")).actionGet().isExists());

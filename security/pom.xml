@@ -114,6 +114,12 @@
 			<version>${cxf.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.github.seancfoley</groupId>
+			<artifactId>ipaddress</artifactId>
+			<version>5.2.1</version>
+		</dependency>
+
 		<!-- Only test scoped dependencies hereafter -->
 		<dependency>
 			<groupId>commons-io</groupId>

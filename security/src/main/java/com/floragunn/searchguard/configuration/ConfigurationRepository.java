@@ -36,6 +36,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -116,7 +117,7 @@ public class ConfigurationRepository {
 
 
                     if(installDefaultConfig.get()) {
-                        
+
                         try {
                             String lookupDir = System.getProperty("sg.default_init.dir");
                             final String cd = lookupDir != null? (lookupDir+"/") : new Environment(settings, configPath).pluginsFile().toAbsolutePath().toString()+"/search-guard-7/sgconfig/";
@@ -132,8 +133,9 @@ public class ConfigurationRepository {
                                     indexSettings.put("index.auto_expand_replicas", "0-all");
 
                                     boolean ok = client.admin().indices().create(new CreateIndexRequest(searchguardIndex)
-                                    .settings(indexSettings))
-                                    .actionGet().isAcknowledged();
+                                                .settings(indexSettings))
+                                                .actionGet().isAcknowledged();
+
                                     LOGGER.info("Index {} created?: {}", searchguardIndex, ok);
                                     if(ok) {
                                         ConfigHelper.uploadFile(client, cd+"sg_config.yml", searchguardIndex, CType.CONFIG, configVersion);
@@ -143,6 +145,7 @@ public class ConfigurationRepository {
                                         ConfigHelper.uploadFile(client, cd+"sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS, configVersion);
                                         if(configVersion == 2) {
                                             ConfigHelper.uploadFile(client, cd+"sg_tenants.yml", searchguardIndex, CType.TENANTS, configVersion);
+                                            ConfigHelper.uploadFile(client, cd+"sg_blocks.yml", searchguardIndex, CType.BLOCKS, configVersion);
                                         }
                                         LOGGER.info("Default config applied");
                                     } else {

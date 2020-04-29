@@ -159,8 +159,7 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
     public Multimap<String, ClientBlockRegistry<String>> getAuthBackendClientBlockRegistries() {
         return Multimaps.unmodifiableMultimap(authBackendClientBlockRegistries);
     }
-    
-    
+
     private void buildAAA() {
         
         final SortedSet<AuthenticationDomain> restAuthenticationDomains0 = new TreeSet<>();

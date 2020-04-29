@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.floragunn.searchguard.sgconf.impl.v7.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.Client;
@@ -28,12 +29,6 @@ import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6;
 import com.floragunn.searchguard.sgconf.impl.v6.InternalUserV6;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleV6;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
-import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class DynamicConfigFactory implements Initializable, ConfigurationChangeListener {
@@ -42,7 +37,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     private static SgDynamicConfiguration<ActionGroupsV7> staticActionGroups = SgDynamicConfiguration.empty();
     private static SgDynamicConfiguration<TenantV7> staticTenants = SgDynamicConfiguration.empty();
     
-    //only for unittesting
+    //only for unit testing
     static void resetStatics() {
         staticRoles = SgDynamicConfiguration.empty();
         staticActionGroups = SgDynamicConfiguration.empty();
@@ -63,7 +58,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         staticTenants = SgDynamicConfiguration.fromNode(staticTenantsJsonNode, CType.TENANTS, 2, 0, 0);
     }
     
-    public final static SgDynamicConfiguration<?> addStatics(SgDynamicConfiguration<?> original) {
+    public static SgDynamicConfiguration<?> addStatics(SgDynamicConfiguration<?> original) {
         if(original.getCType() == CType.ACTIONGROUPS && !staticActionGroups.getCEntries().isEmpty()) {
             original.add(staticActionGroups.deepClone());
         }
@@ -118,6 +113,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         SgDynamicConfiguration<?> roles = cr.getConfiguration(CType.ROLES);
         SgDynamicConfiguration<?> rolesmapping = cr.getConfiguration(CType.ROLESMAPPING);
         SgDynamicConfiguration<?> tenants = cr.getConfiguration(CType.TENANTS);
+        SgDynamicConfiguration<?> blocks = cr.getConfiguration(CType.BLOCKS);
         
         if(log.isDebugEnabled()) {
             String logmsg = "current config (because of "+typeToConfig.keySet()+")\n"+
@@ -126,9 +122,9 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             " internalusers: "+internalusers.getImplementingClass()+" with "+internalusers.getCEntries().size()+" entries\n"+
             " roles: "+roles.getImplementingClass()+" with "+roles.getCEntries().size()+" entries\n"+
             " rolesmapping: "+rolesmapping.getImplementingClass()+" with "+rolesmapping.getCEntries().size()+" entries\n"+
-            " tenants: "+tenants.getImplementingClass()+" with "+tenants.getCEntries().size()+" entries";
+            " tenants: "+tenants.getImplementingClass()+" with "+tenants.getCEntries().size()+" entries \n"+
+            " blocks: "+blocks.getImplementingClass()+" with "+blocks.getCEntries().size()+" entries \n";
             log.debug(logmsg);
-            
         }
 
         if(config.getImplementingClass() == ConfigV7.class) {
@@ -165,12 +161,12 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
 
                 log.debug("Static configuration loaded (total roles: {}/total action groups: {}/total tenants: {})", roles.getCEntries().size(), actionGroups.getCEntries().size(), tenants.getCEntries().size());
 
-            
 
             //rebuild v7 Models
             DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), esSettings, configPath, iab);
             InternalUsersModel ium = new InternalUsersModelV7((SgDynamicConfiguration<InternalUserV7>) internalusers);
-            ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<RoleV7>) roles,(SgDynamicConfiguration<RoleMappingsV7>)rolesmapping, (SgDynamicConfiguration<ActionGroupsV7>)actionGroups, (SgDynamicConfiguration<TenantV7>) tenants,dcm, esSettings);
+            ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<RoleV7>) roles,(SgDynamicConfiguration<RoleMappingsV7>)rolesmapping,
+                    (SgDynamicConfiguration<ActionGroupsV7>)actionGroups, (SgDynamicConfiguration<TenantV7>) tenants, (SgDynamicConfiguration<BlocksV7>) blocks, dcm, esSettings);
 
             //notify listeners
             
@@ -231,7 +227,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         listeners.add(listener);
     }
     
-    public static interface DCFListener {
+    public interface DCFListener {
         void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium);
     }
     
