@@ -1,27 +1,27 @@
 /*
  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+ *
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
 
 package com.floragunn.searchguard.dlic.rest.validation;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -33,14 +33,9 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.util.*;
+import java.util.Map.Entry;
 
 public abstract class AbstractConfigurationValidator {
 
@@ -57,7 +52,9 @@ public abstract class AbstractConfigurationValidator {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
 
-    /** Define the various keys for this validator */
+    /**
+     * Define the various keys for this validator
+     */
     protected final Map<String, DataType> allowedKeys = new HashMap<>();
 
     protected final Set<String> mandatoryKeys = new HashSet<>();
@@ -66,19 +63,25 @@ public abstract class AbstractConfigurationValidator {
 
     protected final Map<String, String> wrongDatatypes = new HashMap<>();
 
-    /** Contain errorneous keys */
+    /**
+     * Contain errorneous keys
+     */
     protected final Set<String> missingMandatoryKeys = new HashSet<>();
 
     protected final Set<String> invalidKeys = new HashSet<>();
 
     protected final Set<String> missingMandatoryOrKeys = new HashSet<>();
 
-    /** The error type */
+    /**
+     * The error type
+     */
     protected ErrorType errorType = ErrorType.NONE;
-    
+
     protected Exception lastException;
 
-    /** Behaviour regarding payload */
+    /**
+     * Behaviour regarding payload
+     */
     protected boolean payloadMandatory = false;
 
     protected boolean payloadAllowed = true;
@@ -92,7 +95,7 @@ public abstract class AbstractConfigurationValidator {
     protected final RestRequest request;
 
     protected final Object[] param;
-    
+
     private JsonNode contentAsNode;
 
     public AbstractConfigurationValidator(final RestRequest request, final BytesReference ref, final Settings esSettings, Object... param) {
@@ -108,7 +111,6 @@ public abstract class AbstractConfigurationValidator {
     }
 
     /**
-     * 
      * @return false if validation fails
      */
     public boolean validate() {
@@ -116,20 +118,20 @@ public abstract class AbstractConfigurationValidator {
         if (method.equals(Method.DELETE) || method.equals(Method.GET)) {
             return true;
         }
-        
-        if(this.payloadMandatory && content.length() == 0) {
+
+        if (this.payloadMandatory && content.length() == 0) {
             this.errorType = ErrorType.PAYLOAD_MANDATORY;
             return false;
         }
-        
-        if(this.payloadMandatory && content.length() > 0) {
-            
+
+        if (this.payloadMandatory && content.length() > 0) {
+
             try {
-                if(DefaultObjectMapper.readTree(content.utf8ToString()).size() == 0) {
+                if (DefaultObjectMapper.readTree(content.utf8ToString()).size() == 0) {
                     this.errorType = ErrorType.PAYLOAD_MANDATORY;
                     return false;
                 }
-                
+
             } catch (IOException e) {
                 log.error(ErrorType.BODY_NOT_PARSEABLE.toString(), e);
                 this.errorType = ErrorType.BODY_NOT_PARSEABLE;
@@ -137,12 +139,12 @@ public abstract class AbstractConfigurationValidator {
                 return false;
             }
         }
-        
+
         if (!this.payloadAllowed && content.length() > 0) {
             this.errorType = ErrorType.PAYLOAD_NOT_ALLOWED;
             return false;
         }
-        
+
         // try to parse payload
         Set<String> requested = new HashSet<String>();
         try {
@@ -193,7 +195,7 @@ public abstract class AbstractConfigurationValidator {
     private boolean checkDatatypes() throws Exception {
         String contentAsJson = XContentHelper.convertToJson(content, false, XContentType.JSON);
         try (JsonParser parser = factory.createParser(contentAsJson)) {
-            JsonToken token = null;
+            JsonToken token;
             while ((token = parser.nextToken()) != null) {
                 if (token.equals(JsonToken.FIELD_NAME)) {
                     String currentName = parser.getCurrentName();
@@ -201,21 +203,21 @@ public abstract class AbstractConfigurationValidator {
                     if (dataType != null) {
                         JsonToken valueToken = parser.nextToken();
                         switch (dataType) {
-                        case STRING:
-                            if (!valueToken.equals(JsonToken.VALUE_STRING)) {
-                                wrongDatatypes.put(currentName, "String expected");
-                            }
-                            break;
-                        case ARRAY:
-                            if (!valueToken.equals(JsonToken.START_ARRAY) && !valueToken.equals(JsonToken.END_ARRAY)) {
-                                wrongDatatypes.put(currentName, "Array expected");
-                            }
-                            break;
-                        case OBJECT:
-                            if (!valueToken.equals(JsonToken.START_OBJECT) && !valueToken.equals(JsonToken.END_OBJECT)) {
-                                wrongDatatypes.put(currentName, "Object expected");
-                            }
-                            break;
+                            case STRING:
+                                if (!valueToken.equals(JsonToken.VALUE_STRING)) {
+                                    wrongDatatypes.put(currentName, "String expected");
+                                }
+                                break;
+                            case ARRAY:
+                                if (!valueToken.equals(JsonToken.START_ARRAY) && !valueToken.equals(JsonToken.END_ARRAY)) {
+                                    wrongDatatypes.put(currentName, "Array expected");
+                                }
+                                break;
+                            case OBJECT:
+                                if (!valueToken.equals(JsonToken.START_OBJECT) && !valueToken.equals(JsonToken.END_OBJECT)) {
+                                    wrongDatatypes.put(currentName, "Object expected");
+                                }
+                                break;
                         }
                     }
                 }
@@ -228,14 +230,10 @@ public abstract class AbstractConfigurationValidator {
         try {
             final XContentBuilder builder = channel.newBuilder();
             builder.startObject();
-            if(lastException != null) {
+            if (lastException != null) {
                 builder.field("details", lastException.toString());
             }
             switch (this.errorType) {
-                case NONE:
-                    builder.field("status", "error");
-                    builder.field("reason", errorType.getMessage());
-                    break;
                 case INVALID_CONFIGURATION:
                     builder.field("status", "error");
                     builder.field("reason", ErrorType.INVALID_CONFIGURATION.getMessage());
@@ -275,18 +273,18 @@ public abstract class AbstractConfigurationValidator {
         }
     }
 
-    public static enum DataType {
-        STRING, ARRAY, OBJECT;
+    public enum DataType {
+        STRING, ARRAY, OBJECT
     }
 
-    public static enum ErrorType {
+    public enum ErrorType {
         NONE("ok"), INVALID_CONFIGURATION("Invalid configuration"), INVALID_PASSWORD("Invalid password"), WRONG_DATATYPE("Wrong datatype"),
         BODY_NOT_PARSEABLE("Could not parse content of request."), PAYLOAD_NOT_ALLOWED("Request body not allowed for this action."),
         PAYLOAD_MANDATORY("Request body required for this action."), SG_NOT_INITIALIZED("Search Guard index not initialized (SG11)");
 
         private String message;
 
-        private ErrorType(String message) {
+        ErrorType(String message) {
             this.message = message;
         }
 
