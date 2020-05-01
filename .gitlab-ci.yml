@@ -27,14 +27,15 @@ build_and_deploy:
   script:
   - ./smoketest.sh
   - echo "Smoketest done"
+  - export esversion=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
   #- mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml clean verify #run tests incl enterprise modules ?
-  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml -P!enterprise clean verify #run tests, no enterprise
+  - mvn -Drevision=b-$esversion-SNAPSHOT -s settings.xml -P!enterprise clean verify #run tests, no enterprise
   - cp -r /builds/private/sg-suite/sgbuild0/sg-suite/signals/target/surefire-reports /builds/private/sg-suite/sgbuild0/ || true
-  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -DskipTests -s settings.xml -Penterprise clean deploy #deploy snapshot incl enterprise and zip
+  - mvn -Drevision=b-$esversion-SNAPSHOT -DskipTests -s settings.xml -Penterprise clean deploy #deploy snapshot incl enterprise and zip
   #- missing: veracode, coverage, srcclr, sonar, scan_veracode.sh
-  
-  
-  
+
+
+
   #only used in merge request so far, so it makes not much sense to upload them
   #artifacts:
   #  reports:
