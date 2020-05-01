@@ -20,6 +20,7 @@ import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.BindException;
 import java.net.Socket;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
@@ -58,152 +59,163 @@ import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 
 class MockIpdServer implements Closeable {
-	final static String CTX_DISCOVER = "/discover";
-	final static String CTX_KEYS = "/api/oauth/keys";
+    final static String CTX_DISCOVER = "/discover";
+    final static String CTX_KEYS = "/api/oauth/keys";
 
-	private final HttpServer httpServer;
-	private final int port;
-	private final String uri;
-	private final boolean ssl;
-	private final JsonWebKeys jwks;
+    private final HttpServer httpServer;
+    private final int port;
+    private final String uri;
+    private final boolean ssl;
+    private final JsonWebKeys jwks;
 
-	MockIpdServer(JsonWebKeys jwks) throws IOException {
-		this(jwks, SocketUtils.findAvailableTcpPort(), false);
-	}
+    static MockIpdServer start(JsonWebKeys jwks) throws IOException {
 
-	MockIpdServer(JsonWebKeys jwks, int port, boolean ssl) throws IOException {
-		this.port = port;
-		this.uri = (ssl ? "https" : "http") + "://localhost:" + port;
-		this.ssl = ssl;
-		this.jwks = jwks;
+        int i = 0;
 
-		ServerBootstrap serverBootstrap = ServerBootstrap.bootstrap().setListenerPort(port)
-				.registerHandler(CTX_DISCOVER, new HttpRequestHandler() {
+        for (;;) {
+            try {
+                return new MockIpdServer(jwks);
+            } catch (BindException e) {
+                if (i >= 10) {
+                    throw e;
+                } else {
+                    i++;
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e1) {
+                        throw new RuntimeException(e1);
+                    }
+                }
+            }
+        }
+    }
 
-					@Override
-					public void handle(HttpRequest request, HttpResponse response, HttpContext context)
-							throws HttpException, IOException {
+    MockIpdServer(JsonWebKeys jwks) throws IOException {
+        this(jwks, SocketUtils.findAvailableTcpPort(), false);
+    }
 
-						handleDiscoverRequest(request, response, context);
+    MockIpdServer(JsonWebKeys jwks, int port, boolean ssl) throws IOException {
+        this.port = port;
+        this.uri = (ssl ? "https" : "http") + "://localhost:" + port;
+        this.ssl = ssl;
+        this.jwks = jwks;
 
-					}
-				}).registerHandler(CTX_KEYS, new HttpRequestHandler() {
+        ServerBootstrap serverBootstrap = ServerBootstrap.bootstrap().setListenerPort(port).registerHandler(CTX_DISCOVER, new HttpRequestHandler() {
 
-					@Override
-					public void handle(HttpRequest request, HttpResponse response, HttpContext context)
-							throws HttpException, IOException {
+            @Override
+            public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
 
-						handleKeysRequest(request, response, context);
+                handleDiscoverRequest(request, response, context);
 
-					}
-				});
+            }
+        }).registerHandler(CTX_KEYS, new HttpRequestHandler() {
 
-		if (ssl) {
-			serverBootstrap = serverBootstrap.setSslContext(createSSLContext())
-					.setSslSetupHandler(new SSLServerSetupHandler() {
+            @Override
+            public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
 
-						@Override
-						public void initialize(SSLServerSocket socket) throws SSLException {
-							socket.setNeedClientAuth(true);
-						}
-					}).setConnectionFactory(new HttpConnectionFactory<DefaultBHttpServerConnection>() {
+                handleKeysRequest(request, response, context);
 
-						private ConnectionConfig cconfig = ConnectionConfig.DEFAULT;
+            }
+        });
 
-						@Override
-						public DefaultBHttpServerConnection createConnection(final Socket socket) throws IOException {
-							final SSLTestHttpServerConnection conn = new SSLTestHttpServerConnection(
-									this.cconfig.getBufferSize(), this.cconfig.getFragmentSizeHint(),
-									ConnSupport.createDecoder(this.cconfig), ConnSupport.createEncoder(this.cconfig),
-									this.cconfig.getMessageConstraints(), null, null, null, null);
-							conn.bind(socket);
-							return conn;
-						}
-					});
-		}
+        if (ssl) {
+            serverBootstrap = serverBootstrap.setSslContext(createSSLContext()).setSslSetupHandler(new SSLServerSetupHandler() {
 
-		this.httpServer = serverBootstrap.create();
+                @Override
+                public void initialize(SSLServerSocket socket) throws SSLException {
+                    socket.setNeedClientAuth(true);
+                }
+            }).setConnectionFactory(new HttpConnectionFactory<DefaultBHttpServerConnection>() {
 
-		httpServer.start();
-	}
+                private ConnectionConfig cconfig = ConnectionConfig.DEFAULT;
 
-	@Override
-	public void close() throws IOException {
-		httpServer.stop();
-	}
+                @Override
+                public DefaultBHttpServerConnection createConnection(final Socket socket) throws IOException {
+                    final SSLTestHttpServerConnection conn = new SSLTestHttpServerConnection(this.cconfig.getBufferSize(),
+                            this.cconfig.getFragmentSizeHint(), ConnSupport.createDecoder(this.cconfig), ConnSupport.createEncoder(this.cconfig),
+                            this.cconfig.getMessageConstraints(), null, null, null, null);
+                    conn.bind(socket);
+                    return conn;
+                }
+            });
+        }
 
-	public HttpServer getHttpServer() {
-		return httpServer;
-	}
+        this.httpServer = serverBootstrap.create();
 
-	public String getUri() {
-		return uri;
-	}
+        httpServer.start();
+    }
 
-	public String getDiscoverUri() {
-		return uri + CTX_DISCOVER;
-	}
+    @Override
+    public void close() throws IOException {
+        httpServer.stop();
+    }
 
-	public int getPort() {
-		return port;
-	}
+    public HttpServer getHttpServer() {
+        return httpServer;
+    }
 
-	protected void handleDiscoverRequest(HttpRequest request, HttpResponse response, HttpContext context)
-			throws HttpException, IOException {
-		response.setStatusCode(200);
-		response.setHeader("Cache-Control", "public, max-age=31536000");
-		response.setEntity(new StringEntity("{\"jwks_uri\": \"" + uri + CTX_KEYS + "\",\n" + "\"issuer\": \"" + uri
-				+ "\", \"unknownPropertyToBeIgnored\": 42}"));
-	}
+    public String getUri() {
+        return uri;
+    }
 
-	protected void handleKeysRequest(HttpRequest request, HttpResponse response, HttpContext context)
-			throws HttpException, IOException {
-		response.setStatusCode(200);
-		response.setEntity(new StringEntity(toJson(jwks)));
-	}
+    public String getDiscoverUri() {
+        return uri + CTX_DISCOVER;
+    }
 
-	private SSLContext createSSLContext() {
-		if (!this.ssl) {
-			return null;
-		}
+    public int getPort() {
+        return port;
+    }
 
-		try {
-			final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-			final KeyStore trustStore = KeyStore.getInstance("JKS");
-			InputStream trustStream = new FileInputStream(
-					FileHelper.getAbsoluteFilePathFromClassPath("jwt/truststore.jks").toFile());
-			trustStore.load(trustStream, "changeit".toCharArray());
-			tmf.init(trustStore);
+    protected void handleDiscoverRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
+        response.setStatusCode(200);
+        response.setHeader("Cache-Control", "public, max-age=31536000");
+        response.setEntity(new StringEntity(
+                "{\"jwks_uri\": \"" + uri + CTX_KEYS + "\",\n" + "\"issuer\": \"" + uri + "\", \"unknownPropertyToBeIgnored\": 42}"));
+    }
 
-			final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-			final KeyStore keyStore = KeyStore.getInstance("JKS");
-			InputStream keyStream = new FileInputStream(
-					FileHelper.getAbsoluteFilePathFromClassPath("jwt/node-0-keystore.jks").toFile());
+    protected void handleKeysRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
+        response.setStatusCode(200);
+        response.setEntity(new StringEntity(toJson(jwks)));
+    }
 
-			keyStore.load(keyStream, "changeit".toCharArray());
-			kmf.init(keyStore, "changeit".toCharArray());
+    private SSLContext createSSLContext() {
+        if (!this.ssl) {
+            return null;
+        }
 
-			SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
-			sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-			return sslContext;
-		} catch (GeneralSecurityException | IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+        try {
+            final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            final KeyStore trustStore = KeyStore.getInstance("JKS");
+            InputStream trustStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("jwt/truststore.jks").toFile());
+            trustStore.load(trustStream, "changeit".toCharArray());
+            tmf.init(trustStore);
 
-	static class SSLTestHttpServerConnection extends DefaultBHttpServerConnection {
-		public SSLTestHttpServerConnection(final int buffersize, final int fragmentSizeHint,
-				final CharsetDecoder chardecoder, final CharsetEncoder charencoder,
-				final MessageConstraints constraints, final ContentLengthStrategy incomingContentStrategy,
-				final ContentLengthStrategy outgoingContentStrategy,
-				final HttpMessageParserFactory<HttpRequest> requestParserFactory,
-				final HttpMessageWriterFactory<HttpResponse> responseWriterFactory) {
-			super(buffersize, fragmentSizeHint, chardecoder, charencoder, constraints, incomingContentStrategy,
-					outgoingContentStrategy, requestParserFactory, responseWriterFactory);
-		}
+            final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            final KeyStore keyStore = KeyStore.getInstance("JKS");
+            InputStream keyStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("jwt/node-0-keystore.jks").toFile());
 
-		public Certificate[] getPeerCertificates() throws SSLPeerUnverifiedException {
-			return ((SSLSocket) getSocket()).getSession().getPeerCertificates();
-		}
-	}
+            keyStore.load(keyStream, "changeit".toCharArray());
+            kmf.init(keyStore, "changeit".toCharArray());
+
+            SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+            sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+            return sslContext;
+        } catch (GeneralSecurityException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static class SSLTestHttpServerConnection extends DefaultBHttpServerConnection {
+        public SSLTestHttpServerConnection(final int buffersize, final int fragmentSizeHint, final CharsetDecoder chardecoder,
+                final CharsetEncoder charencoder, final MessageConstraints constraints, final ContentLengthStrategy incomingContentStrategy,
+                final ContentLengthStrategy outgoingContentStrategy, final HttpMessageParserFactory<HttpRequest> requestParserFactory,
+                final HttpMessageWriterFactory<HttpResponse> responseWriterFactory) {
+            super(buffersize, fragmentSizeHint, chardecoder, charencoder, constraints, incomingContentStrategy, outgoingContentStrategy,
+                    requestParserFactory, responseWriterFactory);
+        }
+
+        public Certificate[] getPeerCertificates() throws SSLPeerUnverifiedException {
+            return ((SSLSocket) getSocket()).getSession().getPeerCertificates();
+        }
+    }
 }
