@@ -37,7 +37,7 @@ public class SearchGuardRestApiActions {
 	public static Collection<RestHandler> getHandler(Settings settings, Path configPath, RestController controller, Client client, 
 	        AdminDNs adminDns, ConfigurationRepository cr, ClusterService cs, PrincipalExtractor principalExtractor, 
 	        final PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog) {
-	    final List<RestHandler> handlers = new ArrayList<RestHandler>(10);
+	    final List<RestHandler> handlers = new ArrayList<>();
 	    handlers.add(new InternalUsersApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
 	    handlers.add(new RolesMappingApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
 	    handlers.add(new RolesApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
@@ -48,6 +48,7 @@ public class SearchGuardRestApiActions {
 	    handlers.add(new PermissionsInfoAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
 	    handlers.add(new AuthTokenProcessorAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
 	    handlers.add(new TenantsApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
+		handlers.add(new BlocksApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
 	    return Collections.unmodifiableCollection(handlers);
 	}
 }
