@@ -56,6 +56,7 @@ public class MockWebserviceProvider implements Closeable {
     private String responseContentType = "text/plain";
     private String lastRequestBody;
     private final AtomicInteger requestCount = new AtomicInteger();
+    private long responseDelayMs = 0;
 
     MockWebserviceProvider(String path) throws IOException {
         this(path, SocketUtils.findAvailableTcpPort());
@@ -158,6 +159,14 @@ public class MockWebserviceProvider implements Closeable {
     }
 
     protected void handleRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
+        if (responseDelayMs > 0) {
+            try {
+                Thread.sleep(responseDelayMs);
+            } catch (InterruptedException e) {
+               
+            }
+        }
+        
         response.setStatusCode(responseStatusCode);
         response.setHeader("Content-Type", responseContentType);
         response.setEntity(new StringEntity(responseBody));
@@ -168,6 +177,7 @@ public class MockWebserviceProvider implements Closeable {
         } else {
             lastRequestBody = null;
         }
+                
         requestCount.incrementAndGet();
     }
 
@@ -246,5 +256,13 @@ public class MockWebserviceProvider implements Closeable {
 
     public int getRequestCount() {
         return requestCount.get();
+    }
+
+    public long getResponseDelayMs() {
+        return responseDelayMs;
+    }
+
+    public void setResponseDelayMs(long responseDelayMs) {
+        this.responseDelayMs = responseDelayMs;
     }
 }

@@ -6,6 +6,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.signals.support.JsonBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;
@@ -116,7 +117,28 @@ public class SeverityMappingTest {
         element = severityMapping.findMatchingMappingElement(new BigDecimal("5.0"));
         Assert.assertEquals(new SeverityMapping.Element(new BigDecimal("2.0"), SeverityLevel.ERROR), element);
     }
+    
+    @Test
+    public void findValueWithBigNumbersTest() throws Exception {
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        
+        String configJson = "{\"value\": \"data.x\", \"mapping\": [{\"threshold\": 123456789999, \"level\": \"info\"}, {\"threshold\": 223456789999, \"level\": \"error\"}]}";
 
+        JsonNode config = DefaultObjectMapper.readTree(configJson);
+        
+        SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
+        
+        
+        SeverityMapping.Element element = severityMapping.findMatchingMappingElement(new BigDecimal("2"));
+        Assert.assertNull(element);
+
+        element = severityMapping.findMatchingMappingElement(new BigDecimal("123456799999"));
+        Assert.assertEquals(new SeverityMapping.Element(new BigDecimal("123456789999"), SeverityLevel.INFO), element);
+
+        element = severityMapping.findMatchingMappingElement(new BigDecimal("223457789999"));
+        Assert.assertEquals(new SeverityMapping.Element(new BigDecimal("223456789999"), SeverityLevel.ERROR), element);
+    }
+    
     @Test
     public void descendingFindValueTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);

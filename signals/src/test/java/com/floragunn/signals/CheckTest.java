@@ -93,8 +93,6 @@ public class CheckTest {
 
             boolean result = searchInput.execute(ctx);
 
-            System.out.println(runtimeData);
-
             Assert.assertTrue(result);
 
             @SuppressWarnings("unchecked")
@@ -120,8 +118,6 @@ public class CheckTest {
 
             boolean result = searchInput.execute(ctx);
 
-            System.out.println(runtimeData);
-
             Assert.assertTrue(result);
 
             @SuppressWarnings("unchecked")
@@ -146,11 +142,9 @@ public class CheckTest {
             runtimeData.put(new NestedValueMap.Path("match"), "xx");
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
                     ActionInvocationType.ALERT,
-                    new WatchExecutionContextData(runtimeData, new TriggerInfo(new Date(), new Date(), new Date(), new Date()), null));
+                    new WatchExecutionContextData(runtimeData, null, new TriggerInfo(new Date(), new Date(), new Date(), new Date()), null));
 
             boolean result = searchInput.execute(ctx);
-
-            System.out.println(runtimeData);
 
             Assert.assertTrue(result);
 
@@ -218,8 +212,6 @@ public class CheckTest {
 
             boolean result = httpInput.execute(ctx);
 
-            System.out.println(runtimeData);
-
             Assert.assertTrue(result);
 
             Map<?, ?> inputResult = (Map<?, ?>) runtimeData.get("test");
@@ -247,8 +239,6 @@ public class CheckTest {
                     ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
             boolean result = httpInput.execute(ctx);
-
-            System.out.println(runtimeData);
 
             Assert.assertTrue(result);
 
@@ -280,8 +270,6 @@ public class CheckTest {
 
             boolean result = httpInput.execute(ctx);
 
-            System.out.println(runtimeData);
-
             Assert.assertTrue(result);
 
             Assert.assertEquals(text, runtimeData.get("test"));
@@ -310,6 +298,32 @@ public class CheckTest {
             httpInput.execute(ctx);
 
             Assert.fail();
+        }
+    }
+
+    @Test
+    public void httpInputTimeoutTest() throws Exception {
+        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
+
+            webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
+            webserviceProvider.setResponseContentType("text/json");
+            webserviceProvider.setResponseDelayMs(3330);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
+                    null, null, null, null, null);
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+
+            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(1, 1, null));
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            httpInput.execute(ctx);
+
+            Assert.fail();
+        } catch (CheckExecutionException e) {
+            Assert.assertTrue(e.toString(), e.getCause().toString().contains("Read timed out"));
         }
     }
 
@@ -386,8 +400,6 @@ public class CheckTest {
                     ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
             boolean result = calc.execute(ctx);
-
-            System.out.println(runtimeData);
 
             Assert.assertTrue(result);
 

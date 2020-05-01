@@ -1,6 +1,5 @@
 package com.floragunn.searchguard.internalauthtoken;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.TemporalAmount;
 import java.util.Map;
@@ -166,15 +165,11 @@ public class InternalAuthTokenProvider implements DCFListener {
     }
 
     private Object getSgRolesForUser(User user) {
-        try {
-            Set<String> sgRoles = this.configModel.mapSgRoles(user, null);
+        Set<String> sgRoles = this.configModel.mapSgRoles(user, null);
 
-            SgRoles userRoles = this.sgRoles.filter(sgRoles);
+        SgRoles userRoles = this.sgRoles.filter(sgRoles);
 
-            return ObjectTreeXContent.toObjectTree(userRoles);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return ObjectTreeXContent.toObjectTree(userRoles);
     }
 
     private JwtToken getVerifiedJwtToken(String encodedJwt, String authTokenAudience) throws JwtException {

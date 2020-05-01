@@ -17,34 +17,34 @@
 
 package com.floragunn.searchguard.auth.blocking;
 
-import java.util.concurrent.TimeUnit;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.concurrent.TimeUnit;
 
 public class HeapBasedClientBlockRegistry<ClientIdType> implements ClientBlockRegistry<ClientIdType> {
 
-    private final Logger log = LogManager.getLogger(this.getClass());
-
-    private final Cache<ClientIdType, Long> cache;
+    protected final Logger log = LogManager.getLogger(this.getClass());
+    protected final Cache<ClientIdType, Long> cache;
     private final Class<ClientIdType> clientIdType;
 
     public HeapBasedClientBlockRegistry(long expiryMs, int maxEntries, Class<ClientIdType> clientIdType) {
         this.clientIdType = clientIdType;
         this.cache = CacheBuilder.newBuilder().expireAfterWrite(expiryMs, TimeUnit.MILLISECONDS).maximumSize(maxEntries).concurrencyLevel(4)
-                .removalListener(new RemovalListener<ClientIdType, Long>() {
-                    @Override
-                    public void onRemoval(RemovalNotification<ClientIdType, Long> notification) {
-                        if (log.isInfoEnabled()) {
-                            log.info("Unblocking " + notification.getKey());
-                        }
+                .removalListener((RemovalListener<ClientIdType, Long>) notification -> {
+                    if (log.isInfoEnabled()) {
+                        log.info("Unblocking " + notification.getKey());
                     }
                 }).build();
+    }
+
+    public HeapBasedClientBlockRegistry(Class<ClientIdType> clientIdType) {
+        this.clientIdType = clientIdType;
+        // by default the cache is never evicted
+        this.cache = CacheBuilder.newBuilder().build();
     }
 
     @Override
@@ -57,7 +57,6 @@ public class HeapBasedClientBlockRegistry<ClientIdType> implements ClientBlockRe
         if (log.isInfoEnabled()) {
             log.info("Blocking " + clientId);
         }
-
         this.cache.put(clientId, System.currentTimeMillis());
     }
 

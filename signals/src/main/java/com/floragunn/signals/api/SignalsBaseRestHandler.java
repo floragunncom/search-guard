@@ -80,7 +80,9 @@ public abstract class SignalsBaseRestHandler extends BaseRestHandler {
             toXContent.toXContent(builder, params);
             return builder;
         } catch (IOException e) {
+            log.error(e.toString(), e);
             throw ExceptionsHelper.convertToElastic(e);
         }
     }
+
 }

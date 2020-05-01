@@ -669,14 +669,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 public <T extends TransportRequest> TransportRequestHandler<T> interceptHandler(String action, String executor,
                         boolean forceExecution, TransportRequestHandler<T> actualHandler) {
 
-                    return new TransportRequestHandler<T>() {
-
-                        @Override
-                        public void messageReceived(T request, TransportChannel channel, Task task) throws Exception {
-                            sgi.getHandler(action, actualHandler).messageReceived(request, channel, task);
-                        }
-
-                    };
+                    return (request, channel, task) -> sgi.getHandler(action, actualHandler).messageReceived(request, channel, task);
 
                 }
 

@@ -1,8 +1,6 @@
 package com.floragunn.searchguard.sgconf.impl.v7;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -235,7 +233,8 @@ public class ConfigV7 {
         public HttpAuthenticator http_authenticator = new HttpAuthenticator();
         public AuthcBackend authentication_backend = new AuthcBackend();
         public String description;
-        
+        public List<String> skip_users = new ArrayList<>();
+
         public AuthcDomain() {
             super();
         }
@@ -252,13 +251,14 @@ public class ConfigV7 {
             http_authenticator = new HttpAuthenticator(v6.http_authenticator);
             authentication_backend = new AuthcBackend(v6.authentication_backend);
             description = "Migrated from v6";
+            skip_users = v6.skip_users;
         }
 
         @Override
         public String toString() {
             return "AuthcDomain [http_enabled=" + http_enabled + ", transport_enabled=" + transport_enabled + ", order=" + order
                     + ", http_authenticator=" + http_authenticator + ", authentication_backend=" + authentication_backend + ", description="
-                    + description + "]";
+                    + description +  ", skip_users=" + skip_users + "]";
         }
         
         
@@ -402,12 +402,13 @@ public class ConfigV7 {
         public boolean transport_enabled = true;
         public AuthzBackend authorization_backend = new AuthzBackend();
         public String description;
-        
+        public List<String> skipped_users = new ArrayList<>();
+
         public AuthzDomain() {
             super();
         }
         
-        public AuthzDomain(com.floragunn.searchguard.sgconf.impl.v6.ConfigV6.AuthzDomain v6) {
+        public AuthzDomain(ConfigV6.AuthzDomain v6) {
             http_enabled = v6.http_enabled && v6.enabled;
             transport_enabled = v6.transport_enabled && v6.enabled;
             authorization_backend = new AuthzBackend(v6.authorization_backend);
@@ -417,7 +418,8 @@ public class ConfigV7 {
         @Override
         public String toString() {
             return "AuthzDomain [http_enabled=" + http_enabled + ", transport_enabled=" + transport_enabled
-                    + ", authorization_backend=" + authorization_backend + ", description=" + description + "]";
+                    + ", authorization_backend=" + authorization_backend + ", description=" + description
+                    + ", skipped_users=" + skipped_users + "]";
         }
         
         

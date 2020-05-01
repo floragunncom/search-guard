@@ -23,7 +23,7 @@ public class InvalidAttributeValue extends ValidationError {
     public InvalidAttributeValue(String attribute, Object value, Object expected) {
         this(attribute, value, expected, (JsonNode) null);
     }
-    
+
     public Object getExpected() {
         return expected;
     }
@@ -66,5 +66,10 @@ public class InvalidAttributeValue extends ValidationError {
         }
 
         return result.toString();
+    }
+
+    @Override
+    public String toString() {
+        return "InvalidAttributeValue [expected=" + expected + ", value=" + value + ", attribute=" + getAttribute() + "]";
     }
 }

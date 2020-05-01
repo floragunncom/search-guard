@@ -54,8 +54,10 @@ import com.floragunn.signals.execution.SimulationMode;
 import com.floragunn.signals.execution.WatchRunner;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.support.PrivilegedConfigClient;
+import com.floragunn.signals.support.ToXParams;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.init.WatchInitializationService;
+import com.floragunn.signals.watch.result.WatchLog;
 import com.floragunn.signals.watch.result.WatchLogIndexWriter;
 import com.floragunn.signals.watch.result.WatchLogWriter;
 import com.floragunn.signals.watch.state.WatchState;
@@ -89,7 +91,6 @@ public class SignalsTenant implements Closeable {
     private String nodeFilter;
     private final NamedXContentRegistry xContentRegistry;
     private final ScriptService scriptService;
-    private final WatchLogWriter watchLogWriter;
     private final WatchStateManager watchStateManager;
     private final WatchStateWriter<?> watchStateWriter;
     private final WatchStateIndexReader watchStateReader;
@@ -115,7 +116,6 @@ public class SignalsTenant implements Closeable {
         this.xContentRegistry = xContentRegistry;
         this.tenantSettings = settings.getTenant(name);
         this.nodeFilter = tenantSettings.getNodeFilter();
-        this.watchLogWriter = WatchLogIndexWriter.forTenant(client, name, settings);
         this.watchStateManager = new WatchStateManager(name, clusterService.getNodeName());
         this.watchStateWriter = new WatchStateIndexWriter(watchIdPrefix, settings.getStaticSettings().getIndexNames().getWatchesState(),
                 privilegedConfigClient);
@@ -374,6 +374,9 @@ public class SignalsTenant implements Closeable {
             if (watchState.isRefreshBeforeExecuting()) {
                 watchState = refreshState(watch, watchState);
             }
+
+            WatchLogWriter watchLogWriter = WatchLogIndexWriter.forTenant(client, name, settings,
+                    ToXParams.of(WatchLog.ToXContentParams.INCLUDE_DATA, watch.isLogRuntimeData()));
 
             return new WatchRunner(watch, client, accountRegistry, scriptService, watchLogWriter, watchStateWriter, watchState,
                     ExecutionEnvironment.SCHEDULED, SimulationMode.FOR_REAL, xContentRegistry, settings, nodeName, null, null);

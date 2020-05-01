@@ -25,6 +25,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.floragunn.searchsupport.jobs.config.elements.InlineMustacheTemplate;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonParser;
 import com.floragunn.signals.accounts.AccountRegistry;
@@ -343,10 +344,37 @@ public class ActionTest {
 
             Assert.fail();
         } catch (ActionExecutionException e) {
-            e.printStackTrace();
             // TODO
             // Assert.assertTrue(e.getCause().getMessage(), e.getCause().getMessage()
             //       .contains("Certificate validation failed. Check if the host requires client certificate authentication"));
+        }
+    }
+
+    @Test
+    public void testWebhookActionTimeout() throws Exception {
+
+        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+            webhookProvider.setResponseDelayMs(3330);
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(1, 1, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+
+            webhookAction.execute(ctx);
+
+            Assert.fail();
+        } catch (ActionExecutionException e) {
+            Assert.assertTrue(e.toString(), e.getCause().toString().contains("Read timed out"));
         }
     }
 
@@ -371,6 +399,32 @@ public class ActionTest {
             GetResponse getResponse = client.get(new GetRequest("index_action_sink", "my_doc")).actionGet();
 
             Assert.assertEquals("test", getResponse.getSource().get("o2"));
+        }
+    }
+
+    @Test
+    public void testIndexActionWithIdTemplate() throws Exception {
+
+        try (Client client = cluster.getInternalClient()) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("id_from_data", "my_doc_2");
+            runtimeData.put(new NestedValueMap.Path("o1", "oa"), 10);
+            runtimeData.put(new NestedValueMap.Path("o1", "ob"), 20);
+            runtimeData.put(new NestedValueMap.Path("o2"), "test_2");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
+
+            indexAction.setDocId(InlineMustacheTemplate.parse(scriptService, "{{data.id_from_data}}"));
+
+            indexAction.execute(ctx);
+
+            GetResponse getResponse = client.get(new GetRequest("index_action_sink", "my_doc_2")).actionGet();
+
+            Assert.assertEquals("test_2", getResponse.getSource().get("o2"));
         }
     }
 

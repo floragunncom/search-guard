@@ -103,9 +103,9 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
     protected ConfigUpdateNodeResponse nodeOperation(final NodeConfigUpdateRequest request) {
         configurationRepository.reloadConfiguration(CType.fromStringValues((request.request.getConfigTypes())));
         backendRegistry.get().invalidateCache();
-        
-        /*final SearchGuardLicense license = configurationRepository.getLicense(); 
-        
+
+         /*final SearchGuardLicense license = configurationRepository.getLicense();
+
         if (license != null) {
             if(!license.isValid()) {
                 logger.warn("License "+license.getUid()+" is invalid due to "+license.getMsgs());

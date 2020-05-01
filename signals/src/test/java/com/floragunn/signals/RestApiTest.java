@@ -127,12 +127,41 @@ public class RestApiTest {
 
             response = rh.executeGetRequest(watchPath, auth);
 
-            System.out.print(response.getBody());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
+        }
+    }
+
+    @Test
+    public void testWatchStateAfterPutWatch() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "put_state_after_put_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalClient()) {
+            Watch watch = new WatchBuilder(watchId).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
+            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = awaitRestGet(watchPath + "/_state", auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            response = rh.executePostRequest("/_signals/watch/" + tenant + "/_search/_state",
+                    "{ \"query\": {\"match\": {\"_id\": \"_main/put_state_after_put_test\"}}}", auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Assert.assertTrue(response.getBody(), response.getBody().contains("\"hits\":{\"total\":{\"value\":1,\"relation\":\"eq\"}"));
 
         } finally {
             rh.executeDeleteRequest(watchPath, auth);
@@ -161,15 +190,12 @@ public class RestApiTest {
                     .as(SeverityLevel.ERROR).when(SeverityLevel.ERROR).index(testSink).name("a1").and().whenResolved(SeverityLevel.ERROR)
                     .index(testSinkResolve).name("r1").build();
 
-            System.out.print(watch.toJson());
-
             HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             response = rh.executeGetRequest(watchPath, auth);
 
-            System.out.print(response.getBody());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
@@ -218,8 +244,6 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
             Assert.assertTrue(response.getBody(), response.getBody().contains("Uses a severity which is not defined by severity mapping: [info]"));
 
-            System.out.println(response.getBody());
-
         } finally {
             rh.executeDeleteRequest(watchPath, auth);
         }
@@ -250,15 +274,12 @@ public class RestApiTest {
                     .whenResolved(SeverityLevel.ERROR).index(testSinkResolve1).name("r1").and().whenResolved(SeverityLevel.CRITICAL)
                     .index(testSinkResolve2).name("r2").build();
 
-            System.out.print(watch.toJson());
-
             HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             response = rh.executeGetRequest(watchPath, auth);
 
-            System.out.print(response.getBody());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
@@ -323,7 +344,6 @@ public class RestApiTest {
 
             response = rh.executeGetRequest(watchPath, auth);
 
-            System.out.print(response.getBody());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
@@ -337,6 +357,33 @@ public class RestApiTest {
             response = rh.executeGetRequest(watchPath, auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
+        }
+    }
+
+    @Test
+    public void testPutWatchWithoutSchedule() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "without_schedule";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalClient()) {
+            Watch watch = new WatchBuilder(watchId).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch_with_dash").name("testsink").build();
+            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = rh.executeGetRequest(watchPath, auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+
+            Assert.assertTrue(response.getBody(), watch.getSchedule().getTriggers().isEmpty());
 
         } finally {
             rh.executeDeleteRequest(watchPath, auth);
@@ -358,7 +405,6 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             response = rh.executeGetRequest(watchPath, auth);
-            System.out.print(response.getBody());
 
             Assert.assertFalse(response.getBody(), response.getBody().contains("auth_token"));
 
@@ -391,7 +437,6 @@ public class RestApiTest {
             HttpResponse response = rh.executePutRequest(watchPath, watchJson, auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            System.out.println(response.getBody());
 
             JsonNode parsedResponse = DefaultObjectMapper.readTree(response.getBody());
 
@@ -428,7 +473,6 @@ public class RestApiTest {
             HttpResponse response = rh.executePutRequest(watchPath, watchJson, auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            System.out.println(response.getBody());
 
             JsonNode parsedResponse = DefaultObjectMapper.readTree(response.getBody());
 
@@ -548,7 +592,6 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             response = rh.executeGetRequest(watchPath + "?pretty", auth);
-            System.out.println(response.getBody());
             //this seems failing because in "get watch action" there is no real deserialization of a watch object
             //and so the tox params are not effective
             Assert.assertFalse(response.getBody(), response.getBody().contains("secret"));
@@ -775,8 +818,6 @@ public class RestApiTest {
             HttpResponse response = rh.executePostRequest("/_signals/watch/_main/_execute",
                     "{\"watch\": " + watch.toJson() + ", \"goto\": \"teststatic\"}", basicAuth("uhura", "uhura"));
 
-            System.out.println(watch.toJson());
-
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             GetResponse getResponse = client.get(new GetRequest(testSink, "1")).actionGet();
@@ -809,6 +850,31 @@ public class RestApiTest {
             Assert.assertTrue(getResponse.toString(), getResponse.getSource().get("teststatic") == null);
             Assert.assertTrue(getResponse.toString(), getResponse.getSource().get("ext_input") != null);
 
+        }
+    }
+
+    @Test
+    public void testExecuteAnonymousWatchWithShowAllRuntimeAttributes() throws Exception {
+
+        try (Client client = cluster.getInternalClient()) {
+
+            Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                    .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").consider("data.testsearch.hits.total.value").greaterOrEqual(1)
+                    .as(SeverityLevel.ERROR).when(SeverityLevel.ERROR).index("testsink").name("testsink").build();
+
+            HttpResponse response = rh.executePostRequest("/_signals/watch/_main/_execute",
+                    "{\"watch\": " + watch.toJson() + ", \"show_all_runtime_attributes\": true}", basicAuth("uhura", "uhura"));
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            
+            JsonNode responseJson = DefaultObjectMapper.readTree(response.getBody());
+            
+            Assert.assertEquals(response.getBody(), "error", responseJson.at("/runtime_attributes/severity/level").asText());
+            Assert.assertFalse(response.getBody(), responseJson.at("/runtime_attributes/trigger").isNull());
+            Assert.assertTrue(response.getBody(), responseJson.at("/runtime_attributes/trigger/triggered_time").isNull());
+            Assert.assertEquals(response.getBody(), "42", responseJson.at("/runtime_attributes/data/teststatic/bla/blub").asText());
+
+            
         }
     }
 
@@ -1033,7 +1099,6 @@ public class RestApiTest {
             response = rh.executeGetRequest(watchPath + "/_state", auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            System.out.println(response.getBody());
             JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
             Assert.assertEquals(response.getBody(), "uhura", statusDoc.at("/actions/testaction/acked/by").textValue());
 
@@ -1058,8 +1123,6 @@ public class RestApiTest {
             Assert.assertEquals(executionCountAfterAck, currentExecutionCount);
 
             response = rh.executeGetRequest(watchPath + "/_state", auth);
-
-            System.out.println(response.getBody());
 
             statusDoc = DefaultObjectMapper.readTree(response.getBody());
             Assert.assertFalse(response.getBody(), statusDoc.get("actions").get("testaction").hasNonNull("acked"));
@@ -1296,6 +1359,32 @@ public class RestApiTest {
     }
 
     @Test
+    public void testNonExistingEmailAccount() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "smtp_test_non_existing_account";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        rh.executeDeleteRequest("/_signals/account/email/default", auth);
+
+        try {
+
+            Watch watch = new WatchBuilder("smtp_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                    .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx")
+                    .body("We searched {{data.testsearch._shards.total}} shards").name("testsmtpsink").build();
+
+            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Account does not exist: email/default"));
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
+            rh.executeDeleteRequest("/_signals/account/email/default", auth);
+        }
+
+    }
+
+    @Test
     public void testSlackDestination() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
@@ -1426,12 +1515,10 @@ public class RestApiTest {
                     .search("testsource").query("{\"match_all\" : {} }").as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
                     .index("testsink").name("testsink").build();
 
-            System.out.println(watch.toJson());
             HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             response = rh.executeGetRequest(watchPath, auth);
-            System.out.println(response.getBody());
             // TODO
 
         } finally {
@@ -1451,12 +1538,10 @@ public class RestApiTest {
             Watch watch = new WatchBuilder("test").atMsInterval(1000).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").throttledFor("1s**1.5|20s").name("testsink").build();
 
-            System.out.println(watch.toJson());
             HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             response = rh.executeGetRequest(watchPath, auth);
-            System.out.println(response.getBody());
             // TODO
 
         } finally {
@@ -1465,29 +1550,70 @@ public class RestApiTest {
     }
 
     @Test
-    public void testSearchDestinationScroll() throws Exception {
+    public void testSearchAccount() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
-        String destinationId = "search_destination_scroll";
-        String destinationPath = "/_signals/account/slack/" + destinationId;
+        String accountId = "search_account";
+        String accountPath = "/_signals/account/slack/" + accountId;
 
         try (Client client = cluster.getInternalClient()) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI("https://xyz.test.com"));
 
-            HttpResponse response = rh.executePutRequest(destinationPath + "1", slackDestination.toJson(), auth);
+            HttpResponse response = rh.executePutRequest(accountPath + "1", slackDestination.toJson(), auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             slackDestination.setUrl(new URI("https://abc.test.com"));
-            response = rh.executePutRequest(destinationPath + "2", slackDestination.toJson(), auth);
+            response = rh.executePutRequest(accountPath + "2", slackDestination.toJson(), auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI("https://abcdef.test.com"));
 
-            response = rh.executePutRequest(destinationPath + "3", slackDestination.toJson(), auth);
+            response = rh.executePutRequest(accountPath + "3", slackDestination.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = rh.executePostRequest("/_signals/account/_search",
+                    "{ \"sort\": [{\"type.keyword\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"_name\": \"" + accountId + "1\"}}}", auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Assert.assertTrue(response.getBody(), response.getBody().contains("https://xyz.test.com"));
+
+        } finally {
+            rh.executeDeleteRequest(accountPath + "1", auth);
+            rh.executeDeleteRequest(accountPath + "2", auth);
+            rh.executeDeleteRequest(accountPath + "3", auth);
+        }
+    }
+
+    @Test
+    public void testSearchAccountScroll() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String accountId = "search_destination_scroll";
+        String accountPath = "/_signals/account/slack/" + accountId;
+
+        try (Client client = cluster.getInternalClient()) {
+
+            SlackAccount slackDestination = new SlackAccount();
+            slackDestination.setUrl(new URI("https://xyz.test.com"));
+
+            HttpResponse response = rh.executePutRequest(accountPath + "1", slackDestination.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            slackDestination.setUrl(new URI("https://abc.test.com"));
+            response = rh.executePutRequest(accountPath + "2", slackDestination.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            slackDestination = new SlackAccount();
+            slackDestination.setUrl(new URI("https://abcdef.test.com"));
+
+            response = rh.executePutRequest(accountPath + "3", slackDestination.toJson(), auth);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
@@ -1511,9 +1637,9 @@ public class RestApiTest {
             Assert.assertTrue(response.getBody(), response.getBody().contains("slack"));
 
         } finally {
-            rh.executeDeleteRequest(destinationPath + "1", auth);
-            rh.executeDeleteRequest(destinationPath + "2", auth);
-            rh.executeDeleteRequest(destinationPath + "3", auth);
+            rh.executeDeleteRequest(accountPath + "1", auth);
+            rh.executeDeleteRequest(accountPath + "2", auth);
+            rh.executeDeleteRequest(accountPath + "3", auth);
         }
     }
 
@@ -1541,8 +1667,6 @@ public class RestApiTest {
 
             HttpResponse response = rh.executePostRequest("/_signals/convert/es", input, auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
-            System.out.println(response.getBody());
 
         }
     }
@@ -1675,6 +1799,26 @@ public class RestApiTest {
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
         return Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", id, response.getBody(), -1);
+    }
+
+    private HttpResponse awaitRestGet(String request, Header... header) throws Exception {
+        HttpResponse response = null;
+        long start = System.currentTimeMillis();
+
+        for (int i = 0; i < 100; i++) {
+            response = rh.executeGetRequest(request, header);
+
+            if (response.getStatusCode() != HttpStatus.SC_NOT_FOUND) {
+                log.info(request + " returned " + response.getStatusCode() + " after " + (System.currentTimeMillis() - start) + "ms (" + i
+                        + " retries)");
+
+                return response;
+            }
+
+            Thread.sleep(10);
+        }
+
+        return response;
     }
 
     private static Header basicAuth(String username, String password) {

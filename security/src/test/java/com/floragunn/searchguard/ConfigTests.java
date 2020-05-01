@@ -92,9 +92,10 @@ public class ConfigTests {
         check("./sgconfig/sg_roles_mapping.yml", CType.ROLESMAPPING);
         
         check("./sgconfig/sg_tenants.yml", CType.TENANTS);
-        
+
+        check("./sgconfig/sg_blocks.yml", CType.BLOCKS);
     }
-    
+
     private void check(String file, CType cType) throws Exception {
         JsonNode jsonNode = YAML.readTree(FileUtils.readFileToString(new File(file), "UTF-8"));
         int configVersion = 1;
@@ -106,11 +107,9 @@ public class ConfigTests {
         
         SgDynamicConfiguration<?> dc = load(file, cType);
         Assert.assertNotNull(dc);
-        //Assert.assertTrue(dc.getCEntries().size() > 0);
         String jsonSerialize = DefaultObjectMapper.objectMapper.writeValueAsString(dc);
         SgDynamicConfiguration<?> conf = SgDynamicConfiguration.fromJson(jsonSerialize, cType, configVersion, 0, 0);
         SgDynamicConfiguration.fromJson(Strings.toString(conf), cType, configVersion, 0, 0);
-        
     }
     
     private SgDynamicConfiguration<?> load(String file, CType cType) throws Exception {

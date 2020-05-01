@@ -36,6 +36,7 @@ public class DynamicSgConfig {
     private String sgRolesMapping = "sg_roles_mapping.yml";
     private String sgInternalUsers = "sg_internal_users.yml";
     private String sgActionGroups = "sg_action_groups.yml";
+    private String sgBlocks = "sg_blocks.yml";
     private String sgConfigAsYamlString = null;
     private String type = "_doc";
     private String legacyConfigFolder = "";
@@ -88,14 +89,20 @@ public class DynamicSgConfig {
         return this;
     }
 
+    public DynamicSgConfig setSgBlocks(String sgBlocks) {
+        this.sgBlocks = sgBlocks;
+        return this;
+    }
+
     public String getType() {
         return type;
     }
+
     public List<IndexRequest> getDynamicConfig(String folder) {
         
         final String prefix = legacyConfigFolder+(folder == null?"":folder+"/");
         
-        List<IndexRequest> ret = new ArrayList<IndexRequest>();
+        List<IndexRequest> ret = new ArrayList<>();
         
         ret.add(new IndexRequest(searchGuardIndexName)
                .type(type)
@@ -126,16 +133,21 @@ public class DynamicSgConfig {
         .id(CType.ROLESMAPPING.toLCString())
         .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         .source(CType.ROLESMAPPING.toLCString(), FileHelper.readYamlContent(prefix+sgRolesMapping)));
-        
+
         if("".equals(legacyConfigFolder)) {
             ret.add(new IndexRequest(searchGuardIndexName)
                     .type(type)
             .id(CType.TENANTS.toLCString())
             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
             .source(CType.TENANTS.toLCString(), FileHelper.readYamlContent(prefix+sgTenants)));
+
+            ret.add(new IndexRequest(searchGuardIndexName)
+                    .type(type)
+                    .id(CType.BLOCKS.toLCString())
+                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .source(CType.BLOCKS.toLCString(), FileHelper.readYamlContent(prefix+sgBlocks)));
         }
         
         return Collections.unmodifiableList(ret);
     }
-
 }

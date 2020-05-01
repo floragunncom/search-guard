@@ -16,10 +16,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchsupport.util.JacksonTools;
+import com.floragunn.signals.execution.WatchExecutionContextData;
 
 public class WatchLog implements ToXContentObject {
     private static final DateFormatter DATE_FORMATTER = DateFormatter.forPattern("strict_date_time").withZone(ZoneOffset.UTC);
 
+    public enum ToXContentParams {
+        INCLUDE_DATA,
+        INCLUDE_RUNTIME_ATTRIBUTES
+    }
+    
     private String id;
 
     private String tenant;
@@ -31,9 +37,8 @@ public class WatchLog implements ToXContentObject {
     private ErrorInfo error;
     private String node;
 
-    // trigger time, trigger type
-
     private Map<String, Object> data;
+    private WatchExecutionContextData runtimeAttributes;
     private List<ActionLog> actions;
     private List<ActionLog> resolveActions;
 
@@ -106,11 +111,27 @@ public class WatchLog implements ToXContentObject {
 
         builder.field("execution_start", executionStart != null ? DATE_FORMATTER.format(executionStart.toInstant()) : null);
         builder.field("execution_end", executionFinished != null ? DATE_FORMATTER.format(executionFinished.toInstant()) : null);
-        builder.field("data", data);
-        builder.field("actions", actions);
+
+        if (params.paramAsBoolean(ToXContentParams.INCLUDE_DATA.name(), false)) {
+            builder.field("data", data);
+        }
+
+        if (params.paramAsBoolean(ToXContentParams.INCLUDE_RUNTIME_ATTRIBUTES.name(), false)) {
+            builder.field("runtime_attributes", runtimeAttributes);
+        }
+        
+        builder.startArray("actions");  
+        for (ActionLog actionLog : actions) {
+            actionLog.toXContent(builder, params);
+        }
+        builder.endArray();
 
         if (resolveActions != null && resolveActions.size() > 0) {
-            builder.field("resolve_actions", resolveActions);
+            builder.startArray("resolve_actions");        
+            for (ActionLog actionLog : resolveActions) {
+                actionLog.toXContent(builder, params);
+            }
+            builder.endArray();
         }
 
         if (node != null) {
@@ -159,6 +180,10 @@ public class WatchLog implements ToXContentObject {
 
         if (jsonNode.hasNonNull("data")) {
             result.data = JacksonTools.toMap(jsonNode.get("data"));
+        }
+        
+        if (jsonNode.hasNonNull("runtime_attributes")) {
+            result.runtimeAttributes = WatchExecutionContextData.create(jsonNode.get("runtime_attributes"));
         }
 
         if (jsonNode.hasNonNull("actions") && jsonNode.get("actions").isArray()) {
@@ -213,5 +238,14 @@ public class WatchLog implements ToXContentObject {
     public void setNode(String node) {
         this.node = node;
     }
+
+    public WatchExecutionContextData getRuntimeAttributes() {
+        return runtimeAttributes;
+    }
+
+    public void setRuntimeAttributes(WatchExecutionContextData runtimeAttributes) {
+        this.runtimeAttributes = runtimeAttributes;
+    }
+
 
 }

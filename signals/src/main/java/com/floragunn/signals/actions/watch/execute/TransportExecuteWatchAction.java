@@ -27,8 +27,10 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
+import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
+import com.floragunn.signals.SignalsUnavailableException;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchResponse.Status;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.GotoCheckSelector;
@@ -36,6 +38,7 @@ import com.floragunn.signals.execution.WatchExecutionException;
 import com.floragunn.signals.execution.WatchRunner;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.support.NestedValueMap;
+import com.floragunn.signals.support.ToXParams;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.result.WatchLog;
@@ -71,21 +74,24 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
     @Override
     protected final void doExecute(Task task, ExecuteWatchRequest request, ActionListener<ExecuteWatchResponse> listener) {
 
-        ThreadContext threadContext = threadPool.getThreadContext();
+        try {
+            ThreadContext threadContext = threadPool.getThreadContext();
 
-        User user = threadContext.getTransient(ConfigConstants.SG_USER);
-        SignalsTenant signalsTenant = signals.getTenant(user);
+            User user = threadContext.getTransient(ConfigConstants.SG_USER);
+            SignalsTenant signalsTenant = signals.getTenant(user);
 
-        if (signalsTenant == null) {
-            listener.onResponse(new ExecuteWatchResponse(user != null ? user.getRequestedTenant() : null, request.getWatchId(),
+            if (request.getWatchJson() != null) {
+                executeAnonymousWatch(user, signalsTenant, task, request, listener);
+            } else if (request.getWatchId() != null) {
+                fetchAndExecuteWatch(user, signalsTenant, task, request, listener);
+            }
+        } catch (NoSuchTenantException e) {
+            listener.onResponse(new ExecuteWatchResponse(e.getTenant(), request.getWatchId(),
                     ExecuteWatchResponse.Status.TENANT_NOT_FOUND, null));
-            return;
-        }
-
-        if (request.getWatchJson() != null) {
-            executeAnonymousWatch(user, signalsTenant, task, request, listener);
-        } else if (request.getWatchId() != null) {
-            fetchAndExecuteWatch(user, signalsTenant, task, request, listener);
+        } catch (SignalsUnavailableException e) {
+            listener.onFailure(e.toElasticsearchException());
+        } catch (Exception e) {
+            listener.onFailure(e);
         }
     }
 
@@ -131,7 +137,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                 log.error("Invalid watch definition in fetchAndExecuteWatch(). This should not happen\n"
                                         + response.getSourceAsString() + "\n" + e.getValidationErrors(), e);
                                 listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
-                                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e)));
+                                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e, ToXContent.EMPTY_PARAMS)));
                             }
                         }
 
@@ -152,7 +158,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
         try {
             Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService), signalsTenant.getName(),
-                    "inline_watch", request.getWatchJson(), -1);
+                    "__inline_watch", request.getWatchJson(), -1);
 
             threadPool.generic().submit(() -> {
                 listener.onResponse(executeWatch(watch, request, signalsTenant));
@@ -160,7 +166,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
         } catch (ConfigValidationException e) {
             listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
-                    ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e)));
+                    ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e, ToXContent.EMPTY_PARAMS)));
         } catch (Exception e) {
             log.error("Error while executing anonymous watch " + request, e);
             listener.onFailure(e);
@@ -173,8 +179,11 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         NestedValueMap input = null;
         GotoCheckSelector checkSelector = null;
 
+        ToXContent.Params watchLogToXparams = ToXParams.of(WatchLog.ToXContentParams.INCLUDE_DATA, !request.isIncludeAllRuntimeAttributesInResponse(),
+                WatchLog.ToXContentParams.INCLUDE_RUNTIME_ATTRIBUTES, request.isIncludeAllRuntimeAttributesInResponse());
+
         if (request.isRecordExecution()) {
-            watchLogWriter = WatchLogIndexWriter.forTenant(client, signalsTenant.getName(), new SignalsSettings(settings));
+            watchLogWriter = WatchLogIndexWriter.forTenant(client, signalsTenant.getName(), new SignalsSettings(settings), watchLogToXparams);
         }
 
         if (request.getInputJson() != null) {
@@ -202,18 +211,19 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         try {
             WatchLog watchLog = watchRunner.execute();
 
-            return new ExecuteWatchResponse(null, request.getWatchId(), Status.EXECUTED, toBytesReference(watchLog));
+            return new ExecuteWatchResponse(null, request.getWatchId(), Status.EXECUTED, toBytesReference(watchLog, watchLogToXparams));
 
         } catch (WatchExecutionException e) {
             log.info("Error while manually executing watch", e);
-            return new ExecuteWatchResponse(null, request.getWatchId(), Status.ERROR_WHILE_EXECUTING, toBytesReference(e.getWatchLog()));
+            return new ExecuteWatchResponse(null, request.getWatchId(), Status.ERROR_WHILE_EXECUTING,
+                    toBytesReference(e.getWatchLog(), watchLogToXparams));
         }
     }
 
-    private BytesReference toBytesReference(ToXContent toXContent) {
+    private BytesReference toBytesReference(ToXContent toXContent, ToXContent.Params toXparams) {
         try {
             XContentBuilder builder = JsonXContent.contentBuilder();
-            toXContent.toXContent(builder, ToXContent.EMPTY_PARAMS);
+            toXContent.toXContent(builder, toXparams);
             return BytesReference.bytes(builder);
         } catch (IOException e) {
             throw new RuntimeException(e);

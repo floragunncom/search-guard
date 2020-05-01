@@ -795,9 +795,11 @@ public final class IndexResolverReplacer implements DCFListener {
             //do nothing
         } else if (request instanceof SearchScrollRequest) {
             //do nothing
+        } else if (request.getClass().getName().startsWith("org.elasticsearch.xpack.sql.action")) {
+            //do nothing
         } else {
             if(log.isDebugEnabled()) {
-                log.debug(request.getClass() + " not supported (It is likely not a indices related request)");
+                log.debug(request.getClass().getName() + " not supported (It is likely not a indices related request)");
             }
             result = false;
         }

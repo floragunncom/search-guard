@@ -13,6 +13,7 @@ import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.indices.InvalidIndexNameException;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.signals.settings.SignalsSettings;
@@ -22,10 +23,13 @@ import com.floragunn.signals.watch.state.WatchState;
 public class SignalsIndexes {
     private final static Logger log = LogManager.getLogger(SignalsIndexes.class);
 
+    private final Signals signals;
     private final SignalsSettings settings;
     private final Client client;
+    private volatile Exception initException;
 
-    SignalsIndexes(SignalsSettings settings, Client client) {
+    SignalsIndexes(Signals signals, SignalsSettings settings, Client client) {
+        this.signals = signals;
         this.settings = settings;
         this.client = client;
     }
@@ -39,6 +43,7 @@ public class SignalsIndexes {
     }
 
     private void install(ClusterState clusterState) {
+        initException = null;
         createConfigIndex(settings.getStaticSettings().getIndexNames().getWatches(), clusterState, Watch.getIndexMapping());
         createConfigIndex(settings.getStaticSettings().getIndexNames().getAccounts(), clusterState, null);
         createConfigIndex(settings.getStaticSettings().getIndexNames().getSettings(), clusterState, null);
@@ -82,13 +87,19 @@ public class SignalsIndexes {
                     if (e instanceof ResourceAlreadyExistsException) {
                         // ignore
                         return;
+                    } else if (e instanceof InvalidIndexNameException) {
+                        log.error("Error while creating index " + name, e);
+                        signals.setInitException(e);
+                        initException = e;
                     } else {
                         log.error("Error while creating index " + name, e);
+                        initException = e;
                     }
                 }
             });
         } catch (Exception e) {
             log.error("Error while creating index " + name, e);
+            initException = e;
         }
     }
 
@@ -106,6 +117,10 @@ public class SignalsIndexes {
 
     public ClusterStateListener getClusterStateListener() {
         return clusterStateListener;
+    }
+
+    public Exception getInitException() {
+        return initException;
     }
 
 }

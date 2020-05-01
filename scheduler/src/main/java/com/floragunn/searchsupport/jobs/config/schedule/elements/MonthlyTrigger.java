@@ -108,10 +108,10 @@ public class MonthlyTrigger extends HumanReadableCronTrigger<MonthlyTrigger> {
             on = new ArrayList<>(onNode.size());
 
             for (JsonNode onNodeElement : onNode) {
-                on.add(getMonth(onNodeElement, validationErrors));
+                on.add(getDayOfMonth(onNodeElement, validationErrors));
             }
         } else if (onNode != null && onNode.isNumber()) {
-            on = Collections.singletonList(getMonth(onNode, validationErrors));
+            on = Collections.singletonList(getDayOfMonth(onNode, validationErrors));
         } else {
             on = Collections.emptyList();
         }
@@ -137,17 +137,17 @@ public class MonthlyTrigger extends HumanReadableCronTrigger<MonthlyTrigger> {
         return new MonthlyTrigger(on, at, timeZone);
     }
 
-    private static int getMonth(JsonNode onNodeElement, ValidationErrors validationErrors) {
+    private static int getDayOfMonth(JsonNode onNodeElement, ValidationErrors validationErrors) {
         if (onNodeElement.isNumber()) {
             int onValue = onNodeElement.asInt();
 
-            if (onValue < 1 || onValue > 12) {
-                validationErrors.add(new InvalidAttributeValue("on", onValue, "Month: 1-12", onNodeElement));
+            if (onValue < 1 || onValue > 31) {
+                validationErrors.add(new InvalidAttributeValue("on", onValue, "Day of Month: 1-31", onNodeElement));
             }
 
             return onValue;
         } else {
-            validationErrors.add(new InvalidAttributeValue("on", onNodeElement.toString(), "Month: 1-12", onNodeElement));
+            validationErrors.add(new InvalidAttributeValue("on", onNodeElement.toString(), "Day of Month: 1-31", onNodeElement));
 
             return -1;
         }

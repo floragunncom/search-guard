@@ -41,7 +41,7 @@ public class SgDynamicConfiguration<T> implements ToXContent {
     }
 
     public static <T> SgDynamicConfiguration<T> fromJson(String json, CType ctype, int version, long seqNo, long primaryTerm) throws IOException {
-        SgDynamicConfiguration<T> sdc = null;
+        SgDynamicConfiguration<T> sdc;
         if(ctype != null) {
             final Class<?> implementationClass = ctype.getImplementationClass().get(version);
             if(implementationClass == null) {
@@ -71,7 +71,7 @@ public class SgDynamicConfiguration<T> implements ToXContent {
     
    
     public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype, int version, long seqNo, long primaryTerm) throws IOException {
-        SgDynamicConfiguration<T> sdc = null;
+        SgDynamicConfiguration<T> sdc;
         if(ctype != null) {
             final Class<?> implementationClass = ctype.getImplementationClass().get(version);
             if(implementationClass == null) {

@@ -25,10 +25,12 @@ import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationExcept
 import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.util.ObjectTreeXContent;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchOperationExecutionException;
 import com.floragunn.signals.script.SignalsScript;
 import com.floragunn.signals.watch.init.WatchInitializationService;
+import com.google.common.collect.ImmutableMap;
 
 public class SeverityMapping implements ToXContentObject {
 
@@ -166,6 +168,10 @@ public class SeverityMapping implements ToXContentObject {
             builder.field("level", level.getId());
             builder.endObject();
             return builder;
+        }
+
+        public Map<String, Object> toMap() {
+            return ObjectTreeXContent.toMap(this);
         }
 
         static List<Element> createList(ArrayNode arrayNode, Order order) throws ConfigValidationException {
@@ -425,8 +431,14 @@ public class SeverityMapping implements ToXContentObject {
             builder.field("level_numeric", level != null ? level.getLevel() : 0);
             builder.field("mapping_element", mappingElement);
             builder.field("value", value);
+            builder.field("threshold", getThreshold());
             builder.endObject();
             return builder;
+        }
+
+        public Map<String, Object> toMap() {
+            return ImmutableMap.of("level", level != null ? level.toMap() : null, "mapping_element",
+                    mappingElement != null ? mappingElement.toMap() : null, "value", value, "threshold", getThreshold());
         }
 
         public static EvaluationResult create(JsonNode jsonNode) throws ConfigValidationException {

@@ -1,19 +1,18 @@
 package com.floragunn.searchguard.sgconf;
 
 import java.net.InetAddress;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 
+import com.floragunn.searchguard.auth.AuthorizationDomain;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.floragunn.searchguard.auth.AuthDomain;
+import com.floragunn.searchguard.auth.AuthenticationDomain;
 import com.floragunn.searchguard.auth.AuthFailureListener;
-import com.floragunn.searchguard.auth.AuthorizationBackend;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.auth.internal.NoOpAuthenticationBackend;
@@ -25,15 +24,14 @@ import com.floragunn.searchguard.http.HTTPClientCertAuthenticator;
 import com.floragunn.searchguard.http.HTTPProxyAuthenticator;
 import com.floragunn.searchguard.http.HTTPProxyAuthenticator2;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
 
 public abstract class DynamicConfigModel {
     
     protected final Logger log = LogManager.getLogger(this.getClass());
-    public abstract SortedSet<AuthDomain> getRestAuthDomains();
-    public abstract Set<AuthorizationBackend> getRestAuthorizers();
-    public abstract SortedSet<AuthDomain> getTransportAuthDomains();
-    public abstract Set<AuthorizationBackend> getTransportAuthorizers();
+    public abstract SortedSet<AuthenticationDomain> getRestAuthenticationDomains();
+    public abstract Set<AuthorizationDomain> getRestAuthorizationDomains();
+    public abstract SortedSet<AuthenticationDomain> getTransportAuthenticationDomains();
+    public abstract Set<AuthorizationDomain> getTransportAuthorizationDomains();
     public abstract String getTransportUsernameAttribute();
     public abstract boolean isAnonymousAuthenticationEnabled();
     public abstract boolean isXffEnabled();
@@ -89,7 +87,5 @@ public abstract class DynamicConfigModel {
         authImplMap.put("ip_authFailureListener", AddressBasedRateLimiter.class.getName());
         authImplMap.put("username_authFailureListener", UserNameBasedRateLimiter.class.getName());
     }
-    
-    
-    
+
 }

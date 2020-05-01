@@ -231,7 +231,6 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                                 return;
                             }
 
-
                             log.error("Cannot authenticate {} for {}", getThreadContext().getTransient(ConfigConstants.SG_USER), task.getAction());
                             transportChannel.sendResponse(new ElasticsearchSecurityException("Cannot authenticate "+getThreadContext().getTransient(ConfigConstants.SG_USER)));
                             return;

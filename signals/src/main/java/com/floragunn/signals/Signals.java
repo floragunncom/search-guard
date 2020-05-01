@@ -67,9 +67,12 @@ public class Signals extends AbstractLifecycleComponent {
     private ScriptService scriptService;
     private InternalAuthTokenProvider internalAuthTokenProvider;
     private AccountRegistry accountRegistry;
-    private boolean initialized = false;
+    private InitializationState initState = InitializationState.INITIALIZING;
+    private Exception initException;
     private ThreadPool threadPool;
     private Settings settings;
+    private String nodeId;
+    private Map<String, Exception> tenantInitErrors = new ConcurrentHashMap<>();
 
     public Signals(Settings settings, Path configPath) {
         this.settings = settings;
@@ -83,9 +86,10 @@ public class Signals extends AbstractLifecycleComponent {
             ProtectedIndices protectedIndices, NamedWriteableRegistry namedWriteableRegistry, DynamicConfigFactory dynamicConfigFactory) {
 
         try {
+            nodeId = nodeEnvironment.nodeId();
 
             if (!signalsSettings.getStaticSettings().isEnabled()) {
-                // TODO also consider this in the JobDistributor
+                initState = InitializationState.DISABLED;
                 return Collections.emptyList();
             }
 
@@ -96,7 +100,7 @@ public class Signals extends AbstractLifecycleComponent {
             this.scriptService = scriptService;
             this.internalAuthTokenProvider = internalAuthTokenProvider;
 
-            this.signalsIndexes = new SignalsIndexes(signalsSettings, client);
+            this.signalsIndexes = new SignalsIndexes(this, signalsSettings, client);
             this.signalsIndexes.protectIndexes(protectedIndices);
             clusterService.addListener(this.signalsIndexes.getClusterStateListener());
 
@@ -112,26 +116,42 @@ public class Signals extends AbstractLifecycleComponent {
 
             return Collections.singletonList(this);
 
-        } catch (RuntimeException e) {
-            log.error("Error while initializing alerting ", e);
-            throw e;
+        } catch (Exception e) {
+            initState = InitializationState.FAILED;
+            initException = e;
+            log.error("Error while initializing Signals", e);
+            throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
         }
     }
 
-    public SignalsTenant getTenant(User user) {
+    public SignalsTenant getTenant(User user) throws SignalsUnavailableException, NoSuchTenantException {
         if (user == null) {
-            return null;
+            throw new IllegalArgumentException("No user specified");
         } else {
             return getTenant(user.getRequestedTenant());
         }
     }
 
-    public SignalsTenant getTenant(String name) {
+    public SignalsTenant getTenant(String name) throws SignalsUnavailableException, NoSuchTenantException {
+        checkInitState();
+
         if (name == null || name.length() == 0 || "_main".equals(name) || "SGS_GLOBAL_TENANT".equals(name)) {
             name = "_main";
         }
 
-        return this.tenants.get(name);
+        SignalsTenant result = this.tenants.get(name);
+
+        if (result != null) {
+            return result;
+        } else {
+            Exception tenantInitError = tenantInitErrors.get(name);
+
+            if (tenantInitError != null) {
+                throw new SignalsUnavailableException("Tenant " + name + " failed to intialize", nodeId, null, tenantInitError);
+            } else {
+                throw new NoSuchTenantException(name);
+            }
+        }
     }
 
     public static List<Setting<?>> getSettings() {
@@ -146,6 +166,26 @@ public class Signals extends AbstractLifecycleComponent {
         List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> result = new ArrayList<>(SchedulerActions.getActions());
         result.addAll(SignalsActions.getActions());
         return result;
+    }
+
+    private void checkInitState() throws SignalsUnavailableException {
+        switch (initState) {
+        case INITIALIZED:
+            return;
+        case DISABLED:
+            throw new SignalsUnavailableException("Signals is disabled", nodeId, initState);
+        case INITIALIZING:
+            if (initException != null) {
+                throw new SignalsUnavailableException(
+                        "Signals encountered errors while initializing but is still trying to start up. Please try again later.", nodeId, initState,
+                        initException);
+            } else {
+                throw new SignalsUnavailableException("Signals is still initializing. Please try again later.", nodeId, initState);
+            }
+        case FAILED:
+            throw new SignalsUnavailableException("Signals failed to initialize on node " + nodeId + ". Please contact admin or check the ES logs.",
+                    nodeId, initState, initException);
+        }
     }
 
     private void waitForYellowStatus() throws InterruptedException {
@@ -166,6 +206,16 @@ public class Signals extends AbstractLifecycleComponent {
                         || clusterHealthResponse.getStatus() == ClusterHealthStatus.GREEN) {
                     return;
                 } else {
+                    if (System.currentTimeMillis() - start > 30 * 1000) {
+                        Exception indexInitException = signalsIndexes.getInitException();
+
+                        if (indexInitException != null) {
+                            initException = new Exception("Cluster is still in RED state; " + indexInitException.getMessage(), indexInitException);
+                        } else {
+                            initException = new Exception("Cluster is still in RED state");
+                        }
+                    }
+
                     Thread.sleep(500);
                 }
             } catch (InterruptedException e) {
@@ -173,6 +223,16 @@ public class Signals extends AbstractLifecycleComponent {
             } catch (Exception e) {
                 if (log.isDebugEnabled()) {
                     log.debug("Error while waiting for cluster health", e);
+                }
+
+                if (System.currentTimeMillis() - start > 30 * 1000) {
+                    Exception indexInitException = signalsIndexes.getInitException();
+
+                    if (indexInitException != null) {
+                        initException = new Exception("Cluster is still in RED state; " + indexInitException.getMessage(), indexInitException);
+                    } else {
+                        initException = new Exception("Cluster is still in RED state");
+                    }
                 }
 
                 lastException = e;
@@ -186,7 +246,7 @@ public class Signals extends AbstractLifecycleComponent {
 
     }
 
-    private void createTenant(String name) {
+    private void createTenant(String name) throws SignalsInitializationException {
         try {
             if ("SGS_GLOBAL_TENANT".equals(name)) {
                 name = "_main";
@@ -199,11 +259,11 @@ public class Signals extends AbstractLifecycleComponent {
 
             log.debug("Tenant {} created", name);
         } catch (Exception e) {
-            log.error("Error while creating alerting tenant " + name, e);
+            throw new SignalsInitializationException("Error while creating tenant " + name, e);
         }
     }
 
-    private void deleteTenant(String name) {
+    private void deleteTenant(String name) throws SignalsUnavailableException, NoSuchTenantException {
         SignalsTenant tenant = getTenant(name);
         if (tenant != null) {
             tenant.delete();
@@ -215,60 +275,69 @@ public class Signals extends AbstractLifecycleComponent {
     }
 
     private synchronized void init() {
-        if (initialized) {
+        if (initState == InitializationState.INITIALIZED) {
             return;
         }
 
-        log.info("Initializing Signals");
+        try {
+            log.info("Initializing Signals");
 
-        signalsSettings.refresh(client);
+            signalsSettings.refresh(client);
 
-        accountRegistry.init(client);
+            accountRegistry.init(client);
 
-        if (signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey() != null) {
-            internalAuthTokenProvider.setSigningKey(signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey());
-        }
-
-        if (signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey() != null) {
-            internalAuthTokenProvider.setEncryptionKey(signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey());
-        }
-
-        if ((signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey() == null
-                || signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey() == null)
-                && clusterService.state().getNodes().getLocalNode().isMasterNode()) {
-            log.info("Generating keys for internal auth token");
-
-            String signingKey = signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey();
-            String encryptionKey = signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey();
-
-            if (signingKey == null) {
-                signingKey = generateKey(512);
+            if (signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey() != null) {
+                internalAuthTokenProvider.setSigningKey(signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey());
             }
 
-            if (encryptionKey == null) {
-                encryptionKey = generateKey(256);
+            if (signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey() != null) {
+                internalAuthTokenProvider.setEncryptionKey(signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey());
             }
 
-            try {
-                signalsSettings.getDynamicSettings().update(client, SignalsSettings.DynamicSettings.INTERNAL_AUTH_TOKEN_SIGNING_KEY.getKey(), signingKey,
-                        SignalsSettings.DynamicSettings.INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY.getKey(), encryptionKey);
-            } catch (ConfigValidationException e) {
-               log.error("Could not init encryption keys. This should not happen", e);
-               throw new RuntimeException("Could not init encryption keys. This should not happen", e);
+            if ((signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey() == null
+                    || signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey() == null)
+                    && clusterService.state().nodes().isLocalNodeElectedMaster()) {
+                log.info("Generating keys for internal auth token");
+
+                String signingKey = signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey();
+                String encryptionKey = signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey();
+
+                if (signingKey == null) {
+                    signingKey = generateKey(512);
+                }
+
+                if (encryptionKey == null) {
+                    encryptionKey = generateKey(256);
+                }
+
+                try {
+                    signalsSettings.getDynamicSettings().update(client, SignalsSettings.DynamicSettings.INTERNAL_AUTH_TOKEN_SIGNING_KEY.getKey(),
+                            signingKey, SignalsSettings.DynamicSettings.INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY.getKey(), encryptionKey);
+                } catch (ConfigValidationException e) {
+                    log.error("Could not init encryption keys. This should not happen", e);
+                    throw new SignalsInitializationException("Could not init encryption keys. This should not happen", e);
+                }
             }
+
+            if (configuredTenants != null) {
+                log.debug("Initializing tenant schedulers");
+
+                for (String tenant : configuredTenants) {
+                    try {
+                        createTenant(tenant);
+                    } catch (Exception e) {
+                        tenantInitErrors.put(tenant, e);
+                    }
+                }
+            }
+
+            initState = InitializationState.INITIALIZED;
+        } catch (SignalsInitializationException e) {
+            initState = InitializationState.FAILED;
+            initException = e;
         }
-
-        if (configuredTenants != null) {
-            log.debug("Initializing tenant schedulers");
-
-            for (String tenant : configuredTenants) {
-                createTenant(tenant);
-            }
-        }
-
-        initialized = true;
     }
-    
+
     private synchronized void updateTenants(Set<String> configuredTenants) {
         configuredTenants = new HashSet<>(configuredTenants);
 
@@ -276,17 +345,27 @@ public class Signals extends AbstractLifecycleComponent {
         configuredTenants.add("_main");
         configuredTenants.remove("SGS_GLOBAL_TENANT");
 
-        if (initialized) {
+        if (initState == InitializationState.INITIALIZED) {
             Set<String> currentTenants = this.tenants.keySet();
 
-            //tenantsToBeDeleted contains all the elements that are in currentTenants but not in configuredTenants
-            Set<String> tenantsToBeDeleted = Sets.difference(currentTenants, configuredTenants);
-            tenantsToBeDeleted.stream().forEach(t -> deleteTenant(t));
+            for (String tenantToBeDeleted : Sets.difference(currentTenants, configuredTenants)) {
+                try {
+                    deleteTenant(tenantToBeDeleted);
+                } catch (NoSuchTenantException e) {
+                    log.debug("Tenant to be deleted does not exist", e);
+                } catch (Exception e) {
+                    log.error("Error while deleting tenant", e);
+                }
+            }
 
-            //tenantsToBeCreated contains all the elements that are in configuredTenants but not in currentTenants
-            Set<String> tenantsToBeCreated = Sets.difference(configuredTenants, currentTenants);
-            tenantsToBeCreated.stream().forEach(t -> createTenant(t));
-
+            for (String tenantToBeCreated : Sets.difference(configuredTenants, currentTenants)) {
+                try {
+                    createTenant(tenantToBeCreated);
+                } catch (Exception e) {
+                    log.error("Error while creating tenant", e);
+                    tenantInitErrors.put(tenantToBeCreated, e);
+                }
+            }
         } else {
             this.configuredTenants = configuredTenants;
         }
@@ -299,7 +378,7 @@ public class Signals extends AbstractLifecycleComponent {
         return BaseEncoding.base64().encode(bytes);
     }
 
-    private void initEnterpriseModules() {
+    private void initEnterpriseModules() throws SignalsInitializationException {
         Class<?> signalsEnterpriseFeatures;
 
         try {
@@ -307,14 +386,15 @@ public class Signals extends AbstractLifecycleComponent {
             signalsEnterpriseFeatures = Class.forName("com.floragunn.signals.enterprise.SignalsEnterpriseFeatures");
 
         } catch (ClassNotFoundException e) {
-            log.error("Signals enterprise features not found", e);
-            return;
+            throw new SignalsInitializationException("Signals enterprise features not found", e);
         }
 
         try {
             signalsEnterpriseFeatures.getDeclaredMethod("init").invoke(null);
-        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
-            log.error("Error while initializing Signals enterprise features", e);
+        } catch (InvocationTargetException e) {
+            throw new SignalsInitializationException("Error while initializing Signals enterprise features", e.getTargetException());
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException e) {
+            throw new SignalsInitializationException("Error while initializing Signals enterprise features", e);
         }
     }
 
@@ -348,6 +428,15 @@ public class Signals extends AbstractLifecycleComponent {
         return signalsSettings;
     }
 
+    synchronized void setInitException(Exception e) {
+        if (initException != null) {
+            return;
+        }
+
+        initException = e;
+        initState = InitializationState.FAILED;
+    }
+
     private final SignalsSettings.ChangeListener settingsChangeListener = new SignalsSettings.ChangeListener() {
 
         @Override
@@ -364,4 +453,8 @@ public class Signals extends AbstractLifecycleComponent {
             updateTenants(cm.getAllConfiguredTenantNames());
         }
     };
+
+    public enum InitializationState {
+        INITIALIZING, INITIALIZED, FAILED, DISABLED
+    }
 }

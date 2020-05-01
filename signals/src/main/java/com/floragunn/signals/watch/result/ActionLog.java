@@ -15,7 +15,9 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.floragunn.searchsupport.util.JacksonTools;
+import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.watch.common.Ack;
+import com.floragunn.signals.watch.result.WatchLog;
 
 public class ActionLog implements ToXContentObject {
 
@@ -30,6 +32,7 @@ public class ActionLog implements ToXContentObject {
 
     private Date executionEnd;
     private Map<String, Object> data;
+    private WatchExecutionContextData runtimeAttributes;
     private String request;
     private Ack ack;
     private List<ActionLog> elements;
@@ -118,8 +121,12 @@ public class ActionLog implements ToXContentObject {
         builder.field("execution_start", executionStart != null ? DATE_FORMATTER.format(executionStart.toInstant()) : null);
         builder.field("execution_end", executionEnd != null ? DATE_FORMATTER.format(executionEnd.toInstant()) : null);
 
-        if (data != null) {
+        if (data != null && params.paramAsBoolean(WatchLog.ToXContentParams.INCLUDE_DATA.name(), false)) {
             builder.field("data", data);
+        }
+
+        if (runtimeAttributes != null && params.paramAsBoolean(WatchLog.ToXContentParams.INCLUDE_RUNTIME_ATTRIBUTES.name(), false)) {
+            builder.field("runtime_attributes", runtimeAttributes);
         }
 
         if (request != null) {
@@ -161,6 +168,10 @@ public class ActionLog implements ToXContentObject {
 
         if (jsonNode.hasNonNull("data")) {
             result.data = JacksonTools.toMap(jsonNode.get("data"));
+        }
+
+        if (jsonNode.hasNonNull("runtime_attributes")) {
+            result.runtimeAttributes = WatchExecutionContextData.create(jsonNode.get("runtime_attributes"));
         }
 
         if (jsonNode.hasNonNull("elements") && jsonNode.get("elements").isArray()) {
@@ -216,6 +227,14 @@ public class ActionLog implements ToXContentObject {
 
     public void setElements(List<ActionLog> elements) {
         this.elements = elements;
+    }
+
+    public WatchExecutionContextData getRuntimeAttributes() {
+        return runtimeAttributes;
+    }
+
+    public void setRuntimeAttributes(WatchExecutionContextData runtimeAttributes) {
+        this.runtimeAttributes = runtimeAttributes;
     }
 
 }

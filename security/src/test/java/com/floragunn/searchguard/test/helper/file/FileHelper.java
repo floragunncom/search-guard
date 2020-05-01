@@ -97,26 +97,16 @@ public class FileHelper {
 	}
 	
     public static BytesReference readYamlContent(final String file) {
-        
-        XContentParser parser = null;
-        try {
-            parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, new StringReader(loadFile(file)));
-            parser.nextToken();
-            final XContentBuilder builder = XContentFactory.jsonBuilder();
-            builder.copyCurrentStructure(parser);
-            return BytesReference.bytes(builder);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        finally {
-            if (parser != null) {
-                try {
-                    parser.close();
-                } catch (IOException e) {
-                    //ignore
-                }
-            }
-        }
+
+		try (XContentParser parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, new StringReader(loadFile(file)))) {
+			parser.nextToken();
+			final XContentBuilder builder = XContentFactory.jsonBuilder();
+			builder.copyCurrentStructure(parser);
+			return BytesReference.bytes(builder);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		//ignore
 	}
     
     public static BytesReference readYamlContentFromString(final String yaml) {

@@ -214,7 +214,7 @@ public class SystemIntegratorsTests extends SingleClusterTest {
       Assert.assertTrue(resc.getBody().contains("\"_id\" : \"roles\""));
       Assert.assertTrue(resc.getBody().contains("\"_id\" : \"internalusers\""));
       Assert.assertTrue(resc.getBody().contains("\"_id\" : \"tattr\""));
-      Assert.assertTrue(resc.getBody(), resc.getBody().contains("\"value\" : 7"));
+      Assert.assertTrue(resc.getBody(), resc.getBody().contains("\"value\" : 8"));
       
       resc = rh.executeGetRequest("searchguard/_search?pretty", new BasicHeader(ConfigConstants.SG_INJECTED_USER, "wrongadmin|role1|127.0.0:80|key1,value1"));
       Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
