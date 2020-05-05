@@ -19,6 +19,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.TreeSet;
 
+import com.unboundid.ldap.sdk.LDAPBindException;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
@@ -259,8 +260,7 @@ public class LdapBackendTestNewStyleConfig2 {
                     .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
             Assert.fail("Expected Exception");
         } catch (Exception e) {
-            //Assert.assertEquals(org.ldaptive.provider.ConnectionException.class, e.getCause().getClass());
-            Assert.assertTrue(ExceptionUtils.getStackTrace(e), ExceptionUtils.getStackTrace(e).contains("No appropriate protocol"));
+            Assert.assertEquals(LDAPBindException.class, e.getClass());
         }
 
     }
