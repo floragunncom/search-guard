@@ -329,7 +329,7 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals("ceo", new ArrayList<>(new TreeSet<>(user.getRoles())).get(0));
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
 
     @Test
@@ -386,10 +386,10 @@ public class LdapBackendTestNewStyleConfig {
 
         Assert.assertNotNull(user);
         Assert.assertEquals("Michael Jackson", user.getOriginalUsername());
-        Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getUserEntry().getDn());
+        Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getUserEntry().getDN());
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
 
     @Test
@@ -543,7 +543,7 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
         Assert.assertEquals(0, user.getRoles().size());
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
 
     @Test
@@ -811,7 +811,7 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertTrue(user.getRoles().contains("king"));
         Assert.assertTrue(user.getRoles().contains("role2"));
 
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
     
     @Test

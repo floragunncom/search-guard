@@ -35,6 +35,9 @@ public class LdapBackendTestClientCert2 {
     
     static {
         System.setProperty("sg.display_lic_none", "true");
+        //System.setProperty("com.unboundid.ldap.sdk.debug.enabled", "true");
+        //System.setProperty("com.unboundid.ldap.sdk.debug.type", "CONNECT");
+        //System.setProperty("com.unboundid.ldap.sdk.debug.level", "FINEST");
     }
 
     @Test

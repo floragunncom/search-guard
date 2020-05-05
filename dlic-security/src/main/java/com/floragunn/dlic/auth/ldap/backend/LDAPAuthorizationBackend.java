@@ -670,8 +670,9 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
         if(log.isDebugEnabled())
         log.debug("DBGTRACE (2): username="+user.getName()+" -> "+Arrays.toString(user.getName().getBytes(StandardCharsets.UTF_8)));
 
-        if (user instanceof LdapUser) {
-            entry = ((LdapUser) user).getUserEntry();
+        if (user instanceof LdapUser && ((LdapUser) user).getUserEntry() != null && ((LdapUser) user).getUserEntry().getLdaptiveEntry() != null) {
+            entry = ((LdapUser) user).getUserEntry().getLdaptiveEntry();
+            dn = entry.getDn();
             authenticatedUser = entry.getDn();
             originalUserName = ((LdapUser) user).getOriginalUsername();
         } else {
@@ -710,9 +711,9 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
 
         try {
 
+            connection = getConnection(settings, configPath);
+            
             if (entry == null || dn == null) {
-
-                connection = getConnection(settings, configPath);
 
                 if (isValidDn(authenticatedUser)) {
                     // assume dn

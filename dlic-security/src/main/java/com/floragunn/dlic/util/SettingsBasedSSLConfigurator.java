@@ -140,7 +140,7 @@ public class SettingsBasedSSLConfigurator {
         return new SSLConfig(sslContext, getSupportedProtocols(), getSupportedCipherSuites(), getHostnameVerifier(),
                 isHostnameVerificationEnabled(), isTrustAllEnabled(), isStartTlsEnabled(), this.effectiveTruststore,
                 this.effectiveTruststoreAliases, this.effectiveKeystore, this.effectiveKeyPassword,
-                this.effectiveKeyAlias);
+                this.effectiveKeyAlias, this.isClientCertAuthenticationEnabled());
     }
 
     private boolean isHostnameVerificationEnabled() {
@@ -171,9 +171,13 @@ public class SettingsBasedSSLConfigurator {
     private boolean isTrustAllEnabled() {
         return getSettingAsBoolean(TRUST_ALL, false);
     }
+    
+    private boolean isClientCertAuthenticationEnabled() {
+        return getSettingAsBoolean(ENABLE_SSL_CLIENT_AUTH, false);
+    }
 
     private void configureWithSettings() throws SSLConfigException, NoSuchAlgorithmException, KeyStoreException {
-        this.enabled = getSettingAsBoolean(ENABLE_SSL, false);
+        this.enabled = getSettingAsBoolean(ENABLE_SSL, false) || getSettingAsBoolean(ENABLE_START_TLS, false);
 
         if (!this.enabled) {
             return;
@@ -394,11 +398,12 @@ public class SettingsBasedSSLConfigurator {
         private final KeyStore effectiveKeystore;
         private final char[] effectiveKeyPassword;
         private final String effectiveKeyAlias;
+        private final boolean clientCertAuth;
 
         public SSLConfig(SSLContext sslContext, String[] supportedProtocols, String[] supportedCipherSuites,
                 HostnameVerifier hostnameVerifier, boolean hostnameVerificationEnabled, boolean trustAll,
                 boolean startTlsEnabled, KeyStore effectiveTruststore, List<String> effectiveTruststoreAliases,
-                KeyStore effectiveKeystore, char[] effectiveKeyPassword, String effectiveKeyAlias) {
+                KeyStore effectiveKeystore, char[] effectiveKeyPassword, String effectiveKeyAlias, boolean clientCertAuth) {
             this.sslContext = sslContext;
             this.supportedProtocols = supportedProtocols;
             this.supportedCipherSuites = supportedCipherSuites;
@@ -411,14 +416,19 @@ public class SettingsBasedSSLConfigurator {
             this.effectiveKeystore = effectiveKeystore;
             this.effectiveKeyPassword = effectiveKeyPassword;
             this.effectiveKeyAlias = effectiveKeyAlias;
+            this.clientCertAuth = clientCertAuth;
 
             if (log.isDebugEnabled()) {
                 log.debug("Created SSLConfig: " + this);
             }
         }
 
-        public SSLContext getSslContext() {
+        public SSLContext getUnrestrictedSslContext() {
             return sslContext;
+        }
+        
+        public RestrictingSSLSocketFactory getRestrictedSSLSocketFactory() {
+            return new RestrictingSSLSocketFactory(sslContext.getSocketFactory(), getSupportedProtocols(), getSupportedCipherSuites());
         }
 
         public String[] getSupportedProtocols() {
@@ -501,11 +511,15 @@ public class SettingsBasedSSLConfigurator {
                     + hostnameVerifier + ", startTlsEnabled=" + startTlsEnabled + ", hostnameVerificationEnabled="
                     + hostnameVerificationEnabled + ", trustAll=" + trustAll + ", effectiveTruststore="
                     + effectiveTruststore + ", effectiveTruststoreAliases=" + effectiveTruststoreAliases
-                    + ", effectiveKeystore=" + effectiveKeystore + ", effectiveKeyAlias=" + effectiveKeyAlias + "]";
+                    + ", effectiveKeystore=" + effectiveKeystore + ", effectiveKeyAlias=" + effectiveKeyAlias + ", clientCertAuth=" + clientCertAuth +"]";
         }
 
         public boolean isTrustAllEnabled() {
             return trustAll;
+        }
+
+        public boolean isClientCertAuthenticationEnabled() {
+            return clientCertAuth;
         }
     }
 
