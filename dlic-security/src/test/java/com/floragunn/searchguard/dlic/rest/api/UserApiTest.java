@@ -22,6 +22,7 @@ import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -476,6 +477,25 @@ public class UserApiTest extends AbstractRestApiUnitTest {
         
         response = rh.executeGetRequest("/_searchguard/api/internalusers/user2");
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+    }
+
+    @Test
+    public void testDontReturnSensitiveDataUponInvalidRequests() throws Exception {
+        setup();
+
+        rh.keystore = "restapi/kirk-keystore.jks";
+        rh.sendHTTPClientCertificate = true;
+
+        HttpResponse response;
+
+        addUserWithHash("user1", "$2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m", HttpStatus.SC_CREATED);
+
+        response = rh.executePutRequest("/_searchguard/api/internalusers/user1",
+                "{\"12312\"---\"$2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m\",\"password\":\"secret\",\"xyz\":[\"admina\",\"rolea\"]}");
+        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+
+        Assert.assertThat(response.getBody(), CoreMatchers.not(CoreMatchers.containsString("secret")));
+        Assert.assertThat(response.getBody(), CoreMatchers.not(CoreMatchers.containsString("password")));
     }
 
 }
