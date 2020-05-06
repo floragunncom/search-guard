@@ -14,9 +14,11 @@
 
 package com.floragunn.searchguard.dlic.rest.validation;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.compress.NotXContentException;
 import org.elasticsearch.common.settings.Settings;
@@ -99,5 +101,21 @@ public class InternalUsersValidator extends AbstractConfigurationValidator {
             }
         }
         return true;
+    }
+
+    @Override
+    protected Exception validationError(IOException e) {
+        if (e instanceof JsonProcessingException) {
+            String message = ((JsonProcessingException)e).getOriginalMessage();
+            return new SensitiveDataException("Passed User object is invalid: " + message);
+        }
+        return e;
+    }
+
+    private static class SensitiveDataException extends Exception {
+
+        public SensitiveDataException(String message) {
+            super(message);
+        }
     }
 }

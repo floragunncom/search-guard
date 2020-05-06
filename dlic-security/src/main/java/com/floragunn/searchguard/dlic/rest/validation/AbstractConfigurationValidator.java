@@ -133,9 +133,9 @@ public abstract class AbstractConfigurationValidator {
                 }
 
             } catch (IOException e) {
-                log.error(ErrorType.BODY_NOT_PARSEABLE.toString(), e);
+                log.error(ErrorType.BODY_NOT_PARSEABLE.toString(), validationError(e));
                 this.errorType = ErrorType.BODY_NOT_PARSEABLE;
-                lastException = e;
+                lastException = validationError(e);
                 return false;
             }
         }
@@ -190,6 +190,10 @@ public abstract class AbstractConfigurationValidator {
         }
 
         return valid;
+    }
+
+    protected Exception validationError(IOException e) {
+        return e;
     }
 
     private boolean checkDatatypes() throws Exception {
