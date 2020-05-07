@@ -28,8 +28,8 @@ import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.config.ConnectionConfig;
 import org.apache.http.config.MessageConstraints;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentLengthStrategy;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.ConnSupport;
 import org.apache.http.impl.DefaultBHttpServerConnection;
 import org.apache.http.impl.bootstrap.HttpServer;
@@ -52,7 +52,7 @@ public class MockWebserviceProvider implements Closeable {
     private final String uri;
     private final boolean ssl;
     private int responseStatusCode = 200;
-    private String responseBody = "Mockery";
+    private byte[] responseBody = "Mockery".getBytes();
     private String responseContentType = "text/plain";
     private String lastRequestBody;
     private final AtomicInteger requestCount = new AtomicInteger();
@@ -60,6 +60,12 @@ public class MockWebserviceProvider implements Closeable {
 
     MockWebserviceProvider(String path) throws IOException {
         this(path, SocketUtils.findAvailableTcpPort());
+    }
+
+    MockWebserviceProvider(String path, byte[] body, String contentType) throws IOException {
+        this(path, SocketUtils.findAvailableTcpPort());
+        responseContentType = contentType;
+        responseBody = body;
     }
 
     MockWebserviceProvider(String path, boolean ssl) throws IOException {
@@ -169,7 +175,7 @@ public class MockWebserviceProvider implements Closeable {
         
         response.setStatusCode(responseStatusCode);
         response.setHeader("Content-Type", responseContentType);
-        response.setEntity(new StringEntity(responseBody));
+        response.setEntity(new ByteArrayEntity(responseBody));
 
         if (request instanceof HttpEntityEnclosingRequest) {
             lastRequestBody = CharStreams
@@ -230,11 +236,15 @@ public class MockWebserviceProvider implements Closeable {
         this.responseStatusCode = responseStatusCode;
     }
 
-    public String getResponseBody() {
+    public byte[] getResponseBody() {
         return responseBody;
     }
 
-    public void setResponseBody(String responseBody) {
+    public void setResponseBody(String  responseBody) {
+        this.responseBody = responseBody.getBytes();
+    }
+
+    public void setResponseBody(byte[] responseBody) {
         this.responseBody = responseBody;
     }
 

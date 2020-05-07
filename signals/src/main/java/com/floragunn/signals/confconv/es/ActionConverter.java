@@ -1,18 +1,20 @@
 package com.floragunn.signals.confconv.es;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
+import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.util.duration.DurationExpression;
 import com.floragunn.signals.confconv.ConversionResult;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
@@ -147,6 +149,7 @@ public class ActionConverter {
         String subject = vJsonNode.string("subject");
         String textBody = "";
         String htmlBody = "";
+        Map<String, EmailAction.Attachment> attachments = new LinkedHashMap<>();
 
         if (vJsonNode.get("body") instanceof ObjectNode) {
             if (vJsonNode.get("body").hasNonNull("text")) {
@@ -176,15 +179,23 @@ public class ActionConverter {
             textBody = convertedBody.getElement();
         }
 
-        if (jsonNode.hasNonNull("attachments") || jsonNode.hasNonNull("attach_data")) {
-            validationErrors.add(new ValidationError("attachments", "Attachments are not supported"));
+        if (vJsonNode.hasNonNull("attachments")) {
+            JsonNode attachmentJson = vJsonNode.get("attachments");
+            attachmentJson.fields().forEachRemaining(e -> {
+                if (e.getValue().hasNonNull("http") && e.getValue().get("http").hasNonNull("request")
+                        && e.getValue().get("http").get("request").hasNonNull("url")) {
+                        JsonNode url = e.getValue().get("http").get("request").get("url");
+                        EmailAction.Attachment attachment = createGetRequestEmailAttachment(url);
+                        attachments.put(e.getKey(), attachment);
+                }
+            });
         }
 
         if (!jsonNode.hasNonNull("body") && !jsonNode.get("body").hasNonNull("text")
                 && !jsonNode.get("body").hasNonNull("html")) {
             validationErrors.add(new ValidationError("body", "Both body.text and body.html are empty"));
         }
-        
+
         EmailAction result = new EmailAction();
 
         result.setFrom(from);
@@ -195,8 +206,16 @@ public class ActionConverter {
         result.setBody(textBody);
         result.setHtmlBody(htmlBody);
         result.setReplyTo(replyTo);
-
+        result.setAttachments(attachments);
         return new ConversionResult<ActionHandler>(result, validationErrors);
+    }
+
+    private EmailAction.Attachment createGetRequestEmailAttachment(JsonNode url) {
+        EmailAction.Attachment attachment = new EmailAction.Attachment();
+        attachment.setType(EmailAction.Attachment.AttachmentType.REQUEST);
+        attachment.setRequestConfig(new HttpRequestConfig(HttpRequestConfig.Method.GET, URI.create(url.asText()),
+                null, null, null, null, null, null));
+        return attachment;
     }
 
     private ConversionResult<ActionHandler> createWebhookAction(JsonNode jsonNode) {
