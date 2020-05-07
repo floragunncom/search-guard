@@ -89,11 +89,10 @@ public class HttpClientConfig extends WatchElement {
     }
 
     public static HttpClientConfig create(ValidatingJsonNode jsonObject) throws ConfigValidationException {
-
         Integer connectionTimeout = null;
         Integer readTimeout = null;
         TlsConfig tlsConfig = null;
-        
+
         // TODO support units
 
         if (jsonObject.hasNonNull("read_timeout")) {
@@ -112,5 +111,9 @@ public class HttpClientConfig extends WatchElement {
 
         return new HttpClientConfig(connectionTimeout, readTimeout, tlsConfig);
 
+    }
+
+    public boolean isNull() {
+        return connectionTimeoutSecs == null && readTimeoutSecs == null && tlsConfig == null;
     }
 }

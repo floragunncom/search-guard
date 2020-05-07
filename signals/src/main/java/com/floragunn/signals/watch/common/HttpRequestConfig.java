@@ -273,6 +273,15 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
 
     public static HttpRequestConfig create(WatchInitializationService watchInitService, JsonNode objectNode)
             throws ConfigValidationException {
+        HttpRequestConfig result = createWithoutCompilation(objectNode);
+
+        result.compileScripts(watchInitService);
+
+        return result;
+
+    }
+
+    public static HttpRequestConfig createWithoutCompilation(JsonNode objectNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(objectNode, validationErrors);
 
@@ -301,12 +310,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
 
         validationErrors.throwExceptionForPresentErrors();
 
-        HttpRequestConfig result = new HttpRequestConfig(method, uri, path, queryParams, body, headers, auth, accept);
-
-        result.compileScripts(watchInitService);
-
-        return result;
-
+        return new HttpRequestConfig(method, uri, path, queryParams, body, headers, auth, accept);
     }
 
     public Auth getAuth() {
@@ -317,7 +321,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         this.auth = auth;
     }
 
-    public static enum Method {
+    public enum Method {
         POST, PUT, DELETE, GET;
     }
 }
