@@ -127,7 +127,7 @@ public class KeySetRetrieverTest {
 
             SettingsBasedSSLConfigurator.SSLConfig sslConfig = new SettingsBasedSSLConfigurator.SSLConfig(
                     sslContextBuilder.build(), new String[] { "TLSv1.2", "TLSv1.1" }, null, null, false, false, false,
-                    trustStore, null, keyStore, null, null);
+                    trustStore, null, keyStore, null, null, false);
 
             KeySetRetriever keySetRetriever = new KeySetRetriever(sslMockIdpServer.getDiscoverUri(), sslConfig, false);
 

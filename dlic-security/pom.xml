@@ -228,6 +228,12 @@
 			<version>2.4.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.unboundid</groupId>
+			<artifactId>unboundid-ldapsdk</artifactId>
+			<version>${unboundid-ldapsdk.version}</version>
+		</dependency>
+
 		<!-- Only test scoped dependencies hereafter -->
 
 		<dependency>
@@ -294,14 +300,6 @@
 			<groupId>javax.servlet</groupId>
 			<artifactId>servlet-api</artifactId>
 			<version>2.5</version>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- https://mvnrepository.com/artifact/com.unboundid/unboundid-ldapsdk -->
-		<dependency>
-			<groupId>com.unboundid</groupId>
-			<artifactId>unboundid-ldapsdk</artifactId>
-			<version>${unboundid-ldapsdk.version}</version>
 			<scope>test</scope>
 		</dependency>
 
