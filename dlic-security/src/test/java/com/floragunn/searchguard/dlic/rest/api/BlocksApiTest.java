@@ -244,7 +244,7 @@ public class BlocksApiTest extends AbstractRestApiUnitTest {
         HttpResponse response = rh.executePutRequest("_searchguard/api/blocks/a_block", "{\n" +
                 "\t\"type\": \"name\",\n" +
                 "\t\"value\": \"Spock\",\n" +
-                "\tdescription § \"Demo user blocked by name\"\n" +
+                "\tdescription \"Demo user blocked by name\"\n" +
                 "}\n");
         Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
         Assert.assertTrue(response.getBody().contains("JsonParseException"));

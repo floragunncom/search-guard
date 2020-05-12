@@ -179,7 +179,13 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 	protected final Map<String, Object> getCurrentLicense() throws Exception {
 		HttpResponse response = rh.executeGetRequest("_searchguard/api/license");
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		return (Map)DefaultObjectMapper.objectMapper.readValue(response.getBody(), Map.class).get("sg_license");
+
+		try {
+			return (Map)DefaultObjectMapper.objectMapper.readValue(response.getBody(), Map.class).get("sg_license");
+		} catch (Exception e) {
+			log.error("Parsing failed with " + e);
+			throw e;
+		}
 	}
 
 	protected final Settings getCurrentConfig() throws Exception {
