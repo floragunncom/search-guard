@@ -181,7 +181,12 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
 		try {
-			return (Map)DefaultObjectMapper.objectMapper.readValue(response.getBody(), Map.class).get("sg_license");
+			log.info("trying to parse");
+			String body = response.getBody();
+
+			log.info("body =" + body);
+
+			return (Map)DefaultObjectMapper.objectMapper.readValue(body, Map.class).get("sg_license");
 		} catch (Exception e) {
 			log.error("Parsing failed with " + e);
 			throw e;
