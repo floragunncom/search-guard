@@ -168,6 +168,7 @@ public class WatchBuilder {
 
         result.setDescription(description);
         result.setActive(active);
+        result.setThrottlePeriod(throttlePeriod);
 
         return result;
     }

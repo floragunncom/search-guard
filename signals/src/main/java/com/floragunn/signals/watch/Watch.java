@@ -649,4 +649,8 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             return LIST.toArray(new String[LIST.size()]);
         }
     }
+
+    public void setThrottlePeriod(DurationExpression throttlePeriod) {
+        this.throttlePeriod = throttlePeriod;
+    }
 }
