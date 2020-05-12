@@ -65,6 +65,7 @@ public class WatchBuilder {
     List<AlertAction> actions = new ArrayList<>();
     List<ResolveAction> resolveActions = new ArrayList<>();
     SeverityMapping severityMapping;
+    DurationExpression throttlePeriod;
 
     final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private boolean active = true;
@@ -110,6 +111,20 @@ public class WatchBuilder {
 
         this.triggers.add(new WeeklyTrigger(on, at, timeZone));
 
+        return this;
+    }
+
+    public WatchBuilder unthrottled() {
+        try {
+            throttlePeriod = DurationExpression.parse("0");
+            return this;
+        } catch (ConfigValidationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public WatchBuilder throttledFor(String expression) throws ConfigValidationException {
+        throttlePeriod = DurationExpression.parse(expression);
         return this;
     }
 

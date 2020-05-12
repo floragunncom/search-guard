@@ -154,6 +154,10 @@ public class SearchGuardFilter implements ActionFilter {
                 }
 
                 user = authFromInternalAuthToken.getUser();
+                
+                if (user != null) {
+                    threadContext.putTransient(ConfigConstants.SG_USER, user);
+                }
             }
             
             if (user != null) {

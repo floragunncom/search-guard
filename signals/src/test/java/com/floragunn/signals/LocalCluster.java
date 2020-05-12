@@ -146,7 +146,7 @@ public class LocalCluster extends ExternalResource {
     private void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex,
             ClusterConfiguration clusterConfiguration) {
         painlessWhitelistKludge();
-        
+
         try {
             clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration);
         } catch (RuntimeException e) {
@@ -159,7 +159,7 @@ public class LocalCluster extends ExternalResource {
             initialize(dynamicSgSettings);
         }
     }
-    
+
     private void painlessWhitelistKludge() {
         try (PainlessPlugin p = new PainlessPlugin()) {
             p.reloadSPI(getClass().getClassLoader());
@@ -293,6 +293,13 @@ public class LocalCluster extends ExternalResource {
 
                 nodeOverrideSettingsBuilder.put(key, String.valueOf(value));
             }
+
+            return this;
+        }
+
+        public Builder remote(String name, LocalCluster anotherCluster) {
+            nodeOverrideSettingsBuilder.putList("cluster.remote." + name + ".seeds",
+                    anotherCluster.clusterInfo.nodeHost + ":" + anotherCluster.clusterInfo.nodePort);
 
             return this;
         }
