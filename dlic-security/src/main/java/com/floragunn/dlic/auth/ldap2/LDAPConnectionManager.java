@@ -254,15 +254,44 @@ public final class LDAPConnectionManager implements Closeable {
     }
 
     public LDAPConnection getConnection() throws LDAPException {
-        return pool.getConnection();
+        try {
+            return AccessController.doPrivileged((PrivilegedExceptionAction<LDAPConnection>) pool::getConnection);
+        } catch (PrivilegedActionException e) {
+            if (e.getException() instanceof LDAPException) {
+                log.error("Creating LDAP connection failed {}", e.getException());
+                throw (LDAPException) e.getException();
+            } else if (e.getException() instanceof RuntimeException) {
+                log.error("Creating LDAP connection failed {}", e.getException());
+                throw (RuntimeException) e.getException();
+            } else {
+                log.error("Creating LDAP connection failed {}", e.getException());
+                throw new RuntimeException(e.getException());
+            }
+        }
     }
 
     public void checkDnPassword(String dn, String password) throws LDAPException {
-        pool.bindAndRevertAuthentication(new SimpleBindRequest(dn, password));
+        checkDnPassword(dn, password.getBytes());
     }
 
     public void checkDnPassword(String dn, byte[] password) throws LDAPException {
-        pool.bindAndRevertAuthentication(new SimpleBindRequest(dn, password));
+        try {
+            AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+                pool.bindAndRevertAuthentication(new SimpleBindRequest(dn, password));
+                return null;
+            });
+        } catch (PrivilegedActionException e) {
+            if (e.getException() instanceof LDAPException) {
+                log.error("Bind and revert connection failed {}", e.getException());
+                throw (LDAPException) e.getException();
+            } else if (e.getException() instanceof RuntimeException) {
+                log.error("Bind and revert connection failed {}", e.getException());
+                throw (RuntimeException) e.getException();
+            } else {
+                log.error("Bind and revert connection failed {}", e.getException());
+                throw new RuntimeException(e.getException());
+            }
+        }
     }
 
     public List<SearchResultEntry> search(LDAPConnection con, final String baseDN, final SearchScope scope,
