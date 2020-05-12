@@ -114,10 +114,13 @@ public final class LDAPConnectionManager implements Closeable {
                     new LDAPConnectionPool(createServerSet(ldapStrings, opts), bindRequest, poolMinSize, poolMaxSize));
         } catch (PrivilegedActionException e) {
             if (e.getException() instanceof LDAPException) {
+                log.error("Creating LDAP connection pool failed {}", e.getException());
                 throw (LDAPException) e.getException();
             } else if (e.getException() instanceof RuntimeException) {
+                log.error("Creating LDAP connection pool failed {}", e.getException());
                 throw (RuntimeException) e.getException();
             } else {
+                log.error("Creating LDAP connection pool failed {}", e.getException());
                 throw new RuntimeException(e.getException());
             }
         }
