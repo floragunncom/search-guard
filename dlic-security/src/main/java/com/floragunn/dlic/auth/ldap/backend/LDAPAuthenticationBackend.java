@@ -37,7 +37,6 @@ import org.ldaptive.SearchFilter;
 import org.ldaptive.SearchScope;
 
 import com.floragunn.dlic.auth.ldap.LdapUser;
-import com.floragunn.dlic.auth.ldap.LdapUser.DirEntry;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.auth.ldap.util.LdapHelper;
 import com.floragunn.dlic.auth.ldap.util.Utils;
@@ -128,7 +127,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend {
             // length of 36 are included in the user object
             // if the whitelist contains at least one value then all attributes will be
             // additional check if whitelisted (whitelist can contain wildcard and regex)
-            return new LdapUser(username, user, new DirEntry(entry), credentials, customAttrMaxValueLen, whitelistedAttributes);
+            return new LdapUser(username, user, entry, credentials, customAttrMaxValueLen, whitelistedAttributes);
 
         } catch (final Exception e) {
             if (log.isDebugEnabled()) {
@@ -154,7 +153,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend {
         String userName = user.getName();
 
         if (user instanceof LdapUser) {
-            userName = ((LdapUser) user).getUserEntry().getDN();
+            userName = ((LdapUser) user).getUserEntry().getDn();
         }
 
         try {
@@ -163,7 +162,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend {
             boolean exists = userEntry != null;
             
             if(exists) {
-                user.addAttributes(LdapUser.extractLdapAttributes(userName, new DirEntry(userEntry), customAttrMaxValueLen, whitelistedAttributes));
+                user.addAttributes(LdapUser.extractLdapAttributes(userName, userEntry, customAttrMaxValueLen, whitelistedAttributes));
             }
             
             return exists;

@@ -127,7 +127,7 @@ final class LdapServer {
         
         listenerConfigs.add(InMemoryListenerConfig.createLDAPConfig("ldap", null, ldapPort, serverSSLUtil.createSSLSocketFactory()));
         listenerConfigs.add(InMemoryListenerConfig.createLDAPSConfig("ldaps", ldapsPort, serverSSLUtil.createSSLServerSocketFactory()));
-        
+
         return listenerConfigs;
     }
     
@@ -161,11 +161,9 @@ final class LdapServer {
         //config.setLDAPDebugLogHandler(DEBUG_HANDLER);
         //config.setAccessLogHandler(DEBUG_HANDLER);
         //config.addAdditionalBindCredentials(configuration.getBindDn(), configuration.getPassword());
-        
-        //config.setMaxConnections(1);
 
         server = new InMemoryDirectoryServer(config);
-        
+
         try {
             /* Clear entries from server. */
             server.clear();

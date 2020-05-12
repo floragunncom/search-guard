@@ -14,7 +14,6 @@
 
 package com.floragunn.dlic.auth.ldap2;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.AccessController;
@@ -30,9 +29,16 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
+import org.ldaptive.BindRequest;
+import org.ldaptive.Connection;
+import org.ldaptive.ConnectionFactory;
+import org.ldaptive.Credential;
+import org.ldaptive.LdapEntry;
+import org.ldaptive.LdapException;
+import org.ldaptive.Response;
+import org.ldaptive.pool.ConnectionPool;
 
 import com.floragunn.dlic.auth.ldap.LdapUser;
-import com.floragunn.dlic.auth.ldap.LdapUser.DirEntry;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.auth.ldap.util.Utils;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
@@ -40,10 +46,6 @@ import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.auth.Destroyable;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.unboundid.ldap.sdk.Attribute;
-import com.unboundid.ldap.sdk.LDAPConnection;
-import com.unboundid.ldap.sdk.LDAPException;
-import com.unboundid.ldap.sdk.SearchResultEntry;
 
 public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destroyable {
 
@@ -51,13 +53,29 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
 
     private final Settings settings;
 
-    private final LDAPConnectionManager lcm;
+    private ConnectionPool connectionPool;
+    private ConnectionFactory connectionFactory;
+    private ConnectionFactory authConnectionFactory;
+    private LDAPUserSearcher userSearcher;
     private final int customAttrMaxValueLen;
     private final List<String> whitelistedAttributes;
 
-    public LDAPAuthenticationBackend2(final Settings settings, final Path configPath) throws SSLConfigException, LDAPException {
+    public LDAPAuthenticationBackend2(final Settings settings, final Path configPath) throws SSLConfigException {
         this.settings = settings;
-        this.lcm = new LDAPConnectionManager(settings, configPath);
+
+        LDAPConnectionFactoryFactory ldapConnectionFactoryFactory = new LDAPConnectionFactoryFactory(settings,
+                configPath);
+
+        this.connectionPool = ldapConnectionFactoryFactory.createConnectionPool();
+        this.connectionFactory = ldapConnectionFactoryFactory.createConnectionFactory(this.connectionPool);
+
+        if (this.connectionPool != null) {
+            this.authConnectionFactory = ldapConnectionFactoryFactory.createBasicConnectionFactory();
+        } else {
+            this.authConnectionFactory = this.connectionFactory;
+        }
+
+        this.userSearcher = new LDAPUserSearcher(settings);
         customAttrMaxValueLen = settings.getAsInt(ConfigConstants.LDAP_CUSTOM_ATTR_MAXVAL_LEN, 36);
         whitelistedAttributes = settings.getAsList(ConfigConstants.LDAP_CUSTOM_ATTR_WHITELIST,
                 null);
@@ -92,16 +110,16 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
 
     private User authenticate0(final AuthCredentials credentials) throws ElasticsearchSecurityException {
 
+        Connection ldapConnection = null;
         final String user = credentials.getUsername();
         byte[] password = credentials.getPassword();
 
         try {
 
-            SearchResultEntry entry = null;
+            ldapConnection = connectionFactory.getConnection();
+            ldapConnection.open();
 
-            try (LDAPConnection con = lcm.getConnection()) {
-                entry = lcm.exists(con, user);
-            }
+            LdapEntry entry = userSearcher.exists(ldapConnection, user);
 
             // fake a user that no exists
             // makes guessing if a user exists or not harder when looking on the
@@ -109,20 +127,24 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
             if (entry == null && settings.getAsBoolean(ConfigConstants.LDAP_FAKE_LOGIN_ENABLED, false)) {
                 String fakeLognDn = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_DN,
                         "CN=faketomakebindfail,DC=" + UUID.randomUUID().toString());
-                entry = new SearchResultEntry(fakeLognDn, new Attribute[0]);
+                entry = new LdapEntry(fakeLognDn);
                 password = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_PASSWORD, "fakeLoginPwd123")
                         .getBytes(StandardCharsets.UTF_8);
             } else if (entry == null) {
                 throw new ElasticsearchSecurityException("No user " + user + " found");
             }
 
-            final String dn = entry.getDN();
+            final String dn = entry.getDn();
 
             if (log.isTraceEnabled()) {
                 log.trace("Try to authenticate dn {}", dn);
             }
-            
-            lcm.checkDnPassword(dn, password);
+
+            if (this.connectionPool == null) {
+                authenticateByLdapServer(ldapConnection, dn, password);
+            } else {
+                authenticateByLdapServerWithSeparateConnection(dn, password);
+            }
 
             final String usernameAttribute = settings.get(ConfigConstants.LDAP_AUTHC_USERNAME_ATTRIBUTE, null);
             String username = dn;
@@ -139,7 +161,7 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
             // length of 36 are included in the user object
             // if the whitelist contains at least one value then all attributes will be
             // additional check if whitelisted (whitelist can contain wildcard and regex)
-            return new LdapUser(username, user, new DirEntry(entry), credentials, customAttrMaxValueLen, whitelistedAttributes);
+            return new LdapUser(username, user, entry, credentials, customAttrMaxValueLen, whitelistedAttributes);
 
         } catch (final Exception e) {
             if (log.isDebugEnabled()) {
@@ -149,6 +171,7 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
         } finally {
             Arrays.fill(password, (byte) '\0');
             password = null;
+            Utils.unbindAndCloseSilently(ldapConnection);
         }
 
     }
@@ -178,20 +201,22 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
     }
 
     private boolean exists0(final User user) {
-
+        Connection ldapConnection = null;
         String userName = user.getName();
 
         if (user instanceof LdapUser) {
-            userName = ((LdapUser) user).getUserEntry().getDN();
+            userName = ((LdapUser) user).getUserEntry().getDn();
         }
 
-        try (LDAPConnection con = lcm.getConnection()) {
-            SearchResultEntry userEntry = lcm.exists(con, userName);
+        try {
+            ldapConnection = this.connectionFactory.getConnection();
+            ldapConnection.open();
+            LdapEntry userEntry = this.userSearcher.exists(ldapConnection, userName);
             
             boolean exists = userEntry != null;
             
             if(exists) {
-                user.addAttributes(LdapUser.extractLdapAttributes(userName, new DirEntry(userEntry), customAttrMaxValueLen, whitelistedAttributes));
+                user.addAttributes(LdapUser.extractLdapAttributes(userName, userEntry, customAttrMaxValueLen, whitelistedAttributes));
             }
             
             return exists;
@@ -201,18 +226,51 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
                 log.debug("User does not exist due to ", e);
             }
             return false;
+        } finally {
+            Utils.unbindAndCloseSilently(ldapConnection);
+        }
+    }
+
+    private void authenticateByLdapServer(final Connection connection, final String dn, byte[] password)
+            throws LdapException {
+        final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        try {
+            AccessController.doPrivileged(new PrivilegedExceptionAction<Response<Void>>() {
+                @Override
+                public Response<Void> run() throws LdapException {
+                    return connection.getProviderConnection().bind(new BindRequest(dn, new Credential(password)));
+                }
+            });
+        } catch (PrivilegedActionException e) {
+            if (e.getException() instanceof LdapException) {
+                throw (LdapException) e.getException();
+            } else if (e.getException() instanceof RuntimeException) {
+                throw (RuntimeException) e.getException();
+            } else {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private void authenticateByLdapServerWithSeparateConnection(final String dn, byte[] password) throws LdapException {
+        try (Connection unpooledConnection = this.authConnectionFactory.getConnection()) {
+            unpooledConnection.open();
+            authenticateByLdapServer(unpooledConnection, dn, password);
         }
     }
 
     @Override
     public void destroy() {
-        if (this.lcm != null) {
-            try {
-                this.lcm.close();
-            } catch (IOException e) {
-                //ignore
-            }
+        if (this.connectionPool != null) {
+            this.connectionPool.close();
+            this.connectionPool = null;
         }
+
     }
 
 }

@@ -30,26 +30,26 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
+import org.ldaptive.Connection;
+import org.ldaptive.LdapAttribute;
+import org.ldaptive.LdapEntry;
 
 import com.floragunn.dlic.auth.ldap.LdapUser;
+import com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend;
+import com.floragunn.dlic.auth.ldap.backend.LDAPAuthorizationBackend;
 import com.floragunn.dlic.auth.ldap.srv.EmbeddedLDAPServer;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
+import com.floragunn.dlic.auth.ldap.util.LdapHelper;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.unboundid.ldap.sdk.Attribute;
-import com.unboundid.ldap.sdk.LDAPConnection;
-import com.unboundid.ldap.sdk.SearchResultEntry;
 
 @RunWith(Parameterized.class)
 public class LdapBackendTestNewStyleConfig2 {
 
     static {
         System.setProperty("sg.display_lic_none", "true");
-        //System.setProperty("com.unboundid.ldap.sdk.debug.enabled", "true");
-        //System.setProperty("com.unboundid.ldap.sdk.debug.type", "CONNECT");
-        //System.setProperty("com.unboundid.ldap.sdk.debug.level", "FINEST");
     }
 
     private static EmbeddedLDAPServer ldapServer = null;
@@ -72,22 +72,15 @@ public class LdapBackendTestNewStyleConfig2 {
     }
 
     protected Settings.Builder createBaseSettings() {
-        if (healthCheckEnabled) {
-            return Settings.builder()
-                    .put("pool.health_check.enabled", true)
-                    .put("pool.health_check.interval_millis", 5L)
-                    .put("pool.health_check.validation.max_response_time", 300L)
-                    .put("pool.health_check.validation.on_create", true)
-                    .put("pool.health_check.validation.on_release", true)
-                    .put("pool.health_check.validation.on_exception", true)
-                    .put("pool.health_check.pruning.enabled", true);
+        if (poolEnabled) {
+            return Settings.builder().put(ConfigConstants.LDAP_POOL_ENABLED, true);
         } else {
             return Settings.builder();
         }
     }
 
     @Parameter
-    public boolean healthCheckEnabled;
+    public boolean poolEnabled;
 
     @Test
     public void testLdapAuthentication() throws Exception {
@@ -259,8 +252,8 @@ public class LdapBackendTestNewStyleConfig2 {
                     .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
             Assert.fail("Expected Exception");
         } catch (Exception e) {
-            //Assert.assertEquals(org.ldaptive.provider.ConnectionException.class, e.getCause().getClass());
-            Assert.assertTrue(ExceptionUtils.getStackTrace(e), ExceptionUtils.getStackTrace(e).contains("No appropriate protocol"));
+            Assert.assertEquals(org.ldaptive.provider.ConnectionException.class, e.getCause().getClass());
+            Assert.assertTrue(ExceptionUtils.getStackTrace(e).contains("No appropriate protocol"));
         }
 
     }
@@ -280,7 +273,7 @@ public class LdapBackendTestNewStyleConfig2 {
                     .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
             Assert.fail("Expected Exception");
         } catch (Exception e) {
-            //Assert.assertEquals(org.ldaptive.provider.ConnectionException.class, e.getCause().getClass());
+            Assert.assertEquals(org.ldaptive.provider.ConnectionException.class, e.getCause().getClass());
             Assert.assertTrue(ExceptionUtils.getStackTrace(e), WildcardMatcher.match("*unsupported*ciphersuite*aaa*", ExceptionUtils.getStackTrace(e).toLowerCase()));
         }
 
@@ -369,7 +362,7 @@ public class LdapBackendTestNewStyleConfig2 {
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals("ceo", new ArrayList<>(new TreeSet<>(user.getRoles())).get(0));
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
     }
 
     @Test
@@ -378,13 +371,17 @@ public class LdapBackendTestNewStyleConfig2 {
         final Settings settings = createBaseSettings()
                 .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
                 .put("users.u1.search", "(uid={0})").build();
-        
-        try(LDAPConnectionManager conMngt = new LDAPConnectionManager(settings, null)){
-            try(LDAPConnection con = conMngt.getConnection()) {
-                final SearchResultEntry ref1 = conMngt.lookup(con, "cn=Ref1,ou=people,o=TEST");
-                Assert.assertEquals("cn=refsolved,ou=people,o=TEST", ref1.getDN());
-            }
+
+        final Connection con = new LDAPConnectionFactoryFactory(settings, null).createBasicConnectionFactory()
+                .getConnection();
+        try {
+            con.open();
+            final LdapEntry ref1 = LdapHelper.lookup(con, "cn=Ref1,ou=people,o=TEST");
+            Assert.assertEquals("cn=refsolved,ou=people,o=TEST", ref1.getDn());
+        } finally {
+            con.close();
         }
+
     }
 
     @Test
@@ -424,10 +421,10 @@ public class LdapBackendTestNewStyleConfig2 {
 
         Assert.assertNotNull(user);
         Assert.assertEquals("Michael Jackson", user.getOriginalUsername());
-        Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getUserEntry().getDN());
+        Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getUserEntry().getDn());
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals("ceo", new ArrayList<>(new TreeSet<>(user.getRoles())).get(0));
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
     }
 
     @Test
@@ -551,9 +548,7 @@ public class LdapBackendTestNewStyleConfig2 {
 
         final Settings settings = createBaseSettings()
                 .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
-                .put("users.u1.search", "(uid={0})")
-                .put(ConfigConstants.LDAPS_ENABLE_SSL, true)
-                .put(ConfigConstants.LDAPS_ENABLE_START_TLS, true)
+                .put("users.u1.search", "(uid={0})").put(ConfigConstants.LDAPS_ENABLE_START_TLS, true)
                 .put("searchguard.ssl.transport.truststore_filepath",
                         FileHelper.getAbsoluteFilePathFromClassPath("ldap/truststore.jks"))
                 .put("verify_hostnames", false).put("path.home", ".").build();
@@ -582,7 +577,7 @@ public class LdapBackendTestNewStyleConfig2 {
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
         Assert.assertEquals(0, user.getRoles().size());
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
     }
 
     @Test
@@ -843,7 +838,7 @@ public class LdapBackendTestNewStyleConfig2 {
         Assert.assertTrue(user.getRoles().contains("king"));
         Assert.assertTrue(user.getRoles().contains("role2"));
 
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
     }
 
     @Test
@@ -904,29 +899,29 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put(ConfigConstants.LDAP_AUTHZ_RESOLVE_NESTED_ROLES, true)
                 .build();
 
-        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("spec186", "spec186"
+        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("spec186", "spec186"
                 .getBytes(StandardCharsets.UTF_8)));
         Assert.assertNotNull(user);
         Assert.assertEquals("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST", user.getName());
-        //Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getUbEntry().getAttribute("cn").getValue());
-        new LDAPAuthorizationBackend2(settings, null).fillRoles(user, null);
+        Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getAttribute("cn").getStringValue());
+        new LDAPAuthorizationBackend(settings, null).fillRoles(user, null);
 
         Assert.assertEquals(3, user.getRoles().size());
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLEx(186n) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186nn) consists of\\, special="));
         
-        new LDAPAuthorizationBackend2(settings, null).fillRoles(new User("spec186"), null);
+        new LDAPAuthorizationBackend(settings, null).fillRoles(new User("spec186"), null);
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLEx(186n) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186nn) consists of\\, special="));
         
-        new LDAPAuthorizationBackend2(settings, null).fillRoles(new User("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
+        new LDAPAuthorizationBackend(settings, null).fillRoles(new User("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLEx(186n) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186nn) consists of\\, special="));
         
-        new LDAPAuthorizationBackend2(settings, null).fillRoles(new User("CN=AA BB\\/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
+        new LDAPAuthorizationBackend(settings, null).fillRoles(new User("CN=AA BB\\/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLEx(186n) consists of\\, special="));
         Assert.assertTrue(user.getRoles().toString().contains("ROLE/(186nn) consists of\\, special="));
@@ -939,37 +934,36 @@ public class LdapBackendTestNewStyleConfig2 {
                 .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
                 .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})")
                 .put(ConfigConstants.LDAP_AUTHC_USERBASE, "ou=people,o=TEST")
-                //.put(ConfigConstants.LDAP_AUTHC_USERNAME_ATTRIBUTE, "cn")
                 .put(ConfigConstants.LDAP_AUTHZ_ROLEBASE, "ou=groups,o=TEST")
                 .put(ConfigConstants.LDAP_AUTHZ_ROLENAME, "dn")
                 .put(ConfigConstants.LDAP_AUTHZ_ROLESEARCH, "(uniqueMember={0})")
                 .put(ConfigConstants.LDAP_AUTHZ_RESOLVE_NESTED_ROLES, true)
                 .build();
 
-        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("spec186", "spec186"
+        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("spec186", "spec186"
                 .getBytes(StandardCharsets.UTF_8)));
         Assert.assertNotNull(user);
         Assert.assertEquals("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST", user.getName());
-        //Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getUbEntry().getAttribute("cn").getValue());
-        new LDAPAuthorizationBackend2(settings, null).fillRoles(user, null);
+        Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getAttribute("cn").getStringValue());
+        new LDAPAuthorizationBackend(settings, null).fillRoles(user, null);
 
         Assert.assertEquals(3, user.getRoles().size());
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186n) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186nn) consists of\\, special\\=chars\\ "));
         
-        new LDAPAuthorizationBackend2(settings, null).fillRoles(new User("spec186"), null);
+        new LDAPAuthorizationBackend(settings, null).fillRoles(new User("spec186"), null);
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186n) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186nn) consists of\\, special\\=chars\\ "));
 
         
-        new LDAPAuthorizationBackend2(settings, null).fillRoles(new User("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
+        new LDAPAuthorizationBackend(settings, null).fillRoles(new User("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186n) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186nn) consists of\\, special\\=chars\\ "));
         
-        new LDAPAuthorizationBackend2(settings, null).fillRoles(new User("CN=AA BB\\/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
+        new LDAPAuthorizationBackend(settings, null).fillRoles(new User("CN=AA BB\\/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST"), null);
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186n) consists of\\, special\\=chars\\ "));
         Assert.assertTrue(user.getRoles().toString().contains("cn=ROLE/(186nn) consists of\\, special\\=chars\\ "));
@@ -986,11 +980,11 @@ public class LdapBackendTestNewStyleConfig2 {
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
                 .getBytes(StandardCharsets.UTF_8)));
         Assert.assertNotNull(user);
-        Attribute operationAttribute = user.getUserEntry().getUbEntry().getAttribute("entryUUID");
+        LdapAttribute operationAttribute = user.getUserEntry().getAttribute("entryUUID");
         Assert.assertNotNull(operationAttribute);
-        Assert.assertNotNull(operationAttribute.getValue());
-        Assert.assertTrue(operationAttribute.getValue().length() > 10);
-        Assert.assertTrue(operationAttribute.getValue().split("-").length == 5);
+        Assert.assertNotNull(operationAttribute.getStringValue());
+        Assert.assertTrue(operationAttribute.getStringValue().length() > 10);
+        Assert.assertTrue(operationAttribute.getStringValue().split("-").length == 5);
     }
 
     @AfterClass
