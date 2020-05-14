@@ -14,6 +14,7 @@ import java.util.List;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 
+import com.unboundid.util.ssl.HostNameSSLSocketVerifier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
@@ -82,6 +83,10 @@ public final class LDAPConnectionManager implements Closeable {
         }
 
         LDAPConnectionOptions opts = new LDAPConnectionOptions();
+
+        if (sslConfig != null && sslConfig.isHostnameVerificationEnabled()) {
+            opts.setSSLSocketVerifier(new HostNameSSLSocketVerifier(false));
+        }
 
         int connectTimeout = settings.getAsInt(ConfigConstants.LDAP_CONNECT_TIMEOUT, opts.getConnectTimeoutMillis()); // 0 means wait infinitely
         long responseTimeout = settings.getAsLong(ConfigConstants.LDAP_RESPONSE_TIMEOUT, opts.getResponseTimeoutMillis()); // 0 means wait infinitely
