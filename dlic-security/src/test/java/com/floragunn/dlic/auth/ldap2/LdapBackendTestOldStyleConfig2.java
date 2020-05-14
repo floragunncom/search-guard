@@ -312,6 +312,8 @@ public class LdapBackendTestOldStyleConfig2 {
                     .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
             Assert.fail("Expected Exception");
         } catch (Exception e) {
+            System.out.println("wh am i failing? " + e.toString());
+
             Assert.assertEquals(LDAPBindException.class, e.getClass());
         }
 
