@@ -116,7 +116,7 @@ public final class LDAPConnectionManager implements Closeable {
 
         try {
             pool = AccessController.doPrivileged((PrivilegedExceptionAction<LDAPConnectionPool>) () ->
-                    new LDAPConnectionPool(createServerSet(ldapStrings, opts), bindRequest, poolMinSize, poolMaxSize));
+                    new LDAPConnectionPool(createServerSet(ldapStrings, opts), bindRequest, poolMinSize, poolMaxSize, null, false));
         } catch (PrivilegedActionException e) {
             if (e.getException() instanceof LDAPException) {
                 throw (LDAPException) e.getException();
