@@ -19,7 +19,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.TreeSet;
 
-import com.unboundid.ldap.sdk.LDAPException;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
@@ -260,7 +259,7 @@ public class LdapBackendTestNewStyleConfig2 {
                     .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
             Assert.fail("Expected Exception");
         } catch (Exception e) {
-            Assert.assertEquals(LDAPException.class, e.getClass());
+            Assert.assertTrue(e.getMessage().contains("protocol is disabled or cipher suites are inappropriate"));
         }
 
     }
