@@ -20,6 +20,7 @@ package com.floragunn.searchguard.ssl.http.netty;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.network.NetworkService;
+import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
@@ -41,11 +42,11 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
     private static final Logger logger = LogManager.getLogger(SearchGuardSSLNettyHttpServerTransport.class);
     private final SearchGuardKeyStore sgks;
     private final SslExceptionHandler errorHandler;
-    
+
     public SearchGuardSSLNettyHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
-            final ThreadPool threadPool, final SearchGuardKeyStore sgks, final NamedXContentRegistry namedXContentRegistry, final ValidatingDispatcher dispatcher,
-            final SslExceptionHandler errorHandler) {
-        super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher);
+            final ThreadPool threadPool, final SearchGuardKeyStore sgks, final NamedXContentRegistry namedXContentRegistry,
+            final ValidatingDispatcher dispatcher, ClusterSettings clusterSettings, final SslExceptionHandler errorHandler) {
+        super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings);
         this.sgks = sgks;
         this.errorHandler = errorHandler;
     }
@@ -71,8 +72,9 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
     }
 
     protected class SSLHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
-        
-        protected SSLHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings, final SearchGuardKeyStore sgks) {
+
+        protected SSLHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings,
+                final SearchGuardKeyStore sgks) {
             super(transport, handlingSettings);
         }
 

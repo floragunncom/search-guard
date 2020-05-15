@@ -1,6 +1,10 @@
 package com.floragunn.signals.api;
 
+import static org.elasticsearch.rest.RestRequest.Method.DELETE;
+import static org.elasticsearch.rest.RestRequest.Method.PUT;
+
 import java.io.IOException;
+import java.util.List;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.node.NodeClient;
@@ -14,13 +18,17 @@ import com.floragunn.searchguard.filter.TenantAwareRestHandler;
 import com.floragunn.signals.actions.admin.start_stop.StartStopAction;
 import com.floragunn.signals.actions.admin.start_stop.StartStopRequest;
 import com.floragunn.signals.actions.admin.start_stop.StartStopResponse;
+import com.google.common.collect.ImmutableList;
 
 public class DeActivateGloballyAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
 
     public DeActivateGloballyAction(Settings settings, RestController controller) {
         super(settings);
-        controller.registerHandler(Method.PUT, "/_signals/admin/_active", this);
-        controller.registerHandler(Method.DELETE, "/_signals/admin/_active", this);
+    }
+
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(PUT, "/_signals/admin/_active"), new Route(DELETE, "/_signals/admin/_active"));
     }
 
     @Override

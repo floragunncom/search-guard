@@ -21,6 +21,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
@@ -33,23 +34,27 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.searchguard.auth.BackendRegistry;
+import com.google.common.collect.ImmutableList;
 
 public class SearchGuardHealthAction extends BaseRestHandler {
 
     private final BackendRegistry registry;
-    
+
     public SearchGuardHealthAction(final Settings settings, final RestController controller, final BackendRegistry registry) {
         super();
         this.registry = registry;
-        controller.registerHandler(GET, "/_searchguard/health", this);
-        controller.registerHandler(POST, "/_searchguard/health", this);
+    }
+
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_searchguard/health"), new Route(POST, "/_searchguard/health"));
     }
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         return new RestChannelConsumer() {
-            
-            final String mode = request.param("mode","strict");
+
+            final String mode = request.param("mode", "strict");
 
             @Override
             public void accept(RestChannel channel) throws Exception {
@@ -57,8 +62,7 @@ public class SearchGuardHealthAction extends BaseRestHandler {
                 RestStatus restStatus = RestStatus.OK;
                 BytesRestResponse response = null;
                 try {
-                    
-                    
+
                     String status = "UP";
                     String message = null;
 
@@ -79,12 +83,10 @@ public class SearchGuardHealthAction extends BaseRestHandler {
                 } finally {
                     builder.close();
                 }
-                
-                
+
                 channel.sendResponse(response);
             }
-            
-            
+
         };
     }
 

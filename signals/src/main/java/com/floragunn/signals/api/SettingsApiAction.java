@@ -5,6 +5,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
@@ -26,16 +27,18 @@ import com.floragunn.signals.actions.settings.get.GetSettingsResponse;
 import com.floragunn.signals.actions.settings.put.PutSettingsAction;
 import com.floragunn.signals.actions.settings.put.PutSettingsRequest;
 import com.floragunn.signals.actions.settings.put.PutSettingsResponse;
+import com.google.common.collect.ImmutableList;
 
 public class SettingsApiAction extends SignalsBaseRestHandler {
 
     public SettingsApiAction(final Settings settings, final RestController controller) {
         super(settings);
-        controller.registerHandler(GET, "/_signals/settings", this);
-        controller.registerHandler(GET, "/_signals/settings/{key}", this);
-        controller.registerHandler(PUT, "/_signals/settings/{key}", this);
-        controller.registerHandler(DELETE, "/_signals/settings/{key}", this);
+    }
 
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_signals/settings"), new Route(GET, "/_signals/settings/{key}"),
+                new Route(PUT, "/_signals/settings/{key}"), new Route(DELETE, "/_signals/settings/{key}"));
     }
 
     @Override

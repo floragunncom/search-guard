@@ -17,13 +17,13 @@
 
 package com.floragunn.searchguard.configuration;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
-import com.floragunn.searchguard.support.SgUtils;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
@@ -37,18 +37,19 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SgUtils;
 
 public class ConfigurationLoaderSG7 {
 
@@ -201,7 +202,7 @@ public class ConfigurationLoaderSG7 {
             return null;
         }
 
-        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, ref, XContentType.JSON)) {
+        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, ref, XContentType.JSON)) {
             parser.nextToken();
             parser.nextToken();
 

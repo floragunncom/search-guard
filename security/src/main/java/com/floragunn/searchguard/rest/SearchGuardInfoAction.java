@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
@@ -46,6 +47,7 @@ import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.google.common.collect.ImmutableList;
 
 public class SearchGuardInfoAction extends BaseRestHandler {
 
@@ -57,10 +59,13 @@ public class SearchGuardInfoAction extends BaseRestHandler {
         super();
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
-        controller.registerHandler(GET, "/_searchguard/authinfo", this);
-        controller.registerHandler(POST, "/_searchguard/authinfo", this);
     }
 
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_searchguard/authinfo"), new Route(POST, "/_searchguard/authinfo"));
+    }
+    
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         return new RestChannelConsumer() {

@@ -5,6 +5,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
@@ -19,14 +20,23 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.signals.actions.account.search.SearchAccountAction;
 import com.floragunn.signals.actions.account.search.SearchAccountRequest;
 import com.floragunn.signals.actions.account.search.SearchAccountResponse;
+import com.google.common.collect.ImmutableList;
 
 public class SearchAccountApiAction extends BaseRestHandler {
 
     public SearchAccountApiAction(final Settings settings, final RestController controller, final ThreadPool threadPool) {
-        controller.registerHandler(GET, "/_signals/destination/_search", this);
-        controller.registerHandler(POST, "/_signals/destination/_search", this);
-        controller.registerHandler(GET, "/_signals/account/_search", this);
-        controller.registerHandler(POST, "/_signals/account/_search", this);
+
+    }
+
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_signals/account/_search"), new Route(POST, "/_signals/account/_search"));
+    }
+
+    @Override
+    public List<DeprecatedRoute> deprecatedRoutes() {
+        return ImmutableList.of(new DeprecatedRoute(GET, "/_signals/destination/_search", "Use /_signals/account/_search instead"),
+                new DeprecatedRoute(POST, "/_signals/destination/_search", "Use /_signals/account/_search instead"));
     }
 
     @Override

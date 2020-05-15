@@ -1,6 +1,10 @@
 package com.floragunn.signals.api;
 
+import static org.elasticsearch.rest.RestRequest.Method.DELETE;
+import static org.elasticsearch.rest.RestRequest.Method.PUT;
+
 import java.io.IOException;
+import java.util.List;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.node.NodeClient;
@@ -14,15 +18,18 @@ import com.floragunn.searchguard.filter.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.AckWatchRequest;
 import com.floragunn.signals.actions.watch.ack.AckWatchResponse;
+import com.google.common.collect.ImmutableList;
 
 public class AckWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
 
     public AckWatchApiAction(Settings settings, RestController controller) {
         super(settings);
-        controller.registerHandler(Method.PUT, "/_signals/watch/{tenant}/{id}/_ack", this);
-        controller.registerHandler(Method.PUT, "/_signals/watch/{tenant}/{id}/_ack/{actionId}", this);
-        controller.registerHandler(Method.DELETE, "/_signals/watch/{tenant}/{id}/_ack", this);
-        controller.registerHandler(Method.DELETE, "/_signals/watch/{tenant}/{id}/_ack/{actionId}", this);
+    }
+
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(PUT, "/_signals/watch/{tenant}/{id}/_ack"), new Route(PUT, "/_signals/watch/{tenant}/{id}/_ack/{actionId}"),
+                new Route(DELETE, "/_signals/watch/{tenant}/{id}/_ack"), new Route(DELETE, "/_signals/watch/{tenant}/{id}/_ack/{actionId}"));
     }
 
     @Override

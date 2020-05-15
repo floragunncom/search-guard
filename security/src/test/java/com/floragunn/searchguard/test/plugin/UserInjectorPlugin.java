@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.elasticsearch.common.network.NetworkService;
+import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.PageCacheRecycler;
@@ -47,35 +48,37 @@ import com.floragunn.searchguard.support.ConfigConstants;
  * @author jkressin
  */
 public class UserInjectorPlugin extends Plugin implements NetworkPlugin {
-    
+
     Settings settings;
     ThreadPool threadPool;
-    
-    public UserInjectorPlugin(final Settings settings, final Path configPath) {        
+
+    public UserInjectorPlugin(final Settings settings, final Path configPath) {
         this.settings = settings;
     }
 
     @Override
     public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
             PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry,
-            NetworkService networkService, Dispatcher dispatcher) {
+            NetworkService networkService, Dispatcher dispatcher, ClusterSettings clusterSettings) {
 
         Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
         final UserInjectingDispatcher validatingDispatcher = new UserInjectingDispatcher(dispatcher);
-        httpTransports.put("com.floragunn.searchguard.http.UserInjectingServerTransport", () -> new UserInjectingServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, validatingDispatcher));        
+        httpTransports.put("com.floragunn.searchguard.http.UserInjectingServerTransport",
+                () -> new UserInjectingServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, validatingDispatcher, clusterSettings));
         return httpTransports;
     }
-    
+
     class UserInjectingServerTransport extends Netty4HttpServerTransport {
-        
+
         public UserInjectingServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
-                final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher) {
-            super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher);                        
+                final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
+                ClusterSettings clusterSettings) {
+            super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings);
         }
     }
-    
+
     class UserInjectingDispatcher implements Dispatcher {
-        
+
         private Dispatcher originalDispatcher;
 
         public UserInjectingDispatcher(final Dispatcher originalDispatcher) {
@@ -87,7 +90,7 @@ public class UserInjectorPlugin extends Plugin implements NetworkPlugin {
         public void dispatchRequest(RestRequest request, RestChannel channel, ThreadContext threadContext) {
             threadContext.putTransient(ConfigConstants.SG_INJECTED_USER, request.header(ConfigConstants.SG_INJECTED_USER));
             originalDispatcher.dispatchRequest(request, channel, threadContext);
-            
+
         }
 
         @Override
@@ -95,8 +98,7 @@ public class UserInjectorPlugin extends Plugin implements NetworkPlugin {
             threadContext.putTransient(ConfigConstants.SG_INJECTED_USER, channel.request().header(ConfigConstants.SG_INJECTED_USER));
             originalDispatcher.dispatchBadRequest(channel, threadContext, cause);
         }
-        
-        
+
     }
-    
+
 }

@@ -21,6 +21,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
@@ -31,13 +32,17 @@ import org.elasticsearch.rest.action.RestActions.NodesResponseRestListener;
 
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoRequest;
+import com.google.common.collect.ImmutableList;
 
 public class SearchGuardLicenseAction extends BaseRestHandler {
 
     public SearchGuardLicenseAction(final Settings settings, final RestController controller) {
         super();
-        controller.registerHandler(GET, "/_searchguard/license", this);
-        controller.registerHandler(POST, "/_searchguard/license", this);
+    }
+    
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_searchguard/license"), new Route(POST, "/_searchguard/license"));
     }
 
     @Override

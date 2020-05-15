@@ -5,6 +5,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
@@ -31,15 +32,18 @@ import com.floragunn.signals.actions.account.put.PutAccountAction;
 import com.floragunn.signals.actions.account.put.PutAccountRequest;
 import com.floragunn.signals.actions.account.put.PutAccountResponse;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 
 public class AccountApiAction extends SignalsBaseRestHandler {
 
     public AccountApiAction(final Settings settings, final RestController controller) {
         super(settings);
-        controller.registerHandler(GET, "/_signals/account/{type}/{id}", this);
-        controller.registerHandler(PUT, "/_signals/account/{type}/{id}", this);
-        controller.registerHandler(DELETE, "/_signals/account/{type}/{id}", this);
+    }
 
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_signals/account/{type}/{id}"), new Route(PUT, "/_signals/account/{type}/{id}"),
+                new Route(DELETE, "/_signals/account/{type}/{id}"));
     }
 
     @Override

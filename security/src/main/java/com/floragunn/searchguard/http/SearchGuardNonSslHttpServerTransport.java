@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.http;
 
 import org.elasticsearch.common.network.NetworkService;
+import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
@@ -30,11 +31,9 @@ import io.netty.channel.ChannelHandler;
 
 public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransport {
 
-    //https://github.com/floragunncom/search-guard/issues/256
-    
     public SearchGuardNonSslHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
-            final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher) {
-        super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher);
+            final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher, final  ClusterSettings clusterSettings) {
+        super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings);
     }
 
     @Override

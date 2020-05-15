@@ -3,6 +3,7 @@ package com.floragunn.signals.api;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
@@ -21,15 +22,19 @@ import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.floragunn.signals.confconv.ConversionResult;
 import com.floragunn.signals.confconv.es.EsWatcherConverter;
 import com.floragunn.signals.watch.Watch;
+import com.google.common.collect.ImmutableList;
 
 public class ConvertWatchApiAction extends SignalsBaseRestHandler {
 
     public ConvertWatchApiAction(final Settings settings, final RestController controller, final ThreadPool threadPool) {
         super(settings);
-        controller.registerHandler(POST, "/_signals/convert/es", this);
-
     }
 
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(POST, "/_signals/convert/es"));
+    }
+    
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 

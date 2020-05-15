@@ -28,6 +28,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -66,7 +67,7 @@ public class ConfigHelper {
         BytesReference retVal;
         XContentParser parser = null;
         try {
-            parser = XContentFactory.xContent(xContentType).createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, reader);
+            parser = XContentFactory.xContent(xContentType).createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, reader);
             parser.nextToken();
             final XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.copyCurrentStructure(parser);
