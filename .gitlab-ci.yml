@@ -34,7 +34,6 @@ build_and_deploy:
   #- missing: veracode, coverage, srcclr, sonar, scan_veracode.sh
   retry:
     max: 2
-    when: missing_dependency_failure
   #saving unittests reports
   artifacts:
     when: always
