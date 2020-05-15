@@ -100,12 +100,10 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.ScrollContext;
 import org.elasticsearch.search.internal.SearchContext;
-import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.RemoteClusterService;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.Transport.Connection;
-import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestHandler;
@@ -220,7 +218,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private static boolean isDisabled(final Settings settings) {
         return settings.getAsBoolean(ConfigConstants.SEARCHGUARD_DISABLED, false);
     }
-    
+
     private static boolean isSslOnlyMode(final Settings settings) {
         return settings.getAsBoolean(ConfigConstants.SEARCHGUARD_SSL_ONLY, false);
     }
@@ -256,7 +254,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
 
         signalsEnabled = settings.getAsBoolean("signals.enabled", true);
-        
+
         SearchGuardPlugin.protectedIndices = new ProtectedIndices(settings);
 
         demoCertHashes.add("54a92508de7a39d06242a0ffbf59414d7eb478633c719e6af03938daf6de8a1a");
@@ -462,7 +460,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.addAll(ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient, adminDns, cr, cs,
                         Objects.requireNonNull(principalExtractor), evaluator, threadPool, Objects.requireNonNull(auditLog)));
             }
-            
+
             if (signalsEnabled) {
                 handlers.addAll(ReflectionHelper.instantiateRestApiHandler("com.floragunn.signals.api.SignalsApiActions", settings, configPath,
                         restController, localClient, adminDns, cr, cs, scriptService, xContentRegistry, principalExtractor, evaluator, threadPool,
@@ -491,11 +489,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(LicenseInfoAction.INSTANCE, TransportLicenseInfoAction.class));
             actions.add(new ActionHandler<>(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));
         }
-        
+
         if (signalsEnabled) {
             actions.addAll(ReflectionHelper.getActions("com.floragunn.signals.Signals"));
         }
-        
+
         return actions;
     }
 
@@ -506,12 +504,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (signalsEnabled) {
             result.addAll(ReflectionHelper.getContexts("com.floragunn.signals.Signals"));
         }
-        
+
         return result;
     }
 
-    private CheckedFunction<DirectoryReader, DirectoryReader, IOException> loadFlsDlsIndexSearcherWrapper(final IndexService indexService, final ComplianceIndexingOperationListener ciol,
-            final ComplianceConfig complianceConfig) {
+    private CheckedFunction<DirectoryReader, DirectoryReader, IOException> loadFlsDlsIndexSearcherWrapper(final IndexService indexService,
+            final ComplianceIndexingOperationListener ciol, final ComplianceConfig complianceConfig) {
         namedXContentRegistry = indexService.xContentRegistry();
         try {
             namedXContentRegistry = indexService.xContentRegistry();
@@ -595,11 +593,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             }
 
             indexModule.addSearchOperationListener(new SearchOperationListener() {
-                
+
                 @Override
                 public void onNewContext(SearchContext context) {
-                    
-                    if(enterpriseModulesEnabled) {
+
+                    if (enterpriseModulesEnabled) {
                         dlsFlsValve.handleSearchContext(context, threadPool, namedXContentRegistry);
                     }
                 }
@@ -711,12 +709,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
             PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry,
-            NetworkService networkService, Dispatcher dispatcher) {
+            NetworkService networkService, Dispatcher dispatcher, ClusterSettings clusterSettings) {
 
         if (sslOnly) {
             return super.getHttpTransports(settings, threadPool, bigArrays, pageCacheRecycler, circuitBreakerService, xContentRegistry,
 
-                    networkService, dispatcher);
+                    networkService, dispatcher, clusterSettings);
         }
 
         Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
@@ -728,13 +726,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         configPath, evaluateSslExceptionHandler());
                 //TODO close sghst
                 final SearchGuardHttpServerTransport sghst = new SearchGuardHttpServerTransport(settings, networkService, bigArrays, threadPool, sgks,
-                        evaluateSslExceptionHandler(), xContentRegistry, validatingDispatcher);
+                        evaluateSslExceptionHandler(), xContentRegistry, validatingDispatcher, clusterSettings);
 
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport", () -> sghst);
             } else if (!client) {
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport",
-                        () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry,
-                                dispatcher));
+                        () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher,
+                                clusterSettings));
             }
         }
         return httpTransports;
@@ -743,11 +741,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public Collection<Object> createComponents(Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
-            Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry) {
+            Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
+            IndexNameExpressionResolver indexNameExpressionResolver) {
 
         if (sslOnly) {
             return super.createComponents(localClient, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry,
-                    environment, nodeEnvironment, namedWriteableRegistry);
+                    environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver);
         }
 
         this.threadPool = threadPool;
@@ -837,13 +836,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(sgi);
         components.add(dcf);
         components.add(internalAuthTokenProvider);
-        
+
         if (signalsEnabled) {
-            components.addAll(
-                    ReflectionHelper.createAlertingComponents(settings, configPath, localClient, clusterService, threadPool, resourceWatcherService,
-                            scriptService, xContentRegistry, environment, nodeEnvironment, internalAuthTokenProvider, protectedIndices, namedWriteableRegistry, dcf));
+            components.addAll(ReflectionHelper.createAlertingComponents(settings, configPath, localClient, clusterService, threadPool,
+                    resourceWatcherService, scriptService, xContentRegistry, environment, nodeEnvironment, internalAuthTokenProvider,
+                    protectedIndices, namedWriteableRegistry, dcf));
         }
-        
+
         sgRestHandler = new SearchGuardRestFilter(backendRegistry, auditLog, threadPool, principalExtractor, settings, configPath, compatConfig);
 
         return components;

@@ -41,6 +41,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.google.common.collect.ImmutableList;
 
 public class PermissionAction extends BaseRestHandler {
     private final PrivilegesEvaluator evaluator;
@@ -51,9 +52,13 @@ public class PermissionAction extends BaseRestHandler {
         super();
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
-        controller.registerHandler(GET, "/_searchguard/permission", this);
     }
 
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_searchguard/permission"));
+    }
+    
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         List<String> permissions = Arrays.asList(request.paramAsStringArray("permissions", new String[0]));

@@ -5,6 +5,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
@@ -31,15 +32,18 @@ import com.floragunn.signals.actions.watch.put.PutWatchRequest;
 import com.floragunn.signals.actions.watch.put.PutWatchResponse;
 import com.floragunn.signals.watch.Watch;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 
 public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
 
     public WatchApiAction(final Settings settings, final RestController controller, final ThreadPool threadPool) {
         super(settings);
-        controller.registerHandler(GET, "/_signals/watch/{tenant}/{id}", this);
-        controller.registerHandler(PUT, "/_signals/watch/{tenant}/{id}", this);
-        controller.registerHandler(DELETE, "/_signals/watch/{tenant}/{id}", this);
+    }
 
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_signals/watch/{tenant}/{id}"), new Route(PUT, "/_signals/watch/{tenant}/{id}"),
+                new Route(DELETE, "/_signals/watch/{tenant}/{id}"));
     }
 
     @Override

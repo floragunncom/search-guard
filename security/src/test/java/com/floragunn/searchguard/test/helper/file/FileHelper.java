@@ -36,13 +36,12 @@ import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
-
-import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
 
 public class FileHelper {
 
@@ -98,7 +97,7 @@ public class FileHelper {
 	
     public static BytesReference readYamlContent(final String file) {
 
-		try (XContentParser parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, new StringReader(loadFile(file)))) {
+		try (XContentParser parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, new StringReader(loadFile(file)))) {
 			parser.nextToken();
 			final XContentBuilder builder = XContentFactory.jsonBuilder();
 			builder.copyCurrentStructure(parser);
@@ -113,7 +112,7 @@ public class FileHelper {
         
         XContentParser parser = null;
         try {
-            parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, new StringReader(yaml));
+            parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, new StringReader(yaml));
             parser.nextToken();
             final XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.copyCurrentStructure(parser);

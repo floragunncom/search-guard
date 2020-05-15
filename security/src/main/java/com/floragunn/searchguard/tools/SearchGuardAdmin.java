@@ -37,8 +37,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import com.floragunn.searchguard.sgconf.impl.Meta;
-import com.floragunn.searchguard.sgconf.impl.v7.*;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -81,6 +79,7 @@ import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -107,14 +106,21 @@ import com.floragunn.searchguard.action.whoami.WhoAmIRequest;
 import com.floragunn.searchguard.action.whoami.WhoAmIResponse;
 import com.floragunn.searchguard.sgconf.Migration;
 import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.Meta;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
+import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
+import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
+import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
+import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
+import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.ConfigHelper;
-import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
 import com.floragunn.searchguard.support.SgJsonNode;
 import com.floragunn.searchguard.support.SgUtils;
 import com.google.common.io.CharStreams;
@@ -937,7 +943,7 @@ public class SearchGuardAdmin {
         BytesReference retVal;
         XContentParser parser = null;
         try {
-            parser = XContentFactory.xContent(xContentType).createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, content);
+            parser = XContentFactory.xContent(xContentType).createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, content);
             parser.nextToken();
             final XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.copyCurrentStructure(parser);
@@ -954,7 +960,7 @@ public class SearchGuardAdmin {
     
     private static String convertToYaml(String type, BytesReference bytes, boolean prettyPrint) throws IOException {
         
-        try (XContentParser parser = JsonXContent.jsonXContent.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, bytes.streamInput())) {
+        try (XContentParser parser = JsonXContent.jsonXContent.createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, bytes.streamInput())) {
             
             parser.nextToken();
             parser.nextToken();

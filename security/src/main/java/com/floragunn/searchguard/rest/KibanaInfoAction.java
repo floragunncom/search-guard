@@ -21,6 +21,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,6 +40,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.google.common.collect.ImmutableList;
 
 public class KibanaInfoAction extends BaseRestHandler {
 
@@ -51,8 +53,11 @@ public class KibanaInfoAction extends BaseRestHandler {
         super();
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
-        controller.registerHandler(GET, "/_searchguard/kibanainfo", this);
-        controller.registerHandler(POST, "/_searchguard/kibanainfo", this);
+    }
+    
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_searchguard/kibanainfo"), new Route(POST, "/_searchguard/kibanainfo"));
     }
 
     @Override

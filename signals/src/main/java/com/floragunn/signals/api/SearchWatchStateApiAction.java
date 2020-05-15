@@ -5,6 +5,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
@@ -20,13 +21,17 @@ import com.floragunn.searchguard.filter.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.state.search.SearchWatchStateAction;
 import com.floragunn.signals.actions.watch.state.search.SearchWatchStateRequest;
 import com.floragunn.signals.actions.watch.state.search.SearchWatchStateResponse;
+import com.google.common.collect.ImmutableList;
 
 public class SearchWatchStateApiAction extends BaseRestHandler implements TenantAwareRestHandler {
 
     public SearchWatchStateApiAction(final Settings settings, final RestController controller, final ThreadPool threadPool) {
-        controller.registerHandler(GET, "/_signals/watch/{tenant}/_search/_state", this);
-        controller.registerHandler(POST, "/_signals/watch/{tenant}/_search/_state", this);
 
+    }
+
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_signals/watch/{tenant}/_search/_state"),
+                new Route(POST, "/_signals/watch/{tenant}/_search/_state"));
     }
 
     @Override

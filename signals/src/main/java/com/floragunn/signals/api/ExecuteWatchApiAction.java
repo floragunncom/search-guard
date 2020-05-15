@@ -1,6 +1,7 @@
 package com.floragunn.signals.api;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -33,6 +34,7 @@ import com.floragunn.signals.execution.SimulationMode;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 
 public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
 
@@ -43,8 +45,12 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
             NamedXContentRegistry xContentRegistry) {
         super(settings);
         this.scriptService = scriptService;
-        controller.registerHandler(Method.POST, "/_signals/watch/{tenant}/_execute", this);
-        controller.registerHandler(Method.POST, "/_signals/watch/{tenant}/{id}/_execute", this);
+    }
+
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(Method.POST, "/_signals/watch/{tenant}/_execute"),
+                new Route(Method.POST, "/_signals/watch/{tenant}/{id}/_execute"));
     }
 
     @Override

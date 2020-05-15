@@ -18,12 +18,12 @@
 package com.floragunn.searchguard.ssl.rest;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
-import io.netty.handler.ssl.OpenSsl;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -43,6 +43,9 @@ import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
+import com.google.common.collect.ImmutableList;
+
+import io.netty.handler.ssl.OpenSsl;
 
 public class SearchGuardSSLInfoAction extends BaseRestHandler {
 
@@ -59,7 +62,11 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
         this.sgks = sgks;
         this.principalExtractor = principalExtractor;
         this.configPath = configPath;
-        controller.registerHandler(GET, "/_searchguard/sslinfo", this);
+    }
+    
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_searchguard/sslinfo"));
     }
     
     @Override

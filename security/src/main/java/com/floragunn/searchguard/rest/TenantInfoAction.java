@@ -21,6 +21,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.SortedMap;
 
 import org.apache.logging.log4j.LogManager;
@@ -43,6 +44,7 @@ import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.google.common.collect.ImmutableList;
 
 public class TenantInfoAction extends BaseRestHandler {
 
@@ -52,15 +54,18 @@ public class TenantInfoAction extends BaseRestHandler {
     private final ClusterService clusterService;
     private final AdminDNs adminDns;
 
-    public TenantInfoAction(final Settings settings, final RestController controller, 
-    		final PrivilegesEvaluator evaluator, final ThreadPool threadPool, final ClusterService clusterService, final AdminDNs adminDns) {
+    public TenantInfoAction(final Settings settings, final RestController controller, final PrivilegesEvaluator evaluator,
+            final ThreadPool threadPool, final ClusterService clusterService, final AdminDNs adminDns) {
         super();
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
         this.clusterService = clusterService;
         this.adminDns = adminDns;
-        controller.registerHandler(GET, "/_searchguard/tenantinfo", this);
-        controller.registerHandler(POST, "/_searchguard/tenantinfo", this);       
+    }
+
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(GET, "/_searchguard/tenantinfo"), new Route(POST, "/_searchguard/tenantinfo"));
     }
 
     @Override
@@ -71,41 +76,39 @@ public class TenantInfoAction extends BaseRestHandler {
             public void accept(RestChannel channel) throws Exception {
                 XContentBuilder builder = channel.newBuilder(); //NOSONAR
                 BytesRestResponse response = null;
-                
+
                 try {
 
-                    final User user = (User)threadContext.getTransient(ConfigConstants.SG_USER);
-                    
+                    final User user = (User) threadContext.getTransient(ConfigConstants.SG_USER);
+
                     //only allowed for admins or the kibanaserveruser
-                    if(user == null || 
-                    		(!user.getName().equals(evaluator.kibanaServerUsername()))
-                    		 && !adminDns.isAdmin(user)) {
-                        response = new BytesRestResponse(RestStatus.FORBIDDEN,"");
+                    if (user == null || (!user.getName().equals(evaluator.kibanaServerUsername())) && !adminDns.isAdmin(user)) {
+                        response = new BytesRestResponse(RestStatus.FORBIDDEN, "");
                     } else {
 
-                    	builder.startObject();
-	
-                    	final SortedMap<String, AliasOrIndex> lookup = clusterService.state().metaData().getAliasAndIndexLookup();
-                    	for(final String indexOrAlias: lookup.keySet()) {
-                    		final String tenant = tenantNameForIndex(indexOrAlias);
-                    		if(tenant != null) {
-                    			builder.field(indexOrAlias, tenant);
-                    		}
-                    	}
+                        builder.startObject();
 
-	                    builder.endObject();
-	
-	                    response = new BytesRestResponse(RestStatus.OK, builder);
+                        final SortedMap<String, AliasOrIndex> lookup = clusterService.state().metaData().getAliasAndIndexLookup();
+                        for (final String indexOrAlias : lookup.keySet()) {
+                            final String tenant = tenantNameForIndex(indexOrAlias);
+                            if (tenant != null) {
+                                builder.field(indexOrAlias, tenant);
+                            }
+                        }
+
+                        builder.endObject();
+
+                        response = new BytesRestResponse(RestStatus.OK, builder);
                     }
                 } catch (final Exception e1) {
-                    log.error(e1.toString(),e1);
+                    log.error(e1.toString(), e1);
                     builder = channel.newBuilder(); //NOSONAR
                     builder.startObject();
                     builder.field("error", e1.toString());
                     builder.endObject();
                     response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
                 } finally {
-                    if(builder != null) {
+                    if (builder != null) {
                         builder.close();
                     }
                 }
@@ -114,41 +117,37 @@ public class TenantInfoAction extends BaseRestHandler {
             }
         };
     }
-    
-    private String tenantNameForIndex(String index) {
-    	String[] indexParts;
-    	if(index == null 
-    			|| (indexParts = index.split("_")).length != 3
-    			) {
-    		return null;
-    	}
-    	
-    	
-    	if(!indexParts[0].equals(evaluator.kibanaIndex())) {
-    		return null;
-    	}
-    	
-    	try {
-			final int expectedHash = Integer.parseInt(indexParts[1]);
-			final String sanitizedName = indexParts[2];
-			
-			for(String tenant: evaluator.getAllConfiguredTenantNames()) {
-				if(tenant.hashCode() == expectedHash && sanitizedName.equals(tenant.toLowerCase().replaceAll("[^a-z0-9]+",""))) {
-					return tenant;
-				}
-			}
 
-			return "__private__";
-		} catch (NumberFormatException e) {
-			log.warn("Index "+index+" looks like a SG tenant index but we cannot parse the hashcode so we ignore it.");
-			return null;
-		}
+    private String tenantNameForIndex(String index) {
+        String[] indexParts;
+        if (index == null || (indexParts = index.split("_")).length != 3) {
+            return null;
+        }
+
+        if (!indexParts[0].equals(evaluator.kibanaIndex())) {
+            return null;
+        }
+
+        try {
+            final int expectedHash = Integer.parseInt(indexParts[1]);
+            final String sanitizedName = indexParts[2];
+
+            for (String tenant : evaluator.getAllConfiguredTenantNames()) {
+                if (tenant.hashCode() == expectedHash && sanitizedName.equals(tenant.toLowerCase().replaceAll("[^a-z0-9]+", ""))) {
+                    return tenant;
+                }
+            }
+
+            return "__private__";
+        } catch (NumberFormatException e) {
+            log.warn("Index " + index + " looks like a SG tenant index but we cannot parse the hashcode so we ignore it.");
+            return null;
+        }
     }
 
     @Override
     public String getName() {
         return "Tenant Info Action";
     }
-    
-    
+
 }

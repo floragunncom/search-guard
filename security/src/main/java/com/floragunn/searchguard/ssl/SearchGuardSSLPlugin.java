@@ -92,22 +92,22 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     protected final SearchGuardKeyStore sgks;
     protected PrincipalExtractor principalExtractor;
     protected final Path configPath;
-    private final static SslExceptionHandler NOOP_SSL_EXCEPTION_HANDLER = new SslExceptionHandler() {};
-    
-//    public SearchGuardSSLPlugin(final Settings settings, final Path configPath) {
-//        this(settings, configPath, false);
-//    }
+    private final static SslExceptionHandler NOOP_SSL_EXCEPTION_HANDLER=new SslExceptionHandler(){};
+
+    //    public SearchGuardSSLPlugin(final Settings settings, final Path configPath) {
+    //        this(settings, configPath, false);
+    //    }
 
     protected SearchGuardSSLPlugin(final Settings settings, final Path configPath, boolean disabled) {
-     
-        if(disabled) {
+
+        if (disabled) {
             this.settings = null;
             this.client = false;
             this.httpSSLEnabled = false;
             this.transportSSLEnabled = false;
             this.sgks = null;
             this.configPath = null;
-            
+
             AccessController.doPrivileged(new PrivilegedAction<Object>() {
                 @Override
                 public Object run() {
@@ -115,44 +115,47 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
                     return null;
                 }
             });
-            
-            
+
             return;
         }
-        
+
         this.configPath = configPath;
-        
-        if(this.configPath != null) {
-            log.info("ES Config path is "+this.configPath.toAbsolutePath());
+
+        if (this.configPath != null) {
+            log.info("ES Config path is " + this.configPath.toAbsolutePath());
         } else {
             log.info("ES Config path is not set");
         }
-        
-        final boolean allowClientInitiatedRenegotiation = settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_ALLOW_CLIENT_INITIATED_RENEGOTIATION, false);
-        final boolean rejectClientInitiatedRenegotiation = Boolean.parseBoolean(System.getProperty(SSLConfigConstants.JDK_TLS_REJECT_CLIENT_INITIATED_RENEGOTIATION));
-   
-        if(allowClientInitiatedRenegotiation && !rejectClientInitiatedRenegotiation) {
+
+        final boolean allowClientInitiatedRenegotiation = settings
+                .getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_ALLOW_CLIENT_INITIATED_RENEGOTIATION, false);
+        final boolean rejectClientInitiatedRenegotiation = Boolean
+                .parseBoolean(System.getProperty(SSLConfigConstants.JDK_TLS_REJECT_CLIENT_INITIATED_RENEGOTIATION));
+
+        if (allowClientInitiatedRenegotiation && !rejectClientInitiatedRenegotiation) {
             final String renegoMsg = "Client side initiated TLS renegotiation enabled. This can open a vulnerablity for DoS attacks through client side initiated TLS renegotiation.";
             log.warn(renegoMsg);
             System.out.println(renegoMsg);
             System.err.println(renegoMsg);
-        } else {   
-            if(!rejectClientInitiatedRenegotiation) {
-                
+        } else {
+            if (!rejectClientInitiatedRenegotiation) {
+
                 final SecurityManager sm = System.getSecurityManager();
 
                 if (sm != null) {
                     sm.checkPermission(new SpecialPermission());
                 }
-                
+
                 AccessController.doPrivileged(new PrivilegedAction<Object>() {
-                    @Override
+
+    @Override
                     public Object run() {
                         System.setProperty(SSLConfigConstants.JDK_TLS_REJECT_CLIENT_INITIATED_RENEGOTIATION, "true");
                         return null;
                     }
                 });
-                log.debug("Client side initiated TLS renegotiation forcibly disabled. This can prevent DoS attacks. (jdk.tls.rejectClientInitiatedRenegotiation set to true).");
+                log.debug(
+                        "Client side initiated TLS renegotiation forcibly disabled. This can prevent DoS attacks. (jdk.tls.rejectClientInitiatedRenegotiation set to true).");
             } else {
                 log.debug("Client side initiated TLS renegotiation already disabled.");
             }
@@ -177,7 +180,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         this.settings = settings;
         client = !"node".equals(this.settings.get(SearchGuardSSLPlugin.CLIENT_TYPE));
-        
+
         httpSSLEnabled = settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED,
                 SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_DEFAULT);
         transportSSLEnabled = settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED,
@@ -188,30 +191,29 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             System.out.println("SSL not activated for http and/or transport.");
             System.err.println("SSL not activated for http and/or transport.");
         }
-        
-        if(ExternalSearchGuardKeyStore.hasExternalSslContext(settings)) {
+
+        if (ExternalSearchGuardKeyStore.hasExternalSslContext(settings)) {
             this.sgks = new ExternalSearchGuardKeyStore(settings);
         } else {
             this.sgks = new DefaultSearchGuardKeyStore(settings, configPath);
         }
     }
-    
-    
-    
 
     @Override
     public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
             PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry,
-            NetworkService networkService, Dispatcher dispatcher) {
-        
+            NetworkService networkService, Dispatcher dispatcher, ClusterSettings clusterSettings) {
+
         final Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
         if (!client && httpSSLEnabled) {
-            
-            final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings, configPath, NOOP_SSL_EXCEPTION_HANDLER);
-            final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService, bigArrays, threadPool, sgks, xContentRegistry, validatingDispatcher, NOOP_SSL_EXCEPTION_HANDLER);
-            
+
+            final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
+                    configPath, NOOP_SSL_EXCEPTION_HANDLER);
+            final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService, bigArrays,
+                    threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, NOOP_SSL_EXCEPTION_HANDLER);
+
             httpTransports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport", () -> sgsnht);
-            
+
         }
         return httpTransports;
 
@@ -219,63 +221,59 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
     @Override
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
-            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter,
-            IndexNameExpressionResolver indexNameExpressionResolver, Supplier<DiscoveryNodes> nodesInCluster) {
-        
+            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
+            Supplier<DiscoveryNodes> nodesInCluster) {
+
         final List<RestHandler> handlers = new ArrayList<RestHandler>(1);
-        
+
         if (!client) {
             handlers.add(new SearchGuardSSLInfoAction(settings, configPath, restController, sgks, Objects.requireNonNull(principalExtractor)));
         }
-        
+
         return handlers;
     }
-    
-    
-    
+
     @Override
     public List<TransportInterceptor> getTransportInterceptors(NamedWriteableRegistry namedWriteableRegistry, ThreadContext threadContext) {
         List<TransportInterceptor> interceptors = new ArrayList<TransportInterceptor>(1);
-        
-        if(transportSSLEnabled && !client) {
+
+        if (transportSSLEnabled && !client) {
             interceptors.add(new SearchGuardSSLTransportInterceptor(settings, null, null, NOOP_SSL_EXCEPTION_HANDLER));
         }
-        
+
         return interceptors;
     }
 
-    
-    
     @Override
     public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, PageCacheRecycler pageCacheRecycler,
             CircuitBreakerService circuitBreakerService, NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
-        
+
         Map<String, Supplier<Transport>> transports = new HashMap<String, Supplier<Transport>>();
         if (transportSSLEnabled) {
             transports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyTransport",
-                    () -> new SearchGuardSSLNettyTransport(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService, sgks, NOOP_SSL_EXCEPTION_HANDLER));
+                    () -> new SearchGuardSSLNettyTransport(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler,
+                            namedWriteableRegistry, circuitBreakerService, sgks, NOOP_SSL_EXCEPTION_HANDLER));
 
         }
         return transports;
 
     }
     
-    
-    
     @Override
     public Collection<Object> createComponents(Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
-            Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry) {
+            Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
+            IndexNameExpressionResolver indexNameExpressionResolver) {
 
         final List<Object> components = new ArrayList<>(1);
-        
-        if(client) {
+
+        if (client) {
             return components;
         }
-        
+
         final String principalExtractorClass = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, null);
 
-        if(principalExtractorClass == null) {
+        if (principalExtractorClass == null) {
             principalExtractor = new com.floragunn.searchguard.ssl.transport.DefaultPrincipalExtractor();
         } else {
             try {
@@ -287,9 +285,9 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
                 throw new ElasticsearchException(e);
             }
         }
-        
+
         components.add(principalExtractor);
-        
+
         return components;
     }
 
@@ -306,12 +304,18 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_PASSWORD, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_TYPE, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, false, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED, SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_DEFAULT, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, false,Property.NodeScope, Property.Filtered));
-        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED, SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_DEFAULT, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION, true, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME, true, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, false, Property.NodeScope,
+                Property.Filtered));
+        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED, SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_DEFAULT,
+                Property.NodeScope, Property.Filtered));
+        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, false, Property.NodeScope,
+                Property.Filtered));
+        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED,
+                SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_DEFAULT, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION, true, Property.NodeScope,
+                Property.Filtered));
+        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME, true,
+                Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_PASSWORD, Property.NodeScope, Property.Filtered));
@@ -321,17 +325,23 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.listSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_CIPHERS, Collections.emptyList(), Function.identity(), Property.NodeScope));//not filtered here
-        settings.add(Setting.listSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_PROTOCOLS, Collections.emptyList(), Function.identity(), Property.NodeScope));//not filtered here
-        settings.add(Setting.listSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_CIPHERS, Collections.emptyList(), Function.identity(), Property.NodeScope));//not filtered here
-        settings.add(Setting.listSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_PROTOCOLS, Collections.emptyList(), Function.identity(), Property.NodeScope));//not filtered here
+        settings.add(Setting.listSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_CIPHERS, Collections.emptyList(), Function.identity(),
+                Property.NodeScope));//not filtered here
+        settings.add(Setting.listSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_PROTOCOLS, Collections.emptyList(), Function.identity(),
+                Property.NodeScope));//not filtered here
+        settings.add(Setting.listSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_CIPHERS, Collections.emptyList(), Function.identity(),
+                Property.NodeScope));//not filtered here
+        settings.add(Setting.listSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_PROTOCOLS, Collections.emptyList(), Function.identity(),
+                Property.NodeScope));//not filtered here
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_CLIENT_EXTERNAL_CONTEXT_ID, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, Property.NodeScope, Property.Filtered));
+        settings.add(
+                Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, Property.NodeScope, Property.Filtered));
 
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(
+                Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH, Property.NodeScope, Property.Filtered));
 
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH, Property.NodeScope, Property.Filtered));
@@ -340,36 +350,38 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_FILE, Property.NodeScope, Property.Filtered));
         settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_VALIDATE, false, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_PREFER_CRLFILE_OVER_OCSP, false, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_CHECK_ONLY_END_ENTITIES, true, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_PREFER_CRLFILE_OVER_OCSP, false, Property.NodeScope,
+                Property.Filtered));
+        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_CHECK_ONLY_END_ENTITIES, true, Property.NodeScope,
+                Property.Filtered));
         settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_DISABLE_CRLDP, false, Property.NodeScope, Property.Filtered));
         settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_DISABLE_OCSP, false, Property.NodeScope, Property.Filtered));
         settings.add(Setting.longSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_VALIDATION_DATE, -1, -1, Property.NodeScope, Property.Filtered));
         return settings;
     }
 
-
     @Override
     public Settings additionalSettings() {
-       final Settings.Builder builder = Settings.builder();
-        
-       if(!client && httpSSLEnabled) {
-           
-           if(settings.get("http.compression") == null) {
-               builder.put("http.compression", false);
-               log.info("Disabled https compression by default to mitigate BREACH attacks. You can enable it by setting 'http.compression: true' in elasticsearch.yml");
-           }
-           
-           builder.put(NetworkModule.HTTP_TYPE_KEY, "com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport");
-       }
-        
-       if (transportSSLEnabled) {
-           builder.put(NetworkModule.TRANSPORT_TYPE_KEY, "com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyTransport");
-       }
-        
+        final Settings.Builder builder = Settings.builder();
+
+        if (!client && httpSSLEnabled) {
+
+            if (settings.get("http.compression") == null) {
+                builder.put("http.compression", false);
+                log.info(
+                        "Disabled https compression by default to mitigate BREACH attacks. You can enable it by setting 'http.compression: true' in elasticsearch.yml");
+            }
+
+            builder.put(NetworkModule.HTTP_TYPE_KEY, "com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport");
+        }
+
+        if (transportSSLEnabled) {
+            builder.put(NetworkModule.TRANSPORT_TYPE_KEY, "com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyTransport");
+        }
+
         return builder.build();
     }
-    
+
     @Override
     public List<String> getSettingsFilter() {
         List<String> settingsFilter = new ArrayList<>();
