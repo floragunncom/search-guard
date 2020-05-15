@@ -32,7 +32,9 @@ build_and_deploy:
   - cp -r /builds/private/sg-suite-enterprise/sgbuild0/sg-suite-enterprise/dlic-signals/target/surefire-reports/ /builds/private/sg-suite-enterprise/sgbuild0/dlic-signals/ || true  
   - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -DskipTests -s settings.xml clean deploy #deploy snapshot
   #- missing: veracode, coverage, srcclr, sonar, scan_veracode.sh
-
+  retry:
+    max: 2
+    when: missing_dependency_failure
   #saving unittests reports
   artifacts:
     when: always
