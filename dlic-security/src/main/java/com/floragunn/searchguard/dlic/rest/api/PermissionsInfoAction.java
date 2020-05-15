@@ -43,66 +43,73 @@ import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Provides the evaluated REST API permissions for the currently logged in user 
  */
 public class PermissionsInfoAction extends BaseRestHandler {
 
-	private final RestApiPrivilegesEvaluator restApiPrivilegesEvaluator;
-	private final ThreadPool threadPool;
-	private final PrivilegesEvaluator privilegesEvaluator;
-	
-	protected PermissionsInfoAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
-			final AdminDNs adminDNs, final ConfigurationRepository cl, final ClusterService cs,
-			final PrincipalExtractor principalExtractor, final PrivilegesEvaluator privilegesEvaluator, ThreadPool threadPool, AuditLog auditLog) {
-		super();
-		controller.registerHandler(Method.GET, "/_searchguard/api/permissionsinfo", this);
-		this.threadPool = threadPool;
-		this.privilegesEvaluator = privilegesEvaluator;
-		this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, privilegesEvaluator, principalExtractor, configPath, threadPool);
-	}
+    private final RestApiPrivilegesEvaluator restApiPrivilegesEvaluator;
+    private final ThreadPool threadPool;
+    private final PrivilegesEvaluator privilegesEvaluator;
 
-	@Override
-	public String getName() {
-		return getClass().getSimpleName();
-	}
+    protected PermissionsInfoAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
+            final AdminDNs adminDNs, final ConfigurationRepository cl, final ClusterService cs, final PrincipalExtractor principalExtractor,
+            final PrivilegesEvaluator privilegesEvaluator, ThreadPool threadPool, AuditLog auditLog) {
+        super();
+        this.threadPool = threadPool;
+        this.privilegesEvaluator = privilegesEvaluator;
+        this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, privilegesEvaluator, principalExtractor, configPath,
+                threadPool);
+    }
 
-	@Override
-	protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-		switch (request.method()) {
-		case GET:
-			return handleGet(request, client);
-		default:
-			throw new IllegalArgumentException(request.method() + " not supported");
-		}
-	}
+    @Override
+    public List<Route> routes() {
+        return ImmutableList.of(new Route(Method.GET, "/_searchguard/api/permissionsinfo"));
+    }
 
-	private RestChannelConsumer handleGet(RestRequest request, NodeClient client) throws IOException {
-		
+    @Override
+    public String getName() {
+        return getClass().getSimpleName();
+    }
+
+    @Override
+    protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+        switch (request.method()) {
+        case GET:
+            return handleGet(request, client);
+        default:
+            throw new IllegalArgumentException(request.method() + " not supported");
+        }
+    }
+
+    private RestChannelConsumer handleGet(RestRequest request, NodeClient client) throws IOException {
+
         return new RestChannelConsumer() {
 
             @Override
             public void accept(RestChannel channel) throws Exception {
                 XContentBuilder builder = channel.newBuilder(); //NOSONAR
                 BytesRestResponse response = null;
-                
+
                 try {
 
-            		final User user = (User) threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
-            		final TransportAddress remoteAddress = (TransportAddress) threadPool.getThreadContext()
-            				.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-            		Set<String> userRoles = privilegesEvaluator.mapSgRoles(user, remoteAddress);
-            		Boolean hasApiAccess = restApiPrivilegesEvaluator.currentUserHasRestApiAccess(userRoles);
-            		Map<Endpoint, List<Method>> disabledEndpoints = restApiPrivilegesEvaluator.getDisabledEndpointsForCurrentUser(user.getName(), userRoles);
+                    final User user = (User) threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
+                    final TransportAddress remoteAddress = (TransportAddress) threadPool.getThreadContext()
+                            .getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+                    Set<String> userRoles = privilegesEvaluator.mapSgRoles(user, remoteAddress);
+                    Boolean hasApiAccess = restApiPrivilegesEvaluator.currentUserHasRestApiAccess(userRoles);
+                    Map<Endpoint, List<Method>> disabledEndpoints = restApiPrivilegesEvaluator.getDisabledEndpointsForCurrentUser(user.getName(),
+                            userRoles);
 
                     builder.startObject();
-                    builder.field("user", user==null?null:user.toString());
-                    builder.field("user_name", user==null?null:user.getName()); //NOSONAR
+                    builder.field("user", user == null ? null : user.toString());
+                    builder.field("user_name", user == null ? null : user.getName()); //NOSONAR
                     builder.field("has_api_access", hasApiAccess);
                     builder.startObject("disabled_endpoints");
-                    for(Entry<Endpoint, List<Method>>  entry : disabledEndpoints.entrySet()) {
-                    	builder.field(entry.getKey().name(), entry.getValue());
+                    for (Entry<Endpoint, List<Method>> entry : disabledEndpoints.entrySet()) {
+                        builder.field(entry.getKey().name(), entry.getValue());
                     }
                     builder.endObject();
                     builder.endObject();
@@ -115,7 +122,7 @@ public class PermissionsInfoAction extends BaseRestHandler {
                     builder.endObject();
                     response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
                 } finally {
-                    if(builder != null) {
+                    if (builder != null) {
                         builder.close();
                     }
                 }
@@ -124,6 +131,6 @@ public class PermissionsInfoAction extends BaseRestHandler {
             }
         };
 
-	}
+    }
 
 }

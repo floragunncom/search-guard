@@ -25,6 +25,7 @@ import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentHelper;
@@ -37,7 +38,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
 
 public class Utils {
 
@@ -57,7 +57,7 @@ public class Utils {
     }
     
     public static Map<String, Object> convertJsonToxToStructuredMap(String jsonContent) {
-        try (XContentParser parser = XContentType.JSON.xContent().createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, jsonContent)) {
+        try (XContentParser parser = XContentType.JSON.xContent().createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, jsonContent)) {
             return parser.map();
         } catch (IOException e1) {
             throw ExceptionsHelper.convertToElastic(e1);

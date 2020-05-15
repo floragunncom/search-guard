@@ -29,6 +29,7 @@ import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.join.BitSetProducer;
 import org.apache.lucene.search.join.ToChildBlockJoinQuery;
+import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
@@ -37,7 +38,6 @@ import org.elasticsearch.index.query.ParsedQuery;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryShardContext;
 
-import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
@@ -83,7 +83,7 @@ final class DlsQueryParser {
 
                     @Override
                     public QueryBuilder call() throws Exception {
-                        final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry, SearchGuardDeprecationHandler.INSTANCE, unparsedDlsQuery);                
+                        final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, unparsedDlsQuery);                
                         final QueryBuilder qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
                         return qb;
                     }
@@ -126,7 +126,7 @@ final class DlsQueryParser {
 
                     @Override
                     public QueryBuilder call() throws Exception {
-                        final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry, SearchGuardDeprecationHandler.INSTANCE, unparsedDlsQuery);                
+                        final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, unparsedDlsQuery);                
                         final QueryBuilder qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
                         return qb;
                     }

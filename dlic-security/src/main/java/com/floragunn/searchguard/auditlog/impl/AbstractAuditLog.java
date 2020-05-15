@@ -46,6 +46,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
@@ -73,7 +74,6 @@ import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 import com.google.common.io.BaseEncoding;
@@ -557,7 +557,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 String originalSource = null;
                 String currentSource = null;
                 if (searchguardIndex.equals(shardId.getIndexName())) {
-                    try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, originalResult.internalSourceRef(), XContentType.JSON)) {
+                    try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, originalResult.internalSourceRef(), XContentType.JSON)) {
                         Object base64 = parser.map().values().iterator().next();
                         if(base64 instanceof String) {
                             originalSource = (new String(BaseEncoding.base64().decode((String) base64)));
@@ -568,7 +568,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                          log.error(e);
                      }
                     
-                    try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, currentIndex.source(), XContentType.JSON)) {
+                    try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, currentIndex.source(), XContentType.JSON)) {
                         Object base64 = parser.map().values().iterator().next();
                         if(base64 instanceof String) {
                             currentSource = (new String(BaseEncoding.base64().decode((String) base64)));
@@ -593,7 +593,7 @@ public abstract class AbstractAuditLog implements AuditLog {
          if (!complianceConfig.logWriteMetadataOnly()){
             if(searchguardIndex.equals(shardId.getIndexName())) {
                 //current source, normally not null or empty
-                try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, currentIndex.source(), XContentType.JSON)) {
+                try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, currentIndex.source(), XContentType.JSON)) {
                    Object base64 = parser.map().values().iterator().next();
                    if(base64 instanceof String) {
                        msg.addUnescapedJsonToRequestBody(new String(BaseEncoding.base64().decode((String) base64)));
