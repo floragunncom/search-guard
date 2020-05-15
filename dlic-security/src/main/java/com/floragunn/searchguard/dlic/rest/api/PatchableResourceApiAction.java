@@ -14,10 +14,16 @@
 
 package com.floragunn.searchguard.dlic.rest.api;
 
+import static org.elasticsearch.rest.RestRequest.Method.DELETE;
+import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestRequest.Method.PATCH;
+import static org.elasticsearch.rest.RestRequest.Method.PUT;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,12 +35,10 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
-import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -51,21 +55,26 @@ import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValid
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
+import com.google.common.collect.ImmutableList;
 
 public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
 
-    public PatchableResourceApiAction(Settings settings, Path configPath, RestController controller, Client client,
-            AdminDNs adminDNs, ConfigurationRepository cl, ClusterService cs,
-            PrincipalExtractor principalExtractor, PrivilegesEvaluator evaluator, ThreadPool threadPool,
-            AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, cs, principalExtractor, evaluator, threadPool,
-                auditLog);
+    public PatchableResourceApiAction(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDNs,
+            ConfigurationRepository cl, ClusterService cs, PrincipalExtractor principalExtractor, PrivilegesEvaluator evaluator,
+            ThreadPool threadPool, AuditLog auditLog) {
+        super(settings, configPath, controller, client, adminDNs, cl, cs, principalExtractor, evaluator, threadPool, auditLog);
     }
 
-    private void handlePatch(RestChannel channel, final RestRequest request, final Client client)
-            throws IOException  {
+    protected List<Route> getStandardResourceRoutes(String resourceName) {
+        return ImmutableList.of(new Route(GET, "/_searchguard/api/" + resourceName + "/{name}"),
+                new Route(GET, "/_searchguard/api/" + resourceName + "/"), new Route(DELETE, "/_searchguard/api/" + resourceName + "/{name}"),
+                new Route(PUT, "/_searchguard/api/" + resourceName + "/{name}"), new Route(PATCH, "/_searchguard/api/" + resourceName + "/"),
+                new Route(PATCH, "/_searchguard/api/" + resourceName + "/{name}"));
+    }
+
+    private void handlePatch(RestChannel channel, final RestRequest request, final Client client) throws IOException {
         if (request.getXContentType() != XContentType.JSON) {
             badRequestResponse(channel, "PATCH accepts only application/json");
             return;
@@ -128,43 +137,43 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             badRequestResponse(channel, e.getMessage());
             return;
         }
-                
-        AbstractConfigurationValidator originalValidator = postProcessApplyPatchResult(channel, request, existingResourceAsJsonNode, patchedResourceAsJsonNode, name);
 
-        if(originalValidator != null) {
-        	if (!originalValidator.validate()) {
+        AbstractConfigurationValidator originalValidator = postProcessApplyPatchResult(channel, request, existingResourceAsJsonNode,
+                patchedResourceAsJsonNode, name);
+
+        if (originalValidator != null) {
+            if (!originalValidator.validate()) {
                 request.params().clear();
                 badRequestResponse(channel, originalValidator);
                 return;
             }
         }
-        
 
-            AbstractConfigurationValidator validator = getValidator(request, patchedResourceAsJsonNode);
+        AbstractConfigurationValidator validator = getValidator(request, patchedResourceAsJsonNode);
 
-            if (!validator.validate()) {
-                request.params().clear();
-                badRequestResponse(channel, validator);
-                return;
+        if (!validator.validate()) {
+            request.params().clear();
+            badRequestResponse(channel, validator);
+            return;
+        }
+
+        JsonNode updatedAsJsonNode = existingAsObjectNode.deepCopy().set(name, patchedResourceAsJsonNode);
+
+        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromNode(updatedAsJsonNode, existingConfiguration.getCType(),
+                existingConfiguration.getVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm());
+
+        saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
+
+            @Override
+            public void onResponse(IndexResponse response) {
+                successResponse(channel, "'" + name + "' updated.");
+
             }
-
-            JsonNode updatedAsJsonNode = existingAsObjectNode.deepCopy().set(name, patchedResourceAsJsonNode);
-
-            SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromNode(updatedAsJsonNode, existingConfiguration.getCType()
-                    , existingConfiguration.getVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm());
-
-            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel){
-                
-                @Override
-                public void onResponse(IndexResponse response) {
-                    successResponse(channel, "'" + name + "' updated.");
-                    
-                }
-            });
+        });
     }
 
-    private void handleBulkPatch(RestChannel channel, RestRequest request, Client client,
-            SgDynamicConfiguration<?> existingConfiguration, ObjectNode existingAsObjectNode, JsonNode jsonPatch) throws IOException {
+    private void handleBulkPatch(RestChannel channel, RestRequest request, Client client, SgDynamicConfiguration<?> existingConfiguration,
+            ObjectNode existingAsObjectNode, JsonNode jsonPatch) throws IOException {
 
         JsonNode patchedAsJsonNode;
 
@@ -194,44 +203,44 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             }
         }
 
-            
-            for (Iterator<String> fieldNamesIter = patchedAsJsonNode.fieldNames(); fieldNamesIter.hasNext();) {
-                String resourceName = fieldNamesIter.next();
+        for (Iterator<String> fieldNamesIter = patchedAsJsonNode.fieldNames(); fieldNamesIter.hasNext();) {
+            String resourceName = fieldNamesIter.next();
 
-                JsonNode oldResource = existingAsObjectNode.get(resourceName);
-                JsonNode patchedResource = patchedAsJsonNode.get(resourceName);
-                            
-                AbstractConfigurationValidator originalValidator = postProcessApplyPatchResult(channel, request, oldResource, patchedResource, resourceName);
-                
-                if(originalValidator != null) {
-                    if (!originalValidator.validate()) {
-                        request.params().clear();
-                        badRequestResponse(channel, originalValidator);
-                        return;
-                    }
-                }
+            JsonNode oldResource = existingAsObjectNode.get(resourceName);
+            JsonNode patchedResource = patchedAsJsonNode.get(resourceName);
 
-                if (oldResource == null || !oldResource.equals(patchedResource)) {
-                    AbstractConfigurationValidator validator = getValidator(request, patchedResource);
+            AbstractConfigurationValidator originalValidator = postProcessApplyPatchResult(channel, request, oldResource, patchedResource,
+                    resourceName);
 
-                    if (!validator.validate()) {
-                        request.params().clear();
-                        badRequestResponse(channel, validator);
-                        return;
-                    }
+            if (originalValidator != null) {
+                if (!originalValidator.validate()) {
+                    request.params().clear();
+                    badRequestResponse(channel, originalValidator);
+                    return;
                 }
             }
-            
-            SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromNode(patchedAsJsonNode, existingConfiguration.getCType()
-                    , existingConfiguration.getVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm());
-            
-            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
-                @Override
-                public void onResponse(IndexResponse response) {
-                    successResponse(channel, "Resource updated.");
+            if (oldResource == null || !oldResource.equals(patchedResource)) {
+                AbstractConfigurationValidator validator = getValidator(request, patchedResource);
+
+                if (!validator.validate()) {
+                    request.params().clear();
+                    badRequestResponse(channel, validator);
+                    return;
                 }
-            });
+            }
+        }
+
+        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromNode(patchedAsJsonNode, existingConfiguration.getCType(),
+                existingConfiguration.getVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm());
+
+        saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
+
+            @Override
+            public void onResponse(IndexResponse response) {
+                successResponse(channel, "Resource updated.");
+            }
+        });
 
     }
 
@@ -239,14 +248,14 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         return JsonPatch.apply(jsonPatch, existingResourceAsJsonNode);
     }
 
-    protected AbstractConfigurationValidator postProcessApplyPatchResult(RestChannel channel, RestRequest request, JsonNode existingResourceAsJsonNode, JsonNode updatedResourceAsJsonNode, String resourceName) {
+    protected AbstractConfigurationValidator postProcessApplyPatchResult(RestChannel channel, RestRequest request,
+            JsonNode existingResourceAsJsonNode, JsonNode updatedResourceAsJsonNode, String resourceName) {
         // do nothing by default
-    	return null;
+        return null;
     }
-    
+
     @Override
-    protected void handleApiRequest(RestChannel channel, final RestRequest request, final Client client)
-         throws IOException {
+    protected void handleApiRequest(RestChannel channel, final RestRequest request, final Client client) throws IOException {
 
         if (request.method() == Method.PATCH) {
             handlePatch(channel, request, client);
@@ -255,8 +264,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         }
     }
 
-    private AbstractConfigurationValidator getValidator(RestRequest request, JsonNode patchedResource)
-            throws JsonProcessingException {
+    private AbstractConfigurationValidator getValidator(RestRequest request, JsonNode patchedResource) throws JsonProcessingException {
         BytesReference patchedResourceAsByteReference = new BytesArray(
                 DefaultObjectMapper.objectMapper.writeValueAsString(patchedResource).getBytes(StandardCharsets.UTF_8));
         return getValidator(request, patchedResourceAsByteReference);

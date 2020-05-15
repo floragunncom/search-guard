@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
@@ -31,7 +32,6 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,7 +41,6 @@ import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.InternalUsersValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
@@ -60,15 +59,11 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
             ThreadPool threadPool, AuditLog auditLog) {
         super(settings, configPath, controller, client, adminDNs, cl, cs, principalExtractor, evaluator, threadPool,
                 auditLog);
-
-        // corrected mapping, introduced in SG6
-        controller.registerHandler(Method.GET, "/_searchguard/api/internalusers/{name}", this);
-        controller.registerHandler(Method.GET, "/_searchguard/api/internalusers/", this);
-        controller.registerHandler(Method.DELETE, "/_searchguard/api/internalusers/{name}", this);
-        controller.registerHandler(Method.PUT, "/_searchguard/api/internalusers/{name}", this);
-        controller.registerHandler(Method.PATCH, "/_searchguard/api/internalusers/", this);
-        controller.registerHandler(Method.PATCH, "/_searchguard/api/internalusers/{name}", this);
-
+    }
+    
+    @Override
+    public List<Route> routes() {
+        return getStandardResourceRoutes("internalusers");
     }
 
     @Override
