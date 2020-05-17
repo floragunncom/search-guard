@@ -418,6 +418,7 @@ public class WatchBuilder {
         private String subject;
         private String from;
         private String body;
+        private String htmlBody;
         private String account;
         private List<String> to = new ArrayList<>();
         private Map<String, EmailAction.Attachment> attachments = new LinkedHashMap<>();
@@ -442,6 +443,11 @@ public class WatchBuilder {
             return this;
         }
 
+        public EmailActionBuilder htmlBody(String htmlBody) {
+            this.htmlBody = htmlBody;
+            return this;
+        }
+
         public EmailActionBuilder account(String account) {
             this.account = account;
             return this;
@@ -458,6 +464,7 @@ public class WatchBuilder {
             result.setAccount(account);
             result.setSubject(subject);
             result.setBody(body);
+            result.setHtmlBody(htmlBody);
             result.setFrom(from);
             result.setTo(to);
             result.setAttachments(attachments);

@@ -146,15 +146,27 @@ public class ActionConverter {
         String replyTo = vJsonNode.string("reply_to");
         String subject = vJsonNode.string("subject");
         String textBody = "";
+        String htmlBody = "";
 
-        if (vJsonNode.get("body") instanceof ObjectNode && vJsonNode.get("body").hasNonNull("text")) {
-            textBody = vJsonNode.get("body").get("text").textValue();
-            
-            ConversionResult<String> convertedBody = new MustacheTemplateConverter(textBody).convertToSignals();
-            validationErrors.add("body.text", convertedBody.getSourceValidationErrors());
-            
-            textBody = convertedBody.getElement();
-            
+        if (vJsonNode.get("body") instanceof ObjectNode) {
+            if (vJsonNode.get("body").hasNonNull("text")) {
+                textBody = vJsonNode.get("body").get("text").textValue();
+
+                ConversionResult<String> convertedBody = new MustacheTemplateConverter(textBody).convertToSignals();
+                validationErrors.add("body.text", convertedBody.getSourceValidationErrors());
+
+                textBody = convertedBody.getElement();
+            }
+
+            if (vJsonNode.get("body").hasNonNull("html")) {
+                htmlBody = vJsonNode.get("body").get("html").textValue();
+
+                ConversionResult<String> convertedBody = new MustacheTemplateConverter(htmlBody).convertToSignals();
+                validationErrors.add("body.html", convertedBody.getSourceValidationErrors());
+
+                htmlBody = convertedBody.getElement();
+            }
+
         } else if (vJsonNode.hasNonNull("body")) {
             textBody = vJsonNode.get("body").textValue();
             
@@ -167,6 +179,11 @@ public class ActionConverter {
         if (jsonNode.hasNonNull("attachments") || jsonNode.hasNonNull("attach_data")) {
             validationErrors.add(new ValidationError("attachments", "Attachments are not supported"));
         }
+
+        if (!jsonNode.hasNonNull("body") && !jsonNode.get("body").hasNonNull("text")
+                && !jsonNode.get("body").hasNonNull("html")) {
+            validationErrors.add(new ValidationError("body", "Both body.text and body.html are empty"));
+        }
         
         EmailAction result = new EmailAction();
 
@@ -176,6 +193,7 @@ public class ActionConverter {
         result.setBcc(bcc);
         result.setSubject(subject);
         result.setBody(textBody);
+        result.setHtmlBody(htmlBody);
         result.setReplyTo(replyTo);
 
         return new ConversionResult<ActionHandler>(result, validationErrors);
