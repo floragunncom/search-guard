@@ -31,6 +31,11 @@ import java.util.concurrent.ExecutionException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.joda.time.DateTime;
@@ -39,11 +44,18 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.LicenseChangeListener;
 import com.floragunn.searchguard.configuration.SearchGuardLicense;
 import com.floragunn.searchguard.configuration.SearchGuardLicense.Feature;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.ConfigModel;
+import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
+import com.floragunn.searchguard.sgconf.DynamicConfigModel;
+import com.floragunn.searchguard.sgconf.InternalUsersModel;
+import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.google.common.cache.CacheBuilder;
@@ -51,7 +63,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
 
-public class ComplianceConfig implements LicenseChangeListener {
+public class ComplianceConfig implements LicenseChangeListener, DCFListener {
 
     private final Logger log = LogManager.getLogger(getClass());
     private final Settings settings;
@@ -73,13 +85,19 @@ public class ComplianceConfig implements LicenseChangeListener {
     private final AuditLog auditLog;
     private volatile boolean enabled = true;
     private volatile boolean externalConfigLogged = false;
-
-    public ComplianceConfig(final Environment environment, final IndexResolverReplacer irr, final AuditLog auditLog) {
+    private final boolean localHashingEnabled;
+    private byte[] salt2_16;
+    private final Client client;
+    private final byte[] maskPrefix;
+    
+    public ComplianceConfig(final Environment environment, final IndexResolverReplacer irr, final AuditLog auditLog, final Client client) {
         super();
         this.settings = environment.settings();
         this.environment = environment;
         this.irr = irr;
         this.auditLog = auditLog;
+        this.client = client;
+        this.localHashingEnabled = this.settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED, false);
         final List<String> watchedReadFields = this.settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS,
                 Collections.emptyList(), false);
 
@@ -137,6 +155,13 @@ public class ComplianceConfig implements LicenseChangeListener {
 
         log.info("PII configuration [auditLogPattern={},  auditLogIndex={}]: {}", auditLogPattern, auditLogIndex, readEnabledFields);
 
+        final String maskPrefixString = settings.get(ConfigConstants.SEARCHGUARD_COMPLIANCE_MASK_PREFIX, null);
+        
+        if(maskPrefixString == null || maskPrefixString.isEmpty()) {
+            maskPrefix = null;
+        } else {
+            maskPrefix = maskPrefixString.getBytes(StandardCharsets.UTF_8);
+        }
 
         cache = CacheBuilder.newBuilder()
                 .maximumSize(1000)
@@ -309,4 +334,73 @@ public class ComplianceConfig implements LicenseChangeListener {
     public byte[] getSalt16() {
         return salt16.clone();
     }
+
+    public boolean isLocalHashingEnabled() {
+        return localHashingEnabled;
+    }
+
+    @Override
+    public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
+    		
+    	if (log.isTraceEnabled()) {
+        	log.trace("ComplianceConfiguration#onChanged called");
+        	log.trace("isLocalHashingEnabled? " + isLocalHashingEnabled());
+        	log.trace("FieldAnonymizationSalt2: " + dcm.getFieldAnonymizationSalt2());    		
+    	}
+    	
+        if(isLocalHashingEnabled() && dcm.getFieldAnonymizationSalt2() != null) {
+            final String salt2AsString = dcm.getFieldAnonymizationSalt2();
+               
+            if(salt2AsString != null && !salt2AsString.isEmpty()) {
+                final byte[] salt2AsBytes = salt2AsString.getBytes(StandardCharsets.UTF_8);
+                
+                if(salt2AsBytes.length < 16) {
+                    log.error("searchguard.dynamic.field_anonymization.salt2 must at least contain 16 bytes");
+                }
+                
+                if(salt2AsBytes.length > 16) {
+                    log.warn("searchguard.dynamic.field_anonymization.salt2 is greater than 16 bytes. Only the first 16 bytes are used");
+                }
+                final byte[] _salt2_16 = Arrays.copyOf(salt2AsBytes, 16);
+                
+                if(!Arrays.equals(salt2_16, _salt2_16)) {
+                    log.debug("value of searchguard.dynamic.field_anonymization.salt2 changed");
+                    salt2_16 = _salt2_16;
+                    ClearIndicesCacheRequest clearIndicesCacheRequest = new ClearIndicesCacheRequest();
+                    clearIndicesCacheRequest.fieldDataCache(false);
+                    //clearIndicesCacheRequest.fields(fields)
+                    //clearIndicesCacheRequest.indices("");
+                    clearIndicesCacheRequest.queryCache(false);
+                    clearIndicesCacheRequest.requestCache(true);
+                    
+                    
+                    client.admin().indices().clearCache(clearIndicesCacheRequest, new ActionListener<ClearIndicesCacheResponse>() {
+                        
+                        @Override
+                        public void onResponse(ClearIndicesCacheResponse response) {
+                            log.debug("Cache cleared due to salt2 changed: "+Strings.toString(response));
+                        }
+                        
+                        @Override
+                        public void onFailure(Exception e) {
+                            log.debug("Cache cleared due to salt2 changed: "+e,e);
+                        }
+                    });
+                }
+                
+            } else {
+                log.error(ConfigConstants.SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED+" is enabled but searchguard.dynamic.field_anonymization.salt2 is not set");
+            }
+        }
+    }
+
+    public byte[] getSalt2_16() {
+        return salt2_16==null?null:salt2_16.clone();
+    }
+
+    public byte[] getMaskPrefix() {
+        return maskPrefix;
+    }
+
+
 }

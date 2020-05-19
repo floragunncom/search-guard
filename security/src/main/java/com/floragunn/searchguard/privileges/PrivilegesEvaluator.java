@@ -123,6 +123,7 @@ public class PrivilegesEvaluator implements DCFListener {
                 ConfigConstants.SG_DEFAULT_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES);
 
         this.clusterInfoHolder = clusterInfoHolder;
+
         this.irr = irr;
         snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog);
         sgIndexAccessEvaluator = new SearchGuardIndexAccessEvaluator(settings, auditLog, irr);
@@ -183,12 +184,7 @@ public class PrivilegesEvaluator implements DCFListener {
             log.debug("requestedResolved : {}", requestedResolved);
         }
 
-        // check dlsfls 
-        if (enterpriseModulesEnabled
-                //&& (action0.startsWith("indices:data/read") || action0.equals(ClusterSearchShardsAction.NAME))
-                && dlsFlsEvaluator.evaluate(request, clusterService, resolver, requestedResolved, user, sgRoles, presponse).isComplete()) {
-            return presponse;
-        }
+        
 
         // check snapshot/restore requests 
         if (snapshotRestoreEvaluator.evaluate(request, task, action0, clusterInfoHolder, presponse).isComplete()) {
@@ -285,6 +281,13 @@ public class PrivilegesEvaluator implements DCFListener {
                 presponse.allowed = true;
                 return presponse;
             }
+        }
+        
+        // check dlsfls 
+        if (enterpriseModulesEnabled
+                //&& (action0.startsWith("indices:data/read") || action0.equals(ClusterSearchShardsAction.NAME))
+                && dlsFlsEvaluator.evaluate(request, clusterService, resolver, requestedResolved, user, sgRoles, presponse).isComplete()) {
+            return presponse;
         }
 
         // term aggregations

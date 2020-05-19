@@ -415,6 +415,28 @@ public class WildcardMatcher {
             return modified;
         }
     }
+    
+    /**
+    *
+    * @param set will be modified
+    * @param stringContainingWc
+    * @return
+    */
+   public static boolean wildcardRemoveFromSet(Set<String> set, Set<String> setContainingWc) {
+       if(set == null || set.isEmpty()) {
+           return false;
+       }
+       
+       boolean modified = false;
+       
+       for(String wc: setContainingWc) {
+           if(wildcardRemoveFromSet(set, wc)) {
+               modified = true;
+           }
+       }
+       
+       return modified;
+   }
 
     /**
      *

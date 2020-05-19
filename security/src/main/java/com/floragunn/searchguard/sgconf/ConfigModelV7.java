@@ -57,6 +57,8 @@ import java.util.stream.Stream;
 
 public class ConfigModelV7 extends ConfigModel {
 
+	private static boolean dfmEmptyOverridesAll;
+
     protected final Logger log = LogManager.getLogger(this.getClass());
     private ConfigConstants.RolesMappingResolution rolesMappingResolution;
     private ActionGroupResolver agr;
@@ -67,7 +69,7 @@ public class ConfigModelV7 extends ConfigModel {
     private SgDynamicConfiguration<TenantV7> tenants;
     private ClientBlockRegistry<InetAddress> blockedIpAddresses;
     private ClientBlockRegistry<String> blockedUsers;
-    private ClientBlockRegistry<IPAddressString> blockeNetmasks;
+    private ClientBlockRegistry<IPAddressString> blockeNetmasks;    
 
     public ConfigModelV7(SgDynamicConfiguration<RoleV7> roles, SgDynamicConfiguration<RoleMappingsV7> rolemappings,
                          SgDynamicConfiguration<ActionGroupsV7> actiongroups, SgDynamicConfiguration<TenantV7> tenants,
@@ -92,6 +94,8 @@ public class ConfigModelV7 extends ConfigModel {
         blockedIpAddresses = reloadBlockedIpAddresses(blocks);
         blockedUsers = reloadBlockedUsers(blocks);
         blockeNetmasks = reloadBlockedNetmasks(blocks);
+        ConfigModelV7.dfmEmptyOverridesAll = esSettings.getAsBoolean(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, false);
+
     }
 
     private ClientBlockRegistry<IPAddressString> reloadBlockedNetmasks(SgDynamicConfiguration<BlocksV7> blocks) {
@@ -387,26 +391,36 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
         public Map<String, Set<String>> getMaskedFields(User user, IndexNameExpressionResolver resolver, ClusterService cs) {
-            final Map<String, Set<String>> maskedFieldsMap = new HashMap<String, Set<String>>();
+
+            boolean maskedFieldsPresent = false;
+            
+            outer:
+            for (SgRole sgr : roles) {
+                for (IndexPattern ip : sgr.getIpatterns()) {
+                    if(ip.hasMaskedFields()) {
+                        maskedFieldsPresent = true;
+                        break outer;
+                    }
+                }
+            }
+            
+            if(!maskedFieldsPresent) {
+                if(log.isDebugEnabled()) {
+                    log.debug("No masked fields found for {} in {} sg roles", user, roles.size());
+                }
+                return Collections.emptyMap();
+            }
+
+        	final Map<String, Set<String>> maskedFieldsMap = new HashMap<String, Set<String>>();
+            final Set<String> noMaskedFieldConcreteIndices = new HashSet<>();
 
             for (SgRole sgr : roles) {
                 for (IndexPattern ip : sgr.getIpatterns()) {
                     final Set<String> maskedFields = ip.getMaskedFields();
-                    final String indexPattern = ip.getUnresolvedIndexPattern(user);
-                    String[] concreteIndices = new String[0];
 
-                    if ((maskedFields != null && maskedFields.size() > 0)) {
-                        concreteIndices = ip.getResolvedIndexPattern(user, resolver, cs);
-                    }
+                    final String[] concreteIndices = ip.getResolvedIndexPatterns(user, resolver, cs, false);
 
                     if (maskedFields != null && maskedFields.size() > 0) {
-
-                        if (maskedFieldsMap.containsKey(indexPattern)) {
-                            maskedFieldsMap.get(indexPattern).addAll(Sets.newHashSet(maskedFields));
-                        } else {
-                            maskedFieldsMap.put(indexPattern, new HashSet<String>());
-                            maskedFieldsMap.get(indexPattern).addAll(Sets.newHashSet(maskedFields));
-                        }
 
                         for (int i = 0; i < concreteIndices.length; i++) {
                             final String ci = concreteIndices[i];
@@ -417,37 +431,65 @@ public class ConfigModelV7 extends ConfigModel {
                                 maskedFieldsMap.get(ci).addAll(Sets.newHashSet(maskedFields));
                             }
                         }
-                    }
+                    } else if (dfmEmptyOverridesAll){
+                        noMaskedFieldConcreteIndices.addAll(Arrays.asList(concreteIndices));
+                    } 
                 }
             }
+            
+            if(dfmEmptyOverridesAll) {
+                
+                
+                if(log.isDebugEnabled()) {
+                    log.debug("Index patterns with no masked fields attached: {} - They will be removed from {}", noMaskedFieldConcreteIndices, maskedFieldsMap.keySet());
+                }
+                
+                WildcardMatcher.wildcardRemoveFromSet(maskedFieldsMap.keySet(), noMaskedFieldConcreteIndices);
+    
+                //maskedFieldsMap.keySet().removeAll(noMaskedFieldConcreteIndices);
+            }
+                         
             return maskedFieldsMap;
         }
 
         public Tuple<Map<String, Set<String>>, Map<String, Set<String>>> getDlsFls(User user, IndexNameExpressionResolver resolver,
                                                                                    ClusterService cs) {
 
-            final Map<String, Set<String>> dlsQueries = new HashMap<String, Set<String>>();
+            boolean flsOrDlsPresent = false;
+            
+            outer:
+            for (SgRole sgr : roles) {
+                for (IndexPattern ip : sgr.getIpatterns()) {
+                    if(ip.hasDlsQuery() || ip.hasFlsFields()) {
+                        flsOrDlsPresent = true;
+                        break outer;
+                    }
+                }
+            }
+            
+            if(!flsOrDlsPresent) {
+                if(log.isDebugEnabled()) {
+                    log.debug("No fls or dls found for {} in {} sg roles", user, roles.size());
+                }
+                return new Tuple<Map<String, Set<String>>, Map<String, Set<String>>>(Collections.emptyMap(), Collections.emptyMap());
+            }
+
+        	
+        	final Map<String, Set<String>> dlsQueries = new HashMap<String, Set<String>>();
             final Map<String, Set<String>> flsFields = new HashMap<String, Set<String>>();
 
+            final Set<String> noDlsConcreteIndices = new HashSet<>();
+            final Set<String> noFlsConcreteIndices = new HashSet<>();
+            
             for (SgRole sgr : roles) {
                 for (IndexPattern ip : sgr.getIpatterns()) {
                     final Set<String> fls = ip.getFls();
                     final String dls = ip.getDlsQuery(user);
-                    final String indexPattern = ip.getUnresolvedIndexPattern(user);
-                    String[] concreteIndices = new String[0];
 
-                    if ((dls != null && dls.length() > 0) || (fls != null && fls.size() > 0)) {
-                        concreteIndices = ip.getResolvedIndexPattern(user, resolver, cs);
-                    }
+                    final String[] concreteIndices = ip.getResolvedIndexPatterns(user, resolver, cs, false);
+                    
 
                     if (dls != null && dls.length() > 0) {
-
-                        if (dlsQueries.containsKey(indexPattern)) {
-                            dlsQueries.get(indexPattern).add(dls);
-                        } else {
-                            dlsQueries.put(indexPattern, new HashSet<String>());
-                            dlsQueries.get(indexPattern).add(dls);
-                        }
 
                         for (int i = 0; i < concreteIndices.length; i++) {
                             final String ci = concreteIndices[i];
@@ -458,17 +500,11 @@ public class ConfigModelV7 extends ConfigModel {
                                 dlsQueries.get(ci).add(dls);
                             }
                         }
-
+                    } else if (dfmEmptyOverridesAll){
+                        noDlsConcreteIndices.addAll(Arrays.asList(concreteIndices));
                     }
 
                     if (fls != null && fls.size() > 0) {
-
-                        if (flsFields.containsKey(indexPattern)) {
-                            flsFields.get(indexPattern).addAll(Sets.newHashSet(fls));
-                        } else {
-                            flsFields.put(indexPattern, new HashSet<String>());
-                            flsFields.get(indexPattern).addAll(Sets.newHashSet(fls));
-                        }
 
                         for (int i = 0; i < concreteIndices.length; i++) {
                             final String ci = concreteIndices[i];
@@ -479,10 +515,29 @@ public class ConfigModelV7 extends ConfigModel {
                                 flsFields.get(ci).addAll(Sets.newHashSet(fls));
                             }
                         }
+                    } else {
+                        noFlsConcreteIndices.addAll(Arrays.asList(concreteIndices));
                     }
                 }
             }
 
+            
+            if(dfmEmptyOverridesAll) {
+                if(log.isDebugEnabled()) {
+                    log.debug("Index patterns with no dls queries attached: {} - They will be removed from {}", noDlsConcreteIndices, dlsQueries.keySet());
+                    log.debug("Index patterns with no fls fields attached: {} - They will be removed from {}", noFlsConcreteIndices, flsFields.keySet());
+    
+                }
+    
+                WildcardMatcher.wildcardRemoveFromSet(dlsQueries.keySet(), noDlsConcreteIndices);
+                WildcardMatcher.wildcardRemoveFromSet(flsFields.keySet(), noFlsConcreteIndices);
+                
+                //dlsQueries.keySet().removeAll(noDlsConcreteIndices);
+                //flsFields.keySet().removeAll(noFlsConcreteIndices);
+            }
+            
+            
+            
             return new Tuple<Map<String, Set<String>>, Map<String, Set<String>>>(dlsQueries, flsFields);
 
         }
@@ -635,7 +690,7 @@ public class ConfigModelV7 extends ConfigModel {
                 //                }
                 if (patternMatch) {
                     //resolved but can contain patterns for nonexistent indices
-                    final String[] permitted = p.getResolvedIndexPattern(user, resolver, cs); //maybe they do not exist
+                    final String[] permitted = p.getResolvedIndexPatterns(user, resolver, cs, true); //maybe they do not exist
                     final Set<String> res = new HashSet<>();
                     if (!resolved.isLocalAll() && !resolved.getAllIndices().contains("*") && !resolved.getAllIndices().contains("_all")) {
                         final Set<String> wanted = new HashSet<>(resolved.getAllIndices());
@@ -870,8 +925,8 @@ public class ConfigModelV7 extends ConfigModel {
         public String getUnresolvedIndexPattern(User user) {
             return replaceProperties(indexPattern, user);
         }
-
-        private String[] getResolvedIndexPattern(User user, IndexNameExpressionResolver resolver, ClusterService cs) {
+        
+        private String[] getResolvedIndexPatterns(User user, IndexNameExpressionResolver resolver, ClusterService cs, boolean appendUnresolved) {
             String unresolved = getUnresolvedIndexPattern(user);
             String[] resolved = null;
             if (WildcardMatcher.containsWildcard(unresolved)) {
@@ -890,10 +945,15 @@ public class ConfigModelV7 extends ConfigModel {
             if (resolved == null || resolved.length == 0) {
                 return new String[]{unresolved};
             } else {
-                //append unresolved value for pattern matching
-                String[] retval = Arrays.copyOf(resolved, resolved.length + 1);
-                retval[retval.length - 1] = unresolved;
-                return retval;
+            	if(appendUnresolved) {
+                    //append unresolved value for pattern matching
+                    String[] retval = Arrays.copyOf(resolved, resolved.length + 1);
+                    retval[retval.length - 1] = unresolved;
+                    return retval;            		
+            	}
+            	else {
+            		return resolved;
+            	}
             }
         }
 
@@ -901,14 +961,26 @@ public class ConfigModelV7 extends ConfigModel {
             return replaceProperties(dlsQuery, user);
         }
 
+        public boolean hasDlsQuery() {
+            return dlsQuery != null && !dlsQuery.isEmpty();
+        }
+
         public Set<String> getFls() {
             return Collections.unmodifiableSet(fls);
         }
-
+        
+        public boolean hasFlsFields() {
+            return fls != null && !fls.isEmpty();
+        }
+        
         public Set<String> getMaskedFields() {
             return Collections.unmodifiableSet(maskedFields);
         }
 
+        public boolean hasMaskedFields() {
+            return maskedFields != null && !maskedFields.isEmpty();
+        }
+        
         public Set<String> getPerms() {
             return Collections.unmodifiableSet(perms);
         }
@@ -1100,7 +1172,7 @@ public class ConfigModelV7 extends ConfigModel {
             Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
             //Set<String> matchingTypes = new HashSet<>(resolved.getTypes(-));
             for (IndexPattern p : ipatterns) {
-                if (WildcardMatcher.matchAny(p.getResolvedIndexPattern(user, resolver, cs), in)) {
+                if (WildcardMatcher.matchAny(p.getResolvedIndexPatterns(user, resolver, cs, true), in)) {
                     //per resolved index per pattern
                     //for (String t : resolved.getTypes(-)) {
                     //for (TypePerm tp : p.typePerms) {
