@@ -68,7 +68,7 @@ public class RolesValidator extends AbstractConfigurationValidator {
 
     private boolean validateMaskedFieldSyntax(String mf) {
         try {
-            new MaskedField(mf, new byte[] {1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,6}).isValid();
+            new MaskedField(mf, new byte[] {1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,6}, null, null).isValid();
         } catch (Exception e) {
             wrongDatatypes.put("Masked field not valid: "+mf, e.getMessage());
             return false;

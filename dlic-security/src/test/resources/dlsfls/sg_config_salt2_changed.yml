@@ -9,7 +9,7 @@ sg_config:
     disable_intertransport_auth: false
     respect_request_indices_options: false
     license: null
-    field_anonymization_salt2: abcabcabcabc1234
+    field_anonymization_salt2: 4bcabca5cabc4234
     kibana:
       multitenancy_enabled: true
       server_username: "kibanaserver"

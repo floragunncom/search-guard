@@ -2,6 +2,74 @@
 _sg_meta:
   type: "roles"
   config_version: 2
+
+sg_dfm_anon_1:
+  cluster_permissions:
+    - '*'
+  index_permissions:
+    - index_patterns:
+      - 'deals-*'
+      allowed_actions:
+      - '*'    
+      fls:
+        - ~customer.name
+        - ~ip_source
+      masked_fields:
+        - ip_dest
+
+sg_dfm_anon_2:
+  cluster_permissions:
+    - '*'
+  index_permissions:
+    - index_patterns:
+      - 'deals-outdated-*'
+      allowed_actions:
+      - '*'    
+
+sg_dfm_nv_restricted:
+  cluster_permissions:
+    - MONITOR
+    - CLUSTER_COMPOSITE_OPS
+  index_permissions:
+    - index_patterns:
+      - "index1-*"
+      allowed_actions:
+        - MANAGE
+        - SEARCH
+      dls: '{ "bool": { "must_not": { "term": { "field1": 1  }}}}'
+      masked_fields:
+        - "field2"
+      fls:
+        - "~field3"
+        - "~field4"
+
+sg_dfm_nv_not_restricted_all_indices:
+  cluster_permissions:
+    - MONITOR
+    - CLUSTER_COMPOSITE_OPS
+  index_permissions:
+    - index_patterns:  
+      - "index1-*"
+      allowed_actions:
+        - MANAGE
+        - SEARCH
+ 
+sg_dfm_nv_not_restricted_one_index:
+  cluster_permissions:
+    - MONITOR
+    - CLUSTER_COMPOSITE_OPS
+  index_permissions:
+    - index_patterns:  
+      - "index1-4"
+      allowed_actions:
+        - MANAGE
+        - SEARCH
+    - index_patterns: 
+      - "index1-1"
+      allowed_actions:
+        - MANAGE
+        - SEARCH
+
 sg_fls_exists:
   cluster_permissions:
     - "*"
