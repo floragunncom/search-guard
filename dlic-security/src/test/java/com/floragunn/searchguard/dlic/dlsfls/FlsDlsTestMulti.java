@@ -85,7 +85,7 @@ public class FlsDlsTestMulti extends AbstractDlsFlsTest{
         Assert.assertTrue(res.getBody().contains("zip"));
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_search?pretty&size=0", encodeBasicHeader("dept_manager_multi", "password"))).getStatusCode());
-        Assert.assertTrue(res.getBody().contains("\"value\" : 3,\n      \"relation"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("\"value\" : 3"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_search?pretty&size=0", encodeBasicHeader("admin", "admin"))).getStatusCode());

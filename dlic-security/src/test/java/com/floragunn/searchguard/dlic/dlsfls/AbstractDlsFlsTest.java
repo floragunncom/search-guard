@@ -30,7 +30,6 @@ public abstract class AbstractDlsFlsTest extends SingleClusterTest {
     protected String getResourceFolder() {
         return "dlsfls";
     }
-    
     protected final void setup() throws Exception {
         setup(Settings.EMPTY);
     }

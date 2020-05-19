@@ -108,6 +108,8 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
     private final Set<String> maskedFieldsKeySet;
     private final ShardId shardId;
     private final boolean maskFields;
+    private final boolean localHashingEnabled;
+
     private DlsGetEvaluator dge = null;
     
     DlsFlsFilterLeafReader(final LeafReader delegate, final Set<String> includesExcludes,
@@ -117,6 +119,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         super(delegate);
         
         maskFields = (complianceConfig.isEnabled() && maskedFields != null && maskedFields.size() > 0);
+        localHashingEnabled = complianceConfig.isLocalHashingEnabled();
         
         this.indexService = indexService;
         this.threadContext = threadContext;
@@ -289,7 +292,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
     private Map<String, MaskedField> extractMaskedFields(Set<String> maskedFields) {
         Map<String, MaskedField> retVal = new HashMap<>(maskedFields.size());
         for(String mfs: maskedFields) {
-            MaskedField mf = new MaskedField(mfs, complianceConfig.getSalt16());
+            MaskedField mf = new MaskedField(mfs, complianceConfig.getSalt16(), localHashingEnabled?complianceConfig.getSalt2_16():null, complianceConfig.getMaskPrefix());
             retVal.put(mf.getName(), mf);
         }
         return retVal;
@@ -520,9 +523,6 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
                 delegate.binaryField(fieldInfo, value);
             }
         }
-        
-        
-        
 
         @Override
         public Status needsField(final FieldInfo fieldInfo) throws IOException {
@@ -987,7 +987,7 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         }
 
         Map<String, MaskedField> rtMask = getRuntimeMaskedFieldInfo();
-        if(rtMask != null && WildcardMatcher.matchAny(rtMask.keySet(), handleKeyword(field))) {
+        if(!localHashingEnabled && rtMask != null && WildcardMatcher.matchAny(rtMask.keySet(), handleKeyword(field))) {
             return null;
         
         } else {
