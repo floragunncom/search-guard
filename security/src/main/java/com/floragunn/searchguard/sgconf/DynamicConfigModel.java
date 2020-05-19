@@ -48,6 +48,7 @@ public abstract class DynamicConfigModel {
     public abstract String getFilteredAliasMode();
     public abstract String getHostsResolverMode();
     public abstract boolean isDnfofForEmptyResultsEnabled();
+    public abstract String getFieldAnonymizationSalt2();    
     public abstract boolean isKibanaRbacEnabled();
     
     public abstract List<AuthFailureListener> getIpAuthFailureListeners();

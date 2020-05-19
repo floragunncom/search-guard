@@ -89,6 +89,11 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
     }
 
     @Override
+    public String getFieldAnonymizationSalt2() {
+        return config.dynamic.field_anonymization_salt2;
+    }
+    
+    @Override
     public boolean isRestAuthDisabled() {
         return config.dynamic.disable_rest_auth;
     }
