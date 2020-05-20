@@ -79,7 +79,6 @@ public final class ConfigConstants {
 
     public static final String LDAP_CONNECTION_STRATEGY = "connection_strategy";
     
-    public static final String LDAP_POOL_ENABLED = "pool.enabled";
     public static final String LDAP_POOL_MIN_SIZE = "pool.min_size";
     public static final String LDAP_POOL_MAX_SIZE = "pool.max_size";
 

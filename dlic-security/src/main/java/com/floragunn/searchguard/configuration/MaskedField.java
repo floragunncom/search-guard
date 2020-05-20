@@ -27,6 +27,7 @@ import org.bouncycastle.crypto.digests.Blake2bDigest;
 import org.bouncycastle.util.encoders.Hex;
 
 import com.google.common.base.Splitter;
+import com.google.common.primitives.Bytes;
 
 public class MaskedField {
 
@@ -34,9 +35,13 @@ public class MaskedField {
     private String algo = null;
     private List<RegexReplacement> regexReplacements;
     private final byte[] defaultSalt;
+    private final byte[] salt2;
+    private final byte[] prefix;
 
-    public MaskedField(final String value, final byte[] defaultSalt) {
-        this.defaultSalt = defaultSalt;
+    public MaskedField(final String value, final byte[] salt, final byte[] salt2, final byte[] prefix) {
+        this.defaultSalt = salt;
+        this.salt2=salt2;
+        this.prefix = prefix;
         final List<String> tokens = Splitter.on("::").splitToList(Objects.requireNonNull(value));
         final int tokenCount = tokens.size();
         if (tokenCount == 1) {
@@ -146,6 +151,11 @@ public class MaskedField {
         if (algo != null) {
             try {
                 MessageDigest digest = MessageDigest.getInstance(algo);
+                
+                if(prefix != null) {
+                    return Bytes.concat(prefix, Hex.encode(digest.digest(in)));
+                }
+                
                 return Hex.encode(digest.digest(in));
             } catch (NoSuchAlgorithmException e) {
                 throw new IllegalArgumentException(e);
@@ -155,6 +165,11 @@ public class MaskedField {
             for(RegexReplacement rr: regexReplacements) {
                 cur = cur.replaceAll(rr.getRegex(), rr.getReplacement());
             }
+            
+            if(prefix != null) {
+                return Bytes.concat(prefix, cur.getBytes(StandardCharsets.UTF_8));
+            }
+            
             return cur.getBytes(StandardCharsets.UTF_8);
             
         } else {
@@ -172,10 +187,15 @@ public class MaskedField {
     }
 
     private byte[] blake2bHash(byte[] in) {
-        final Blake2bDigest hash = new Blake2bDigest(null, 32, null, defaultSalt);
+        final Blake2bDigest hash = new Blake2bDigest(null, 32, salt2, defaultSalt);
         hash.update(in, 0, in.length);
         final byte[] out = new byte[hash.getDigestSize()];
         hash.doFinal(out, 0);
+        
+        if(prefix != null) {
+            return Bytes.concat(prefix, Hex.encode(out));
+        }
+        
         return Hex.encode(out);
     }
 

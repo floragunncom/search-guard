@@ -161,6 +161,7 @@ public class HttpClient implements Closeable {
                 
         
         RestClientBuilder builder = RestClient.builder(hosts);
+        
         //builder.setMaxRetryTimeoutMillis(10000);
 
         builder.setFailureListener(new RestClient.FailureListener() {

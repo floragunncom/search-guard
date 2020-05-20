@@ -17,6 +17,7 @@ package com.floragunn.searchguard.configuration;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -28,8 +29,10 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.query.ParsedQuery;
+import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -49,7 +52,8 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     public boolean invoke(final ActionRequest request, final ActionListener<?> listener, 
             final Map<String,Set<String>> allowedFlsFields, 
             final Map<String,Set<String>> maskedFields, 
-            final Map<String,Set<String>> queries) {
+            final Map<String,Set<String>> queries,
+            boolean localHashingEnabled) {
         
         final boolean fls = allowedFlsFields != null && !allowedFlsFields.isEmpty();
         final boolean masked = maskedFields != null && !maskedFields.isEmpty();
@@ -62,7 +66,45 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             }
             
             if(request instanceof SearchRequest) {
-                ((SearchRequest)request).requestCache(Boolean.FALSE);
+                
+                SearchRequest sr = ((SearchRequest)request);
+                
+                if(localHashingEnabled && !fls && !dls && sr.source().aggregations() != null) {
+                
+                    boolean cacheable = true;
+                    
+                    for(AggregationBuilder af: sr.source().aggregations().getAggregatorFactories()) {
+                        
+                        if(!af.getType().equals("cardinality") && !af.getType().equals("count")) {
+                            cacheable = false;
+                            continue;
+                        }
+                        
+                        StringBuffer sb = new StringBuffer();
+                        //sb.append(System.lineSeparator()+af.getName()+System.lineSeparator());
+                        //sb.append(af.getType()+System.lineSeparator());
+                        //sb.append(af.getClass().getSimpleName()+System.lineSeparator());
+                        
+                        if(sr.source() != null) {
+                            //sb.append(sr.source().query()+System.lineSeparator());
+                            sb.append(Strings.toString(sr.source())+System.lineSeparator());
+                        }
+                        
+                        sb.append(Strings.toString(af)+System.lineSeparator());
+                        
+                        LogManager.getLogger("debuglogger").error(sb.toString());
+                        
+                    }
+                    
+                    if(!cacheable) {
+                        sr.requestCache(Boolean.FALSE);
+                    } else {
+                        LogManager.getLogger("debuglogger").error("Shard requestcache enabled for "+(sr.source()==null?"<NULL>":Strings.toString(sr.source())));
+                    }
+                
+                } else {
+                    sr.requestCache(Boolean.FALSE);
+                }
             }
             
             if(request instanceof UpdateRequest) {

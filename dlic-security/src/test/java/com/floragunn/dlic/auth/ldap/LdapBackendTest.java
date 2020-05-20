@@ -59,6 +59,33 @@ public class LdapBackendTest {
     }
 
     @Test
+    public void testOLdapAuthentication() throws Exception {
+
+
+        final Settings settings = Settings.builder()
+                .putList(ConfigConstants.LDAP_HOSTS, "localhost:389")
+                .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(cn={0})")
+                .put(ConfigConstants.LDAP_AUTHC_USERBASE, "dc=example,dc=org")
+                .put(ConfigConstants.LDAP_BIND_DN, "cn=admin,dc=example,dc=org")
+                .put(ConfigConstants.LDAP_PASSWORD, "admin")
+                .build();
+
+        try {
+            final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("user1", "user1"
+                    .getBytes(StandardCharsets.UTF_8)));
+            Assert.assertNotNull(user);
+            Assert.assertEquals("cn=user1,dc=example,dc=org", user.getName());
+            System.out.println("TC Wait");
+            Thread.sleep(10000);
+        } catch (Throwable e) {
+            e.printStackTrace();
+            System.out.println("TC Wait");
+            Thread.sleep(10000);
+        }
+
+    }
+
+    @Test
     public void testLdapAuthentication() throws Exception {
 
 
@@ -367,7 +394,7 @@ public class LdapBackendTest {
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
 
     @Test
@@ -381,6 +408,7 @@ public class LdapBackendTest {
         final Connection con = LDAPAuthorizationBackend.getConnection(settings, null);
         try {
             final LdapEntry ref1 = LdapHelper.lookup(con, "cn=Ref1,ou=people,o=TEST");
+            Assert.assertNotNull(ref1);
             Assert.assertEquals("cn=refsolved,ou=people,o=TEST", ref1.getDn());
         } finally {
             con.close();
@@ -434,10 +462,10 @@ public class LdapBackendTest {
 
         Assert.assertNotNull(user);
         Assert.assertEquals("Michael Jackson", user.getOriginalUsername());
-        Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getUserEntry().getDn());
+        Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getUserEntry().getDN());
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
 
     @Test
@@ -638,7 +666,7 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
         Assert.assertEquals(0, user.getRoles().size());
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
 
     @Test
@@ -662,7 +690,7 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
         Assert.assertEquals(0, user.getRoles().size());
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDn());
+        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
 
     @Test
@@ -885,7 +913,7 @@ public class LdapBackendTest {
                 .getBytes(StandardCharsets.UTF_8)));
         Assert.assertNotNull(user);
         Assert.assertEquals("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST", user.getName());
-        Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getAttribute("cn").getStringValue());
+        Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getLdaptiveEntry().getAttribute("cn").getStringValue());
         new LDAPAuthorizationBackend(settings, null).fillRoles(user, null);
 
         Assert.assertEquals(3, user.getRoles().size());
@@ -926,7 +954,7 @@ public class LdapBackendTest {
                 .getBytes(StandardCharsets.UTF_8)));
         Assert.assertNotNull(user);
         Assert.assertEquals("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST", user.getName());
-        Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getAttribute("cn").getStringValue());
+        Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getLdaptiveEntry().getAttribute("cn").getStringValue());
         new LDAPAuthorizationBackend(settings, null).fillRoles(user, null);
 
         Assert.assertEquals(3, user.getRoles().size());
@@ -962,7 +990,7 @@ public class LdapBackendTest {
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
                 .getBytes(StandardCharsets.UTF_8)));
         Assert.assertNotNull(user);
-        LdapAttribute operationAttribute = user.getUserEntry().getAttribute("entryUUID");
+        LdapAttribute operationAttribute = user.getUserEntry().getLdaptiveEntry().getAttribute("entryUUID");
         Assert.assertNotNull(operationAttribute);
         Assert.assertNotNull(operationAttribute.getStringValue());
         Assert.assertTrue(operationAttribute.getStringValue().length() > 10);

@@ -24,8 +24,7 @@
 		<jjwt.version>0.10.5</jjwt.version>
 		<ldaptive.version>1.2.3</ldaptive.version>
 
-		<!-- Test only -->
-		<unboundid-ldapsdk.version>4.0.9</unboundid-ldapsdk.version>
+		<unboundid-ldapsdk.version>5.0.1</unboundid-ldapsdk.version>
 	</properties>
 
 	<dependencies>
@@ -228,6 +227,12 @@
 			<version>2.4.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.unboundid</groupId>
+			<artifactId>unboundid-ldapsdk</artifactId>
+			<version>${unboundid-ldapsdk.version}</version>
+		</dependency>
+
 		<!-- Only test scoped dependencies hereafter -->
 
 		<dependency>
@@ -294,14 +299,6 @@
 			<groupId>javax.servlet</groupId>
 			<artifactId>servlet-api</artifactId>
 			<version>2.5</version>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- https://mvnrepository.com/artifact/com.unboundid/unboundid-ldapsdk -->
-		<dependency>
-			<groupId>com.unboundid</groupId>
-			<artifactId>unboundid-ldapsdk</artifactId>
-			<version>${unboundid-ldapsdk.version}</version>
 			<scope>test</scope>
 		</dependency>
 

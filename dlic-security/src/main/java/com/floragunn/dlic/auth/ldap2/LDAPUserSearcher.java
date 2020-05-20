@@ -11,16 +11,15 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
-import org.ldaptive.Connection;
-import org.ldaptive.LdapEntry;
-import org.ldaptive.SearchFilter;
-import org.ldaptive.SearchScope;
 
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
-import com.floragunn.dlic.auth.ldap.util.LdapHelper;
 import com.floragunn.dlic.auth.ldap.util.Utils;
+import com.unboundid.ldap.sdk.LDAPConnection;
+import com.unboundid.ldap.sdk.LDAPException;
+import com.unboundid.ldap.sdk.SearchResultEntry;
+import com.unboundid.ldap.sdk.SearchScope;
 
-public class LDAPUserSearcher {
+public final class LDAPUserSearcher {
     protected static final Logger log = LogManager.getLogger(LDAPUserSearcher.class);
 
     private static final int ZERO_PLACEHOLDER = 0;
@@ -29,8 +28,10 @@ public class LDAPUserSearcher {
 
     private final Settings settings;
     private final List<Map.Entry<String, Settings>> userBaseSettings;
+    private final LDAPConnectionManager lcm;
 
-    public LDAPUserSearcher(Settings settings) {
+    LDAPUserSearcher(LDAPConnectionManager lcm, Settings settings) {
+        this.lcm = lcm;
         this.settings = settings;
         this.userBaseSettings = getUserBaseSettings(settings);
     }
@@ -58,32 +59,31 @@ public class LDAPUserSearcher {
         }
     }
 
-    LdapEntry exists(Connection ldapConnection, String user) throws Exception {
+    SearchResultEntry exists(LDAPConnection con, String user) throws LDAPException {
 
         if (settings.getAsBoolean(ConfigConstants.LDAP_FAKE_LOGIN_ENABLED, false)
                 || settings.getAsBoolean(ConfigConstants.LDAP_SEARCH_ALL_BASES, false)
                 || settings.hasValue(ConfigConstants.LDAP_AUTHC_USERBASE)) {
-            return existsSearchingAllBases(ldapConnection, user);
+            return existsSearchingAllBases(con,user);
         } else {
-            return existsSearchingUntilFirstHit(ldapConnection, user);
+            return existsSearchingUntilFirstHit(con,user);
         }
 
     }
 
-    private LdapEntry existsSearchingUntilFirstHit(Connection ldapConnection, String user) throws Exception {
+    private SearchResultEntry existsSearchingUntilFirstHit(LDAPConnection con, String user) throws LDAPException {
         final String username = user;
 
         for (Map.Entry<String, Settings> entry : userBaseSettings) {
             Settings baseSettings = entry.getValue();
             
-            SearchFilter f = new SearchFilter();
-            f.setFilter(baseSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_USERSEARCH_PATTERN));
-            f.setParameter(ZERO_PLACEHOLDER, username);
+            ParametrizedFilter pf = new ParametrizedFilter(baseSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_USERSEARCH_PATTERN));
+            pf.setParameter(ZERO_PLACEHOLDER, username);
 
-            List<LdapEntry> result = LdapHelper.search(ldapConnection,
+            List<SearchResultEntry> result = lcm.search(con,
                     baseSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_USERBASE),
-                    f,
-                    SearchScope.SUBTREE);
+                    SearchScope.SUB,
+                    pf);
 
             if (log.isDebugEnabled()) {
                 log.debug("Results for LDAP search for " + user + " in base " + entry.getKey() + ":\n" + result);
@@ -97,21 +97,20 @@ public class LDAPUserSearcher {
         return null;
     }
 
-    private LdapEntry existsSearchingAllBases(Connection ldapConnection, String user) throws Exception {
+    private SearchResultEntry existsSearchingAllBases(LDAPConnection con, String user) throws LDAPException {
         final String username = user;
-        Set<LdapEntry> result = new HashSet<>();
+        Set<SearchResultEntry> result = new HashSet<>();
 
         for (Map.Entry<String, Settings> entry : userBaseSettings) {
             Settings baseSettings = entry.getValue();
             
-            SearchFilter f = new SearchFilter();
-            f.setFilter(baseSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_USERSEARCH_PATTERN));
-            f.setParameter(ZERO_PLACEHOLDER, username);
+            ParametrizedFilter pf = new ParametrizedFilter(baseSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_USERSEARCH_PATTERN));
+            pf.setParameter(ZERO_PLACEHOLDER, username);
 
-            List<LdapEntry> foundEntries = LdapHelper.search(ldapConnection,
+            List<SearchResultEntry> foundEntries = lcm.search(con,
                     baseSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_USERBASE),
-                    f,
-                    SearchScope.SUBTREE);
+                    SearchScope.SUB,
+                    pf);
 
             if (log.isDebugEnabled()) {
                 log.debug("Results for LDAP search for " + user + " in base " + entry.getKey() + ":\n" + result);
