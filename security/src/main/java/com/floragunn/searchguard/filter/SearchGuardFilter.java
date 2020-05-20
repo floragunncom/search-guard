@@ -273,7 +273,7 @@ public class SearchGuardFilter implements ActionFilter {
             
             if (pres.isAllowed()) {
                 auditLog.logGrantedPrivileges(action, request, task);
-                if(!dlsFlsValve.invoke(request, listener, pres.getAllowedFlsFields(), pres.getMaskedFields(), pres.getQueries())) {
+                if(!dlsFlsValve.invoke(request, listener, pres.getAllowedFlsFields(), pres.getMaskedFields(), pres.getQueries(), complianceConfig != null && complianceConfig.isLocalHashingEnabled())) {
                     return;
                 }
                 chain.proceed(task, action, request, listener);

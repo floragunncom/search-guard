@@ -91,11 +91,12 @@ public class ConfigV7 {
         public String hosts_resolver_mode = "ip-only";
         public String transport_userrname_attribute;
         public boolean do_not_fail_on_forbidden_empty;
-    
+        public String field_anonymization_salt2;
+        
         @Override
         public String toString() {
             return "Dynamic [filtered_alias_mode=" + filtered_alias_mode + ", kibana=" + kibana + ", http=" + http + ", authc=" + authc + ", authz="
-                    + authz + "]";
+                    + authz + ", salt2= " + field_anonymization_salt2 + "]";
         }
     }
 

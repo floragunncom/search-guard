@@ -124,6 +124,7 @@ import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.AuditLogSslExceptionHandler;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
 import com.floragunn.searchguard.auth.BackendRegistry;
+import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -769,7 +770,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         irr = new IndexResolverReplacer(resolver, clusterService, cih);
         auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, resolver, clusterService);
         complianceConfig = (dlsFlsAvailable && (auditLog.getClass() != NullAuditLog.class))
-                ? new ComplianceConfig(environment, Objects.requireNonNull(irr), auditLog)
+                ? new ComplianceConfig(environment, Objects.requireNonNull(irr), auditLog, localClient)
                 : null;
         log.debug("Compliance config is " + complianceConfig + " because of dlsFlsAvailable: " + dlsFlsAvailable + " and auditLog="
                 + auditLog.getClass());
@@ -795,6 +796,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 complianceConfig);
 
         cr.subscribeOnLicenseChange(complianceConfig);
+        
+
+        // final InternalAuthenticationBackend iab = new InternalAuthenticationBackend(cr);
         final XFFResolver xffResolver = new XFFResolver(threadPool);
         backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, auditLog, threadPool);
         final CompatConfig compatConfig = new CompatConfig(environment);
@@ -808,6 +812,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         dcf.registerDCFListener(irr);
         dcf.registerDCFListener(xffResolver);
         dcf.registerDCFListener(evaluator);
+		if (complianceConfig != null) {
+			dcf.registerDCFListener(complianceConfig);
+		}
 
         cr.setDynamicConfigFactory(dcf);
 
@@ -1055,7 +1062,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT, Property.NodeScope, Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, false, Property.NodeScope,
                     Property.Filtered));
-
+			settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED, false,
+					Property.NodeScope, Property.Filtered));
+			settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_COMPLIANCE_MASK_PREFIX, Property.NodeScope,
+					Property.Filtered));
+            
             settings.add(
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_FILTER_SGINDEX_FROM_ALL_REQUESTS, false, Property.NodeScope, Property.Filtered));
 
@@ -1063,6 +1074,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_DISABLE_INTERTRANSPORT_AUTH_INITIALLY, false, Property.NodeScope,
                     Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_DISABLE_REST_AUTH_INITIALLY, false, Property.NodeScope,
+                    Property.Filtered));
+            
+            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, false, Property.NodeScope,
                     Property.Filtered));
 
             // system integration

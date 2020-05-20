@@ -88,7 +88,13 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
     public String getRemoteIpHeader() {
         return config.dynamic.http.xff.remoteIpHeader;
     }
-
+    
+    @Override
+    public String getFieldAnonymizationSalt2() {
+        // v7 feature only
+    	return null;
+    }
+    
     @Override
     public boolean isRestAuthDisabled() {
         return config.dynamic.disable_rest_auth;

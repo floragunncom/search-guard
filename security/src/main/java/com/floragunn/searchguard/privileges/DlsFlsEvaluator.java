@@ -71,6 +71,7 @@ public class DlsFlsEvaluator {
                     log.debug("added response header for masked fields info: {}", maskedFieldsMap);
                 }
             } else {
+                
                 if (threadContext.getHeader(ConfigConstants.SG_MASKED_FIELD_HEADER) != null) {
                     if (!maskedFieldsMap.equals(Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_MASKED_FIELD_HEADER)))) {
                         throw new ElasticsearchSecurityException(ConfigConstants.SG_MASKED_FIELD_HEADER + " does not match (SG 901D)");
@@ -98,8 +99,6 @@ public class DlsFlsEvaluator {
                 }
             }     
         }
-
-        
 
         // attach dls/fls map if not already done
         final Tuple<Map<String, Set<String>>, Map<String, Set<String>>> dlsFls = sgRoles.getDlsFls(user, resolver, clusterService);
@@ -149,7 +148,7 @@ public class DlsFlsEvaluator {
             } else {
                 if (threadContext.getHeader(ConfigConstants.SG_FLS_FIELDS_HEADER) != null) {
                     if (!flsFields.equals(Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_FLS_FIELDS_HEADER)))) {
-                        throw new ElasticsearchSecurityException(ConfigConstants.SG_FLS_FIELDS_HEADER + " does not match (SG 901D)");
+                        throw new ElasticsearchSecurityException(ConfigConstants.SG_FLS_FIELDS_HEADER + " does not match (SG 901D) "+flsFields+"---"+Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_FLS_FIELDS_HEADER)));
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug(ConfigConstants.SG_FLS_FIELDS_HEADER + " already set");

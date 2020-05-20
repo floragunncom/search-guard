@@ -8,9 +8,11 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 
 import javax.mail.Address;
 import javax.mail.MessagingException;
@@ -18,6 +20,7 @@ import javax.mail.Session;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
+import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
@@ -53,13 +56,13 @@ public class EmailAction extends ActionHandler {
     private String subject;
     private String from;
     private String body;
+    private String htmlBody;
     private List<String> to;
     private List<String> cc;
     private List<String> bcc;
     private String replyTo;
 
-    // TODO is map here a good data structure? We should be able to preserve the order.
-    private Map<String, Attachment> attachments = Collections.emptyMap();
+    private Map<String, Attachment> attachments = new LinkedHashMap<>();
 
     // XXX Should be from really templateable?
     private TemplateScript.Factory fromScript;
@@ -69,6 +72,7 @@ public class EmailAction extends ActionHandler {
     private List<TemplateScript.Factory> bccScript;
     private TemplateScript.Factory subjectScript;
     private TemplateScript.Factory bodyScript;
+    private TemplateScript.Factory htmlBodyScript;
     private TemplateScript.Factory replyToScript;
 
     public EmailAction() {
@@ -80,10 +84,15 @@ public class EmailAction extends ActionHandler {
         this.fromScript = watchInitService.compileTemplate("from", from, validationErrors);
         this.subjectScript = watchInitService.compileTemplate("subject", subject, validationErrors);
         this.bodyScript = watchInitService.compileTemplate("body", body, validationErrors);
+        this.htmlBodyScript = watchInitService.compileTemplate("html_body", htmlBody, validationErrors);
         this.toScript = watchInitService.compileTemplates("to", to, validationErrors);
         this.ccScript = watchInitService.compileTemplates("cc", cc, validationErrors);
         this.bccScript = watchInitService.compileTemplates("bcc", bcc, validationErrors);
         this.replyToScript = watchInitService.compileTemplate("reply_to", replyTo, validationErrors);
+
+        if (Objects.isNull(htmlBody) && Objects.isNull(body)) {
+            validationErrors.add(new ValidationError("body", "Both body and html_body are empty"));
+        }
 
         validationErrors.throwExceptionForPresentErrors();
     }
@@ -154,6 +163,7 @@ public class EmailAction extends ActionHandler {
 
             emailBuilder.withSubject(render(ctx, subjectScript));
             emailBuilder.withPlainText(render(ctx, bodyScript));
+            emailBuilder.withHTMLText(render(ctx, htmlBodyScript));
 
             if (getAttachments() != null) {
                 for (Entry<String, Attachment> entry : getAttachments().entrySet()) {
@@ -205,13 +215,27 @@ public class EmailAction extends ActionHandler {
 
         builder.field("subject", subject);
 
-        builder.field("text_body", body);
+        if (body != null) {
+            builder.field("text_body", body);
+        }
+
+        if (htmlBody != null) {
+            builder.field("html_body", htmlBody);
+        }
 
         if (attachments != null && attachments.size() > 0) {
             builder.field("attachments", attachments);
         }
 
         return builder;
+    }
+
+    public String getHtmlBody() {
+        return htmlBody;
+    }
+
+    public void setHtmlBody(String htmlBody) {
+        this.htmlBody = htmlBody;
     }
 
     public static class Factory extends ActionHandler.Factory<EmailAction> {

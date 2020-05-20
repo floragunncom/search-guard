@@ -67,29 +67,41 @@ public final class SgUtils {
     }
 
     public static String evalMap(final Map<String,Set<String>> map, final String index) {
-
+        
         if (map == null) {
             return null;
         }
 
         if (map.get(index) != null) {
-            return index;
-        } else if (map.get("*") != null) {
-            return "*";
+            return isNullSet(map.get(index))?null:index;
+        } 
+
+        if (map.get("*") != null) {
+            return isNullSet(map.get("*"))?null:"*";
         }
+
         if (map.get("_all") != null) {
-            return "_all";
+            return isNullSet(map.get("_all"))?null:"_all";
         }
 
         //regex
         for(final String key: map.keySet()) {
             if(WildcardMatcher.containsWildcard(key)
                     && WildcardMatcher.match(key, index)) {
+                
+                if(isNullSet(map.get(key))) {
+                    return null;
+                }
+                
                 return key;
             }
         }
 
         return null;
+    }
+    
+    private static boolean isNullSet(final Set<String> set) {
+        return set.size() == 1 && set.iterator().next() == null;
     }
     
     @SafeVarargs

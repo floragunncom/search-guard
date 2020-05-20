@@ -66,8 +66,11 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
         }
 
         errorHandler.logError(cause, true);
-        logger.error("Exception during establishing a SSL connection: " + cause, cause);
-
+        
+        if (logger.isDebugEnabled()) {
+            logger.debug("Exception during establishing a SSL connection: " + cause, cause);
+        }
+        
         super.onException(channel, cause0);
     }
 

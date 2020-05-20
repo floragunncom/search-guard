@@ -171,6 +171,9 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             //notify listeners
             
             for(DCFListener listener: listeners) {
+            	if (log.isTraceEnabled()) {
+            		log.trace("Notifying DCFListener '{}' about configuration changes" );	
+            	}            	
                 listener.onChanged(cm, dcm, ium);
             }
         
