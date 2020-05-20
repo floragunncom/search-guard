@@ -258,6 +258,7 @@ public class EmailAction extends ActionHandler {
 
             // TODO rename to body?
             String body = vJsonNode.requiredString("text_body");
+            String htmlBody = vJsonNode.string("html_body");
             String from = vJsonNode.string("from");
 
             Map<String, Attachment> attachments = Collections.emptyMap();
@@ -265,8 +266,6 @@ public class EmailAction extends ActionHandler {
             if (vJsonNode.hasNonNull("attachments") && vJsonNode.get("attachments") instanceof ObjectNode) {
                 attachments = Attachment.create((ObjectNode) vJsonNode.get("attachments"));
             }
-
-            //   vJsonNode.validateUnusedAttributes();
 
             validationErrors.throwExceptionForPresentErrors();
 
@@ -276,6 +275,7 @@ public class EmailAction extends ActionHandler {
             result.setCc(cc);
             result.setBcc(bcc);
             result.setBody(body);
+            result.setHtmlBody(htmlBody);
             result.setSubject(subject);
             result.setFrom(from);
             result.setAttachments(attachments);
