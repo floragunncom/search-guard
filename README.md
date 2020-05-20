@@ -76,6 +76,9 @@ Please refer to the [Official documentation](http://docs.search-guard.com) for d
 
 * Deep dive into all Search Guard features by reading the [Search Guard documentation](http://docs.search-guard.com)
 
+## Development
+Make sure to have the latest Maven and JDK version > 1.8 installed. Run `mvn install` to build the search-guard and sgadmin plugin.
+
 ## Config hot reloading
 
 The Search Guard configuration is stored in a dedicated index in Elasticsearch itself. Changes to the configuration are pushed to this index via the [sgadmin command line tool](https://docs.search-guard.com/latest/sgadmin). This will trigger a reload of the configuration on all nodes automatically. This has several advantages over configuration via elasticsearch.yml:
