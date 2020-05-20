@@ -1359,6 +1359,77 @@ public class RestApiTest {
     }
 
     @Test
+    public void testEmailDestinationWithHtmlBody() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "smtp_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        final int smtpPort = SocketUtils.findAvailableTcpPort();
+
+        GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
+        greenMail.start();
+
+        try {
+            EmailAccount destination = new EmailAccount();
+            destination.setHost("localhost");
+            destination.setPort(smtpPort);
+
+            Assert.assertTrue(destination.toJson().contains("\"type\":\"email\""));
+            Assert.assertFalse(destination.toJson().contains("session_timeout"));
+
+            Attachment attachment = new EmailAction.Attachment();
+            attachment.setType("context_data");
+
+            //Add smtp destination
+            HttpResponse response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            //Update test
+            response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            //Delete non existing destination
+            response = rh.executeDeleteRequest("/_signals/account/email/aaa", auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+            //Get non existing destination
+            response = rh.executeGetRequest("/_signals/account/email/aaabbb", auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+            //Get existing destination
+            response = rh.executeGetRequest("/_signals/account/email/default", auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            //Define a watch with an smtp action
+            Watch watch = new WatchBuilder("smtp_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                    .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx").account("default").body("a body")
+                    .htmlBody("<p>We searched {{data.x}} shards<p/>").attach("attachment.txt", attachment).name("testsmtpsink").build();
+
+            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            //we expect one email to be sent (rest is throttled)
+            if (!greenMail.waitForIncomingEmail(20000, 1)) {
+                Assert.fail("Timeout waiting for mails");
+            }
+
+            String message = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
+
+            //Check mail to contain resolved subject line
+            Assert.assertTrue(message, message.contains("<p>We searched  shards<p/>"));
+            Assert.assertTrue(message, message.contains("a body"));
+            Assert.assertTrue(message, message.contains("Test Mail Subject"));
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
+            rh.executeDeleteRequest("/_signals/account/email/default", auth);
+            greenMail.stop();
+        }
+
+    }
+
+    @Test
     public void testNonExistingEmailAccount() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
