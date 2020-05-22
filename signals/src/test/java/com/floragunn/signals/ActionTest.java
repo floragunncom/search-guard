@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.floragunn.searchguard.DefaultObjectMapper;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -536,6 +537,233 @@ public class ActionTest {
             slackAction.execute(ctx);
 
             Assert.assertEquals("{\"channel\":\"test_channel\",\"username\":\"test_from\",\"text\":\"stuff\"}", webhookProvider.getLastRequestBody());
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    public void testSlackActionWithBlocks() throws Exception {
+
+        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+
+            SlackAccount slackDestination = new SlackAccount();
+            slackDestination.setUrl(new URI(webhookProvider.getUri()));
+
+            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+            Mockito.when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            String blocksRawJson = "[\n" +
+                    "\t\t{\n" +
+                    "\t\t\t\"type\": \"section\",\n" +
+                    "\t\t\t\"text\": {\n" +
+                    "\t\t\t\t\"type\": \"mrkdwn\",\n" +
+                    "\t\t\t\t\"text\": \"A message *with some bold text* and {{data.body}}.\"\n" +
+                    "\t\t\t}\n" +
+                    "\t\t}\n" +
+                    "\t]";
+
+            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
+
+            SlackActionConf c = new SlackActionConf();
+            c.setAccount("test_destination");
+            c.setChannel("test_channel");
+            c.setFrom("test_from");
+            c.setBlocks(blocks);
+
+            SlackAction slackAction = new SlackAction(c);
+            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+
+            slackAction.execute(ctx);
+
+            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"blocks\":\"[{\\\"type\\\":\\\"section\\\",\\\"text\\\":{\\\"type\\\":\\\"mrkdwn\\\",\\\"text\\\":\\\"A message *with some bold text* and stuff.\\\"}}]\"}";
+
+            Assert.assertEquals(expected, webhookProvider.getLastRequestBody());
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    public void testSlackActionWithBlocksAndQuotesInMustacheTemplate() throws Exception {
+
+        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+
+            SlackAccount slackDestination = new SlackAccount();
+            slackDestination.setUrl(new URI(webhookProvider.getUri()));
+
+            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+            Mockito.when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+            runtimeData.put("someQuote", "\"a quote\"");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            String blocksRawJson = "[\n" +
+                    "\t\t{\n" +
+                    "\t\t\t\"type\": \"section\",\n" +
+                    "\t\t\t\"text\": {\n" +
+                    "\t\t\t\t\"type\": \"mrkdwn\",\n" +
+                    "\t\t\t\t\"text\": \"A message *with some bold text* and {{data.body}} and {{data.someQuote}}.\"\n" +
+                    "\t\t\t}\n" +
+                    "\t\t}\n" +
+                    "\t]";
+
+            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
+
+            SlackActionConf c = new SlackActionConf();
+            c.setAccount("test_destination");
+            c.setChannel("test_channel");
+            c.setFrom("test_from");
+            c.setBlocks(blocks);
+
+            SlackAction slackAction = new SlackAction(c);
+            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+
+            slackAction.execute(ctx);
+
+            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"blocks\":\"[{\\\"type\\\":\\\"section\\\",\\\"text\\\":{\\\"type\\\":\\\"mrkdwn\\\",\\\"text\\\":\\\"A message *with some bold text* and stuff and \\\\\\\"a quote\\\\\\\".\\\"}}]\"}";
+
+            Assert.assertEquals(expected, webhookProvider.getLastRequestBody());
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    public void testSlackActionWithBlocksAndText() throws Exception {
+
+        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+
+            SlackAccount slackDestination = new SlackAccount();
+            slackDestination.setUrl(new URI(webhookProvider.getUri()));
+
+            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+            Mockito.when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            String blocksRawJson = "[\n" +
+                    "\t\t{\n" +
+                    "\t\t\t\"type\": \"section\",\n" +
+                    "\t\t\t\"text\": {\n" +
+                    "\t\t\t\t\"type\": \"mrkdwn\",\n" +
+                    "\t\t\t\t\"text\": \"A message *with some bold text* and {{data.body}}.\"\n" +
+                    "\t\t\t}\n" +
+                    "\t\t}\n" +
+                    "\t]";
+
+            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
+
+            SlackActionConf c = new SlackActionConf();
+            c.setAccount("test_destination");
+            c.setChannel("test_channel");
+            c.setFrom("test_from");
+            c.setText("{{data.body}}");
+            c.setBlocks(blocks);
+
+            SlackAction slackAction = new SlackAction(c);
+            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+
+            slackAction.execute(ctx);
+
+            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"text\":\"stuff\",\"blocks\":\"[{\\\"type\\\":\\\"section\\\",\\\"text\\\":{\\\"type\\\":\\\"mrkdwn\\\",\\\"text\\\":\\\"A message *with some bold text* and stuff.\\\"}}]\"}";
+            Assert.assertEquals(expected, webhookProvider.getLastRequestBody());
+        }
+    }
+
+    @Test
+    public void testSlackActionWithoutBlockAndText() {
+            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+
+            SlackActionConf c = new SlackActionConf();
+            c.setAccount("test_destination");
+            c.setChannel("test_channel");
+            c.setFrom("test_from");
+
+            SlackAction slackAction = new SlackAction(c);
+
+            try {
+                slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains("'text': Required attribute is missing"));
+            }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    public void testSlackActionWithAttachments() throws Exception {
+
+        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+
+            SlackAccount slackDestination = new SlackAccount();
+            slackDestination.setUrl(new URI(webhookProvider.getUri()));
+
+            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+            Mockito.when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            String attachmentRawJson = "[\n" +
+                    "      {\n" +
+                    "          \"fallback\": \"Plain-text summary of the attachment.\",\n" +
+                    "          \"color\": \"#2eb886\",\n" +
+                    "          \"pretext\": \"Optional text that appears above the attachment block\",\n" +
+                    "          \"author_name\": \"Bobby Tables\",\n" +
+                    "          \"author_link\": \"http://flickr.com/bobby/\",\n" +
+                    "          \"author_icon\": \"http://flickr.com/icons/bobby.jpg\",\n" +
+                    "          \"title\": \"Slack API Documentation\",\n" +
+                    "          \"title_link\": \"https://api.slack.com/\",\n" +
+                    "          \"text\": \"Optional text that appears within the attachment\",\n" +
+                    "          \"fields\": [\n" +
+                    "              {\n" +
+                    "                  \"title\": \"Priority\",\n" +
+                    "                  \"value\": \"High\",\n" +
+                    "                  \"short\": false\n" +
+                    "              }\n" +
+                    "          ],\n" +
+                    "          \"image_url\": \"http://my-website.com/path/to/image.jpg\",\n" +
+                    "          \"thumb_url\": \"http://example.com/path/to/thumb.png\",\n" +
+                    "          \"footer\": \"Slack API\",\n" +
+                    "          \"footer_icon\": \"https://platform.slack-edge.com/img/default_application_icon.png\",\n" +
+                    "          \"ts\": 123456789\n" +
+                    "      }\n" +
+                    "  ]";
+
+            List attachments = DefaultObjectMapper.readValue(attachmentRawJson, List.class);
+
+            SlackActionConf c = new SlackActionConf();
+            c.setAccount("test_destination");
+            c.setChannel("test_channel");
+            c.setFrom("test_from");
+            c.setAttachments(attachments);
+
+            SlackAction slackAction = new SlackAction(c);
+            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+
+            slackAction.execute(ctx);
+
+            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"attachments\":\"[{\\\"fallback\\\":\\\"Plain-text summary of the attachment.\\\",\\\"color\\\":\\\"#2eb886\\\",\\\"pretext\\\":\\\"Optional text that appears above the attachment block\\\",\\\"author_name\\\":\\\"Bobby Tables\\\",\\\"author_link\\\":\\\"http://flickr.com/bobby/\\\",\\\"author_icon\\\":\\\"http://flickr.com/icons/bobby.jpg\\\",\\\"title\\\":\\\"Slack API Documentation\\\",\\\"title_link\\\":\\\"https://api.slack.com/\\\",\\\"text\\\":\\\"Optional text that appears within the attachment\\\",\\\"fields\\\":[{\\\"title\\\":\\\"Priority\\\",\\\"value\\\":\\\"High\\\",\\\"short\\\":false}],\\\"image_url\\\":\\\"http://my-website.com/path/to/image.jpg\\\",\\\"thumb_url\\\":\\\"http://example.com/path/to/thumb.png\\\",\\\"footer\\\":\\\"Slack API\\\",\\\"footer_icon\\\":\\\"https://platform.slack-edge.com/img/default_application_icon.png\\\",\\\"ts\\\":123456789}]\"}";
+
+            Assert.assertEquals(expected, webhookProvider.getLastRequestBody());
         }
     }
 
