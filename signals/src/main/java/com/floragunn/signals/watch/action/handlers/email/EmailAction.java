@@ -1,29 +1,30 @@
 package com.floragunn.signals.watch.action.handlers.email;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-
-import javax.mail.Address;
-import javax.mail.MessagingException;
-import javax.mail.Session;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
+import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.floragunn.signals.accounts.NoSuchAccountException;
+import com.floragunn.signals.execution.ActionExecutionException;
+import com.floragunn.signals.execution.SimulationMode;
+import com.floragunn.signals.execution.WatchExecutionContext;
+import com.floragunn.signals.execution.WatchExecutionException;
+import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;
+import com.floragunn.signals.watch.action.handlers.ActionHandler;
+import com.floragunn.signals.watch.common.HttpClientConfig;
+import com.floragunn.signals.watch.common.HttpRequestConfig;
+import com.floragunn.signals.watch.common.HttpUtils;
+import com.floragunn.signals.watch.init.WatchInitializationService;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.TemplateScript;
@@ -33,18 +34,29 @@ import org.simplejavamail.email.EmailBuilder;
 import org.simplejavamail.email.EmailPopulatingBuilder;
 import org.simplejavamail.email.Recipient;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
-import com.floragunn.signals.accounts.NoSuchAccountException;
-import com.floragunn.signals.execution.ActionExecutionException;
-import com.floragunn.signals.execution.SimulationMode;
-import com.floragunn.signals.execution.WatchExecutionContext;
-import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;
-import com.floragunn.signals.watch.action.handlers.ActionHandler;
-import com.floragunn.signals.watch.init.WatchInitializationService;
+import javax.mail.Address;
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Optional;
 
 public class EmailAction extends ActionHandler {
 
@@ -99,7 +111,6 @@ public class EmailAction extends ActionHandler {
 
     @Override
     public ActionExecutionResult execute(WatchExecutionContext ctx) throws ActionExecutionException {
-
         try {
 
             final String destinationId = getAccount();
@@ -112,7 +123,6 @@ public class EmailAction extends ActionHandler {
             if (ctx.getSimulationMode() == SimulationMode.FOR_REAL) {
                 sm.sendMail(email);
             }
-
             return new ActionExecutionResult(mailToDebugString(email));
 
         } catch (NoSuchAccountException e) {
@@ -165,14 +175,40 @@ public class EmailAction extends ActionHandler {
             emailBuilder.withPlainText(render(ctx, bodyScript));
             emailBuilder.withHTMLText(render(ctx, htmlBodyScript));
 
-            if (getAttachments() != null) {
-                for (Entry<String, Attachment> entry : getAttachments().entrySet()) {
-                    if (!Strings.isNullOrEmpty(entry.getKey()) && entry.getValue() != null) {
-                        if ("context_data".equalsIgnoreCase(entry.getValue().getType())) {
-                            String json = ctx.getContextData().getData().toJsonString();
-                            if (json != null) {
-                                emailBuilder.withAttachment(entry.getKey(), json.getBytes(StandardCharsets.UTF_8), "application/json");
-                            }
+            List<Entry<String, Attachment>> contexts = getAttachments(Attachment.AttachmentType.RUNTIME);
+            for (Entry<String, Attachment> context : contexts) {
+                String fileName = context.getKey();
+                String json = ctx.getContextData().getData().toJsonString();
+                if (json != null) {
+                    emailBuilder.withAttachment(fileName, json.getBytes(StandardCharsets.UTF_8), "application/json");
+                }
+            }
+
+            List<Entry<String, Attachment>> requests = getAttachments(Attachment.AttachmentType.REQUEST);
+            for (Entry<String, Attachment> r : requests) {
+                String fileName = r.getKey();
+                Attachment attachment = r.getValue();
+
+                if (attachment != null && attachment.httpClientConfig != null && attachment.requestConfig != null) {
+                    try (CloseableHttpClient httpClient = attachment.httpClientConfig.createHttpClient()) {
+                        HttpUriRequest request = attachment.requestConfig.createHttpRequest(ctx);
+
+                        if (log.isDebugEnabled()) {
+                            log.debug("Going to execute: " + request);
+                        }
+
+                        CloseableHttpResponse response = AccessController
+                                .doPrivileged((PrivilegedExceptionAction<CloseableHttpResponse>) () -> httpClient.execute(request));
+
+                        if (response.getStatusLine().getStatusCode() >= 400) {
+                            throw new WatchExecutionException(
+                                    "HTTP request returned error: " + response.getStatusLine() + "\n\n" + HttpUtils.getEntityAsDebugString(response), null);
+                        }
+
+                        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                            response.getEntity().writeTo(baos);
+                            String contentType = response.getEntity().getContentType().getValue();
+                            emailBuilder.withAttachment(fileName, baos.toByteArray(), contentType);
                         }
                     }
                 }
@@ -184,6 +220,20 @@ public class EmailAction extends ActionHandler {
         } catch (Exception e) {
             throw new ActionExecutionException(this, "Error while rendering mail: " + e.getMessage(), e);
         }
+    }
+
+    private List<Entry<String, Attachment>> getAttachments(Attachment.AttachmentType type) {
+        List<Entry<String, Attachment>> result = new ArrayList<>();
+        if (getAttachments() != null) {
+            for (Entry<String, Attachment> entry : getAttachments().entrySet()) {
+                if (!Strings.isNullOrEmpty(entry.getKey()) && entry.getValue() != null) {
+                    if (type == entry.getValue().getType()) {
+                        result.add(entry);
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     @Override
@@ -264,7 +314,7 @@ public class EmailAction extends ActionHandler {
             Map<String, Attachment> attachments = Collections.emptyMap();
 
             if (vJsonNode.hasNonNull("attachments") && vJsonNode.get("attachments") instanceof ObjectNode) {
-                attachments = Attachment.create((ObjectNode) vJsonNode.get("attachments"));
+                attachments = Attachment.create((ObjectNode) vJsonNode.get("attachments"), watchInitService, validationErrors);
             }
 
             validationErrors.throwExceptionForPresentErrors();
@@ -289,32 +339,95 @@ public class EmailAction extends ActionHandler {
 
     public static class Attachment implements ToXContentObject {
 
-        // TODO make this an enum
-        private String type;
+        public enum AttachmentType {
+            REQUEST("request"), RUNTIME("runtime");
 
-        public String getType() {
+            private final String type;
+
+            AttachmentType(String type) {
+                this.type = type;
+            }
+
+            public String getType() {
+                return type;
+            }
+
+            public static Optional<AttachmentType> of(String t) {
+                switch (t.toLowerCase()) {
+                    case "request":
+                        return Optional.of(REQUEST);
+                    case "runtime":
+                        return Optional.of(RUNTIME);
+                    default:
+                }
+                return Optional.empty();
+            }
+        }
+
+        private AttachmentType type;
+
+        private HttpRequestConfig requestConfig;
+
+        public HttpClientConfig getHttpClientConfig() {
+            return httpClientConfig;
+        }
+
+        public void setHttpClientConfig(HttpClientConfig httpClientConfig) {
+            this.httpClientConfig = httpClientConfig;
+        }
+
+        private HttpClientConfig httpClientConfig;
+
+        public HttpRequestConfig getRequestConfig() {
+            return requestConfig;
+        }
+
+        public void setRequestConfig(HttpRequestConfig requestConfig) {
+            this.requestConfig = requestConfig;
+        }
+
+        public AttachmentType getType() {
             return type;
         }
 
-        public void setType(String type) {
+        public void setType(AttachmentType type) {
             this.type = type;
         }
 
-        static Map<String, Attachment> create(ObjectNode objectNode) {
+        static Map<String, Attachment> create(ObjectNode objectNode, WatchInitializationService watchInitService, ValidationErrors validationErrors) {
             Map<String, Attachment> result = new HashMap<>();
 
             for (Iterator<Map.Entry<String, JsonNode>> iter = objectNode.fields(); iter.hasNext();) {
                 Map.Entry<String, JsonNode> entry = iter.next();
-                JsonNode element = entry.getValue();
+                ValidatingJsonNode element = new ValidatingJsonNode(entry.getValue(), validationErrors);
 
                 Attachment attachment = new Attachment();
 
                 if (element.hasNonNull("type")) {
-                    attachment.setType(element.get("type").asText());
+                    Optional<AttachmentType> type = AttachmentType.of(element.get("type").asText());
+                    type.ifPresent(t -> {
+                        attachment.setType(t);
+
+                        if (t == AttachmentType.REQUEST) {
+                            if (element.hasNonNull("request")) {
+                                try {
+                                    HttpClientConfig httpClientConfig = HttpClientConfig.create(element);
+                                    attachment.setHttpClientConfig(httpClientConfig);
+                                } catch (ConfigValidationException e) {
+                                    validationErrors.add(null, e);
+                                }
+                                try {
+                                    HttpRequestConfig requestConfig = HttpRequestConfig.create(watchInitService, element.get("request"));
+                                    attachment.setRequestConfig(requestConfig);
+                                } catch (ConfigValidationException e) {
+                                    validationErrors.add("request", e);
+                                }
+                            }
+                        }
+                    });
                 }
 
                 result.put(entry.getKey(), attachment);
-
             }
 
             return result;
@@ -324,6 +437,14 @@ public class EmailAction extends ActionHandler {
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startObject();
             builder.field("type", type);
+
+            if (type == AttachmentType.REQUEST) {
+                builder.field("request", requestConfig);
+                if (httpClientConfig != null) {
+                    httpClientConfig.toXContent(builder, params);
+                }
+            }
+
             builder.endObject();
             return builder;
         }

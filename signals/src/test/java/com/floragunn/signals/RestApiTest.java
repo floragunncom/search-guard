@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
+import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.support.NestedValueMap;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
@@ -1311,7 +1312,7 @@ public class RestApiTest {
             Assert.assertFalse(destination.toJson().contains("session_timeout"));
 
             Attachment attachment = new EmailAction.Attachment();
-            attachment.setType("context_data");
+            attachment.setType(Attachment.AttachmentType.RUNTIME);
 
             //Add smtp destination
             HttpResponse response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
@@ -1361,6 +1362,104 @@ public class RestApiTest {
     }
 
     @Test
+    public void testEmailDestinationWithRuntimeDataAndBasicText() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "smtp_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        final int smtpPort = SocketUtils.findAvailableTcpPort();
+
+        GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
+        greenMail.start();
+
+        try {
+
+            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+                HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                        "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null);
+
+                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+
+                EmailAccount destination = new EmailAccount();
+                destination.setHost("localhost");
+                destination.setPort(smtpPort);
+
+                Assert.assertTrue(destination.toJson().contains("\"type\":\"email\""));
+                Assert.assertFalse(destination.toJson().contains("session_timeout"));
+
+                Attachment attachment = new EmailAction.Attachment();
+                attachment.setType(Attachment.AttachmentType.RUNTIME);
+
+                Attachment attachment2 = new EmailAction.Attachment();
+                attachment2.setType(Attachment.AttachmentType.REQUEST);
+                attachment2.setRequestConfig(httpRequestConfig);
+
+                //Add smtp destination
+                HttpResponse response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                //Update test
+                response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+                //Delete non existing destination
+                response = rh.executeDeleteRequest("/_signals/account/email/aaa", auth);
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+                //Get non existing destination
+                response = rh.executeGetRequest("/_signals/account/email/aaabbb", auth);
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+                //Get existing destination
+                response = rh.executeGetRequest("/_signals/account/email/default", auth);
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+                //Define a watch with an smtp action
+                Watch watch = new WatchBuilder("smtp_test")
+                            .put("{\n" +
+                                    "   \"path\":\"hook\",\n" +
+                                    "   \"body\":\"stuff\",\n" +
+                                    "   \"x\":\"y\"\n" +
+                                    "}").as("teststatic")
+                            .cronTrigger("* * * * * ?")
+                            .search("testsource")
+                                .query("{\"match_all\" : {} }")
+                                .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx").account("default")
+                                .body("We searched {{data.testsearch._shards.total}} shards")
+                                .attach("runtime.txt", attachment)
+                                .attach("some_response.txt", attachment2)
+                                .name("testsmtpsink")
+                            .build();
+
+                response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                //we expect one email to be sent (rest is throttled)
+                if (!greenMail.waitForIncomingEmail(20000, 1)) {
+                    Assert.fail("Timeout waiting for mails");
+                }
+
+                String message = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
+
+                //Check mail to contain resolved subject line
+                Assert.assertTrue(message, message.contains("We searched 5 shards"));
+                Assert.assertTrue(message, message.contains("Content-Type: application/json; filename=runtime.txt; name=runtime"));
+                Assert.assertTrue(message, message.contains("Content-Type: text/plain; filename=some_response.txt; name=some_response"));
+                Assert.assertTrue(message, message.contains("Mockery"));
+                Assert.assertTrue(message, message.contains("Test Mail Subject"));
+            }
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
+            rh.executeDeleteRequest("/_signals/account/email/default", auth);
+            greenMail.stop();
+        }
+
+    }
+
+    @Test
     public void testEmailDestinationWithHtmlBody() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
@@ -1381,7 +1480,7 @@ public class RestApiTest {
             Assert.assertFalse(destination.toJson().contains("session_timeout"));
 
             Attachment attachment = new EmailAction.Attachment();
-            attachment.setType("context_data");
+            attachment.setType(Attachment.AttachmentType.RUNTIME);
 
             //Add smtp destination
             HttpResponse response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
@@ -1430,6 +1529,7 @@ public class RestApiTest {
         }
 
     }
+
 
     @Test
     public void testNonExistingEmailAccount() throws Exception {
@@ -1883,8 +1983,6 @@ public class RestApiTest {
     public void testConvEs() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
 
-        try (Client client = cluster.getInternalClient()) {
-
             String input = new JsonBuilder.Object()
                     .attr("trigger",
                             new JsonBuilder.Object().attr("schedule",
@@ -1892,10 +1990,25 @@ public class RestApiTest {
                     .attr("input", new JsonBuilder.Object().attr("simple", new JsonBuilder.Object().attr("x", "y")))
                     .attr("actions",
                             new JsonBuilder.Object()
-                                    .attr("my_action",
+                                    .attr("email_action",
                                             new JsonBuilder.Object().attr("email",
                                                     new JsonBuilder.Object().attr("to", "horst@horst").attr("subject", "Hello World")
                                                             .attr("body", "Hallo {{ctx.payload.x}}").attr("attachments", "foo")))
+
+                                    .attr("email_action_with_http",
+                                            new JsonBuilder.Object().attr("email",
+                                                    new JsonBuilder.Object().attr("to", "horst@horst").attr("subject", "Hello World")
+                                                            .attr("body", "Hallo {{ctx.payload.x}}").attr("attachments",
+                                                            new JsonBuilder.Object().attr("my_image.png", new JsonBuilder.Object().attr("http",
+                                                                    new JsonBuilder.Object().attr("request", new JsonBuilder.Object().attr("url", "http://example.org/foo/my-image.png")))))))
+
+                                    .attr("email_action_with_reporting",
+                                            new JsonBuilder.Object().attr("email",
+                                                    new JsonBuilder.Object().attr("to", "horst@horst").attr("subject", "Hello World")
+                                                            .attr("body", "Hallo {{ctx.payload.x}}").attr("attachments",
+                                                            new JsonBuilder.Object().attr("dashboard.pdf", new JsonBuilder.Object().attr("reporting",
+                                                                    new JsonBuilder.Object().attr("url", "http://example.org:5601/api/reporting/generate/dashboard/Error-Monitoring"))))))
+
                                     .attr("another_action",
                                             new JsonBuilder.Object().attr("index",
                                                     new JsonBuilder.Object().attr("index", "foo").attr("execution_time_field", "holla"))))
@@ -1904,7 +2017,6 @@ public class RestApiTest {
             HttpResponse response = rh.executePostRequest("/_signals/convert/es", input, auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-        }
     }
 
     @Test

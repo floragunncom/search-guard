@@ -25,17 +25,16 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchsupport.jobs.config.elements.InlineMustacheTemplate;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonParser;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.support.NestedValueMap;
-import com.floragunn.signals.watch.action.handlers.ActionHandler;
 import com.floragunn.signals.watch.action.handlers.IndexAction;
 import com.floragunn.signals.watch.action.handlers.WebhookAction;
 import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
@@ -54,8 +53,30 @@ import com.google.common.collect.ImmutableMap;
 import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.GreenMailUtil;
 import com.icegreen.greenmail.util.ServerSetup;
-
 import net.jcip.annotations.NotThreadSafe;
+import org.apache.commons.io.IOUtils;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.script.ScriptService;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 @PowerMockIgnore({ "javax.script.*", "javax.crypto.*", "javax.management.*", "sun.security.*", "java.security.*", "javax.net.ssl.*", "javax.net.*",
         "javax.security.*" })
@@ -794,10 +815,10 @@ public class ActionTest {
             emailAction.setAccount("test_destination");
 
             Attachment attachment1 = new EmailAction.Attachment();
-            attachment1.setType("context_data");
+            attachment1.setType(Attachment.AttachmentType.RUNTIME);
 
             Attachment attachment2 = new EmailAction.Attachment();
-            attachment2.setType("context_data");
+            attachment2.setType(Attachment.AttachmentType.RUNTIME);
 
             emailAction.setAttachments(ImmutableMap.of("test2", attachment2, "test1", attachment1));
 
@@ -856,7 +877,7 @@ public class ActionTest {
             emailAction.setAccount("test_destination");
 
             Attachment attachment = new EmailAction.Attachment();
-            attachment.setType("context_data");
+            attachment.setType(Attachment.AttachmentType.RUNTIME);
 
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
@@ -916,7 +937,7 @@ public class ActionTest {
             emailAction.setAccount("test_destination");
 
             Attachment attachment = new EmailAction.Attachment();
-            attachment.setType("context_data");
+            attachment.setType(Attachment.AttachmentType.RUNTIME);
 
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
@@ -966,7 +987,7 @@ public class ActionTest {
             emailAction.setAccount("test_destination");
 
             Attachment attachment = new EmailAction.Attachment();
-            attachment.setType("context_data");
+            attachment.setType(Attachment.AttachmentType.RUNTIME);
 
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
@@ -977,15 +998,234 @@ public class ActionTest {
             }
     }
 
-    private <A extends ActionHandler> A parseBackAndForth(WatchInitializationService watchInitializationService, A action,
-            ActionHandler.Factory<A> factory) throws ConfigValidationException {
-        JsonNode jsonNode = ValidatingJsonParser.readTree(action.toJson());
+    @Test
+    public void testEmailActionWithBasicTextRequestAndRuntimeData() throws Exception {
+        final int smtpPort = SocketUtils.findAvailableTcpPort();
 
-        A result = factory.create(watchInitializationService, jsonNode);
+        GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
+        greenMail.start();
 
-        Assert.assertEquals(action.toJson(), result.toJson());
+        try (Client client = cluster.getInternalClient()) {
 
-        return result;
+            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+                NestedValueMap runtimeData = new NestedValueMap();
+                runtimeData.put("path", "hook");
+                runtimeData.put("body", "stuff");
+                runtimeData.put("x", "y");
+
+                HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                        "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+
+                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+
+                EmailAccount emailDestination = new EmailAccount();
+                emailDestination.setHost("localhost");
+                emailDestination.setPort(smtpPort);
+                emailDestination.setDefaultFrom("from@default.sgtest");
+                emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
+
+                AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+                Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+
+                EmailAction emailAction = new EmailAction();
+                emailAction.setBody("We searched {{data.x}} shards");
+                emailAction.setSubject("Test Subject");
+                emailAction.setTo(Collections.singletonList("to@specific.sgtest"));
+                emailAction.setAccount("test_destination");
+
+                Attachment attachment = new EmailAction.Attachment();
+                attachment.setType(Attachment.AttachmentType.RUNTIME);
+
+                Attachment attachment2 = new EmailAction.Attachment();
+                attachment2.setType(Attachment.AttachmentType.REQUEST);
+                attachment2.setRequestConfig(httpRequestConfig);
+                attachment2.setHttpClientConfig(httpClientConfig);
+
+                emailAction.setAttachments(ImmutableMap.of("test", attachment, "test2", attachment2));
+
+                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+
+                WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                        ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+                emailAction.execute(ctx);
+
+                if (!greenMail.waitForIncomingEmail(20000, 1)) {
+                    Assert.fail("Timeout waiting for mails");
+                }
+
+                String receivedMail = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
+
+                Assert.assertTrue(receivedMail, receivedMail.contains("We searched y shards"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Content-Disposition: attachment; filename=test"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("{\"path\":\"hook\",\"x\":\"y\",\"body\":\"stuff\"}"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Content-Disposition: attachment; filename=test2"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Mockery"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Subject: Test Subject"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("From: from@default.sgtest"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("To: to@specific.sgtest"));
+            }
+        } finally {
+            greenMail.stop();
+        }
     }
 
+    @Test
+    public void testEmailActionWithPDFRequestAndRuntimeData() throws Exception {
+        final int smtpPort = SocketUtils.findAvailableTcpPort();
+
+        GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
+        greenMail.start();
+
+        try (Client client = cluster.getInternalClient()) {
+
+            byte[] pdf = IOUtils.toByteArray(FileHelper.getAbsoluteFilePathFromClassPath("blank_email_attachment.pdf").toUri());
+
+            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", pdf, "application/pdf")) {
+
+                NestedValueMap runtimeData = new NestedValueMap();
+                runtimeData.put("path", "hook");
+                runtimeData.put("body", "stuff");
+                runtimeData.put("x", "y");
+                HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                        "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+
+                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+
+                EmailAccount emailDestination = new EmailAccount();
+                emailDestination.setHost("localhost");
+                emailDestination.setPort(smtpPort);
+                emailDestination.setDefaultFrom("from@default.sgtest");
+                emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
+
+                AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+                Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+
+                EmailAction emailAction = new EmailAction();
+                emailAction.setBody("We searched {{data.x}} shards");
+                emailAction.setSubject("Test Subject");
+                emailAction.setTo(Collections.singletonList("to@specific.sgtest"));
+                emailAction.setAccount("test_destination");
+
+                Attachment attachment = new EmailAction.Attachment();
+                attachment.setType(Attachment.AttachmentType.RUNTIME);
+
+                Attachment attachment2 = new EmailAction.Attachment();
+                attachment2.setType(Attachment.AttachmentType.REQUEST);
+                attachment2.setRequestConfig(httpRequestConfig);
+                attachment2.setHttpClientConfig(httpClientConfig);
+
+                emailAction.setAttachments(ImmutableMap.of("test", attachment, "test2", attachment2));
+
+                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+
+                WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                        ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+                emailAction.execute(ctx);
+
+                if (!greenMail.waitForIncomingEmail(20000, 1)) {
+                    Assert.fail("Timeout waiting for mails");
+                }
+
+                String receivedMail = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
+
+                Assert.assertTrue(receivedMail, receivedMail.contains("We searched y shards"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Content-Disposition: attachment; filename=test"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("{\"path\":\"hook\",\"x\":\"y\",\"body\":\"stuff\"}"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Content-Disposition: attachment; filename=test2"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Subject: Test Subject"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("From: from@default.sgtest"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("To: to@specific.sgtest"));
+            }
+        } finally {
+            greenMail.stop();
+        }
+    }
+
+    @Test
+    public void testEmailActionWithJSONRequestsAndRuntimeData() throws Exception {
+        final int smtpPort = SocketUtils.findAvailableTcpPort();
+
+        GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
+        greenMail.start();
+
+        try (Client client = cluster.getInternalClient()) {
+
+            String helloWorld = "{\n" + "   \"hello\":\"world\"\n" + "}";
+
+            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", helloWorld.getBytes(), "application/json")) {
+
+                NestedValueMap runtimeData = new NestedValueMap();
+                runtimeData.put("path", "hook");
+                runtimeData.put("body", "stuff");
+                runtimeData.put("x", "y");
+
+                HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                        "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+
+                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+
+                EmailAccount emailDestination = new EmailAccount();
+                emailDestination.setHost("localhost");
+                emailDestination.setPort(smtpPort);
+                emailDestination.setDefaultFrom("from@default.sgtest");
+                emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
+
+                AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+                Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+
+                EmailAction emailAction = new EmailAction();
+                emailAction.setBody("We searched {{data.x}} shards");
+                emailAction.setSubject("Test Subject");
+                emailAction.setTo(Collections.singletonList("to@specific.sgtest"));
+                emailAction.setAccount("test_destination");
+
+                Attachment attachment = new EmailAction.Attachment();
+                attachment.setType(Attachment.AttachmentType.RUNTIME);
+
+                Attachment attachment2 = new EmailAction.Attachment();
+                attachment2.setType(Attachment.AttachmentType.REQUEST);
+                attachment2.setRequestConfig(httpRequestConfig);
+                attachment2.setHttpClientConfig(httpClientConfig);
+
+                Attachment attachment3 = new EmailAction.Attachment();
+                attachment3.setType(Attachment.AttachmentType.REQUEST);
+                attachment3.setRequestConfig(httpRequestConfig);
+                attachment3.setHttpClientConfig(httpClientConfig);
+
+                emailAction.setAttachments(ImmutableMap.of("attachment3", attachment3, "test", attachment, "test2", attachment2));
+
+                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+
+                WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                        ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+                emailAction.execute(ctx);
+
+                if (!greenMail.waitForIncomingEmail(20000, 1)) {
+                    Assert.fail("Timeout waiting for mails");
+                }
+
+                String receivedMail = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
+
+                Assert.assertTrue(receivedMail, receivedMail.contains("We searched y shards"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Content-Disposition: attachment; filename=test"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("{\"path\":\"hook\",\"x\":\"y\",\"body\":\"stuff\"}"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Content-Disposition: attachment; filename=test2"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("\"hello\":\"world\""));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Content-Disposition: attachment; filename=attachment3"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("\"hello\":\"world\""));
+                Assert.assertTrue(receivedMail, receivedMail.contains("Subject: Test Subject"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("From: from@default.sgtest"));
+                Assert.assertTrue(receivedMail, receivedMail.contains("To: to@specific.sgtest"));
+            }
+        } finally {
+            greenMail.stop();
+        }
+    }
 }
