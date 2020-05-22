@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -106,6 +107,10 @@ public class NestedValueMap extends HashMap<String, Object> {
 
     public static NestedValueMap fromJsonString(String jsonString) throws IOException {
         return NestedValueMap.copy(DefaultObjectMapper.readValue(jsonString, Map.class));
+    }
+
+    public static NestedValueMap fromJsonArrayString(String jsonString) throws IOException {
+        return NestedValueMap.copy(DefaultObjectMapper.readValue(jsonString, List.class));
     }
 
     public Object put(String key, Map<?, ?> data) {

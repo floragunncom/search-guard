@@ -1,7 +1,9 @@
 package com.floragunn.searchsupport.util.duration;
 
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -52,10 +54,12 @@ public class ExpontentialDurationExpression implements DurationExpression {
     }
 
     public String toString() {
+        DecimalFormatSymbols locale = new DecimalFormatSymbols(Locale.US);
+
         if (this.maxDuration == null || this.maxDuration.equals(DEFAULT_MAX_DURATION)) {
-            return DurationFormat.INSTANCE.format(initialDuration) + "**" + new DecimalFormat("0.##").format(basis);
+            return DurationFormat.INSTANCE.format(initialDuration) + "**" + new DecimalFormat("0.##", locale).format(basis);
         } else {
-            return DurationFormat.INSTANCE.format(initialDuration) + "**" + new DecimalFormat("0.##").format(basis) + "|"
+            return DurationFormat.INSTANCE.format(initialDuration) + "**" + new DecimalFormat("0.##", locale).format(basis) + "|"
                     + DurationFormat.INSTANCE.format(maxDuration);
         }
     }

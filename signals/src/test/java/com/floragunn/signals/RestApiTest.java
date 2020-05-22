@@ -4,9 +4,11 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
 import java.util.Base64;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
+import com.floragunn.signals.support.NestedValueMap;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
@@ -1470,7 +1472,7 @@ public class RestApiTest {
 
             SlackActionConf slackActionConf = new SlackActionConf();
             slackActionConf.setText("Test from slack action");
-            //slackActionConf.setChannel("");
+            slackActionConf.setChannel("some channel");
             slackActionConf.setFrom("xyz");
             slackActionConf.setIconEmoji(":got:");
             slackActionConf.setAccount("default");
@@ -1493,6 +1495,165 @@ public class RestApiTest {
 
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    public void testSlackDestinationWithBlocksAndText() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "slack_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try {
+            SlackAccount destination = new SlackAccount();
+            destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
+
+            Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
+
+            String blocksRawJson = "[\n" +
+                    "\t\t{\n" +
+                    "\t\t\t\"type\": \"section\",\n" +
+                    "\t\t\t\"text\": {\n" +
+                    "\t\t\t\t\"type\": \"mrkdwn\",\n" +
+                    "\t\t\t\t\"text\": \"A message *with some bold text*}.\"\n" +
+                    "\t\t\t}\n" +
+                    "\t\t}\n" +
+                    "\t]";
+
+            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
+
+            SlackActionConf slackActionConf = new SlackActionConf();
+            slackActionConf.setText("Test from slack action");
+            slackActionConf.setBlocks(blocks);
+            slackActionConf.setChannel("some channel");
+            slackActionConf.setFrom("xyz");
+            slackActionConf.setIconEmoji(":got:");
+            slackActionConf.setAccount("default");
+
+            //Add destination
+            HttpResponse response = rh.executePutRequest("/_signals/account/slack/default", destination.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            //Define a watch with an smtp action
+            Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                    .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
+
+            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, basicAuth("uhura", "uhura"));
+            rh.executeDeleteRequest("/_signals/account/slack/default", basicAuth("uhura", "uhura"));
+        }
+
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    public void testSlackDestinationWithAttachmentAndText() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "slack_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try {
+            SlackAccount destination = new SlackAccount();
+            destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
+
+            Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
+
+            String attachmentRawJson = "[\n" +
+                    "      {\n" +
+                    "          \"fallback\": \"Plain-text summary of the attachment.\",\n" +
+                    "          \"color\": \"#2eb886\",\n" +
+                    "          \"pretext\": \"Optional text that appears above the attachment block\",\n" +
+                    "          \"author_name\": \"Bobby Tables\",\n" +
+                    "          \"author_link\": \"http://flickr.com/bobby/\",\n" +
+                    "          \"author_icon\": \"http://flickr.com/icons/bobby.jpg\",\n" +
+                    "          \"title\": \"Slack API Documentation\",\n" +
+                    "          \"title_link\": \"https://api.slack.com/\",\n" +
+                    "          \"text\": \"Optional text that appears within the attachment\",\n" +
+                    "          \"fields\": [\n" +
+                    "              {\n" +
+                    "                  \"title\": \"Priority\",\n" +
+                    "                  \"value\": \"High\",\n" +
+                    "                  \"short\": false\n" +
+                    "              }\n" +
+                    "          ],\n" +
+                    "          \"image_url\": \"http://my-website.com/path/to/image.jpg\",\n" +
+                    "          \"thumb_url\": \"http://example.com/path/to/thumb.png\",\n" +
+                    "          \"footer\": \"Slack API\",\n" +
+                    "          \"footer_icon\": \"https://platform.slack-edge.com/img/default_application_icon.png\",\n" +
+                    "          \"ts\": 123456789\n" +
+                    "      }\n" +
+                    "  ]";
+
+            List attachments = DefaultObjectMapper.readValue(attachmentRawJson, List.class);
+
+            SlackActionConf slackActionConf = new SlackActionConf();
+            slackActionConf.setText("Test from slack action");
+            slackActionConf.setAttachments(attachments);
+            slackActionConf.setChannel("some channel");
+            slackActionConf.setFrom("xyz");
+            slackActionConf.setIconEmoji(":got:");
+            slackActionConf.setAccount("default");
+
+            //Add destination
+            HttpResponse response = rh.executePutRequest("/_signals/account/slack/default", destination.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            //Define a watch with an smtp action
+            Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                    .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
+
+            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, basicAuth("uhura", "uhura"));
+            rh.executeDeleteRequest("/_signals/account/slack/default", basicAuth("uhura", "uhura"));
+        }
+
+    }
+
+
+    @Test
+    public void testSlackDestinationWithMissingTextAndBlocks() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "slack_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try {
+            SlackAccount destination = new SlackAccount();
+            destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
+
+            Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
+
+            SlackActionConf slackActionConf = new SlackActionConf();
+            slackActionConf.setChannel("some channel");
+            slackActionConf.setFrom("xyz");
+            slackActionConf.setIconEmoji(":got:");
+            slackActionConf.setAccount("default");
+
+            //Add destination
+            HttpResponse response = rh.executePutRequest("/_signals/account/slack/default", destination.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            //Define a watch with an smtp action
+            Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                    .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
+
+            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("Watch is invalid: 'actions[testslacksink].text': Required attribute is missing\","));
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, basicAuth("uhura", "uhura"));
+            rh.executeDeleteRequest("/_signals/account/slack/default", basicAuth("uhura", "uhura"));
+        }
+
+    }
+
     @Test
     public void testDeleteAccountInUse() throws Exception {
         Header auth = basicAuth("uhura", "uhura");
@@ -1507,6 +1668,8 @@ public class RestApiTest {
             SlackActionConf slackActionConf = new SlackActionConf();
             slackActionConf.setText("Test from slack action");
             slackActionConf.setAccount("test");
+            slackActionConf.setFrom("some user");
+            slackActionConf.setChannel("channel 1");
 
             HttpResponse response = rh.executePutRequest("/_signals/account/slack/test", destination.toJson(), auth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
@@ -1548,6 +1711,8 @@ public class RestApiTest {
             SlackActionConf slackActionConf = new SlackActionConf();
             slackActionConf.setText("Test from slack action");
             slackActionConf.setAccount("test");
+            slackActionConf.setFrom("some user");
+            slackActionConf.setChannel("channel 1");
 
             HttpResponse response = rh.executePutRequest("/_signals/account/slack/test", destination.toJson(), accountAuth);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
