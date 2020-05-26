@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -889,7 +890,9 @@ public class ActionTest {
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
-            emailAction.execute(ctx);
+            ActionExecutionResult result = emailAction.execute(ctx);
+
+            Assert.assertTrue(result.getRequest().contains("<p>We searched y shards<p/>"));
 
             if (!greenMail.waitForIncomingEmail(20000, 1)) {
                 Assert.fail("Timeout waiting for mails");
@@ -930,7 +933,7 @@ public class ActionTest {
             Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
 
             EmailAction emailAction = new EmailAction();
-            emailAction.setBody("We searched {{data.x}} shards");
+            emailAction.setBody("{{data.x}} shards have been searched for");
             emailAction.setHtmlBody("<p>We searched {{data.x}} shards<p/>");
             emailAction.setSubject("Test Subject");
             emailAction.setTo(Collections.singletonList("to@specific.sgtest"));
@@ -949,7 +952,10 @@ public class ActionTest {
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
-            emailAction.execute(ctx);
+            ActionExecutionResult result = emailAction.execute(ctx);
+
+            Assert.assertTrue(result.getRequest().contains("y shards have been searched for"));
+            Assert.assertTrue(result.getRequest().contains("<p>We searched y shards<p/>"));
 
             if (!greenMail.waitForIncomingEmail(20000, 1)) {
                 Assert.fail("Timeout waiting for mails");
