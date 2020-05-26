@@ -547,7 +547,12 @@ public class EmailAction extends ActionHandler {
                 }
             }
 
-            message.setText(email.getPlainText());
+            StringBuilder sb = new StringBuilder();
+
+            sb.append(email.getPlainText()).append("\n").append(email.getHTMLText());
+
+            message.setText(sb.toString());
+
             message.setSentDate(new Date());
 
             return message;
