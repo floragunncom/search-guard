@@ -32,7 +32,9 @@ SGS_KIBANA_USER:
     - index_patterns:
         - ".kibana"
         - ".kibana-6"
-        - ".kibana_*"
+        - '/\.kibana_[0-9]+/'
+        - ".kibana_task_manager"
+        - '/\.kibana_task_manager_[0-9]+/'
       allowed_actions:
         - "SGS_READ"
         - "SGS_DELETE"
