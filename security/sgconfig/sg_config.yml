@@ -68,8 +68,9 @@ sg_config:
       #do_not_fail_on_forbidden: false
       #kibana:
         # Kibana multitenancy - NOT FREE FOR COMMERCIAL USE
-        # see https://github.com/floragunncom/search-guard-docs/blob/master/multitenancy.md
-        # To make this work you need to install https://github.com/floragunncom/search-guard-module-kibana-multitenancy/wiki
+        # In addition to the config options below you need to set do_not_fail_on_forbidden to true (see above). 
+        # Kibana needs to be configured for multi tenancy as well.
+        # See https://docs.search-guard.com/latest/kibana-multi-tenancy for details
         #multitenancy_enabled: true
         #server_username: kibanaserver
         #index: '.kibana'
