@@ -5,56 +5,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.script.ScriptService;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.floragunn.searchsupport.jobs.config.elements.InlineMustacheTemplate;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.signals.accounts.AccountRegistry;
-import com.floragunn.signals.execution.ActionExecutionException;
-import com.floragunn.signals.execution.ExecutionEnvironment;
-import com.floragunn.signals.execution.WatchExecutionContext;
-import com.floragunn.signals.execution.WatchExecutionContextData;
-import com.floragunn.signals.support.NestedValueMap;
-import com.floragunn.signals.watch.action.handlers.IndexAction;
-import com.floragunn.signals.watch.action.handlers.WebhookAction;
-import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
-import com.floragunn.signals.watch.action.handlers.email.EmailAction;
-import com.floragunn.signals.watch.action.handlers.email.EmailAction.Attachment;
-import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
-import com.floragunn.signals.watch.action.handlers.slack.SlackAction;
-import com.floragunn.signals.watch.action.handlers.slack.SlackActionConf;
-import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
-import com.floragunn.signals.watch.common.HttpClientConfig;
-import com.floragunn.signals.watch.common.HttpRequestConfig;
-import com.floragunn.signals.watch.common.TlsClientAuthConfig;
-import com.floragunn.signals.watch.common.TlsConfig;
-import com.floragunn.signals.watch.init.WatchInitializationService;
-import com.google.common.collect.ImmutableMap;
-import com.icegreen.greenmail.util.GreenMail;
-import com.icegreen.greenmail.util.GreenMailUtil;
-import com.icegreen.greenmail.util.ServerSetup;
-import net.jcip.annotations.NotThreadSafe;
 import org.apache.commons.io.IOUtils;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
@@ -74,10 +24,38 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.floragunn.searchsupport.jobs.config.elements.InlineMustacheTemplate;
+import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
+import com.floragunn.signals.accounts.AccountRegistry;
+import com.floragunn.signals.execution.ActionExecutionException;
+import com.floragunn.signals.execution.ExecutionEnvironment;
+import com.floragunn.signals.execution.WatchExecutionContext;
+import com.floragunn.signals.execution.WatchExecutionContextData;
+import com.floragunn.signals.support.NestedValueMap;
+import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;
+import com.floragunn.signals.watch.action.handlers.IndexAction;
+import com.floragunn.signals.watch.action.handlers.WebhookAction;
+import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
+import com.floragunn.signals.watch.action.handlers.email.EmailAction;
+import com.floragunn.signals.watch.action.handlers.email.EmailAction.Attachment;
+import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
+import com.floragunn.signals.watch.action.handlers.slack.SlackAction;
+import com.floragunn.signals.watch.action.handlers.slack.SlackActionConf;
+import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
+import com.floragunn.signals.watch.common.HttpClientConfig;
+import com.floragunn.signals.watch.common.HttpRequestConfig;
+import com.floragunn.signals.watch.common.TlsClientAuthConfig;
+import com.floragunn.signals.watch.common.TlsConfig;
+import com.floragunn.signals.watch.init.WatchInitializationService;
+import com.google.common.collect.ImmutableMap;
+import com.icegreen.greenmail.util.GreenMail;
+import com.icegreen.greenmail.util.GreenMailUtil;
+import com.icegreen.greenmail.util.ServerSetup;
+
+import net.jcip.annotations.NotThreadSafe;
 
 @PowerMockIgnore({ "javax.script.*", "javax.crypto.*", "javax.management.*", "sun.security.*", "java.security.*", "javax.net.ssl.*", "javax.net.*",
         "javax.security.*" })
@@ -831,7 +809,9 @@ public class ActionTest {
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
-            emailAction.execute(ctx);
+            ActionExecutionResult result = emailAction.execute(ctx);
+            Assert.assertTrue(result.getRequest(), result.getRequest().contains("Content-Type: text/plain"));
+            Assert.assertFalse(result.getRequest(), result.getRequest().contains("Content-Type: multipart/alternative"));
 
             if (!greenMail.waitForIncomingEmail(20000, 1)) {
                 Assert.fail("Timeout waiting for mails");
@@ -893,13 +873,13 @@ public class ActionTest {
             ActionExecutionResult result = emailAction.execute(ctx);
 
             Assert.assertTrue(result.getRequest().contains("<p>We searched y shards<p/>"));
-
+            
             if (!greenMail.waitForIncomingEmail(20000, 1)) {
                 Assert.fail("Timeout waiting for mails");
             }
 
             String receivedMail = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
-
+            
             Assert.assertTrue(receivedMail, receivedMail.contains("<p>We searched y shards<p/>"));
             Assert.assertTrue(receivedMail, receivedMail.contains("Content-Type: text/html"));
             Assert.assertTrue(receivedMail, receivedMail.contains("Subject: Test Subject"));
@@ -956,13 +936,16 @@ public class ActionTest {
 
             Assert.assertTrue(result.getRequest().contains("y shards have been searched for"));
             Assert.assertTrue(result.getRequest().contains("<p>We searched y shards<p/>"));
-
+            Assert.assertTrue(result.getRequest().contains("Content-Type: multipart/alternative"));
+            Assert.assertTrue(result.getRequest().contains("Content-Type: text/plain"));
+            Assert.assertTrue(result.getRequest().contains("Content-Type: text/html"));
+            
             if (!greenMail.waitForIncomingEmail(20000, 1)) {
                 Assert.fail("Timeout waiting for mails");
             }
 
             String receivedMail = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
-
+            
             Assert.assertTrue(receivedMail, receivedMail.contains("We searched y shards"));
             Assert.assertTrue(receivedMail, receivedMail.contains("<p>We searched y shards<p/>"));
             Assert.assertTrue(receivedMail, receivedMail.contains("Content-Type: text/html"));
