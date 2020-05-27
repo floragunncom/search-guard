@@ -1,5 +1,46 @@
 package com.floragunn.signals.watch.action.handlers.email;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Optional;
+
+import javax.mail.Address;
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
+
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.script.TemplateScript;
+import org.simplejavamail.MailException;
+import org.simplejavamail.email.Email;
+import org.simplejavamail.email.EmailBuilder;
+import org.simplejavamail.email.EmailPopulatingBuilder;
+import org.simplejavamail.email.Recipient;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
@@ -17,46 +58,6 @@ import com.floragunn.signals.watch.common.HttpClientConfig;
 import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.common.HttpUtils;
 import com.floragunn.signals.watch.init.WatchInitializationService;
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.script.TemplateScript;
-import org.simplejavamail.MailException;
-import org.simplejavamail.email.Email;
-import org.simplejavamail.email.EmailBuilder;
-import org.simplejavamail.email.EmailPopulatingBuilder;
-import org.simplejavamail.email.Recipient;
-
-import javax.mail.Address;
-import javax.mail.MessagingException;
-import javax.mail.Session;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
-import java.security.AccessController;
-import java.security.PrivilegedExceptionAction;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Optional;
 
 public class EmailAction extends ActionHandler {
 
@@ -166,7 +167,7 @@ public class EmailAction extends ActionHandler {
             } else if (destination.getDefaultCc() != null) {
                 emailBuilder.bccMultiple(destination.getDefaultBcc());
             }
-            
+
             if (replyToScript != null) {
                 emailBuilder.withReplyTo(render(ctx, replyToScript));
             }
@@ -202,7 +203,8 @@ public class EmailAction extends ActionHandler {
 
                         if (response.getStatusLine().getStatusCode() >= 400) {
                             throw new WatchExecutionException(
-                                    "HTTP request returned error: " + response.getStatusLine() + "\n\n" + HttpUtils.getEntityAsDebugString(response), null);
+                                    "HTTP request returned error: " + response.getStatusLine() + "\n\n" + HttpUtils.getEntityAsDebugString(response),
+                                    null);
                         }
 
                         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -258,7 +260,7 @@ public class EmailAction extends ActionHandler {
         if (bcc != null) {
             builder.field("bcc", bcc);
         }
-        
+
         if (replyTo != null) {
             builder.field("reply_to", replyTo);
         }
@@ -306,7 +308,6 @@ public class EmailAction extends ActionHandler {
 
             watchInitService.verifyAccount(account, EmailAccount.class, validationErrors, (ObjectNode) vJsonNode.getDelegate());
 
-            // TODO rename to body?
             String body = vJsonNode.requiredString("text_body");
             String htmlBody = vJsonNode.string("html_body");
             String from = vJsonNode.string("from");
@@ -354,11 +355,11 @@ public class EmailAction extends ActionHandler {
 
             public static Optional<AttachmentType> of(String t) {
                 switch (t.toLowerCase()) {
-                    case "request":
-                        return Optional.of(REQUEST);
-                    case "runtime":
-                        return Optional.of(RUNTIME);
-                    default:
+                case "request":
+                    return Optional.of(REQUEST);
+                case "runtime":
+                    return Optional.of(RUNTIME);
+                default:
                 }
                 return Optional.empty();
             }
@@ -547,11 +548,25 @@ public class EmailAction extends ActionHandler {
                 }
             }
 
-            StringBuilder sb = new StringBuilder();
+            if (email.getPlainText() != null && email.getHTMLText() != null) {
+                MimeMultipart multipart = new MimeMultipart("alternative");
 
-            sb.append(email.getPlainText()).append("\n").append(email.getHTMLText());
+                MimeBodyPart plainMessagePart = new MimeBodyPart();
+                plainMessagePart.setText(email.getPlainText(), "utf-8");
+                multipart.addBodyPart(plainMessagePart);
 
-            message.setText(sb.toString());
+                MimeBodyPart htmlMessagePart = new MimeBodyPart();
+                htmlMessagePart.setContent(email.getHTMLText(), "text/html; charset=\"utf-8\"");
+                multipart.addBodyPart(htmlMessagePart);
+
+                message.setContent(multipart);
+            } else if (email.getHTMLText() != null) {
+                message.setContent(email.getHTMLText(), "text/html; charset=\"utf-8\"");
+            } else if (email.getPlainText() != null) {
+                message.setText(email.getPlainText());
+            } else {
+                message.setText("");
+            }
 
             message.setSentDate(new Date());
 
