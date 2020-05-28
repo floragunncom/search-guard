@@ -203,7 +203,7 @@ public class SlackAction extends ActionHandler {
             SlackActionConf slackActionConf = new SlackActionConf();
 
             slackActionConf.setAccount(vJsonNode.string("account"));
-            slackActionConf.setFrom(vJsonNode.requiredString("from"));
+            slackActionConf.setFrom(vJsonNode.string("from"));
             slackActionConf.setChannel(vJsonNode.string("channel"));
             slackActionConf.setText(vJsonNode.string("text"));
 
