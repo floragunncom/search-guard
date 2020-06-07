@@ -11,35 +11,34 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>com.search-guard</groupId>
-		<artifactId>dlic-sg-suite-parent</artifactId>
+		<groupId>com.floragunn</groupId>
+		<artifactId>dlic-search-guard-suite-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>dlic-sg-suite-security</artifactId>
+	<artifactId>dlic-search-guard-suite-security</artifactId>
 	<packaging>jar</packaging>
-	<name>SG Suite - Security (Enterprise)</name>
+	<name>Search Guard Suite - Security (Enterprise)</name>
 
 	<properties>
 		<jjwt.version>0.10.5</jjwt.version>
 		<ldaptive.version>1.2.3</ldaptive.version>
 
-		<!-- Test only -->
-		<unboundid-ldapsdk.version>4.0.9</unboundid-ldapsdk.version>
+		<unboundid-ldapsdk.version>5.0.1</unboundid-ldapsdk.version>
 	</properties>
 
 	<dependencies>
 		<!-- Security -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-security</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
 		<!-- Security Test -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-security</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
@@ -228,6 +227,12 @@
 			<version>2.4.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.unboundid</groupId>
+			<artifactId>unboundid-ldapsdk</artifactId>
+			<version>${unboundid-ldapsdk.version}</version>
+		</dependency>
+
 		<!-- Only test scoped dependencies hereafter -->
 
 		<dependency>
@@ -294,14 +299,6 @@
 			<groupId>javax.servlet</groupId>
 			<artifactId>servlet-api</artifactId>
 			<version>2.5</version>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- https://mvnrepository.com/artifact/com.unboundid/unboundid-ldapsdk -->
-		<dependency>
-			<groupId>com.unboundid</groupId>
-			<artifactId>unboundid-ldapsdk</artifactId>
-			<version>${unboundid-ldapsdk.version}</version>
 			<scope>test</scope>
 		</dependency>
 
