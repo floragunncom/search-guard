@@ -13,14 +13,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>com.search-guard</groupId>
-		<artifactId>sg-suite-parent</artifactId>
+		<groupId>com.floragunn</groupId>
+		<artifactId>search-guard-suite-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>sg-suite-security</artifactId>
+	<artifactId>search-guard-suite-security</artifactId>
 	<packaging>jar</packaging>
-	<name>SG Suite - Security</name>
+	<name>Search Guard Suite - Security</name>
 
 	<dependencies>
 		<!-- Netty 4 transport -->
