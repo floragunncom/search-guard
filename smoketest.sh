@@ -21,7 +21,7 @@ else
     mvn clean package -DskipTests
 fi
 
-PLUGIN_FILE=($DIR/plugin/target/releases/sg-suite!(*sgadmin*).zip)
+PLUGIN_FILE=($DIR/plugin/target/releases/search-guard-suite!(*sgadmin*).zip)
 URL=file://$PLUGIN_FILE
 echo $URL
 elasticsearch-$ES_VERSION/bin/elasticsearch-plugin install -b $URL

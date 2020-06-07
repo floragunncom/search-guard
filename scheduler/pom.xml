@@ -13,28 +13,28 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>com.search-guard</groupId>
-		<artifactId>sg-suite-parent</artifactId>
+		<groupId>com.floragunn</groupId>
+		<artifactId>search-guard-suite-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>sg-suite-scheduler</artifactId>
+	<artifactId>search-guard-suite-scheduler</artifactId>
 	<packaging>jar</packaging>
-	<name>SG Suite - Scheduler</name>
+	<name>Search Guard Suite - Scheduler</name>
 
 	<dependencies>
 
 		<!-- Security -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-security</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
 		<!-- Security Test -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-security</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
