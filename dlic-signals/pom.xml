@@ -11,14 +11,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>com.search-guard</groupId>
-		<artifactId>dlic-sg-suite-parent</artifactId>
+		<groupId>com.floragunn</groupId>
+		<artifactId>dlic-search-guard-suite-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>dlic-sg-suite-signals</artifactId>
+	<artifactId>dlic-search-guard-suite-signals</artifactId>
 	<packaging>jar</packaging>
-	<name>SG Suite - Signals (Enterprise)</name>
+	<name>Search Guard Suite - Signals (Enterprise)</name>
 
 	<properties />
 
@@ -34,16 +34,16 @@
 
 		<!-- Signals -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-signals</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-signals</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<!-- Signals Test -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-signals</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-signals</artifactId>
 			<version>${project.version}</version>
 			<classifier>tests</classifier>
 			<scope>test</scope>
@@ -51,31 +51,31 @@
 
 		<!-- Security -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-security</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<!-- Security Enterprise -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>dlic-sg-suite-security</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>dlic-search-guard-suite-security</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<!-- Security Test -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-security</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
 
 		<!-- Scheduler -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-scheduler</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-scheduler</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
