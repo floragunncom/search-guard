@@ -11,14 +11,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>com.search-guard</groupId>
-		<artifactId>dlic-sg-suite-parent</artifactId>
+		<groupId>com.floragunn</groupId>
+		<artifactId>dlic-search-guard-suite-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>dlic-sg-suite-security</artifactId>
+	<artifactId>dlic-search-guard-suite-security</artifactId>
 	<packaging>jar</packaging>
-	<name>SG Suite - Security (Enterprise)</name>
+	<name>Search Guard Suite - Security (Enterprise)</name>
 
 	<properties>
 		<jjwt.version>0.10.5</jjwt.version>
@@ -30,15 +30,15 @@
 	<dependencies>
 		<!-- Security -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-security</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
 		<!-- Security Test -->
 		<dependency>
-			<groupId>com.search-guard</groupId>
-			<artifactId>sg-suite-security</artifactId>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>

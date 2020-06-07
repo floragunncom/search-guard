@@ -9,17 +9,17 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>com.search-guard</groupId>
-		<artifactId>sg-suite-parent</artifactId>
+		<groupId>com.floragunn</groupId>
+		<artifactId>search-guard-suite-parent</artifactId>
 		<version>${revision}</version>
-		<relativePath>../sg-suite</relativePath>
+		<relativePath>../search-guard-suite</relativePath>
 	</parent>
 
-	<artifactId>dlic-sg-suite-parent</artifactId>
+	<artifactId>dlic-search-guard-suite-parent</artifactId>
 	
 	<packaging>pom</packaging>
 
-	<name>SG Suite - Parent (Enterprise)</name>
+	<name>Search Guard Suite - Parent (Enterprise)</name>
 
 	<modules>
 		<module>dlic-security</module>
@@ -27,9 +27,9 @@
 	</modules>
 
 	<scm>
-		<url>https://git.floragunn.com/private/sg-suite-enterprise</url>
-		<connection>scm:git:git@git.floragunn.com:private/sg-suite-enterprise.git</connection>
-		<developerConnection>scm:git:git@git.floragunn.com:private/sg-suite-enterprise.git</developerConnection>
+		<url>https://git.floragunn.com/search-guard/search-guard-suite-enterprise</url>
+		<connection>scm:git:git@git.floragunn.com/search-guard/search-guard-suite-enterprise.git</connection>
+		<developerConnection>scm:git:git@git.floragunn.com/search-guard/search-guard-suite-enterprise.git</developerConnection>
 		<tag>HEAD</tag>
 	</scm>
 
