@@ -7,7 +7,7 @@ image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   paths:
-  - "sgbuild0/sg-suite-enterprise/m2repository" #path look like this because of mv we do below
+  - "sgbuild0/search-guard-suite-enterprise/m2repository" #path look like this because of mv we do below
 
 before_script:
 - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 netcat pinentry-tty expect psmisc xmlstarlet sudo > /dev/null 2>&1
@@ -17,19 +17,19 @@ before_script:
 - chmod 700 ~/.ssh
 - ssh-keyscan git.floragunn.com >> ~/.ssh/known_hosts
 - chmod 644 ~/.ssh/known_hosts
-- mkdir -p sgbuild0/sg-suite-enterprise
-- mv -f * sgbuild0/sg-suite-enterprise || true #mv sg-suite to be able to have sg-suite and sg-suite-enterprise on the same level -> https://gitlab.com/gitlab-org/gitlab-runner/issues/4672#note_212006686
-- mv -f .git* sgbuild0/sg-suite-enterprise || true #dot files/directory need to be moved explicitly
-# clone sg-suite-enterprise on the same level as sg-suite
-- git clone git@git.floragunn.com:private/sg-suite.git sgbuild0/sg-suite; cd sgbuild0/sg-suite; git checkout $CI_COMMIT_REF_NAME; cd ../sg-suite-enterprise
+- mkdir -p sgbuild0/search-guard-suite-enterprise
+- mv -f * sgbuild0/search-guard-suite-enterprise || true #mv search-guard-suite to be able to have search-guard-suite and search-guard-suite-enterprise on the same level -> https://gitlab.com/gitlab-org/gitlab-runner/issues/4672#note_212006686
+- mv -f .git* sgbuild0/search-guard-suite-enterprise || true #dot files/directory need to be moved explicitly
+# clone search-guard-suite-enterprise on the same level as search-guard-suite
+- git clone git@git.floragunn.com:search-guard/search-guard-suite.git sgbuild0/search-guard-suite; cd sgbuild0/search-guard-suite; git checkout $CI_COMMIT_REF_NAME; cd ../search-guard-suite-enterprise
 
 build_and_deploy:
   script:
-  - cd ../sg-suite; esversion=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml); mvn -Drevision=b-$esversion-SNAPSHOT -DskipTests -s settings.xml clean install ; cd ../sg-suite-enterprise
+  - cd ../search-guard-suite; esversion=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml); mvn -Drevision=b-$esversion-SNAPSHOT -DskipTests -s settings.xml clean install ; cd ../search-guard-suite-enterprise
   - mvn -Drevision=b-$esversion-SNAPSHOT -s settings.xml clean verify #run tests
   #saving unittests reports in different folder before removing them on next step
-  - cp -r /builds/private/sg-suite-enterprise/sgbuild0/sg-suite-enterprise/dlic-security/target/surefire-reports/ /builds/private/sg-suite-enterprise/sgbuild0/dlic-security/ || true
-  - cp -r /builds/private/sg-suite-enterprise/sgbuild0/sg-suite-enterprise/dlic-signals/target/surefire-reports/ /builds/private/sg-suite-enterprise/sgbuild0/dlic-signals/ || true
+  - cp -r /builds/search-guard/search-guard-suite-enterprise/sgbuild0/search-guard-suite-enterprise/dlic-security/target/surefire-reports/ /builds/search-guard/search-guard-suite-enterprise/sgbuild0/dlic-security/ || true
+  - cp -r /builds/search-guard/search-guard-suite-enterprise/sgbuild0/search-guard-suite-enterprise/dlic-signals/target/surefire-reports/ /builds/search-guard/search-guard-suite-enterprise/sgbuild0/dlic-signals/ || true
   - mvn -Drevision=b-$esversion-SNAPSHOT -DskipTests -s settings.xml clean deploy #deploy snapshot
   #- missing: veracode, coverage, srcclr, sonar, scan_veracode.sh
   retry:
@@ -42,8 +42,8 @@ build_and_deploy:
       - sgbuild0/surefire-reports/
       - sgbuild0/dlic-security/
       - sgbuild0/dlic-signals/
-      - sgbuild0/sg-suite-enterprise/dlic-signals/
-      - sgbuild0/sg-suite-enterprise/dlic-security/
+      - sgbuild0/search-guard-suite-enterprise/dlic-signals/
+      - sgbuild0/search-guard-suite-enterprise/dlic-security/
   #only used in merge request so far, so it makes not much sense to upload them
   #artifacts:
   #  reports:
