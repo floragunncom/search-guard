@@ -29,9 +29,9 @@ build_and_deploy:
   - echo "Smoketest done"
   - export esversion=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
   #- mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml clean verify #run tests incl enterprise modules ?
-  - mvn -Drevision=b-$esversion-SNAPSHOT -s settings.xml -P!enterprise clean verify #run tests, no enterprise
+  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml -P!enterprise clean verify #run tests, no enterprise
   - cp -r /builds/search-guard/search-guard-suite/sgbuild0/search-guard-suite/signals/target/surefire-reports /builds/search-guard/search-guard-suite/sgbuild0/ || true
-  - mvn -Drevision=b-$esversion-SNAPSHOT -DskipTests -s settings.xml -Penterprise clean deploy #deploy snapshot incl enterprise and zip
+  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -DskipTests -s settings.xml -Penterprise clean deploy #deploy snapshot incl enterprise and zip
   #- missing: veracode, coverage, srcclr, sonar, scan_veracode.sh
 
 
