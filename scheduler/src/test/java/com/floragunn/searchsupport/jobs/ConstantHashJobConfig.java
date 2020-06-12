@@ -3,9 +3,9 @@ package com.floragunn.searchsupport.jobs;
 import org.quartz.Job;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.DefaultJobConfig;
 import com.floragunn.searchsupport.jobs.config.DefaultJobConfigFactory;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 
 public class ConstantHashJobConfig extends DefaultJobConfig {
 

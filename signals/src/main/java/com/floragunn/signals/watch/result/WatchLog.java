@@ -15,7 +15,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchsupport.util.JacksonTools;
+import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 
 public class WatchLog implements ToXContentObject {

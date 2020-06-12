@@ -7,12 +7,12 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.InvalidAttributeValue;
-import com.floragunn.searchsupport.jobs.config.validation.MissingAttribute;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
+import com.floragunn.searchsupport.config.validation.MissingAttribute;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.config.validation.ValidationError;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.signals.confconv.ConversionResult;
 import com.floragunn.signals.watch.checks.Check;
 import com.floragunn.signals.watch.checks.Condition;

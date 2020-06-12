@@ -39,7 +39,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ObjectTreeXContent;
+import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
 public class InternalAuthTokenProvider implements DCFListener {
 

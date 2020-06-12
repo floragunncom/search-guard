@@ -21,7 +21,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.settings.SignalsSettings.ParsedSettingsKey;

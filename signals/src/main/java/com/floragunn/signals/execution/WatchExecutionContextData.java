@@ -16,7 +16,7 @@ import org.elasticsearch.script.JodaCompatibleZonedDateTime;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchsupport.util.ObjectTreeXContent;
+import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.severity.SeverityMapping;
 

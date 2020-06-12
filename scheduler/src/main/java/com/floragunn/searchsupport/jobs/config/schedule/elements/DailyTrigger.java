@@ -15,9 +15,9 @@ import org.quartz.TimeOfDay;
 import org.quartz.impl.triggers.CronTriggerImpl;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.MissingAttribute;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.MissingAttribute;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
 public class DailyTrigger extends HumanReadableCronTrigger<DailyTrigger> {
 
