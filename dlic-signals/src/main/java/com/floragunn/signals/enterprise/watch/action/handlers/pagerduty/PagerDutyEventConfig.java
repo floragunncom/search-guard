@@ -10,12 +10,12 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.ScriptException;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.jobs.config.elements.InlineMustacheTemplate;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.MissingAttribute;
-import com.floragunn.searchsupport.jobs.config.validation.ScriptExecutionError;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.MissingAttribute;
+import com.floragunn.searchsupport.config.validation.ScriptExecutionError;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
