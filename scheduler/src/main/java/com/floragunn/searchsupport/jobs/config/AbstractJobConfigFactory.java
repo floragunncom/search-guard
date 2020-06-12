@@ -14,11 +14,11 @@ import org.quartz.Trigger;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleFactory;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonParser;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
 import com.jayway.jsonpath.TypeRef;
 
 public abstract class AbstractJobConfigFactory<JobConfigType extends JobConfig> implements JobConfigFactory<JobConfigType> {

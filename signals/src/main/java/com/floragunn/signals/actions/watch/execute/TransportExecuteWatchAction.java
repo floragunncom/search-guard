@@ -26,7 +26,7 @@ import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;

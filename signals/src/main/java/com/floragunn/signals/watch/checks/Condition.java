@@ -11,10 +11,10 @@ import org.elasticsearch.script.ScriptException;
 import org.elasticsearch.script.ScriptType;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
-import com.floragunn.searchsupport.util.JacksonTools;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.CheckExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.script.SignalsScript;

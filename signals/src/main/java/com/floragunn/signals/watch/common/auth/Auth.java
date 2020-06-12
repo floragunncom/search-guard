@@ -3,9 +3,9 @@ package com.floragunn.signals.watch.common.auth;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.InvalidAttributeValue;
-import com.floragunn.searchsupport.jobs.config.validation.MissingAttribute;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
+import com.floragunn.searchsupport.config.validation.MissingAttribute;
 
 public abstract class Auth implements ToXContentObject {
 

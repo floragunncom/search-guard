@@ -7,10 +7,10 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.config.validation.ValidationError;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.Account;
 
 public class EmailAccount extends Account {

@@ -53,6 +53,7 @@
 		<module>security</module>
 		<module>scheduler</module>
 		<module>signals</module>
+		<module>support</module>
 	</modules>
 
 	<repositories>
@@ -227,6 +228,12 @@
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>search-guard-suite-scheduler</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-support</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
@@ -559,6 +566,7 @@
 		<module>security</module>
 		<module>scheduler</module>
 		<module>signals</module>
+		<module>support</module>
 		<module>../search-guard-suite-enterprise</module>
 		<module>plugin</module>
 	</modules>
