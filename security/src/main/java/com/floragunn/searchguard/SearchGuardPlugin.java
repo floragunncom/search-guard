@@ -44,6 +44,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.floragunn.searchguard.ssl.rest.SSLReloadCertAction;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -124,7 +125,6 @@ import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.AuditLogSslExceptionHandler;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
 import com.floragunn.searchguard.auth.BackendRegistry;
-import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -188,6 +188,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private final boolean enterpriseModulesEnabled;
     private final boolean sslOnly;
     private final boolean signalsEnabled;
+    private boolean sslCertReloadEnabled;
     private final List<String> demoCertHashes = new ArrayList<String>(3);
     private volatile SearchGuardFilter sgf;
     private volatile ComplianceConfig complianceConfig;
@@ -224,10 +225,15 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         return settings.getAsBoolean(ConfigConstants.SEARCHGUARD_SSL_ONLY, false);
     }
 
+    private static boolean isSslCertReloadEnabled(final Settings settings) {
+        return settings.getAsBoolean(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false);
+    }
+
     public SearchGuardPlugin(final Settings settings, final Path configPath) {
         super(settings, configPath, isDisabled(settings));
 
         disabled = isDisabled(settings);
+        sslCertReloadEnabled = isSslCertReloadEnabled(settings);
 
         if (disabled) {
             this.dlsFlsAvailable = false;
@@ -235,6 +241,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             this.enterpriseModulesEnabled = false;
             this.sslOnly = false;
             this.signalsEnabled = false;
+            this.sslCertReloadEnabled = false;
             complianceConfig = null;
             SearchGuardPlugin.protectedIndices = new ProtectedIndices();
             log.warn("Search Guard plugin installed but disabled. This can expose your configuration (including passwords) to the public.");
@@ -248,6 +255,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             this.dlsFlsConstructor = null;
             this.enterpriseModulesEnabled = false;
             this.signalsEnabled = false;
+            this.sslCertReloadEnabled = false;
             complianceConfig = null;
             SearchGuardPlugin.protectedIndices = new ProtectedIndices();
             log.warn("Search Guard plugin run in ssl only mode. No authentication or authorization is performed");
@@ -460,6 +468,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
                 handlers.addAll(ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient, adminDns, cr, cs,
                         Objects.requireNonNull(principalExtractor), evaluator, threadPool, Objects.requireNonNull(auditLog)));
+
+                handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
             }
 
             if (signalsEnabled) {
@@ -1096,6 +1106,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
             settings.addAll(ReflectionHelper.getSettings("com.floragunn.signals.Signals"));
 
+            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false, Property.NodeScope, Property.Filtered));
         }
 
         return settings;

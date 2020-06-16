@@ -25,6 +25,7 @@ import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
+import org.junit.Assert;
 
 public abstract class SingleClusterTest extends AbstractSGUnitTest {
         
@@ -66,7 +67,7 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
     }
     
     
-    protected void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex, ClusterConfiguration clusterConfiguration) throws Exception {    
+    protected void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex, ClusterConfiguration clusterConfiguration) throws Exception {
         clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration);
         if(initSearchGuardIndex && dynamicSgSettings != null) {
             initialize(clusterInfo, initTransportClientSettings, dynamicSgSettings);

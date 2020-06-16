@@ -1,6 +1,8 @@
-/*
- * Copyright 2015-2017 floragunn GmbH
- * 
+/* This product includes software developed by Amazon.com, Inc.
+ * (https://github.com/opendistro-for-elasticsearch/security)
+ *
+ * Copyright 2015-2020 floragunn GmbH
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,6 +19,7 @@
 
 package com.floragunn.searchguard.ssl;
 
+import com.floragunn.searchguard.support.PemKeyReader;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.handler.ssl.ApplicationProtocolConfig;
 import io.netty.handler.ssl.ClientAuth;
@@ -37,14 +40,18 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import javax.crypto.Cipher;
 import javax.net.ssl.SSLContext;
@@ -69,6 +76,32 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
     private static final String DEFAULT_STORE_TYPE = "JKS";
 
+    private final Settings settings;
+
+    private final Logger log = LogManager.getLogger(this.getClass());
+    public final SslProvider sslHTTPProvider;
+    public final SslProvider sslTransportServerProvider;
+    public final SslProvider sslTransportClientProvider;
+    private final boolean httpSSLEnabled;
+    private final boolean transportSSLEnabled;
+    private List<String> enabledHttpCiphersJDKProvider;
+
+    private List<String> enabledHttpCiphersOpenSSLProvider;
+    private List<String> enabledTransportCiphersJDKProvider;
+    private List<String> enabledTransportCiphersOpenSSLProvider;
+    private List<String> enabledHttpProtocolsJDKProvider;
+
+    private List<String> enabledHttpProtocolsOpenSSLProvider;
+    private List<String> enabledTransportProtocolsJDKProvider;
+    private List<String> enabledTransportProtocolsOpenSSLProvider;
+    private SslContext httpSslContext;
+
+    private SslContext transportServerSslContext;
+    private SslContext transportClientSslContext;
+    private X509Certificate[] transportCerts;
+    private X509Certificate[] httpCerts;
+    private final Environment env;
+
     private void printJCEWarnings() {
         try {
             final int aesMaxKeyLength = Cipher.getMaxAllowedKeyLength("AES");
@@ -81,29 +114,6 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
             log.error("AES encryption not supported (SG 1). " + e);
         }
     }
-
-    private final Settings settings;
-    private final Logger log = LogManager.getLogger(this.getClass());
-    public final SslProvider sslHTTPProvider;
-    public final SslProvider sslTransportServerProvider;
-    public final SslProvider sslTransportClientProvider;
-    private final boolean httpSSLEnabled;
-    private final boolean transportSSLEnabled;
-    
-    private List<String> enabledHttpCiphersJDKProvider;
-    private List<String> enabledHttpCiphersOpenSSLProvider;
-    private List<String> enabledTransportCiphersJDKProvider;
-    private List<String> enabledTransportCiphersOpenSSLProvider;
-    
-    private List<String> enabledHttpProtocolsJDKProvider;
-    private List<String> enabledHttpProtocolsOpenSSLProvider;
-    private List<String> enabledTransportProtocolsJDKProvider;
-    private List<String> enabledTransportProtocolsOpenSSLProvider;
-    
-    private SslContext httpSslContext;
-    private SslContext transportServerSslContext;
-    private SslContext transportClientSslContext;
-    private final Environment env;
 
     public DefaultSearchGuardKeyStore(final Settings settings, final Path configPath) {
         super();
@@ -125,7 +135,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                 .getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, true);
 
         if(!SearchGuardSSLPlugin.OPENSSL_SUPPORTED && OpenSsl.isAvailable() && (settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, true) || settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, true) )) {
-            
+
             String text = "Support for OpenSSL has been removed from Search Guard since Elasticsearch 7.4.0\n";
             if(Constants.JRE_IS_MINIMUM_JAVA11) {
                 text += "Since you are running Java "+Constants.JAVA_VERSION+" you should not experience any performance impact but maybe not all your ciphers are supported. If you experience problems upgrade to Java 12+";
@@ -135,7 +145,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
             System.out.println(text);
             log.warn(text);
         }
-        
+
         boolean openSSLInfoLogged = false;
 
         if (httpSSLEnabled && useOpenSSLForHttpIfAvailable) {
@@ -178,8 +188,8 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                 Arrays.toString(getEnabledSSLProtocols(sslTransportServerProvider, false)));
         log.info("Enabled TLS protocols for HTTP layer      : {}",
                 Arrays.toString(getEnabledSSLProtocols(sslHTTPProvider, true)));
-        
-        
+
+
         log.debug("sslTransportClientProvider:{} with protocols {}", sslTransportClientProvider,
                 getEnabledSSLProtocols(sslTransportClientProvider, false));
         log.debug("sslTransportServerProvider:{} with protocols {}", sslTransportServerProvider,
@@ -198,7 +208,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         if (transportSSLEnabled && getEnabledSSLCiphers(sslTransportServerProvider, false).isEmpty()) {
             throw new ElasticsearchSecurityException("no ssl protocols for transport protocol");
         }
-        
+
         if (transportSSLEnabled && getEnabledSSLCiphers(sslTransportClientProvider, false).isEmpty()) {
             throw new ElasticsearchSecurityException("no ssl protocols for transport protocol");
         }
@@ -240,286 +250,324 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         }
 
         if (transportSSLEnabled) {
-
-            final String rawKeyStoreFilePath = settings
-                    .get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH, null);
-            final String rawPemCertFilePath = settings
-                    .get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, null);
-
-            if (rawKeyStoreFilePath != null) {
-
-                final String keystoreFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH,
-                        true);
-                final String keystoreType = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_TYPE,
-                        DEFAULT_STORE_TYPE);
-                final String keystorePassword = settings.get(
-                        SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_PASSWORD,
-                        SSLConfigConstants.DEFAULT_STORE_PASSWORD);
-                
-                final String keyPassword = settings.get(
-                        SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_KEYPASSWORD,
-                        keystorePassword);
-                
-                final String keystoreAlias = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS,
-                        null);
-
-                final String truststoreFilePath = resolve(
-                        SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, true);
-
-                if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, null) == null) {
-                    throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH
-                            + " must be set if transport ssl is requested.");
-                }
-
-                final String truststoreType = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE,
-                        DEFAULT_STORE_TYPE);
-                final String truststorePassword = settings.get(
-                        SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD,
-                        SSLConfigConstants.DEFAULT_STORE_PASSWORD);
-                final String truststoreAlias = settings
-                        .get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_ALIAS, null);
-
-                try {
-
-                    final KeyStore ks = KeyStore.getInstance(keystoreType);
-                    ks.load(new FileInputStream(new File(keystoreFilePath)),
-                            (keystorePassword == null || keystorePassword.length() == 0) ? null
-                                    : keystorePassword.toCharArray());
-
-                    final X509Certificate[] transportKeystoreCert = SSLCertificateHelper.exportServerCertChain(ks,
-                            keystoreAlias);
-                    final PrivateKey transportKeystoreKey = SSLCertificateHelper.exportDecryptedKey(ks, keystoreAlias,
-                            (keyPassword == null || keyPassword.length() == 0) ? null
-                                    : keyPassword.toCharArray());
-
-                    if (transportKeystoreKey == null) {
-                        throw new ElasticsearchException(
-                                "No key found in " + keystoreFilePath + " with alias " + keystoreAlias);
-                    }
-
-                    if (transportKeystoreCert != null && transportKeystoreCert.length > 0) {
-
-                        // TODO create sensitive log property
-                        /*
-                         * for (int i = 0; i < transportKeystoreCert.length; i++) { X509Certificate
-                         * x509Certificate = transportKeystoreCert[i];
-                         * 
-                         * if(x509Certificate != null) {
-                         * log.info("Transport keystore subject DN no. {} {}",i,x509Certificate.
-                         * getSubjectX500Principal()); } }
-                         */
-                    } else {
-                        throw new ElasticsearchException(
-                                "No certificates found in " + keystoreFilePath + " with alias " + keystoreAlias);
-                    }
-
-                    final KeyStore ts = KeyStore.getInstance(truststoreType);
-                    ts.load(new FileInputStream(new File(truststoreFilePath)),
-                            (truststorePassword == null || truststorePassword.length() == 0) ? null
-                                    : truststorePassword.toCharArray());
-
-                    final X509Certificate[] trustedTransportCertificates = SSLCertificateHelper
-                            .exportRootCertificates(ts, truststoreAlias);
-
-                    if (trustedTransportCertificates == null) {
-                        throw new ElasticsearchException("No truststore configured for server");
-                    }
-
-                    transportServerSslContext = buildSSLServerContext(transportKeystoreKey, transportKeystoreCert,
-                            trustedTransportCertificates, getEnabledSSLCiphers(this.sslTransportServerProvider, false),
-                            this.sslTransportServerProvider, ClientAuth.REQUIRE);
-                    transportClientSslContext = buildSSLClientContext(transportKeystoreKey, transportKeystoreCert,
-                            trustedTransportCertificates, getEnabledSSLCiphers(sslTransportClientProvider, false),
-                            sslTransportClientProvider);
-
-                } catch (final Exception e) {
-                    logExplanation(e);
-                    throw new ElasticsearchSecurityException(
-                            "Error while initializing transport SSL layer: " + e.toString(), e);
-                }
-
-            } else if (rawPemCertFilePath != null) {
-
-                final String pemCertFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH,
-                        true);
-                final String pemKey = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, true);
-                final String trustedCas = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH,
-                        true);
-
-                try {
-
-                    transportServerSslContext = buildSSLServerContext(new File(pemKey), new File(pemCertFilePath),
-                            new File(trustedCas),
-                            settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD),
-                            getEnabledSSLCiphers(this.sslTransportServerProvider, false),
-                            this.sslTransportServerProvider, ClientAuth.REQUIRE);
-                    transportClientSslContext = buildSSLClientContext(new File(pemKey), new File(pemCertFilePath),
-                            new File(trustedCas),
-                            settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD),
-                            getEnabledSSLCiphers(sslTransportClientProvider, false), sslTransportClientProvider);
-
-                } catch (final Exception e) {
-                    logExplanation(e);
-                    throw new ElasticsearchSecurityException(
-                            "Error while initializing transport SSL layer from PEM: " + e.toString(), e);
-                }
-
-            } else {
-                throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH + " or "
-                        + SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH
-                        + " must be set if transport ssl is reqested.");
-            }
+            initTransportSSLConfig();
         }
 
         final boolean client = !"node".equals(this.settings.get(SearchGuardSSLPlugin.CLIENT_TYPE));
 
         if (!client && httpSSLEnabled) {
+            initHttpSSLConfig();
+        }
+    }
 
-            final String rawKeystoreFilePath = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH,
+    @Override
+    public void initTransportSSLConfig() {
+        final String rawKeyStoreFilePath = settings
+                .get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH, null);
+        final String rawPemCertFilePath = settings
+                .get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, null);
+
+        if (rawKeyStoreFilePath != null) {
+
+            final String keystoreFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH,
+                    true);
+            final String keystoreType = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_TYPE,
+                    DEFAULT_STORE_TYPE);
+            final String keystorePassword = settings.get(
+                    SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_PASSWORD,
+                    SSLConfigConstants.DEFAULT_STORE_PASSWORD);
+
+            final String keyPassword = settings.get(
+                    SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_KEYPASSWORD,
+                    keystorePassword);
+
+            final String keystoreAlias = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS,
                     null);
-            final String rawPemCertFilePath = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH,
-                    null);
-            final ClientAuth httpClientAuthMode = ClientAuth.valueOf(settings
-                    .get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CLIENTAUTH_MODE, ClientAuth.OPTIONAL.toString()));
 
-            if (rawKeystoreFilePath != null) {
+            final String truststoreFilePath = resolve(
+                    SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, true);
 
-                final String keystoreFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH,
-                        true);
-                final String keystoreType = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_TYPE,
-                        DEFAULT_STORE_TYPE);
-                final String keystorePassword = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_PASSWORD,
-                        SSLConfigConstants.DEFAULT_STORE_PASSWORD);
-                
-                final String keyPassword = settings.get(
-                        SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_KEYPASSWORD,
-                        keystorePassword);
-                
-                
-                final String keystoreAlias = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, null);
-
-                log.info("HTTPS client auth mode {}", httpClientAuthMode);
-
-                if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH, null) == null) {
-                    throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH
-                            + " must be set if https is reqested.");
-                }
-
-                if (httpClientAuthMode == ClientAuth.REQUIRE) {
-
-                    if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH, null) == null) {
-                        throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH
-                                + " must be set if http ssl and client auth is reqested.");
-                    }
-
-                }
-
-                try {
-
-                    final KeyStore ks = KeyStore.getInstance(keystoreType);
-                    try (FileInputStream fin = new FileInputStream(new File(keystoreFilePath))) {
-                        ks.load(fin, (keystorePassword == null || keystorePassword.length() == 0) ? null
-                                : keystorePassword.toCharArray());
-                    }
-
-                    final X509Certificate[] httpKeystoreCert = SSLCertificateHelper.exportServerCertChain(ks,
-                            keystoreAlias);
-                    final PrivateKey httpKeystoreKey = SSLCertificateHelper.exportDecryptedKey(ks, keystoreAlias,
-                            (keyPassword == null || keyPassword.length() == 0) ? null
-                                    : keyPassword.toCharArray());
-
-                    if (httpKeystoreKey == null) {
-                        throw new ElasticsearchException(
-                                "No key found in " + keystoreFilePath + " with alias " + keystoreAlias);
-                    }
-
-                    if (httpKeystoreCert != null && httpKeystoreCert.length > 0) {
-
-                        // TODO create sensitive log property
-                        /*
-                         * for (int i = 0; i < httpKeystoreCert.length; i++) { X509Certificate
-                         * x509Certificate = httpKeystoreCert[i];
-                         * 
-                         * if(x509Certificate != null) {
-                         * log.info("HTTP keystore subject DN no. {} {}",i,x509Certificate.
-                         * getSubjectX500Principal()); } }
-                         */
-                    } else {
-                        throw new ElasticsearchException(
-                                "No certificates found in " + keystoreFilePath + " with alias " + keystoreAlias);
-                    }
-
-                    X509Certificate[] trustedHTTPCertificates = null;
-
-                    if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH, null) != null) {
-
-                        final String truststoreFilePath = resolve(
-                                SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH, true);
-
-                        final String truststoreType = settings
-                                .get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_TYPE, DEFAULT_STORE_TYPE);
-                        final String truststorePassword = settings.get(
-                                SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_PASSWORD,
-                                SSLConfigConstants.DEFAULT_STORE_PASSWORD);
-                        final String truststoreAlias = settings
-                                .get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_ALIAS, null);
-
-                        final KeyStore ts = KeyStore.getInstance(truststoreType);
-                        try (FileInputStream fin = new FileInputStream(new File(truststoreFilePath))) {
-                            ts.load(fin, (truststorePassword == null || truststorePassword.length() == 0) ? null
-                                    : truststorePassword.toCharArray());
-                        }
-                        trustedHTTPCertificates = SSLCertificateHelper.exportRootCertificates(ts, truststoreAlias);
-                    }
-
-                    httpSslContext = buildSSLServerContext(httpKeystoreKey, httpKeystoreCert, trustedHTTPCertificates,
-                            getEnabledSSLCiphers(this.sslHTTPProvider, true), sslHTTPProvider, httpClientAuthMode);
-
-                } catch (final Exception e) {
-                    logExplanation(e);
-                    throw new ElasticsearchSecurityException("Error while initializing HTTP SSL layer: " + e.toString(),
-                            e);
-                }
-
-            } else if (rawPemCertFilePath != null) {
-
-                final String trustedCas = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH,
-                        false);
-
-                if (httpClientAuthMode == ClientAuth.REQUIRE) {
-
-                    // if(trustedCas == null ||
-                    // trustedCas.equals(env.config-File().toAbsolutePath().toString())) {
-                    // throw new
-                    // ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH
-                    // + " must be set if http ssl and client auth is reqested.");
-                    // }
-
-                    checkPath(trustedCas, SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH);
-
-                }
-
-                final String pemCertFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH, true);
-                final String pemKey = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH, true);
-
-                try {
-                    httpSslContext = buildSSLServerContext(new File(pemKey), new File(pemCertFilePath),
-                            trustedCas == null ? null : new File(trustedCas),
-                            settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_PASSWORD),
-                            getEnabledSSLCiphers(this.sslHTTPProvider, true), sslHTTPProvider, httpClientAuthMode);
-                } catch (final Exception e) {
-                    logExplanation(e);
-                    throw new ElasticsearchSecurityException(
-                            "Error while initializing http SSL layer from PEM: " + e.toString(), e);
-                }
-
-            } else {
-                throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH + " or "
-                        + SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH
-                        + " must be set if http ssl is reqested.");
+            if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, null) == null) {
+                throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH
+                        + " must be set if transport ssl is requested.");
             }
 
+            final String truststoreType = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE,
+                    DEFAULT_STORE_TYPE);
+            final String truststorePassword = settings.get(
+                    SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD,
+                    SSLConfigConstants.DEFAULT_STORE_PASSWORD);
+            final String truststoreAlias = settings
+                    .get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_ALIAS, null);
+
+            try {
+
+                final KeyStore ks = KeyStore.getInstance(keystoreType);
+                ks.load(new FileInputStream(new File(keystoreFilePath)),
+                        (keystorePassword == null || keystorePassword.length() == 0) ? null
+                                : keystorePassword.toCharArray());
+
+                final X509Certificate[] transportKeystoreCert = SSLCertificateHelper.exportServerCertChain(ks,
+                        keystoreAlias);
+                final PrivateKey transportKeystoreKey = SSLCertificateHelper.exportDecryptedKey(ks, keystoreAlias,
+                        (keyPassword == null || keyPassword.length() == 0) ? null
+                                : keyPassword.toCharArray());
+
+                if (transportKeystoreKey == null) {
+                    throw new ElasticsearchException(
+                            "No key found in " + keystoreFilePath + " with alias " + keystoreAlias);
+                }
+
+                if (transportKeystoreCert == null || transportKeystoreCert.length == 0) {
+                    throw new ElasticsearchException(
+                            "No certificates found in " + keystoreFilePath + " with alias " + keystoreAlias);
+                }
+
+                final KeyStore ts = KeyStore.getInstance(truststoreType);
+                ts.load(new FileInputStream(new File(truststoreFilePath)),
+                        (truststorePassword == null || truststorePassword.length() == 0) ? null
+                                : truststorePassword.toCharArray());
+
+                final X509Certificate[] trustedTransportCertificates = SSLCertificateHelper
+                        .exportRootCertificates(ts, truststoreAlias);
+
+                if (trustedTransportCertificates == null || trustedTransportCertificates.length == 0) {
+                    throw new ElasticsearchException("No truststore configured for server");
+                }
+
+                validateNewCerts(transportCerts, transportKeystoreCert);
+                transportServerSslContext = buildSSLServerContext(transportKeystoreKey, transportKeystoreCert,
+                        trustedTransportCertificates, getEnabledSSLCiphers(this.sslTransportServerProvider, false),
+                        this.sslTransportServerProvider, ClientAuth.REQUIRE);
+                transportClientSslContext = buildSSLClientContext(transportKeystoreKey, transportKeystoreCert,
+                        trustedTransportCertificates, getEnabledSSLCiphers(sslTransportClientProvider, false),
+                        sslTransportClientProvider);
+                setTransportSSLCerts(transportKeystoreCert);
+
+
+            } catch (final Exception e) {
+                logExplanation(e);
+                throw new ElasticsearchSecurityException(
+                        "Error while initializing transport SSL layer: " + e.toString(), e);
+            }
+
+        } else if (rawPemCertFilePath != null) {
+
+            final String pemCertFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH,
+                    true);
+            final String pemKey = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, true);
+            final String trustedCas = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH,
+                    true);
+
+            try {
+                final File pemKeyFile = new File(pemKey);
+                final File pemCertFile = new File(pemCertFilePath);
+                final File trustedCasFile = new File(trustedCas);
+                final X509Certificate[] transportKeystoreCerts = new X509Certificate[]{ PemKeyReader.loadCertificateFromFile(pemCertFilePath) };
+
+                validateNewCerts(transportCerts, transportKeystoreCerts);
+                transportServerSslContext = buildSSLServerContext(pemKeyFile, pemCertFile, trustedCasFile,
+                        settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD),
+                        getEnabledSSLCiphers(this.sslTransportServerProvider, false),
+                        this.sslTransportServerProvider, ClientAuth.REQUIRE);
+                transportClientSslContext = buildSSLClientContext(pemKeyFile, pemCertFile, trustedCasFile,
+                        settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD),
+                        getEnabledSSLCiphers(sslTransportClientProvider, false), sslTransportClientProvider);
+                setTransportSSLCerts(transportKeystoreCerts);
+            } catch (final Exception e) {
+                logExplanation(e);
+                throw new ElasticsearchSecurityException(
+                        "Error while initializing transport SSL layer from PEM: " + e.toString(), e);
+            }
+
+        } else {
+            throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH + " or "
+                    + SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH
+                    + " must be set if transport ssl is reqested.");
         }
+    }
+
+    @Override
+    public void initHttpSSLConfig() {
+        final String rawKeystoreFilePath = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH,
+                null);
+        final String rawPemCertFilePath = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH,
+                null);
+        final ClientAuth httpClientAuthMode = ClientAuth.valueOf(settings
+                .get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CLIENTAUTH_MODE, ClientAuth.OPTIONAL.toString()));
+
+        if (rawKeystoreFilePath != null) {
+
+            final String keystoreFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH,
+                    true);
+            final String keystoreType = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_TYPE,
+                    DEFAULT_STORE_TYPE);
+            final String keystorePassword = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_PASSWORD,
+                    SSLConfigConstants.DEFAULT_STORE_PASSWORD);
+
+            final String keyPassword = settings.get(
+                    SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_PASSWORD,
+                    keystorePassword);
+
+
+            final String keystoreAlias = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, null);
+
+            log.info("HTTPS client auth mode {}", httpClientAuthMode);
+
+            if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH, null) == null) {
+                throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH
+                        + " must be set if https is reqested.");
+            }
+
+            if (httpClientAuthMode == ClientAuth.REQUIRE) {
+
+                if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH, null) == null) {
+                    throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH
+                            + " must be set if http ssl and client auth is reqested.");
+                }
+
+            }
+
+            try {
+
+                final KeyStore ks = KeyStore.getInstance(keystoreType);
+                try (FileInputStream fin = new FileInputStream(new File(keystoreFilePath))) {
+                    ks.load(fin, (keystorePassword == null || keystorePassword.length() == 0) ? null
+                            : keystorePassword.toCharArray());
+                }
+
+                final X509Certificate[] httpKeystoreCert = SSLCertificateHelper.exportServerCertChain(ks,
+                        keystoreAlias);
+                final PrivateKey httpKeystoreKey = SSLCertificateHelper.exportDecryptedKey(ks, keystoreAlias,
+                        (keyPassword == null || keyPassword.length() == 0) ? null
+                                : keyPassword.toCharArray());
+
+                if (httpKeystoreKey == null) {
+                    throw new ElasticsearchException(
+                            "No key found in " + keystoreFilePath + " with alias " + keystoreAlias);
+                }
+
+                if (httpKeystoreCert == null || httpKeystoreCert.length == 0) {
+                    throw new ElasticsearchException(
+                            "No certificates found in " + keystoreFilePath + " with alias " + keystoreAlias);
+                }
+
+                X509Certificate[] trustedHTTPCertificates = null;
+
+                if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH, null) != null) {
+
+                    final String truststoreFilePath = resolve(
+                            SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH, true);
+
+                    final String truststoreType = settings
+                            .get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_TYPE, DEFAULT_STORE_TYPE);
+                    final String truststorePassword = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_PASSWORD,
+                            SSLConfigConstants.DEFAULT_STORE_PASSWORD);
+                    final String truststoreAlias = settings
+                            .get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_ALIAS, null);
+
+                    final KeyStore ts = KeyStore.getInstance(truststoreType);
+                    try (FileInputStream fin = new FileInputStream(new File(truststoreFilePath))) {
+                        ts.load(fin, (truststorePassword == null || truststorePassword.length() == 0) ? null
+                                : truststorePassword.toCharArray());
+                    }
+                    trustedHTTPCertificates = SSLCertificateHelper.exportRootCertificates(ts, truststoreAlias);
+                }
+
+                validateNewCerts(httpCerts, httpKeystoreCert);
+                httpSslContext = buildSSLServerContext(httpKeystoreKey, httpKeystoreCert, trustedHTTPCertificates,
+                        getEnabledSSLCiphers(this.sslHTTPProvider, true), sslHTTPProvider, httpClientAuthMode);
+                setHttpSSLCerts(httpKeystoreCert);
+
+            } catch (final Exception e) {
+                logExplanation(e);
+                throw new ElasticsearchSecurityException("Error while initializing HTTP SSL layer: " + e.toString(),
+                        e);
+            }
+
+        } else if (rawPemCertFilePath != null) {
+            final String trustedCas = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH,
+                    false);
+            if (httpClientAuthMode == ClientAuth.REQUIRE) {
+                checkPath(trustedCas, SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH);
+            }
+
+            try {
+                final String pemCertFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH, true);
+                final String pemKey = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH, true);
+                final X509Certificate[] httpKeystoreCert = new X509Certificate[]{ PemKeyReader.loadCertificateFromFile(pemCertFilePath) };
+
+                validateNewCerts(httpCerts, httpKeystoreCert);
+                httpSslContext = buildSSLServerContext(new File(pemKey), new File(pemCertFilePath),
+                        trustedCas == null ? null : new File(trustedCas),
+                        settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_PASSWORD),
+                        getEnabledSSLCiphers(this.sslHTTPProvider, true), sslHTTPProvider, httpClientAuthMode);
+                setHttpSSLCerts(httpKeystoreCert);
+
+            } catch (final Exception e) {
+                logExplanation(e);
+                throw new ElasticsearchSecurityException(
+                        "Error while initializing http SSL layer from PEM: " + e.toString(), e);
+            }
+
+        } else {
+            throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH + " or "
+                    + SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH
+                    + " must be set if http ssl is reqested.");
+        }
+    }
+
+    private void validateNewCerts(final X509Certificate[] currentX509Certs, final X509Certificate[] newX509Certs) throws Exception {
+
+        // First time we init certs ignore validity check
+        if (currentX509Certs == null) {
+            return;
+        }
+
+        // Check if new X509 certs have valid expiry date
+        if (!hasValidExpiryDates(currentX509Certs, newX509Certs)) {
+            throw new Exception("New certificates should not expire before the current ones.");
+        }
+
+        // Check if new X509 certs have valid IssuerDN, SubjectDN or SAN
+        if (!hasValidDNs(currentX509Certs, newX509Certs)) {
+            throw new Exception("New Certs do not have valid Issuer DN, Subject DN or SAN.");
+        }
+    }
+
+    /**
+     * Check if new X509 certs have same IssuerDN/SubjectDN as current certificates.
+     * @param currentX509Certs Array of current X509Certificates.
+     * @param newX509Certs Array of new X509Certificates.
+     * @return true if all Issuer DN and Subject DN pairs match; false otherwise.
+     * @throws Exception if certificate is invalid.
+     */
+    private boolean hasValidDNs(final X509Certificate[] currentX509Certs, final X509Certificate[] newX509Certs) {
+
+        final Function<? super X509Certificate, String> formatDNString = cert -> {
+            final String issuerDn = cert !=null && cert.getIssuerX500Principal() != null ? cert.getIssuerX500Principal().getName() : "";
+            final String subjectDn = cert !=null && cert.getSubjectX500Principal() != null ? cert.getSubjectX500Principal().getName() : "";
+            String san = "";
+            try {
+                san = cert !=null && cert.getSubjectAlternativeNames() != null ? cert.getSubjectAlternativeNames().toString() : "";
+            } catch (CertificateParsingException e) {
+                log.error("Issue parsing SubjectAlternativeName:", e);
+            }
+            return String.format("%s/%s/%s", issuerDn, subjectDn, san);
+        };
+
+        final List<String> currentCertDNList = Arrays.stream(currentX509Certs)
+                .map(formatDNString)
+                .sorted()
+                .collect(Collectors.toList());
+
+        final List<String> newCertDNList = Arrays.stream(newX509Certs)
+                .map(formatDNString)
+                .sorted()
+                .collect(Collectors.toList());
+
+        return currentCertDNList.equals(newCertDNList);
     }
 
     public SSLEngine createHTTPSSLEngine() throws SSLException {
@@ -572,6 +620,49 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         return sslTransportClientProvider == null ? null : sslTransportClientProvider.toString();
     }
 
+    private void setHttpSSLCerts(X509Certificate[] httpKeystoreCert) {
+        httpCerts = httpKeystoreCert;
+    }
+
+    @Override
+    public X509Certificate[] getHttpCerts() {
+        return httpCerts;
+    }
+
+    @Override
+    public X509Certificate[] getTransportCerts() {
+        return transportCerts;
+    }
+
+    private void setTransportSSLCerts(X509Certificate[] transportKeystoreCert) {
+        transportCerts = transportKeystoreCert;
+    }
+
+    /**
+     * Check if new X509 certs have expiry date after the current X509 certs.
+     * @param currentX509Certs Array of current X509Certificates.
+     * @param newX509Certs Array of new X509Certificates.
+     * @return true if all of the new certificates expire after the currentX509 certificates.
+     * @throws Exception if certificate is invalid.
+     */
+    private boolean hasValidExpiryDates(final X509Certificate[] currentX509Certs, final X509Certificate[] newX509Certs) {
+
+        // Get earliest expiry date for current certificates
+        final Date earliestExpiryDate = Arrays.stream(currentX509Certs)
+                .map(c -> c.getNotAfter())
+                .min(Date::compareTo)
+                .get();
+
+        // New certificates that expire before or on the same date as the current ones are invalid.
+        boolean newCertsExpireBeforeCurrentCerts = Arrays.stream(newX509Certs)
+                .anyMatch(cert -> {
+                    Date notAfterDate = cert.getNotAfter();
+                    return notAfterDate.before(earliestExpiryDate) || notAfterDate.equals(earliestExpiryDate);
+                });
+
+        return !newCertsExpireBeforeCurrentCerts;
+    }
+
     private void logOpenSSLInfos() {
         if (OpenSsl.isAvailable()) {
             log.info("OpenSSL " + OpenSsl.versionString() + " (" + OpenSsl.version() + ") available");
@@ -607,7 +698,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         }
 
     }
-    
+
     private String[] getEnabledSSLProtocols(final SslProvider provider, boolean http) {
         if (provider == null) {
             return new String[0];
@@ -636,8 +727,8 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                     openSSLSecureHttpCiphers.add(secure);
                 }
             }
-            
-            
+
+
             log.debug("OPENSSL "+OpenSsl.versionString()+" supports the following ciphers (java-style) {}", OpenSsl.availableJavaCipherSuites());
             log.debug("OPENSSL "+OpenSsl.versionString()+" supports the following ciphers (openssl-style) {}", OpenSsl.availableOpenSslCipherSuites());
 
@@ -660,15 +751,15 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         } else {
             enabledTransportCiphersOpenSSLProvider = Collections.emptyList();
         }
-        
+
         if(SearchGuardSSLPlugin.OPENSSL_SUPPORTED && OpenSsl.isAvailable() && OpenSsl.version() > 0x10101009L) {
             enabledHttpProtocolsOpenSSLProvider = new ArrayList(Arrays.asList("TLSv1.3","TLSv1.2","TLSv1.1","TLSv1"));
             enabledHttpProtocolsOpenSSLProvider.retainAll(secureHttpSSLProtocols);
             enabledTransportProtocolsOpenSSLProvider = new ArrayList(Arrays.asList("TLSv1.3","TLSv1.2","TLSv1.1"));
             enabledTransportProtocolsOpenSSLProvider.retainAll(secureTransportSSLProtocols);
-            
+
             log.info("OpenSSL supports TLSv1.3");
-            
+
         } else if(SearchGuardSSLPlugin.OPENSSL_SUPPORTED && OpenSsl.isAvailable()){
             enabledHttpProtocolsOpenSSLProvider = new ArrayList(Arrays.asList("TLSv1.2","TLSv1.1","TLSv1"));
             enabledHttpProtocolsOpenSSLProvider.retainAll(secureHttpSSLProtocols);
@@ -692,11 +783,11 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                     jdkSupportedProtocols);
             log.debug("JVM supports the following {} ciphers {}", jdkSupportedCiphers.size(),
                     jdkSupportedCiphers);
-            
+
             if(jdkSupportedProtocols.contains("TLSv1.3")) {
                 log.info("JVM supports TLSv1.3");
             }
-            
+
         } catch (final Throwable e) {
             log.error("Unable to determine supported ciphers due to " + e, e);
         } finally {
@@ -713,16 +804,16 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         if(jdkSupportedCiphers == null || jdkSupportedCiphers.isEmpty() || jdkSupportedProtocols == null || jdkSupportedProtocols.isEmpty()) {
             throw new ElasticsearchException("Unable to determine supported ciphers or protocols");
         }
-        
+
         enabledHttpCiphersJDKProvider = new ArrayList<String>(jdkSupportedCiphers);
         enabledHttpCiphersJDKProvider.retainAll(secureHttpSSLCiphers);
-        
+
         enabledTransportCiphersJDKProvider = new ArrayList<String>(jdkSupportedCiphers);
         enabledTransportCiphersJDKProvider.retainAll(secureTransportSSLCiphers);
-        
+
         enabledHttpProtocolsJDKProvider = new ArrayList<String>(jdkSupportedProtocols);
         enabledHttpProtocolsJDKProvider.retainAll(secureHttpSSLProtocols);
-        
+
         enabledTransportProtocolsJDKProvider = new ArrayList<String>(jdkSupportedProtocols);
         enabledTransportProtocolsJDKProvider.retainAll(secureTransportSSLProtocols);
     }

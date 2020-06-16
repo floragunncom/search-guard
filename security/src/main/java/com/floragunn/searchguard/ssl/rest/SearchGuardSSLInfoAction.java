@@ -21,11 +21,14 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.node.NodeClient;
@@ -74,6 +77,7 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
         return new RestChannelConsumer() {
             
             final Boolean showDn = request.paramAsBoolean("show_dn", Boolean.FALSE);
+            final Boolean showServerCerts = request.paramAsBoolean("show_server_certs", Boolean.FALSE);
 
             @Override
             public void accept(RestChannel channel) throws Exception {
@@ -115,8 +119,16 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
                         builder.field("ssl_openssl_supports_key_manager_factory", false);
                         builder.field("ssl_openssl_supports_hostname_validation", false);
                     }
-                    
-                    
+
+                    if (showServerCerts == Boolean.TRUE) {
+                        if (sgks != null) {
+                            builder.field("http_certificates_list", generateCertDetailList(sgks.getHttpCerts()));
+                            builder.field("transport_certificates_list", generateCertDetailList(sgks.getTransportCerts()));
+                        } else {
+                            builder.field("message", "keystore is not initialized");
+                        }
+                    }
+
                     builder.field("ssl_provider_http", sgks.getHTTPProviderName());
                     builder.field("ssl_provider_transport_server", sgks.getTransportServerProviderName());
                     builder.field("ssl_provider_transport_client", sgks.getTransportClientProviderName());
@@ -139,6 +151,35 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
                 channel.sendResponse(response);
             }
         };
+    }
+
+    private List<Map<String, String>> generateCertDetailList(final X509Certificate[] certs) {
+        if (certs == null) {
+            return null;
+        }
+        return Arrays.stream(certs)
+                .map(cert -> {
+                    final String issuerDn = cert != null && cert.getIssuerX500Principal() != null ? cert.getIssuerX500Principal().getName(): "";
+                    final String subjectDn = cert != null && cert.getSubjectX500Principal() != null ? cert.getSubjectX500Principal().getName(): "";
+
+                    String san = "";
+                    try {
+                        san = cert !=null && cert.getSubjectAlternativeNames() != null ? cert.getSubjectAlternativeNames().toString() : "";
+                    } catch (CertificateParsingException e) {
+                        log.error("Issue parsing SubjectAlternativeName:", e);
+                    }
+
+                    final String notBefore = cert != null && cert.getNotBefore() != null ? cert.getNotBefore().toInstant().toString(): "";
+                    final String notAfter = cert != null && cert.getNotAfter() != null ? cert.getNotAfter().toInstant().toString(): "";
+                    return ImmutableMap.<String, String>builder()
+                            .put("issuer_dn", issuerDn)
+                            .put("subject_dn", subjectDn)
+                            .put("san", san)
+                            .put("not_before", notBefore)
+                            .put("not_after", notAfter)
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
