@@ -43,7 +43,6 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -110,6 +109,7 @@ public class SSLTest extends SingleClusterTest {
         Assert.assertFalse(rh.executeSimpleRequest("_nodes/settings?pretty").contains("\"searchguard\""));
         Assert.assertFalse(rh.executeSimpleRequest("_nodes/settings?pretty").contains("keystore_filepath"));
         //Assert.assertTrue(rh.executeSimpleRequest("_searchguard/sslinfo?pretty").contains("CN=node-0.example.com,OU=SSL,O=Test,L=Test,C=DE"));
+        Assert.assertTrue(rh.executeSimpleRequest("_searchguard/sslinfo?pretty&show_server_certs=true").contains("CN=node-0.example.com,OU=SSL,O=Test,L=Test,C=DE"));
 
     }
     
@@ -425,9 +425,10 @@ public class SSLTest extends SingleClusterTest {
         
         Assert.assertTrue(rh.executeSimpleRequest("_searchguard/sslinfo?pretty").length() > 0);
         Assert.assertTrue(rh.executeSimpleRequest("_nodes/settings?pretty").contains(clusterInfo.clustername));
+
         Assert.assertFalse(rh.executeSimpleRequest("_searchguard/sslinfo?pretty").contains("CN=node-0.example.com,OU=SSL,O=Test,L=Test,C=DE"));
     }
-    
+
     @Test
     public void testHttpsEnforceFail() throws Exception {
 
@@ -632,7 +633,7 @@ public class SSLTest extends SingleClusterTest {
 
     @Test
     public void testTransportClientSSLFail() throws Exception {
-        thrown.expect(NoNodeAvailableException.class);
+        thrown.expect(IllegalStateException.class);
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)

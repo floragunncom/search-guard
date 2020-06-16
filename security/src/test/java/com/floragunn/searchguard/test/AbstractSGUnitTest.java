@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,14 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.floragunn.searchguard.test;
 
 import io.netty.handler.ssl.OpenSsl;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -63,8 +62,10 @@ import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 import com.floragunn.searchguard.test.helper.rules.SGTestWatcher;
 
+import static com.floragunn.searchguard.support.ConfigConstants.SEARCHGUARD_AUTHCZ_ADMIN_DN;
+
 public abstract class AbstractSGUnitTest {
-    
+
     protected static final AtomicLong num = new AtomicLong();
     protected static boolean withRemoteCluster;
 
@@ -81,18 +82,18 @@ public abstract class AbstractSGUnitTest {
 		withRemoteCluster = Boolean.parseBoolean(System.getenv("TESTARG_unittests_with_remote_cluster"));
 		System.out.println("With remote cluster: " + withRemoteCluster);
 	}
-	
+
 	protected final Logger log = LogManager.getLogger(this.getClass());
     public static final ThreadPool MOCK_POOL = new ThreadPool(Settings.builder().put("node.name",  "mock").build());
-	
+
     //TODO Test Matrix
     protected boolean allowOpenSSL = false; //disabled, we test this already in SSL Plugin
     //enable//disable enterprise modules
     //1node and 3 node
-    
+
 	@Rule
 	public TestName name = new TestName();
-	
+
 	@Rule
     public final TemporaryFolder repositoryPath = new TemporaryFolder();
 
@@ -103,7 +104,7 @@ public abstract class AbstractSGUnitTest {
 		return new BasicHeader("Authorization", "Basic "+Base64.getEncoder().encodeToString(
 				(username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
 	}
-	
+
 	protected static class TransportClientImpl extends TransportClient {
 
         public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {
@@ -112,19 +113,19 @@ public abstract class AbstractSGUnitTest {
 
         public TransportClientImpl(Settings settings, Settings defaultSettings, Collection<Class<? extends Plugin>> plugins) {
             super(settings, defaultSettings, plugins, null);
-        }       
+        }
     }
-    
+
     @SafeVarargs
     protected static Collection<Class<? extends Plugin>> asCollection(Class<? extends Plugin>... plugins) {
         return Arrays.asList(plugins);
     }
-    
-    
+
+
     protected TransportClient getInternalTransportClient(ClusterInfo info, Settings initTransportClientSettings) {
-        
+
         final String prefix = getResourceFolder()==null?"":getResourceFolder()+"/";
-        
+
         Settings tcSettings = Settings.builder()
                 .put("cluster.name", info.clustername)
                 .put("searchguard.ssl.transport.truststore_filepath",
@@ -134,16 +135,16 @@ public abstract class AbstractSGUnitTest {
                         FileHelper.getAbsoluteFilePathFromClassPath(prefix+"kirk-keystore.jks"))
                 .put(initTransportClientSettings)
                 .build();
-        
+
         TransportClient tc = new TransportClientImpl(tcSettings, asCollection(Netty4Plugin.class, SearchGuardPlugin.class));
         tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));
         return tc;
     }
-    
+
     protected TransportClient getUserTransportClient(ClusterInfo info, String keyStore, Settings initTransportClientSettings) {
-        
+
         final String prefix = getResourceFolder()==null?"":getResourceFolder()+"/";
-        
+
         Settings tcSettings = Settings.builder()
                 .put("cluster.name", info.clustername)
                 .put("searchguard.ssl.transport.truststore_filepath",
@@ -153,12 +154,12 @@ public abstract class AbstractSGUnitTest {
                         FileHelper.getAbsoluteFilePathFromClassPath(prefix+keyStore))
                 .put(initTransportClientSettings)
                 .build();
-        
+
         TransportClient tc = new TransportClientImpl(tcSettings, asCollection(Netty4Plugin.class, SearchGuardPlugin.class));
         tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));
         return tc;
     }
-    
+
     protected void initialize(ClusterInfo info, Settings initTransportClientSettings, DynamicSgConfig sgconfig) {
         try (TransportClient tc = getInternalTransportClient(info, initTransportClientSettings)) {
 
@@ -171,7 +172,7 @@ public abstract class AbstractSGUnitTest {
             } catch (Exception e) {
                 //ignore
             }
-            
+
             for(IndexRequest ir: sgconfig.getDynamicConfig(getResourceFolder())) {
                 tc.index(ir).actionGet();
             }
@@ -182,7 +183,7 @@ public abstract class AbstractSGUnitTest {
 
             Assert.assertFalse(cur.failures().toString(), cur.hasFailures());
             Assert.assertEquals(info.numNodes, cur.getNodes().size());
-            
+
             SearchResponse sr = tc.search(new SearchRequest("searchguard")).actionGet();
 
             sr = tc.search(new SearchRequest("searchguard")).actionGet();
@@ -198,72 +199,73 @@ public abstract class AbstractSGUnitTest {
             Assert.assertTrue(tc.get(new GetRequest("searchguard",type,"config")).actionGet().isExists());
         }
     }
-    
-    protected Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly) {
-        
+
+    protected Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly, boolean hasCustomTransportSettings) {
         final String prefix = getResourceFolder()==null?"":getResourceFolder()+"/";
-        
+
         Settings.Builder builder = Settings.builder()
-                //.put("searchguard.ssl.transport.enabled", true)
-                 //.put("searchguard.no_default_init", true)
-                //.put("searchguard.ssl.http.enable_openssl_if_available", false)
-                //.put("searchguard.ssl.transport.enable_openssl_if_available", false)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put("searchguard.ssl.transport.keystore_alias", "node-0")
-                .put("searchguard.ssl.transport.keystore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath(prefix+"node-0-keystore.jks"))
-                .put("searchguard.ssl.transport.truststore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath(prefix+"truststore.jks"))
-                .put("searchguard.ssl.transport.enforce_hostname_verification", false);
-        
-                if(!sslOnly) {
-                    builder.putList("searchguard.authcz.admin_dn", "CN=kirk,OU=client,O=client,l=tEst, C=De");
-                    builder.put(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, false);
-                //.put(other==null?Settings.EMPTY:other);
-                }
-                
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL);
+
+        if (!hasCustomTransportSettings) {
+            builder.put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
+                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH,
+                            FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
+                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH,
+                            FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
+                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION, false);
+        }
+
+        if (!sslOnly) {
+            builder.putList(SEARCHGUARD_AUTHCZ_ADMIN_DN, "CN=kirk,OU=client,O=client,l=tEst, C=De");
+            builder.put(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, false);
+        }
+
         return builder;
     }
-    
+
     protected NodeSettingsSupplier minimumSearchGuardSettings(Settings other) {
         return new NodeSettingsSupplier() {
             @Override
             public Settings get(int i) {
-                return minimumSearchGuardSettingsBuilder(i, false).put(other).build();
+                return minimumSearchGuardSettingsBuilder(i, false, hasCustomTransportSettings(other)).put(other).build();
             }
         };
     }
-    
+
+    protected boolean hasCustomTransportSettings(Settings customSettings) {
+        return customSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH) != null;
+    }
+
     protected NodeSettingsSupplier minimumSearchGuardSettingsSslOnly(Settings other) {
         return new NodeSettingsSupplier() {
             @Override
             public Settings get(int i) {
-                return minimumSearchGuardSettingsBuilder(i, true).put(other).build();
+                return minimumSearchGuardSettingsBuilder(i, true, false).put(other).build();
             }
         };
     }
-    
+
     protected void initialize(ClusterInfo info) {
         initialize(info, Settings.EMPTY, new DynamicSgConfig());
     }
-    
+
     protected void initialize(ClusterInfo info, DynamicSgConfig dynamicSgConfig) {
         initialize(info, Settings.EMPTY, dynamicSgConfig);
     }
-    
+
     protected final void assertContains(HttpResponse res, String pattern) {
         Assert.assertTrue(WildcardMatcher.match(pattern, res.getBody()));
     }
-    
+
     protected final void assertNotContains(HttpResponse res, String pattern) {
         Assert.assertFalse(WildcardMatcher.match(pattern, res.getBody()));
     }
-    
+
     protected String getResourceFolder() {
         return null;
     }
-    
+
     protected String getType() {
         return "_doc";
     }
