@@ -18,6 +18,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.enterprise.watch.action.handlers.jira.JiraAccount;
