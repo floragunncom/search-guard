@@ -5,45 +5,20 @@
 
     <servers>
       <server>
-        <id>ossrh-fg</id>
-        <username>${env.SONATYPE_USER}</username>
-        <password>${env.SONATYPE_PASSWORD}</password>
+        <id>release</id>
+        <username>${env.ARTIFACTORY_USER}</username>
+        <password>${env.ARTIFACTORY_PASSWORD}</password>
       </server>
-
       <server>
-        <id>io.cloudrepo</id>
-        <username>${env.CLOUDREPO_USER}</username>
-        <password>${env.CLOUDREPO_PASSWORD}</password>
+      <id>staging</id>
+      <username>${env.ARTIFACTORY_USER}</username>
+      <password>${env.ARTIFACTORY_PASSWORD}</password>
       </server>
-  
       <server>
-        <id>io.cloudrepo.snapshots</id>
-        <username>${env.CLOUDREPO_USER}</username>
-        <password>${env.CLOUDREPO_PASSWORD}</password>
+        <id>snapshot</id>
+        <username>${env.ARTIFACTORY_USER}</username>
+        <password>${env.ARTIFACTORY_PASSWORD}</password>
       </server>
-
 
     </servers>
-
-    <profiles>
-      <profile>
-        <id>globaldefaults</id>
-        <activation>
-          <activeByDefault>true</activeByDefault>
-        </activation>
-        <repositories>
-          <repository>
-            <id>sonatype-nexus-snapshots-global</id>
-            <name>Sonatype Nexus Snapshots Global</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-            <releases>
-              <enabled>false</enabled>
-            </releases>
-            <snapshots>
-              <enabled>true</enabled>
-            </snapshots>
-          </repository>
-        </repositories>
-      </profile>
-    </profiles>
   </settings>
