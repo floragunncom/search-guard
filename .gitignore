@@ -30,3 +30,4 @@ data/
 puppet/.vagrant
 test.sh
 .vagrant/
+.flattened-pom.xml
