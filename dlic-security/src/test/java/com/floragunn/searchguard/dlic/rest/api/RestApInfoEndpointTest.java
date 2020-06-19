@@ -21,6 +21,7 @@ import org.elasticsearch.rest.RestRequest.Method;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.rest.Endpoint;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class RestApInfoEndpointTest extends AbstractRestApiUnitTest {

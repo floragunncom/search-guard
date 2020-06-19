@@ -38,17 +38,17 @@ public class SearchGuardRestApiActions {
 	        AdminDNs adminDns, ConfigurationRepository cr, ClusterService cs, PrincipalExtractor principalExtractor, 
 	        final PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog) {
 	    final List<RestHandler> handlers = new ArrayList<>();
-	    handlers.add(new InternalUsersApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new RolesMappingApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new RolesApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new ActionGroupsApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new FlushCacheApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new LicenseApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new SgConfigAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
+	    handlers.add(new InternalUsersApiAction(settings, configPath, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadPool.getThreadContext()));
+	    handlers.add(new RolesMappingApiAction(settings, configPath, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadPool.getThreadContext()));
+	    handlers.add(new RolesApiAction(settings, configPath, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadPool.getThreadContext()));
+	    handlers.add(new ActionGroupsApiAction(settings, configPath, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadPool.getThreadContext()));
+	    handlers.add(new FlushCacheApiAction(settings, configPath, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadPool.getThreadContext()));
+	    handlers.add(new LicenseApiAction(settings, configPath, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadPool.getThreadContext()));
+	    handlers.add(new SgConfigAction(settings, configPath, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadPool.getThreadContext()));
 	    handlers.add(new PermissionsInfoAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new AuthTokenProcessorAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new TenantsApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
-		handlers.add(new BlocksApiAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
+	    handlers.add(new AuthTokenProcessorAction(settings, configPath, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadPool.getThreadContext()));
+	    handlers.add(new TenantsApiAction(settings, configPath, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadPool.getThreadContext()));
+		handlers.add(new BlocksApiAction(settings, configPath, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadPool.getThreadContext()));
 	    return Collections.unmodifiableCollection(handlers);
 	}
 }

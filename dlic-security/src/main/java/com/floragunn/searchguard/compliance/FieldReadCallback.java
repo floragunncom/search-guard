@@ -35,7 +35,7 @@ import org.elasticsearch.index.mapper.Uid;
 import org.elasticsearch.index.shard.ShardId;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
+import com.floragunn.searchguard.rest.Utils;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SourceFieldsContext;
 import com.floragunn.searchguard.support.WildcardMatcher;

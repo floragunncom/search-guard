@@ -17,30 +17,30 @@ package com.floragunn.searchguard.dlic.rest.api;
 import java.nio.file.Path;
 import java.util.List;
 
-import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestController;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
-import com.floragunn.searchguard.dlic.rest.validation.BlocksValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.rest.Endpoint;
+import com.floragunn.searchguard.rest.validation.AbstractConfigurationValidator;
+import com.floragunn.searchguard.rest.validation.BlocksValidator;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 
 public class BlocksApiAction extends PatchableResourceApiAction {
 
     @Inject
-    public BlocksApiAction(Settings settings, final Path configPath, RestController controller, Client client, AdminDNs adminDNs, ConfigurationRepository cl,
-                           ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, cs, principalExtractor, evaluator, threadPool, auditLog);
+    public BlocksApiAction(Settings settings, final Path configPath, AdminDNs adminDNs, ConfigurationRepository cl,
+                           ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog, AdminDNs adminDns, ThreadContext threadContext) {
+        super(settings, configPath, adminDNs, cl, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadContext);
     }
 
     @Override

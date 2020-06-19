@@ -23,8 +23,8 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
-import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator.ErrorType;
+import com.floragunn.searchguard.rest.validation.AbstractConfigurationValidator;
+import com.floragunn.searchguard.rest.validation.AbstractConfigurationValidator.ErrorType;
 import com.floragunn.searchguard.support.SgJsonNode;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
@@ -201,21 +201,21 @@ public class RolesApiTest extends AbstractRestApiUnitTest {
 		response = rh.executePutRequest("/_searchguard/api/roles/sg_role_starfleet", "", new Header[0]);
 		Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 		settings = DefaultObjectMapper.readTree(response.getBody());
-		Assert.assertEquals(AbstractConfigurationValidator.ErrorType.PAYLOAD_MANDATORY.getMessage(), settings.get("reason").asText());
+		Assert.assertEquals(ErrorType.PAYLOAD_MANDATORY.getMessage(), settings.get("reason").asText());
 
 		// put new configuration with invalid payload, must fail
 		response = rh.executePutRequest("/_searchguard/api/roles/sg_role_starfleet",
 				FileHelper.loadFile("restapi/roles_not_parseable.json"), new Header[0]);
 		settings = DefaultObjectMapper.readTree(response.getBody());
 		Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-		Assert.assertEquals(AbstractConfigurationValidator.ErrorType.BODY_NOT_PARSEABLE.getMessage(), settings.get("reason").asText());
+		Assert.assertEquals(ErrorType.BODY_NOT_PARSEABLE.getMessage(), settings.get("reason").asText());
 
 		// put new configuration with invalid keys, must fail
 		response = rh.executePutRequest("/_searchguard/api/roles/sg_role_starfleet",
 				FileHelper.loadFile("restapi/roles_invalid_keys.json"), new Header[0]);
 		settings = DefaultObjectMapper.readTree(response.getBody());
 		Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-		Assert.assertEquals(AbstractConfigurationValidator.ErrorType.INVALID_CONFIGURATION.getMessage(), settings.get("reason").asText());
+		Assert.assertEquals(ErrorType.INVALID_CONFIGURATION.getMessage(), settings.get("reason").asText());
 		Assert.assertTrue(settings.get(AbstractConfigurationValidator.INVALID_KEYS_KEY).get("keys").asText().contains("indexx_permissions"));
 		Assert.assertTrue(
 				settings.get(AbstractConfigurationValidator.INVALID_KEYS_KEY).get("keys").asText().contains("kluster_permissions"));
@@ -225,7 +225,7 @@ public class RolesApiTest extends AbstractRestApiUnitTest {
 				FileHelper.loadFile("restapi/roles_wrong_datatype.json"), new Header[0]);
 		settings = DefaultObjectMapper.readTree(response.getBody());
 		Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-		Assert.assertEquals(AbstractConfigurationValidator.ErrorType.WRONG_DATATYPE.getMessage(), settings.get("reason").asText());		
+		Assert.assertEquals(ErrorType.WRONG_DATATYPE.getMessage(), settings.get("reason").asText());
 		Assert.assertTrue(settings.get("cluster_permissions").asText().equals("Array expected"));
 
 		// put read only role, must be forbidden

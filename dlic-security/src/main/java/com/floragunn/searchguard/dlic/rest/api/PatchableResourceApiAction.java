@@ -34,9 +34,9 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -50,26 +50,26 @@ import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
-import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.rest.validation.AbstractConfigurationValidator;
+import com.floragunn.searchguard.rest.Utils;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.google.common.collect.ImmutableList;
 
-public abstract class PatchableResourceApiAction extends AbstractApiAction {
+public abstract class PatchableResourceApiAction extends EnterpriseApiAction {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
 
-    public PatchableResourceApiAction(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDNs,
-            ConfigurationRepository cl, ClusterService cs, PrincipalExtractor principalExtractor, PrivilegesEvaluator evaluator,
-            ThreadPool threadPool, AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, cs, principalExtractor, evaluator, threadPool, auditLog);
+    public PatchableResourceApiAction(Settings settings, Path configPath, AdminDNs adminDNs,
+                                      ConfigurationRepository cl, ClusterService cs, PrincipalExtractor principalExtractor, PrivilegesEvaluator evaluator,
+                                      ThreadPool threadPool, AuditLog auditLog, AdminDNs adminDns, ThreadContext threadContext) {
+        super(settings, configPath, adminDNs, cl, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadContext);
     }
 
     protected List<Route> getStandardResourceRoutes(String resourceName) {
         return ImmutableList.of(new Route(GET, "/_searchguard/api/" + resourceName + "/{name}"),
-                new Route(GET, "/_searchguard/api/" + resourceName + "/"), new Route(DELETE, "/_searchguard/api/" + resourceName + "/{name}"),
+                new Route(DELETE, "/_searchguard/api/" + resourceName + "/{name}"),
                 new Route(PUT, "/_searchguard/api/" + resourceName + "/{name}"), new Route(PATCH, "/_searchguard/api/" + resourceName + "/"),
                 new Route(PATCH, "/_searchguard/api/" + resourceName + "/{name}"));
     }
@@ -162,7 +162,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromNode(updatedAsJsonNode, existingConfiguration.getCType(),
                 existingConfiguration.getVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm());
 
-        saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
+        saveAnUpdateConfigs(client, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
             @Override
             public void onResponse(IndexResponse response) {
@@ -234,7 +234,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromNode(patchedAsJsonNode, existingConfiguration.getCType(),
                 existingConfiguration.getVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm());
 
-        saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
+        saveAnUpdateConfigs(client, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
             @Override
             public void onResponse(IndexResponse response) {

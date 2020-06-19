@@ -14,6 +14,8 @@
 
 package com.floragunn.searchguard.dlic.rest.api;
 
+import static com.floragunn.searchguard.support.ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTAPI_ACCEPT_INVALID_LICENSE;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -86,7 +88,7 @@ public abstract class AbstractRestApiUnitTest extends SingleClusterTest {
 						FileHelper.getAbsoluteFilePathFromClassPath("restapi/node-0-keystore.jks"))
 				.put("searchguard.ssl.http.truststore_filepath",
 						FileHelper.getAbsoluteFilePathFromClassPath("restapi/truststore.jks"))
-				.put("searchguard.unsupported.restapi.accept_invalid_license", true);
+				.put(SEARCHGUARD_UNSUPPORTED_RESTAPI_ACCEPT_INVALID_LICENSE, true);
 		
 		setup(Settings.EMPTY, new DynamicSgConfig(), builder.build(), init);
 		rh = restHelper();

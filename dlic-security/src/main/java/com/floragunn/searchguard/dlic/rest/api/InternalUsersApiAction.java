@@ -14,20 +14,18 @@
 
 package com.floragunn.searchguard.dlic.rest.api;
 
+import static com.floragunn.searchguard.rest.action.InternalUsersApiAction.hash;
+
 import java.io.IOException;
 import java.nio.file.Path;
-import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-
-import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
@@ -41,9 +39,10 @@ import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
-import com.floragunn.searchguard.dlic.rest.validation.InternalUsersValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.rest.validation.AbstractConfigurationValidator;
+import com.floragunn.searchguard.rest.Endpoint;
+import com.floragunn.searchguard.rest.validation.InternalUsersValidator;
 import com.floragunn.searchguard.sgconf.Hashed;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -53,12 +52,12 @@ import com.floragunn.searchguard.support.SgJsonNode;
 public class InternalUsersApiAction extends PatchableResourceApiAction {
 
     @Inject
-    public InternalUsersApiAction(final Settings settings, final Path configPath, final RestController controller,
-            final Client client, final AdminDNs adminDNs, final ConfigurationRepository cl,
-            final ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
-            ThreadPool threadPool, AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, cs, principalExtractor, evaluator, threadPool,
-                auditLog);
+    public InternalUsersApiAction(final Settings settings, final Path configPath,
+                                  final AdminDNs adminDNs, final ConfigurationRepository cl,
+                                  final ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
+                                  ThreadPool threadPool, AuditLog auditLog, AdminDNs adminDns, ThreadContext threadContext) {
+        super(settings, configPath, adminDNs, cl, cs, principalExtractor, evaluator, threadPool,
+                auditLog, adminDns, threadContext);
     }
     
     @Override
@@ -72,7 +71,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
     }
 
     @Override
-    protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+    protected void handlePutWithName(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
 
         final String username = request.param("name");
 
@@ -143,7 +142,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         // checks complete, create or update the user
         internaluser.putCObject(username, DefaultObjectMapper.readTree(contentAsNode, internaluser.getImplementingClass()));
 
-        saveAnUpdateConfigs(client, request, CType.INTERNALUSERS, internaluser, new OnSucessActionListener<IndexResponse>(channel) {
+        saveAnUpdateConfigs(client, CType.INTERNALUSERS, internaluser, new OnSucessActionListener<IndexResponse>(channel) {
             
             @Override
             public void onResponse(IndexResponse response) {
@@ -171,7 +170,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
     
     @Override
     protected AbstractConfigurationValidator postProcessApplyPatchResult(RestChannel channel, RestRequest request, JsonNode existingResourceAsJsonNode,
-            JsonNode updatedResourceAsJsonNode, String resourceName) {
+                                                                         JsonNode updatedResourceAsJsonNode, String resourceName) {
     	AbstractConfigurationValidator retVal = null;
         JsonNode passwordNode = updatedResourceAsJsonNode.get("password");
 
@@ -193,15 +192,6 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         }
         
         return null;
-    }
-
-    public static String hash(final char[] clearTextPassword) {
-        final byte[] salt = new byte[16];
-        new SecureRandom().nextBytes(salt);
-        final String hash = OpenBSDBCrypt.generate((Objects.requireNonNull(clearTextPassword)), salt, 12);
-        Arrays.fill(salt, (byte) 0);
-        Arrays.fill(clearTextPassword, '\0');
-        return hash;
     }
 
     @Override

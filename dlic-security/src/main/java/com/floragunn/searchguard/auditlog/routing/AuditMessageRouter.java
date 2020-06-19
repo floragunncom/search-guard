@@ -17,7 +17,6 @@ package com.floragunn.searchguard.auditlog.routing;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +33,7 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.auditlog.sink.SinkProvider;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
+import com.floragunn.searchguard.rest.Utils;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class AuditMessageRouter {

@@ -16,6 +16,7 @@ package com.floragunn.searchguard.dlic.rest.api;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.Client;
@@ -23,8 +24,8 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -36,20 +37,21 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
-import com.floragunn.searchguard.dlic.rest.validation.NoOpValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.rest.validation.AbstractConfigurationValidator;
+import com.floragunn.searchguard.rest.Endpoint;
+import com.floragunn.searchguard.rest.validation.NoOpValidator;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.google.common.collect.ImmutableList;
 
-public class FlushCacheApiAction extends AbstractApiAction {
+public class FlushCacheApiAction extends EnterpriseApiAction {
 
     @Inject
-    public FlushCacheApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
-            final AdminDNs adminDNs, final ConfigurationRepository cl, final ClusterService cs, final PrincipalExtractor principalExtractor,
-            final PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, cs, principalExtractor, evaluator, threadPool, auditLog);
+    public FlushCacheApiAction(final Settings settings, final Path configPath,
+                               final AdminDNs adminDNs, final ConfigurationRepository cl, final ClusterService cs, final PrincipalExtractor principalExtractor,
+                               final PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog, AdminDNs adminDns, ThreadContext threadContext) {
+        super(settings, configPath, adminDNs, cl, cs, principalExtractor, evaluator, threadPool, auditLog, adminDns, threadContext);
     }
 
     @Override
@@ -65,7 +67,6 @@ public class FlushCacheApiAction extends AbstractApiAction {
 
     @Override
     protected void handleDelete(RestChannel channel, RestRequest request, Client client, final JsonNode content) throws IOException {
-
         client.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0])),
                 new ActionListener<ConfigUpdateResponse>() {
 
@@ -102,7 +103,12 @@ public class FlushCacheApiAction extends AbstractApiAction {
     }
 
     @Override
-    protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+    protected void handlePut(RestChannel channel, RestRequest request, Client client, JsonNode content) throws IOException {
+        notImplemented(channel, Method.PUT);
+    }
+
+    @Override
+    protected void handlePutWithName(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
         notImplemented(channel, Method.PUT);
     }
 

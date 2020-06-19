@@ -59,7 +59,7 @@ import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
+import com.floragunn.searchguard.rest.Utils;
 import com.floragunn.searchguard.support.WildcardMatcher;
 
 public final class RequestResolver {

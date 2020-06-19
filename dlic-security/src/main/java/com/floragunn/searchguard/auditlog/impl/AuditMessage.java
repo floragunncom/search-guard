@@ -46,7 +46,7 @@ import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.auditlog.AuditLog.Operation;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
+import com.floragunn.searchguard.rest.Utils;
 
 public final class AuditMessage {
 
