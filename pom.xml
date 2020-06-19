@@ -13,14 +13,14 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.search-guard</groupId>
-	<artifactId>sg-suite-parent</artifactId>
+	<groupId>com.floragunn</groupId>
+	<artifactId>search-guard-suite-parent</artifactId>
 	<version>${revision}</version>
 	<packaging>pom</packaging>
-	<name>SG Suite - Parent</name>
+	<name>Search Guard Suite - Parent</name>
 
 	<properties>
-		<elasticsearch.version>7.7.1</elasticsearch.version>
+		<elasticsearch.version>7.8.0</elasticsearch.version>
 		<sg-suite.version>42.0.0-SNAPSHOT</sg-suite.version>
 		<revision>${elasticsearch.version}-${sg-suite.version}</revision>
 
@@ -68,8 +68,8 @@
 			</snapshots>
 		</repository>
 		<repository>
-			<id>io.cloudrepo</id>
-			<url>https://floragunn.mycloudrepo.io/repositories/fgmpriv</url>
+			<id>release</id>
+			<url>https://maven.search-guard.com:443/search-guard-suite-release</url>
 			<releases>
 				<enabled>true</enabled>
 			</releases>
@@ -78,8 +78,8 @@
 			</snapshots>
 		</repository>
 		<repository>
-			<id>io.cloudrepo.snapshots</id>
-			<url>https://floragunn.mycloudrepo.io/repositories/fgmpriv-snapshots</url>
+			<id>snapshot</id>
+			<url>https://maven.search-guard.com:443/search-guard-suite-snapshot</url>
 			<releases>
 				<enabled>false</enabled>
 			</releases>
@@ -98,25 +98,22 @@
 			</snapshots>
 		</repository>
 	</repositories>
-
 	<distributionManagement>
 		<repository>
-		  <id>io.cloudrepo</id> <!-- Must Match the Unique Identifier in settings.xml -->
-		  <name>Private Cloud Release Repo Repository</name>
-		  <url>https://floragunn.mycloudrepo.io/repositories/fgmpriv</url>
+			<id>release</id>
+			<name>Release repository</name>
+			<url>https://maven.search-guard.com:443/search-guard-suite-release</url>
 		</repository>
-
 		<snapshotRepository>
-			<id>io.cloudrepo.snapshots</id> <!-- Must Match the Unique Identifier in settings.xml -->
-			<name>Private Cloud Snapshot Repo Repository</name>
-			<url>https://floragunn.mycloudrepo.io/repositories/fgmpriv-snapshots</url>
+			<id>snapshot</id>
+			<name>Snapshot repository</name>
+			<url>https://maven.search-guard.com:443/search-guard-suite-snapshot</url>
 		</snapshotRepository>
 	</distributionManagement>
-
 	<scm>
-		<url>https://git.floragunn.com/private/sg-suite</url>
-		<connection>scm:git:git@git.floragunn.com:private/sg-suite.git</connection>
-		<developerConnection>scm:git:git@git.floragunn.com:private/sg-suite.git</developerConnection>
+		<url>https://git.floragunn.com/search-guard/search-guard-suite/</url>
+		<connection>scm:git:git@git.floragunn.com/search-guard/search-guard-suite.git</connection>
+		<developerConnection>scm:git:git@git.floragunn.com/search-guard/search-guard-suite.git</developerConnection>
 		<tag>HEAD</tag>
 	</scm>
 
@@ -215,21 +212,21 @@
 			</dependency>
 
 			<dependency>
-				<groupId>com.search-guard</groupId>
-				<artifactId>sg-suite-security</artifactId>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-security</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.search-guard</groupId>
-				<artifactId>sg-suite-security</artifactId>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-security</artifactId>
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
 			</dependency>
 
 			<dependency>
-				<groupId>com.search-guard</groupId>
-				<artifactId>sg-suite-scheduler</artifactId>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-scheduler</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
@@ -555,18 +552,18 @@
 	<id>enterprise</id>
 	<activation>
 		<file>
-			<exists>../sg-suite-enterprise</exists>
+			<exists>../search-guard-suite-enterprise</exists>
 		</file>
 	</activation>
 	<modules>
 		<module>security</module>
 		<module>scheduler</module>
 		<module>signals</module>
-		<module>../sg-suite-enterprise</module>
+		<module>../search-guard-suite-enterprise</module>
 		<module>plugin</module>
 	</modules>
 
-</profile>
+	</profile>
 		<profile>
 			<id>release</id>
 			<build>
@@ -622,4 +619,5 @@
 			</build>
 		</profile>
 	</profiles>
+
 </project>

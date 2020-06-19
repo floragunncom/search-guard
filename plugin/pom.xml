@@ -13,14 +13,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>com.search-guard</groupId>
-		<artifactId>sg-suite-parent</artifactId>
+		<groupId>com.floragunn</groupId>
+		<artifactId>search-guard-suite-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>sg-suite-plugin</artifactId>
+	<artifactId>search-guard-suite-plugin</artifactId>
 	<packaging>pom</packaging>
-	<name>SG Suite - Plugin</name>
+	<name>Search Guard Suite - Plugin</name>
 
 	<properties>
 		<!-- assembly descriptors -->
@@ -150,32 +150,32 @@
 			<dependencies>
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>sg-suite-security</artifactId>
+					<artifactId>search-guard-suite-security</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>sg-suite-scheduler</artifactId>
+					<artifactId>search-guard-suite-scheduler</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>sg-suite-signals</artifactId>
+					<artifactId>search-guard-suite-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 				
 				<!-- DLIC -->
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-sg-suite-security</artifactId>
+					<artifactId>dlic-search-guard-suite-security</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-sg-suite-signals</artifactId>
+					<artifactId>dlic-search-guard-suite-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
@@ -209,7 +209,7 @@
 			</build>
 			<dependencies>
 				<dependency>
-					<groupId>com.search-guard</groupId>
+					<groupId>com.floragunn</groupId>
 					<artifactId>dlic-search-guard-enterprise-modules</artifactId>
 					<version>${enterprise-modules.version}</version>
 				</dependency>

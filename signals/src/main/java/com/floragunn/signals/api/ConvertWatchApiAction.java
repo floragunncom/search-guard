@@ -57,7 +57,7 @@ public class ConvertWatchApiAction extends SignalsBaseRestHandler {
 
     @Override
     public String getName() {
-        return "Search Watch Action";
+        return "Create Watch Action";
     }
 
     static class Result implements ToXContentObject {

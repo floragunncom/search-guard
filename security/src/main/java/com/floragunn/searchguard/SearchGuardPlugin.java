@@ -124,7 +124,6 @@ import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.AuditLogSslExceptionHandler;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
 import com.floragunn.searchguard.auth.BackendRegistry;
-import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -200,7 +199,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private static ProtectedIndices protectedIndices;
     private volatile NamedXContentRegistry namedXContentRegistry = null;
     private volatile DlsFlsRequestValve dlsFlsValve = null;
-
+       
     @Override
     public void close() throws IOException {
         //TODO implement close
@@ -743,11 +742,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public Collection<Object> createComponents(Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
-            IndexNameExpressionResolver indexNameExpressionResolver) {
+            IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier) {
 
         if (sslOnly) {
             return super.createComponents(localClient, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry,
-                    environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver);
+                    environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier);
         }
 
         this.threadPool = threadPool;

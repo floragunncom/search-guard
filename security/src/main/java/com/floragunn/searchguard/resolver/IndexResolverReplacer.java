@@ -68,7 +68,8 @@ import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.ClusterState;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
+import org.elasticsearch.cluster.metadata.IndexAbstraction.Type;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -213,9 +214,10 @@ public final class IndexResolverReplacer implements DCFListener {
         } else {
 
             ClusterState state = clusterService.state();
-
-            final SortedMap<String, AliasOrIndex> lookup = state.metaData().getAliasAndIndexLookup();
-            final Set<String> aliases = lookup.entrySet().stream().filter(e -> e.getValue().isAlias()).map(e -> e.getKey())
+            // IndexOrAlias has been replaced, see Thttps://github.com/elastic/elasticsearch/pull/54394
+            final SortedMap<String, IndexAbstraction> lookup = state.getMetadata().getIndicesLookup();
+            
+            final Set<String> aliases = lookup.entrySet().stream().filter(e -> e.getValue().getType().equals(Type.ALIAS)).map(e -> e.getKey())
                     .collect(Collectors.toSet());
 
             matchingAliases = new HashSet<>(localRequestedPatterns.size() * 10);

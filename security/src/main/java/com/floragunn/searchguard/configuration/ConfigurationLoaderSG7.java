@@ -96,7 +96,7 @@ public class ConfigurationLoaderSG7 {
             public void noData(String id, String type) {
                 //when index was created with ES 6 there are no separate tenants. So we load just empty ones.
                //when index was created with ES 7 and type not "sg" (ES 6 type) there are no rolemappings anymore.
-                if(cs.state().metaData().index(searchguardIndex).getCreationVersion().before(Version.V_7_0_0) || "sg".equals(type)) {
+                if(cs.state().getMetadata().index(searchguardIndex).getCreationVersion().before(Version.V_7_0_0) || "sg".equals(type)) {
                     //created with SG 6
                     //skip tenants
                     

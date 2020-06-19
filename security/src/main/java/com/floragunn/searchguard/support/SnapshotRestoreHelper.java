@@ -42,6 +42,8 @@ public class SnapshotRestoreHelper {
 
     protected static final Logger log = LogManager.getLogger(SnapshotRestoreHelper.class);
     
+    private final static String GENERC_THREAD_NAME = "[" + ThreadPool.Names.GENERIC + "]";
+    
     public static List<String> resolveOriginalIndices(RestoreSnapshotRequest restoreRequest) {
         final SnapshotInfo snapshotInfo = getSnapshotInfo(restoreRequest);
 
@@ -62,7 +64,7 @@ public class SnapshotRestoreHelper {
         SnapshotInfo snapshotInfo = null;
         
         try {
-            setCurrentThreadName(ThreadPool.Names.GENERIC);
+            setCurrentThreadName(GENERC_THREAD_NAME);
             
             final RepositoryDataListener repositoryDataListener = new RepositoryDataListener(restoreRequest, repository);
             repository.getRepositoryData(repositoryDataListener);
