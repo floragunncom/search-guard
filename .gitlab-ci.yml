@@ -7,7 +7,7 @@ image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   paths:
-  - "sgbuild0/sg-suite/m2repository" #path look like this because of mv we do below
+  - "sgbuild0/search-guard-suite/m2repository" #path look like this because of mv we do below
 
 before_script:
 - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 netcat pinentry-tty expect psmisc xmlstarlet sudo > /dev/null 2>&1
@@ -17,11 +17,11 @@ before_script:
 - chmod 700 ~/.ssh
 - ssh-keyscan git.floragunn.com >> ~/.ssh/known_hosts
 - chmod 644 ~/.ssh/known_hosts
-- mkdir -p sgbuild0/sg-suite
-- mv -f * sgbuild0/sg-suite || true #mv sg-suite to be able to have sg-suite and sg-suite-enterprise on the same level -> https://gitlab.com/gitlab-org/gitlab-runner/issues/4672#note_212006686
-- mv -f .git* sgbuild0/sg-suite || true #dot files/directory need to be moved explicitly
-# clone sg-suite-enterprise on the same level as sg-suite
-- git clone git@git.floragunn.com:private/sg-suite-enterprise.git sgbuild0/sg-suite-enterprise; cd sgbuild0/sg-suite-enterprise; git checkout $CI_COMMIT_REF_NAME; cd ../sg-suite
+- mkdir -p sgbuild0/search-guard-suite
+- mv -f * sgbuild0/search-guard-suite || true #mv search-guard-suite to be able to have search-guard-suite and search-guard-suite-enterprise on the same level -> https://gitlab.com/gitlab-org/gitlab-runner/issues/4672#note_212006686
+- mv -f .git* sgbuild0/search-guard-suite || true #dot files/directory need to be moved explicitly
+# clone search-guard-suite-enterprise on the same level as search-guard-suite
+- git clone git@git.floragunn.com:search-guard/search-guard-suite-enterprise.git sgbuild0/search-guard-suite-enterprise; cd sgbuild0/search-guard-suite-enterprise; git checkout $CI_COMMIT_REF_NAME; cd ../search-guard-suite
 
 build_and_deploy:
   script:
@@ -29,9 +29,9 @@ build_and_deploy:
   - echo "Smoketest done"
   - export esversion=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
   #- mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml clean verify #run tests incl enterprise modules ?
-  - mvn -Drevision=b-$esversion-SNAPSHOT -s settings.xml -P!enterprise clean verify #run tests, no enterprise
-  - cp -r /builds/private/sg-suite/sgbuild0/sg-suite/signals/target/surefire-reports /builds/private/sg-suite/sgbuild0/ || true
-  - mvn -Drevision=b-$esversion-SNAPSHOT -DskipTests -s settings.xml -Penterprise clean deploy #deploy snapshot incl enterprise and zip
+  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml -P!enterprise clean verify #run tests, no enterprise
+  - cp -r /builds/search-guard/search-guard-suite/sgbuild0/search-guard-suite/signals/target/surefire-reports /builds/search-guard/search-guard-suite/sgbuild0/ || true
+  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -DskipTests -s settings.xml -Penterprise clean deploy #deploy snapshot incl enterprise and zip
   #- missing: veracode, coverage, srcclr, sonar, scan_veracode.sh
 
 
@@ -46,4 +46,4 @@ build_and_deploy:
     when: always
     paths:
       - sgbuild0/surefire-reports/
-      - sgbuild0/sg-suite/signals/target/surefire-reports
+      - sgbuild0/search-guard-suite/signals/target/surefire-reports
