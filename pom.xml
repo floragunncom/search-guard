@@ -237,6 +237,14 @@
 				<version>${project.version}</version>
 			</dependency>
 
+
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-support</artifactId>
+				<version>${project.version}</version>
+				<classifier>tests</classifier>
+			</dependency>
+
 			<dependency>
 				<groupId>org.elasticsearch.plugin</groupId>
 				<artifactId>lang-mustache-client</artifactId>

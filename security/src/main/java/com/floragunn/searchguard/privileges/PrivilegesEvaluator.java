@@ -70,6 +70,8 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider.AuthFromInternalAuthToken;
+import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig;
+import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfigRegistry;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.ConfigModel;
@@ -146,7 +148,7 @@ public class PrivilegesEvaluator implements DCFListener {
         return configModel != null && configModel.getSgRoles() != null && dcm != null;
     }
 
-    public PrivilegesEvaluatorResponse evaluate(final User user, String action0, final ActionRequest request, Task task,
+    public PrivilegesEvaluatorResponse evaluate(final User user, String action0, final ActionRequest request, Task task, ActionConfig actionConfig,
             AuthFromInternalAuthToken authFromInternalAuthToken) {
 
         if (!isInitialized()) {
@@ -183,8 +185,6 @@ public class PrivilegesEvaluator implements DCFListener {
         if (log.isDebugEnabled()) {
             log.debug("requestedResolved : {}", requestedResolved);
         }
-
-        
 
         // check snapshot/restore requests 
         if (snapshotRestoreEvaluator.evaluate(request, task, action0, clusterInfoHolder, presponse).isComplete()) {
@@ -282,7 +282,7 @@ public class PrivilegesEvaluator implements DCFListener {
                 return presponse;
             }
         }
-        
+
         // check dlsfls 
         if (enterpriseModulesEnabled
                 //&& (action0.startsWith("indices:data/read") || action0.equals(ClusterSearchShardsAction.NAME))
@@ -517,14 +517,11 @@ public class PrivilegesEvaluator implements DCFListener {
     }
 
     private static boolean isClusterPerm(String action0) {
-        // TODO tenant permissions
-
         return !isTenantPerm(action0) && (action0.startsWith("searchguard:cluster:") || action0.startsWith("cluster:")
                 || action0.startsWith("indices:admin/template/") || action0.startsWith(SearchScrollAction.NAME) || (action0.equals(BulkAction.NAME))
                 || (action0.equals(MultiGetAction.NAME)) || (action0.equals(MultiSearchAction.NAME)) || (action0.equals(MultiTermVectorsAction.NAME))
-                || (action0.equals(ReindexAction.NAME))
+                || action0.equals(ReindexAction.NAME) || ActionConfigRegistry.INSTANCE.isClusterAction(action0));
 
-        );
     }
 
     private static boolean isTenantPerm(String action0) {

@@ -19,6 +19,7 @@ package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -49,6 +50,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
+import org.elasticsearch.plugins.Plugin;
 
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
@@ -81,11 +83,11 @@ public final class ClusterHelper {
 
     public final ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration)
             throws Exception {
-        return startCluster(nodeSettingsSupplier, clusterConfiguration, 10, null);
+        return startCluster(nodeSettingsSupplier, clusterConfiguration, null, 10, null);
     }
 
     public final synchronized ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration,
-            int timeout, Integer nodes) throws Exception {
+            List<Class<? extends Plugin>> additionalPlugins, int timeout, Integer nodes) throws Exception {
 
         if (!esNodes.isEmpty()) {
             throw new RuntimeException("There are still " + esNodes.size() + " nodes instantiated, close them first.");
@@ -138,8 +140,7 @@ public final class ClusterHelper {
                     getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, internalNodeSettings.size(), tcpMasterPortsOnly,
                             tcpPortsAllIt.next(), httpPortsIt.next())
                                     .put(nodeSettingsSupplier == null ? Settings.Builder.EMPTY_SETTINGS : nodeSettingsSupplier.get(nodeNum)).build(),
-                    setting.getPlugins());
-            System.out.println(node.settings());
+                    setting.getPlugins(additionalPlugins));
 
             new Thread(new Runnable() {
 
@@ -166,8 +167,7 @@ public final class ClusterHelper {
                     getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, internalNodeSettings.size(), tcpMasterPortsOnly,
                             tcpPortsAllIt.next(), httpPortsIt.next())
                                     .put(nodeSettingsSupplier == null ? Settings.Builder.EMPTY_SETTINGS : nodeSettingsSupplier.get(nodeNum)).build(),
-                    setting.getPlugins());
-            System.out.println(node.settings());
+                    setting.getPlugins(additionalPlugins));
 
             new Thread(new Runnable() {
 
@@ -250,17 +250,17 @@ public final class ClusterHelper {
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                
+
                 if (esNodes.size() != 0) {
                     break;
                 }
             }
         }
-        
+
         if (esNodes.size() == 0) {
             throw new RuntimeException("Could not get intialized cluster");
         }
-        
+
         return esNodes.get(0);
     }
 

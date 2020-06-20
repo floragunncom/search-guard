@@ -188,6 +188,13 @@
 		</dependency>
 
 		<dependency>
+    		<groupId>org.elasticsearch.client</groupId>
+    		<artifactId>elasticsearch-rest-high-level-client</artifactId>
+    		<version>${elasticsearch.version}</version>
+    		<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch-ssl-config</artifactId>
 			<version>${elasticsearch.version}</version>
@@ -227,6 +234,12 @@
 			<artifactId>mockito-core</artifactId>
 			<version>${mockito.version}</version>
 			<scope>test</scope>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.codelibs.elasticsearch.module</groupId>
+			<artifactId>lang-painless</artifactId>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 </project>

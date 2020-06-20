@@ -377,3 +377,8 @@ sg_role_foo_index:
 sg_role_foo_all:
   users:
     - foo_all
+    
+sg_own_index_with_sgs:
+  backend_roles:
+  - own_index_with_sgs    
+    

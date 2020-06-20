@@ -67,6 +67,9 @@ import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider.AuthFromInternalAuthToken;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluatorResponse;
+import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig;
+import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfigRegistry;
+import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
@@ -86,10 +89,11 @@ public class SearchGuardFilter implements ActionFilter {
     private final ComplianceConfig complianceConfig;
     private final CompatConfig compatConfig;
     private final InternalAuthTokenProvider internalAuthTokenProvider;
+    private final ExtendedActionHandlingService extendedActionHandlingService;
 
-    public SearchGuardFilter(final PrivilegesEvaluator evalp, final AdminDNs adminDns,
-            DlsFlsRequestValve dlsFlsValve, AuditLog auditLog, ThreadPool threadPool, ClusterService cs,
-            ComplianceConfig complianceConfig, final CompatConfig compatConfig, InternalAuthTokenProvider internalAuthTokenProvider) {
+    public SearchGuardFilter(final PrivilegesEvaluator evalp, final AdminDNs adminDns, DlsFlsRequestValve dlsFlsValve, AuditLog auditLog,
+            ThreadPool threadPool, ClusterService cs, ComplianceConfig complianceConfig, final CompatConfig compatConfig,
+            InternalAuthTokenProvider internalAuthTokenProvider, ExtendedActionHandlingService extendedActionHandlingService) {
         this.evalp = evalp;
         this.adminDns = adminDns;
         this.dlsFlsValve = dlsFlsValve;
@@ -99,6 +103,7 @@ public class SearchGuardFilter implements ActionFilter {
         this.complianceConfig = complianceConfig;
         this.compatConfig = compatConfig;
         this.internalAuthTokenProvider = internalAuthTokenProvider;
+        this.extendedActionHandlingService = extendedActionHandlingService;
     }
 
     @Override
@@ -109,23 +114,22 @@ public class SearchGuardFilter implements ActionFilter {
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, final String action, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
-        try (StoredContext ctx = threadContext.newStoredContext(true)){
+        try (StoredContext ctx = threadContext.newStoredContext(true)) {
             org.apache.logging.log4j.ThreadContext.clearAll();
             apply0(task, action, request, listener, chain);
         }
     }
-    
 
     private <Request extends ActionRequest, Response extends ActionResponse> void apply0(Task task, final String action, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
-        
+
         try {
 
-            if(threadContext.getTransient(ConfigConstants.SG_ORIGIN) == null) {
+            if (threadContext.getTransient(ConfigConstants.SG_ORIGIN) == null) {
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.LOCAL.toString());
             }
-            
-            if(complianceConfig != null && complianceConfig.isEnabled()) {
+
+            if (complianceConfig != null && complianceConfig.isEnabled()) {
                 attachSourceFieldContext(request);
             }
 
@@ -134,72 +138,69 @@ public class SearchGuardFilter implements ActionFilter {
             final boolean interClusterRequest = HeaderHelper.isInterClusterRequest(threadContext);
             final boolean trustedClusterRequest = HeaderHelper.isTrustedClusterRequest(threadContext);
             final boolean confRequest = "true".equals(HeaderHelper.getSafeFromHeader(threadContext, ConfigConstants.SG_CONF_REQUEST_HEADER));
-            final boolean passThroughRequest = action.equals(LicenseInfoAction.NAME)
-                    || action.startsWith("indices:admin/seq_no")
+            final boolean passThroughRequest = action.equals(LicenseInfoAction.NAME) || action.startsWith("indices:admin/seq_no")
                     || action.equals(WhoAmIAction.NAME);
 
-            final boolean internalRequest =
-                    (interClusterRequest || HeaderHelper.isDirectRequest(threadContext))
-                    && action.startsWith("internal:")
+            final boolean internalRequest = (interClusterRequest || HeaderHelper.isDirectRequest(threadContext)) && action.startsWith("internal:")
                     && !action.startsWith("internal:transport/proxy");
-            
 
             AuthFromInternalAuthToken authFromInternalAuthToken = internalAuthTokenProvider.userAuthFromToken(threadContext);
-            
+
             if (authFromInternalAuthToken != null) {
                 if (log.isDebugEnabled()) {
-                    log.debug("userIsAdmin: " + userIsAdmin + "\n" + "interClusterRequest: " + interClusterRequest + "\ntrustedClusterRequest: " + trustedClusterRequest + "\nconfRequest: " + confRequest + "\npassThroughRequest: " + passThroughRequest);
+                    log.debug("userIsAdmin: " + userIsAdmin + "\n" + "interClusterRequest: " + interClusterRequest + "\ntrustedClusterRequest: "
+                            + trustedClusterRequest + "\nconfRequest: " + confRequest + "\npassThroughRequest: " + passThroughRequest);
                     log.debug("Getting auth from internal auth token.\nOld user: " + user + "\nNew auth: " + authFromInternalAuthToken);
                     log.debug(threadContext.getHeaders());
                 }
 
                 user = authFromInternalAuthToken.getUser();
             }
-            
+
             if (user != null) {
-                org.apache.logging.log4j.ThreadContext.put("user", user.getName());    
+                org.apache.logging.log4j.ThreadContext.put("user", user.getName());
             }
-                        
-            if(actionTrace.isTraceEnabled()) {
+
+            if (actionTrace.isTraceEnabled()) {
 
                 String count = "";
-                if(request instanceof BulkRequest) {
-                    count = ""+((BulkRequest) request).requests().size();
+                if (request instanceof BulkRequest) {
+                    count = "" + ((BulkRequest) request).requests().size();
                 }
 
-                if(request instanceof MultiGetRequest) {
-                    count = ""+((MultiGetRequest) request).getItems().size();
+                if (request instanceof MultiGetRequest) {
+                    count = "" + ((MultiGetRequest) request).getItems().size();
                 }
 
-                if(request instanceof MultiSearchRequest) {
-                    count = ""+((MultiSearchRequest) request).requests().size();
+                if (request instanceof MultiSearchRequest) {
+                    count = "" + ((MultiSearchRequest) request).requests().size();
                 }
 
-                actionTrace.trace("Node "+cs.localNode().getName()+" -> "+action+" ("+count+"): userIsAdmin="+userIsAdmin+"/conRequest="+confRequest+"/internalRequest="+internalRequest
-                        +"origin="+threadContext.getTransient(ConfigConstants.SG_ORIGIN)+"/directRequest="+HeaderHelper.isDirectRequest(threadContext)+"/remoteAddress="+request.remoteAddress());
+                actionTrace.trace("Node " + cs.localNode().getName() + " -> " + action + " (" + count + "): userIsAdmin=" + userIsAdmin
+                        + "/conRequest=" + confRequest + "/internalRequest=" + internalRequest + "origin="
+                        + threadContext.getTransient(ConfigConstants.SG_ORIGIN) + "/directRequest=" + HeaderHelper.isDirectRequest(threadContext)
+                        + "/remoteAddress=" + request.remoteAddress());
 
-
-                threadContext.putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" FILTER -> "+"Node "+cs.localNode().getName()+" -> "+action+" userIsAdmin="+userIsAdmin+"/conRequest="+confRequest+"/internalRequest="+internalRequest
-                        +"origin="+threadContext.getTransient(ConfigConstants.SG_ORIGIN)+"/directRequest="+HeaderHelper.isDirectRequest(threadContext)+"/remoteAddress="+request.remoteAddress()+" "+threadContext.getHeaders().entrySet().stream().filter(p->!p.getKey().startsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
-
+                threadContext.putHeader("_sg_trace" + System.currentTimeMillis() + "#" + UUID.randomUUID().toString(),
+                        Thread.currentThread().getName() + " FILTER -> " + "Node " + cs.localNode().getName() + " -> " + action + " userIsAdmin="
+                                + userIsAdmin + "/conRequest=" + confRequest + "/internalRequest=" + internalRequest + "origin="
+                                + threadContext.getTransient(ConfigConstants.SG_ORIGIN) + "/directRequest="
+                                + HeaderHelper.isDirectRequest(threadContext) + "/remoteAddress=" + request.remoteAddress() + " "
+                                + threadContext.getHeaders().entrySet().stream().filter(p -> !p.getKey().startsWith("_sg_trace"))
+                                        .collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
 
             }
 
+            if (userIsAdmin || confRequest || internalRequest || passThroughRequest) {
 
-            if(userIsAdmin
-                    || confRequest
-                    || internalRequest
-                    || passThroughRequest){
-
-                if(userIsAdmin && !confRequest && !internalRequest && !passThroughRequest) {
+                if (userIsAdmin && !confRequest && !internalRequest && !passThroughRequest) {
                     auditLog.logGrantedPrivileges(action, request, task);
                 }
 
                 chain.proceed(task, action, request, listener);
                 return;
             }
-            
-            
+
             if (complianceConfig != null && complianceConfig.isEnabled()) {
 
                 Tuple<ImmutableState, ActionListener> immutableResult;
@@ -227,28 +228,30 @@ public class SearchGuardFilter implements ActionFilter {
                 }
             }
 
-            if(Origin.LOCAL.toString().equals(threadContext.getTransient(ConfigConstants.SG_ORIGIN))
-                    && (interClusterRequest || HeaderHelper.isDirectRequest(threadContext) && authFromInternalAuthToken == null)
-                    ) {
+            if (Origin.LOCAL.toString().equals(threadContext.getTransient(ConfigConstants.SG_ORIGIN))
+                    && (interClusterRequest || HeaderHelper.isDirectRequest(threadContext) && authFromInternalAuthToken == null)) {
 
                 chain.proceed(task, action, request, listener);
                 return;
             }
 
-            if(user == null) {
+            if (user == null) {
 
-                if(action.startsWith("cluster:monitor/state")) {
+                if (action.startsWith("cluster:monitor/state")) {
                     chain.proceed(task, action, request, listener);
                     return;
                 }
 
-                if((interClusterRequest || trustedClusterRequest || request.remoteAddress() == null) && !compatConfig.transportInterClusterAuthEnabled()) {
+                if ((interClusterRequest || trustedClusterRequest || request.remoteAddress() == null)
+                        && !compatConfig.transportInterClusterAuthEnabled()) {
                     chain.proceed(task, action, request, listener);
                     return;
                 }
 
-                log.error("No user found for "+ action+" from "+request.remoteAddress()+" "+threadContext.getTransient(ConfigConstants.SG_ORIGIN)+" via "+threadContext.getTransient(ConfigConstants.SG_CHANNEL_TYPE)+" "+threadContext.getHeaders());
-                listener.onFailure(new ElasticsearchSecurityException("No user found for "+action, RestStatus.INTERNAL_SERVER_ERROR));
+                log.error("No user found for " + action + " from " + request.remoteAddress() + " "
+                        + threadContext.getTransient(ConfigConstants.SG_ORIGIN) + " via "
+                        + threadContext.getTransient(ConfigConstants.SG_CHANNEL_TYPE) + " " + threadContext.getHeaders());
+                listener.onFailure(new ElasticsearchSecurityException("No user found for " + action, RestStatus.INTERNAL_SERVER_ERROR));
                 return;
             }
 
@@ -256,36 +259,55 @@ public class SearchGuardFilter implements ActionFilter {
 
             if (!eval.isInitialized()) {
                 log.error("Search Guard not initialized (SG11) for {}", action);
-                listener.onFailure(new ElasticsearchSecurityException("Search Guard not initialized (SG11) for "
-                + action+". See https://docs.search-guard.com/latest/sgadmin", RestStatus.SERVICE_UNAVAILABLE));
+                listener.onFailure(new ElasticsearchSecurityException(
+                        "Search Guard not initialized (SG11) for " + action + ". See https://docs.search-guard.com/latest/sgadmin",
+                        RestStatus.SERVICE_UNAVAILABLE));
                 return;
+            }
+
+            ActionConfig actionConfig = ActionConfigRegistry.INSTANCE.get(action);
+
+            if (log.isTraceEnabled()) {
+                log.trace("Action config for " + action + ": " + actionConfig);
             }
 
             if (log.isTraceEnabled()) {
                 log.trace("Evaluate permissions for user: {}", user.getName());
             }
 
-            final PrivilegesEvaluatorResponse pres = eval.evaluate(user, action, request, task, authFromInternalAuthToken);
-            
+            final PrivilegesEvaluatorResponse pres = eval.evaluate(user, action, request, task, actionConfig, authFromInternalAuthToken);
+
             if (log.isDebugEnabled()) {
                 log.debug(pres);
             }
-            
+
             if (pres.isAllowed()) {
                 auditLog.logGrantedPrivileges(action, request, task);
-                if(!dlsFlsValve.invoke(request, listener, pres.getAllowedFlsFields(), pres.getMaskedFields(), pres.getQueries(), complianceConfig != null && complianceConfig.isLocalHashingEnabled())) {
+                // save username fo later use on current node
+                if (threadContext.getHeader(ConfigConstants.SG_USER_NAME) == null) {
+                    threadContext.putHeader(ConfigConstants.SG_USER_NAME, user.getName());
+                }
+
+                if (!dlsFlsValve.invoke(request, listener, pres.getAllowedFlsFields(), pres.getMaskedFields(), pres.getQueries(),
+                        complianceConfig != null && complianceConfig.isLocalHashingEnabled())) {
                     return;
                 }
-                chain.proceed(task, action, request, listener);
+
+                if (actionConfig != null) {
+                    extendedActionHandlingService.apply(actionConfig, user, task, action, request, listener, chain);
+                } else {
+                    chain.proceed(task, action, request, listener);
+                }
                 return;
             } else {
                 auditLog.logMissingPrivileges(action, request, task);
                 log.debug("no permissions for {}", pres.getMissingPrivileges());
-                listener.onFailure(new ElasticsearchSecurityException("no permissions for " + pres.getMissingPrivileges()+" and "+user, RestStatus.FORBIDDEN));
+                listener.onFailure(new ElasticsearchSecurityException("no permissions for " + pres.getMissingPrivileges() + " and " + user,
+                        RestStatus.FORBIDDEN));
                 return;
             }
         } catch (Throwable e) {
-            log.error("Unexpected exception "+e, e);
+            log.error("Unexpected exception " + e, e);
             listener.onFailure(new ElasticsearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR));
             return;
         }
@@ -300,20 +322,20 @@ public class SearchGuardFilter implements ActionFilter {
     }
 
     private void attachSourceFieldContext(ActionRequest request) {
-        
-        if(request instanceof SearchRequest && SourceFieldsContext.isNeeded((SearchRequest) request)) {            
-            if(threadContext.getHeader("_sg_source_field_context") == null) {
+
+        if (request instanceof SearchRequest && SourceFieldsContext.isNeeded((SearchRequest) request)) {
+            if (threadContext.getHeader("_sg_source_field_context") == null) {
                 final String serializedSourceFieldContext = Base64Helper.serializeObject(new SourceFieldsContext((SearchRequest) request));
                 threadContext.putHeader("_sg_source_field_context", serializedSourceFieldContext);
             }
         } else if (request instanceof GetRequest && SourceFieldsContext.isNeeded((GetRequest) request)) {
-            if(threadContext.getHeader("_sg_source_field_context") == null) {
+            if (threadContext.getHeader("_sg_source_field_context") == null) {
                 final String serializedSourceFieldContext = Base64Helper.serializeObject(new SourceFieldsContext((GetRequest) request));
                 threadContext.putHeader("_sg_source_field_context", serializedSourceFieldContext);
             }
         }
     }
-    
+
     private static class ImmutableIndexActionListener implements ActionListener {
 
         private final ActionListener originalListener;
@@ -339,8 +361,8 @@ public class SearchGuardFilter implements ActionFilter {
 
         @Override
         public void onFailure(Exception e) {
-            
-            if(e instanceof VersionConflictEngineException) {
+
+            if (e instanceof VersionConflictEngineException) {
                 auditLog.logImmutableIndexAttempt(originalRequest, action, task);
                 originalListener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
             } else {
@@ -348,50 +370,45 @@ public class SearchGuardFilter implements ActionFilter {
             }
         }
     }
-    
+
     private enum ImmutableState {
-        FAILURE,
-        LISTENER
+        FAILURE, LISTENER
     }
 
-    
     @SuppressWarnings("rawtypes")
-    private Tuple<ImmutableState, ActionListener> checkImmutableIndices(Object request, TransportRequest originalRequest, ActionListener originalListener, String action, Task task, AuditLog auditLog) {
+    private Tuple<ImmutableState, ActionListener> checkImmutableIndices(Object request, TransportRequest originalRequest,
+            ActionListener originalListener, String action, Task task, AuditLog auditLog) {
 
-        if(        request instanceof DeleteRequest 
-                || request instanceof UpdateRequest 
-                || request instanceof UpdateByQueryRequest 
-                || request instanceof DeleteByQueryRequest
-                || request instanceof DeleteIndexRequest
-                || request instanceof RestoreSnapshotRequest
-                || request instanceof CloseIndexRequest
-                || request instanceof IndicesAliasesRequest //TODO only remove index
-                ) {
-            
-            if(complianceConfig != null && complianceConfig.isIndexImmutable(request)) {
-                
+        if (request instanceof DeleteRequest || request instanceof UpdateRequest || request instanceof UpdateByQueryRequest
+                || request instanceof DeleteByQueryRequest || request instanceof DeleteIndexRequest || request instanceof RestoreSnapshotRequest
+                || request instanceof CloseIndexRequest || request instanceof IndicesAliasesRequest //TODO only remove index
+        ) {
+
+            if (complianceConfig != null && complianceConfig.isIndexImmutable(request)) {
+
                 //check index for type = remove index
                 //IndicesAliasesRequest iar = (IndicesAliasesRequest) request;
                 //for(AliasActions aa: iar.getAliasActions()) {
                 //    if(aa.actionType() == Type.REMOVE_INDEX) {
-                        
+
                 //    }
                 //}
-                
+
                 auditLog.logImmutableIndexAttempt(originalRequest, action, task);
-                
+
                 originalListener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
                 return new Tuple<ImmutableState, ActionListener>(ImmutableState.FAILURE, originalListener);
             }
         }
-        
-        if(request instanceof IndexRequest) {
-            if(complianceConfig != null && complianceConfig.isIndexImmutable(request)) {
+
+        if (request instanceof IndexRequest) {
+            if (complianceConfig != null && complianceConfig.isIndexImmutable(request)) {
                 ((IndexRequest) request).opType(OpType.CREATE);
-                return new Tuple<ImmutableState, ActionListener>(ImmutableState.LISTENER, new ImmutableIndexActionListener(originalListener, auditLog, originalRequest, action, task));
+                return new Tuple<ImmutableState, ActionListener>(ImmutableState.LISTENER,
+                        new ImmutableIndexActionListener(originalListener, auditLog, originalRequest, action, task));
             }
         }
-        
+
         return null;
     }
 

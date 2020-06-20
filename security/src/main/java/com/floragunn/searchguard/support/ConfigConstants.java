@@ -82,6 +82,7 @@ public class ConfigConstants {
 
     public static final String SG_USER = SG_CONFIG_PREFIX+"user";
     public static final String SG_USER_HEADER = SG_CONFIG_PREFIX+"user_header";
+    public static final String SG_USER_NAME = SG_CONFIG_PREFIX+"user_name";
 
     public static final String SG_INJECTED_USER = "injected_user";
     

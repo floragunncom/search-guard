@@ -76,7 +76,7 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
     
     protected void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride
             , boolean initSearchGuardIndex, ClusterConfiguration clusterConfiguration, int timeout, Integer nodes) throws Exception {    
-        clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration, timeout, nodes);
+        clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration, null, timeout, nodes);
         if(initSearchGuardIndex) {
             initialize(clusterInfo, initTransportClientSettings, dynamicSgSettings);
         }

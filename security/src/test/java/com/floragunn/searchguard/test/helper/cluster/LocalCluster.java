@@ -1,15 +1,33 @@
-package com.floragunn.signals;
+package com.floragunn.searchguard.test.helper.cluster;
 
+import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.security.KeyStore;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.net.ssl.SSLContext;
+
+import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -30,9 +48,6 @@ import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
-import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
-import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
-import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.user.User;
@@ -45,13 +60,16 @@ public class LocalCluster extends ExternalResource {
             "lc_utest_n" + num.incrementAndGet() + "_f" + System.getProperty("forkno") + "_t" + System.nanoTime());
     protected ClusterInfo clusterInfo;
     protected final String resourceFolder;
+    private List<Class<? extends Plugin>> plugins;
 
-    public LocalCluster(String resourceFolder, ClusterConfiguration clusterConfiguration) throws Exception {
-        this(resourceFolder, new DynamicSgConfig(), Settings.EMPTY, clusterConfiguration);
+    public LocalCluster(String resourceFolder, ClusterConfiguration clusterConfiguration, List<Class<? extends Plugin>> plugins) throws Exception {
+        this(resourceFolder, new DynamicSgConfig(), Settings.EMPTY, clusterConfiguration, plugins);
     }
 
-    public LocalCluster(String resourceFolder, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, ClusterConfiguration clusterConfiguration) {
+    public LocalCluster(String resourceFolder, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, ClusterConfiguration clusterConfiguration,
+            List<Class<? extends Plugin>> plugins) {
         this.resourceFolder = resourceFolder;
+        this.plugins = plugins;
 
         setup(Settings.EMPTY, dynamicSgSettings, nodeOverride, true, clusterConfiguration);
     }
@@ -125,6 +143,16 @@ public class LocalCluster extends ExternalResource {
         return tc;
     }
 
+    public RestHighLevelClient getRestHighLevelClient(String user, String password) {
+        CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+        credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
+
+        RestClientBuilder builder = RestClient.builder(new HttpHost(clusterInfo.httpHost, clusterInfo.httpPort, "https")).setHttpClientConfigCallback(
+                httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider).setSSLStrategy(getSSLIOSessionStrategy()));
+
+        return new RestHighLevelClient(builder);
+    }
+
     public Client getNodeClientWithMockUser(User user) {
         Client client = getNodeClient();
 
@@ -146,9 +174,9 @@ public class LocalCluster extends ExternalResource {
     private void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex,
             ClusterConfiguration clusterConfiguration) {
         painlessWhitelistKludge();
-        
+
         try {
-            clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration);
+            clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration, plugins, 10, null);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -159,7 +187,7 @@ public class LocalCluster extends ExternalResource {
             initialize(dynamicSgSettings);
         }
     }
-    
+
     private void painlessWhitelistKludge() {
         try (PainlessPlugin p = new PainlessPlugin()) {
             p.reloadSPI(getClass().getClassLoader());
@@ -200,6 +228,31 @@ public class LocalCluster extends ExternalResource {
     private Settings ccs(Settings nodeOverride) throws Exception {
 
         return nodeOverride;
+    }
+
+    private SSLContext getSSLContext() {
+        try {
+            String truststoreType = "JKS";
+            String truststorePassword = "changeit";
+            String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
+
+            KeyStore trustStore = KeyStore.getInstance(truststoreType);
+            try (InputStream in = Files.newInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))) {
+                trustStore.load(in, (truststorePassword == null || truststorePassword.length() == 0) ? null : truststorePassword.toCharArray());
+            }
+
+            SSLContextBuilder sslContextBuilder = SSLContexts.custom().loadTrustMaterial(trustStore, null);
+            return sslContextBuilder.build();
+
+            //return new OverlyTrustfulSSLContextBuilder().build();
+        } catch (Exception e) {
+            throw new RuntimeException("Error while building SSLContext", e);
+        }
+    }
+
+    private SSLIOSessionStrategy getSSLIOSessionStrategy() {
+
+        return new SSLIOSessionStrategy(getSSLContext(), null, null, NoopHostnameVerifier.INSTANCE);
     }
 
     protected Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly) {
@@ -264,6 +317,7 @@ public class LocalCluster extends ExternalResource {
         private String resourceFolder;
         private ClusterConfiguration clusterConfiguration = ClusterConfiguration.DEFAULT;
         private Settings.Builder nodeOverrideSettingsBuilder = Settings.builder();
+        private List<Class<? extends Plugin>> plugins = new ArrayList<>();
 
         public Builder sslEnabled() {
             this.sslEnabled = true;
@@ -297,18 +351,25 @@ public class LocalCluster extends ExternalResource {
             return this;
         }
 
+        public Builder plugin(Class<? extends Plugin> plugin) {
+            this.plugins.add(plugin);
+
+            return this;
+        }
+
         public LocalCluster build() {
             try {
 
                 if (sslEnabled) {
                     nodeOverrideSettingsBuilder.put("searchguard.ssl.http.enabled", true)
                             .put("searchguard.ssl.http.keystore_filepath",
-                                    FileHelper.getAbsoluteFilePathFromClassPath(resourceFolder + "/" + httpKeystoreFilepath))
-                            .put("searchguard.ssl.http.truststore_filepath",
-                                    FileHelper.getAbsoluteFilePathFromClassPath(resourceFolder + "/" + httpTruststoreFilepath));
+                                    FileHelper.getAbsoluteFilePathFromClassPath(
+                                            resourceFolder != null ? (resourceFolder + "/" + httpKeystoreFilepath) : httpKeystoreFilepath))
+                            .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(
+                                    resourceFolder != null ? (resourceFolder + "/" + httpTruststoreFilepath) : httpTruststoreFilepath));
                 }
 
-                return new LocalCluster(resourceFolder, new DynamicSgConfig(), nodeOverrideSettingsBuilder.build(), clusterConfiguration);
+                return new LocalCluster(resourceFolder, new DynamicSgConfig(), nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -316,4 +377,5 @@ public class LocalCluster extends ExternalResource {
         }
 
     }
+
 }
