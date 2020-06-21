@@ -100,7 +100,7 @@ public class ClientAuthCredentials {
 
                     if (fileName.endsWith(".jks")) {
                         type = "JKS";
-                    } else if (fileName.equals(".pfx") || fileName.endsWith(".p12")) {
+                    } else if (fileName.endsWith(".pfx") || fileName.endsWith(".p12")) {
                         type = "PKCS12";
                     } else {
                         throw new IllegalArgumentException("Unknwon file type: " + fileName);
