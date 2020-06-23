@@ -44,7 +44,10 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.http.HttpHost;
+import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
@@ -70,6 +73,8 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
@@ -119,10 +124,15 @@ import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchguard.ssl.util.config.ClientAuthCredentials;
+import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
+import com.floragunn.searchguard.ssl.util.config.TrustStore;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.ConfigHelper;
 import com.floragunn.searchguard.support.SgJsonNode;
 import com.floragunn.searchguard.support.SgUtils;
+import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient;
+import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient.GenericResponse;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 
@@ -244,7 +254,9 @@ public class SearchGuardAdmin {
 
         options.addOption(Option.builder("mo").longOpt("migrate-offline").hasArg().argName("folder").desc("Migrate and use folder to store migrated files").build());
 
-        
+        options.addOption(Option.builder("rlhttpcerts").longOpt("reload-http-certs").desc("Trigger reloading the HTTP TLS certificiate files installed on the nodes").build());
+        options.addOption(Option.builder("rltransportcerts").longOpt("reload-transport-certs").desc("Trigger reloading the transport TLS certificiate files installed on the nodes").build());
+
         //when adding new options also adjust validate(CommandLine line)
         
         String hostname = "localhost";
@@ -293,6 +305,8 @@ public class SearchGuardAdmin {
         final boolean resolveEnvVars;
         Integer validateConfig = null;
         String migrateOffline = null;
+        boolean reloadHttpCerts = false;
+        boolean reloadTransportCerts = false;
         
         CommandLineParser parser = new DefaultParser();
         try {
@@ -391,6 +405,9 @@ public class SearchGuardAdmin {
             
             migrateOffline = line.getOptionValue("mo");
             
+            reloadHttpCerts = line.hasOption("reload-http-certs");
+            reloadTransportCerts = line.hasOption("reload-transport-certs");
+
         }
         catch( ParseException exp ) {
             System.out.println("ERR: Parsing failed.  Reason: " + exp.getMessage());
@@ -409,7 +426,90 @@ public class SearchGuardAdmin {
             final boolean retVal =  Migrater.migrateDirectory(new File(migrateOffline), true);
             return retVal?0:-1;
         }
-        
+
+        if (reloadHttpCerts || reloadTransportCerts) {
+            TrustStore trustStore = null;
+
+            if (cacert != null) {
+                try {
+                    trustStore = TrustStore.from().certPem(new File(cacert)).build();
+                } catch (Exception e) {
+                    System.err.println("ERR: Error while loading trust store file" + ts + ": " + e);
+                    e.printStackTrace();
+                    return -1;
+                }
+            } else if (ts != null) {
+                try {
+                    trustStore = TrustStore.from().keyStore(new File(ts), tspass, tst).build();
+
+                    if (tsAlias != null) {
+                        System.err.println("ERR: The tsalias option is not supported for REST actions");
+                        return -1;
+                    }
+                } catch (Exception e) {
+                    System.err.println("ERR: " + e);
+                    e.printStackTrace();
+                    return -1;
+                }
+            }
+
+            ClientAuthCredentials clientAuthCredentials = null;
+
+            if (cert != null) {
+                try {
+                    clientAuthCredentials = ClientAuthCredentials.from().certPem(new File(cert)).certKeyPem(new File(key), keypass).build();
+                } catch (Exception e) {
+                    System.err.println("ERR: " + e);
+                    e.printStackTrace();
+                    return -1;
+                }
+            } else if (ks != null) {
+                try {
+                    clientAuthCredentials = ClientAuthCredentials.from().keyStore(new File(ks), ksAlias, kspass, kst).build();
+                } catch (Exception e) {
+                    System.err.println("ERR: " + e);
+                    e.printStackTrace();
+                    return -1;
+                }
+            }
+
+            SSLIOSessionStrategy sslIoSessionStrategy = new GenericSSLConfig.Builder().useTrustStore(trustStore).useClientAuth(clientAuthCredentials)
+                    .verifyHostnames(!nhnv).useCiphers(enabledCiphers.length > 0 ? enabledCiphers : null)
+                    .useProtocols(enabledProtocols.length > 0 ? enabledProtocols : null).toSSLIOSessionStrategy();
+
+            RestClientBuilder restClientBuilder = RestClient.builder(new HttpHost(hostname, port, "https"))
+                    .setHttpClientConfigCallback(builder -> builder.setSSLStrategy(sslIoSessionStrategy));
+
+            try (SearchGuardAdminRestClient client = new SearchGuardAdminRestClient(restClientBuilder)) {
+                if (reloadHttpCerts) {
+                    try {
+                        System.out.println("Reloading HTTP certificates ...");
+
+                        GenericResponse response = client.reloadHttpCerts();
+                        
+                        System.out.println(response.getMessage());
+                    } catch (ElasticsearchStatusException e) {
+                        System.err.println("ERR: Error while reloading HTTP certificates: " + e);
+                        return -1;
+                    }
+                }
+
+                if (reloadTransportCerts) {
+                    try {
+                        System.out.println("Reloading transport certificates ...");
+                        
+                        GenericResponse response = client.reloadTransportCerts();
+                        
+                        System.out.println(response.getMessage());
+                    } catch (ElasticsearchStatusException e) {
+                        System.err.println("ERR: Error while reloading HTTP certificates: " + e);
+                        return -1;
+                    }
+                }
+            }
+
+            return 0;
+        }
         
         if(port < 9300) {
             System.out.println("WARNING: Seems you want connect to the Elasticsearch HTTP port."+System.lineSeparator()

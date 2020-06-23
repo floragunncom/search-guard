@@ -38,6 +38,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
@@ -276,7 +277,7 @@ public final class PemKeyReader {
         
     }
     
-    public static X509Certificate[] loadCertificatesFromStream(InputStream in) throws Exception {
+    public static X509Certificate[] loadCertificatesFromStream(InputStream in) throws CertificateException {
         if(in == null) {
             return null;
         }
