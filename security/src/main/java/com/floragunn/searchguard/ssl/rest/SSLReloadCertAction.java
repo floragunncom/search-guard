@@ -66,7 +66,6 @@ public class SSLReloadCertAction extends BaseRestHandler {
                     BytesRestResponse response = new BytesRestResponse(RestStatus.BAD_REQUEST,
                             "SSL Reload action called while " + ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED + " is set to false.");
                     channel.sendResponse(response);
-                    return;
                 }
 
                 XContentBuilder builder = channel.newBuilder();
