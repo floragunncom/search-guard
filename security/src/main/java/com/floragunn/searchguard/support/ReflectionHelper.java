@@ -154,7 +154,6 @@ public class ReflectionHelper {
         }
     }
 
-    // XXX Pfusch
     @SuppressWarnings("unchecked")
     public static Collection<RestHandler> instantiateRestApiHandler(final String className, final Settings settings, final Path configPath,
             final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
@@ -192,14 +191,11 @@ public class ReflectionHelper {
         }
     }
 
-    /**
-     * TODO ugly
-     * @param className
-     * @return
-     */
     @SuppressWarnings("unchecked")
     public static List<Setting<?>> getSettings(final String className) {
 
+        // TODO We might want to consider defining a better interface for Signals integration
+        
         try {
             final Class<?> clazz = Class.forName(className);
 
@@ -215,13 +211,10 @@ public class ReflectionHelper {
         }
     }
 
-    /**
-     * TODO ugly
-     * @param className
-     * @return
-     */
     @SuppressWarnings("unchecked")
     public static List<ScriptContext<?>> getContexts(final String className) {
+        // TODO We might want to consider defining a better interface for Signals integration
+
         try {
             final Class<?> clazz = Class.forName(className);
 
@@ -237,13 +230,10 @@ public class ReflectionHelper {
         }
     }
 
-    /**
-     * TODO ugly
-     * @param className
-     * @return
-     */
     @SuppressWarnings("unchecked")
     public static List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions(String className) {
+        // TODO We might want to consider defining a better interface for Signals integration
+
         try {
             final Class<?> clazz = Class.forName(className);
 
