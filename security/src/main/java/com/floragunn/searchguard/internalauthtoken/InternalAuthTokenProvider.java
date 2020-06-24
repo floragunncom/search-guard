@@ -2,6 +2,7 @@ package com.floragunn.searchguard.internalauthtoken;
 
 import java.time.Instant;
 import java.time.temporal.TemporalAmount;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -121,7 +122,8 @@ public class InternalAuthTokenProvider implements DCFListener {
 
             SgRoles sgRoles = ConfigModelV7.SgRoles.create(rolesConfigV7, configModel.getActionGroupResolver());
             String userName = verifiedToken.getClaims().getSubject();
-            User user = new User(userName, sgRoles.getRoleNames(), new AuthCredentials(userName, authToken));
+            User user = new User(userName, Collections.emptySet(), new AuthCredentials(userName, authToken));
+            user.addSearchGuardRoles(sgRoles.getRoleNames());
             AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, sgRoles);
 
             return userAuth;

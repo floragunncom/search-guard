@@ -356,6 +356,13 @@ public class LocalCluster extends ExternalResource {
 
             return this;
         }
+        
+        public Builder remote(String name, LocalCluster anotherCluster) {
+            nodeOverrideSettingsBuilder.putList("cluster.remote." + name + ".seeds",
+                    anotherCluster.clusterInfo.nodeHost + ":" + anotherCluster.clusterInfo.nodePort);
+
+            return this;
+        }
 
         public LocalCluster build() {
             try {
