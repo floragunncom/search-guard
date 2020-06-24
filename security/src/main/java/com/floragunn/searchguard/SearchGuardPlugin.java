@@ -778,9 +778,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         dlsFlsValve = ReflectionHelper.instantiateDlsFlsValve();
 
-        final IndexNameExpressionResolver resolver = new IndexNameExpressionResolver();
-        irr = new IndexResolverReplacer(resolver, clusterService, cih);
-        auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, resolver, clusterService);
+        irr = new IndexResolverReplacer(indexNameExpressionResolver, clusterService, cih);
+        auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService);
         complianceConfig = (dlsFlsAvailable && (auditLog.getClass() != NullAuditLog.class))
                 ? new ComplianceConfig(environment, Objects.requireNonNull(irr), auditLog, localClient)
                 : null;
@@ -799,7 +798,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             interClusterRequestEvaluator = ReflectionHelper.instantiateInterClusterRequestEvaluator(className, settings);
         }
 
-        final PrivilegesInterceptor privilegesInterceptor = ReflectionHelper.instantiatePrivilegesInterceptorImpl(resolver, clusterService,
+        final PrivilegesInterceptor privilegesInterceptor = ReflectionHelper.instantiatePrivilegesInterceptorImpl(indexNameExpressionResolver, clusterService,
                 localClient, threadPool);
 
         adminDns = new AdminDNs(settings);
@@ -814,7 +813,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, auditLog, threadPool);
         final CompatConfig compatConfig = new CompatConfig(environment);
 
-        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, resolver, auditLog, settings, privilegesInterceptor, cih, irr,
+        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, privilegesInterceptor, cih, irr,
                 enterpriseModulesEnabled);
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, settings, configPath, localClient, threadPool, cih);
