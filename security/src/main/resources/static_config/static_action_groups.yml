@@ -61,6 +61,7 @@ SGS_CREATE_INDEX:
   allowed_actions:
   - "indices:admin/create"
   - "indices:admin/mapping/put"
+  - "indices:admin/auto_create"
   type: "index"
   description: "Allow creating new indices"
 SGS_WRITE:

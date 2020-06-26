@@ -36,7 +36,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -45,8 +44,8 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
-import org.elasticsearch.cluster.metadata.IndexMetaData;
-import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
@@ -219,7 +218,7 @@ public class ConfigurationRepository {
 
         try {
 
-            if (clusterService.state().metaData().hasConcreteIndex(searchguardIndex)) {
+            if (clusterService.state().getMetadata().hasConcreteIndex(searchguardIndex)) {
                 LOGGER.info("{} index does already exist, so we try to load the config from it", searchguardIndex);
                 bgThread.start();
             } else {
@@ -357,8 +356,8 @@ public class ConfigurationRepository {
             try(StoredContext ctx = threadContext.stashContext()) {
                 threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
 
-                IndexMetaData searchGuardMetaData = clusterService.state().metaData().index(this.searchguardIndex);
-                MappingMetaData mappingMetaData = searchGuardMetaData==null?null:searchGuardMetaData.mapping();
+                IndexMetadata searchGuardMetaData = clusterService.state().getMetadata().index(this.searchguardIndex);
+                MappingMetadata mappingMetaData = searchGuardMetaData==null?null:searchGuardMetaData.mapping();
 
                 if(searchGuardMetaData !=null && mappingMetaData !=null ) {
                     if("sg".equals(mappingMetaData.type())) {
@@ -441,7 +440,7 @@ public class ConfigurationRepository {
 
     private SearchGuardLicense createOrGetTrial(String msg) {
         
-        final IndexMetaData sgIndexMetaData = clusterService.state().metaData().index(searchguardIndex);
+        final IndexMetadata sgIndexMetaData = clusterService.state().getMetadata().index(searchguardIndex);
         if(sgIndexMetaData == null) {
             LOGGER.error("Unable to retrieve trial license (or create  a new one) because {} index does not exist", searchguardIndex); 
             throw new RuntimeException(searchguardIndex+" does not exist");

@@ -65,7 +65,7 @@ public class SignalsIndexes {
 
         try {
 
-            if (clusterState.metaData().getIndices().containsKey(name)) {
+            if (clusterState.getMetadata().getIndices().containsKey(name)) {
                 return;
             }
 

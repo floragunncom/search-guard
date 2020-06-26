@@ -18,5 +18,6 @@ sg_bulk:
     - "indices:data/write/index"
     - "indices:admin/mapping/put"
     - "indices:admin/create"
+    - "indices:admin/auto_create"    
     - "indices:data/write/bulk[s]"
   tenant_permissions: []

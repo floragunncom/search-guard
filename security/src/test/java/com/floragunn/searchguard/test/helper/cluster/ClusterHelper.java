@@ -48,9 +48,12 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.http.HttpInfo;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.transport.TransportInfo;
+import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
@@ -302,15 +305,15 @@ public final class ClusterHelper {
                     && !n.getNode().getRoles().contains(DiscoveryNodeRole.DATA_ROLE)).collect(Collectors.toList());
 
             for (NodeInfo nodeInfo : masterNodes) {
-                final TransportAddress is = nodeInfo.getTransport().getAddress().publishAddress();
+                final TransportAddress is = nodeInfo.getInfo(TransportInfo.class).getAddress().publishAddress();
                 clusterInfo.nodePort = is.getPort();
                 clusterInfo.nodeHost = is.getAddress();
             }
 
             if (!clientNodes.isEmpty()) {
                 NodeInfo nodeInfo = clientNodes.get(0);
-                if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
-                    final TransportAddress his = nodeInfo.getHttp().address().publishAddress();
+                if (nodeInfo.getInfo(HttpInfo.class) != null && nodeInfo.getInfo(HttpInfo.class).address() != null) {
+                    final TransportAddress his = nodeInfo.getInfo(HttpInfo.class).address().publishAddress();
                     clusterInfo.httpPort = his.getPort();
                     clusterInfo.httpHost = his.getAddress();
                     clusterInfo.httpAdresses.add(his);
@@ -320,8 +323,8 @@ public final class ClusterHelper {
             } else if (!dataNodes.isEmpty()) {
 
                 for (NodeInfo nodeInfo : dataNodes) {
-                    if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
-                        final TransportAddress his = nodeInfo.getHttp().address().publishAddress();
+                    if (nodeInfo.getInfo(HttpInfo.class) != null && nodeInfo.getInfo(HttpInfo.class).address() != null) {
+                        final TransportAddress his = nodeInfo.getInfo(HttpInfo.class).address().publishAddress();
                         clusterInfo.httpPort = his.getPort();
                         clusterInfo.httpHost = his.getAddress();
                         clusterInfo.httpAdresses.add(his);
@@ -331,8 +334,8 @@ public final class ClusterHelper {
             } else {
 
                 for (NodeInfo nodeInfo : nodes) {
-                    if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
-                        final TransportAddress his = nodeInfo.getHttp().address().publishAddress();
+                    if (nodeInfo.getInfo(HttpInfo.class) != null && nodeInfo.getInfo(HttpInfo.class).address() != null) {
+                        final TransportAddress his = nodeInfo.getInfo(HttpInfo.class).address().publishAddress();
                         clusterInfo.httpPort = his.getPort();
                         clusterInfo.httpHost = his.getAddress();
                         clusterInfo.httpAdresses.add(his);

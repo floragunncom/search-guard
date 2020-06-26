@@ -44,6 +44,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.cluster.metadata.IndexAbstraction.Type;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
@@ -576,7 +577,7 @@ public class ConfigModelV6 extends ConfigModel {
 
                         //#557
                         //final String[] allIndices = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), "*");
-                        final String[] allIndices = cs.state().metaData().getConcreteAllOpenIndices();
+                        final String[] allIndices = cs.state().getMetadata().getConcreteAllOpenIndices();
                         final Set<String> wanted = new HashSet<>(Arrays.asList(allIndices));
                         WildcardMatcher.wildcardRetainInSet(wanted, permitted);
                         res.addAll(wanted);
@@ -816,8 +817,8 @@ public class ConfigModelV6 extends ConfigModel {
             String unresolved = getUnresolvedIndexPattern(user);
             String[] resolved = null;
             if (WildcardMatcher.containsWildcard(unresolved)) {
-                final String[] aliasesForPermittedPattern = cs.state().getMetaData().getAliasAndIndexLookup().entrySet().stream()
-                        .filter(e -> e.getValue().isAlias()).filter(e -> WildcardMatcher.match(unresolved, e.getKey())).map(e -> e.getKey())
+            	final String[] aliasesForPermittedPattern = cs.state().getMetadata().getIndicesLookup().entrySet().stream()
+                        .filter(e -> e.getValue().getType().equals(Type.ALIAS)).filter(e -> WildcardMatcher.match(unresolved, e.getKey())).map(e -> e.getKey())
                         .toArray(String[]::new);
 
                 if (aliasesForPermittedPattern != null && aliasesForPermittedPattern.length > 0) {
