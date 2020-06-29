@@ -15,18 +15,29 @@ import java.util.Objects;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchPhaseExecutionException;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.MatchAllQueryBuilder;
+import org.elasticsearch.index.query.MatchQueryBuilder;
 import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.SortOrder;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 import com.floragunn.signals.execution.CheckExecutionException;
@@ -45,20 +56,26 @@ import com.floragunn.signals.watch.checks.SearchInput;
 import com.floragunn.signals.watch.common.HttpClientConfig;
 import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.init.WatchInitializationService;
+import com.floragunn.signals.watch.result.Status;
+import com.floragunn.signals.watch.result.WatchLog;
 
 import net.jcip.annotations.NotThreadSafe;
 
 @NotThreadSafe
 public class CheckTest {
+    private static final Logger log = LogManager.getLogger(CheckTest.class);
 
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
     private static RestHelper rh = null;
 
     @ClassRule
+    public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
+            .nodeSettings("signals.enabled", false, "searchguard.enterprise_modules_enabled", false).build();
+
+    @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
-            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "searchguard.enterprise_modules_enabled", false)
-            .build();
+            .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).remote("my_remote", anotherCluster).build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -67,6 +84,13 @@ public class CheckTest {
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y",
                     "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy",
+                    "date", getYesterday())).actionGet();
+        }
+
+        try (Client client = anotherCluster.getInternalClient()) {
+            client.index(new IndexRequest("ccs_testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y",
+                    "date", "1985/01/01")).actionGet();
+            client.index(new IndexRequest("ccs_testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy",
                     "date", getYesterday())).actionGet();
         }
     }
@@ -190,6 +214,35 @@ public class CheckTest {
         } finally {
             rh.executeDeleteRequest(watchPath1, auth);
             rh.executeDeleteRequest(watchPath2, auth);
+        }
+    }
+
+    @Test
+    public void searchScheduledTest() throws Exception {
+        Header auth = basicAuth("uhura", "uhura");
+        String tenant = "_main";
+        String watchId = "search_scheduled_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalClient()) {
+            Watch watch = new WatchBuilder(watchId).atMsInterval(300).unthrottled().search("my_remote:ccs_testsource").query("{\"match_all\" : {} }")
+                    .as("testsearch").build();
+            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = rh.executeGetRequest(watchPath, auth);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+
+            WatchLog watchLog = awaitWatchLog(client, tenant, watchId);
+
+            Assert.assertEquals(watchLog.toString(), Status.Code.NO_ACTION, watchLog.getStatus().getCode());
+
+        } finally {
+            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
@@ -416,5 +469,71 @@ public class CheckTest {
         LocalDate now = LocalDate.now().minus(1, ChronoUnit.DAYS);
 
         return now.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+    }
+
+    private WatchLog awaitWatchLog(Client client, String tenantName, String watchName) throws Exception {
+        try {
+            long start = System.currentTimeMillis();
+            Exception indexNotFoundException = null;
+
+            for (int i = 0; i < 1000; i++) {
+                Thread.sleep(10);
+
+                try {
+                    WatchLog watchLog = getMostRecentWatchLog(client, tenantName, watchName);
+
+                    if (watchLog != null) {
+                        log.info("Found " + watchLog + " for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms");
+
+                        return watchLog;
+                    }
+
+                    indexNotFoundException = null;
+
+                } catch (org.elasticsearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
+                    indexNotFoundException = e;
+                    continue;
+                }
+            }
+
+            if (indexNotFoundException != null) {
+                Assert.fail("Did not find watch log index for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms: "
+                        + indexNotFoundException);
+            } else {
+                SearchResponse searchResponse = client
+                        .search(new SearchRequest(".signals_log_*")
+                                .source(new SearchSourceBuilder().sort("execution_end", SortOrder.DESC).query(new MatchAllQueryBuilder())))
+                        .actionGet();
+
+                log.info("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms\n\n"
+                        + searchResponse.getHits());
+
+                Assert.fail("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms");
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("Exception in awaitWatchLog for " + watchName + ")", e);
+            throw new RuntimeException("Exception in awaitWatchLog for " + watchName + ")", e);
+        }
+    }
+
+    private WatchLog getMostRecentWatchLog(Client client, String tenantName, String watchName) {
+        try {
+            SearchResponse searchResponse = client.search(new SearchRequest(".signals_log_*").source(
+                    new SearchSourceBuilder().size(1).sort("execution_end", SortOrder.DESC).query(new MatchQueryBuilder("watch_id", watchName))))
+                    .actionGet();
+
+            if (searchResponse.getHits().getHits().length == 0) {
+                return null;
+            }
+
+            SearchHit searchHit = searchResponse.getHits().getHits()[0];
+
+            return WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString());
+        } catch (org.elasticsearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Error in getMostRecenWatchLog(" + tenantName + ", " + watchName + ")", e);
+        }
     }
 }

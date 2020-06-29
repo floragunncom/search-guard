@@ -21,6 +21,19 @@
 			<artifactId>search-guard-suite-scheduler</artifactId>
 			<scope>provided</scope>
 		</dependency>
+		
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-support</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-support</artifactId>
+			<classifier>tests</classifier>
+			<scope>test</scope>
+		</dependency>
 
 		<!-- Security -->
 		<dependency>

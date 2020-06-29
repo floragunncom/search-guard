@@ -108,8 +108,9 @@ public class SignalsIndexes {
         @Override
         public void clusterChanged(ClusterChangedEvent event) {
             ClusterState clusterState = event.state();
+            boolean isMaster = clusterState.nodes().isLocalNodeElectedMaster();
 
-            if (clusterState.getNodes().getLocalNode().isMasterNode()) {
+            if (isMaster) {
                 install(clusterState);
             }
         }

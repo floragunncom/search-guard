@@ -35,7 +35,7 @@ import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ContextHeaderDecoratorClient;
+import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
 
 public class LocalCluster extends ExternalResource {
 

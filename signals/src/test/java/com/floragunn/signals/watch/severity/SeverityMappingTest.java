@@ -7,7 +7,7 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.signals.support.JsonBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 

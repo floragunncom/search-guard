@@ -1032,3 +1032,16 @@ sg_role_foo_all:
     - indices:data/read/*
     - indices:admin/*
     - indices:monitor/*
+    
+sg_own_index_with_sgs:
+  reserved: false
+  hidden: false
+  cluster_permissions:
+  - SGS_CLUSTER_COMPOSITE_OPS_RO
+  index_permissions:
+  - index_patterns:
+    - "${user_name}"
+    - "${user_name}_*"
+    allowed_actions:
+    - SGS_CRUD
+  tenant_permissions: []

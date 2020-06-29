@@ -12,9 +12,9 @@ import org.quartz.Trigger;
 import org.quartz.impl.triggers.AbstractTrigger;
 import org.quartz.impl.triggers.CronTriggerImpl;
 
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.InvalidAttributeValue;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
 public abstract class HumanReadableCronTrigger<T extends Trigger> extends AbstractTrigger<T> implements Trigger, ToXContentObject {
 

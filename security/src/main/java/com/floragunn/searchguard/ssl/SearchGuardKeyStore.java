@@ -19,17 +19,25 @@ package com.floragunn.searchguard.ssl;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
+import java.security.cert.X509Certificate;
 
 public interface SearchGuardKeyStore {
 
-    public SSLEngine createHTTPSSLEngine() throws SSLException;
+    SSLEngine createHTTPSSLEngine() throws SSLException;
 
-    public SSLEngine createServerTransportSSLEngine() throws SSLException;
+    SSLEngine createServerTransportSSLEngine() throws SSLException;
 
-    public SSLEngine createClientTransportSSLEngine(String peerHost, int peerPort) throws SSLException;
+    SSLEngine createClientTransportSSLEngine(String peerHost, int peerPort) throws SSLException;
 
-    public String getHTTPProviderName();
-    public String getTransportServerProviderName();
-    public String getTransportClientProviderName();
-    
+    String getHTTPProviderName();
+    String getTransportServerProviderName();
+    String getTransportClientProviderName();
+
+    void initHttpSSLConfig();
+
+    void initTransportSSLConfig();
+
+    X509Certificate[] getHttpCerts();
+
+    X509Certificate[] getTransportCerts();
 }

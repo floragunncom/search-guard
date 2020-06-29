@@ -16,9 +16,9 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonParser;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.signals.confconv.ConversionResult;
 import com.floragunn.signals.confconv.es.EsWatcherConverter;
 import com.floragunn.signals.watch.Watch;

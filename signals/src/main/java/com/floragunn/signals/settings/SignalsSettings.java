@@ -28,15 +28,15 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationError;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ValidationError;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.util.duration.ConstantDurationExpression;
 import com.floragunn.searchsupport.util.duration.DurationExpression;
 import com.floragunn.signals.SignalsInitializationException;
 import com.floragunn.signals.actions.settings.update.SettingsUpdateAction;
 import com.floragunn.signals.support.LuckySisyphos;
-import com.floragunn.signals.support.PrivilegedConfigClient;
 
 public class SignalsSettings {
     private static final Logger log = LogManager.getLogger(SignalsSettings.class);

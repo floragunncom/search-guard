@@ -31,6 +31,12 @@
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-support</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- Security Test -->
 		<dependency>
 			<groupId>com.floragunn</groupId>

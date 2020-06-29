@@ -25,10 +25,11 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.floragunn.searchsupport.jobs.config.elements.InlineMustacheTemplate;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.ExecutionEnvironment;

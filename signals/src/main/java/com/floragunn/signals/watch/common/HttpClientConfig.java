@@ -12,8 +12,8 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 
 public class HttpClientConfig extends WatchElement {
     private final Integer connectionTimeoutSecs;

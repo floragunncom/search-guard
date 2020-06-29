@@ -27,9 +27,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleImpl;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.WeeklyTrigger;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.util.duration.DurationExpression;
 import com.floragunn.searchsupport.util.duration.DurationFormat;
 import com.floragunn.signals.support.NestedValueMap;
@@ -65,6 +65,7 @@ public class WatchBuilder {
     List<AlertAction> actions = new ArrayList<>();
     List<ResolveAction> resolveActions = new ArrayList<>();
     SeverityMapping severityMapping;
+    DurationExpression throttlePeriod;
 
     final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private boolean active = true;
@@ -113,6 +114,20 @@ public class WatchBuilder {
         return this;
     }
 
+    public WatchBuilder unthrottled() {
+        try {
+            throttlePeriod = DurationExpression.parse("0");
+            return this;
+        } catch (ConfigValidationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public WatchBuilder throttledFor(String expression) throws ConfigValidationException {
+        throttlePeriod = DurationExpression.parse(expression);
+        return this;
+    }
+
     public SearchBuilder search(String... indices) {
         return new SearchBuilder(this, indices);
     }
@@ -153,6 +168,7 @@ public class WatchBuilder {
 
         result.setDescription(description);
         result.setActive(active);
+        result.setThrottlePeriod(throttlePeriod);
 
         return result;
     }

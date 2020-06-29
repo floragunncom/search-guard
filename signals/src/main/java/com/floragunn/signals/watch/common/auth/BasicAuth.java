@@ -5,9 +5,9 @@ import java.io.IOException;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.jobs.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
 public class BasicAuth extends Auth {
     private String username;

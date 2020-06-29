@@ -221,7 +221,7 @@ public class RestHelper {
 			} else {
 				protocols = new String[] { "TLSv1", "TLSv1.1", "TLSv1.2" };
 			}
-
+			
 			final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(
 			        sslContext, 
 			        protocols, 

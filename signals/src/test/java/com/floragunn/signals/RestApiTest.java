@@ -42,6 +42,7 @@ import org.quartz.TimeOfDay;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;

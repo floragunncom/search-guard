@@ -331,4 +331,13 @@ foo_index:
 foo_all:
   hash: $2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m
   #password is: nagilum
-  
+sulu:
+  hash: $2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m
+  backend_roles:
+  - "own_index_with_sgs"
+  #password is: nagilum  
+evil_sulu:
+  hash: $2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m
+  backend_roles:
+  - "own_index_with_sgs"
+  #password is: nagilum  

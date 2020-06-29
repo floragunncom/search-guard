@@ -15,8 +15,8 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.cluster.JobDistributor;
-import com.floragunn.searchsupport.jobs.config.validation.ConfigValidationException;
 
 public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable<JobType> {
     private final static Logger log = LogManager.getLogger(IndexJobConfigSource.class);

@@ -44,6 +44,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.floragunn.searchguard.ssl.rest.SSLReloadCertAction;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -140,6 +141,8 @@ import com.floragunn.searchguard.http.XFFResolver;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
+import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
+import com.floragunn.searchguard.privileges.extended_action_handling.ResourceOwnerService;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.rest.KibanaInfoAction;
@@ -187,6 +190,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private final boolean enterpriseModulesEnabled;
     private final boolean sslOnly;
     private final boolean signalsEnabled;
+    private boolean sslCertReloadEnabled;
     private final List<String> demoCertHashes = new ArrayList<String>(3);
     private volatile SearchGuardFilter sgf;
     private volatile ComplianceConfig complianceConfig;
@@ -223,10 +227,15 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         return settings.getAsBoolean(ConfigConstants.SEARCHGUARD_SSL_ONLY, false);
     }
 
+    private static boolean isSslCertReloadEnabled(final Settings settings) {
+        return settings.getAsBoolean(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false);
+    }
+
     public SearchGuardPlugin(final Settings settings, final Path configPath) {
         super(settings, configPath, isDisabled(settings));
 
         disabled = isDisabled(settings);
+        sslCertReloadEnabled = isSslCertReloadEnabled(settings);
 
         if (disabled) {
             this.dlsFlsAvailable = false;
@@ -234,6 +243,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             this.enterpriseModulesEnabled = false;
             this.sslOnly = false;
             this.signalsEnabled = false;
+            this.sslCertReloadEnabled = false;
             complianceConfig = null;
             SearchGuardPlugin.protectedIndices = new ProtectedIndices();
             log.warn("Search Guard plugin installed but disabled. This can expose your configuration (including passwords) to the public.");
@@ -247,6 +257,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             this.dlsFlsConstructor = null;
             this.enterpriseModulesEnabled = false;
             this.signalsEnabled = false;
+            this.sslCertReloadEnabled = false;
             complianceConfig = null;
             SearchGuardPlugin.protectedIndices = new ProtectedIndices();
             log.warn("Search Guard plugin run in ssl only mode. No authentication or authorization is performed");
@@ -459,6 +470,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
                 handlers.addAll(ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient, adminDns, cr, cs,
                         Objects.requireNonNull(principalExtractor), evaluator, threadPool, Objects.requireNonNull(auditLog)));
+
+                handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
             }
 
             if (signalsEnabled) {
@@ -765,9 +778,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         dlsFlsValve = ReflectionHelper.instantiateDlsFlsValve();
 
-        final IndexNameExpressionResolver resolver = new IndexNameExpressionResolver();
-        irr = new IndexResolverReplacer(resolver, clusterService, cih);
-        auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, resolver, clusterService);
+        irr = new IndexResolverReplacer(indexNameExpressionResolver, clusterService, cih);
+        auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService);
         complianceConfig = (dlsFlsAvailable && (auditLog.getClass() != NullAuditLog.class))
                 ? new ComplianceConfig(environment, Objects.requireNonNull(irr), auditLog, localClient)
                 : null;
@@ -786,7 +798,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             interClusterRequestEvaluator = ReflectionHelper.instantiateInterClusterRequestEvaluator(className, settings);
         }
 
-        final PrivilegesInterceptor privilegesInterceptor = ReflectionHelper.instantiatePrivilegesInterceptorImpl(resolver, clusterService,
+        final PrivilegesInterceptor privilegesInterceptor = ReflectionHelper.instantiatePrivilegesInterceptorImpl(indexNameExpressionResolver, clusterService,
                 localClient, threadPool);
 
         adminDns = new AdminDNs(settings);
@@ -795,14 +807,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 complianceConfig);
 
         cr.subscribeOnLicenseChange(complianceConfig);
-        
 
         // final InternalAuthenticationBackend iab = new InternalAuthenticationBackend(cr);
         final XFFResolver xffResolver = new XFFResolver(threadPool);
         backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, auditLog, threadPool);
         final CompatConfig compatConfig = new CompatConfig(environment);
 
-        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, resolver, auditLog, settings, privilegesInterceptor, cih, irr,
+        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, privilegesInterceptor, cih, irr,
                 enterpriseModulesEnabled);
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, settings, configPath, localClient, threadPool, cih);
@@ -811,16 +822,18 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         dcf.registerDCFListener(irr);
         dcf.registerDCFListener(xffResolver);
         dcf.registerDCFListener(evaluator);
-		if (complianceConfig != null) {
-			dcf.registerDCFListener(complianceConfig);
-		}
+        if (complianceConfig != null) {
+            dcf.registerDCFListener(complianceConfig);
+        }
 
         cr.setDynamicConfigFactory(dcf);
 
         InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(dcf);
+        ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, settings);
+        ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
 
         sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, complianceConfig, compatConfig,
-                internalAuthTokenProvider);
+                internalAuthTokenProvider, extendedActionHandlingService);
 
         final String principalExtractorClass = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, null);
 
@@ -1061,11 +1074,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT, Property.NodeScope, Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, false, Property.NodeScope,
                     Property.Filtered));
-			settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED, false,
-					Property.NodeScope, Property.Filtered));
-			settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_COMPLIANCE_MASK_PREFIX, Property.NodeScope,
-					Property.Filtered));
-            
+            settings.add(
+                    Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED, false, Property.NodeScope, Property.Filtered));
+            settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_COMPLIANCE_MASK_PREFIX, Property.NodeScope, Property.Filtered));
+
             settings.add(
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_FILTER_SGINDEX_FROM_ALL_REQUESTS, false, Property.NodeScope, Property.Filtered));
 
@@ -1074,9 +1086,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_DISABLE_REST_AUTH_INITIALLY, false, Property.NodeScope,
                     Property.Filtered));
-            
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, false, Property.NodeScope,
-                    Property.Filtered));
+
+            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, false, Property.NodeScope, Property.Filtered));
 
             // system integration
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTORE_SGINDEX_ENABLED, false, Property.NodeScope,
@@ -1094,7 +1105,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true, Property.NodeScope, Property.Filtered));
 
             settings.addAll(ReflectionHelper.getSettings("com.floragunn.signals.Signals"));
+            settings.addAll(ResourceOwnerService.SUPPORTED_SETTINGS);
 
+            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false, Property.NodeScope, Property.Filtered));
         }
 
         return settings;

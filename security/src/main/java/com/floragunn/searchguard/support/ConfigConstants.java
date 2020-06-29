@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.support;
 
+import org.elasticsearch.common.settings.Settings;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -80,6 +82,7 @@ public class ConfigConstants {
 
     public static final String SG_USER = SG_CONFIG_PREFIX+"user";
     public static final String SG_USER_HEADER = SG_CONFIG_PREFIX+"user_header";
+    public static final String SG_USER_NAME = SG_CONFIG_PREFIX+"user_name";
 
     public static final String SG_INJECTED_USER = "injected_user";
     
@@ -204,7 +207,8 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_SSL_ONLY = "searchguard.ssl_only";
     
     public static final String SEARCHGUARD_DISABLE_ENVVAR_REPLACEMENT = "searchguard.disable_envvar_replacement";
-    
+    public static final String SEARCHGUARD_SSL_CERT_RELOAD_ENABLED = "searchguard.ssl.cert_reload_enabled";
+
     public enum RolesMappingResolution {
         MAPPING_ONLY,
         BACKENDROLES_ONLY,

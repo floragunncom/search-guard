@@ -2,6 +2,7 @@ package com.floragunn.searchguard.internalauthtoken;
 
 import java.time.Instant;
 import java.time.temporal.TemporalAmount;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -39,7 +40,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ObjectTreeXContent;
+import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
 public class InternalAuthTokenProvider implements DCFListener {
 
@@ -121,7 +122,8 @@ public class InternalAuthTokenProvider implements DCFListener {
 
             SgRoles sgRoles = ConfigModelV7.SgRoles.create(rolesConfigV7, configModel.getActionGroupResolver());
             String userName = verifiedToken.getClaims().getSubject();
-            User user = new User(userName, sgRoles.getRoleNames(), new AuthCredentials(userName, authToken));
+            User user = new User(userName, Collections.emptySet(), new AuthCredentials(userName, authToken));
+            user.addSearchGuardRoles(sgRoles.getRoleNames());
             AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, sgRoles);
 
             return userAuth;

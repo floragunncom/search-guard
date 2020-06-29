@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.ssl;
 
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -101,7 +102,27 @@ public class ExternalSearchGuardKeyStore implements SearchGuardKeyStore {
     public String getTransportClientProviderName() {
         return EXTERNAL;
     }
-    
+
+    @Override
+    public void initHttpSSLConfig() {
+        // NOOP
+    }
+
+    @Override
+    public void initTransportSSLConfig() {
+        // NOOP
+    }
+
+    @Override
+    public X509Certificate[] getHttpCerts() {
+        return new X509Certificate[0];
+    }
+
+    @Override
+    public X509Certificate[] getTransportCerts() {
+        return new X509Certificate[0];
+    }
+
     public static void registerExternalSslContext(String id, SSLContext externalSsslContext) {
         contextMap.put(Objects.requireNonNull(id), Objects.requireNonNull(externalSsslContext));
     }

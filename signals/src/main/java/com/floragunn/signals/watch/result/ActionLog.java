@@ -14,7 +14,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.floragunn.searchsupport.util.JacksonTools;
+import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.watch.common.Ack;
 import com.floragunn.signals.watch.result.WatchLog;
