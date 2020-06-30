@@ -131,13 +131,23 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         }
 
         //request not made by the kibana server and user index is the only index/alias involved
-        if (!user.getName().equals(kibanaserverUsername) && requestedResolved.getAllIndices().size() == 1
-                && requestedResolved.getAllIndices().contains(toUserIndexName(kibanaIndexName, requestedTenant))) {
+        if (!user.getName().equals(kibanaserverUsername) && requestedResolved.getAllIndices().size() == 1) {
 
-            if (isTenantAllowed(request, action, user, tenants, requestedTenant)) {
-                return Boolean.FALSE;
+            if (requestedResolved.getAliases().size() == 0) {
+                if (requestedResolved.getAllIndices().contains(toUserIndexName(kibanaIndexName, requestedTenant))) {
+
+                    if (isTenantAllowed(request, action, user, tenants, requestedTenant)) {
+                        return Boolean.FALSE;
+                    }
+                }
+            } else {
+                if (requestedResolved.getAliases().contains(toUserIndexName(kibanaIndexName, requestedTenant))) {
+
+                    if (isTenantAllowed(request, action, user, tenants, requestedTenant)) {
+                        return Boolean.FALSE;
+                    }
+                }
             }
-
         }
 
         //intercept when requests are not made by the kibana server and if the kibana index/alias (.kibana) is the only index/alias involved
