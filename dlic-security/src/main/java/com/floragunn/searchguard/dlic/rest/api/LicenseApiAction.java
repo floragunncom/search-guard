@@ -25,12 +25,16 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -86,6 +90,23 @@ public class LicenseApiAction extends EnterpriseApiAction {
                 successResponse(channel, ur);
             }
         });
+    }
+
+    private void successResponse(RestChannel channel, LicenseInfoResponse ur) {
+        try {
+            final XContentBuilder builder = channel.newBuilder();
+            builder.startObject();
+            ur.toXContent(builder, ToXContent.EMPTY_PARAMS);
+            builder.endObject();
+            if (log.isDebugEnabled()) {
+                log.debug("Successfully fetched license " + ur.toString());
+            }
+            channel.sendResponse(
+                    new BytesRestResponse(RestStatus.OK, builder));
+        } catch (IOException e) {
+            internalErrorResponse(channel, "Unable to fetch license: " + e.getMessage());
+            log.error("Cannot fetch convert license to XContent due to", e);
+        }
     }
 
     @Override
