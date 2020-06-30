@@ -23,8 +23,15 @@ import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.get.MultiGetItemResponse;
+import org.elasticsearch.action.get.MultiGetRequest;
+import org.elasticsearch.action.get.MultiGetRequest.Item;
+import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -35,6 +42,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.SingleClusterTest;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
@@ -362,7 +370,7 @@ public class MultitenancyTests extends SingleClusterTest {
         
         try (TransportClient tc = getInternalTransportClient()) {
             String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
-            Map indexSettings = new HashMap();
+            Map<String,Object> indexSettings = new HashMap<>();
             indexSettings.put("number_of_shards", 1);
             indexSettings.put("number_of_replicas", 0);
             tc.admin().indices().create(new CreateIndexRequest(".kibana_1")
@@ -383,4 +391,34 @@ public class MultitenancyTests extends SingleClusterTest {
         Assert.assertTrue(res.getBody().contains(".kibana_-900636979_kibanaro")); 
     }
 
+    @Test
+    public void testMgetWithKibanaAlias() throws Exception {
+        String indexName = ".kibana_1592542611_humanresources";
+        String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
+
+        try (LocalCluster cluster = new LocalCluster.Builder().resources("multitenancy").sslEnabled().build();
+                Client client = cluster.getInternalClient();
+                RestHighLevelClient restClient = cluster.getRestHighLevelClient("hr_employee", "hr_employee", "human_resources")) {
+            Map<String, Object> indexSettings = new HashMap<>();
+            indexSettings.put("number_of_shards", 3);
+            indexSettings.put("number_of_replicas", 0);
+            client.admin().indices().create(new CreateIndexRequest(indexName + "_2").alias(new Alias(indexName)).settings(indexSettings)).actionGet();
+
+            MultiGetRequest multiGetRequest = new MultiGetRequest();
+
+            for (int i = 0; i < 100; i++) {
+                client.index(new IndexRequest(indexName).id("d" + i).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(testDoc, XContentType.JSON))
+                        .actionGet();
+                multiGetRequest.add(new Item(".kibana", "d" + i));
+            }
+
+            MultiGetResponse response = restClient.mget(multiGetRequest, RequestOptions.DEFAULT);
+
+            for (MultiGetItemResponse item : response.getResponses()) {
+                if (item.getFailure() != null) {
+                    Assert.fail(item.getFailure().getMessage() + "\n" + item.getFailure());
+                }
+            }
+        }
+    } 
 }
