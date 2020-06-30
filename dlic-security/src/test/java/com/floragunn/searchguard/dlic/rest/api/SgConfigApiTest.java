@@ -28,7 +28,6 @@ public class SgConfigApiTest extends AbstractRestApiUnitTest {
 
 	@Test
 	public void testSgConfigApiRead() throws Exception {
-
 		setup();
 
 		rh.keystore = "restapi/kirk-keystore.jks";
@@ -38,17 +37,7 @@ public class SgConfigApiTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
 		response = rh.executePutRequest("/_searchguard/api/sgconfig", "{\"xxx\": 1}", new Header[0]);
-        Assert.assertEquals(HttpStatus.SC_METHOD_NOT_ALLOWED, response.getStatusCode());
-
-        response = rh.executePostRequest("/_searchguard/api/sgconfig", "{\"xxx\": 1}", new Header[0]);
-        Assert.assertEquals(HttpStatus.SC_METHOD_NOT_ALLOWED, response.getStatusCode());
-        
-        response = rh.executePatchRequest("/_searchguard/api/sgconfig", "{\"xxx\": 1}", new Header[0]);
-        Assert.assertEquals(HttpStatus.SC_METHOD_NOT_ALLOWED, response.getStatusCode());
-        
-        response = rh.executeDeleteRequest("/_searchguard/api/sgconfig", new Header[0]);
-        Assert.assertEquals(HttpStatus.SC_METHOD_NOT_ALLOWED, response.getStatusCode());
-        
+        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 	}
 	
 	@Test
