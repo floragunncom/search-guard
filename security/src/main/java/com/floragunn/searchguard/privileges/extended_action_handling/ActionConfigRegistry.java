@@ -17,7 +17,10 @@ public class ActionConfigRegistry {
             ActionConfig.of("indices:data/read/async_search/submit").scope(CLUSTER)
                     .createsResource("async_search", objectAttr("id"), xContentInstantFromMillis("expiration_time_in_millis")).build(),
             ActionConfig.of("indices:data/read/async_search/get").scope(CLUSTER).usesResource("async_search", objectAttr("id")).build(),
-            ActionConfig.of("indices:data/read/async_search/delete").scope(CLUSTER).deletesResource("async_search", objectAttr("id")).build());
+            ActionConfig.of("indices:data/read/async_search/delete").scope(CLUSTER).deletesResource("async_search", objectAttr("id")).build(),
+            ActionConfig.of("indices:data/read/sql").scope(CLUSTER).build(),
+            ActionConfig.of("indices:data/read/sql/translate").scope(CLUSTER).build(),
+            ActionConfig.of("indices:data/read/sql/close_cursor").scope(CLUSTER).build());
 
     private Map<String, ActionConfig> actionsByNameMap;
     private Set<String> clusterActions;
