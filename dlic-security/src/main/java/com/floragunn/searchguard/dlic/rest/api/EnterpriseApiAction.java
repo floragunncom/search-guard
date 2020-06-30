@@ -39,7 +39,7 @@ import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 public abstract class EnterpriseApiAction extends AbstractApiAction {
 
     protected EnterpriseApiAction(Settings settings, Path configPath, AdminDNs adminDNs, ConfigurationRepository cl, ClusterService cs, PrincipalExtractor principalExtractor, PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog, AdminDNs adminDns, ThreadContext threadContext) {
-        super(settings, configPath, adminDNs, cl, cs, principalExtractor, evaluator, threadPool, auditLog);
+        super(settings, cl, cs, evaluator, threadPool, auditLog, new EnterpriseRestApiPrivilegesEvaluator(settings, adminDNs, evaluator, principalExtractor, configPath, threadPool));
     }
 
     @Override
