@@ -1,5 +1,6 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
@@ -12,13 +13,17 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import javax.net.ssl.SSLContext;
 
+import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
+import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -53,7 +58,7 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
 
-public class LocalCluster extends ExternalResource {
+public class LocalCluster extends ExternalResource implements AutoCloseable {
 
     protected static final AtomicLong num = new AtomicLong();
     protected ClusterHelper clusterHelper = new ClusterHelper(
@@ -79,6 +84,18 @@ public class LocalCluster extends ExternalResource {
         if (clusterInfo != null) {
             try {
                 Thread.sleep(1234);
+                clusterHelper.stopCluster();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (clusterInfo != null) {
+            try {
+                Thread.sleep(100);
                 clusterHelper.stopCluster();
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -153,6 +170,25 @@ public class LocalCluster extends ExternalResource {
         return new RestHighLevelClient(builder);
     }
 
+    public RestHighLevelClient getRestHighLevelClient(String user, String password, String tenant) {
+        CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+        credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
+
+        RestClientBuilder builder = RestClient.builder(new HttpHost(clusterInfo.httpHost, clusterInfo.httpPort, "https"))
+                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider)
+                        .setSSLStrategy(getSSLIOSessionStrategy()).addInterceptorLast(new HttpRequestInterceptor() {
+
+                            @Override
+                            public void process(HttpRequest request, HttpContext context) throws HttpException, IOException {
+                                request.setHeader("sgtenant", tenant);
+
+                            }
+
+                        }));
+
+        return new RestHighLevelClient(builder);
+    }
+
     public Client getNodeClientWithMockUser(User user) {
         Client client = getNodeClient();
 
@@ -189,10 +225,15 @@ public class LocalCluster extends ExternalResource {
     }
 
     private void painlessWhitelistKludge() {
-        try (PainlessPlugin p = new PainlessPlugin()) {
-            p.reloadSPI(getClass().getClassLoader());
-        } catch (Exception e) {
-            e.printStackTrace();
+        try {
+            // TODO make this optional
+            try (PainlessPlugin p = new PainlessPlugin()) {
+                p.reloadSPI(getClass().getClassLoader());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } catch (NoClassDefFoundError e) {
+
         }
     }
 
@@ -356,7 +397,7 @@ public class LocalCluster extends ExternalResource {
 
             return this;
         }
-        
+
         public Builder remote(String name, LocalCluster anotherCluster) {
             nodeOverrideSettingsBuilder.putList("cluster.remote." + name + ".seeds",
                     anotherCluster.clusterInfo.nodeHost + ":" + anotherCluster.clusterInfo.nodePort);
