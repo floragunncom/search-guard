@@ -124,7 +124,8 @@ SGS_CLUSTER_COMPOSITE_OPS_RO:
   allowed_actions:
   - "indices:data/read/mget"
   - "indices:data/read/msearch"
-  - "indices:data/read/mtv"
+  - "indices:data/read/mtv"  
+  - "indices:data/read/sql"
   - "indices:admin/aliases/exists*"
   - "indices:admin/aliases/get*"
   - "indices:data/read/scroll"
