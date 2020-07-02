@@ -60,13 +60,9 @@ public class SgConfigAction extends PatchableResourceApiAction {
     @Override
     public List<Route> routes() {
         //sgconfig resource name is deprecated, will be removed with SG 8, use sg_config instead of sgconfig
-
-        if (allowPutOrPatch) {
-            return ImmutableList.of(
-                    new Route(Method.PUT, "/_searchguard/api/sgconfig/{name}"), new Route(Method.PATCH, "/_searchguard/api/sgconfig/"),
-                    new Route(Method.PUT, "/_searchguard/api/sg_config/{name}"), new Route(Method.PATCH, "/_searchguard/api/sg_config/"));
-        }
-        return Collections.emptyList();
+        return ImmutableList.of(
+            new Route(Method.PUT, "/_searchguard/api/sgconfig/{name}"), new Route(Method.PATCH, "/_searchguard/api/sgconfig/"),
+            new Route(Method.PUT, "/_searchguard/api/sg_config/{name}"), new Route(Method.PATCH, "/_searchguard/api/sg_config/"));
     }
 
     @Override

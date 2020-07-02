@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.dlic.rest.api;
 
+import static com.floragunn.searchguard.rest.Endpoint.SGCONFIG;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.security.cert.X509Certificate;
@@ -71,7 +73,8 @@ public class EnterpriseRestApiPrivilegesEvaluator implements RestApiPrivilegesEv
 	// endpoints per user, evaluated and cached dynamically. Changes here
 	// require a node restart, so it's save to cache.
 	private final Map<String, Map<Endpoint, List<Method>>> disabledEndpointsForUsers = new HashMap<>();
-	
+	private final Boolean allowPutOrPatch;
+
 	// globally disabled endpoints and methods, will always be forbidden
 	Map<Endpoint, List<Method>> globallyDisabledEndpoints = new HashMap<>();
 
@@ -91,7 +94,9 @@ public class EnterpriseRestApiPrivilegesEvaluator implements RestApiPrivilegesEv
 		this.settings = settings;
 
 		// set up
-		
+
+		allowPutOrPatch = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTAPI_ALLOW_SGCONFIG_MODIFICATION, false);
+
 		// all endpoints and methods
 		Map<Endpoint, List<Method>> allEndpoints = new HashMap<>();
 		for(Endpoint endpoint : Endpoint.values()) {
@@ -221,6 +226,11 @@ public class EnterpriseRestApiPrivilegesEvaluator implements RestApiPrivilegesEv
 			logger.debug("Checking admin access for endpoint {}, path {} and method {}", endpoint.name(),  request.path(), request.method().name());
 		}
 
+		String sgconfigAccessFailureReason = checkSgconfigAccess(request, endpoint);
+		if (sgconfigAccessFailureReason != null) {
+			return sgconfigAccessFailureReason;
+		}
+
 		String roleBasedAccessFailureReason = checkRoleBasedAccessPermissions(request, endpoint);
 		// Role based access granted
 		if (roleBasedAccessFailureReason == null) {
@@ -233,8 +243,16 @@ public class EnterpriseRestApiPrivilegesEvaluator implements RestApiPrivilegesEv
 			return null;
 		}
 
-
 		return constructAccessErrorMessage(roleBasedAccessFailureReason, certBasedAccessFailureReason);
+	}
+
+	private String checkSgconfigAccess(RestRequest request, Endpoint endpoint) {
+		if (endpoint == SGCONFIG && Arrays.asList(Method.PUT, Method.PATCH).contains(request.getHttpRequest().method()) && !allowPutOrPatch) {
+			return "Received [PUT, PATCH] request at /sgconfig while 'searchguard.unsupported.restapi.allow_sgconfig_modification' is false.";
+		}
+		else {
+			return null;
+		}
 	}
 
 	public Boolean currentUserHasRestApiAccess(Set<String> userRoles) {

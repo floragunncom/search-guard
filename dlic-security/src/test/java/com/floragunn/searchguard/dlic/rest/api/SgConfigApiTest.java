@@ -37,7 +37,7 @@ public class SgConfigApiTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
 		response = rh.executePutRequest("/_searchguard/api/sgconfig", "{\"xxx\": 1}", new Header[0]);
-        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 	}
 	
 	@Test
