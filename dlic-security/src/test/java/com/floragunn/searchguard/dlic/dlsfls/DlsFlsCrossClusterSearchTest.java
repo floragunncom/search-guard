@@ -63,13 +63,13 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
         System.setProperty("sg.display_lic_none","true");
         
         cl2Info = cl2.startCluster(minimumSearchGuardSettings(Settings.EMPTY), ClusterConfiguration.DEFAULT);
-        initialize(cl2Info, Settings.EMPTY, new DynamicSgConfig().setSgRoles(remoteRoles), cl2);
+        initialize(cl2Info, new DynamicSgConfig().setSgRoles(remoteRoles), cl2);
         System.out.println("### cl2 complete ###");
         
         //cl1 is coordinating
         cl1Info = cl1.startCluster(minimumSearchGuardSettings(crossClusterNodeSettings(cl2Info)), ClusterConfiguration.DEFAULT);
         System.out.println("### cl1 start ###");
-        initialize(cl1Info, Settings.EMPTY, new DynamicSgConfig().setSgRoles("sg_roles_983.yml"), cl1);
+        initialize(cl1Info, new DynamicSgConfig().setSgRoles("sg_roles_983.yml"), cl1);
         System.out.println("### cl1 initialized ###");
     }
     

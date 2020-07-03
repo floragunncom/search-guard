@@ -389,7 +389,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, "myindex1")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
-        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
+        setup(new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         try (Client tc = clusterHelper.nodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")

@@ -55,7 +55,7 @@ public class TracingTests extends SingleClusterTest {
                 .put("searchguard.audit.config.log4j.level", "TRACE")
                 .build();
 
-        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
+        setup(new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         try (Client tc = clusterHelper.nodeClient()) {
 
@@ -334,7 +334,7 @@ public class TracingTests extends SingleClusterTest {
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, "*")
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_WATCHED_INDICES, "*")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
-        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
+        setup(new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         try (Client tc = clusterHelper.nodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
@@ -383,7 +383,7 @@ public class TracingTests extends SingleClusterTest {
         Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, "myindex1")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
-        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
+        setup(new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         try (Client tc = clusterHelper.nodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")

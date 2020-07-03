@@ -43,7 +43,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
     
     private void setupMonitoring() throws Exception {            
         monitoringClusterInfo =  monitoringCluster.startCluster(minimumSearchGuardSettings(defaultNodeSettings(Settings.EMPTY)), ClusterConfiguration.DEFAULT);
-        initialize(monitoringClusterInfo, Settings.EMPTY, new DynamicSgConfig(), clusterHelper);
+        initialize(monitoringClusterInfo, new DynamicSgConfig(), clusterHelper);
         rhMon = new RestHelper(monitoringClusterInfo, getResourceFolder());
     }
     
