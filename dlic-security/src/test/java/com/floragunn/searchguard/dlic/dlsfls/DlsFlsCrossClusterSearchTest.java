@@ -63,13 +63,13 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
         System.setProperty("sg.display_lic_none","true");
         
         cl2Info = cl2.startCluster(minimumSearchGuardSettings(Settings.EMPTY), ClusterConfiguration.DEFAULT);
-        initialize(cl2Info, Settings.EMPTY, new DynamicSgConfig().setSgRoles(remoteRoles));
+        initialize(cl2Info, Settings.EMPTY, new DynamicSgConfig().setSgRoles(remoteRoles), cl2);
         System.out.println("### cl2 complete ###");
         
         //cl1 is coordinating
         cl1Info = cl1.startCluster(minimumSearchGuardSettings(crossClusterNodeSettings(cl2Info)), ClusterConfiguration.DEFAULT);
         System.out.println("### cl1 start ###");
-        initialize(cl1Info, Settings.EMPTY, new DynamicSgConfig().setSgRoles("sg_roles_983.yml"));
+        initialize(cl1Info, Settings.EMPTY, new DynamicSgConfig().setSgRoles("sg_roles_983.yml"), cl1);
         System.out.println("### cl1 initialized ###");
     }
     
@@ -89,12 +89,12 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcs() throws Exception {
         setupCcs("sg_roles_983.yml");
         
-        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = cl1.nodeClient()) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
         }
         
-        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = cl2.nodeClient()) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -147,12 +147,12 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcsDifferentConfig() throws Exception {
         setupCcs("sg_roles_ccs2.yml");
         
-        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = cl1.nodeClient()) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
         }
         
-        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = cl2.nodeClient()) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -205,7 +205,7 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcsDifferentConfigBoth() throws Exception {
         setupCcs("sg_roles_ccs2.yml");
         
-        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = cl1.nodeClient()) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
             
@@ -232,7 +232,7 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
                             + "}", XContentType.JSON)).actionGet();
         }
         
-        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = cl2.nodeClient()) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")

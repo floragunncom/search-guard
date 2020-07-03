@@ -216,7 +216,7 @@ public class FieldMaskedTest extends AbstractDlsFlsTest{
 
         System.out.println(rh.executeGetRequest("/deals/_stats/request_cache,query_cache?human&pretty", encodeBasicHeader("admin", "admin")).getBody());
         
-        initialize(clusterInfo, new DynamicSgConfig().setSgConfig("sg_config_salt2_changed.yml"));
+        initialize(clusterInfo, new DynamicSgConfig().setSgConfig("sg_config_salt2_changed.yml"), clusterHelper);
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty&size=0", agg, encodeBasicHeader("user_masked", "password"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("\"value\" : 31"));
