@@ -22,7 +22,7 @@ import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.StopWatch;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
@@ -36,7 +36,7 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 public class FlsPerfTest extends AbstractDlsFlsTest{
     
     @Override
-    protected void populateData(TransportClient tc) {
+    protected void populateData(Client tc) {
 
 
                         

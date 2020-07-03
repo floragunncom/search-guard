@@ -17,7 +17,7 @@ package com.floragunn.searchguard.dlic.dlsfls;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.After;
@@ -89,12 +89,12 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcs() throws Exception {
         setupCcs("sg_roles_983.yml");
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
         }
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -147,12 +147,12 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcsDifferentConfig() throws Exception {
         setupCcs("sg_roles_ccs2.yml");
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
         }
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -205,7 +205,7 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcsDifferentConfigBoth() throws Exception {
         setupCcs("sg_roles_ccs2.yml");
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
             
@@ -232,7 +232,7 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
                             + "}", XContentType.JSON)).actionGet();
         }
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")

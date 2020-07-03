@@ -14,11 +14,10 @@
 
 package com.floragunn.searchguard.dlic.dlsfls;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
@@ -32,7 +31,7 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 public class FieldMaskedTest extends AbstractDlsFlsTest{
     
     
-    protected void populateData(TransportClient tc) {
+    protected void populateData(Client tc) {
 
         tc.index(new IndexRequest("searchguard").id("config").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("config", FileHelper.readYamlContent("dlsfls/sg_config.yml"))).actionGet();
