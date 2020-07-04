@@ -241,7 +241,7 @@ public abstract class AbstractSGUnitTest {
         return new NodeSettingsSupplier() {
             @Override
             public Settings get(int i) {
-                return minimumSearchGuardSettingsBuilder(i, true, false).put(other).build();
+                return minimumSearchGuardSettingsBuilder(i, true, hasCustomTransportSettings(other)).put(other).build();
             }
         };
     }
