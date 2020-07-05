@@ -239,7 +239,7 @@ public class TracingTests extends SingleClusterTest {
     setup(settings);
     final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
             tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
@@ -305,7 +305,7 @@ public class TracingTests extends SingleClusterTest {
     setup(settings);
     final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             for(int i=0; i<3; i++)
             tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
         }

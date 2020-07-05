@@ -178,7 +178,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         TestAuditlogImpl.clear();
         setup(additionalSettings);
         
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
 
             for(IndexRequest ir: new DynamicSgConfig().setSgRoles("sg_roles_2.yml").getDynamicConfig(getResourceFolder())) {
                 tc.index(ir).actionGet();
@@ -228,7 +228,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         
         setup(additionalSettings);
         
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
 
             for(IndexRequest ir: new DynamicSgConfig().setSgRoles("sg_roles_2.yml").getDynamicConfig(getResourceFolder())) {
                 tc.index(ir).actionGet();
@@ -266,7 +266,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         setup(additionalSettings);
         
         
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             tc.prepareIndex("humanresources", "employees", "100")
             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
             .setSource("Age", 456)
@@ -355,7 +355,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         setup(additionalSettings);
         
         
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             tc.prepareIndex("humanresources", "employees", "100")
             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
             .setSource("Age", 456)

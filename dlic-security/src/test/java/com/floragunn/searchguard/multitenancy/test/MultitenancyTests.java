@@ -63,7 +63,7 @@ public class MultitenancyTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfig("sg_config_nodnfof.yml"), settings);
         final RestHelper rh = nonSslRestHelper();
 
-            try (Client tc = getInternalTransportClient()) {
+            try (Client tc = clusterHelper.nodeClient()) {
                 tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
 
                 tc.index(new IndexRequest("indexa").type("doc").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":\"indexa\"}", XContentType.JSON)).actionGet();
@@ -240,7 +240,7 @@ public class MultitenancyTests extends SingleClusterTest {
                 .build();
         setup(settings);
         
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             String body = "{"+
                     "\"type\" : \"index-pattern\","+
                     "\"updated_at\" : \"2018-09-29T08:56:59.066Z\","+
@@ -339,7 +339,7 @@ public class MultitenancyTests extends SingleClusterTest {
                 .build();
         setup(settings);
         
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
             Map indexSettings = new HashMap();
             indexSettings.put("number_of_shards", 1);
@@ -368,7 +368,7 @@ public class MultitenancyTests extends SingleClusterTest {
                 .build();
         setup(settings);
         
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
             Map<String,Object> indexSettings = new HashMap<>();
             indexSettings.put("number_of_shards", 1);

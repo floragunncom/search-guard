@@ -514,7 +514,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         
         setup(additionalSettings);
         
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();         
             tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
             tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
@@ -559,7 +559,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         
         setup(additionalSettings);
         
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             for(int i=0; i<3; i++)
             tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
         }
@@ -602,7 +602,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         setup(additionalSettings);
       
        
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             for(int i=0; i<3; i++)
             tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("thealias").index("vulcangov"))).actionGet();
@@ -661,7 +661,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         
         setup(additionalSettings);
         
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("index1")).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("index2")).actionGet();
         }
@@ -692,7 +692,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 .build();
         setup(settings);
 
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = clusterHelper.nodeClient()) {
             for(int i=0; i<3; i++)
             tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
         }
