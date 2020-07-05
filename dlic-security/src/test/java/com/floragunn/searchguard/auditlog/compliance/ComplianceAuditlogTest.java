@@ -391,7 +391,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
         setup(new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
-        try (Client tc = clusterHelper.nodeClient()) {
+        try (Client tc = clusterHelper.privilegedNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
             .mapping("mytype1", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")

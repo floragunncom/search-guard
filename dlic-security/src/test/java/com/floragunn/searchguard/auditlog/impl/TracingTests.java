@@ -57,7 +57,7 @@ public class TracingTests extends SingleClusterTest {
 
         setup(new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
-        try (Client tc = clusterHelper.nodeClient()) {
+        try (Client tc = clusterHelper.privilegedNodeClient()) {
 
             for(int i=0; i<50;i++) {
                 tc.index(new IndexRequest("a").type("b").id(i+"").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":"+i+"}", XContentType.JSON)).actionGet();
@@ -336,7 +336,7 @@ public class TracingTests extends SingleClusterTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
         setup(new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
-        try (Client tc = clusterHelper.nodeClient()) {
+        try (Client tc = clusterHelper.privilegedNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
             .mapping("mytype1", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")
@@ -385,7 +385,7 @@ public class TracingTests extends SingleClusterTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
         setup(new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
-        try (Client tc = clusterHelper.nodeClient()) {
+        try (Client tc = clusterHelper.privilegedNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
             .mapping("mytype1", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")

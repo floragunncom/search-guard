@@ -89,12 +89,12 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcs() throws Exception {
         setupCcs("sg_roles_983.yml");
         
-        try (Client tc = cl1.nodeClient()) {
+        try (Client tc = cl1.privilegedNodeClient()) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
         }
         
-        try (Client tc = cl2.nodeClient()) {
+        try (Client tc = cl2.privilegedNodeClient()) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -147,12 +147,12 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcsDifferentConfig() throws Exception {
         setupCcs("sg_roles_ccs2.yml");
         
-        try (Client tc = cl1.nodeClient()) {
+        try (Client tc = cl1.privilegedNodeClient()) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
         }
         
-        try (Client tc = cl2.nodeClient()) {
+        try (Client tc = cl2.privilegedNodeClient()) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -205,7 +205,7 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcsDifferentConfigBoth() throws Exception {
         setupCcs("sg_roles_ccs2.yml");
         
-        try (Client tc = cl1.nodeClient()) {
+        try (Client tc = cl1.privilegedNodeClient()) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
             
@@ -232,7 +232,7 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
                             + "}", XContentType.JSON)).actionGet();
         }
         
-        try (Client tc = cl2.nodeClient()) {
+        try (Client tc = cl2.privilegedNodeClient()) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")

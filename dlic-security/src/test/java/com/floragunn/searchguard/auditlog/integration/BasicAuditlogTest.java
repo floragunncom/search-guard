@@ -121,7 +121,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         TestAuditlogImpl.clear();
         
         System.out.println("#### testSimpleAuthenticated");        
-        try (Client tc = clusterHelper.nodeClient()) {
+        try (Client tc = clusterHelper.privilegedNodeClient()) {
             StoredContext ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 Header header = encodeBasicHeader("admin", "admin");
@@ -160,7 +160,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         setupStarfleetIndex();
         TestAuditlogImpl.clear();
                
-        try (Client tc = clusterHelper.nodeClient()) {
+        try (Client tc = clusterHelper.privilegedNodeClient()) {
             StoredContext ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 Header header = encodeBasicHeader("admin", "admin");
