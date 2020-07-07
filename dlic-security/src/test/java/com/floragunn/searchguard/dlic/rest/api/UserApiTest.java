@@ -98,6 +98,8 @@ public class UserApiTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
 		// -- PUT
+		response = rh.executePutRequest("/_searchguard/api/internalusers/", "{\"hash\": \"123\"}", new Header[0]);
+		Assert.assertEquals(HttpStatus.SC_METHOD_NOT_ALLOWED, response.getStatusCode());
 
 		// Faulty JSON payload
 		response = rh.executePutRequest("/_searchguard/api/internalusers/nagilum", "{some: \"thing\" asd  other: \"thing\"}",
@@ -343,7 +345,18 @@ public class UserApiTest extends AbstractRestApiUnitTest {
         response = rh.executePutRequest("/_searchguard/api/internalusers/userwithtabs", "\t{\"hash\": \t \"123\"\t}  ", new Header[0]);
         Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 	}
-	
+
+	@Test
+	public void testNoadminCert() throws Exception {
+		setup();
+
+		// initial configuration, 5 users
+		HttpResponse response = rh.executePutRequest("/_searchguard/api/internalusers/", "{\"hash\": \"123\"}",
+				encodeBasicHeader("admin", "admin"));
+		Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+		Assert.assertTrue(response.getBody().contains("No client TLS certificate found in request"));
+	}
+
 	@Test
 	public void testPasswordRules() throws Exception {
 
