@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import javax.net.ssl.SSLPeerUnverifiedException;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
@@ -246,9 +248,11 @@ public class EnterpriseRestApiPrivilegesEvaluator implements RestApiPrivilegesEv
 		return constructAccessErrorMessage(roleBasedAccessFailureReason, certBasedAccessFailureReason);
 	}
 
-	private String checkSgconfigAccess(RestRequest request, Endpoint endpoint) {
-		if (endpoint == SGCONFIG && Arrays.asList(Method.PUT, Method.PATCH).contains(request.getHttpRequest().method()) && !allowPutOrPatch) {
-			return "Received [PUT, PATCH] request at /sgconfig while 'searchguard.unsupported.restapi.allow_sgconfig_modification' is false.";
+	private String checkSgconfigAccess(RestRequest request, Endpoint endpoint) throws SSLPeerUnverifiedException {
+		SSLInfo sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor);
+
+		if (endpoint == SGCONFIG && Arrays.asList(Method.PUT, Method.PATCH).contains(request.getHttpRequest().method()) && !allowPutOrPatch && sslInfo == null) {
+			return "Received [PUT, PATCH] request at /sgconfig while 'searchguard.unsupported.restapi.allow_sgconfig_modification' is false and no admin cert was provided.";
 		}
 		else {
 			return null;
