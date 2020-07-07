@@ -34,7 +34,7 @@ public class InvalidLicenseTest extends LicenseTest {
 		rh.sendHTTPClientCertificate = true;
 		
 		String license = FileHelper.loadFile("restapi/license/single_expired.txt");
-		HttpResponse response = rh.executePutRequest("/_searchguard/api/license/", createLicenseRequestBody(license), new Header[0]);
+		HttpResponse response = rh.executePutRequest("/_searchguard/api/license", createLicenseRequestBody(license), new Header[0]);
 		Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 		
 		 Map<String, Object> settingsAsMap = getCurrentLicense();

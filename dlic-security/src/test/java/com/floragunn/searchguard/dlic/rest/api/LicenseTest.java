@@ -112,7 +112,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 		
 		// missing license in JSON payload
-		response = rh.executePutRequest("/_searchguard/api/license/", "{ \"sg_license\": \"\"}", new Header[0]);
+		response = rh.executePutRequest("/_searchguard/api/license", "{ \"sg_license\": \"\"}", new Header[0]);
 		Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		msg = settings.get("message");
@@ -120,7 +120,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 		
 		// no no body
-		response = rh.executePutRequest("/_searchguard/api/license/", "{ }", new Header[0]);
+		response = rh.executePutRequest("/_searchguard/api/license", "{ }", new Header[0]);
 		Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		msg = settings.get("reason");
@@ -128,7 +128,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 		
 		// invalid, unparseable license in JSON payload
-		response = rh.executePutRequest("/_searchguard/api/license/", "{ \"sg_license\": \"lalala\"}", new Header[0]);
+		response = rh.executePutRequest("/_searchguard/api/license", "{ \"sg_license\": \"lalala\"}", new Header[0]);
 		Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		msg = settings.get("message");
@@ -159,14 +159,14 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 
 	protected final Settings uploadAndCheckInvalidLicense(String licenseFileName, int statusCode) throws Exception {
 		String licenseKey = loadLicenseKey(licenseFileName);
-		HttpResponse response = rh.executePutRequest("/_searchguard/api/license/", createLicenseRequestBody(licenseKey), new Header[0]);
+		HttpResponse response = rh.executePutRequest("/_searchguard/api/license", createLicenseRequestBody(licenseKey), new Header[0]);
 		Assert.assertEquals(statusCode, response.getStatusCode());
 		return Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 	}
 
 	protected final void uploadAndCheckValidLicense(String licenseFileName, int statusCode) throws Exception {
 		String licenseKey = loadLicenseKey(licenseFileName);
-		HttpResponse response = rh.executePutRequest("/_searchguard/api/license/", createLicenseRequestBody(licenseKey), new Header[0]);
+		HttpResponse response = rh.executePutRequest("/_searchguard/api/license", createLicenseRequestBody(licenseKey), new Header[0]);
 		Assert.assertEquals(response.getBody(), statusCode, response.getStatusCode());
 		Settings config = getCurrentConfig();
 		Settings.Builder expectectConfig = Settings.builder().put(originalConfig);
