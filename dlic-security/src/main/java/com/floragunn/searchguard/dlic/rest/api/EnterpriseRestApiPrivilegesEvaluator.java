@@ -248,10 +248,10 @@ public class EnterpriseRestApiPrivilegesEvaluator implements RestApiPrivilegesEv
 		return constructAccessErrorMessage(roleBasedAccessFailureReason, certBasedAccessFailureReason);
 	}
 
-	private String checkSgconfigAccess(RestRequest request, Endpoint endpoint) throws SSLPeerUnverifiedException {
-		SSLInfo sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor);
+	private String checkSgconfigAccess(RestRequest request, Endpoint endpoint) throws IOException {
+		String checkAdminCertError = checkAdminCertBasedAccessPermissions(request);
 
-		if (endpoint == SGCONFIG && Arrays.asList(Method.PUT, Method.PATCH).contains(request.getHttpRequest().method()) && !allowPutOrPatch && sslInfo == null) {
+		if (endpoint == SGCONFIG && Arrays.asList(Method.PUT, Method.PATCH).contains(request.getHttpRequest().method()) && !allowPutOrPatch && checkAdminCertError != null) {
 			return "Received [PUT, PATCH] request at /sgconfig while 'searchguard.unsupported.restapi.allow_sgconfig_modification' is false and no admin cert was provided.";
 		}
 		else {
