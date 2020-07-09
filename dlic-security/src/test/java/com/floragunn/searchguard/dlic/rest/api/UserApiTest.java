@@ -97,10 +97,6 @@ public class UserApiTest extends AbstractRestApiUnitTest {
 		response = rh.executeGetRequest("/_searchguard/api/internalusers", new Header[0]);
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-		// -- PUT
-		response = rh.executePutRequest("/_searchguard/api/internalusers/", "{\"hash\": \"123\"}", new Header[0]);
-		Assert.assertEquals(HttpStatus.SC_METHOD_NOT_ALLOWED, response.getStatusCode());
-
 		// Faulty JSON payload
 		response = rh.executePutRequest("/_searchguard/api/internalusers/nagilum", "{some: \"thing\" asd  other: \"thing\"}",
 				new Header[0]);
