@@ -1,17 +1,42 @@
 package com.floragunn.signals.watch.severity;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.script.ScriptService;
 import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.signals.execution.ExecutionEnvironment;
+import com.floragunn.signals.execution.WatchExecutionContext;
+import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.support.JsonBuilder;
+import com.floragunn.signals.support.NestedValueMap;
+import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.init.WatchInitializationService;
+import com.floragunn.signals.watch.severity.SeverityMapping.EvaluationResult;
 
 public class SeverityMappingTest {
+    private static NamedXContentRegistry xContentRegistry;
+    private static ScriptService scriptService;
+
+    @ClassRule
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
+            .nodeSettings("signals.enabled", true, "signals.enterprise.enabled", false).resources("sg_config/signals").build();
+
+    @BeforeClass
+    public static void setupDependencies() {
+        xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
+        scriptService = cluster.getInjectable(ScriptService.class);
+    }
+
     @Test
     public void basicTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);
@@ -117,18 +142,17 @@ public class SeverityMappingTest {
         element = severityMapping.findMatchingMappingElement(new BigDecimal("5.0"));
         Assert.assertEquals(new SeverityMapping.Element(new BigDecimal("2.0"), SeverityLevel.ERROR), element);
     }
-    
+
     @Test
     public void findValueWithBigNumbersTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);
-        
+
         String configJson = "{\"value\": \"data.x\", \"mapping\": [{\"threshold\": 123456789999, \"level\": \"info\"}, {\"threshold\": 223456789999, \"level\": \"error\"}]}";
 
         JsonNode config = DefaultObjectMapper.readTree(configJson);
-        
+
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
-        
-        
+
         SeverityMapping.Element element = severityMapping.findMatchingMappingElement(new BigDecimal("2"));
         Assert.assertNull(element);
 
@@ -138,7 +162,7 @@ public class SeverityMappingTest {
         element = severityMapping.findMatchingMappingElement(new BigDecimal("223457789999"));
         Assert.assertEquals(new SeverityMapping.Element(new BigDecimal("223456789999"), SeverityLevel.ERROR), element);
     }
-    
+
     @Test
     public void descendingFindValueTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);
@@ -158,6 +182,48 @@ public class SeverityMappingTest {
 
         element = severityMapping.findMatchingMappingElement(new BigDecimal("-5.0"));
         Assert.assertEquals(new SeverityMapping.Element(new BigDecimal("1.0"), SeverityLevel.ERROR), element);
+    }
+
+    @Test
+    public void evaluationResultTest() throws Exception {
+        WatchInitializationService watchInitService = new WatchInitializationService(null, scriptService);
+
+        String configJson = "{\n" + "    \"mapping\": [\n" + "      {\n" + "        \"level\": \"info\",\n" + "        \"threshold\": 100\n"
+                + "      },\n" + "      {\n" + "        \"level\": \"warning\",\n" + "        \"threshold\": 200\n" + "      },\n" + "      {\n"
+                + "        \"level\": \"error\",\n" + "        \"threshold\": 300\n" + "      },\n" + "      {\n"
+                + "        \"level\": \"critical\",\n" + "        \"threshold\": 400\n" + "      }\n" + "    ],\n" + "    \"value\": \"data.a\",\n"
+                + "    \"order\": \"ascending\"\n" + "  }";
+
+        JsonNode config = DefaultObjectMapper.readTree(configJson);
+
+        SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
+
+        NestedValueMap runtimeData = new NestedValueMap();
+        runtimeData.put("a", 10);
+
+        WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+        EvaluationResult evaluationResult = severityMapping.execute(ctx);
+        Map<String, Object> evaluationResultMap = evaluationResult.toMap();
+
+
+        Assert.assertNull(evaluationResult.getMappingElement());
+        Assert.assertEquals(SeverityLevel.NONE, evaluationResult.getLevel());
+        Assert.assertEquals(evaluationResult.getLevel().toMap(), evaluationResultMap.get("level"));
+        
+        runtimeData.put("a", 150);
+
+        ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+        evaluationResult = severityMapping.execute(ctx);
+        evaluationResultMap = evaluationResult.toMap();
+        
+        Assert.assertEquals(evaluationResult.getMappingElement().toMap(), evaluationResultMap.get("mapping_element"));
+        Assert.assertEquals(SeverityLevel.INFO, evaluationResult.getLevel());
+        Assert.assertEquals(evaluationResult.getLevel().toMap(), evaluationResultMap.get("level"));
+
     }
 
 }

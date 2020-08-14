@@ -30,7 +30,6 @@ import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchOperationExecutionException;
 import com.floragunn.signals.script.SignalsScript;
 import com.floragunn.signals.watch.init.WatchInitializationService;
-import com.google.common.collect.ImmutableMap;
 
 public class SeverityMapping implements ToXContentObject {
 
@@ -437,8 +436,14 @@ public class SeverityMapping implements ToXContentObject {
         }
 
         public Map<String, Object> toMap() {
-            return ImmutableMap.of("level", level != null ? level.toMap() : null, "mapping_element",
-                    mappingElement != null ? mappingElement.toMap() : null, "value", value, "threshold", getThreshold());
+            HashMap<String, Object> map = new HashMap<>();
+            map.put("level", level != null ? level.toMap() : null);
+            map.put("name", getName());
+            map.put("id", getId());
+            map.put("mapping_element", mappingElement != null ? mappingElement.toMap() : null);
+            map.put("value", value);
+            map.put("threshold", getThreshold());
+            return map;
         }
 
         public static EvaluationResult create(JsonNode jsonNode) throws ConfigValidationException {
