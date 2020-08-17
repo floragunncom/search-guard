@@ -66,7 +66,7 @@ public class HTTPProxyAuthenticator implements HTTPAuthenticator {
             if (!Strings.isNullOrEmpty(rolesHeader) && !Strings.isNullOrEmpty((String) request.header(rolesHeader))) {
                 backendRoles = ((String) request.header(rolesHeader)).split(rolesSeparator);
             }
-            return new AuthCredentials((String) request.header(userHeader), backendRoles).markComplete();
+            return AuthCredentials.forUser((String) request.header(userHeader)).backendRoles(backendRoles).complete().build();
         } else {
             if(log.isTraceEnabled()) {
                 log.trace("No '{}' header, send 401", userHeader);

@@ -601,7 +601,7 @@ public class BackendRegistry implements DCFListener {
                 if (log.isTraceEnabled()) {
                     log.trace("Backend roles for " + authenticatedUser.getName() + " not cached, return from " + ab.getType() + " backend directly");
                 }
-                ab.fillRoles(authenticatedUser, new AuthCredentials(authenticatedUser.getName()));
+                ab.fillRoles(authenticatedUser, AuthCredentials.forUser(authenticatedUser.getName()).build());
             } catch (Exception e) {
                 log.error("Cannot retrieve roles for {} from {} due to {}", authenticatedUser, ab.getType(), e.toString(), e);
             }
