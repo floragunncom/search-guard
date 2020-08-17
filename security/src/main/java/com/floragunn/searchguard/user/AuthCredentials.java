@@ -226,6 +226,10 @@ public final class AuthCredentials {
         }
 
         public Builder backendRoles(String... backendRoles) {
+            if (backendRoles == null) {
+                return this;
+            }
+            
             this.backendRoles.addAll(Arrays.asList(backendRoles));
             return this;
         }
