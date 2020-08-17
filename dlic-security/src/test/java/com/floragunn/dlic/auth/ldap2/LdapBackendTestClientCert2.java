@@ -18,7 +18,6 @@ import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
@@ -58,9 +57,7 @@ public class LdapBackendTestClientCert2 {
         @SuppressWarnings("unused")
         LdapUser user;
         try {
-            user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("ldap_hr_employee"
-                    , "ldap_hr_employee"
-                    .getBytes(StandardCharsets.UTF_8)));
+            user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(ExceptionUtils.getRootCause(e).getMessage(), ExceptionUtils.getRootCause(e).getMessage().contains("authentication required"));
@@ -86,9 +83,7 @@ public class LdapBackendTestClientCert2 {
         @SuppressWarnings("unused")
         LdapUser user;
         try {
-            user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("ldap_hr_employee"
-                    , "ldap_hr_employee"
-                    .getBytes(StandardCharsets.UTF_8)));
+            user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(ExceptionUtils.getRootCause(e).getMessage(), ExceptionUtils.getRootCause(e).getMessage().contains("authentication required"));
@@ -114,9 +109,7 @@ public class LdapBackendTestClientCert2 {
         @SuppressWarnings("unused")
         LdapUser user;
         try {
-            user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("ldap_hr_employee"
-                    , "ldap_hr_employee"
-                    .getBytes(StandardCharsets.UTF_8)));
+            user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(ExceptionUtils.getRootCause(e).getMessage(), ExceptionUtils.getRootCause(e).getMessage().contains("Unable to connect to any"));
@@ -143,9 +136,7 @@ public class LdapBackendTestClientCert2 {
                 .put("path.home",".")
                 .build();
 
-        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("ldap_hr_employee"
-                , "ldap_hr_employee"
-                .getBytes(StandardCharsets.UTF_8)));
+        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("ldap_hr_employee", user.getName());
     }
@@ -166,9 +157,7 @@ public class LdapBackendTestClientCert2 {
                 .put("path.home",".")
                 .build();
 
-        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("ldap_hr_employee"
-                , "ldap_hr_employee"
-                .getBytes(StandardCharsets.UTF_8)));
+        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("ldap_hr_employee", user.getName());
     }
@@ -192,9 +181,7 @@ public class LdapBackendTestClientCert2 {
                // .put(ConfigConstants.LDAP_PASSWORD, "ldapbinder")
                 .build();
 
-        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("ldap_hr_employee"
-                , "ldap_hr_employee"
-                .getBytes(StandardCharsets.UTF_8)));
+        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("ldap_hr_employee", user.getName());
     }
@@ -215,9 +202,7 @@ public class LdapBackendTestClientCert2 {
                 .put("path.home",".")
                 .build();
 
-        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("ldap_hr_employee"
-                , "ldap_hr_employee"
-                .getBytes(StandardCharsets.UTF_8)));
+        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("ldap_hr_employee", user.getName());
     }
@@ -247,9 +232,7 @@ public class LdapBackendTestClientCert2 {
                 .put("path.home",".")
                 .build();
 
-        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("ldap_hr_employee"
-                , "ldap_hr_employee"
-                .getBytes(StandardCharsets.UTF_8)));
+        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("ldap_hr_employee", user.getName());
     }

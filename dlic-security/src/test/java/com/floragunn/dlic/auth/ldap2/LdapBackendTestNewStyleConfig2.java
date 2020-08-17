@@ -14,7 +14,6 @@
 
 package com.floragunn.dlic.auth.ldap2;
 
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.TreeSet;
@@ -97,7 +96,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("users.u1.search", "(uid={0})").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
@@ -110,7 +109,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("users.u1.search", "(uid={0})").put(ConfigConstants.LDAP_FAKE_LOGIN_ENABLED, true).build();
 
         new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("unknown", "unknown".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("unknown").password("unknown").build());
     }
 
     @Test(expected = ElasticsearchSecurityException.class)
@@ -124,7 +123,7 @@ public class LdapBackendTestNewStyleConfig2 {
 
         @SuppressWarnings("unused")
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials(injectString, "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser(injectString).password("secret").build());
     }
 
     @Test
@@ -137,7 +136,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put(ConfigConstants.LDAP_PASSWORD, "spocksecret").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
@@ -153,7 +152,7 @@ public class LdapBackendTestNewStyleConfig2 {
                     .put(ConfigConstants.LDAP_PASSWORD, "wrong").build();
 
             new LDAPAuthenticationBackend2(settings, null)
-                    .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                    .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
             Assert.fail("Expected exception");
         } catch (Exception e) {
             Assert.assertTrue(ExceptionUtils.getStackTrace(e), ExceptionUtils.getStackTrace(e).contains("password was incorrect"));
@@ -168,7 +167,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("users.u1.search", "(uid={0})").build();
 
         new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "wrong".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("wrong").build());
     }
 
     @Test(expected = ElasticsearchSecurityException.class)
@@ -179,7 +178,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("users.u1.search", "(uid={0})").build();
 
         new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("UNKNOWN", "UNKNOWN".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("UNKNOWN").password("UNKNOWN").build());
     }
 
     @Test(expected = ElasticsearchSecurityException.class)
@@ -190,7 +189,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("users.u1.search", "(uid={0})").build();
 
         new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "xxxxx".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("xxxxx").build());
     }
 
     @Test
@@ -204,7 +203,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("verify_hostnames", false).put("path.home", ".").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
@@ -220,7 +219,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("verify_hostnames", false).put("path.home", ".")
                 .put("path.conf", FileHelper.getAbsoluteFilePathFromClassPath("ldap/root-ca.pem").getParent()).build();
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, Paths.get("src/test/resources/ldap"))
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
@@ -239,7 +238,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .build();
         Settings settings = Settings.builder().put(settingsFromFile).putList("hosts", "localhost:"+ldapsPort).build();
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
@@ -256,7 +255,7 @@ public class LdapBackendTestNewStyleConfig2 {
 
         try {
             new LDAPAuthenticationBackend2(settings, null)
-                    .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                    .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
             Assert.fail("Expected Exception");
         } catch (Exception e) {
             Assert.assertTrue(e.getMessage().contains("protocol is disabled or cipher suites are inappropriate"));
@@ -276,7 +275,7 @@ public class LdapBackendTestNewStyleConfig2 {
 
         try {
             new LDAPAuthenticationBackend2(settings, null)
-                    .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                    .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
             Assert.fail("Expected Exception");
         } catch (Exception e) {
             //Assert.assertEquals(org.ldaptive.provider.ConnectionException.class, e.getCause().getClass());
@@ -297,7 +296,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .putList("enabled_ssl_ciphers", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA").put("path.home", ".").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
 
@@ -314,7 +313,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("verify_hostnames", false).put("path.home", ".").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
@@ -328,7 +327,7 @@ public class LdapBackendTestNewStyleConfig2 {
 
         try {
             new LDAPAuthenticationBackend2(settings, null)
-                    .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                    .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
             Assert.fail("Expected exception");
         } catch (final Exception e) {
             Assert.assertEquals(IllegalStateException.class, e.getCause().getClass());
@@ -360,7 +359,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
 
         new LDAPAuthorizationBackend2(settings, null).fillRoles(user, null);
 
@@ -398,7 +397,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put(ConfigConstants.LDAP_AUTHZ_RESOLVE_NESTED_ROLES, true).build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("ssign", "ssignsecret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("ssign").password("ssignsecret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Special\\, Sign,ou=people,o=TEST", user.getName());
         new LDAPAuthorizationBackend2(settings, null).fillRoles(user, null);
@@ -417,7 +416,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("roles.g1.search", "(uniqueMember=cn={1},ou=people,o=TEST)").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("Michael Jackson", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("Michael Jackson").password("secret").build());
 
         new LDAPAuthorizationBackend2(settings, null).fillRoles(user, null);
 
@@ -521,7 +520,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("roles.g1.search", "(uniqueMember={0})").build();
 
         final User user = new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes()));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret".getBytes()).build());
 
         new LDAPAuthorizationBackend2(settings, null).fillRoles(user, null);
 
@@ -540,7 +539,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put(ConfigConstants.LDAP_AUTHC_USERNAME_ATTRIBUTE, "uid").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("jacksonm", user.getName());
     }
@@ -558,7 +557,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("verify_hostnames", false).put("path.home", ".").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
@@ -574,7 +573,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .putList(ConfigConstants.LDAP_AUTHZ_SKIP_USERS, "cn=Michael Jackson,ou*people,o=TEST").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
 
         new LDAPAuthorizationBackend2(settings, null).fillRoles(user, null);
 
@@ -706,7 +705,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("users.u1.search", "(uid={0})").build();
 
         LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
         Assert.assertEquals(user.getCustomAttributesMap().toString(), 16, user.getCustomAttributesMap().size());
@@ -718,7 +717,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("users.u1.search", "(uid={0})").put(ConfigConstants.LDAP_CUSTOM_ATTR_MAXVAL_LEN, 0).build();
 
         user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
 
         Assert.assertEquals(user.getCustomAttributesMap().toString(), 2, user.getCustomAttributesMap().size());
 
@@ -728,7 +727,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .putList(ConfigConstants.LDAP_CUSTOM_ATTR_WHITELIST, "*objectclass*", "entryParentId").build();
 
         user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
 
         Assert.assertEquals(user.getCustomAttributesMap().toString(), 2, user.getCustomAttributesMap().size());
 
@@ -770,7 +769,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("users.u2.search", "(uid={0})").put("users.u2.base", "ou=people2,o=TEST").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
@@ -784,7 +783,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("users.u2.search", "(uid={0})").put("users.u2.base", "ou=people2,o=TEST").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("presleye", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("presleye").password("secret").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Elvis Presley,ou=people2,o=TEST", user.getName());
     }
@@ -799,7 +798,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("users.u2.base", "ou=people2,o=TEST").build();
 
         new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
 
         // Fails with ElasticsearchSecurityException because two possible instances are
         // found
@@ -830,7 +829,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("roles.g2.search", "(uniqueMember={0})").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
 
         new LDAPAuthorizationBackend2(settings, null).fillRoles(user, null);
 
@@ -856,7 +855,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("roles.g2.search", "(uniqueMember={0})").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("mercuryf", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("mercuryf").password("secret").build());
 
         new LDAPAuthorizationBackend2(settings, null).fillRoles(user, null);
 
@@ -903,8 +902,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put(ConfigConstants.LDAP_AUTHZ_RESOLVE_NESTED_ROLES, true)
                 .build();
 
-        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("spec186", "spec186"
-                .getBytes(StandardCharsets.UTF_8)));
+        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("spec186").password("spec186").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST", user.getName());
         //Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getUbEntry().getAttribute("cn").getValue());
@@ -945,8 +943,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put(ConfigConstants.LDAP_AUTHZ_RESOLVE_NESTED_ROLES, true)
                 .build();
 
-        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("spec186", "spec186"
-                .getBytes(StandardCharsets.UTF_8)));
+        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("spec186").password("spec186").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST", user.getName());
         //Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getUbEntry().getAttribute("cn").getValue());
@@ -982,8 +979,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
                 .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})").build();
 
-        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
-                .getBytes(StandardCharsets.UTF_8)));
+        final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null).authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
         Assert.assertNotNull(user);
         Attribute operationAttribute = user.getUserEntry().getUbEntry().getAttribute("entryUUID");
         Assert.assertNotNull(operationAttribute);

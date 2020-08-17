@@ -128,14 +128,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
 
         final String[] roles = extractRoles(claims);
 
-        final AuthCredentials ac = new AuthCredentials(subject, roles).markComplete();
-
-        for (Entry<String, Object> claim : claims.asMap().entrySet()) {
-            ac.addAttribute("attr.jwt." + claim.getKey(), String.valueOf(claim.getValue()));
-        }
-
-        return ac;
-
+        return AuthCredentials.forUser(subject).backendRoles(roles).prefixAttributes("attr.jwt.", claims.asMap()).complete().build();
     }
 
     protected String getJwtTokenString(RestRequest request) {

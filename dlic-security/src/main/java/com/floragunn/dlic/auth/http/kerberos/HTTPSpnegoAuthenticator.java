@@ -250,7 +250,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
                 }
 
                 if (principal == null) {
-                    return new AuthCredentials("_incomplete_", (Object) outToken);
+                    return AuthCredentials.forUser("_incomplete_").nativeCredentials(outToken).build();
                 }
 
 
@@ -260,8 +260,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
                     log.error("Got empty or null user from kerberos. Normally this means that you acceptor principal {} does not match the server hostname", acceptorPrincipal);
                 }
 
-                return new AuthCredentials(username, (Object) outToken).markComplete();
-
+                return AuthCredentials.forUser(username).nativeCredentials(outToken).complete().build();
             }
         } else {
             log.trace("No 'Authorization' header, send 401 and 'WWW-Authenticate Negotiate'");

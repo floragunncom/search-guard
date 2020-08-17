@@ -14,7 +14,6 @@
 
 package com.floragunn.dlic.auth.ldap2;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.TreeSet;
 
@@ -71,7 +70,7 @@ public class LdapBackendInterop {
                 .build();
 
         final LdapUser user1 = (LdapUser) new LDAPAuthenticationBackend(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
 
         new LDAPAuthorizationBackend2(settings, null).fillRoles(user1, null);
 
@@ -83,7 +82,7 @@ public class LdapBackendInterop {
         
         
         final LdapUser user2 = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
-                .authenticate(new AuthCredentials("jacksonm", "secret".getBytes(StandardCharsets.UTF_8)));
+                .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
 
         new LDAPAuthorizationBackend(settings, null).fillRoles(user2, null);
 

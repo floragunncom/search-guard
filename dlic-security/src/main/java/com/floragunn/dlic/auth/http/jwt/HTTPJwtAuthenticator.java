@@ -173,13 +173,7 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
             
             final String[] roles = extractRoles(claims);
             
-            final AuthCredentials ac = new AuthCredentials(subject, roles).markComplete(); 
-            
-            for(Entry<String, Object> claim: claims.entrySet()) {
-                ac.addAttribute("attr.jwt."+claim.getKey(), String.valueOf(claim.getValue()));
-            }
-            
-            return ac;        
+            return AuthCredentials.forUser(subject).backendRoles(roles).prefixAttributes("attr.jwt.", claims).complete().build();        
             
         } catch (WeakKeyException e) {
             log.error("Cannot authenticate user with JWT because of "+e, e);
