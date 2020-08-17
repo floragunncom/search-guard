@@ -1,0 +1,90 @@
+package com.floragunn.searchguard.sgconf.history;
+
+import java.io.IOException;
+
+import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+
+import com.floragunn.searchguard.sgconf.impl.CType;
+
+public class ConfigVersion implements ToXContentObject {
+    private final CType configurationType;
+    private final long version;
+
+    public ConfigVersion(CType configurationType, long version) {
+        if (version <= 0) {
+            throw new IllegalArgumentException("version must be not <= 0: " + version + "; configurationType: " + configurationType);
+        }
+
+        this.configurationType = configurationType;
+        this.version = version;
+    }
+
+    public CType getConfigurationType() {
+        return configurationType;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((configurationType == null) ? 0 : configurationType.hashCode());
+        result = prime * result + (int) (version ^ (version >>> 32));
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        ConfigVersion other = (ConfigVersion) obj;
+        if (configurationType != other.configurationType)
+            return false;
+        if (version != other.version)
+            return false;
+        return true;
+    }
+
+    @Override
+    public String toString() {
+        return configurationType.name() + "@" + version;
+    }
+
+    public String toId() {
+        return configurationType.name() + "_" + version;
+    }
+
+    public static ConfigVersion fromId(String id) {
+        int u = id.lastIndexOf('_');
+
+        if (u == -1) {
+            throw new IllegalArgumentException("Invalid ConfigurationVersion id: " + id);
+        }
+
+        try {
+            long version = Long.parseLong(id.substring(u + 1));
+
+            return new ConfigVersion(CType.valueOf(id.substring(u)), version);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid ConfigurationVersion id: " + id, e);
+
+        }
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
+        builder.field("type", configurationType.name());
+        builder.field("version", version);
+        builder.endObject();
+        return builder;
+    }
+}

@@ -161,7 +161,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         JsonNode updatedAsJsonNode = existingAsObjectNode.deepCopy().set(name, patchedResourceAsJsonNode);
 
         SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromNode(updatedAsJsonNode, existingConfiguration.getCType(),
-                existingConfiguration.getVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm());
+                existingConfiguration.getVersion(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm());
 
         saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
@@ -233,7 +233,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         }
 
         SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromNode(patchedAsJsonNode, existingConfiguration.getCType(),
-                existingConfiguration.getVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm());
+                existingConfiguration.getVersion(),  existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm());
 
         saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
