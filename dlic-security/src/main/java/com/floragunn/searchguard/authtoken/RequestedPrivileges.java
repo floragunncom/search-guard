@@ -41,6 +41,22 @@ public class RequestedPrivileges implements Writeable, ToXContentObject {
     private RequestedPrivileges() {
     }
 
+    public List<String> getClusterPermissions() {
+        return clusterPermissions;
+    }
+
+    public List<IndexPermissions> getIndexPermissions() {
+        return indexPermissions;
+    }
+
+    public List<TenantPermissions> getTenantPermissions() {
+        return tenantPermissions;
+    }
+
+    public List<String> getRoles() {
+        return roles;
+    }
+
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         out.writeStringCollection(clusterPermissions);

@@ -25,8 +25,19 @@ import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.sgconf.ConfigModel;
+import com.floragunn.searchguard.sgconf.ConfigModelV7;
+import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
+import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
+import com.floragunn.searchguard.sgconf.DynamicConfigModel;
+import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
+import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
+import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -39,21 +50,34 @@ public class ConfigHistoryService {
     public static final Setting<Integer> CACHE_TTL = Setting.intSetting("searchguard.config_history.cache.ttl", 60 * 24 * 2, Property.NodeScope);
     public static final Setting<Integer> CACHE_MAX_SIZE = Setting.intSetting("searchguard.config_history.cache.max_size", 100, Property.NodeScope);
 
+    public static final Setting<Integer> MODEL_CACHE_TTL = Setting.intSetting("searchguard.config_history.model.cache.ttl", 60 * 24 * 2,
+            Property.NodeScope);
+    public static final Setting<Integer> MODEL_CACHE_MAX_SIZE = Setting.intSetting("searchguard.config_history.model.cache.max_size", 100,
+            Property.NodeScope);
+
     private final String indexName;
     private final ConfigurationRepository configurationRepository;
     private final PrivilegedConfigClient privilegedConfigClient;
     private final Cache<ConfigVersion, SgDynamicConfiguration<?>> configCache;
+    private final Cache<ConfigVersionSet, ConfigModel> configModelCache;
+
+    private volatile DynamicConfigModel currentDynamicConfigModel;
+
     private final Settings settings;
 
     public ConfigHistoryService(ConfigurationRepository configurationRepository, PrivilegedConfigClient privilegedConfigClient,
-            ProtectedIndices protectedIndices, Settings settings) {
+            ProtectedIndices protectedIndices, DynamicConfigFactory dynamicConfigFactory, Settings settings) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configurationRepository = configurationRepository;
         this.configCache = CacheBuilder.newBuilder().maximumSize(CACHE_MAX_SIZE.get(settings))
                 .expireAfterAccess(CACHE_TTL.get(settings), TimeUnit.MINUTES).build();
+        this.configModelCache = CacheBuilder.newBuilder().maximumSize(MODEL_CACHE_MAX_SIZE.get(settings))
+                .expireAfterAccess(MODEL_CACHE_TTL.get(settings), TimeUnit.MINUTES).build();
         this.settings = settings;
         protectedIndices.add(indexName);
+
+        dynamicConfigFactory.registerDCFListener(dcfListener);
     }
 
     public ConfigSnapshot getCurrentConfigSnapshot() {
@@ -102,6 +126,32 @@ public class ConfigHistoryService {
         }
 
         return configSnapshot;
+    }
+
+    public ConfigModel getConfigSnapshotAsModel(ConfigVersionSet configVersionSet) throws UnknownConfigVersionException {
+        ConfigModel configModel = configModelCache.getIfPresent(configVersionSet);
+
+        if (configModel != null) {
+            return configModel;
+        }
+
+        ConfigSnapshot configSnapshot = getConfigSnapshot(configVersionSet);
+
+        SgDynamicConfiguration<RoleV7> roles = configSnapshot.getConfigByType(RoleV7.class);
+        SgDynamicConfiguration<RoleMappingsV7> roleMappings = configSnapshot.getConfigByType(RoleMappingsV7.class);
+        SgDynamicConfiguration<ActionGroupsV7> actionGroups = configSnapshot.getConfigByType(ActionGroupsV7.class);
+        SgDynamicConfiguration<TenantV7> tenants = configSnapshot.getConfigByType(TenantV7.class);
+        SgDynamicConfiguration<BlocksV7> blocks = configSnapshot.getConfigByType(BlocksV7.class);
+
+        if (blocks == null) {
+            blocks = SgDynamicConfiguration.empty();
+        }
+
+        configModel = new ConfigModelV7(roles, roleMappings, actionGroups, tenants, blocks, currentDynamicConfigModel, settings);
+
+        configModelCache.put(configVersionSet, configModel);
+
+        return configModel;
     }
 
     public ConfigSnapshot peekConfigSnapshot(ConfigVersionSet configVersionSet) {
@@ -183,4 +233,15 @@ public class ConfigHistoryService {
             throw new RuntimeException("Failure while storing configs " + missingVersions + "; " + bulkResponse);
         }
     }
+
+    private final DCFListener dcfListener = new DCFListener() {
+
+        @Override
+        public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
+            ConfigHistoryService.this.currentDynamicConfigModel = currentDynamicConfigModel;
+
+            // TODO invalidate only when necessary
+            ConfigHistoryService.this.configModelCache.invalidateAll();
+        }
+    };
 }

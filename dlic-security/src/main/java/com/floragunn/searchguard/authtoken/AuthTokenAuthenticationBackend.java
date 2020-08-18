@@ -31,8 +31,10 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
     public User authenticate(AuthCredentials credentials) throws ElasticsearchSecurityException {
         try {
             AuthToken authToken = authTokenService.getByClaims(credentials.getClaims());
-            
-            
+
+            return User.forUser(authToken.getUserName()).subName(authToken.getTokenName() + "[" + authToken.getId() + "]")
+                    .type(AuthTokenService.USER_TYPE).specialAuthzConfig(authToken).build();
+
         } catch (NoSuchAuthTokenException | InvalidTokenException e) {
             throw new ElasticsearchSecurityException(e.getMessage(), e);
         }
@@ -40,7 +42,7 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
 
     @Override
     public boolean exists(User user) {
-        // TODO Auto-generated method stub
+        // TODO 
         return false;
     }
 
