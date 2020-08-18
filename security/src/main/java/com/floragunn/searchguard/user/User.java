@@ -17,19 +17,13 @@
 
 package com.floragunn.searchguard.user;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
 
 import com.google.common.collect.Lists;
 
@@ -39,7 +33,7 @@ import com.google.common.collect.Lists;
  * <b>Do not subclass from this class!</b>
  *
  */
-public class User implements Serializable, Writeable, CustomAttributesAware {
+public class User implements Serializable, CustomAttributesAware {
 
     public static final User ANONYMOUS = new User("sg_anonymous", Lists.newArrayList("sg_anonymous_backendrole"), null);
     public static final String USER_TENANT = "__user__";
@@ -55,15 +49,6 @@ public class User implements Serializable, Writeable, CustomAttributesAware {
     private Map<String, String> attributes = new HashMap<>();
     private boolean isInjected = false;
 
-    public User(final StreamInput in) throws IOException {
-        super();
-        name = in.readString();
-        roles.addAll(in.readList(StreamInput::readString));
-        requestedTenant = in.readString();
-        attributes = in.readMap(StreamInput::readString, StreamInput::readString);
-        searchGuardRoles.addAll(in.readList(StreamInput::readString));
-    }
-    
     /**
      * Create a new authenticated user
      * 
@@ -219,15 +204,6 @@ public class User implements Serializable, Writeable, CustomAttributesAware {
         if(user != null) {
             this.addRoles(user.getRoles());
         }
-    }
-
-    @Override
-    public void writeTo(StreamOutput out) throws IOException {
-        out.writeString(name);
-        out.writeStringCollection(new ArrayList<String>(roles));
-        out.writeString(requestedTenant);
-        out.writeMap(attributes, StreamOutput::writeString, StreamOutput::writeString);
-        out.writeStringCollection(searchGuardRoles==null?Collections.emptyList():new ArrayList<String>(searchGuardRoles));
     }
 
     /**
