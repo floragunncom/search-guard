@@ -40,7 +40,7 @@ public class DummyHTTPAuthenticator implements HTTPAuthenticator {
     @Override
     public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
         count++;
-        return new AuthCredentials("dummy").markComplete();
+        return AuthCredentials.forUser("dummy").complete().build();
     }
 
     @Override
