@@ -46,7 +46,7 @@ public class SignalsTenantTest {
     private static NodeEnvironment nodeEnvironment;
     private static ScriptService scriptService;
     private static InternalAuthTokenProvider internalAuthTokenProvider;
-    private static final User UHURA = new User("uhura", Arrays.asList("signals_admin", "all_access"), null);
+    private static final User UHURA = User.forUser("uhura").backendRoles("signals_admin", "all_access").build();
 
     @BeforeClass
     public static void setupTestData() throws Exception {

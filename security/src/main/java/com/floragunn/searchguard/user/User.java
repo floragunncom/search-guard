@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.user;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,19 +36,37 @@ import com.google.common.collect.Lists;
  */
 public class User implements Serializable, CustomAttributesAware {
 
+    public static Builder forUser(String username) {
+        return new Builder().name(username);
+    }
+
     public static final User ANONYMOUS = new User("sg_anonymous", Lists.newArrayList("sg_anonymous_backendrole"), null);
     public static final String USER_TENANT = "__user__";
-    
+
     private static final long serialVersionUID = -5500938501822658596L;
     private final String name;
+    private final String subName;
+
     /**
      * roles == backend_roles
      */
-    private final Set<String> roles = new HashSet<String>();
-    private final Set<String> searchGuardRoles = new HashSet<String>();
+    private final Set<String> roles;
+    private final Set<String> searchGuardRoles;
     private String requestedTenant;
-    private Map<String, String> attributes = new HashMap<>();
+    private Map<String, String> attributes;
     private boolean isInjected = false;
+
+    public User(String name, String subName, Set<String> roles, Set<String> searchGuardRoles, String requestedTenant, Map<String, String> attributes,
+            boolean isInjected) {
+        super();
+        this.name = name;
+        this.subName = subName;
+        this.roles = roles;
+        this.searchGuardRoles = searchGuardRoles;
+        this.requestedTenant = requestedTenant;
+        this.attributes = attributes;
+        this.isInjected = isInjected;
+    }
 
     /**
      * Create a new authenticated user
@@ -65,12 +84,15 @@ public class User implements Serializable, CustomAttributesAware {
         }
 
         this.name = name;
-
+        this.subName = null;
+        this.roles = new HashSet<String>();
+        this.searchGuardRoles = new HashSet<String>();
+        this.attributes = new HashMap<>();
         if (roles != null) {
             this.addRoles(roles);
         }
-        
-        if(customAttributes != null) {
+
+        if (customAttributes != null) {
             this.attributes.putAll(customAttributes.getAttributes());
         }
 
@@ -88,6 +110,10 @@ public class User implements Serializable, CustomAttributesAware {
 
     public final String getName() {
         return name;
+    }
+
+    public String getSubName() {
+        return subName;
     }
 
     /**
@@ -113,7 +139,7 @@ public class User implements Serializable, CustomAttributesAware {
      * @param roles The backend roles
      */
     public final void addRoles(final Collection<String> roles) {
-        if(roles != null) {
+        if (roles != null) {
             this.roles.addAll(roles);
         }
     }
@@ -133,12 +159,12 @@ public class User implements Serializable, CustomAttributesAware {
      * 
      * @param roles The roles
      */
-    public final void addAttributes(final Map<String,String> attributes) {
-        if(attributes != null) {
+    public final void addAttributes(final Map<String, String> attributes) {
+        if (attributes != null) {
             this.attributes.putAll(attributes);
         }
     }
-    
+
     public final String getRequestedTenant() {
         return requestedTenant;
     }
@@ -146,8 +172,7 @@ public class User implements Serializable, CustomAttributesAware {
     public final void setRequestedTenant(String requestedTenant) {
         this.requestedTenant = requestedTenant;
     }
-    
-    
+
     public boolean isInjected() {
         return isInjected;
     }
@@ -196,35 +221,85 @@ public class User implements Serializable, CustomAttributesAware {
     }
 
     /**
-     * Copy all backend roles from another user
-     * 
-     * @param user The user from which the backend roles should be copied over
-     */
-    public final void copyRolesFrom(final User user) {
-        if(user != null) {
-            this.addRoles(user.getRoles());
-        }
-    }
-
-    /**
      * Get the custom attributes associated with this user
      * 
      * @return A modifiable map with all the current custom attributes associated with this user
      */
     public synchronized final Map<String, String> getCustomAttributesMap() {
-        if(attributes == null) {
+        if (attributes == null) {
             attributes = new HashMap<>();
         }
         return attributes;
     }
-    
+
     public final void addSearchGuardRoles(final Collection<String> sgRoles) {
-        if(sgRoles != null && this.searchGuardRoles != null) {
+        if (sgRoles != null && this.searchGuardRoles != null) {
             this.searchGuardRoles.addAll(sgRoles);
         }
     }
-    
+
     public final Set<String> getSearchGuardRoles() {
-        return this.searchGuardRoles==null?Collections.emptySet():Collections.unmodifiableSet(this.searchGuardRoles);
+        return this.searchGuardRoles == null ? Collections.emptySet() : Collections.unmodifiableSet(this.searchGuardRoles);
+    }
+
+    public static class Builder {
+        private String name;
+        private String subName;
+        private final Set<String> backendRoles = new HashSet<String>();
+        private final Set<String> searchGuardRoles = new HashSet<String>();
+        private String requestedTenant;
+        private Map<String, String> attributes = new HashMap<>();
+        private boolean injected;
+
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder subName(String subName) {
+            this.subName = subName;
+            return this;
+        }
+
+        public Builder requestedTenant(String requestedTenant) {
+            this.requestedTenant = requestedTenant;
+            return this;
+        }
+
+        public Builder backendRoles(String... backendRoles) {
+            return this.backendRoles(Arrays.asList(backendRoles));
+        }
+
+        public Builder backendRoles(Collection<String> backendRoles) {
+            if (backendRoles != null) {
+                this.backendRoles.addAll(backendRoles);
+            }
+            return this;
+        }
+
+        public Builder searchGuardRoles(String... searchGuardRoles) {
+            return this.searchGuardRoles(Arrays.asList(searchGuardRoles));
+        }
+
+        public Builder searchGuardRoles(Collection<String> searchGuardRoles) {
+            if (searchGuardRoles != null) {
+                this.searchGuardRoles.addAll(searchGuardRoles);
+            }
+            return this;
+        }
+
+        public Builder attributes(Map<String, String> attributes) {
+            this.attributes.putAll(attributes);
+            return this;
+        }
+
+        public Builder injected() {
+            this.injected = true;
+            return this;
+        }
+
+        public User build() {
+            return new User(name, subName, backendRoles, searchGuardRoles, requestedTenant, attributes, injected);
+        }
     }
 }

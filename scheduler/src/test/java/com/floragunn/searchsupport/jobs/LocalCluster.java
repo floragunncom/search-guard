@@ -135,7 +135,7 @@ public class LocalCluster extends ExternalResource {
     }
 
     public Client getNodeClientWithMockUser(String userName, String... roles) {
-        return getNodeClientWithMockUser(new User(userName, Arrays.asList(roles), null));
+        return getNodeClientWithMockUser(User.forUser(userName).backendRoles(roles).build());
     }
 
     public Client getPrivilegedConfigNodeClient() {

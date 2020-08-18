@@ -102,20 +102,16 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
        
         try {
             if (OpenBSDBCrypt.checkPassword(internalUsersModel.getHash(credentials.getUsername()), array)) {
-                final List<String> roles = internalUsersModel.getBackenRoles(credentials.getUsername());
+                final List<String> backendRoles = internalUsersModel.getBackenRoles(credentials.getUsername());
                 final Map<String, String> customAttributes = internalUsersModel.getAttributes(credentials.getUsername());
                 if(customAttributes != null) {
                     credentials = credentials.copy().prefixAttributes("attr.internal.", customAttributes).build();
                 }
                 
-                final User user = new User(credentials.getUsername(), roles, credentials);
-                
                 final List<String> searchGuardRoles = internalUsersModel.getSearchGuardRoles(credentials.getUsername());
-                if(searchGuardRoles != null) {
-                    user.addSearchGuardRoles(searchGuardRoles);
-                }
-                
-                return user;
+                              
+                return User.forUser(credentials.getUsername()).backendRoles(backendRoles).searchGuardRoles(searchGuardRoles)
+                        .attributes(credentials.getAttributes()).build();
             } else {
                 throw new ElasticsearchSecurityException("password does not match");
             }
