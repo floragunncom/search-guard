@@ -6,12 +6,17 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.elasticsearch.common.xcontent.ToXContent.Params;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
+import com.floragunn.searchsupport.config.validation.ValidationError;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
 public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObject {
 
@@ -85,6 +90,15 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startArray();
+        for (ConfigVersion configVersion : this) {
+            configVersion.toXContent(builder, params);
+        }
+        builder.endArray();
+        return builder;
+    }
+
+    public XContentBuilder toCompactXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
         for (ConfigVersion configVersion : this) {
             builder.field(configVersion.getConfigurationType().name(), configVersion.getVersion());
@@ -93,4 +107,49 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
         return builder;
     }
 
+    public static ConfigVersionSet parse(JsonNode jsonNode) throws ConfigValidationException {
+        ValidationErrors validationErrors = new ValidationErrors();
+        Builder builder = new Builder();
+
+        if (jsonNode.isArray()) {
+            for (JsonNode subNode : jsonNode) {
+                try {
+                    builder.add(ConfigVersion.parse(subNode));
+                } catch (ConfigValidationException e) {
+                    validationErrors.add("_", e);
+                }
+            }
+        } else if (jsonNode.isObject()) {
+            ObjectNode objectNode = (ObjectNode) jsonNode;
+
+            Iterator<String> fieldNames = objectNode.fieldNames();
+
+            while (fieldNames.hasNext()) {
+                String fieldName = fieldNames.next();
+                CType configType;
+
+                try {
+                    configType = CType.valueOf(fieldName);
+                } catch (Exception e) {
+                    validationErrors.add(new ValidationError(fieldName, "Not a valid config type: " + fieldName, null).cause(e));
+                    continue;
+                }
+
+                JsonNode value = objectNode.get(fieldName);
+
+                if (value == null || !value.isNumber()) {
+                    validationErrors.add(new InvalidAttributeValue(fieldName, value, "A version number"));
+                    continue;
+                }
+
+                builder.add(configType, value.asLong());
+            }
+        } else {
+            validationErrors.add(new ValidationError(null, "Unexpected type " + jsonNode));
+        }
+
+        validationErrors.throwExceptionForPresentErrors();
+
+        return builder.build();
+    }
 }
