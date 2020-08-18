@@ -111,4 +111,12 @@ public class CreateAuthTokenRequest extends ActionRequest {
         this.expiresAfter = expiresAfter;
     }
 
+    public String getTokenName() {
+        return tokenName;
+    }
+
+    public void setTokenName(String tokenName) {
+        this.tokenName = tokenName;
+    }
+
 }

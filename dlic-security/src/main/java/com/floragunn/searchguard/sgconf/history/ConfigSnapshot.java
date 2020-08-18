@@ -41,12 +41,19 @@ public class ConfigSnapshot {
     public ConfigVersionSet getMissingConfigVersions() {
         return missingConfigVersions;
     }
-    
+
     public boolean hasMissingConfigVersions() {
         return missingConfigVersions.size() > 0;
     }
 
     public SgDynamicConfiguration<?> getConfigByType(CType configType) {
         return configByType.get(configType);
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public <T> SgDynamicConfiguration<T> getConfigByType(Class<T> configType) {
+        SgDynamicConfiguration config = getConfigByType(CType.getByClass(configType));
+        
+        return (SgDynamicConfiguration<T>) config;
     }
 }

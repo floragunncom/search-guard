@@ -55,6 +55,20 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
         return versionMap.size();
     }
 
+    @Override
+    public int hashCode() {
+        return versionMap.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == null || !(other instanceof ConfigVersionSet)) {
+            return false;
+        }
+
+        return this.versionMap.equals(((ConfigVersionSet) other).versionMap);
+    }
+
     public static class Builder {
         private Map<CType, ConfigVersion> versionMap = new HashMap<>();
 
