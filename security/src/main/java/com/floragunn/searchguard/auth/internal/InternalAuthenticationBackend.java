@@ -77,7 +77,7 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
     }
     
     @Override
-    public User authenticate(final AuthCredentials credentials) {
+    public User authenticate(AuthCredentials credentials) {
 
         if (internalUsersModel == null) {
             throw new ElasticsearchSecurityException("Internal authentication backend not configured. May be Search Guard is not initialized. See https://docs.search-guard.com/latest/sgadmin");
@@ -102,22 +102,16 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
        
         try {
             if (OpenBSDBCrypt.checkPassword(internalUsersModel.getHash(credentials.getUsername()), array)) {
-                final List<String> roles = internalUsersModel.getBackenRoles(credentials.getUsername());
+                final List<String> backendRoles = internalUsersModel.getBackenRoles(credentials.getUsername());
                 final Map<String, String> customAttributes = internalUsersModel.getAttributes(credentials.getUsername());
                 if(customAttributes != null) {
-                    for(Entry<String, String> attributeName: customAttributes.entrySet()) {
-                        credentials.addAttribute("attr.internal."+attributeName.getKey(), attributeName.getValue());
-                    }
+                    credentials = credentials.copy().prefixAttributes("attr.internal.", customAttributes).build();
                 }
-                
-                final User user = new User(credentials.getUsername(), roles, credentials);
                 
                 final List<String> searchGuardRoles = internalUsersModel.getSearchGuardRoles(credentials.getUsername());
-                if(searchGuardRoles != null) {
-                    user.addSearchGuardRoles(searchGuardRoles);
-                }
-                
-                return user;
+                              
+                return User.forUser(credentials.getUsername()).backendRoles(backendRoles).searchGuardRoles(searchGuardRoles)
+                        .attributes(credentials.getAttributes()).build();
             } else {
                 throw new ElasticsearchSecurityException("password does not match");
             }

@@ -122,8 +122,7 @@ public class InternalAuthTokenProvider implements DCFListener {
 
             SgRoles sgRoles = ConfigModelV7.SgRoles.create(rolesConfigV7, configModel.getActionGroupResolver());
             String userName = verifiedToken.getClaims().getSubject();
-            User user = new User(userName, Collections.emptySet(), new AuthCredentials(userName, authToken));
-            user.addSearchGuardRoles(sgRoles.getRoleNames());
+            User user = User.forUser(userName).searchGuardRoles(sgRoles.getRoleNames()).build();
             AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, sgRoles);
 
             return userAuth;

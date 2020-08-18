@@ -67,7 +67,7 @@ public class HTTPHelper {
                     log.warn("Invalid 'Authorization' header, send 401 and 'WWW-Authenticate Basic'");
                     return null;
                 } else {
-                    return new AuthCredentials(username, password.getBytes(StandardCharsets.UTF_8)).markComplete();
+                    return AuthCredentials.forUser(username).password(password.getBytes(StandardCharsets.UTF_8)).complete().build();
                 }
             }
         } else {

@@ -62,7 +62,6 @@ public class HTTPProxyAuthenticator2 implements HTTPAuthenticator {
     public AuthCredentials extractCredentials(final RestRequest restRequest, final ThreadContext threadContext) {
 
         String authMode = settings.get(AUTHENTICATION_MODE);
-        final AuthCredentials credentials;
 
         if (Strings.isNullOrEmpty(authMode)) {
             authMode = DEFAULT_MODE;
@@ -122,11 +121,12 @@ public class HTTPProxyAuthenticator2 implements HTTPAuthenticator {
         if (!Strings.isNullOrEmpty(rolesHeader) && !Strings.isNullOrEmpty(restRequest.header(rolesHeader))) {
             backendRoles = restRequest.header(rolesHeader).split(rolesSeparator);
         }
-        credentials = new AuthCredentials(restRequest.header(userHeader), backendRoles);
+        
+        AuthCredentials.Builder authCredentialsBuilder = AuthCredentials.forUser(restRequest.header(userHeader)).backendRoles(backendRoles).complete();
 
-        addAdditionalAttributes(credentials, restRequest);
+        addAdditionalAttributes(authCredentialsBuilder, restRequest);
 
-        return credentials.markComplete();
+        return authCredentialsBuilder.build();
     }
 
     private boolean xffDone(ThreadContext threadContext) {
@@ -166,9 +166,9 @@ public class HTTPProxyAuthenticator2 implements HTTPAuthenticator {
         return true;
     }
 
-    private void addAdditionalAttributes(final AuthCredentials credentials, final RestRequest restRequest) {
+    private void addAdditionalAttributes(final AuthCredentials.Builder credentials, final RestRequest restRequest) {
         
-        credentials.addAttribute(ATTR_PROXY_USERNAME, credentials.getUsername());
+        credentials.attribute(ATTR_PROXY_USERNAME, credentials.getUserName());
         
         if (settings.getAsList(ATTRIBUTE_HEADERS).isEmpty()) {
             if (log.isTraceEnabled()) {
@@ -183,7 +183,7 @@ public class HTTPProxyAuthenticator2 implements HTTPAuthenticator {
             }
             if (!Strings.isNullOrEmpty(attributeHeaderName) && !Strings.isNullOrEmpty(restRequest.header(attributeHeaderName))) {
                 String attributeValue = restRequest.header(attributeHeaderName);
-                credentials.addAttribute(ATTR_PROXY_PREFIX+attributeHeaderName, attributeValue);
+                credentials.attribute(ATTR_PROXY_PREFIX+attributeHeaderName, attributeValue);
 
                 if (log.isDebugEnabled()) {
                     log.debug("attributeHeader {}, value {}", attributeHeaderName, attributeValue);

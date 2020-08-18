@@ -28,6 +28,7 @@ import com.floragunn.searchguard.user.AuthCredentials;
 public class AddressBasedRateLimiterTest {
 
     private final static byte[] PASSWORD = new byte[] { '1', '2', '3' };
+    private final static AuthCredentials AUTH_CREDENTIALS = AuthCredentials.forUser("a").password(PASSWORD).build();
 
     @Test
     public void simpleTest() throws Exception {
@@ -36,11 +37,11 @@ public class AddressBasedRateLimiterTest {
         UserNameBasedRateLimiter rateLimiter = new UserNameBasedRateLimiter(settings, null);
 
         assertFalse(rateLimiter.isBlocked("a"));
-        rateLimiter.onAuthFailure(null, new AuthCredentials("a", PASSWORD), null);
+        rateLimiter.onAuthFailure(null, AUTH_CREDENTIALS, null);
         assertFalse(rateLimiter.isBlocked("a"));
-        rateLimiter.onAuthFailure(null, new AuthCredentials("a", PASSWORD), null);
+        rateLimiter.onAuthFailure(null, AUTH_CREDENTIALS, null);
         assertFalse(rateLimiter.isBlocked("a"));
-        rateLimiter.onAuthFailure(null, new AuthCredentials("a", PASSWORD), null);
+        rateLimiter.onAuthFailure(null, AUTH_CREDENTIALS, null);
         assertTrue(rateLimiter.isBlocked("a"));
 
     }
