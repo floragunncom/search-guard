@@ -24,6 +24,7 @@ import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
 public class CreateAuthTokenRequest extends ActionRequest {
 
+    private String tokenName;
     private String audience;
     private Duration expiresAfter;
     private RequestedPrivileges requestedPrivileges;
@@ -40,6 +41,7 @@ public class CreateAuthTokenRequest extends ActionRequest {
 
     public CreateAuthTokenRequest(StreamInput in) throws IOException {
         super(in);
+        this.tokenName = in.readString();
         this.audience = in.readOptionalString();
 
         Long expiresAfterMillis = in.readOptionalLong();
@@ -51,6 +53,7 @@ public class CreateAuthTokenRequest extends ActionRequest {
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         super.writeTo(out);
+        out.writeString(tokenName);
         out.writeOptionalString(audience);
         out.writeOptionalLong(expiresAfter != null ? expiresAfter.toMillis() : null);
         requestedPrivileges.writeTo(out);

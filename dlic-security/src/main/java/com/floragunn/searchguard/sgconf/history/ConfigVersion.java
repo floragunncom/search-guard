@@ -5,7 +5,11 @@ import java.io.IOException;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
 public class ConfigVersion implements ToXContentObject {
     private final CType configurationType;
@@ -62,6 +66,15 @@ public class ConfigVersion implements ToXContentObject {
         return configurationType.name() + "_" + version;
     }
 
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
+        builder.field("type", configurationType.name());
+        builder.field("version", version);
+        builder.endObject();
+        return builder;
+    }
+    
     public static ConfigVersion fromId(String id) {
         int u = id.lastIndexOf('_');
 
@@ -78,13 +91,18 @@ public class ConfigVersion implements ToXContentObject {
 
         }
     }
-
-    @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.field("type", configurationType.name());
-        builder.field("version", version);
-        builder.endObject();
-        return builder;
+    
+    public static ConfigVersion parse(JsonNode jsonNode) throws ConfigValidationException {
+        ValidationErrors validationErrors = new ValidationErrors();
+        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        
+        CType configType = vJsonNode.requiredCaseInsensitiveEnum("type", CType.class);
+        long version = vJsonNode.requiredInt("version");
+        
+        validationErrors.throwExceptionForPresentErrors();
+        
+        return new ConfigVersion(configType, version);
     }
+
+
 }

@@ -3,20 +3,24 @@ package com.floragunn.searchguard.authtoken;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Instant;
-import java.time.temporal.TemporalAmount;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
 import org.apache.cxf.rs.security.jose.jwe.JweUtils;
 import org.apache.cxf.rs.security.jose.jws.JwsUtils;
 import org.apache.cxf.rs.security.jose.jwt.JoseJwtProducer;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
@@ -32,9 +36,15 @@ import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.google.common.io.BaseEncoding;
 
+/**
+ * TODO audience claim https://stackoverflow.com/questions/28418360/jwt-json-web-token-audience-aud-versus-client-id-whats-the-difference 
+ *
+ */
 public class AuthTokenService {
 
     public static final Setting<String> INDEX_NAME = Setting.simpleString("searchguard.authtokens.index.name", ".searchguard_authtokens",
@@ -59,11 +69,29 @@ public class AuthTokenService {
             if (!getResponse.isExists()) {
                 throw new NoSuchAuthTokenException(id);
             }
-
-            return new AuthToken();
+            
+            return AuthToken.parse(id, ValidatingJsonParser.readTree(getResponse.getSourceAsString()));
         } catch (IndexNotFoundException e) {
             throw new NoSuchAuthTokenException(id, e);
+        } catch (ConfigValidationException e) {
+            throw new RuntimeException("Token " + id + " is not stored in a valid format", e);
         }
+    }
+
+    public AuthToken getByClaims(Map<String, Object> claims) throws NoSuchAuthTokenException, InvalidTokenException {
+        String id = Objects.toString(claims.get(JwtConstants.CLAIM_JWT_ID), null);
+        Set<String> audience = getClaimAsSet(claims, JwtConstants.CLAIM_AUDIENCE);
+
+        if (!audience.contains(this.jwtAudience)) {
+            throw new InvalidTokenException("Invalid JWT audience claim. Supplied: " + audience + "; Expected: " + this.jwtAudience);
+        }
+
+        if (id == null) {
+            throw new InvalidTokenException("Supplied auth token does not have an id claim");
+        }
+
+        return getById(id);
+
     }
 
     public AuthToken create(User user, CreateAuthTokenRequest request) {
@@ -84,13 +112,12 @@ public class AuthTokenService {
         return authToken;
     }
 
-    
     public String createJwt(User user, CreateAuthTokenRequest request) throws IllegalStateException {
 
         if (jwtProducer == null) {
             throw new IllegalStateException("AuthTokenProvider is not configured");
         }
-        
+
         AuthToken authToken = create(user, request);
 
         JwtClaims jwtClaims = new JwtClaims();
@@ -113,7 +140,7 @@ public class AuthTokenService {
 
         return encodedJwt;
     }
-    
+
     private String getRandomId() {
         UUID uuid = UUID.randomUUID();
         ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[16]);
@@ -123,7 +150,6 @@ public class AuthTokenService {
         return BaseEncoding.base64Url().encode(byteBuffer.array());
     }
 
-
     private Object getSgRolesForUser(User user) {
         Set<String> sgRoles = this.configModel.mapSgRoles(user, null);
 
@@ -131,7 +157,7 @@ public class AuthTokenService {
 
         return ObjectTreeXContent.toObjectTree(userRoles);
     }
-    
+
     void initJwtProducer() {
         try {
             this.jwtProducer = new JoseJwtProducer();
@@ -154,6 +180,18 @@ public class AuthTokenService {
         } catch (Exception e) {
             this.jwtProducer = null;
             log.error("Error while initializing JWT producer in AuthTokenProvider", e);
+        }
+    }
+
+    private Set<String> getClaimAsSet(Map<String, Object> claims, String claimName) {
+        Object claim = claims.get(claimName);
+
+        if (claim == null) {
+            return Collections.emptySet();
+        } else if (claim instanceof Collection) {
+            return ((Collection<?>) claim).stream().map((e) -> String.valueOf(e)).collect(Collectors.toSet());
+        } else {
+            return Collections.singleton(String.valueOf(claim));
         }
     }
 }
