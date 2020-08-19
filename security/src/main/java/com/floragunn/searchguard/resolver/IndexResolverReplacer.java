@@ -772,6 +772,7 @@ public final class IndexResolverReplacer implements DCFListener {
             if(checkIndices(request, newIndices, true, allowEmptyIndices) == false) {
                 return false;
             }
+            // FIXME
             ((SingleShardRequest) request).index(newIndices.length!=1?null:newIndices[0]);
         } else if (request instanceof IndexRequest) {
             String[] newIndices = provider.provide(((IndexRequest) request).indices(), request, true);
