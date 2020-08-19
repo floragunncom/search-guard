@@ -27,6 +27,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsIndexR
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.delete.DeleteAction;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
@@ -45,6 +46,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.ConfigModel.AllowedTenantAccess;
 import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.user.User;
 
@@ -59,25 +61,29 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         super(resolver, clusterService, client, threadPool);
     }
 
-    private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, final Map<String, Boolean> tenants,
+    private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, final Map<String, AllowedTenantAccess> tenants,
             final String requestedTenant) {
 
         if (!tenants.keySet().contains(requestedTenant)) {
-            log.warn("Tenant {} is not allowed for user {}", requestedTenant, user.getName());
             return false;
         } else {
 
             if (log.isDebugEnabled()) {
                 log.debug("request " + request.getClass());
             }
-
-            if (tenants.get(requestedTenant) == Boolean.FALSE && action.startsWith("indices:data/write")) {
-                log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, user.getName());
-                return false;
+            
+            AllowedTenantAccess allowedTenantAccess = tenants.get(requestedTenant);
+            
+            if (action.startsWith("indices:data/write")) {
+                if (action.startsWith(DeleteAction.NAME)) {
+                    return allowedTenantAccess.isDeletePermitted();
+                } else {
+                    return allowedTenantAccess.isWritePermitted();
+                }
             }
-        }
 
-        return true;
+            return allowedTenantAccess.isReadPermitted();
+        }
     }
 
     /**
@@ -88,7 +94,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
      */
     @Override
     public Boolean replaceKibanaIndex(final ActionRequest request, final String action, final User user, final DynamicConfigModel config,
-            final Resolved requestedResolved, final Map<String, Boolean> tenants) {
+            final Resolved requestedResolved, final Map<String, AllowedTenantAccess> tenants) {
 
         final boolean enabled = config.isKibanaMultitenancyEnabled();//config.dynamic.kibana.multitenancy_enabled;
 
@@ -115,6 +121,8 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             }
             
             if (kibanaIndexOnly && !isTenantAllowed(request, action, user, tenants, "SGS_GLOBAL_TENANT")) {
+                log.warn("Global tenant is not allowed to perform {} for user {}", action, user.getName());
+
                 return Boolean.TRUE;
             }
 
@@ -159,6 +167,8 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             }
 
             if (!isTenantAllowed(request, action, user, tenants, requestedTenant)) {
+                log.warn("Tenant {} tenant is not allowed to perform {} for user {}", requestedTenant, action, user.getName());
+
                 return Boolean.TRUE;
             }
 
