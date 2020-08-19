@@ -34,6 +34,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.transport.TcpChannel;
 import org.elasticsearch.transport.netty4.Netty4Transport;
 
@@ -57,8 +58,8 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
 
     public SearchGuardSSLNettyTransport(final Settings settings, final Version version, final ThreadPool threadPool, final NetworkService networkService,
             final PageCacheRecycler pageCacheRecycler, final NamedWriteableRegistry namedWriteableRegistry,
-            final CircuitBreakerService circuitBreakerService, final SearchGuardKeyStore sgks, final SslExceptionHandler errorHandler) {
-        super(settings, version, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService);
+            final CircuitBreakerService circuitBreakerService, SharedGroupFactory sharedGroupFactory, final SearchGuardKeyStore sgks, final SslExceptionHandler errorHandler) {
+        super(settings, version, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService, sharedGroupFactory);
 
         this.sgks = sgks;
         this.errorHandler = errorHandler;

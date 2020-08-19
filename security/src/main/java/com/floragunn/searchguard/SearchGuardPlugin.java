@@ -714,7 +714,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (transportSSLEnabled) {
             transports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyTransport",
                     () -> new SearchGuardSSLNettyTransport(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler,
-                            namedWriteableRegistry, circuitBreakerService, sgks, evaluateSslExceptionHandler()));
+                            namedWriteableRegistry, circuitBreakerService, sharedGroupFactory, sgks, evaluateSslExceptionHandler()));
         }
         return transports;
     }
@@ -739,13 +739,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         configPath, evaluateSslExceptionHandler());
                 //TODO close sghst
                 final SearchGuardHttpServerTransport sghst = new SearchGuardHttpServerTransport(settings, networkService, bigArrays, threadPool, sgks,
-                        evaluateSslExceptionHandler(), xContentRegistry, validatingDispatcher, clusterSettings);
+                        evaluateSslExceptionHandler(), xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory);
 
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport", () -> sghst);
             } else if (!client) {
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport",
                         () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher,
-                                clusterSettings));
+                                clusterSettings, sharedGroupFactory));
             }
         }
         return httpTransports;
