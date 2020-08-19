@@ -1,8 +1,8 @@
 package com.floragunn.searchguard.authtoken;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -11,97 +11,129 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.authtoken.RequestedPrivileges.IndexPermissions;
-import com.floragunn.searchguard.authtoken.RequestedPrivileges.TenantPermissions;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.ConfigModel.ActionGroupResolver;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
+import com.google.common.collect.Sets;
 
 public class RestrictedSgRoles extends SgRoles {
-    
-    private final SgRoles base;
-    private final RequestedPrivileges restriction;
-    private final Set<String> clusterPermissions;
-    private List<IndexPermissions> indexPermissions;
-    private List<TenantPermissions> tenantPermissions;
-    private List<String> roles;
-    RestrictedSgRoles(SgRoles base, RequestedPrivileges restriction) {
-        this.base = base;
-        this.restriction =  restriction;
-        this.clusterPermissions = new HashSet<>(restriction.getClusterPermissions());
-    }
 
+    private final SgRoles base;
+    private final SgRoles restrictionSgRoles;
+    private final RequestedPrivileges restriction;
+
+    RestrictedSgRoles(SgRoles base, RequestedPrivileges restriction, ActionGroupResolver actionGroupResolver) {
+        this.base = base;
+        this.restriction = restriction;
+        this.restrictionSgRoles = com.floragunn.searchguard.sgconf.ConfigModelV7.SgRoles.create(restriction.toRolesConfig(), actionGroupResolver);
+    }
 
     @Override
     public boolean impliesClusterPermissionPermission(String action0) {
-        return base.impliesClusterPermissionPermission(action0) && this.clusterPermissions.contains(action0);
+        return base.impliesClusterPermissionPermission(action0) && restrictionSgRoles.impliesClusterPermissionPermission(action0);
     }
 
     @Override
     public Set<String> getRoleNames() {
-        Set<String> result = new HashSet<>(roles.size());
+        if (restriction.getRoles() == null || restriction.getRoles().size() == 0) {
+            return base.getRoleNames();
+        }
+
+        Set<String> result = new HashSet<>(restriction.getRoles().size());
         Set<String> baseRoles = base.getRoleNames();
-        
-        for (String role : roles) {
+
+        for (String role : restriction.getRoles()) {
             if (baseRoles.contains(role)) {
                 result.add(role);
             }
         }
-        
+
         return result;
     }
 
     @Override
     public Set<String> reduce(Resolved requestedResolved, User user, String[] strings, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
-        // TODO Auto-generated method stub
-        return null;
+        Set<String> restrictedIndexes = restrictionSgRoles.reduce(requestedResolved, user, strings, resolver, clusterService);
+
+        if (restrictedIndexes.isEmpty()) {
+            // Don't calculate base indexes if we already know we will get an empty set
+            return Collections.emptySet();
+        }
+
+        Set<String> baseIndexes = base.reduce(requestedResolved, user, strings, resolver, clusterService);
+
+        return Sets.intersection(baseIndexes, restrictedIndexes);
     }
 
     @Override
     public boolean impliesTypePermGlobal(Resolved requestedResolved, User user, String[] allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
-        // TODO Auto-generated method stub
-        return false;
+        boolean restrictedPermission = restrictionSgRoles.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver,
+                clusterService);
+
+        if (!restrictedPermission) {
+            // Don't calculate base permission if we already know we will get an empty set
+            return false;
+        }
+
+        boolean basePermission = base.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
+
+        return restrictedPermission && basePermission;
     }
 
     @Override
     public boolean get(Resolved requestedResolved, User user, String[] allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
-        // TODO Auto-generated method stub
-        return false;
+        boolean restrictedPermission = restrictionSgRoles.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
+
+        if (!restrictedPermission) {
+            // Don't calculate base permission if we already know we will get an empty set
+            return false;
+        }
+
+        boolean basePermission = base.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
+
+        return restrictedPermission && basePermission;
     }
 
     @Override
     public Map<String, Set<String>> getMaskedFields(User user, IndexNameExpressionResolver resolver, ClusterService clusterService) {
-        // TODO Auto-generated method stub
-        return null;
+        // TODO not yet implemented
+        return base.getMaskedFields(user, resolver, clusterService);
     }
 
     @Override
     public Tuple<Map<String, Set<String>>, Map<String, Set<String>>> getDlsFls(User user, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
-        // TODO Auto-generated method stub
-        return null;
+        // TODO not yet implemented
+        return base.getDlsFls(user, resolver, clusterService);
     }
 
     @Override
     public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
             ClusterService cs) {
-        // TODO Auto-generated method stub
-        return null;
+        Set<String> restrictedIndexes = restrictionSgRoles.getAllPermittedIndicesForKibana(resolved, user, actions, resolver, cs);
+
+        if (restrictedIndexes.isEmpty()) {
+            // Don't calculate base indexes if we already know we will get an empty set
+            return Collections.emptySet();
+        }
+
+        Set<String> baseIndexes = base.getAllPermittedIndicesForKibana(resolved, user, actions, resolver, cs);
+
+        return Sets.intersection(baseIndexes, restrictedIndexes);
     }
 
     @Override
     public SgRoles filter(Set<String> roles) {
-        // TODO Auto-generated method stub
-        return null;
+        throw new RuntimeException("Not implemented");
     }
-    
+
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         throw new RuntimeException("Not implemented");
     }
-
 
 }
