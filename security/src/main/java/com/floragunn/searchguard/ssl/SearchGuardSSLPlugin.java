@@ -68,6 +68,7 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.watcher.ResourceWatcherService;
@@ -94,6 +95,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     protected PrincipalExtractor principalExtractor;
     protected final Path configPath;
     private final static SslExceptionHandler NOOP_SSL_EXCEPTION_HANDLER=new SslExceptionHandler(){};
+    protected final SharedGroupFactory sharedGroupFactory;
 
     //    public SearchGuardSSLPlugin(final Settings settings, final Path configPath) {
     //        this(settings, configPath, false);
@@ -108,6 +110,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             this.transportSSLEnabled = false;
             this.sgks = null;
             this.configPath = null;
+            this.sharedGroupFactory = null;
 
             AccessController.doPrivileged(new PrivilegedAction<Object>() {
                 @Override
@@ -198,6 +201,8 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         } else {
             this.sgks = new DefaultSearchGuardKeyStore(settings, configPath);
         }
+        
+        this.sharedGroupFactory = new SharedGroupFactory(settings);
     }
 
     @Override
@@ -211,7 +216,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
                     configPath, NOOP_SSL_EXCEPTION_HANDLER);
             final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService, bigArrays,
-                    threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, NOOP_SSL_EXCEPTION_HANDLER);
+                    threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER);
 
             httpTransports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport", () -> sgsnht);
 
@@ -253,7 +258,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         if (transportSSLEnabled) {
             transports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyTransport",
                     () -> new SearchGuardSSLNettyTransport(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler,
-                            namedWriteableRegistry, circuitBreakerService, sgks, NOOP_SSL_EXCEPTION_HANDLER));
+                            namedWriteableRegistry, circuitBreakerService, sharedGroupFactory, sgks, NOOP_SSL_EXCEPTION_HANDLER));
 
         }
         return transports;
@@ -389,4 +394,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         settingsFilter.add("searchguard.*");
         return settingsFilter;
     }
+    
+
 }

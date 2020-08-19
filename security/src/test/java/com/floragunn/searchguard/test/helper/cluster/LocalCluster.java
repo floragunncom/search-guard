@@ -8,8 +8,12 @@ import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import javax.net.ssl.SSLContext;
 
@@ -38,6 +42,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.painless.PainlessPlugin;
+import org.elasticsearch.painless.spi.PainlessExtension;
+import org.elasticsearch.plugins.ExtensiblePlugin.ExtensionLoader;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.Assert;
@@ -227,8 +233,25 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
     private void painlessWhitelistKludge() {
         try {
             // TODO make this optional
+
+            final ClassLoader classLoader = getClass().getClassLoader();
+
             try (PainlessPlugin p = new PainlessPlugin()) {
-                p.reloadSPI(getClass().getClassLoader());
+                p.loadExtensions(new ExtensionLoader() {
+
+                    @SuppressWarnings("unchecked")
+                    @Override
+                    public <T> List<T> loadExtensions(Class<T> extensionPointType) {
+                        if (extensionPointType.equals(PainlessExtension.class)) {
+                            List<?> result = StreamSupport.stream(ServiceLoader.load(PainlessExtension.class, classLoader).spliterator(), false)
+                                    .collect(Collectors.toList());
+
+                            return (List<T>) result;
+                        } else {
+                            return Collections.emptyList();
+                        }
+                    }
+                });
             } catch (Exception e) {
                 e.printStackTrace();
             }

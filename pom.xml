@@ -20,8 +20,8 @@
 	<name>Search Guard Suite - Parent</name>
 
 	<properties>
-		<elasticsearch.version>7.8.1</elasticsearch.version>
-		<sg-suite.version>44.0.0-SNAPSHOT</sg-suite.version>
+		<elasticsearch.version>7.9.0</elasticsearch.version>
+		<sg-suite.version>43.0.0-SNAPSHOT</sg-suite.version>
 		<revision>${elasticsearch.version}-${sg-suite.version}</revision>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

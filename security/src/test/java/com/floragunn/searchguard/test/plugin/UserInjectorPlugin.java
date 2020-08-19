@@ -38,6 +38,7 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.SharedGroupFactory;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 
@@ -51,9 +52,11 @@ public class UserInjectorPlugin extends Plugin implements NetworkPlugin {
 
     Settings settings;
     ThreadPool threadPool;
+    protected final SharedGroupFactory sharedGroupFactory;
 
     public UserInjectorPlugin(final Settings settings, final Path configPath) {
         this.settings = settings;
+        this.sharedGroupFactory = new SharedGroupFactory(settings);
     }
 
     @Override
@@ -64,7 +67,7 @@ public class UserInjectorPlugin extends Plugin implements NetworkPlugin {
         Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
         final UserInjectingDispatcher validatingDispatcher = new UserInjectingDispatcher(dispatcher);
         httpTransports.put("com.floragunn.searchguard.http.UserInjectingServerTransport",
-                () -> new UserInjectingServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, validatingDispatcher, clusterSettings));
+                () -> new UserInjectingServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory));
         return httpTransports;
     }
 
@@ -72,8 +75,8 @@ public class UserInjectorPlugin extends Plugin implements NetworkPlugin {
 
         public UserInjectingServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
                 final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
-                ClusterSettings clusterSettings) {
-            super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings);
+                ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory) {
+            super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
         }
     }
 
