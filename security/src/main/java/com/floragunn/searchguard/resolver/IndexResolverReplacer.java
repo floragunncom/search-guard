@@ -49,6 +49,7 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesIndexRequest;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
@@ -735,6 +736,27 @@ public final class IndexResolverReplacer implements DCFListener {
             final SingleShardRequest<?> gr = (SingleShardRequest<?>) request;
             final String[] indices = gr.indices();
             final String index = gr.index();
+
+            final List<String> indicesL = new ArrayList<String>();
+
+            if (index != null) {
+                indicesL.add(index);
+            }
+
+            if (indices != null && indices.length > 0) {
+                indicesL.addAll(Arrays.asList(indices));
+            }
+
+            String[] newIndices = provider.provide(indicesL.toArray(new String[0]), request, true);
+            if(checkIndices(request, newIndices, true, allowEmptyIndices) == false) {
+                return false;
+            }
+            ((SingleShardRequest) request).index(newIndices.length!=1?null:newIndices[0]);
+        } else if (request instanceof FieldCapabilitiesIndexRequest) {
+            FieldCapabilitiesIndexRequest fieldCapabilitiesRequest = (FieldCapabilitiesIndexRequest) request;
+
+            final String[] indices = fieldCapabilitiesRequest.indices();
+            final String index = fieldCapabilitiesRequest.index();
 
             final List<String> indicesL = new ArrayList<String>();
 
