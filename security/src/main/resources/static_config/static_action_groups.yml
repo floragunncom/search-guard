@@ -61,6 +61,7 @@ SGS_CREATE_INDEX:
   allowed_actions:
   - "indices:admin/create"
   - "indices:admin/mapping/put"
+  - "indices:admin/mapping/auto_put"
   - "indices:admin/auto_create"
   type: "index"
   description: "Allow creating new indices"
@@ -71,6 +72,7 @@ SGS_WRITE:
   allowed_actions:
   - "indices:data/write*"
   - "indices:admin/mapping/put"
+  - "indices:admin/mapping/auto_put"
   type: "index"
   description: "Allow writing data"
 SGS_MANAGE_ALIASES:
@@ -177,6 +179,7 @@ SGS_INDEX:
   - "indices:data/write/index*"
   - "indices:data/write/update*"
   - "indices:admin/mapping/put"
+  - "indices:admin/mapping/auto_put" 
   - "indices:data/write/bulk*"
   type: "index"
   description: "Allow indexing"
