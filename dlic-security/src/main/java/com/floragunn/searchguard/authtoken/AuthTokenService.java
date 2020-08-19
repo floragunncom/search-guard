@@ -41,6 +41,9 @@ import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.sgconf.history.UnknownConfigVersionException;
 import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.sgconf.impl.v6.RoleV6;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
@@ -223,12 +226,47 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                     .searchGuardRoles(authToken.getBase().getSearchGuardRoles()).build();
             TransportAddress callerTransportAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Set<String> mappedBaseRoles = configModelSnapshot.mapSgRoles(userWithRoles, callerTransportAddress);
+            SgRoles filteredBaseSgRoles = configModelSnapshot.getSgRoles().filter(mappedBaseRoles);
 
-            
-            
-            return null;
+            // TODO restrict roles acc to roles attr in RequestedPrivilges
+
+            RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivilges(),
+                    configModelSnapshot.getActionGroupResolver());
+
+            return new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles);
+
         } catch (UnknownConfigVersionException e) {
             throw new ElasticsearchSecurityException("Invalid auth token " + authToken, e);
         }
     }
+
+    static class SpecialPrivilegesEvaluationContextImpl implements SpecialPrivilegesEvaluationContext {
+
+        private final User user;
+        private final Set<String> mappedRoles;
+        private final SgRoles sgRoles;
+
+        SpecialPrivilegesEvaluationContextImpl(User user, Set<String> mappedRoles, SgRoles sgRoles) {
+            this.user = user;
+            this.mappedRoles = mappedRoles;
+            this.sgRoles = sgRoles;
+        }
+
+        @Override
+        public User getUser() {
+            return user;
+        }
+
+        @Override
+        public Set<String> getMappedRoles() {
+            return mappedRoles;
+        }
+
+        @Override
+        public SgRoles getSgRoles() {
+            return sgRoles;
+        }
+
+    }
+
 }

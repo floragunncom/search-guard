@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.authtoken;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -11,6 +12,9 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleV7.Index;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationError;
@@ -56,6 +60,47 @@ public class RequestedPrivileges implements Writeable, ToXContentObject {
     public List<String> getRoles() {
         return roles;
     }
+    
+    SgDynamicConfiguration<RoleV7> toRolesConfig()  {
+        SgDynamicConfiguration<RoleV7> roles = SgDynamicConfiguration.empty();
+        
+        RoleV7 role = new RoleV7();
+        
+        role.setCluster_permissions(new ArrayList<>(clusterPermissions));
+        
+        
+        List<RoleV7.Index> roleIndexPermissions = new ArrayList<>();
+        
+        for (IndexPermissions indexPermissionsEntry : this.indexPermissions) {
+            RoleV7.Index roleIndex = new RoleV7.Index();
+            
+            roleIndex.setIndex_patterns(new ArrayList<>(indexPermissionsEntry.indexPatterns));
+            roleIndex.setAllowed_actions(new ArrayList<>(indexPermissionsEntry.allowedActions));
+            
+            roleIndexPermissions.add(roleIndex);
+        }
+        
+        role.setIndex_permissions(roleIndexPermissions);
+        
+        List<RoleV7.Tenant> roleTenantPermissions = new ArrayList<>();
+
+        for (TenantPermissions tenantPermissionsEntry : this.tenantPermissions) {
+            RoleV7.Tenant roleTenant = new RoleV7.Tenant();
+            
+            roleTenant.setTenant_patterns(new ArrayList<>(tenantPermissionsEntry.tenantPatterns));
+            roleTenant.setAllowed_actions(new ArrayList<>(tenantPermissionsEntry.allowedActions));
+            
+            roleTenantPermissions.add(roleTenant);     
+        }
+        
+        role.setTenant_permissions(roleTenantPermissions);
+        
+        roles.putCEntry("_requested_privileges", role);
+        
+        return roles;
+    }
+    
+
 
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
