@@ -67,12 +67,12 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         if (!tenants.keySet().contains(requestedTenant)) {
             return false;
         } else {
-
-            if (log.isDebugEnabled()) {
-                log.debug("request " + request.getClass());
-            }
-            
             AllowedTenantAccess allowedTenantAccess = tenants.get(requestedTenant);
+            
+            if (log.isDebugEnabled()) {
+                log.debug("request " + request.getClass() + "; requestedTenant: " + requestedTenant + "; action: " + action
+                        + "; allowedTenantAccess: " + allowedTenantAccess);
+            }
             
             if (action.startsWith("indices:data/write")) {
                 if (action.startsWith(DeleteAction.NAME)) {
