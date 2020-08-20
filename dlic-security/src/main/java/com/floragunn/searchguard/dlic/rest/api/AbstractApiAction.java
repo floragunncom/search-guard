@@ -45,10 +45,7 @@ import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateNodeResponse;
@@ -109,7 +106,6 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client) throws IOException {
 
-		try {
             // validate additional settings, if any
             AbstractConfigurationValidator validator = getValidator(request, request.content());
             if (!validator.validate()) {
@@ -127,15 +123,14 @@ public abstract class AbstractApiAction extends BaseRestHandler {
             case GET:
                  handleGet(channel,request, client, validator.getContentAsNode());break;
             default:
-            	throw new IllegalArgumentException(request.method() + " not supported");
+                badRequestResponse(channel, request.method() + " not supported for " + this.getName()); break;
             }
-        } catch (JsonMappingException jme) {
-            throw jme;
-            //TODO strip source
+
+            //TODO strip source for JsonMappingException
             //if(jme.getLocation() == null || jme.getLocation().getSourceRef() == null) {
             //    throw jme;
             //} else throw new JsonMappingException(null, jme.getMessage());
-        }
+       
 	}
 
 	protected void handleDelete(final RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
@@ -374,17 +369,23 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         final Object originalOrigin = threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
 
         return channel -> {
-            
-            try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
 
-                threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-                threadPool.getThreadContext().putTransient(ConfigConstants.SG_USER, originalUser);
-                threadPool.getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
-                threadPool.getThreadContext().putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
+            threadPool.generic().submit(() -> {
 
-                handleApiRequest(channel, request, client);
- 
-            }
+                try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+
+                    threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+                    threadPool.getThreadContext().putTransient(ConfigConstants.SG_USER, originalUser);
+                    threadPool.getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
+                    threadPool.getThreadContext().putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
+
+                    handleApiRequest(channel, request, client);
+
+                } catch (Exception e) {
+                    log.error("Error while processing request " + request, e);
+                    internalErrorResponse(channel, "Error while processing request: " + e);
+                }
+            });
         };
     }
 
