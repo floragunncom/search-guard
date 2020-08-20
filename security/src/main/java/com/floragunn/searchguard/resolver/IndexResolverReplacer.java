@@ -755,25 +755,18 @@ public final class IndexResolverReplacer implements DCFListener {
         } else if (request instanceof FieldCapabilitiesIndexRequest) {
             FieldCapabilitiesIndexRequest fieldCapabilitiesRequest = (FieldCapabilitiesIndexRequest) request;
 
-            final String[] indices = fieldCapabilitiesRequest.indices();
-            final String index = fieldCapabilitiesRequest.index();
+            String index = fieldCapabilitiesRequest.index();
 
-            final List<String> indicesL = new ArrayList<String>();
-
-            if (index != null) {
-                indicesL.add(index);
-            }
-
-            if (indices != null && indices.length > 0) {
-                indicesL.addAll(Arrays.asList(indices));
-            }
-
-            String[] newIndices = provider.provide(indicesL.toArray(new String[0]), request, true);
-            if(checkIndices(request, newIndices, true, allowEmptyIndices) == false) {
+            String[] newIndices = provider.provide(new String [] {index}, request, true);
+            if(!checkIndices(request, newIndices, true, allowEmptyIndices)) {
                 return false;
             }
-            // FIXME
-            ((SingleShardRequest) request).index(newIndices.length!=1?null:newIndices[0]);
+            
+            // FieldCapabilitiesIndexRequest does not support replacing the indexes.
+            // However, the indexes are always determined by FieldCapabilitiesRequest which will be reduced below
+            // (implements Replaceable). So IF an index arrives here, we can be sure that we have
+            // at least privileges for indices:data/read/field_caps
+            
         } else if (request instanceof IndexRequest) {
             String[] newIndices = provider.provide(((IndexRequest) request).indices(), request, true);
             if(checkIndices(request, newIndices, true, allowEmptyIndices) == false) {
