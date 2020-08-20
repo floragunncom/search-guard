@@ -47,10 +47,10 @@ public final class AuthCredentials {
     private byte[] password;
     private Object nativeCredentials;
     private final Set<String> backendRoles;
-    private final boolean complete;
+    private boolean complete;
     private final byte[] internalPasswordHash;
     private final Map<String, String> attributes;
-
+   
     private AuthCredentials(String username, String subUserName, byte[] password, Object nativeCredentials, Set<String> backendRoles,
             boolean complete, byte[] internalPasswordHash, Map<String, String> attributes) {
         super();
@@ -64,6 +64,72 @@ public final class AuthCredentials {
         this.attributes = Collections.unmodifiableMap(attributes);
     }
 
+
+    @Deprecated
+    public AuthCredentials(final String username, final Object nativeCredentials) {
+        this(username, null, nativeCredentials);
+
+        if (nativeCredentials == null) {
+            throw new IllegalArgumentException("nativeCredentials must not be null or empty");
+        }
+    }
+
+    @Deprecated
+    public AuthCredentials(final String username, final byte[] password) {
+        this(username, password, null);
+
+        if (password == null || password.length == 0) {
+            throw new IllegalArgumentException("password must not be null or empty");
+        }
+    }
+
+    @Deprecated
+    public AuthCredentials(final String username, String... backendRoles) {
+        this(username, null, null, backendRoles);
+    }
+    
+    @Deprecated
+    private AuthCredentials(final String username, byte[] password, Object nativeCredentials, String... backendRoles) {
+        super();
+
+        if (username == null || username.isEmpty()) {
+            throw new IllegalArgumentException("username must not be null or empty");
+        }
+
+        this.username = username;
+        // make defensive copy
+        this.password = password == null ? null : Arrays.copyOf(password, password.length);
+        this.subUserName = null;
+        this.complete = false;
+
+        if(this.password != null) {
+            try {
+                MessageDigest digester = MessageDigest.getInstance(DIGEST_ALGORITHM);
+                internalPasswordHash = digester.digest(this.password);
+            } catch (NoSuchAlgorithmException e) {
+                throw new ElasticsearchSecurityException("Unable to digest password", e);
+            }
+        } else {
+            internalPasswordHash = null;
+        }
+
+        if(password != null) {
+            Arrays.fill(password, (byte) '\0');
+            password = null;
+        }
+
+        this.nativeCredentials = nativeCredentials;
+        nativeCredentials = null;
+
+        if(backendRoles != null && backendRoles.length > 0) {
+            this.backendRoles = new HashSet<>(Arrays.asList(backendRoles));
+        } else {
+            this.backendRoles = new HashSet<>();
+        }
+        
+        this.attributes = new HashMap<>();
+    }
+    
     /**
      * Wipe password and native credentials
      */
@@ -156,6 +222,8 @@ public final class AuthCredentials {
     public Map<String, String> getAttributes() {
         return this.attributes;
     }
+    
+    
 
     public Builder copy() {
         Builder builder = new Builder();
@@ -169,6 +237,20 @@ public final class AuthCredentials {
         builder.attributes.putAll(this.attributes);
         return builder;
     }
+
+    @Deprecated
+    public AuthCredentials markComplete() {
+        this.complete = true;
+        return this;
+    }
+
+    @Deprecated
+    public void addAttribute(String name, String value) {
+        if(name != null && !name.isEmpty()) {
+            this.attributes.put(name, value);
+        }
+    }
+
 
     public static class Builder {
         private String userName;
