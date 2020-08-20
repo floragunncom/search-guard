@@ -366,12 +366,12 @@ public class ConfigurationRepository {
                         LOGGER.debug("sg index exists and was created with ES 7 (new layout)");
                     }
                     
-                    retVal.putAll(validate(cl.load(configTypes.toArray(new CType[0]), 5, TimeUnit.SECONDS), configTypes.size()));
+                    retVal.putAll(validate(cl.load(configTypes.toArray(new CType[0]), 10, TimeUnit.SECONDS), configTypes.size()));
 
                 } else {
                     //wait (and use new layout)
                     LOGGER.debug("sg index not exists (yet)");
-                    retVal.putAll(validate(cl.load(configTypes.toArray(new CType[0]), 5, TimeUnit.SECONDS), configTypes.size()));
+                    retVal.putAll(validate(cl.load(configTypes.toArray(new CType[0]), 10, TimeUnit.SECONDS), configTypes.size()));
                 }
 
             } catch (Exception e) {
