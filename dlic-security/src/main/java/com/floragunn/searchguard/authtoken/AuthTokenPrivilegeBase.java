@@ -84,10 +84,10 @@ public class AuthTokenPrivilegeBase implements ToXContentObject {
             try {
                 configVersions = ConfigVersionSet.parse(vJsonNode.get("config"));
             } catch (ConfigValidationException e) {
-                validationErrors.add("base", e);
+                validationErrors.add("config", e);
             }
         } else {
-            validationErrors.add(new MissingAttribute("base", jsonNode));
+            validationErrors.add(new MissingAttribute("config", jsonNode));
         }
 
         ObjectNode attrsNode = vJsonNode.getObjectNode("attrs");
