@@ -154,6 +154,7 @@ SGS_KIBANA_SERVER:
   - "cluster:admin/xpack/monitoring*"
   - "indices:admin/template*"
   - "indices:data/read/scroll*"
+  - "SGS_CLUSTER_MANAGE_ILM"
   index_permissions:
   - index_patterns:
     - ".kibana"
