@@ -23,6 +23,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.SharedGroupFactory;
 
 import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
@@ -33,7 +34,8 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
 
     public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
             final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
-            final NamedXContentRegistry namedXContentRegistry, final ValidatingDispatcher dispatcher, ClusterSettings clusterSettings) {
-        super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sslExceptionHandler);
+            final NamedXContentRegistry namedXContentRegistry, final ValidatingDispatcher dispatcher, ClusterSettings clusterSettings,
+            SharedGroupFactory sharedGroupFactory) {
+        super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
     }
 }

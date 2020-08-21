@@ -19,12 +19,10 @@ package com.floragunn.searchguard.resolver;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -51,6 +49,7 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesIndexRequest;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
@@ -169,7 +168,7 @@ public final class IndexResolverReplacer implements DCFListener {
                 && (request instanceof FieldCapabilitiesRequest || request instanceof SearchRequest)) {
             remoteIndices = new HashSet<>();
             final Map<String, OriginalIndices> remoteClusterIndices = SearchGuardPlugin.GuiceHolder.getRemoteClusterService()
-                    .groupIndices(indicesOptions, requestedPatterns0, idx -> resolver.hasIndexOrAlias(idx, clusterService.state()));
+                    .groupIndices(indicesOptions, requestedPatterns0, idx -> resolver.hasIndexAbstraction(idx, clusterService.state()));
             final Set<String> remoteClusters = remoteClusterIndices.keySet().stream()
                     .filter(k -> !RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY.equals(k)).collect(Collectors.toSet());
             for (String remoteCluster : remoteClusters) {
@@ -753,6 +752,21 @@ public final class IndexResolverReplacer implements DCFListener {
                 return false;
             }
             ((SingleShardRequest) request).index(newIndices.length!=1?null:newIndices[0]);
+        } else if (request instanceof FieldCapabilitiesIndexRequest) {
+            FieldCapabilitiesIndexRequest fieldCapabilitiesRequest = (FieldCapabilitiesIndexRequest) request;
+
+            String index = fieldCapabilitiesRequest.index();
+
+            String[] newIndices = provider.provide(new String [] {index}, request, true);
+            if(!checkIndices(request, newIndices, true, allowEmptyIndices)) {
+                return false;
+            }
+            
+            // FieldCapabilitiesIndexRequest does not support replacing the indexes.
+            // However, the indexes are always determined by FieldCapabilitiesRequest which will be reduced below
+            // (implements Replaceable). So IF an index arrives here, we can be sure that we have
+            // at least privileges for indices:data/read/field_caps
+            
         } else if (request instanceof IndexRequest) {
             String[] newIndices = provider.provide(((IndexRequest) request).indices(), request, true);
             if(checkIndices(request, newIndices, true, allowEmptyIndices) == false) {

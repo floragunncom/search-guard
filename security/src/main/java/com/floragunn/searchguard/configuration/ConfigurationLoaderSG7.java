@@ -150,9 +150,17 @@ public class ConfigurationLoaderSG7 {
         mget.refresh(true);
         mget.realtime(true);
         
+        if (log.isTraceEnabled()) {
+            log.trace("Issuing " + mget);
+        }
+        
         client.multiGet(mget, new ActionListener<MultiGetResponse>() {
             @Override
             public void onResponse(MultiGetResponse response) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Response for " + mget + ": " + response);
+                }
+                
                 MultiGetItemResponse[] responses = response.getResponses();
                 for (MultiGetItemResponse singleResponse : responses) {
                     if (singleResponse != null && !singleResponse.isFailed()) {
@@ -183,6 +191,9 @@ public class ConfigurationLoaderSG7 {
             
             @Override
             public void onFailure(Exception e) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Failure for " + mget + ": " + e);
+                }
                 callback.failure(e);
             }
         });
