@@ -28,6 +28,7 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardUtils;
+import org.elasticsearch.indices.IndicesModule;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
@@ -39,8 +40,8 @@ import com.google.common.collect.Sets;
 
 public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearcherWrapper {
 
-    private static final Set<String> metaFields = Sets.union(Sets.newHashSet("_source", "_version", "_field_names", "_seq_no", "_primary_term"),
-            Sets.newHashSet(MapperService.getAllMetaFields()));
+    private static final Set<String> metaFields = Sets.union(Sets.newHashSet("_primary_term"),
+            Sets.newHashSet(IndicesModule.getBuiltInMetadataFields()));
     private final ClusterService clusterService;
     private final IndexService indexService;
     private final ComplianceConfig complianceConfig;
