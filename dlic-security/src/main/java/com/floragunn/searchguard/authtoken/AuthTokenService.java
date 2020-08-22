@@ -38,15 +38,11 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.IndexNotFoundException;
 
-import com.fasterxml.jackson.core.JsonPointer;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProvider;
 import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
-import com.floragunn.searchguard.sgconf.ParsingUpdatingSupplier;
 import com.floragunn.searchguard.sgconf.SgRoles;
-import com.floragunn.searchguard.sgconf.UpdatingSupplier;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.sgconf.history.UnknownConfigVersionException;
@@ -90,20 +86,6 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
         this.setConfig(config);
-    }
-
-    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
-            UpdatingSupplier<AuthTokenServiceConfig> configSupplier) {
-        this(privilegedConfigClient, configHistoryService, settings, configSupplier.get());
-
-        configSupplier.addChangeListener(this::setConfig);
-    }
-
-    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
-            DynamicConfigFactory dynamicConfigFactory) {
-        this(privilegedConfigClient, configHistoryService, settings,
-                new ParsingUpdatingSupplier<>(dynamicConfigFactory.getUpdatingDynamicConfigModelSupplier(), "sgconfig",
-                        JsonPointer.compile("/dynamic/auth_token_provider"), AuthTokenServiceConfig::parse));
     }
 
     public AuthToken getById(String id) throws NoSuchAuthTokenException {
