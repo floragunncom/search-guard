@@ -139,6 +139,8 @@ import com.floragunn.searchguard.http.SearchGuardHttpServerTransport;
 import com.floragunn.searchguard.http.SearchGuardNonSslHttpServerTransport;
 import com.floragunn.searchguard.http.XFFResolver;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.modules.SearchGuardModule.BaseDependencies;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
@@ -195,15 +197,15 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private volatile SearchGuardFilter sgf;
     private volatile ComplianceConfig complianceConfig;
     private volatile IndexResolverReplacer irr;
-    // XXX
     private ScriptService scriptService;
-    // XXX
     private NamedXContentRegistry xContentRegistry;
 
     private static ProtectedIndices protectedIndices;
     private volatile NamedXContentRegistry namedXContentRegistry = null;
     private volatile DlsFlsRequestValve dlsFlsValve = null;
        
+    private SearchGuardModulesRegistry moduleRegistry = SearchGuardModulesRegistry.INSTANCE;
+    
     @Override
     public void close() throws IOException {
         //TODO implement close
@@ -265,7 +267,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
 
         signalsEnabled = settings.getAsBoolean("signals.enabled", true);
-
+        
         SearchGuardPlugin.protectedIndices = new ProtectedIndices(settings);
 
         demoCertHashes.add("54a92508de7a39d06242a0ffbf59414d7eb478633c719e6af03938daf6de8a1a");
@@ -379,6 +381,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             }
 
         }
+
+        if (enterpriseModulesEnabled) {
+            moduleRegistry.add("com.floragunn.searchguard.authtoken.AuthTokenModule");
+        }
+
     }
 
     private String sha256(Path p) {
@@ -479,6 +486,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         restController, localClient, adminDns, cr, cs, scriptService, xContentRegistry, principalExtractor, evaluator, threadPool,
                         auditLog));
             }
+            
+            handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
+                    indexNameExpressionResolver, nodesInCluster));
         }
 
         return handlers;
@@ -506,6 +516,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (signalsEnabled) {
             actions.addAll(ReflectionHelper.getActions("com.floragunn.signals.Signals"));
         }
+        
+        actions.addAll(moduleRegistry.getActions());
 
         return actions;
     }
@@ -517,6 +529,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (signalsEnabled) {
             result.addAll(ReflectionHelper.getContexts("com.floragunn.signals.Signals"));
         }
+        
+        result.addAll(moduleRegistry.getContexts());
 
         return result;
     }
@@ -861,6 +875,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     resourceWatcherService, scriptService, xContentRegistry, environment, nodeEnvironment, internalAuthTokenProvider,
                     protectedIndices, namedWriteableRegistry, dcf));
         }
+        
+        BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
+                scriptService, xContentRegistry, environment, indexNameExpressionResolver, dcf, cr, protectedIndices);        
+        
+        components.addAll(moduleRegistry.createComponents(baseDependencies));
 
         sgRestHandler = new SearchGuardRestFilter(backendRegistry, auditLog, threadPool, principalExtractor, settings, configPath, compatConfig);
 
@@ -1108,6 +1127,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.addAll(ResourceOwnerService.SUPPORTED_SETTINGS);
 
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false, Property.NodeScope, Property.Filtered));
+            
+            settings.addAll(moduleRegistry.getSettings());
         }
 
         return settings;

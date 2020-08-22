@@ -7,8 +7,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
-import com.floragunn.searchguard.sgconf.impl.v7.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.Client;
@@ -29,6 +29,13 @@ import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6;
 import com.floragunn.searchguard.sgconf.impl.v6.InternalUserV6;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleV6;
+import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
+import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
+import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
+import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
+import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class DynamicConfigFactory implements Initializable, ConfigurationChangeListener {
@@ -81,6 +88,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     private final Settings esSettings;
     private final Path configPath;
     private final InternalAuthenticationBackend iab = new InternalAuthenticationBackend();
+    private final List<Consumer<SgDynamicConfiguration<ConfigModelV7>>> configChangeConsumers = new ArrayList<>();
 
     SgDynamicConfiguration<?> config;
     
@@ -176,6 +184,8 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             	}            	
                 listener.onChanged(cm, dcm, ium);
             }
+            
+            notifyConfigChangeListeners(config);
         
         } else {
             //rebuild v6 Models
@@ -224,6 +234,30 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     @Override
     public final boolean isInitialized() {
         return initialized.get();
+    }
+    
+
+    @SuppressWarnings("unchecked")
+    private void notifyConfigChangeListeners(SgDynamicConfiguration<?> config) {
+        for (Consumer<SgDynamicConfiguration<ConfigModelV7>> consumer : this.configChangeConsumers) {
+            try {
+                consumer.accept((SgDynamicConfiguration<ConfigModelV7>) config);
+            } catch (Exception e) {
+                log.error("Error in " + consumer + " consuming " + config);
+            }
+        }
+    }
+    
+    public <T> void addConfigChangeListener(Class<T> configType, Consumer<SgDynamicConfiguration<T>> listener) {
+        if (configType.equals(ConfigModelV7.class)) {
+            @SuppressWarnings("rawtypes")
+            Consumer rawListener = listener;
+            @SuppressWarnings("unchecked")
+            Consumer<SgDynamicConfiguration<ConfigModelV7>> configListener = (Consumer<SgDynamicConfiguration<ConfigModelV7>>) rawListener;
+            configChangeConsumers.add(configListener);
+        } else {
+            throw new RuntimeException(configType + " is not supported by addConfigChangeListener()");
+        }
     }
     
     public void registerDCFListener(DCFListener listener) {
