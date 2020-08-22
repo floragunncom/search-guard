@@ -51,6 +51,27 @@ public class AuthTokenServiceConfig {
     public TemporalAmount getMaxValidity() {
         return maxValidity;
     }
+    
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public void setJwtSigningKey(JsonWebKey jwtSigningKey) {
+        this.jwtSigningKey = jwtSigningKey;
+    }
+
+    public void setJwtEncryptionKey(JsonWebKey jwtEncryptionKey) {
+        this.jwtEncryptionKey = jwtEncryptionKey;
+    }
+
+    public void setJwtAud(String jwtAud) {
+        this.jwtAud = jwtAud;
+    }
+
+    public void setMaxValidity(TemporalAmount maxValidity) {
+        this.maxValidity = maxValidity;
+    }
 
     public static AuthTokenServiceConfig parse(JsonNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -183,4 +204,5 @@ public class AuthTokenServiceConfig {
             return "A Base64 encoded A256KW key with at least 256 bit (32 bytes, 43 Base64 encoded characters)";
         }
     };
+
 }
