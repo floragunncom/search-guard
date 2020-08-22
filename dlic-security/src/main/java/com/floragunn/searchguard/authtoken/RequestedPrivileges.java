@@ -12,10 +12,12 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.config.validation.ValidationError;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
@@ -222,6 +224,10 @@ public class RequestedPrivileges implements Writeable, ToXContentObject {
         validationErrors.throwExceptionForPresentErrors();
 
         return result;
+    }
+
+    public static RequestedPrivileges parseYaml(String yaml) throws ConfigValidationException {
+        return parse(ValidatingJsonParser.readYamlTree(yaml));
     }
 
     @Override

@@ -53,7 +53,7 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
         authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, baseDependencies.getSettings(),
                 new AuthTokenServiceConfig());
 
-        return Arrays.asList();
+        return Arrays.asList(authTokenService);
     }
 
     @Override
@@ -61,7 +61,8 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
         return Arrays.asList(AuthTokenService.INDEX_NAME, ConfigHistoryService.CACHE_MAX_SIZE, ConfigHistoryService.CACHE_TTL,
                 ConfigHistoryService.INDEX_NAME, ConfigHistoryService.MODEL_CACHE_MAX_SIZE, ConfigHistoryService.MODEL_CACHE_TTL);
     }
-
+    
+    @Override
     public SgConfigMetadata<AuthTokenServiceConfig> getSgConfigMetadata() {
         return new SgConfigMetadata<AuthTokenServiceConfig>(ConfigV7.class, "sgconfig", JsonPointer.compile("/dynamic/auth_token_provider"),
                 AuthTokenServiceConfig::parse, authTokenService::setConfig);
