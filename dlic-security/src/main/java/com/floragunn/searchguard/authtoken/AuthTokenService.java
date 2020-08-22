@@ -16,8 +16,6 @@ import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
 import org.apache.cxf.rs.security.jose.jwe.JweUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.cxf.rs.security.jose.jwk.KeyType;
-import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
 import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
 import org.apache.cxf.rs.security.jose.jws.JwsUtils;
 import org.apache.cxf.rs.security.jose.jwt.JoseJwtProducer;
@@ -40,12 +38,15 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.IndexNotFoundException;
 
+import com.fasterxml.jackson.core.JsonPointer;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
-import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListenerImpl;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProvider;
 import com.floragunn.searchguard.sgconf.ConfigModel;
+import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
+import com.floragunn.searchguard.sgconf.ParsingUpdatingSupplier;
 import com.floragunn.searchguard.sgconf.SgRoles;
+import com.floragunn.searchguard.sgconf.UpdatingSupplier;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.sgconf.history.UnknownConfigVersionException;
@@ -81,11 +82,28 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private JsonWebKey signingKey;
     private JwsSignatureVerifier jwsSignatureVerifier;
     private JweDecryptionProvider jweDecryptionProvider;
+    private AuthTokenServiceConfig config;
 
-    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings) {
+    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
+            AuthTokenServiceConfig config) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
+        this.setConfig(config);
+    }
+
+    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
+            UpdatingSupplier<AuthTokenServiceConfig> configSupplier) {
+        this(privilegedConfigClient, configHistoryService, settings, configSupplier.get());
+
+        configSupplier.addChangeListener(this::setConfig);
+    }
+
+    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
+            DynamicConfigFactory dynamicConfigFactory) {
+        this(privilegedConfigClient, configHistoryService, settings,
+                new ParsingUpdatingSupplier<>(dynamicConfigFactory.getUpdatingDynamicConfigModelSupplier(), "sgconfig",
+                        JsonPointer.compile("/dynamic/auth_token_provider"), AuthTokenServiceConfig::parse));
     }
 
     public AuthToken getById(String id) throws NoSuchAuthTokenException {
@@ -162,19 +180,53 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         jwtClaims.setNotBefore(now.getEpochSecond() - 30);
 
-        if (request.getExpiresAfter() != null) {
-            jwtClaims.setExpiryTime(now.plus(request.getExpiresAfter()).getEpochSecond());
+        Instant expiresAfter = getExpiryTime(now, request);
+
+        if (expiresAfter != null) {
+            jwtClaims.setExpiryTime(expiresAfter.getEpochSecond());
         }
 
         jwtClaims.setSubject(user.getName());
         jwtClaims.setTokenId(authToken.getId());
-        jwtClaims.setAudience(jwtAudience);
+        jwtClaims.setAudience(config.getJwtAud());
         jwtClaims.setProperty("requested", ObjectTreeXContent.toObjectTree(authToken.getRequestedPrivilges()));
         jwtClaims.setProperty("base", ObjectTreeXContent.toObjectTree(authToken.getBase()));
 
         String encodedJwt = this.jwtProducer.processJwt(jwt);
 
         return encodedJwt;
+    }
+
+    public void setConfig(AuthTokenServiceConfig config) {
+        if (config == null) {
+            // Expected when SG is not initialized yet
+            return;
+        }
+
+        this.config = config;
+
+        setKeys(config.getJwtSigningKey(), config.getJwtEncryptionKey());
+    }
+
+    private Instant getExpiryTime(Instant now, CreateAuthTokenRequest request) {
+        Instant expiresAfter = null;
+        Instant expiresAfterMax = null;
+
+        if (request.getExpiresAfter() != null) {
+            expiresAfter = now.plus(request.getExpiresAfter());
+        }
+
+        if (config.getMaxValidity() != null) {
+            expiresAfterMax = now.plus(config.getMaxValidity());
+        }
+
+        if (expiresAfter == null) {
+            expiresAfter = expiresAfterMax;
+        } else if (expiresAfter != null && expiresAfterMax != null && expiresAfterMax.isBefore(expiresAfter)) {
+            expiresAfter = expiresAfterMax;
+        }
+
+        return expiresAfter;
     }
 
     private String getRandomId() {
@@ -210,7 +262,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             log.error("Error while initializing JWT producer in AuthTokenProvider", e);
         }
     }
-    
+
     public JsonWebKey getSigningKey() {
         return signingKey;
     }
@@ -224,22 +276,6 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         this.signingKey = signingKey;
         initJwtProducer();
-    }
-
-    public void setSigningKey(String keyString) {
-        if (keyString != null && keyString.length() > 0) {
-
-            JsonWebKey jwk = new JsonWebKey();
-
-            jwk.setKeyType(KeyType.OCTET);
-            jwk.setAlgorithm("HS512");
-            jwk.setPublicKeyUse(PublicKeyUse.SIGN);
-            jwk.setProperty("k", keyString);
-
-            setSigningKey(jwk);
-        } else {
-            setSigningKey((JsonWebKey) null);
-        }
     }
 
     public JsonWebKey getEncryptionKey() {
@@ -257,20 +293,16 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         initJwtProducer();
     }
 
-    public void setEncryptionKey(String keyString) {
-        if (keyString != null && keyString.length() > 0) {
-
-            JsonWebKey jwk = new JsonWebKey();
-
-            jwk.setKeyType(KeyType.OCTET);
-            jwk.setAlgorithm("A256KW");
-            jwk.setPublicKeyUse(PublicKeyUse.ENCRYPT);
-            jwk.setProperty("k", keyString);
-
-            setEncryptionKey(jwk);
-        } else {
-            setEncryptionKey((JsonWebKey) null);
+    public void setKeys(JsonWebKey signingKey, JsonWebKey encryptionKey) {
+        if (Objects.equals(this.signingKey, signingKey) && Objects.equals(this.encryptionKey, encryptionKey)) {
+            return;
         }
+
+        log.info("Updating keys for " + this);
+
+        this.signingKey = signingKey;
+        this.encryptionKey = encryptionKey;
+        initJwtProducer();
     }
 
     private Set<String> getClaimAsSet(Map<String, Object> claims, String claimName) {
