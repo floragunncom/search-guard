@@ -68,6 +68,11 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
 
         return this.versionMap.equals(((ConfigVersionSet) other).versionMap);
     }
+    
+    @Override
+    public String toString() {
+        return versionMap.values().toString();
+    }
 
     public static class Builder {
         private Map<CType, ConfigVersion> versionMap = new HashMap<>();
@@ -166,4 +171,6 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
 
         return builder.build();
     }
+
+
 }

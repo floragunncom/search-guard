@@ -1,12 +1,10 @@
 package com.floragunn.searchguard.authtoken;
 
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import java.util.Collections;
+import java.util.Map;
+
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.script.ScriptService;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -16,6 +14,11 @@ import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.user.User;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 
 public class AuthTokenServiceTest {
 
@@ -27,13 +30,14 @@ public class AuthTokenServiceTest {
 
     @BeforeClass
     public static void setupTestData() {
-
+        /*
         try (Client client = cluster.getInternalClient()) {
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
                     .actionGet();
         }
+        */
     }
 
     @BeforeClass
@@ -43,19 +47,39 @@ public class AuthTokenServiceTest {
     }
 
     @Test
-    public void testWebhookAction() throws Exception {
+    public void basicTest() throws Exception {
+        User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
         AuthTokenServiceConfig config = new AuthTokenServiceConfig();
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
+        config.setJwtAud("_test_aud");
 
-        AuthTokenService authTokenService = new AuthTokenService(PrivilegedConfigClient.adapt(cluster.getInternalClient()), configHistoryService,
+        AuthTokenService authTokenService = new AuthTokenService(PrivilegedConfigClient.adapt(cluster.node().client()), configHistoryService,
                 Settings.EMPTY, config);
 
-        RequestedPrivileges requestedPrivileges = RequestedPrivileges.parseYaml("cluster_permissions: - cluster:test");
-        CreateAuthTokenRequest request = new CreateAuthTokenRequest();
+        RequestedPrivileges requestedPrivileges = RequestedPrivileges.parseYaml("cluster_permissions:\n- cluster:test\nroles:\n- r1\n- r0");
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
 
-        AuthToken authToken = authTokenService.create(User.forUser("test").backendRoles("r1", "r2", "3").build(), request);
+        String jwtString = authTokenService.createJwt(testUser, request);
 
+        JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
+
+        Claims claims = jwtParser.parseClaimsJws(jwtString).getBody();
+
+        System.out.println(claims);
+
+        Assert.assertEquals(testUser.getName(), claims.getSubject());
+        Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
+        Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("roles_be"));
+        Assert.assertEquals(config.getJwtAud(), claims.getAudience());
+        
+        AuthToken authToken = authTokenService.getByClaims(claims);
+        
         System.out.println(authToken);
+
+        Assert.assertEquals(testUser.getName(), authToken.getUserName());
+        Assert.assertEquals(requestedPrivileges.getClusterPermissions(), authToken.getRequestedPrivilges().getClusterPermissions());
+        Assert.assertEquals(Collections.singletonList("r1"), authToken.getBase().getBackendRoles());
+
     }
 }

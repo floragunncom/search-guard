@@ -148,6 +148,11 @@ public class RequestedPrivileges implements Writeable, ToXContentObject {
             builder.endObject();
             return builder;
         }
+
+        @Override
+        public String toString() {
+            return "IndexPermissions [indexPatterns=" + indexPatterns + ", allowedActions=" + allowedActions + "]";
+        }
     }
 
     public static class TenantPermissions implements Writeable, ToXContentObject {
@@ -189,6 +194,11 @@ public class RequestedPrivileges implements Writeable, ToXContentObject {
             builder.field("allowed_actions", allowedActions);
             builder.endObject();
             return builder;
+        }
+
+        @Override
+        public String toString() {
+            return "TenantPermissions [tenantPatterns=" + tenantPatterns + ", allowedActions=" + allowedActions + "]";
         }
     }
 
@@ -252,6 +262,12 @@ public class RequestedPrivileges implements Writeable, ToXContentObject {
 
         builder.endObject();
         return builder;
+    }
+
+    @Override
+    public String toString() {
+        return "RequestedPrivileges [clusterPermissions=" + clusterPermissions + ", indexPermissions=" + indexPermissions + ", tenantPermissions="
+                + tenantPermissions + ", roles=" + roles + "]";
     }
 
 }

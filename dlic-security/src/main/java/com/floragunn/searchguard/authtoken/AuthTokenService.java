@@ -172,6 +172,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         jwtClaims.setTokenId(authToken.getId());
         jwtClaims.setAudience(config.getJwtAud());
         jwtClaims.setProperty("requested", ObjectTreeXContent.toObjectTree(authToken.getRequestedPrivilges()));
+        // TODO compact format for base
         jwtClaims.setProperty("base", ObjectTreeXContent.toObjectTree(authToken.getBase()));
 
         String encodedJwt = this.jwtProducer.processJwt(jwt);
@@ -186,6 +187,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         }
 
         this.config = config;
+        this.jwtAudience = config.getJwtAud();
 
         setKeys(config.getJwtSigningKey(), config.getJwtEncryptionKey());
     }
@@ -217,7 +219,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         byteBuffer.putLong(uuid.getMostSignificantBits());
         byteBuffer.putLong(uuid.getLeastSignificantBits());
 
-        return BaseEncoding.base64Url().encode(byteBuffer.array());
+        return BaseEncoding.base64Url().encode(byteBuffer.array()).replace("=", "");
     }
 
     void initJwtProducer() {

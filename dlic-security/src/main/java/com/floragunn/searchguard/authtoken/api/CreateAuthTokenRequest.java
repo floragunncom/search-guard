@@ -2,31 +2,31 @@ package com.floragunn.searchguard.authtoken.api;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
+import java.time.temporal.TemporalAmount;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.authtoken.RequestedPrivileges;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.MissingAttribute;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
-import com.floragunn.searchsupport.config.validation.ValidationError;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.util.temporal.TemporalAmountFormat;
 
-public class CreateAuthTokenRequest extends ActionRequest {
+public class CreateAuthTokenRequest extends ActionRequest implements ToXContentObject {
 
     private String tokenName;
     private String audience;
-    private Duration expiresAfter;
+    private TemporalAmount expiresAfter;
     private RequestedPrivileges requestedPrivileges;
 
     public CreateAuthTokenRequest() {
@@ -44,9 +44,13 @@ public class CreateAuthTokenRequest extends ActionRequest {
         this.tokenName = in.readString();
         this.audience = in.readOptionalString();
 
-        Long expiresAfterMillis = in.readOptionalLong();
+        String expiresAfter = in.readOptionalString();
 
-        this.expiresAfter = expiresAfterMillis != null ? Duration.ofMillis(expiresAfterMillis) : null;
+        try {
+            this.expiresAfter = TemporalAmountFormat.INSTANCE.parse(expiresAfter);
+        } catch (ConfigValidationException e) {
+            throw new IOException("Error while parsing " + expiresAfter, e);
+        }
         this.requestedPrivileges = new RequestedPrivileges(in);
     }
 
@@ -55,7 +59,7 @@ public class CreateAuthTokenRequest extends ActionRequest {
         super.writeTo(out);
         out.writeString(tokenName);
         out.writeOptionalString(audience);
-        out.writeOptionalLong(expiresAfter != null ? expiresAfter.toMillis() : null);
+        out.writeOptionalString(TemporalAmountFormat.INSTANCE.format(expiresAfter));
         requestedPrivileges.writeTo(out);
     }
 
@@ -69,8 +73,9 @@ public class CreateAuthTokenRequest extends ActionRequest {
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(ValidatingJsonParser.readTree(document, contentType), validationErrors);
         CreateAuthTokenRequest result = new CreateAuthTokenRequest();
 
+        result.tokenName = vJsonNode.string("name");
         result.audience = vJsonNode.string("audience");
-        result.expiresAfter = vJsonNode.duration("expires_after");
+        result.expiresAfter = vJsonNode.temporalAmount("expires_after");
 
         if (vJsonNode.hasNonNull("requested")) {
             try {
@@ -103,7 +108,7 @@ public class CreateAuthTokenRequest extends ActionRequest {
         this.audience = audience;
     }
 
-    public Duration getExpiresAfter() {
+    public TemporalAmount getExpiresAfter() {
         return expiresAfter;
     }
 
@@ -117,6 +122,27 @@ public class CreateAuthTokenRequest extends ActionRequest {
 
     public void setTokenName(String tokenName) {
         this.tokenName = tokenName;
+    }
+
+    public String toJson() {
+        return Strings.toString(this);
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        if (tokenName != null) {
+            builder.field("name", tokenName);
+        }
+        
+        if (expiresAfter != null) {
+            builder.field("expires_after", TemporalAmountFormat.INSTANCE.format(expiresAfter));
+        }
+
+        if (requestedPrivileges != null) {
+            builder.field("requested", requestedPrivileges);
+        }
+
+        return builder;
     }
 
 }
