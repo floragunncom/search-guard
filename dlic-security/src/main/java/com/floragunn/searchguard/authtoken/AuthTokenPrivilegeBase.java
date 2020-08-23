@@ -76,8 +76,8 @@ public class AuthTokenPrivilegeBase implements ToXContentObject {
 
         ConfigVersionSet configVersions = null;
 
-        List<String> backendRoles = vJsonNode.stringList("roles_be");
-        List<String> searchGuardRoles = vJsonNode.stringList("roles_sg");
+        List<String> backendRoles = vJsonNode.stringList("roles_be", Collections.emptyList());
+        List<String> searchGuardRoles = vJsonNode.stringList("roles_sg", Collections.emptyList());
         Map<String, String> attributes = new LinkedHashMap<>();
 
         if (vJsonNode.hasNonNull("config")) {
@@ -102,5 +102,11 @@ public class AuthTokenPrivilegeBase implements ToXContentObject {
         }
 
         return new AuthTokenPrivilegeBase(backendRoles, searchGuardRoles, attributes, configVersions);
+    }
+
+    @Override
+    public String toString() {
+        return "AuthTokenPrivilegeBase [backendRoles=" + backendRoles + ", searchGuardRoles=" + searchGuardRoles + ", configVersions="
+                + configVersions + ", attributes=" + attributes + "]";
     }
 }

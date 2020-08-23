@@ -91,4 +91,10 @@ public class AuthToken implements ToXContentObject {
         return new AuthToken(id, userName, tokenName, requestedPrivilges, base);
     }
 
+    @Override
+    public String toString() {
+        return "AuthToken [userName=" + userName + ", tokenName=" + tokenName + ", id=" + id + ", requestedPrivilges=" + requestedPrivilges
+                + ", base=" + base + "]";
+    }
+
 }

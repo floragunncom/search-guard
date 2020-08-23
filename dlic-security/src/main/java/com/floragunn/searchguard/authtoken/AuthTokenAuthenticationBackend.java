@@ -43,7 +43,7 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
     @Override
     public boolean exists(User user) {
         // TODO 
-        return false;
+        return true;
     }
 
 }

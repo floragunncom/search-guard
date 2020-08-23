@@ -53,7 +53,7 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
         authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, baseDependencies.getSettings(),
                 new AuthTokenServiceConfig());
 
-        return Arrays.asList(authTokenService);
+        return Arrays.asList(authTokenService, configHistoryService);
     }
 
     @Override

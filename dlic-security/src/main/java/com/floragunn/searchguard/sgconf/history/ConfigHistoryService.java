@@ -22,6 +22,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.IndexNotFoundException;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -177,17 +178,25 @@ public class ConfigHistoryService {
             MultiGetResponse response = privilegedConfigClient.multiGet(multiGetRequest).actionGet();
 
             for (MultiGetItemResponse itemResponse : response.getResponses()) {
-                if (itemResponse.getResponse() != null) {
-                    if (itemResponse.getResponse().isExists()) {
-
-                        SgDynamicConfiguration<?> sgDynamicConfig = parseConfig(itemResponse.getResponse());
-
-                        configByType.put(sgDynamicConfig.getCType(), sgDynamicConfig);
-                        configCache.put(new ConfigVersion(sgDynamicConfig.getCType(), sgDynamicConfig.getDocVersion()), sgDynamicConfig);
+                if (itemResponse.getResponse() == null) {
+                    if (itemResponse.getFailure() != null) {
+                        if (itemResponse.getFailure().getFailure() instanceof IndexNotFoundException) {
+                            continue;
+                        } else {
+                            throw new ElasticsearchException("Error while retrieving configuration versions " + configVersionSet + ": "
+                                    + itemResponse.getFailure().getFailure());
+                        }
+                    } else {
+                        throw new ElasticsearchException("Error while retrieving configuration versions " + configVersionSet + ": " + itemResponse);
                     }
+                }
 
-                } else {
-                    throw new ElasticsearchException("Error while retrieving configuration versions " + configVersionSet + ": " + itemResponse);
+                if (itemResponse.getResponse().isExists()) {
+
+                    SgDynamicConfiguration<?> sgDynamicConfig = parseConfig(itemResponse.getResponse());
+
+                    configByType.put(sgDynamicConfig.getCType(), sgDynamicConfig);
+                    configCache.put(new ConfigVersion(sgDynamicConfig.getCType(), sgDynamicConfig.getDocVersion()), sgDynamicConfig);
                 }
 
             }
@@ -195,6 +204,7 @@ public class ConfigHistoryService {
         }
 
         return new ConfigSnapshot(configByType, configVersionSet);
+
     }
 
     public SgDynamicConfiguration<?> parseConfig(GetResponse singleGetResponse) {
@@ -224,13 +234,15 @@ public class ConfigHistoryService {
             SgDynamicConfiguration<?> config = configByType.get(missingVersion.getConfigurationType());
             BytesReference uninterpolatedConfigBytes = BytesReference.fromByteBuffer(ByteBuffer.wrap(config.getUninterpolatedJson().getBytes()));
 
-            bulkRequest.add(
-                    new IndexRequest(indexName).id(missingVersion.toId()).source("config", uninterpolatedConfigBytes, "interpolated_config", config));
+            // TOD interpolated config
+            
+            bulkRequest.add(new IndexRequest(indexName).id(missingVersion.toId()).source("config",
+                    uninterpolatedConfigBytes /*, "interpolated_config", config */));
         }
 
         BulkResponse bulkResponse = bulkRequest.get();
         if (bulkResponse.hasFailures()) {
-            throw new RuntimeException("Failure while storing configs " + missingVersions + "; " + bulkResponse);
+            throw new RuntimeException("Failure while storing configs " + missingVersions + "; " + bulkResponse.buildFailureMessage());
         }
     }
 
