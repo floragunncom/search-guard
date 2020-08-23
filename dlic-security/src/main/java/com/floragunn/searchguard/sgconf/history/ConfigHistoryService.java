@@ -71,8 +71,7 @@ public class ConfigHistoryService {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configurationRepository = configurationRepository;
-        this.configCache = CacheBuilder.newBuilder().maximumSize(CACHE_MAX_SIZE.get(settings))
-                .expireAfterAccess(CACHE_TTL.get(settings), TimeUnit.MINUTES).build();
+        this.configCache = CacheBuilder.newBuilder().weakValues().build();
         this.configModelCache = CacheBuilder.newBuilder().maximumSize(MODEL_CACHE_MAX_SIZE.get(settings))
                 .expireAfterAccess(MODEL_CACHE_TTL.get(settings), TimeUnit.MINUTES).build();
         this.settings = settings;
@@ -113,9 +112,10 @@ public class ConfigHistoryService {
         if (existingConfigSnapshots.hasMissingConfigVersions()) {
             log.info("Storing missing config versions: " + existingConfigSnapshots.getMissingConfigVersions());
             storeMissingConfigDocs(existingConfigSnapshots.getMissingConfigVersions(), configByType);
+            return new ConfigSnapshot(configByType);
+        } else {
+            return existingConfigSnapshots;
         }
-
-        return existingConfigSnapshots;
     }
 
     public ConfigSnapshot getConfigSnapshot(ConfigVersionSet configVersionSet) throws UnknownConfigVersionException {
@@ -129,15 +129,30 @@ public class ConfigHistoryService {
         return configSnapshot;
     }
 
-    public ConfigModel getConfigSnapshotAsModel(ConfigVersionSet configVersionSet) throws UnknownConfigVersionException {
+    public ConfigModel getConfigModelForSnapshot(ConfigSnapshot configSnapshot) {
+        ConfigVersionSet configVersionSet = configSnapshot.getConfigVersions();
+
         ConfigModel configModel = configModelCache.getIfPresent(configVersionSet);
 
         if (configModel != null) {
             return configModel;
         }
 
-        ConfigSnapshot configSnapshot = getConfigSnapshot(configVersionSet);
+        return createConfigModelForSnapshot(configSnapshot);
+    }
 
+    public ConfigModel getConfigSnapshotAsModel(ConfigVersionSet configVersionSet) throws UnknownConfigVersionException {
+
+        ConfigModel configModel = configModelCache.getIfPresent(configVersionSet);
+
+        if (configModel != null) {
+            return configModel;
+        }
+
+        return createConfigModelForSnapshot(getConfigSnapshot(configVersionSet));
+    }
+
+    private ConfigModel createConfigModelForSnapshot(ConfigSnapshot configSnapshot) {
         SgDynamicConfiguration<RoleV7> roles = configSnapshot.getConfigByType(RoleV7.class);
         SgDynamicConfiguration<RoleMappingsV7> roleMappings = configSnapshot.getConfigByType(RoleMappingsV7.class);
         SgDynamicConfiguration<ActionGroupsV7> actionGroups = configSnapshot.getConfigByType(ActionGroupsV7.class);
@@ -148,11 +163,25 @@ public class ConfigHistoryService {
             blocks = SgDynamicConfiguration.empty();
         }
 
-        configModel = new ConfigModelV7(roles, roleMappings, actionGroups, tenants, blocks, currentDynamicConfigModel, settings);
+        ConfigModel configModel = new ConfigModelV7(roles, roleMappings, actionGroups, tenants, blocks, currentDynamicConfigModel, settings);
 
-        configModelCache.put(configVersionSet, configModel);
+        configModelCache.put(configSnapshot.getConfigVersions(), configModel);
 
         return configModel;
+    }
+
+    public ConfigSnapshot peekConfigSnapshotFromCache(ConfigVersionSet configVersionSet) {
+        Map<CType, SgDynamicConfiguration<?>> configByType = new HashMap<>();
+
+        for (ConfigVersion configurationVersion : configVersionSet) {
+            SgDynamicConfiguration<?> configuration = configCache.getIfPresent(configurationVersion);
+
+            if (configuration != null) {
+                configByType.put(configurationVersion.getConfigurationType(), configuration);
+            }
+        }
+
+        return new ConfigSnapshot(configByType, configVersionSet);
     }
 
     public ConfigSnapshot peekConfigSnapshot(ConfigVersionSet configVersionSet) {
@@ -232,10 +261,11 @@ public class ConfigHistoryService {
 
         for (ConfigVersion missingVersion : missingVersions) {
             SgDynamicConfiguration<?> config = configByType.get(missingVersion.getConfigurationType());
+            configCache.put(missingVersion, config);
             BytesReference uninterpolatedConfigBytes = BytesReference.fromByteBuffer(ByteBuffer.wrap(config.getUninterpolatedJson().getBytes()));
 
             // TOD interpolated config
-            
+
             bulkRequest.add(new IndexRequest(indexName).id(missingVersion.toId()).source("config",
                     uninterpolatedConfigBytes /*, "interpolated_config", config */));
         }
@@ -250,7 +280,7 @@ public class ConfigHistoryService {
 
         @Override
         public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
-            ConfigHistoryService.this.currentDynamicConfigModel = currentDynamicConfigModel;
+            ConfigHistoryService.this.currentDynamicConfigModel = dcm;
 
             // TODO invalidate only when necessary
             ConfigHistoryService.this.configModelCache.invalidateAll();

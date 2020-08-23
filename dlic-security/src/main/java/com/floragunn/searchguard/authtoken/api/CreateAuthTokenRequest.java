@@ -147,4 +147,10 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
         return builder;
     }
 
+    @Override
+    public String toString() {
+        return "CreateAuthTokenRequest [tokenName=" + tokenName + ", audience=" + audience + ", expiresAfter=" + expiresAfter
+                + ", requestedPrivileges=" + requestedPrivileges + "]";
+    }
+
 }

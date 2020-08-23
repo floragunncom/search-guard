@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.Map;
 
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -24,6 +25,7 @@ public class AuthTokenServiceTest {
 
     private static AuthTokenService authTokenService;
     private static ConfigHistoryService configHistoryService;
+    private static ThreadPool threadPool;
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().build();
@@ -44,6 +46,7 @@ public class AuthTokenServiceTest {
     public static void setupDependencies() {
         authTokenService = cluster.getInjectable(AuthTokenService.class);
         configHistoryService = cluster.getInjectable(ConfigHistoryService.class);
+        threadPool = cluster.getInjectable(ThreadPool.class);
     }
 
     @Test
@@ -55,7 +58,7 @@ public class AuthTokenServiceTest {
         config.setJwtAud("_test_aud");
 
         AuthTokenService authTokenService = new AuthTokenService(PrivilegedConfigClient.adapt(cluster.node().client()), configHistoryService,
-                Settings.EMPTY, config);
+                Settings.EMPTY, threadPool, config);
 
         RequestedPrivileges requestedPrivileges = RequestedPrivileges.parseYaml("cluster_permissions:\n- cluster:test\nroles:\n- r1\n- r0");
         CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
@@ -72,9 +75,9 @@ public class AuthTokenServiceTest {
         Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
         Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("roles_be"));
         Assert.assertEquals(config.getJwtAud(), claims.getAudience());
-        
+
         AuthToken authToken = authTokenService.getByClaims(claims);
-        
+
         System.out.println(authToken);
 
         Assert.assertEquals(testUser.getName(), authToken.getUserName());
