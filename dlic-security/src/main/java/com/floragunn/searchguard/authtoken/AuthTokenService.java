@@ -3,6 +3,7 @@ package com.floragunn.searchguard.authtoken;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -158,14 +159,14 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         JwtClaims jwtClaims = new JwtClaims();
         JwtToken jwt = new JwtToken(jwtClaims);
-        Instant now = Instant.now();
+        OffsetDateTime now = OffsetDateTime.now();
 
-        jwtClaims.setNotBefore(now.getEpochSecond() - 30);
+        jwtClaims.setNotBefore(now.toEpochSecond());
 
-        Instant expiresAfter = getExpiryTime(now, request);
+        OffsetDateTime expiresAfter = getExpiryTime(now, request);
 
         if (expiresAfter != null) {
-            jwtClaims.setExpiryTime(expiresAfter.getEpochSecond());
+            jwtClaims.setExpiryTime(expiresAfter.toEpochSecond());
         }
 
         jwtClaims.setSubject(user.getName());
@@ -192,9 +193,9 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         setKeys(config.getJwtSigningKey(), config.getJwtEncryptionKey());
     }
 
-    private Instant getExpiryTime(Instant now, CreateAuthTokenRequest request) {
-        Instant expiresAfter = null;
-        Instant expiresAfterMax = null;
+    private OffsetDateTime getExpiryTime(OffsetDateTime now, CreateAuthTokenRequest request) {
+        OffsetDateTime expiresAfter = null;
+        OffsetDateTime expiresAfterMax = null;
 
         if (request.getExpiresAfter() != null) {
             expiresAfter = now.plus(request.getExpiresAfter());

@@ -30,21 +30,24 @@ public class TransportCreateAuthTokenAction extends HandledTransportAction<Creat
     @Override
     protected final void doExecute(Task task, CreateAuthTokenRequest request, ActionListener<CreateAuthTokenResponse> listener) {
 
-        try {
-            ThreadContext threadContext = threadPool.getThreadContext();
+        ThreadContext threadContext = threadPool.getThreadContext();
 
-            User user = threadContext.getTransient(ConfigConstants.SG_USER);
+        User user = threadContext.getTransient(ConfigConstants.SG_USER);
 
-            if (user == null) {
-                listener.onFailure(new Exception("Request did not contain user"));
-                return;
-            }
-
-            String jwt = authTokenService.createJwt(user, request);
-
-            listener.onResponse(new CreateAuthTokenResponse(jwt));
-        } catch (Exception e) {
-            listener.onFailure(e);
+        if (user == null) {
+            listener.onFailure(new Exception("Request did not contain user"));
+            return;
         }
+
+        threadPool.generic().submit(() -> {
+            try {
+                String jwt = authTokenService.createJwt(user, request);
+
+                listener.onResponse(new CreateAuthTokenResponse(jwt));
+            } catch (Exception e) {
+                listener.onFailure(e);
+            }
+        });
+
     }
 }

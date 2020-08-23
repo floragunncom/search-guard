@@ -26,6 +26,8 @@ import com.floragunn.searchsupport.config.validation.ValueParser;
 
 public class AuthTokenServiceConfig {
 
+    public static final String DEFAULT_AUDIENCE = "searchguard_tokenauth";
+    
     private boolean enabled;
     private JsonWebKey jwtSigningKey;
     private JsonWebKey jwtEncryptionKey;
@@ -94,7 +96,7 @@ public class AuthTokenServiceConfig {
             result.jwtEncryptionKey = vJsonNode.requiredValue("jwt_encryption_key_a256kw", JWK_A256KW_ENCRYPTION_KEY_PARSER_A256KW);
         } 
         
-        result.jwtAud = vJsonNode.string("jwt_aud_claim", "searchguard_tokenauth");
+        result.jwtAud = vJsonNode.string("jwt_aud_claim", DEFAULT_AUDIENCE);
         result.maxValidity = vJsonNode.temporalAmount("max_validity");
 
         validationErrors.throwExceptionForPresentErrors();
