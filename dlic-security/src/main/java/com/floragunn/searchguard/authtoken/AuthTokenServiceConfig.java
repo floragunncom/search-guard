@@ -27,7 +27,7 @@ import com.floragunn.searchsupport.config.validation.ValueParser;
 public class AuthTokenServiceConfig {
 
     public static final String DEFAULT_AUDIENCE = "searchguard_tokenauth";
-    
+
     private boolean enabled;
     private JsonWebKey jwtSigningKey;
     private JsonWebKey jwtEncryptionKey;
@@ -53,7 +53,6 @@ public class AuthTokenServiceConfig {
     public TemporalAmount getMaxValidity() {
         return maxValidity;
     }
-    
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
@@ -82,22 +81,24 @@ public class AuthTokenServiceConfig {
         AuthTokenServiceConfig result = new AuthTokenServiceConfig();
         result.enabled = vJsonNode.booleanAttribute("enabled", false);
 
-        if (vJsonNode.hasNonNull("jwt_signing_key")) {
-            result.jwtSigningKey = vJsonNode.requiredValue("jwt_signing_key", JWK_SIGNING_KEY_PARSER);
-        } else if (vJsonNode.hasNonNull("jwt_signing_key_hs512")) {
-            result.jwtSigningKey = vJsonNode.requiredValue("jwt_signing_key_hs512", JWK_HS512_SIGNING_KEY_PARSER);
-        } else {
-            validationErrors.add(new MissingAttribute("jwt_signing_key", jsonNode));
-        }
+        if (result.enabled) {
+            if (vJsonNode.hasNonNull("jwt_signing_key")) {
+                result.jwtSigningKey = vJsonNode.requiredValue("jwt_signing_key", JWK_SIGNING_KEY_PARSER);
+            } else if (vJsonNode.hasNonNull("jwt_signing_key_hs512")) {
+                result.jwtSigningKey = vJsonNode.requiredValue("jwt_signing_key_hs512", JWK_HS512_SIGNING_KEY_PARSER);
+            } else {
+                validationErrors.add(new MissingAttribute("jwt_signing_key", jsonNode));
+            }
 
-        if (vJsonNode.hasNonNull("jwt_encryption_key")) {
-            result.jwtEncryptionKey = vJsonNode.requiredValue("jwt_encryption_key", JWK_ENCRYPTION_KEY_PARSER);
-        } else if (vJsonNode.hasNonNull("jwt_signing_key_a256kw")) {
-            result.jwtEncryptionKey = vJsonNode.requiredValue("jwt_encryption_key_a256kw", JWK_A256KW_ENCRYPTION_KEY_PARSER_A256KW);
-        } 
-        
-        result.jwtAud = vJsonNode.string("jwt_aud_claim", DEFAULT_AUDIENCE);
-        result.maxValidity = vJsonNode.temporalAmount("max_validity");
+            if (vJsonNode.hasNonNull("jwt_encryption_key")) {
+                result.jwtEncryptionKey = vJsonNode.requiredValue("jwt_encryption_key", JWK_ENCRYPTION_KEY_PARSER);
+            } else if (vJsonNode.hasNonNull("jwt_signing_key_a256kw")) {
+                result.jwtEncryptionKey = vJsonNode.requiredValue("jwt_encryption_key_a256kw", JWK_A256KW_ENCRYPTION_KEY_PARSER_A256KW);
+            }
+
+            result.jwtAud = vJsonNode.string("jwt_aud_claim", DEFAULT_AUDIENCE);
+            result.maxValidity = vJsonNode.temporalAmount("max_validity");
+        }
 
         validationErrors.throwExceptionForPresentErrors();
 
@@ -113,13 +114,14 @@ public class AuthTokenServiceConfig {
                 String jwkJsonString = new ObjectMapper().writeValueAsString(jsonNode);
 
                 JsonWebKey result = JwkUtils.readJwkKey(jwkJsonString);
-                
+
                 PublicKeyUse publicKeyUse = result.getPublicKeyUse();
-                
+
                 if (publicKeyUse != null && publicKeyUse != PublicKeyUse.SIGN) {
-                    throw new ConfigValidationException(new InvalidAttributeValue("use", publicKeyUse, "The use claim must designate the JWK for signing"));
+                    throw new ConfigValidationException(
+                            new InvalidAttributeValue("use", publicKeyUse, "The use claim must designate the JWK for signing"));
                 }
-                
+
                 return result;
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
@@ -145,7 +147,7 @@ public class AuthTokenServiceConfig {
             jwk.setProperty("k", value);
 
             // TODO validate bit size
-            
+
             return jwk;
         }
 
@@ -164,13 +166,14 @@ public class AuthTokenServiceConfig {
                 String jwkJsonString = new ObjectMapper().writeValueAsString(jsonNode);
 
                 JsonWebKey result = JwkUtils.readJwkKey(jwkJsonString);
-                
+
                 PublicKeyUse publicKeyUse = result.getPublicKeyUse();
-                
+
                 if (publicKeyUse != null && publicKeyUse != PublicKeyUse.ENCRYPT) {
-                    throw new ConfigValidationException(new InvalidAttributeValue("use", publicKeyUse, "The use claim must designate the JWK for encryption"));
+                    throw new ConfigValidationException(
+                            new InvalidAttributeValue("use", publicKeyUse, "The use claim must designate the JWK for encryption"));
                 }
-                
+
                 return result;
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
@@ -197,7 +200,6 @@ public class AuthTokenServiceConfig {
 
             // TODO validate bit size
 
-            
             return jwk;
         }
 

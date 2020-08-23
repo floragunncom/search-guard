@@ -1,7 +1,11 @@
 package com.floragunn.searchguard.sgconf.history;
 
 import java.io.IOException;
+import java.io.Serializable;
 
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
@@ -11,7 +15,9 @@ import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
-public class ConfigVersion implements ToXContentObject {
+public class ConfigVersion implements ToXContentObject, Writeable, Serializable {
+
+    private static final long serialVersionUID = -3369133843964881336L;
     private final CType configurationType;
     private final long version;
 
@@ -22,6 +28,11 @@ public class ConfigVersion implements ToXContentObject {
 
         this.configurationType = configurationType;
         this.version = version;
+    }
+
+    public ConfigVersion(StreamInput in) throws IOException {
+        this.configurationType = in.readEnum(CType.class);
+        this.version = in.readLong();
     }
 
     public CType getConfigurationType() {
@@ -74,7 +85,7 @@ public class ConfigVersion implements ToXContentObject {
         builder.endObject();
         return builder;
     }
-    
+
     public static ConfigVersion fromId(String id) {
         int u = id.lastIndexOf('_');
 
@@ -91,18 +102,23 @@ public class ConfigVersion implements ToXContentObject {
 
         }
     }
-    
+
     public static ConfigVersion parse(JsonNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
-        
+
         CType configType = vJsonNode.requiredCaseInsensitiveEnum("type", CType.class);
         long version = vJsonNode.requiredInt("version");
-        
+
         validationErrors.throwExceptionForPresentErrors();
-        
+
         return new ConfigVersion(configType, version);
     }
 
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        out.writeEnum(this.configurationType);
+        out.writeLong(this.version);
+    }
 
 }

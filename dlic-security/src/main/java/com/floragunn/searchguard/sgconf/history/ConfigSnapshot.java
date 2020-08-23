@@ -56,4 +56,10 @@ public class ConfigSnapshot {
         
         return (SgDynamicConfiguration<T>) config;
     }
+
+    @Override
+    public String toString() {
+        return "ConfigSnapshot [configByType=" + configByType + ", configVersions=" + configVersions + ", missingConfigVersions="
+                + missingConfigVersions + "]";
+    }
 }

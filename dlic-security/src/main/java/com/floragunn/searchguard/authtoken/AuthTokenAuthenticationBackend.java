@@ -29,7 +29,7 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
             AuthToken authToken = authTokenService.getByClaims(credentials.getClaims());
 
             return User.forUser(authToken.getUserName()).subName(authToken.getTokenName() + "[" + authToken.getId() + "]")
-                    .type(AuthTokenService.USER_TYPE).specialAuthzConfig(authToken).build();
+                    .type(AuthTokenService.USER_TYPE).specialAuthzConfig(authToken.getId()).build();
 
         } catch (NoSuchAuthTokenException | InvalidTokenException e) {
             throw new ElasticsearchSecurityException(e.getMessage(), e);

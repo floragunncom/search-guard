@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.authtoken;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,7 +13,6 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
@@ -21,7 +21,8 @@ import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.config.validation.ValidationError;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
-public class RequestedPrivileges implements Writeable, ToXContentObject {
+public class RequestedPrivileges implements Writeable, ToXContentObject, Serializable {
+    private static final long serialVersionUID = 5862219250642101795L;
     private List<String> clusterPermissions;
     private List<IndexPermissions> indexPermissions;
     private List<TenantPermissions> tenantPermissions;
@@ -108,7 +109,9 @@ public class RequestedPrivileges implements Writeable, ToXContentObject {
         out.writeOptionalStringCollection(roles);
     }
 
-    public static class IndexPermissions implements Writeable, ToXContentObject {
+    public static class IndexPermissions implements Writeable, ToXContentObject, Serializable {
+ 
+        private static final long serialVersionUID = -2567351561923741922L;
         private List<String> indexPatterns;
         private List<String> allowedActions;
 
@@ -155,7 +158,9 @@ public class RequestedPrivileges implements Writeable, ToXContentObject {
         }
     }
 
-    public static class TenantPermissions implements Writeable, ToXContentObject {
+    public static class TenantPermissions implements Writeable, ToXContentObject, Serializable {
+  
+        private static final long serialVersionUID = 170036537583928629L;
         private List<String> tenantPatterns;
         private List<String> allowedActions;
 

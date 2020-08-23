@@ -22,6 +22,8 @@ import com.fasterxml.jackson.core.JsonPointer;
 import com.floragunn.searchguard.authtoken.api.AuthTokenRestAction;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
 import com.floragunn.searchguard.authtoken.api.TransportCreateAuthTokenAction;
+import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
+import com.floragunn.searchguard.authtoken.update.TransportPushAuthTokenUpdateAction;
 import com.floragunn.searchguard.modules.SearchGuardModule;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
@@ -40,7 +42,8 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return Arrays.asList(new ActionHandler<>(CreateAuthTokenAction.INSTANCE, TransportCreateAuthTokenAction.class));
+        return Arrays.asList(new ActionHandler<>(CreateAuthTokenAction.INSTANCE, TransportCreateAuthTokenAction.class),
+                new ActionHandler<>(PushAuthTokenUpdateAction.INSTANCE, TransportPushAuthTokenUpdateAction.class));
     }
 
     @Override
@@ -51,9 +54,11 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
                 baseDependencies.getProtectedIndices(), baseDependencies.getDynamicConfigFactory(), baseDependencies.getSettings());
 
         authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, baseDependencies.getSettings(),
-                new AuthTokenServiceConfig());
+                baseDependencies.getThreadPool(), new AuthTokenServiceConfig());
 
         AuthTokenAuthenticationBackend authenticationBackend = new AuthTokenAuthenticationBackend(authTokenService);
+
+        baseDependencies.getSpecialPrivilegesEvaluationContextProviderRegistry().add(authTokenService);
 
         return Arrays.asList(authTokenService, configHistoryService, authenticationBackend);
     }

@@ -1,11 +1,17 @@
 package com.floragunn.searchguard.sgconf.history;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
@@ -18,7 +24,9 @@ import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
 import com.floragunn.searchsupport.config.validation.ValidationError;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
-public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObject {
+public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObject, Writeable, Serializable {
+
+    private static final long serialVersionUID = -1526475316346152188L;
 
     public static final ConfigVersionSet EMPTY = new Builder().build();
 
@@ -40,6 +48,20 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
 
     public ConfigVersionSet(Map<CType, ConfigVersion> versionMap) {
         this.versionMap = Collections.unmodifiableMap(versionMap);
+    }
+
+    public ConfigVersionSet(Collection<ConfigVersion> versions) {
+        Map<CType, ConfigVersion> versionMap = new HashMap<>(versions.size());
+
+        for (ConfigVersion version : versions) {
+            versionMap.put(version.getConfigurationType(), version);
+        }
+
+        this.versionMap = Collections.unmodifiableMap(versionMap);
+    }
+
+    public ConfigVersionSet(StreamInput in) throws IOException {
+        this(in.readList(ConfigVersion::new));
     }
 
     public ConfigVersion get(CType configurationType) {
@@ -68,7 +90,7 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
 
         return this.versionMap.equals(((ConfigVersionSet) other).versionMap);
     }
-    
+
     @Override
     public String toString() {
         return versionMap.values().toString();
@@ -172,5 +194,9 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
         return builder.build();
     }
 
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        out.writeList(new ArrayList<>(this.versionMap.values()));
+    }
 
 }

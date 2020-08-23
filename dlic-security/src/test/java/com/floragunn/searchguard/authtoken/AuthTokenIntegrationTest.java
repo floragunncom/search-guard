@@ -82,10 +82,10 @@ public class AuthTokenIntegrationTest {
     public static void setupTestData() {
 
         try (Client client = cluster.getInternalClient()) {
-            client.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is", "bad"))
-                    .actionGet();
+            client.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
+                    "not_allowed_from_token")).actionGet();
             client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
-                    "this_is", "good")).actionGet();
+                    "this_is", "allowed")).actionGet();
         }
 
     }
@@ -108,17 +108,37 @@ public class AuthTokenIntegrationTest {
         String token = response.toJsonNode().get("token").asText();
         Assert.assertNotNull(token);
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
             SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
                     .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
 
             Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals("good", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+            Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
 
             searchResponse = client.search(
                     new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
                     RequestOptions.DEFAULT);
 
+            Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals("not_allowed_from_token", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+        }
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
+            SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
+                    .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+
+            Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+
+            try {
+
+                searchResponse = client.search(
+                        new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
+                        RequestOptions.DEFAULT);
+                Assert.fail(searchResponse.toString());
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+            }
         }
 
     }
