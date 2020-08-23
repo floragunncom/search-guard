@@ -130,10 +130,11 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
         if (tokenName != null) {
             builder.field("name", tokenName);
         }
-        
+
         if (expiresAfter != null) {
             builder.field("expires_after", TemporalAmountFormat.INSTANCE.format(expiresAfter));
         }
@@ -142,6 +143,7 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
             builder.field("requested", requestedPrivileges);
         }
 
+        builder.endObject();
         return builder;
     }
 

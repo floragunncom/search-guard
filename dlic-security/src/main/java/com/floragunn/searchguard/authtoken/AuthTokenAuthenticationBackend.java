@@ -1,9 +1,6 @@
 package com.floragunn.searchguard.authtoken;
 
-import java.nio.file.Path;
-
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -15,16 +12,15 @@ import com.floragunn.searchguard.user.User;
  */
 public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
 
-    private Settings settings;
     private AuthTokenService authTokenService;
 
-    public AuthTokenAuthenticationBackend(Settings settings, Path configPath, AuthTokenService authTokenService) {
-        this.settings = settings;
+    public AuthTokenAuthenticationBackend(AuthTokenService authTokenService) {
+        this.authTokenService = authTokenService;
     }
 
     @Override
     public String getType() {
-        return "auth_token";
+        return "internal_auth_token";
     }
 
     @Override

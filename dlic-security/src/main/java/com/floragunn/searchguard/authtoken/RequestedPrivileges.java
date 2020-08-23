@@ -244,19 +244,19 @@ public class RequestedPrivileges implements Writeable, ToXContentObject {
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
 
-        if (clusterPermissions != null) {
+        if (clusterPermissions != null && clusterPermissions.size() > 0) {
             builder.field("cluster_permissions", clusterPermissions);
         }
 
-        if (indexPermissions != null) {
+        if (indexPermissions != null && indexPermissions.size() > 0) {
             builder.field("index_permissions", indexPermissions);
         }
 
-        if (tenantPermissions != null) {
+        if (tenantPermissions != null && tenantPermissions.size() > 0) {
             builder.field("tenant_permissions", tenantPermissions);
         }
 
-        if (roles != null) {
+        if (roles != null && roles.size() > 0) {
             builder.field("roles", roles);
         }
 
