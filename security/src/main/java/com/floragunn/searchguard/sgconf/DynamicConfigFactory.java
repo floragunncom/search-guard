@@ -22,6 +22,7 @@ import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.StaticResourceException;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v6.ActionGroupsV6;
@@ -88,16 +89,18 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     private final Settings esSettings;
     private final Path configPath;
     private final InternalAuthenticationBackend iab = new InternalAuthenticationBackend();
-    private final List<Consumer<SgDynamicConfiguration<ConfigModelV7>>> configChangeConsumers = new ArrayList<>();
+    private final List<Consumer<SgDynamicConfiguration<ConfigV7>>> configChangeConsumers = new ArrayList<>();
+    private final SearchGuardModulesRegistry modulesRegistry;
 
     SgDynamicConfiguration<?> config;
     
     public DynamicConfigFactory(ConfigurationRepository cr, final Settings esSettings, 
-            final Path configPath, Client client, ThreadPool threadPool, ClusterInfoHolder cih) {
+            final Path configPath, Client client, ThreadPool threadPool, ClusterInfoHolder cih, SearchGuardModulesRegistry modulesRegistry) {
         super();
         this.cr = cr;
         this.esSettings = esSettings;
         this.configPath = configPath;
+        this.modulesRegistry = modulesRegistry;
         
         if(esSettings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true)) {
             try {
@@ -108,6 +111,11 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         } else {
             log.info("Static resources will not be loaded.");
         }
+        
+        modulesRegistry.getAuthenticationBackends().add("intern", this.iab).add("internal", this.iab)
+                .add(InternalAuthenticationBackend.class.getName(), this.iab);
+        modulesRegistry.getAuthorizationBackends().add("intern", this.iab).add("internal", this.iab)
+                .add(InternalAuthenticationBackend.class.getName(), this.iab);        
         
         registerDCFListener(this.iab);
         this.cr.subscribeOnChange(this);
@@ -171,7 +179,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
 
 
             //rebuild v7 Models
-            DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), esSettings, configPath, iab);
+            DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), esSettings, configPath, modulesRegistry);
             InternalUsersModel ium = new InternalUsersModelV7((SgDynamicConfiguration<InternalUserV7>) internalusers);
             ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<RoleV7>) roles,(SgDynamicConfiguration<RoleMappingsV7>)rolesmapping,
                     (SgDynamicConfiguration<ActionGroupsV7>)actionGroups, (SgDynamicConfiguration<TenantV7>) tenants, (SgDynamicConfiguration<BlocksV7>) blocks, dcm, esSettings);
@@ -239,9 +247,9 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
 
     @SuppressWarnings("unchecked")
     private void notifyConfigChangeListeners(SgDynamicConfiguration<?> config) {
-        for (Consumer<SgDynamicConfiguration<ConfigModelV7>> consumer : this.configChangeConsumers) {
+        for (Consumer<SgDynamicConfiguration<ConfigV7>> consumer : this.configChangeConsumers) {
             try {
-                consumer.accept((SgDynamicConfiguration<ConfigModelV7>) config);
+                consumer.accept((SgDynamicConfiguration<ConfigV7>) config);
             } catch (Exception e) {
                 log.error("Error in " + consumer + " consuming " + config);
             }
@@ -249,11 +257,11 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     }
     
     public <T> void addConfigChangeListener(Class<T> configType, Consumer<SgDynamicConfiguration<T>> listener) {
-        if (configType.equals(ConfigModelV7.class)) {
+        if (configType.equals(ConfigV7.class)) {
             @SuppressWarnings("rawtypes")
             Consumer rawListener = listener;
             @SuppressWarnings("unchecked")
-            Consumer<SgDynamicConfiguration<ConfigModelV7>> configListener = (Consumer<SgDynamicConfiguration<ConfigModelV7>>) rawListener;
+            Consumer<SgDynamicConfiguration<ConfigV7>> configListener = (Consumer<SgDynamicConfiguration<ConfigV7>>) rawListener;
             configChangeConsumers.add(configListener);
         } else {
             throw new RuntimeException(configType + " is not supported by addConfigChangeListener()");

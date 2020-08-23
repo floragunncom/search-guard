@@ -2,15 +2,29 @@ package com.floragunn.searchguard.sgconf;
 
 import java.net.InetAddress;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
-import com.floragunn.searchguard.auth.*;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 
+import com.floragunn.searchguard.auth.AuthFailureListener;
+import com.floragunn.searchguard.auth.AuthenticationBackend;
+import com.floragunn.searchguard.auth.AuthenticationDomain;
+import com.floragunn.searchguard.auth.AuthorizationBackend;
+import com.floragunn.searchguard.auth.AuthorizationDomain;
+import com.floragunn.searchguard.auth.Destroyable;
+import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
-import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.Authc;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.AuthcDomain;
@@ -31,19 +45,20 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
     private Set<AuthorizationDomain> restAuthorizationDomains;
     private Set<AuthorizationDomain> transportAuthorizationDomains;
     private List<Destroyable> destroyableComponents;
-    private final InternalAuthenticationBackend iab;
+    private final SearchGuardModulesRegistry modulesRegistry;
 
     private List<AuthFailureListener> ipAuthFailureListeners;
     private Multimap<String, AuthFailureListener> authBackendFailureListeners;
     private List<ClientBlockRegistry<InetAddress>> ipClientBlockRegistries;
     private Multimap<String, ClientBlockRegistry<String>> authBackendClientBlockRegistries;
+   
     
-    public DynamicConfigModelV7(ConfigV7 config, Settings esSettings, Path configPath, InternalAuthenticationBackend iab) {
+    public DynamicConfigModelV7(ConfigV7 config, Settings esSettings, Path configPath, SearchGuardModulesRegistry modulesRegistry) {
         super();
         this.config = config;
         this.esSettings =  esSettings;
         this.configPath = configPath;
-        this.iab = iab;
+        this.modulesRegistry = modulesRegistry;
         buildAAA();
     }
     @Override
@@ -187,24 +202,14 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
             if (httpEnabled || transportEnabled) {
                 try {
 
-                    final String authzBackendClazz = ad.getValue().authorization_backend.type;
-                    final AuthorizationBackend authorizationBackend;
-                    
-                    if(authzBackendClazz.equals(InternalAuthenticationBackend.class.getName()) //NOSONAR
-                            || authzBackendClazz.equals("internal")
-                            || authzBackendClazz.equals("intern")) {
-                        authorizationBackend = iab;
-                        ReflectionHelper.addLoadedModule(InternalAuthenticationBackend.class);
-                    } else {
-                        authorizationBackend = newInstance(
-                                authzBackendClazz,"z",
-                                Settings.builder()
-                                .put(esSettings)
-                                //.putProperties(ads.getAsStringMap(DotPath.of("authorization_backend.config")), DynamicConfiguration.checkKeyFunction()).build(), configPath);
-                                .put(Settings.builder().loadFromSource(ad.getValue().authorization_backend.configAsJson(), XContentType.JSON).build()).build()
-                                , configPath);
-                    }
+                    String authzBackendClazz = ad.getValue().authorization_backend.type;
+                    Settings authorizationBackendSettings = Settings.builder().put(esSettings)
+                            .put(Settings.builder().loadFromSource(ad.getValue().authorization_backend.configAsJson(), XContentType.JSON).build())
+                            .build();
 
+                    AuthorizationBackend authorizationBackend = modulesRegistry.getAuthorizationBackends().getInstance(authzBackendClazz,
+                            authorizationBackendSettings, configPath);
+         
                     List<String> skippedUsers = ad.getValue().skipped_users;
                     if (httpEnabled) {
                         AuthorizationDomain domain = new AuthorizationDomain(authorizationBackend, skippedUsers);
@@ -233,8 +238,15 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
 
             if (httpEnabled || transportEnabled) {
                 try {
-                    AuthenticationBackend authenticationBackend;
-                    final String authBackendClazz = ad.getValue().authentication_backend.type;
+                    String authBackendClazz = ad.getValue().authentication_backend.type;
+                    Settings authenticationBackendSettings = Settings.builder()
+                            .put(esSettings)
+                            .put(Settings.builder().loadFromSource(ad.getValue().authentication_backend.configAsJson(), XContentType.JSON).build()).build();
+                    
+                    AuthenticationBackend authenticationBackend = modulesRegistry.getAuthenticationBackends().getInstance(authBackendClazz,
+                            authenticationBackendSettings, configPath);
+
+                    /*
                     if(authBackendClazz.equals(InternalAuthenticationBackend.class.getName()) //NOSONAR
                             || authBackendClazz.equals("internal")
                             || authBackendClazz.equals("intern")) {
@@ -248,7 +260,7 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
                                 //.putProperties(ads.getAsStringMap(DotPath.of("authentication_backend.config")), DynamicConfiguration.checkKeyFunction()).build()
                                 .put(Settings.builder().loadFromSource(ad.getValue().authentication_backend.configAsJson(), XContentType.JSON).build()).build()
                                 , configPath);
-                    }
+                    }*/
 
                     String httpAuthenticatorType = ad.getValue().http_authenticator.type; //no default
                     HTTPAuthenticator httpAuthenticator = httpAuthenticatorType==null?null:  (HTTPAuthenticator) newInstance(httpAuthenticatorType,"h",

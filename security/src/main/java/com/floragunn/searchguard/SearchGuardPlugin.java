@@ -204,7 +204,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private volatile NamedXContentRegistry namedXContentRegistry = null;
     private volatile DlsFlsRequestValve dlsFlsValve = null;
        
-    private SearchGuardModulesRegistry moduleRegistry = SearchGuardModulesRegistry.INSTANCE;
+    private SearchGuardModulesRegistry moduleRegistry = new SearchGuardModulesRegistry();
     
     @Override
     public void close() throws IOException {
@@ -830,7 +830,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, privilegesInterceptor, cih, irr,
                 enterpriseModulesEnabled);
 
-        final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, settings, configPath, localClient, threadPool, cih);
+        final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, settings, configPath, localClient, threadPool, cih, moduleRegistry);
         dcf.registerDCFListener(backendRegistry);
         dcf.registerDCFListener(compatConfig);
         dcf.registerDCFListener(irr);
@@ -869,6 +869,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(sgi);
         components.add(dcf);
         components.add(internalAuthTokenProvider);
+        components.add(moduleRegistry);
 
         if (signalsEnabled) {
             components.addAll(ReflectionHelper.createAlertingComponents(settings, configPath, localClient, clusterService, threadPool,
@@ -879,7 +880,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
                 scriptService, xContentRegistry, environment, indexNameExpressionResolver, dcf, cr, protectedIndices);        
         
-        components.addAll(moduleRegistry.createComponents(baseDependencies));
+        Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
+                
+        components.addAll(moduleComponents);
 
         sgRestHandler = new SearchGuardRestFilter(backendRegistry, auditLog, threadPool, principalExtractor, settings, configPath, compatConfig);
 

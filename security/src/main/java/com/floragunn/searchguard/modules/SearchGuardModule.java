@@ -52,14 +52,14 @@ public interface SearchGuardModule<T> {
         return Collections.emptyList();
     }
 
-    default public List<Setting<?>> getSettings() {
+    default List<Setting<?>> getSettings() {
         return Collections.emptyList();
     }
 
-    default public SgConfigMetadata<T> getSgConfigMetadata() {
+    default SgConfigMetadata<T> getSgConfigMetadata() {
         return null;
     }
-
+ 
     public class SgConfigMetadata<T> {
         private final Class<?> sgConfigType;
         private final String entry;

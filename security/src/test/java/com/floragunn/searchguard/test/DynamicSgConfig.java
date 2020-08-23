@@ -20,6 +20,7 @@ package com.floragunn.searchguard.test;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -99,50 +100,47 @@ public class DynamicSgConfig {
     }
 
     public List<IndexRequest> getDynamicConfig(String folder) {
+        return getDynamicConfig(folder, Collections.emptyMap());
+    }
+    
+    public List<IndexRequest> getDynamicConfig(String folder, Map<CType, String> override) {
         
         final String prefix = legacyConfigFolder+(folder == null?"":folder+"/");
         
         List<IndexRequest> ret = new ArrayList<>();
         
         ret.add(new IndexRequest(searchGuardIndexName)
-               .type(type)
                .id(CType.CONFIG.toLCString())
                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                .source(CType.CONFIG.toLCString(), sgConfigAsYamlString==null?FileHelper.readYamlContent(prefix+sgConfig):FileHelper.readYamlContentFromString(sgConfigAsYamlString)));
         
         ret.add(new IndexRequest(searchGuardIndexName)
-                .type(type)
         .id(CType.ACTIONGROUPS.toLCString())
         .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         .source(CType.ACTIONGROUPS.toLCString(), FileHelper.readYamlContent(prefix+sgActionGroups)));
  
         ret.add(new IndexRequest(searchGuardIndexName)
-                .type(type)
         .id(CType.INTERNALUSERS.toLCString())
         .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         .source(CType.INTERNALUSERS.toLCString(), FileHelper.readYamlContent(prefix+sgInternalUsers)));
  
         ret.add(new IndexRequest(searchGuardIndexName)
-                .type(type)
         .id(CType.ROLES.toLCString())
         .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         .source(CType.ROLES.toLCString(), FileHelper.readYamlContent(prefix+sgRoles)));
  
         ret.add(new IndexRequest(searchGuardIndexName)
-                .type(type)
         .id(CType.ROLESMAPPING.toLCString())
         .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         .source(CType.ROLESMAPPING.toLCString(), FileHelper.readYamlContent(prefix+sgRolesMapping)));
 
         if("".equals(legacyConfigFolder)) {
             ret.add(new IndexRequest(searchGuardIndexName)
-                    .type(type)
             .id(CType.TENANTS.toLCString())
             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
             .source(CType.TENANTS.toLCString(), FileHelper.readYamlContent(prefix+sgTenants)));
 
             ret.add(new IndexRequest(searchGuardIndexName)
-                    .type(type)
                     .id(CType.BLOCKS.toLCString())
                     .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(CType.BLOCKS.toLCString(), FileHelper.readYamlContent(prefix+sgBlocks)));

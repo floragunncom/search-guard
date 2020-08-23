@@ -3,7 +3,9 @@ package com.floragunn.searchguard.modules;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -25,25 +27,43 @@ import org.elasticsearch.script.ScriptContext;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.auth.AuthenticationBackend;
+import com.floragunn.searchguard.auth.AuthorizationBackend;
 import com.floragunn.searchguard.modules.SearchGuardModule.BaseDependencies;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 
 public class SearchGuardModulesRegistry {
-    public static final SearchGuardModulesRegistry INSTANCE = new SearchGuardModulesRegistry();
+    // TODO moduleinfo see reflectionhelper
+
+    //  public static final SearchGuardModulesRegistry INSTANCE = new SearchGuardModulesRegistry();
 
     private static final Logger log = LogManager.getLogger(SearchGuardModulesRegistry.class);
 
     private List<SearchGuardModule<?>> subModules = new ArrayList<>();
+    private Set<String> moduleNames = new HashSet<>();
 
-    private SearchGuardModulesRegistry() {
+    private SearchGuardComponentRegistry<AuthenticationBackend> authenticationBackends = new SearchGuardComponentRegistry<AuthenticationBackend>(
+            AuthenticationBackend.class, (o) -> o.getType()).add(StandardComponents.authcBackends);
+
+    private SearchGuardComponentRegistry<AuthorizationBackend> authorizationBackends = new SearchGuardComponentRegistry<AuthorizationBackend>(
+            AuthorizationBackend.class, (o) -> o.getType()).add(StandardComponents.authzBackends);
+    
+    
+    public SearchGuardModulesRegistry() {
 
     }
 
     public void add(String... classes) {
         for (String clazz : classes) {
             try {
+                if (moduleNames.contains(clazz)) {
+                    throw new IllegalStateException(clazz + " is already registered");
+                }
+
+                moduleNames.add(clazz);
+
                 Object object = Class.forName(clazz).getDeclaredConstructor().newInstance();
 
                 if (object instanceof SearchGuardModule) {
@@ -88,7 +108,7 @@ public class SearchGuardModulesRegistry {
         for (SearchGuardModule<?> module : subModules) {
             result.addAll(module.getContexts());
         }
-
+        
         return result;
     }
 
@@ -97,46 +117,53 @@ public class SearchGuardModulesRegistry {
 
         for (SearchGuardModule<?> module : subModules) {
             result.addAll(module.createComponents(baseDependencies));
-            
+
             registerConfigChangeListener(module, baseDependencies.getDynamicConfigFactory());
         }
         
+        authenticationBackends.addComponentsWithMatchingType(result);
+        authorizationBackends.addComponentsWithMatchingType(result);
+
         return result;
     }
 
     public List<Setting<?>> getSettings() {
         List<Setting<?>> result = new ArrayList<>();
 
+        log.info(subModules);
+
         for (SearchGuardModule<?> module : subModules) {
+            log.info(module.getSettings());
+
             result.addAll(module.getSettings());
         }
 
         return result;
     }
-    
+
     @SuppressWarnings("unchecked")
     private void registerConfigChangeListener(SearchGuardModule<?> module, DynamicConfigFactory dynamicConfigFactory) {
         SearchGuardModule.SgConfigMetadata<?> configMetadata = module.getSgConfigMetadata();
-        
+
         if (configMetadata == null) {
             return;
         }
-        
+
         dynamicConfigFactory.addConfigChangeListener(configMetadata.getSgConfigType(), (config) -> {
             Object convertedConfig = convert(configMetadata, config);
-            
+
             @SuppressWarnings("rawtypes")
             Consumer consumer = configMetadata.getConfigConsumer();
-            
+
             consumer.accept(convertedConfig);
         });
     }
-        
+
     private <T> T convert(SearchGuardModule.SgConfigMetadata<T> configMetadata, SgDynamicConfiguration<?> value) {
         if (value == null) {
             return null;
         }
-        
+
         Object entry = value.getCEntry(configMetadata.getEntry());
 
         if (entry == null) {
@@ -156,6 +183,13 @@ public class SearchGuardModulesRegistry {
             return null;
         }
     }
-    
-    
+
+    public SearchGuardComponentRegistry<AuthenticationBackend> getAuthenticationBackends() {
+        return authenticationBackends;
+    }
+
+    public SearchGuardComponentRegistry<AuthorizationBackend> getAuthorizationBackends() {
+        return authorizationBackends;
+    }
+
 }
