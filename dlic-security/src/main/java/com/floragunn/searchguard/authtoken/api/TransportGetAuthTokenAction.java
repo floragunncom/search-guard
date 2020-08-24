@@ -16,22 +16,22 @@ import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
-public class TransportRevokeAuthTokenAction extends AbstractTransportAuthTokenAction<RevokeAuthTokenRequest, RevokeAuthTokenResponse> {
+public class TransportGetAuthTokenAction extends AbstractTransportAuthTokenAction<GetAuthTokenRequest, GetAuthTokenResponse> {
 
     private final AuthTokenService authTokenService;
     private final ThreadPool threadPool;
 
     @Inject
-    public TransportRevokeAuthTokenAction(TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
+    public TransportGetAuthTokenAction(TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             AuthTokenService authTokenService, PrivilegesEvaluator privilegesEvaluator) {
-        super(RevokeAuthTokenAction.NAME, transportService, actionFilters, RevokeAuthTokenRequest::new, privilegesEvaluator);
+        super(GetAuthTokenAction.NAME, transportService, actionFilters, GetAuthTokenRequest::new, privilegesEvaluator);
 
         this.authTokenService = authTokenService;
         this.threadPool = threadPool;
     }
 
     @Override
-    protected final void doExecute(Task task, RevokeAuthTokenRequest request, ActionListener<RevokeAuthTokenResponse> listener) {
+    protected final void doExecute(Task task, GetAuthTokenRequest request, ActionListener<GetAuthTokenResponse> listener) {
 
         ThreadContext threadContext = threadPool.getThreadContext();
 
@@ -50,11 +50,9 @@ public class TransportRevokeAuthTokenAction extends AbstractTransportAuthTokenAc
                     throw new NoSuchAuthTokenException(request.getAuthTokenId());
                 }
 
-                String status = authTokenService.revoke(user, request.getAuthTokenId());
-
-                listener.onResponse(new RevokeAuthTokenResponse(status));
+                listener.onResponse(new GetAuthTokenResponse(authToken));
             } catch (NoSuchAuthTokenException e) {
-                listener.onResponse(new RevokeAuthTokenResponse(RestStatus.NOT_FOUND, "No such auth token: " + request.getAuthTokenId()));
+                listener.onResponse(new GetAuthTokenResponse(RestStatus.NOT_FOUND, "No such auth token: " + request.getAuthTokenId()));
             } catch (Exception e) {
                 listener.onFailure(e);
             }
