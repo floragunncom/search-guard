@@ -226,7 +226,7 @@ public class ProtectedConfigIndexService {
                 return false;
             if (getClass() != obj.getClass())
                 return false;
-            ConfigIndex other = (ConfigIndex) obj;
+            ConfigIndexState other = (ConfigIndexState) obj;
             if (name == null) {
                 if (other.name != null)
                     return false;
