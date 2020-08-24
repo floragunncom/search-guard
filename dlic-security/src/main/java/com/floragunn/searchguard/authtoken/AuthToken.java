@@ -58,7 +58,7 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         builder.endObject();
         return builder;
     }
-    
+
     public XContentBuilder toXContentFragment(XContentBuilder builder, Params params) throws IOException {
         builder.field("user_name", userName);
         builder.field("token_name", tokenName);
@@ -71,7 +71,6 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
             builder.field("revoked_at", revokedAt);
         }
 
-        builder.endObject();
         return builder;
     }
 
@@ -154,6 +153,7 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         out.writeOptionalString(this.tokenName);
         out.writeLong(this.creationTime);
         out.writeLong(this.expiryTime);
+        out.writeOptionalLong(this.revokedAt);
         this.requestedPrivilges.writeTo(out);
         this.base.writeTo(out);
     }

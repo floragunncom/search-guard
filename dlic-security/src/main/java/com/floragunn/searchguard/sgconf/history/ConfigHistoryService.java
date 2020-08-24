@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -25,8 +26,9 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 
 import com.fasterxml.jackson.core.Base64Variants;
-import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.ConfigModelV7;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
@@ -68,7 +70,7 @@ public class ConfigHistoryService {
     private final Settings settings;
 
     public ConfigHistoryService(ConfigurationRepository configurationRepository, PrivilegedConfigClient privilegedConfigClient,
-            ProtectedIndices protectedIndices, DynamicConfigFactory dynamicConfigFactory, Settings settings) {
+            ProtectedConfigIndexService protectedConfigIndexService, DynamicConfigFactory dynamicConfigFactory, Settings settings) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configurationRepository = configurationRepository;
@@ -76,7 +78,8 @@ public class ConfigHistoryService {
         this.configModelCache = CacheBuilder.newBuilder().maximumSize(MODEL_CACHE_MAX_SIZE.get(settings))
                 .expireAfterAccess(MODEL_CACHE_TTL.get(settings), TimeUnit.MINUTES).build();
         this.settings = settings;
-        protectedIndices.add(indexName);
+
+        protectedConfigIndexService.createIndex(new ConfigIndex(indexName));
 
         dynamicConfigFactory.registerDCFListener(dcfListener);
     }
@@ -128,6 +131,78 @@ public class ConfigHistoryService {
         }
 
         return configSnapshot;
+    }
+
+    public Map<ConfigVersionSet, ConfigSnapshot> getConfigSnapshots(Set<ConfigVersionSet> configVersionSets) {
+        Map<ConfigVersion, SgDynamicConfiguration<?>> configVersionMap = new HashMap<>(configVersionSets.size() * 2);
+        Set<ConfigVersion> missingConfigVersions = new HashSet<>(configVersionSets.size() * 2);
+
+        for (ConfigVersionSet configVersionSet : configVersionSets) {
+            for (ConfigVersion configurationVersion : configVersionSet) {
+                SgDynamicConfiguration<?> configuration = configCache.getIfPresent(configurationVersion);
+
+                if (configuration != null) {
+                    configVersionMap.put(configurationVersion, configuration);
+                } else {
+                    missingConfigVersions.add(configurationVersion);
+                }
+            }
+        }
+        
+        if (log.isDebugEnabled()) {
+            log.debug("missingConfigVersions: " + missingConfigVersions.size());
+        }
+
+        if (missingConfigVersions.size() > 0) {
+
+            MultiGetRequest multiGetRequest = new MultiGetRequest();
+
+            for (ConfigVersion configurationVersion : missingConfigVersions) {
+                multiGetRequest.add(indexName, configurationVersion.toId());
+            }
+
+            // TODO scroll
+            MultiGetResponse response = privilegedConfigClient.multiGet(multiGetRequest).actionGet();
+
+            for (MultiGetItemResponse itemResponse : response.getResponses()) {
+                if (itemResponse.getResponse() == null) {
+                    if (itemResponse.getFailure() != null) {
+                        if (itemResponse.getFailure().getFailure() instanceof IndexNotFoundException) {
+                            continue;
+                        } else {
+                            log.warn("Error while retrieving configuration versions " + itemResponse + ": " + itemResponse.getFailure().getFailure());
+                        }
+                    } else {
+                        log.warn("Error while retrieving configuration versions " + itemResponse);
+                    }
+                    continue;
+                }
+
+                if (itemResponse.getResponse().isExists()) {
+
+                    SgDynamicConfiguration<?> sgDynamicConfig = parseConfig(itemResponse.getResponse());
+                    ConfigVersion configVersion = new ConfigVersion(sgDynamicConfig.getCType(), sgDynamicConfig.getDocVersion());
+
+                    configVersionMap.put(configVersion, sgDynamicConfig);
+                    configCache.put(configVersion, sgDynamicConfig);
+                }
+
+            }
+        }
+
+        Map<ConfigVersionSet, ConfigSnapshot> result = new HashMap<>(configVersionSets.size());
+
+        for (ConfigVersionSet configVersionSet : configVersionSets) {
+            ConfigSnapshot configSnapshot = peekConfigSnapshotFromCache(configVersionSet);
+
+            if (configSnapshot.hasMissingConfigVersions()) {
+                log.error("Could not completely load " + configVersionSet + ". Missing: " + configSnapshot.getMissingConfigVersions());
+                continue;
+            }
+
+            result.put(configVersionSet, configSnapshot);
+        }
+        return result;
     }
 
     public ConfigModel getConfigModelForSnapshot(ConfigSnapshot configSnapshot) {
@@ -287,4 +362,8 @@ public class ConfigHistoryService {
             ConfigHistoryService.this.configModelCache.invalidateAll();
         }
     };
+
+    public String getIndexName() {
+        return indexName;
+    }
 }
