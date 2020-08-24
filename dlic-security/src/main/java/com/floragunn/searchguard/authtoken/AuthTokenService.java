@@ -49,6 +49,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
+import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateRequest;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateResponse;
@@ -94,6 +95,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private JwsSignatureVerifier jwsSignatureVerifier;
     private JweDecryptionProvider jweDecryptionProvider;
     private AuthTokenServiceConfig config;
+    private Set<AuthToken> unpushedTokens = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
             ThreadPool threadPool, AuthTokenServiceConfig config) {
@@ -173,31 +175,20 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         OffsetDateTime expiresAt = getExpiryTime(now, request);
 
         AuthToken authToken = new AuthToken(id, user.getName(), request.getTokenName(), request.getRequestedPrivileges(), base, now.toEpochSecond(),
-                expiresAt != null ? expiresAt.toEpochSecond() : Long.MAX_VALUE);
+                expiresAt != null ? expiresAt.toEpochSecond() : Long.MAX_VALUE, null);
 
         this.idToAuthTokenMap.put(id, authToken);
 
-        try (XContentBuilder xContentBuilder = XContentFactory.jsonBuilder()) {
-            authToken.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
-
-            IndexResponse indexResponse = privilegedConfigClient.index(new IndexRequest(indexName).id(id).source(xContentBuilder)).actionGet();
-
-            PushAuthTokenUpdateResponse pushAuthTokenUpdateResponse = privilegedConfigClient
-                    .execute(PushAuthTokenUpdateAction.INSTANCE, new PushAuthTokenUpdateRequest(authToken)).actionGet();
-
-            if (log.isDebugEnabled()) {
-                log.debug("Token stored: " + indexResponse + "; " + pushAuthTokenUpdateResponse);
-            }
-
+        try {
+            updateAuthToken(authToken);
         } catch (Exception e) {
-            this.idToAuthTokenMap.remove(id);
             throw new TokenCreationException("Error while creating token", e);
         }
 
         return authToken;
     }
 
-    public String createJwt(User user, CreateAuthTokenRequest request) throws TokenCreationException {
+    public CreateAuthTokenResponse createJwt(User user, CreateAuthTokenRequest request) throws TokenCreationException {
 
         if (jwtProducer == null) {
             throw new TokenCreationException("AuthTokenProvider is not configured");
@@ -223,7 +214,25 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         String encodedJwt = this.jwtProducer.processJwt(jwt);
 
-        return encodedJwt;
+        return new CreateAuthTokenResponse(authToken, encodedJwt);
+    }
+
+    public String revoke(User user, String id) throws NoSuchAuthTokenException, TokenUpdateException {
+        AuthToken authToken = getById(id);
+
+        // TODO owner check
+        
+        if (authToken.getRevokedAt() != null) {
+            return "Auth token was already revoked";
+        }
+
+        String updateStatus = updateAuthToken(authToken.getRevokedInstance());
+        
+        if (updateStatus != null) {
+            return updateStatus;
+        }
+        
+        return "Auth token has been revoked";
     }
 
     public void setConfig(AuthTokenServiceConfig config) {
@@ -351,6 +360,47 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         }
 
         return status;
+    }
+
+    private String updateAuthToken(AuthToken authToken) throws TokenUpdateException {
+        AuthToken oldToken = this.idToAuthTokenMap.put(authToken.getId(), authToken);
+
+        try (XContentBuilder xContentBuilder = XContentFactory.jsonBuilder()) {
+            authToken.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
+
+            IndexResponse indexResponse = privilegedConfigClient.index(new IndexRequest(indexName).id(authToken.getId()).source(xContentBuilder))
+                    .actionGet();
+
+            if (log.isDebugEnabled()) {
+                log.debug("Token stored: " + indexResponse);
+            }
+
+        } catch (Exception e) {
+            this.idToAuthTokenMap.put(oldToken.getId(), oldToken);
+            log.warn("Error while storing token " + authToken, e);
+            throw new TokenUpdateException(e);
+        }
+
+        try {
+            PushAuthTokenUpdateResponse pushAuthTokenUpdateResponse = privilegedConfigClient
+                    .execute(PushAuthTokenUpdateAction.INSTANCE, new PushAuthTokenUpdateRequest(authToken)).actionGet();
+
+            if (log.isDebugEnabled()) {
+                log.debug("Token update pushed: " + pushAuthTokenUpdateResponse);
+            }
+
+            if (pushAuthTokenUpdateResponse.hasFailures()) {
+                unpushedTokens.add(authToken);
+                return "Update partially failed: " + pushAuthTokenUpdateResponse.failures();
+            }
+
+        } catch (Exception e) {
+            log.warn("Token update push failed: " + authToken, e);
+            unpushedTokens.add(authToken);
+            return "Update partially failed: " + e;
+        }
+
+        return null;
     }
 
     private OffsetDateTime getExpiryTime(OffsetDateTime now, CreateAuthTokenRequest request) {
