@@ -11,6 +11,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
+import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -63,11 +64,11 @@ public class AuthTokenServiceTest {
         RequestedPrivileges requestedPrivileges = RequestedPrivileges.parseYaml("cluster_permissions:\n- cluster:test\nroles:\n- r1\n- r0");
         CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
 
-        String jwtString = authTokenService.createJwt(testUser, request);
+        CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
 
         JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
 
-        Claims claims = jwtParser.parseClaimsJws(jwtString).getBody();
+        Claims claims = jwtParser.parseClaimsJws(response.getJwt()).getBody();
 
         System.out.println(claims);
 

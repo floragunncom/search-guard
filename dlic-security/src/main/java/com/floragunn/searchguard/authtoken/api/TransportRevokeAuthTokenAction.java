@@ -13,22 +13,22 @@ import com.floragunn.searchguard.authtoken.AuthTokenService;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
-public class TransportCreateAuthTokenAction extends HandledTransportAction<CreateAuthTokenRequest, CreateAuthTokenResponse> {
+public class TransportRevokeAuthTokenAction extends HandledTransportAction<RevokeAuthTokenRequest, RevokeAuthTokenResponse> {
 
     private final AuthTokenService authTokenService;
     private final ThreadPool threadPool;
 
     @Inject
-    public TransportCreateAuthTokenAction(TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
+    public TransportRevokeAuthTokenAction(TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             AuthTokenService authTokenService) {
-        super(CreateAuthTokenAction.NAME, transportService, actionFilters, CreateAuthTokenRequest::new);
+        super(RevokeAuthTokenAction.NAME, transportService, actionFilters, RevokeAuthTokenRequest::new);
 
         this.authTokenService = authTokenService;
         this.threadPool = threadPool;
     }
 
     @Override
-    protected final void doExecute(Task task, CreateAuthTokenRequest request, ActionListener<CreateAuthTokenResponse> listener) {
+    protected final void doExecute(Task task, RevokeAuthTokenRequest request, ActionListener<RevokeAuthTokenResponse> listener) {
 
         ThreadContext threadContext = threadPool.getThreadContext();
 
@@ -41,7 +41,9 @@ public class TransportCreateAuthTokenAction extends HandledTransportAction<Creat
 
         threadPool.generic().submit(() -> {
             try {
-                listener.onResponse(authTokenService.createJwt(user, request));
+                String status = authTokenService.revoke(user, request.getAuthTokenId());
+
+                listener.onResponse(new RevokeAuthTokenResponse(status));
             } catch (Exception e) {
                 listener.onFailure(e);
             }
