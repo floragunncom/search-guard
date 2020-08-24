@@ -3,7 +3,6 @@ package com.floragunn.searchguard.authtoken;
 import org.elasticsearch.ElasticsearchSecurityException;
 
 import com.floragunn.searchguard.auth.AuthenticationBackend;
-import com.floragunn.searchguard.auth.AuthenticationBackend.UserCachingPolicy;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
@@ -39,8 +38,8 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
 
     @Override
     public boolean exists(User user) {
-        // TODO 
-        return true;
+        // This is only related to impersonation. Auth tokens don't support impersonation.
+        return false;
     }
 
     @Override

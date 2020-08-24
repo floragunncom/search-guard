@@ -582,4 +582,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     }
 
+    public String getIndexName() {
+        return indexName;
+    }
+
 }

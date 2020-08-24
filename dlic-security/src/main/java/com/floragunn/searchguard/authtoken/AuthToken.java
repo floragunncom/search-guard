@@ -54,6 +54,12 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
+        toXContentFragment(builder, params);
+        builder.endObject();
+        return builder;
+    }
+    
+    public XContentBuilder toXContentFragment(XContentBuilder builder, Params params) throws IOException {
         builder.field("user_name", userName);
         builder.field("token_name", tokenName);
         builder.field("requested", requestedPrivilges);

@@ -9,54 +9,65 @@ import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.rest.RestStatus;
 
-public class RevokeAuthTokenResponse extends ActionResponse implements StatusToXContentObject {
+import com.floragunn.searchguard.authtoken.AuthToken;
 
-    private String info;
+public class GetAuthTokenResponse extends ActionResponse implements StatusToXContentObject {
+
+    private AuthToken authToken;
     private RestStatus restStatus;
     private String error;
 
-    public RevokeAuthTokenResponse(String status) {
-        this.info = status;
+    public GetAuthTokenResponse() {
+    }
+
+    public GetAuthTokenResponse(AuthToken authToken) {
+        this.authToken = authToken;
         this.restStatus = RestStatus.OK;
     }
 
-    public RevokeAuthTokenResponse(RestStatus restStatus, String error) {
+    public GetAuthTokenResponse(RestStatus restStatus, String error) {
         this.restStatus = restStatus;
         this.error = error;
     }
 
-    public RevokeAuthTokenResponse(StreamInput in) throws IOException {
+    public GetAuthTokenResponse(StreamInput in) throws IOException {
         super(in);
-        this.info = in.readOptionalString();
         this.restStatus = in.readEnum(RestStatus.class);
         this.error = in.readOptionalString();
+
+        if (in.readBoolean()) {
+            this.authToken = new AuthToken(in);
+        }
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeOptionalString(info);
         out.writeEnum(this.restStatus);
         out.writeOptionalString(this.error);
+        out.writeBoolean(this.authToken != null);
+
+        if (this.authToken != null) {
+            this.authToken.writeTo(out);
+        }
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-
-        if (restStatus != null) {
+        if (authToken != null) {
+            authToken.toXContent(builder, params);
+        } else if (restStatus != null) {
             builder.field("status", restStatus.getStatus());
-        }
-
-        if (info != null) {
-            builder.field("info", info);
         }
 
         if (error != null) {
             builder.field("error", error);
         }
 
-        builder.endObject();
         return builder;
+    }
+
+    public AuthToken getAuthToken() {
+        return authToken;
     }
 
     @Override

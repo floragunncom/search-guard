@@ -21,7 +21,14 @@ import org.elasticsearch.rest.RestHandler;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.floragunn.searchguard.authtoken.api.AuthTokenRestAction;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
+import com.floragunn.searchguard.authtoken.api.GetAuthTokenAction;
+import com.floragunn.searchguard.authtoken.api.RevokeAuthTokenAction;
+import com.floragunn.searchguard.authtoken.api.SearchAuthTokenRestAction;
+import com.floragunn.searchguard.authtoken.api.SearchAuthTokensAction;
 import com.floragunn.searchguard.authtoken.api.TransportCreateAuthTokenAction;
+import com.floragunn.searchguard.authtoken.api.TransportGetAuthTokenAction;
+import com.floragunn.searchguard.authtoken.api.TransportRevokeAuthTokenAction;
+import com.floragunn.searchguard.authtoken.api.TransportSearchAuthTokensAction;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
 import com.floragunn.searchguard.authtoken.update.TransportPushAuthTokenUpdateAction;
 import com.floragunn.searchguard.modules.SearchGuardModule;
@@ -37,13 +44,16 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             Supplier<DiscoveryNodes> nodesInCluster) {
-        return Arrays.asList(new AuthTokenRestAction());
+        return Arrays.asList(new AuthTokenRestAction(), new SearchAuthTokenRestAction());
     }
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         return Arrays.asList(new ActionHandler<>(CreateAuthTokenAction.INSTANCE, TransportCreateAuthTokenAction.class),
-                new ActionHandler<>(PushAuthTokenUpdateAction.INSTANCE, TransportPushAuthTokenUpdateAction.class));
+                new ActionHandler<>(PushAuthTokenUpdateAction.INSTANCE, TransportPushAuthTokenUpdateAction.class),
+                new ActionHandler<>(GetAuthTokenAction.INSTANCE, TransportGetAuthTokenAction.class),
+                new ActionHandler<>(RevokeAuthTokenAction.INSTANCE, TransportRevokeAuthTokenAction.class),
+                new ActionHandler<>(SearchAuthTokensAction.INSTANCE, TransportSearchAuthTokensAction.class));
     }
 
     @Override

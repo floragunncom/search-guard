@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.authtoken.api;
 
 import static org.elasticsearch.rest.RestRequest.Method.DELETE;
+import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
@@ -10,6 +11,7 @@ import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.action.RestStatusToXContentListener;
 import org.elasticsearch.rest.action.RestToXContentListener;
 
 import com.floragunn.searchsupport.client.rest.Responses;
@@ -22,7 +24,8 @@ public class AuthTokenRestAction extends BaseRestHandler {
 
     @Override
     public List<Route> routes() {
-        return ImmutableList.of(new Route(POST, "/_searchguard/authtoken"), new Route(DELETE, "/_searchguard/authtoken/{id}"));
+        return ImmutableList.of(new Route(POST, "/_searchguard/authtoken"), new Route(GET, "/_searchguard/authtoken/{id}"),
+                new Route(DELETE, "/_searchguard/authtoken/{id}"));
 
     }
 
@@ -32,6 +35,8 @@ public class AuthTokenRestAction extends BaseRestHandler {
         return (RestChannel channel) -> {
             if (request.method() == POST) {
                 handlePost(request, client, channel);
+            } else if (request.method() == GET) {
+                handleGet(request, client, channel);
             } else if (request.method() == DELETE) {
                 handleDelete(request, client, channel);
             }
@@ -55,6 +60,16 @@ public class AuthTokenRestAction extends BaseRestHandler {
         try {
             client.execute(RevokeAuthTokenAction.INSTANCE, new RevokeAuthTokenRequest(request.param("id")),
                     new RestToXContentListener<RevokeAuthTokenResponse>(channel));
+        } catch (Exception e) {
+            Responses.sendError(channel, e);
+        }
+    }
+
+    private void handleGet(RestRequest request, NodeClient client, RestChannel channel) {
+
+        try {
+            client.execute(GetAuthTokenAction.INSTANCE, new GetAuthTokenRequest(request.param("id")),
+                    new RestStatusToXContentListener<GetAuthTokenResponse>(channel));
         } catch (Exception e) {
             Responses.sendError(channel, e);
         }
