@@ -84,4 +84,5 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
         return new SgConfigMetadata<AuthTokenServiceConfig>(ConfigV7.class, "sg_config", JsonPointer.compile("/dynamic/auth_token_provider"),
                 AuthTokenServiceConfig::parse, authTokenService::setConfig);
     }
+
 }
