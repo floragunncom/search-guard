@@ -208,7 +208,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private volatile DlsFlsRequestValve dlsFlsValve = null;
     private SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry = new SpecialPrivilegesEvaluationContextProviderRegistry();
        
-    private SearchGuardModulesRegistry moduleRegistry = new SearchGuardModulesRegistry();
+    private SearchGuardModulesRegistry moduleRegistry;
     
     @Override
     public void close() throws IOException {
@@ -242,6 +242,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         disabled = isDisabled(settings);
         sslCertReloadEnabled = isSslCertReloadEnabled(settings);
+        moduleRegistry = new SearchGuardModulesRegistry(settings);
 
         if (disabled) {
             this.dlsFlsAvailable = false;
@@ -1139,6 +1140,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false, Property.NodeScope, Property.Filtered));
             
+            settings.add(SearchGuardModulesRegistry.DISABLED_MODULES);
             settings.addAll(moduleRegistry.getSettings());
         }
 

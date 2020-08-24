@@ -53,6 +53,8 @@ import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
+import com.floragunn.searchguard.modules.SearchGuardModule;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.Base64Helper;
@@ -381,6 +383,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
         private String resourceFolder;
         private ClusterConfiguration clusterConfiguration = ClusterConfiguration.DEFAULT;
         private Settings.Builder nodeOverrideSettingsBuilder = Settings.builder();
+        private List<String> disabledModules = new ArrayList<>();
         private List<Class<? extends Plugin>> plugins = new ArrayList<>();
 
         public Builder sslEnabled() {
@@ -415,6 +418,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
             return this;
         }
 
+        public Builder disableModule(Class<? extends SearchGuardModule<?>> moduleClass) {
+            this.disabledModules.add(moduleClass.getName());
+
+            return this;
+        }
+
         public Builder plugin(Class<? extends Plugin> plugin) {
             this.plugins.add(plugin);
 
@@ -440,7 +449,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
                                     resourceFolder != null ? (resourceFolder + "/" + httpTruststoreFilepath) : httpTruststoreFilepath));
                 }
 
-                return new LocalCluster(resourceFolder, new DynamicSgConfig(), nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins);
+                if (this.disabledModules.size() > 0) {
+                    nodeOverrideSettingsBuilder.putList(SearchGuardModulesRegistry.DISABLED_MODULES.getKey(), this.disabledModules);
+                }
+
+                return new LocalCluster(resourceFolder,  new DynamicSgConfig(), nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

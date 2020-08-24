@@ -3,10 +3,12 @@ package com.floragunn.searchguard.modules;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
@@ -18,6 +20,7 @@ import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Setting;
+import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
@@ -37,12 +40,14 @@ import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 public class SearchGuardModulesRegistry {
     // TODO moduleinfo see reflectionhelper
 
-    //  public static final SearchGuardModulesRegistry INSTANCE = new SearchGuardModulesRegistry();
+    public static final Setting<List<String>> DISABLED_MODULES = Setting.listSetting("searchguard.modules.disabled", Collections.emptyList(),
+            Function.identity(), Property.NodeScope);
 
     private static final Logger log = LogManager.getLogger(SearchGuardModulesRegistry.class);
 
     private List<SearchGuardModule<?>> subModules = new ArrayList<>();
     private Set<String> moduleNames = new HashSet<>();
+    private final Set<String> disabledModules;
 
     private SearchGuardComponentRegistry<AuthenticationBackend> authenticationBackends = new SearchGuardComponentRegistry<AuthenticationBackend>(
             AuthenticationBackend.class, (o) -> o.getType()).add(StandardComponents.authcBackends);
@@ -50,13 +55,18 @@ public class SearchGuardModulesRegistry {
     private SearchGuardComponentRegistry<AuthorizationBackend> authorizationBackends = new SearchGuardComponentRegistry<AuthorizationBackend>(
             AuthorizationBackend.class, (o) -> o.getType()).add(StandardComponents.authzBackends);
 
-    public SearchGuardModulesRegistry() {
-
+    public SearchGuardModulesRegistry(Settings settings) {
+        this.disabledModules = new HashSet<>(DISABLED_MODULES.get(settings));
     }
 
     public void add(String... classes) {
         for (String clazz : classes) {
             try {
+                if (disabledModules.contains(clazz)) {
+                    log.info(clazz + " is disabled");
+                    continue;
+                }
+
                 if (moduleNames.contains(clazz)) {
                     throw new IllegalStateException(clazz + " is already registered");
                 }
@@ -129,18 +139,13 @@ public class SearchGuardModulesRegistry {
     public List<Setting<?>> getSettings() {
         List<Setting<?>> result = new ArrayList<>();
 
-        log.info(subModules);
-
         for (SearchGuardModule<?> module : subModules) {
-            log.info(module.getSettings());
-
             result.addAll(module.getSettings());
         }
 
         return result;
     }
-    
-    
+
     public void onNodeStarted() {
         for (SearchGuardModule<?> module : subModules) {
             module.onNodeStarted();
