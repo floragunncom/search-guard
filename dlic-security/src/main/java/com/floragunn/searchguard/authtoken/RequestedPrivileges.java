@@ -156,6 +156,37 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         public String toString() {
             return "IndexPermissions [indexPatterns=" + indexPatterns + ", allowedActions=" + allowedActions + "]";
         }
+
+        @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + ((allowedActions == null) ? 0 : allowedActions.hashCode());
+            result = prime * result + ((indexPatterns == null) ? 0 : indexPatterns.hashCode());
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            IndexPermissions other = (IndexPermissions) obj;
+            if (allowedActions == null) {
+                if (other.allowedActions != null)
+                    return false;
+            } else if (!allowedActions.equals(other.allowedActions))
+                return false;
+            if (indexPatterns == null) {
+                if (other.indexPatterns != null)
+                    return false;
+            } else if (!indexPatterns.equals(other.indexPatterns))
+                return false;
+            return true;
+        }
     }
 
     public static class TenantPermissions implements Writeable, ToXContentObject, Serializable {
@@ -204,6 +235,37 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         @Override
         public String toString() {
             return "TenantPermissions [tenantPatterns=" + tenantPatterns + ", allowedActions=" + allowedActions + "]";
+        }
+
+        @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + ((allowedActions == null) ? 0 : allowedActions.hashCode());
+            result = prime * result + ((tenantPatterns == null) ? 0 : tenantPatterns.hashCode());
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            TenantPermissions other = (TenantPermissions) obj;
+            if (allowedActions == null) {
+                if (other.allowedActions != null)
+                    return false;
+            } else if (!allowedActions.equals(other.allowedActions))
+                return false;
+            if (tenantPatterns == null) {
+                if (other.tenantPatterns != null)
+                    return false;
+            } else if (!tenantPatterns.equals(other.tenantPatterns))
+                return false;
+            return true;
         }
     }
 
@@ -273,6 +335,49 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     public String toString() {
         return "RequestedPrivileges [clusterPermissions=" + clusterPermissions + ", indexPermissions=" + indexPermissions + ", tenantPermissions="
                 + tenantPermissions + ", roles=" + roles + "]";
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((clusterPermissions == null) ? 0 : clusterPermissions.hashCode());
+        result = prime * result + ((indexPermissions == null) ? 0 : indexPermissions.hashCode());
+        result = prime * result + ((roles == null) ? 0 : roles.hashCode());
+        result = prime * result + ((tenantPermissions == null) ? 0 : tenantPermissions.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        RequestedPrivileges other = (RequestedPrivileges) obj;
+        if (clusterPermissions == null) {
+            if (other.clusterPermissions != null)
+                return false;
+        } else if (!clusterPermissions.equals(other.clusterPermissions))
+            return false;
+        if (indexPermissions == null) {
+            if (other.indexPermissions != null)
+                return false;
+        } else if (!indexPermissions.equals(other.indexPermissions))
+            return false;
+        if (roles == null) {
+            if (other.roles != null)
+                return false;
+        } else if (!roles.equals(other.roles))
+            return false;
+        if (tenantPermissions == null) {
+            if (other.tenantPermissions != null)
+                return false;
+        } else if (!tenantPermissions.equals(other.tenantPermissions))
+            return false;
+        return true;
     }
 
 }

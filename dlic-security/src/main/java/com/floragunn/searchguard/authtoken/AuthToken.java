@@ -144,4 +144,59 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         this.base.writeTo(out);
     }
 
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((base == null) ? 0 : base.hashCode());
+        result = prime * result + (int) (creationTime ^ (creationTime >>> 32));
+        result = prime * result + (int) (expiryTime ^ (expiryTime >>> 32));
+        result = prime * result + ((id == null) ? 0 : id.hashCode());
+        result = prime * result + ((requestedPrivilges == null) ? 0 : requestedPrivilges.hashCode());
+        result = prime * result + ((tokenName == null) ? 0 : tokenName.hashCode());
+        result = prime * result + ((userName == null) ? 0 : userName.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        AuthToken other = (AuthToken) obj;
+        if (base == null) {
+            if (other.base != null)
+                return false;
+        } else if (!base.equals(other.base))
+            return false;
+        if (creationTime != other.creationTime)
+            return false;
+        if (expiryTime != other.expiryTime)
+            return false;
+        if (id == null) {
+            if (other.id != null)
+                return false;
+        } else if (!id.equals(other.id))
+            return false;
+        if (requestedPrivilges == null) {
+            if (other.requestedPrivilges != null)
+                return false;
+        } else if (!requestedPrivilges.equals(other.requestedPrivilges))
+            return false;
+        if (tokenName == null) {
+            if (other.tokenName != null)
+                return false;
+        } else if (!tokenName.equals(other.tokenName))
+            return false;
+        if (userName == null) {
+            if (other.userName != null)
+                return false;
+        } else if (!userName.equals(other.userName))
+            return false;
+        return true;
+    }
+
 }

@@ -96,7 +96,7 @@ public class ConfigVersion implements ToXContentObject, Writeable, Serializable 
         try {
             long version = Long.parseLong(id.substring(u + 1));
 
-            return new ConfigVersion(CType.valueOf(id.substring(u)), version);
+            return new ConfigVersion(CType.valueOf(id.substring(0, u)), version);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid ConfigurationVersion id: " + id, e);
 
