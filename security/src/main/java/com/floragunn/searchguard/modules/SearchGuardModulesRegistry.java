@@ -80,9 +80,10 @@ public class SearchGuardModulesRegistry {
                 } else {
                     log.error(object + " does not implement SearchGuardSubModule");
                 }
-
+            } catch (ClassNotFoundException e) {
+                log.warn("Module class does not exist " + clazz);
             } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-                    | SecurityException | ClassNotFoundException e) {
+                    | SecurityException e) {
                 log.error("Error while instantiating " + clazz, e);
             }
         }
