@@ -61,10 +61,10 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
         PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(baseDependencies.getLocalClient());
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(baseDependencies.getConfigurationRepository(), privilegedConfigClient,
-                baseDependencies.getProtectedIndices(), baseDependencies.getDynamicConfigFactory(), baseDependencies.getSettings());
+                baseDependencies.getProtectedConfigIndexService(), baseDependencies.getDynamicConfigFactory(), baseDependencies.getSettings());
 
         authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, baseDependencies.getSettings(),
-                baseDependencies.getThreadPool(), new AuthTokenServiceConfig());
+                baseDependencies.getThreadPool(), baseDependencies.getProtectedConfigIndexService(), new AuthTokenServiceConfig());
 
         AuthTokenAuthenticationBackend authenticationBackend = new AuthTokenAuthenticationBackend(authTokenService);
 

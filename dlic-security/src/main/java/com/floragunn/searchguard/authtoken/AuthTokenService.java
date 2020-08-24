@@ -53,6 +53,8 @@ import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateRequest;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateResponse;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProvider;
 import com.floragunn.searchguard.sgconf.ConfigModel;
@@ -98,13 +100,16 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private Set<AuthToken> unpushedTokens = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
-            ThreadPool threadPool, AuthTokenServiceConfig config) {
+            ThreadPool threadPool, ProtectedConfigIndexService protectedConfigIndexService, AuthTokenServiceConfig config) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
         this.threadPool = threadPool;
 
         this.setConfig(config);
+
+        protectedConfigIndexService
+                .createIndex(new ConfigIndex(indexName).dependsOnIndices(configHistoryService.getIndexName()).onIndexReady(this::init));
     }
 
     public AuthToken getById(String id) throws NoSuchAuthTokenException {
@@ -221,17 +226,17 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         AuthToken authToken = getById(id);
 
         // TODO owner check
-        
+
         if (authToken.getRevokedAt() != null) {
             return "Auth token was already revoked";
         }
 
         String updateStatus = updateAuthToken(authToken.getRevokedInstance());
-        
+
         if (updateStatus != null) {
             return updateStatus;
         }
-        
+
         return "Auth token has been revoked";
     }
 
@@ -247,11 +252,15 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         setKeys(config.getJwtSigningKey(), config.getJwtEncryptionKey());
     }
 
-    public void init() {
-        reloadAuthTokensFromIndex();
+    public void init(ProtectedConfigIndexService.FailureListener failureListener) {
+        reloadAuthTokensFromIndex(failureListener);
     }
 
-    public void reloadAuthTokensFromIndex() {
+    public void reloadAuthTokensFromIndex(ProtectedConfigIndexService.FailureListener failureListener) {
+        if (log.isDebugEnabled()) {
+            log.debug("Reloading auth tokens");
+        }
+
         long now = System.currentTimeMillis();
 
         // TODO scroll/max results
@@ -275,14 +284,48 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                             }
                         }
 
+                        if (log.isDebugEnabled()) {
+                            log.debug("Loaded " + idToAuthTokenMap.size() + " auth tokens");
+                        }
+
+                        initConfigSnapshots(idToAuthTokenMap);
+
                         AuthTokenService.this.idToAuthTokenMap = idToAuthTokenMap;
                     }
 
                     @Override
                     public void onFailure(Exception e) {
-                        log.error("Error while loading auth tokens", e);
+                        if (failureListener != null) {
+                            failureListener.onFailure(e);
+                        } else {
+                            log.error("Error while loading auth tokens", e);
+                        }
                     }
                 });
+    }
+
+    private void initConfigSnapshots(Map<String, AuthToken> idToAuthTokenMap) {
+        Set<ConfigVersionSet> configVersionSets = new HashSet<>(idToAuthTokenMap.size());
+
+        for (AuthToken authToken : idToAuthTokenMap.values()) {
+            configVersionSets.add(authToken.getBase().getConfigVersions());
+        }
+
+        Map<ConfigVersionSet, ConfigSnapshot> configSnapshotMap = configHistoryService.getConfigSnapshots(configVersionSets);
+
+        if (log.isDebugEnabled()) {
+            log.debug("Loaded " + configSnapshotMap.size() + " config snapshots");
+        }
+
+        for (AuthToken authToken : idToAuthTokenMap.values()) {
+            ConfigSnapshot configSnapshot = configSnapshotMap.get(authToken.getBase().getConfigVersions());
+
+            if (configSnapshot != null) {
+                authToken.getBase().setConfigSnapshot(configSnapshot);
+            } else {
+                log.warn("Could not find config snapshot for " + authToken);
+            }
+        }
     }
 
     public String pushAuthTokenUpdate(PushAuthTokenUpdateRequest request) {

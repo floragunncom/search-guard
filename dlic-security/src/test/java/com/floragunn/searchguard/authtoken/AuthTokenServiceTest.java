@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -26,6 +27,7 @@ public class AuthTokenServiceTest {
 
     private static AuthTokenService authTokenService;
     private static ConfigHistoryService configHistoryService;
+    private static ProtectedConfigIndexService protectedConfigIndexService;
     private static ThreadPool threadPool;
 
     @ClassRule
@@ -47,6 +49,7 @@ public class AuthTokenServiceTest {
     public static void setupDependencies() {
         authTokenService = cluster.getInjectable(AuthTokenService.class);
         configHistoryService = cluster.getInjectable(ConfigHistoryService.class);
+        protectedConfigIndexService = cluster.getInjectable(ProtectedConfigIndexService.class);
         threadPool = cluster.getInjectable(ThreadPool.class);
     }
 
@@ -59,7 +62,7 @@ public class AuthTokenServiceTest {
         config.setJwtAud("_test_aud");
 
         AuthTokenService authTokenService = new AuthTokenService(PrivilegedConfigClient.adapt(cluster.node().client()), configHistoryService,
-                Settings.EMPTY, threadPool, config);
+                Settings.EMPTY, threadPool, protectedConfigIndexService, config);
 
         RequestedPrivileges requestedPrivileges = RequestedPrivileges.parseYaml("cluster_permissions:\n- cluster:test\nroles:\n- r1\n- r0");
         CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
