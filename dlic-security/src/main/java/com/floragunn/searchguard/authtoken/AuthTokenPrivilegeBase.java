@@ -27,7 +27,7 @@ import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
 public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Serializable {
-   
+
     private static final long serialVersionUID = -7176396883010611335L;
 
     private final List<String> backendRoles;
@@ -145,5 +145,48 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
     public String toString() {
         return "AuthTokenPrivilegeBase [backendRoles=" + backendRoles + ", searchGuardRoles=" + searchGuardRoles + ", configVersions="
                 + configVersions + ", attributes=" + attributes + ", configSnapshot=" + configSnapshot + "]";
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((attributes == null) ? 0 : attributes.hashCode());
+        result = prime * result + ((backendRoles == null) ? 0 : backendRoles.hashCode());
+        result = prime * result + ((configVersions == null) ? 0 : configVersions.hashCode());
+        result = prime * result + ((searchGuardRoles == null) ? 0 : searchGuardRoles.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        AuthTokenPrivilegeBase other = (AuthTokenPrivilegeBase) obj;
+        if (attributes == null) {
+            if (other.attributes != null)
+                return false;
+        } else if (!attributes.equals(other.attributes))
+            return false;
+        if (backendRoles == null) {
+            if (other.backendRoles != null)
+                return false;
+        } else if (!backendRoles.equals(other.backendRoles))
+            return false;
+        if (configVersions == null) {
+            if (other.configVersions != null)
+                return false;
+        } else if (!configVersions.equals(other.configVersions))
+            return false;
+        if (searchGuardRoles == null) {
+            if (other.searchGuardRoles != null)
+                return false;
+        } else if (!searchGuardRoles.equals(other.searchGuardRoles))
+            return false;
+        return true;
     }
 }

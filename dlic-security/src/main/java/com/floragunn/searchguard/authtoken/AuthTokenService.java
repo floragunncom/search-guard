@@ -59,7 +59,6 @@ import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.sgconf.history.ConfigVersionSet;
-import com.floragunn.searchguard.sgconf.history.UnknownConfigVersionException;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -286,13 +285,25 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         int configCacheHits = 0;
         int existing = 0;
+        int existingUpdated = 0;
+        int processed = 0;
 
         List<AuthToken> pendingAuthTokens = new ArrayList<>();
 
         for (AuthToken authToken : request.getUpdatedTokens()) {
-            if (this.idToAuthTokenMap.containsKey(authToken.getId())) {
+            AuthToken existingAuthToken = this.idToAuthTokenMap.get(authToken.getId());
+
+            if (existingAuthToken != null) {
                 existing++;
+
+                if (authToken.equals(existingAuthToken)) {
+                    continue;
+                } else {
+                    existingUpdated++;
+                }
             }
+
+            processed++;
 
             ConfigVersionSet configVersionSet = authToken.getBase().getConfigVersions();
             ConfigSnapshot configSnapshot = configHistoryService.peekConfigSnapshotFromCache(configVersionSet);
@@ -309,27 +320,31 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (pendingAuthTokens.size() > 0) {
             this.threadPool.generic().submit(() -> {
                 for (AuthToken authToken : pendingAuthTokens) {
-                    ConfigVersionSet configVersionSet = authToken.getBase().getConfigVersions();
+                    try {
+                        ConfigVersionSet configVersionSet = authToken.getBase().getConfigVersions();
 
-                    ConfigSnapshot configSnapshot = configHistoryService.peekConfigSnapshot(configVersionSet);
+                        ConfigSnapshot configSnapshot = configHistoryService.peekConfigSnapshot(configVersionSet);
 
-                    if (log.isDebugEnabled()) {
-                        log.debug("Loaded configSnapshot for " + authToken + ": " + configSnapshot);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Loaded configSnapshot for " + authToken + ": " + configSnapshot);
+                        }
+
+                        if (configSnapshot.hasMissingConfigVersions()) {
+                            log.error("Could not get complete config snapshot for " + authToken + ": " + configSnapshot);
+                            continue;
+                        }
+
+                        authToken.getBase().setConfigSnapshot(configSnapshot);
+                        this.idToAuthTokenMap.put(authToken.getId(), authToken);
+                    } catch (Exception e) {
+                        log.error("Error while loading config snapshot for " + authToken, e);
                     }
-
-                    if (configSnapshot.hasMissingConfigVersions()) {
-                        log.error("Could not get complete config snapshot for " + authToken + ": " + configSnapshot);
-                        continue;
-                    }
-
-                    authToken.getBase().setConfigSnapshot(configSnapshot);
-                    this.idToAuthTokenMap.put(authToken.getId(), authToken);
                 }
             });
 
         }
 
-        String status = "config cache hits: " + configCacheHits + "/" + request.getUpdatedTokens().size() + "; existing: " + existing;
+        String status = "config cache hits: " + configCacheHits + "/" + processed + "; existing updated: " + existingUpdated + "/" + existing;
 
         if (log.isDebugEnabled()) {
             log.debug(status);
@@ -463,30 +478,28 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         String authTokenId = (String) user.getSpecialAuthzConfig();
 
-        AuthToken authToken;
         try {
-            authToken = getById(authTokenId);
-        } catch (NoSuchAuthTokenException e1) {
-            throw new RuntimeException(e1);
+            AuthToken authToken = getById(authTokenId);
+
+            if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
+                throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
+            }
+
+            ConfigModel configModelSnapshot = configHistoryService.getConfigModelForSnapshot(authToken.getBase().getConfigSnapshot());
+
+            User userWithRoles = user.copy().backendRoles(authToken.getBase().getBackendRoles())
+                    .searchGuardRoles(authToken.getBase().getSearchGuardRoles()).build();
+            TransportAddress callerTransportAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+            Set<String> mappedBaseRoles = configModelSnapshot.mapSgRoles(userWithRoles, callerTransportAddress);
+            SgRoles filteredBaseSgRoles = configModelSnapshot.getSgRoles().filter(mappedBaseRoles);
+
+            RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivilges(),
+                    configModelSnapshot.getActionGroupResolver());
+
+            return new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles);
+        } catch (NoSuchAuthTokenException e) {
+            throw new ElasticsearchSecurityException("Cannot authenticate user due to invalid auth token " + authTokenId, e);
         }
-
-
-        if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
-            throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
-        }
-
-        ConfigModel configModelSnapshot = configHistoryService.getConfigModelForSnapshot(authToken.getBase().getConfigSnapshot());
-
-        User userWithRoles = user.copy().backendRoles(authToken.getBase().getBackendRoles())
-                .searchGuardRoles(authToken.getBase().getSearchGuardRoles()).build();
-        TransportAddress callerTransportAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-        Set<String> mappedBaseRoles = configModelSnapshot.mapSgRoles(userWithRoles, callerTransportAddress);
-        SgRoles filteredBaseSgRoles = configModelSnapshot.getSgRoles().filter(mappedBaseRoles);
-
-        RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivilges(),
-                configModelSnapshot.getActionGroupResolver());
-
-        return new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles);
 
     }
 

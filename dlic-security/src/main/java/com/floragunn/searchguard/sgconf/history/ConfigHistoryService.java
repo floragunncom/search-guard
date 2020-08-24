@@ -24,6 +24,7 @@ import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 
+import com.fasterxml.jackson.core.Base64Variants;
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.sgconf.ConfigModel;
@@ -241,11 +242,11 @@ public class ConfigHistoryService {
 
         Object config = singleGetResponse.getSource().get("config");
 
-        if (!(config instanceof byte[])) {
+        if (!(config instanceof String)) {
             throw new IllegalStateException("Malformed config history record: " + config + "\n" + singleGetResponse.getSource());
         }
 
-        String jsonString = new String((byte[]) config);
+        String jsonString = new String(Base64Variants.getDefaultVariant().decode((String) config));
 
         try {
             return SgDynamicConfiguration.fromJson(jsonString, configurationVersion.getConfigurationType(), configurationVersion.getVersion(), 0, 0,
