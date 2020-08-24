@@ -28,8 +28,8 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
 import com.fasterxml.jackson.core.JsonPointer;
-import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchsupport.config.validation.JsonNodeParser;
@@ -59,6 +59,10 @@ public interface SearchGuardModule<T> {
 
     default SgConfigMetadata<T> getSgConfigMetadata() {
         return null;
+    }
+    
+    default void onNodeStarted() {
+        
     }
 
     public class SgConfigMetadata<T> {
@@ -113,13 +117,13 @@ public interface SearchGuardModule<T> {
         private final IndexNameExpressionResolver indexNameExpressionResolver;
         private final DynamicConfigFactory dynamicConfigFactory;
         private final ConfigurationRepository configurationRepository;
-        private final ProtectedIndices protectedIndices;
+        private final ProtectedConfigIndexService protectedConfigIndexService;
         private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
 
         public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
                 ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
                 Environment environment, IndexNameExpressionResolver indexNameExpressionResolver, DynamicConfigFactory dynamicConfigFactory,
-                ConfigurationRepository configurationRepository, ProtectedIndices protectedIndices,
+                ConfigurationRepository configurationRepository, ProtectedConfigIndexService protectedConfigIndexService,
                 SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry) {
             super();
             this.settings = settings;
@@ -133,7 +137,7 @@ public interface SearchGuardModule<T> {
             this.indexNameExpressionResolver = indexNameExpressionResolver;
             this.dynamicConfigFactory = dynamicConfigFactory;
             this.configurationRepository = configurationRepository;
-            this.protectedIndices = protectedIndices;
+            this.protectedConfigIndexService = protectedConfigIndexService;
             this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         }
 
@@ -181,12 +185,12 @@ public interface SearchGuardModule<T> {
             return configurationRepository;
         }
 
-        public ProtectedIndices getProtectedIndices() {
-            return protectedIndices;
-        }
-
         public SpecialPrivilegesEvaluationContextProviderRegistry getSpecialPrivilegesEvaluationContextProviderRegistry() {
             return specialPrivilegesEvaluationContextProviderRegistry;
+        }
+
+        public ProtectedConfigIndexService getProtectedConfigIndexService() {
+            return protectedConfigIndexService;
         }
 
     }

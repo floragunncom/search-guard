@@ -139,6 +139,13 @@ public class SearchGuardModulesRegistry {
 
         return result;
     }
+    
+    
+    public void onNodeStarted() {
+        for (SearchGuardModule<?> module : subModules) {
+            module.onNodeStarted();
+        }
+    }
 
     @SuppressWarnings("unchecked")
     private void registerConfigChangeListener(SearchGuardModule<?> module, DynamicConfigFactory dynamicConfigFactory) {

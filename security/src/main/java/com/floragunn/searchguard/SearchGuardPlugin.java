@@ -131,6 +131,7 @@ import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.CompatConfig;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.SearchGuardIndexSearcherWrapper;
 import com.floragunn.searchguard.filter.SearchGuardFilter;
 import com.floragunn.searchguard.filter.SearchGuardRestFilter;
@@ -202,6 +203,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private NamedXContentRegistry xContentRegistry;
 
     private static ProtectedIndices protectedIndices;
+    private ProtectedConfigIndexService protectedConfigIndexService;
     private volatile NamedXContentRegistry namedXContentRegistry = null;
     private volatile DlsFlsRequestValve dlsFlsValve = null;
     private SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry = new SpecialPrivilegesEvaluationContextProviderRegistry();
@@ -862,6 +864,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         sgi = new SearchGuardInterceptor(settings, threadPool, backendRegistry, auditLog, principalExtractor, interClusterRequestEvaluator, cs,
                 Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih));
         components.add(principalExtractor);
+        
+        protectedConfigIndexService = new ProtectedConfigIndexService(localClient, clusterService, threadPool, protectedIndices);
 
         components.add(adminDns);
         components.add(cr);
@@ -872,7 +876,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(dcf);
         components.add(internalAuthTokenProvider);
         components.add(moduleRegistry);
-
+        components.add(protectedConfigIndexService);
+        
         if (signalsEnabled) {
             components.addAll(ReflectionHelper.createAlertingComponents(settings, configPath, localClient, clusterService, threadPool,
                     resourceWatcherService, scriptService, xContentRegistry, environment, nodeEnvironment, internalAuthTokenProvider,
@@ -880,9 +885,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
         
         BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
-                scriptService, xContentRegistry, environment, indexNameExpressionResolver, dcf, cr, protectedIndices,
+                scriptService, xContentRegistry, environment, indexNameExpressionResolver, dcf, cr, protectedConfigIndexService,
                 specialPrivilegesEvaluationContextProviderRegistry);
-        
+    
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
                 
         components.addAll(moduleComponents);
@@ -1157,6 +1162,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         log.info("Node started");
         if (!sslOnly && !client && !disabled) {
             cr.initOnNodeStart();
+            moduleRegistry.onNodeStarted();
+            protectedConfigIndexService.onNodeStart();
         }
         final Set<ModuleInfo> sgModules = ReflectionHelper.getModulesLoaded();
         log.info("{} Search Guard modules loaded so far: {}", sgModules.size(), sgModules);
