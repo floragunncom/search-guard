@@ -34,6 +34,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
@@ -98,6 +99,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private JweDecryptionProvider jweDecryptionProvider;
     private AuthTokenServiceConfig config;
     private Set<AuthToken> unpushedTokens = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private boolean sendTokenUpdates = true;
+    private boolean initialized = false;
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
             ThreadPool threadPool, ProtectedConfigIndexService protectedConfigIndexService, AuthTokenServiceConfig config) {
@@ -118,6 +121,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (result != null) {
             return result;
         } else {
+            System.out.println("***** " + idToAuthTokenMap);
             throw new NoSuchAuthTokenException(id);
         }
     }
@@ -252,11 +256,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         setKeys(config.getJwtSigningKey(), config.getJwtEncryptionKey());
     }
 
-    public void init(ProtectedConfigIndexService.FailureListener failureListener) {
+    private void init(ProtectedConfigIndexService.FailureListener failureListener) {
         reloadAuthTokensFromIndex(failureListener);
     }
 
-    public void reloadAuthTokensFromIndex(ProtectedConfigIndexService.FailureListener failureListener) {
+    private void reloadAuthTokensFromIndex(ProtectedConfigIndexService.FailureListener failureListener) {
         if (log.isDebugEnabled()) {
             log.debug("Reloading auth tokens");
         }
@@ -291,6 +295,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                         initConfigSnapshots(idToAuthTokenMap);
 
                         AuthTokenService.this.idToAuthTokenMap = idToAuthTokenMap;
+
+                        initComplete();
                     }
 
                     @Override
@@ -325,6 +331,27 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             } else {
                 log.warn("Could not find config snapshot for " + authToken);
             }
+        }
+
+    }
+
+    private synchronized void initComplete() {
+        this.initialized = true;
+        notifyAll();
+    }
+
+    public synchronized void waitForInitComplete(long timeoutMillis) {
+        if (this.initialized) {
+            return;
+        }
+
+        try {
+            wait(timeoutMillis);
+        } catch (InterruptedException e) {
+        }
+
+        if (!this.initialized) {
+            throw new RuntimeException(this + " did not initialize after " + timeoutMillis);
         }
     }
 
@@ -411,7 +438,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         try (XContentBuilder xContentBuilder = XContentFactory.jsonBuilder()) {
             authToken.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
 
-            IndexResponse indexResponse = privilegedConfigClient.index(new IndexRequest(indexName).id(authToken.getId()).source(xContentBuilder))
+            IndexResponse indexResponse = privilegedConfigClient
+                    .index(new IndexRequest(indexName).id(authToken.getId()).source(xContentBuilder).setRefreshPolicy(RefreshPolicy.IMMEDIATE))
                     .actionGet();
 
             if (log.isDebugEnabled()) {
@@ -422,6 +450,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             this.idToAuthTokenMap.put(oldToken.getId(), oldToken);
             log.warn("Error while storing token " + authToken, e);
             throw new TokenUpdateException(e);
+        }
+
+        if (!sendTokenUpdates) {
+            return "Update disabled";
         }
 
         try {
@@ -627,6 +659,14 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     public String getIndexName() {
         return indexName;
+    }
+
+    boolean isSendTokenUpdates() {
+        return sendTokenUpdates;
+    }
+
+    void setSendTokenUpdates(boolean sendTokenUpdates) {
+        this.sendTokenUpdates = sendTokenUpdates;
     }
 
 }

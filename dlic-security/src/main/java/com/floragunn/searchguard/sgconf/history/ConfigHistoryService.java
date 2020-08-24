@@ -19,6 +19,7 @@ import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
@@ -148,7 +149,7 @@ public class ConfigHistoryService {
                 }
             }
         }
-        
+
         if (log.isDebugEnabled()) {
             log.debug("missingConfigVersions: " + missingConfigVersions.size());
         }
@@ -333,7 +334,7 @@ public class ConfigHistoryService {
     }
 
     private void storeMissingConfigDocs(ConfigVersionSet missingVersions, Map<CType, SgDynamicConfiguration<?>> configByType) {
-        BulkRequestBuilder bulkRequest = privilegedConfigClient.prepareBulk();
+        BulkRequestBuilder bulkRequest = privilegedConfigClient.prepareBulk().setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
         for (ConfigVersion missingVersion : missingVersions) {
             SgDynamicConfiguration<?> config = configByType.get(missingVersion.getConfigurationType());
