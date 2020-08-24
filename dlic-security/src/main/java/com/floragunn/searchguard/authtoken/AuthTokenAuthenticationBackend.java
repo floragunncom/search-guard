@@ -3,6 +3,7 @@ package com.floragunn.searchguard.authtoken;
 import org.elasticsearch.ElasticsearchSecurityException;
 
 import com.floragunn.searchguard.auth.AuthenticationBackend;
+import com.floragunn.searchguard.auth.AuthenticationBackend.UserCachingPolicy;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
@@ -29,7 +30,7 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
             AuthToken authToken = authTokenService.getByClaims(credentials.getClaims());
 
             return User.forUser(authToken.getUserName()).subName(authToken.getTokenName() + "[" + authToken.getId() + "]")
-                    .type(AuthTokenService.USER_TYPE).specialAuthzConfig(authToken.getId()).build();
+                    .type(AuthTokenService.USER_TYPE).specialAuthzConfig(authToken.getId()).authzComplete().build();
 
         } catch (NoSuchAuthTokenException | InvalidTokenException e) {
             throw new ElasticsearchSecurityException(e.getMessage(), e);
@@ -42,4 +43,8 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
         return true;
     }
 
+    @Override
+    public UserCachingPolicy userCachingPolicy() {
+        return UserCachingPolicy.NEVER;
+    }
 }
