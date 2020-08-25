@@ -34,7 +34,8 @@ public class AuthTokenServiceTest {
     private static PrivilegedConfigClient privilegedConfigClient;
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().disableModule(AuthTokenModule.class).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").singleNode().sslEnabled()
+            .disableModule(AuthTokenModule.class).build();
 
     @BeforeClass
     public static void setupTestData() {

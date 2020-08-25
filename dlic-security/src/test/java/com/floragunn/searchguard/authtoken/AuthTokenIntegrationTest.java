@@ -69,7 +69,7 @@ public class AuthTokenIntegrationTest {
                     "          type: internal_auth_token";
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().sgConfig(CType.CONFIG, SGCONFIG).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().sgConfig(CType.CONFIG, SGCONFIG).build();
 
     private static RestHelper rh = null;
 
