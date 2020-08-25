@@ -341,7 +341,7 @@ public class ConfigHistoryService {
             configCache.put(missingVersion, config);
             BytesReference uninterpolatedConfigBytes = BytesReference.fromByteBuffer(ByteBuffer.wrap(config.getUninterpolatedJson().getBytes()));
 
-            // TOD interpolated config
+            // TODO interpolated config
 
             bulkRequest.add(new IndexRequest(indexName).id(missingVersion.toId()).source("config",
                     uninterpolatedConfigBytes /*, "interpolated_config", config */));
