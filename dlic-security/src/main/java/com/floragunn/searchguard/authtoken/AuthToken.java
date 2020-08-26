@@ -63,7 +63,8 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         builder.field("user_name", userName);
         builder.field("token_name", tokenName);
         builder.field("requested", requestedPrivilges);
-        builder.field("base", base);
+        builder.field("base");
+        base.toXContent(builder, params);
         builder.field("created_at", creationTime);
         builder.field("expires_at", expiryTime);
 

@@ -21,12 +21,18 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.sgconf.history.ConfigVersionSet;
+import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.MissingAttribute;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.google.common.collect.ImmutableMap;
 
 public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Serializable {
+
+    static final String PARAM_COMPACT = "compact";
+
+    static final Params COMPACT = new ToXContent.MapParams(ImmutableMap.of(PARAM_COMPACT, "true"));
 
     private static final long serialVersionUID = -7176396883010611335L;
 
@@ -67,21 +73,28 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        boolean compact = params.paramAsBoolean(PARAM_COMPACT, false);
+
         builder.startObject();
 
         if (backendRoles.size() > 0) {
-            builder.field("roles_be", backendRoles);
+            builder.field(compact ? "r_be" : "roles_be", backendRoles);
         }
 
         if (searchGuardRoles.size() > 0) {
-            builder.field("roles_sg", searchGuardRoles);
+            builder.field(compact ? "r_sg" : "roles_sg", searchGuardRoles);
         }
 
         if (attributes.size() > 0) {
-            builder.field("attrs", attributes);
+            builder.field(compact ? "a" : "attrs", attributes);
         }
 
-        builder.field("config", (ToXContent) configVersions);
+        if (compact) {
+            builder.array("c", new long[] { configVersions.get(CType.ROLES).getVersion(), configVersions.get(CType.ROLESMAPPING).getVersion(),
+                    configVersions.get(CType.ACTIONGROUPS).getVersion(), configVersions.get(CType.TENANTS).getVersion() });
+        } else {
+            builder.field("config", (ToXContent) configVersions);
+        }
 
         builder.endObject();
         return builder;
