@@ -162,7 +162,6 @@ public class ConfigHistoryService {
                 multiGetRequest.add(indexName, configurationVersion.toId());
             }
 
-            // TODO scroll
             MultiGetResponse response = privilegedConfigClient.multiGet(multiGetRequest).actionGet();
 
             for (MultiGetItemResponse itemResponse : response.getResponses()) {

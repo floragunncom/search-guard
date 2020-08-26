@@ -1,10 +1,4 @@
 package com.floragunn.searchguard.authtoken;
-/*         enabled: true
-        jwt_signing_key: "bmRSMW00c2pmNUk4Uk9sVVFmUnhjZEhXUk5Hc0V5MWgyV2p1RFE3Zk1wSTE="
-        jwt_encryption_key: "..."
-        jwt_aud: "searchguard_tokenauth"
-        max_validity: "1y"    
-        */
 
 import java.time.temporal.TemporalAmount;
 

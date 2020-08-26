@@ -39,6 +39,7 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -46,6 +47,7 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -267,25 +269,30 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         long now = System.currentTimeMillis();
 
-        // TODO scroll/max results
-
-        this.privilegedConfigClient.search(
-                new SearchRequest(indexName).source(new SearchSourceBuilder().query(QueryBuilders.rangeQuery("expires_at").gte(now))),
+        this.privilegedConfigClient.search(new SearchRequest(indexName)
+                .source(new SearchSourceBuilder().query(QueryBuilders.rangeQuery("expires_at").gte(now)).size(1000)).scroll(new TimeValue(10000)),
                 new ActionListener<SearchResponse>() {
 
                     @Override
-                    public void onResponse(SearchResponse response) {
+                    public void onResponse(SearchResponse searchResponse) {
                         Map<String, AuthToken> idToAuthTokenMap = new ConcurrentHashMap<>();
+                        SearchHits searchHits = searchResponse.getHits();
 
-                        for (SearchHit hit : response.getHits().getHits()) {
-                            try {
-                                String id = hit.getId();
-                                AuthToken authToken = AuthToken.parse(id, ValidatingJsonParser.readTree(hit.getSourceAsString()));
+                        while (searchHits.getTotalHits().value != 0) {
+                            for (SearchHit hit : searchHits.getHits()) {
+                                try {
+                                    String id = hit.getId();
+                                    AuthToken authToken = AuthToken.parse(id, ValidatingJsonParser.readTree(hit.getSourceAsString()));
 
-                                idToAuthTokenMap.put(id, authToken);
-                            } catch (ConfigValidationException e) {
-                                log.error("Invalid auth token in index at " + hit + ":\n" + e.getValidationErrors(), e);
+                                    idToAuthTokenMap.put(id, authToken);
+                                } catch (ConfigValidationException e) {
+                                    log.error("Invalid auth token in index at " + hit + ":\n" + e.getValidationErrors(), e);
+                                }
                             }
+
+                            searchResponse = privilegedConfigClient.prepareSearchScroll(searchResponse.getScrollId()).setScroll(new TimeValue(10000))
+                                    .execute().actionGet();
+                            searchHits = searchResponse.getHits();
                         }
 
                         if (log.isDebugEnabled()) {
