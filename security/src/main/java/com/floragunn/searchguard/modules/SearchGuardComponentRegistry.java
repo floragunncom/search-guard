@@ -99,7 +99,9 @@ public class SearchGuardComponentRegistry<ComponentType> {
 
     public ComponentType getInstance(String clazzOrShortcut, Settings settings, Path configPath) {
         if (this.instanceMap.containsKey(clazzOrShortcut)) {
-            return this.instanceMap.get(clazzOrShortcut);
+            ComponentType result = this.instanceMap.get(clazzOrShortcut);
+            ReflectionHelper.addLoadedModule(result.getClass());
+            return result;
         } else if (this.classMap.containsKey(clazzOrShortcut)) {
             String className = this.classMap.get(clazzOrShortcut).getName();
             return ReflectionHelper.instantiateAAA(className, settings, configPath, ReflectionHelper.isEnterpriseAAAModule(className));
