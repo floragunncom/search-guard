@@ -77,6 +77,8 @@ public class AuthTokenServiceTest {
         CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
 
         CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
+        
+        System.out.println(response.getJwt());
 
         JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
 

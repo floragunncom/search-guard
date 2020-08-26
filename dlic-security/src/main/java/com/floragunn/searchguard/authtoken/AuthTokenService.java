@@ -76,7 +76,6 @@ import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
 
 /**
- * TODO audience claim https://stackoverflow.com/questions/28418360/jwt-json-web-token-audience-aud-versus-client-id-whats-the-difference 
  * TODO clean up expired tokens
  */
 public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvider {
@@ -123,7 +122,6 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (result != null) {
             return result;
         } else {
-            System.out.println("***** " + idToAuthTokenMap);
             throw new NoSuchAuthTokenException(id);
         }
     }
@@ -220,8 +218,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         jwtClaims.setTokenId(authToken.getId());
         jwtClaims.setAudience(config.getJwtAud());
         jwtClaims.setProperty("requested", ObjectTreeXContent.toObjectTree(authToken.getRequestedPrivilges()));
-        // TODO compact format for base
-        jwtClaims.setProperty("base", ObjectTreeXContent.toObjectTree(authToken.getBase()));
+        jwtClaims.setProperty("base", ObjectTreeXContent.toObjectTree(authToken.getBase(), AuthTokenPrivilegeBase.COMPACT));
 
         String encodedJwt = this.jwtProducer.processJwt(jwt);
 
@@ -230,8 +227,6 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     public String revoke(User user, String id) throws NoSuchAuthTokenException, TokenUpdateException {
         AuthToken authToken = getById(id);
-
-        // TODO owner check
 
         if (authToken.getRevokedAt() != null) {
             return "Auth token was already revoked";
