@@ -15,9 +15,11 @@
 package com.floragunn.searchguard.auditlog.impl;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.List;
 import java.util.Map;
 
 import org.elasticsearch.SpecialPermission;
@@ -25,6 +27,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.Engine.Delete;
 import org.elasticsearch.index.engine.Engine.DeleteResult;
@@ -37,6 +40,8 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.routing.AuditMessageRouter;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 
@@ -112,6 +117,21 @@ public final class AuditLogImpl extends AbstractAuditLog {
             super.logFailedLogin(effectiveUser, sgadmin, initiatingUser, request);
         }
     }
+    
+    @Override
+    public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request,
+    		Task task) {        
+    	if (enabled) {
+            super.logBlockedUser(effectiveUser, sgadmin, initiatingUser, request, task);
+        }    	
+    }
+    
+    @Override
+    public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+    	if (enabled) {
+            super.logBlockedUser(effectiveUser, sgadmin, initiatingUser, request);
+        }      	
+    }
 
     @Override
     public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, String action, Task task) {
@@ -163,6 +183,20 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
 
     @Override
+    public void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task) {
+        if (enabled) {
+            super.logBlockedIp(request, action, remoteAddress, task);
+        }  	
+    }
+    
+    @Override
+    public void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress) {
+        if (enabled) {
+            super.logBlockedIp(request, remoteAddress);
+        }  	    	
+    }    
+    
+    @Override
     public void logSgIndexAttempt(TransportRequest request, String action, Task task) {
         if (enabled) {
             super.logSgIndexAttempt(request, action, task);
@@ -212,11 +246,6 @@ public final class AuditLogImpl extends AbstractAuditLog {
         }
     }
 
-    @Override
-    public void logExternalConfig(Settings settings, Environment environment) {
-        if (enabled) {
-            super.logExternalConfig(settings, environment);
-        }
-    }
+
 
 }

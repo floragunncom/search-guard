@@ -134,6 +134,10 @@ public final class AuditMessage {
         }
     }
 
+    public void addRemoteAddress(String remoteAddress) {
+    	auditInfo.put(REMOTE_ADDRESS, remoteAddress);
+    }
+
     public void addIsAdminDn(boolean isAdminDn) {
         auditInfo.put(IS_ADMIN_DN, isAdminDn);
     }
@@ -426,11 +430,13 @@ public final class AuditMessage {
 	public static enum Category {
         BAD_HEADERS,
         FAILED_LOGIN,
+        BLOCKED_IP,
+        BLOCKED_USER,
         MISSING_PRIVILEGES,
-        GRANTED_PRIVILEGES,
         SG_INDEX_ATTEMPT,
         SSL_EXCEPTION,
         AUTHENTICATED,
+        GRANTED_PRIVILEGES,
         COMPLIANCE_DOC_READ,
         COMPLIANCE_DOC_WRITE,
         COMPLIANCE_EXTERNAL_CONFIG,
