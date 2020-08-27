@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.auth.AuthorizationBackend;
+import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.modules.SearchGuardModule.BaseDependencies;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -54,6 +55,9 @@ public class SearchGuardModulesRegistry {
 
     private SearchGuardComponentRegistry<AuthorizationBackend> authorizationBackends = new SearchGuardComponentRegistry<AuthorizationBackend>(
             AuthorizationBackend.class, (o) -> o.getType()).add(StandardComponents.authzBackends);
+
+    private SearchGuardComponentRegistry<HTTPAuthenticator> httpAuthenticators = new SearchGuardComponentRegistry<HTTPAuthenticator>(
+            HTTPAuthenticator.class, (o) -> o.getType()).add(StandardComponents.httpAuthenticators);
 
     public SearchGuardModulesRegistry(Settings settings) {
         this.disabledModules = new HashSet<>(DISABLED_MODULES.get(settings));
@@ -133,6 +137,7 @@ public class SearchGuardModulesRegistry {
 
         authenticationBackends.addComponentsWithMatchingType(result);
         authorizationBackends.addComponentsWithMatchingType(result);
+        httpAuthenticators.addComponentsWithMatchingType(result);
 
         return result;
     }
@@ -212,6 +217,10 @@ public class SearchGuardModulesRegistry {
 
     public SearchGuardComponentRegistry<AuthorizationBackend> getAuthorizationBackends() {
         return authorizationBackends;
+    }
+
+    public SearchGuardComponentRegistry<HTTPAuthenticator> getHttpAuthenticators() {
+        return httpAuthenticators;
     }
 
 }

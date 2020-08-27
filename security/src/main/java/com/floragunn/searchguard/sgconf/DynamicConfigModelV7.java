@@ -222,6 +222,7 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
                     }
                     
                     if (authorizationBackend instanceof Destroyable) {
+                        // XXX this is dangerous for components which were not constructed here 
                         destroyableComponents0.add((Destroyable) authorizationBackend);
                     }
                 } catch (final Exception e) {
@@ -246,29 +247,17 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
                     AuthenticationBackend authenticationBackend = modulesRegistry.getAuthenticationBackends().getInstance(authBackendClazz,
                             authenticationBackendSettings, configPath);
 
-                    /*
-                    if(authBackendClazz.equals(InternalAuthenticationBackend.class.getName()) //NOSONAR
-                            || authBackendClazz.equals("internal")
-                            || authBackendClazz.equals("intern")) {
-                        authenticationBackend = iab;
-                        ReflectionHelper.addLoadedModule(InternalAuthenticationBackend.class);
-                    } else {
-                        authenticationBackend = newInstance(
-                                authBackendClazz,"c",
-                                Settings.builder()
-                                .put(esSettings)
-                                //.putProperties(ads.getAsStringMap(DotPath.of("authentication_backend.config")), DynamicConfiguration.checkKeyFunction()).build()
-                                .put(Settings.builder().loadFromSource(ad.getValue().authentication_backend.configAsJson(), XContentType.JSON).build()).build()
-                                , configPath);
-                    }*/
-
                     String httpAuthenticatorType = ad.getValue().http_authenticator.type; //no default
-                    HTTPAuthenticator httpAuthenticator = httpAuthenticatorType==null?null:  (HTTPAuthenticator) newInstance(httpAuthenticatorType,"h",
-                            Settings.builder().put(esSettings)
-                            //.putProperties(ads.getAsStringMap(DotPath.of("http_authenticator.config")), DynamicConfiguration.checkKeyFunction()).build(), 
-                            .put(Settings.builder().loadFromSource(ad.getValue().http_authenticator.configAsJson(), XContentType.JSON).build()).build()
+                    HTTPAuthenticator httpAuthenticator = null;
+                    
+                    if (httpAuthenticatorType != null) {
+                        Settings httpAuthenticatorSettings = Settings.builder().put(esSettings)
+                                .put(Settings.builder().loadFromSource(ad.getValue().http_authenticator.configAsJson(), XContentType.JSON).build())
+                                .build();
 
-                            , configPath);
+                        httpAuthenticator = modulesRegistry.getHttpAuthenticators().getInstance(httpAuthenticatorType, httpAuthenticatorSettings,
+                                configPath);
+                    }
 
                     final AuthenticationDomain _ad = new AuthenticationDomain(authenticationBackend, httpAuthenticator,
                             ad.getValue().http_authenticator.challenge, ad.getValue().order, ad.getValue().skip_users);
@@ -282,10 +271,12 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
                     }
                     
                     if (httpAuthenticator instanceof Destroyable) {
+                        // XXX this is dangerous for components which were not constructed here 
                         destroyableComponents0.add((Destroyable) httpAuthenticator);
                     }
                     
                     if (authenticationBackend instanceof Destroyable) {
+                        // XXX this is dangerous for components which were not constructed here 
                         destroyableComponents0.add((Destroyable) authenticationBackend);
                     }
                     
