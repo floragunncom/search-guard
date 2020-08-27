@@ -60,13 +60,10 @@ public class AuthTokenIntegrationTest {
                     "        transport_enabled: false\n" + //
                     "        order: 0\n" + //
                     "        http_authenticator:\n" + //
-                    "          type: jwt\n" + //
+                    "          type: sg_auth_token\n" + //
                     "          challenge: false\n" + //
-                    "          config:\n" + //
-                    "            signing_key: \"" + TestJwk.OCT_1_K.replace('-', '+').replace('_', '/') + "\"\n" + //
-                    "            jwt_header: \"Authorization\"\n" + //
                     "        authentication_backend:\n" + //
-                    "          type: internal_auth_token";
+                    "          type: sg_auth_token";
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().sgConfig(CType.CONFIG, SGCONFIG).build();

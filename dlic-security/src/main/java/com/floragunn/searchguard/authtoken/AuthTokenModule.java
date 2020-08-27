@@ -70,7 +70,9 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
 
         baseDependencies.getSpecialPrivilegesEvaluationContextProviderRegistry().add(authTokenService);
 
-        return Arrays.asList(authTokenService, configHistoryService, authenticationBackend);
+        AuthTokenHttpJwtAuthenticator httpAuthenticator = new AuthTokenHttpJwtAuthenticator(authTokenService);
+
+        return Arrays.asList(authTokenService, configHistoryService, authenticationBackend, httpAuthenticator);
     }
 
     @Override

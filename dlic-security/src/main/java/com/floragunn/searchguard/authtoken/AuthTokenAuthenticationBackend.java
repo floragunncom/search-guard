@@ -20,7 +20,7 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
 
     @Override
     public String getType() {
-        return "internal_auth_token";
+        return "sg_auth_token";
     }
 
     @Override

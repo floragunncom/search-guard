@@ -15,15 +15,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
+import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
 import org.apache.cxf.rs.security.jose.jwe.JweUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
+import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
 import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
 import org.apache.cxf.rs.security.jose.jws.JwsUtils;
 import org.apache.cxf.rs.security.jose.jwt.JoseJwtProducer;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
+import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -225,6 +229,28 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         return new CreateAuthTokenResponse(authToken, encodedJwt);
     }
 
+    public JwtToken getVerifiedJwtToken(String encodedJwt) throws JwtException {
+        if (this.jweDecryptionProvider != null) {
+            JweDecryptionOutput decOutput = this.jweDecryptionProvider.decrypt(encodedJwt);
+            encodedJwt = decOutput.getContentText();
+        }
+
+        JwsJwtCompactConsumer jwtConsumer = new JwsJwtCompactConsumer(encodedJwt);
+        JwtToken jwt = jwtConsumer.getJwtToken();
+
+        if (this.jwsSignatureVerifier != null) {
+            boolean signatureValid = jwtConsumer.verifySignatureWith(jwsSignatureVerifier);
+
+            if (!signatureValid) {
+                throw new JwtException("Invalid JWT signature");
+            }
+        }
+
+        validateClaims(jwt);
+
+        return jwt;
+    }
+
     public String revoke(User user, String id) throws NoSuchAuthTokenException, TokenUpdateException {
         AuthToken authToken = getById(id);
 
@@ -335,6 +361,31 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             }
         }
 
+    }
+
+    private void validateClaims(JwtToken jwt) throws JwtException {
+        JwtClaims claims = jwt.getClaims();
+
+        if (claims == null) {
+            throw new JwtException("The JWT does not have any claims");
+        }
+
+        JwtUtils.validateJwtExpiry(claims, 0, false);
+        JwtUtils.validateJwtNotBefore(claims, 0, false);
+        validateAudience(claims);
+
+    }
+
+    private void validateAudience(JwtClaims claims) throws JwtException {
+
+        if (jwtAudience != null) {
+            for (String audience : claims.getAudiences()) {
+                if (jwtAudience.equals(audience)) {
+                    return;
+                }
+            }
+        }
+        throw new JwtException("Invalid audience: " + claims.getAudiences() + "\nExpected audience: " + jwtAudience);
     }
 
     private synchronized void initComplete() {
