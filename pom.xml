@@ -34,15 +34,15 @@
 		<maven.compiler.release>8</maven.compiler.release>
 
 		<netty-native.version>2.0.25.Final</netty-native.version>
-		<bc.version>1.62</bc.version>
+		<bc.version>1.66</bc.version>
 		<log4j.version>2.11.1</log4j.version>
-		<guava.version>25.1-jre</guava.version>
-		<commons.cli.version>1.3.1</commons.cli.version>
+		<guava.version>29.0-jre</guava.version>
+		<commons.cli.version>1.4</commons.cli.version>
 		<jackson-databind.version>2.8.11.6</jackson-databind.version>
-	    <cxf.version>3.2.9</cxf.version>
-		<http.commons.version>4.5.3</http.commons.version>
-		<quartz.version>2.3.1</quartz.version>
-		<simplemail.version>5.2.0</simplemail.version>
+	    <cxf.version>3.3.7</cxf.version>
+		<http.commons.version>4.5.12</http.commons.version>
+		<quartz.version>2.3.2</quartz.version>
+		<simplemail.version>5.2.1</simplemail.version>
 
 		<!-- Test only -->
 		<mockito.version>2.23.0</mockito.version>
@@ -210,6 +210,12 @@
 				<groupId>org.quartz-scheduler</groupId>
 				<artifactId>quartz</artifactId>
 				<version>${quartz.version}</version>
+				<exclusions>
+        			<exclusion> 
+          				<groupId>com.mchange</groupId>
+          				<artifactId>c3p0</artifactId>
+        			</exclusion>
+      			</exclusions> 
 			</dependency>
 
 			<dependency>
