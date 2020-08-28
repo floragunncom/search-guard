@@ -26,7 +26,6 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.EmbeddedKafkaRule;
-import org.springframework.kafka.test.rule.KafkaEmbedded;
 
 import scala.util.Random;
 
