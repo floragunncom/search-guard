@@ -1,10 +1,13 @@
 package com.floragunn.searchguard.modules;
 
+import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.auth.AuthorizationBackend;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.auth.internal.NoOpAuthenticationBackend;
 import com.floragunn.searchguard.auth.internal.NoOpAuthorizationBackend;
+import com.floragunn.searchguard.auth.limiting.AddressBasedRateLimiter;
+import com.floragunn.searchguard.auth.limiting.UserNameBasedRateLimiter;
 import com.floragunn.searchguard.http.HTTPBasicAuthenticator;
 import com.floragunn.searchguard.http.HTTPClientCertAuthenticator;
 import com.floragunn.searchguard.http.HTTPProxyAuthenticator;
@@ -36,5 +39,11 @@ public class StandardComponents {
                     .add("jwt", "com.floragunn.dlic.auth.http.jwt.HTTPJwtAuthenticator")//
                     .add("openid", "com.floragunn.dlic.auth.http.jwt.keybyoidc.HTTPJwtKeyByOpenIdConnectAuthenticator")//
                     .add("saml", "com.floragunn.dlic.auth.http.saml.HTTPSamlAuthenticator")//
+                    .seal();
+
+    public static final SearchGuardComponentRegistry<AuthFailureListener> authFailureListeners = new SearchGuardComponentRegistry<>(
+            AuthFailureListener.class)//
+                    .add("ip", AddressBasedRateLimiter.class)//
+                    .add("username", UserNameBasedRateLimiter.class)//
                     .seal();
 }

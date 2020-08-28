@@ -197,6 +197,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         
         } else {
             //rebuild v6 Models
+            @SuppressWarnings("deprecation")
             DynamicConfigModel dcmv6 = new DynamicConfigModelV6(getConfigV6(config), esSettings, configPath, iab);
             InternalUsersModel iumv6 = new InternalUsersModelV6((SgDynamicConfiguration<InternalUserV6>) internalusers);
             ConfigModel cmv6 = new ConfigModelV6((SgDynamicConfiguration<RoleV6>) roles, (SgDynamicConfiguration<ActionGroupsV6>)actionGroups, (SgDynamicConfiguration<RoleMappingsV6>)rolesmapping, dcmv6, esSettings);

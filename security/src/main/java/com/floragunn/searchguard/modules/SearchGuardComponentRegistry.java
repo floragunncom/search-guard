@@ -58,7 +58,7 @@ public class SearchGuardComponentRegistry<ComponentType> {
 
         return this;
     }
-    
+
     public SearchGuardComponentRegistry<ComponentType> add(String name, ComponentType instance) {
         ensureNameIsVacant(name);
         this.instanceMap.put(name, instance);
@@ -110,6 +110,18 @@ public class SearchGuardComponentRegistry<ComponentType> {
             return ReflectionHelper.instantiateAAA(className, settings, configPath, ReflectionHelper.isEnterpriseAAAModule(className));
         } else {
             return ReflectionHelper.instantiateAAA(clazzOrShortcut, settings, configPath, true);
+        }
+    }
+
+    public String getClassName(String clazzOrShortcut) {
+        if (this.instanceMap.containsKey(clazzOrShortcut)) {
+            return this.instanceMap.get(clazzOrShortcut).getClass().getName();
+        } else if (this.classMap.containsKey(clazzOrShortcut)) {
+            return this.classMap.get(clazzOrShortcut).getName();
+        } else if (this.classNameMap.containsKey(clazzOrShortcut)) {
+            return this.classNameMap.get(clazzOrShortcut);
+        } else {
+            return clazzOrShortcut;
         }
     }
 

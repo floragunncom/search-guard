@@ -30,7 +30,6 @@ import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.Authc;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.AuthcDomain;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.Authz;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.AuthzDomain;
-import com.floragunn.searchguard.support.ReflectionHelper;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
@@ -319,27 +318,6 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
         }
     }
     
-    private <T> T newInstance(final String clazzOrShortcut, String type, final Settings settings, final Path configPath) {
-        String clazz = clazzOrShortcut;
-        boolean isEnterprise = false;
-
-        if(authImplMap.containsKey(clazz+"_"+type)) {
-            clazz = authImplMap.get(clazz+"_"+type);
-        } else {
-            isEnterprise = true;
-        }
-
-        if(ReflectionHelper.isEnterpriseAAAModule(clazz)) {
-            isEnterprise = true;
-        }
-
-        return ReflectionHelper.instantiateAAA(clazz, settings, configPath, isEnterprise);
-    }
-    
-    private String translateShortcutToClassName(final String clazzOrShortcut) {
-        return authImplMap.getOrDefault(clazzOrShortcut + "_" + "c", clazzOrShortcut);
-    }
-    
     private void createAuthFailureListeners(List<AuthFailureListener> ipAuthFailureListeners,
             Multimap<String, AuthFailureListener> authBackendFailureListeners, List<ClientBlockRegistry<InetAddress>> ipClientBlockRegistries,
             Multimap<String, ClientBlockRegistry<String>> authBackendUserClientBlockRegistries, List<Destroyable> destroyableComponents0) {
@@ -353,7 +331,7 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
             String type = entry.getValue().type;
             String authenticationBackend = entry.getValue().authentication_backend;
 
-            AuthFailureListener authFailureListener = newInstance(type, "authFailureListener", entrySettings, configPath);
+            AuthFailureListener authFailureListener = modulesRegistry.getAuthFailureListeners().getInstance(type, entrySettings, configPath);
 
             if (Strings.isNullOrEmpty(authenticationBackend)) {
                 ipAuthFailureListeners.add(authFailureListener);
@@ -372,7 +350,7 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
 
             } else {
 
-                authenticationBackend = translateShortcutToClassName(authenticationBackend);
+                authenticationBackend = modulesRegistry.getAuthenticationBackends().getClassName(authenticationBackend);
 
                 authBackendFailureListeners.put(authenticationBackend, authFailureListener);
 

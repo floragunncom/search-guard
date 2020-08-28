@@ -30,6 +30,7 @@ import org.elasticsearch.script.ScriptContext;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.auth.AuthorizationBackend;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
@@ -58,6 +59,9 @@ public class SearchGuardModulesRegistry {
 
     private SearchGuardComponentRegistry<HTTPAuthenticator> httpAuthenticators = new SearchGuardComponentRegistry<HTTPAuthenticator>(
             HTTPAuthenticator.class, (o) -> o.getType()).add(StandardComponents.httpAuthenticators);
+    
+    private SearchGuardComponentRegistry<AuthFailureListener> authFailureListeners = new SearchGuardComponentRegistry<AuthFailureListener>(
+            AuthFailureListener.class, (o) -> o.getType()).add(StandardComponents.authFailureListeners);
 
     public SearchGuardModulesRegistry(Settings settings) {
         this.disabledModules = new HashSet<>(DISABLED_MODULES.get(settings));
@@ -221,6 +225,10 @@ public class SearchGuardModulesRegistry {
 
     public SearchGuardComponentRegistry<HTTPAuthenticator> getHttpAuthenticators() {
         return httpAuthenticators;
+    }
+
+    public SearchGuardComponentRegistry<AuthFailureListener> getAuthFailureListeners() {
+        return authFailureListeners;
     }
 
 }
