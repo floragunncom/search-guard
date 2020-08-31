@@ -105,13 +105,13 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
                 final List<String> backendRoles = internalUsersModel.getBackenRoles(credentials.getUsername());
                 final Map<String, String> customAttributes = internalUsersModel.getAttributes(credentials.getUsername());
                 if(customAttributes != null) {
-                    credentials = credentials.copy().prefixAttributes("attr.internal.", customAttributes).build();
+                    credentials = credentials.copy().prefixOldAttributes("attr.internal.", customAttributes).build();
                 }
                 
                 final List<String> searchGuardRoles = internalUsersModel.getSearchGuardRoles(credentials.getUsername());
                               
                 return User.forUser(credentials.getUsername()).backendRoles(backendRoles).searchGuardRoles(searchGuardRoles)
-                        .attributes(credentials.getAttributes()).build();
+                        .attributes(credentials.getStructuredAttributes()).oldAttributes(credentials.getAttributes()).build();
             } else {
                 throw new ElasticsearchSecurityException("password does not match");
             }

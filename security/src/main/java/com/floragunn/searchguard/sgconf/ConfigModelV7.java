@@ -17,24 +17,34 @@
 
 package com.floragunn.searchguard.sgconf;
 
-import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
-import com.floragunn.searchguard.auth.blocking.IpRangeVerdictBasedBlockRegistry;
-import com.floragunn.searchguard.auth.blocking.VerdictBasedBlockRegistry;
-import com.floragunn.searchguard.auth.blocking.WildcardVerdictBasedBlockRegistry;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.*;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7.Index;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.WildcardMatcher;
-import com.floragunn.searchguard.user.User;
-import com.google.common.base.Joiner;
-import com.google.common.collect.*;
-import com.google.common.collect.MultimapBuilder.SetMultimapBuilder;
-import inet.ipaddr.AddressStringException;
-import inet.ipaddr.IPAddressString;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.cluster.metadata.IndexAbstraction.Type;
@@ -46,21 +56,39 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.concurrent.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
+import com.floragunn.searchguard.auth.blocking.IpRangeVerdictBasedBlockRegistry;
+import com.floragunn.searchguard.auth.blocking.VerdictBasedBlockRegistry;
+import com.floragunn.searchguard.auth.blocking.WildcardVerdictBasedBlockRegistry;
+import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
+import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleV7.Index;
+import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.WildcardMatcher;
+import com.floragunn.searchguard.user.StringInterpolationException;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.user.UserAttributes;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.MultimapBuilder.SetMultimapBuilder;
+import com.google.common.collect.SetMultimap;
+import com.google.common.collect.Sets;
+
+import inet.ipaddr.AddressStringException;
+import inet.ipaddr.IPAddressString;
 
 public class ConfigModelV7 extends ConfigModel {
 
+    private static final Logger log = LogManager.getLogger(ConfigModelV7.class);
+
 	private static boolean dfmEmptyOverridesAll;
 
-    protected final Logger log = LogManager.getLogger(this.getClass());
     private ConfigConstants.RolesMappingResolution rolesMappingResolution;
     private ActionGroupResolver agr;
     private SgRoles sgRoles;
@@ -419,7 +447,12 @@ public class ConfigModelV7 extends ConfigModel {
                 for (IndexPattern ip : sgr.getIpatterns()) {
                     final Set<String> maskedFields = ip.getMaskedFields();
 
-                    final String[] concreteIndices = ip.getResolvedIndexPatterns(user, resolver, cs, false);
+                    String[] concreteIndices;
+                    try {
+                        concreteIndices = ip.getResolvedIndexPatterns(user, resolver, cs, false);
+                    } catch (StringInterpolationException e) {
+                        throw new ElasticsearchSecurityException("Invalid index pattern in role " + sgr.getName() + ": " + ip.indexPattern, e);
+                    }
 
                     if (maskedFields != null && maskedFields.size() > 0) {
 
@@ -485,9 +518,20 @@ public class ConfigModelV7 extends ConfigModel {
             for (SgRole sgr : roles) {
                 for (IndexPattern ip : sgr.getIpatterns()) {
                     final Set<String> fls = ip.getFls();
-                    final String dls = ip.getDlsQuery(user);
+                    String dls;
+                    String[] concreteIndices;
 
-                    final String[] concreteIndices = ip.getResolvedIndexPatterns(user, resolver, cs, false);
+                    try {
+                        dls = ip.getDlsQuery(user);
+                    } catch (StringInterpolationException e) {
+                        throw new ElasticsearchSecurityException("Invalid DLS query in role " + sgr.getName() + ": " + ip.dlsQuery, e);
+                    }
+
+                    try {
+                        concreteIndices = ip.getResolvedIndexPatterns(user, resolver, cs, false);
+                    } catch (StringInterpolationException e) {
+                        throw new ElasticsearchSecurityException("Invalid index pattern in role " + sgr.getName() + ": " + ip.indexPattern, e);
+                    }
                     
 
                     if (dls != null && dls.length() > 0) {
@@ -691,7 +735,14 @@ public class ConfigModelV7 extends ConfigModel {
                 //                }
                 if (patternMatch) {
                     //resolved but can contain patterns for nonexistent indices
-                    final String[] permitted = p.getResolvedIndexPatterns(user, resolver, cs, true); //maybe they do not exist
+                    String[] permitted;
+                    try {
+                        permitted = p.getResolvedIndexPatterns(user, resolver, cs, true); 
+                        //maybe they do not exist
+                    } catch (StringInterpolationException e) {
+                        log.warn("Invalid index pattern " + p.indexPattern, e);
+                        continue;
+                    } 
                     final Set<String> res = new HashSet<>();
                     if (!resolved.isLocalAll() && !resolved.getAllIndices().contains("*") && !resolved.getAllIndices().contains("_all")) {
                         final Set<String> wanted = new HashSet<>(resolved.getAllIndices());
@@ -923,11 +974,11 @@ public class ConfigModelV7 extends ConfigModel {
                     + System.lineSeparator() + "          fls=" + fls + System.lineSeparator() + "          perms=" + perms;
         }
 
-        public String getUnresolvedIndexPattern(User user) {
+        public String getUnresolvedIndexPattern(User user) throws StringInterpolationException {
             return replaceProperties(indexPattern, user);
         }
         
-        private String[] getResolvedIndexPatterns(User user, IndexNameExpressionResolver resolver, ClusterService cs, boolean appendUnresolved) {
+        private String[] getResolvedIndexPatterns(User user, IndexNameExpressionResolver resolver, ClusterService cs, boolean appendUnresolved) throws StringInterpolationException {
             String unresolved = getUnresolvedIndexPattern(user);
             String[] resolved = null;
             if (WildcardMatcher.containsWildcard(unresolved)) {
@@ -958,7 +1009,7 @@ public class ConfigModelV7 extends ConfigModel {
             }
         }
 
-        public String getDlsQuery(User user) {
+        public String getDlsQuery(User user) throws StringInterpolationException {
             return replaceProperties(dlsQuery, user);
         }
 
@@ -1131,14 +1182,30 @@ public class ConfigModelV7 extends ConfigModel {
         }
     }
 
-    private static String replaceProperties(String orig, User user) {
+    private static String replaceProperties(String orig, User user) throws StringInterpolationException {
 
         if (user == null || orig == null) {
             return orig;
         }
+        
+        String result = replaceObsoleteProperties(orig, user);
 
-        orig = orig.replace("${user.name}", user.getName()).replace("${user_name}", user.getName());
-        orig = replaceRoles(orig, user);
+        result = UserAttributes.replaceAttributes(result, user);
+        
+        
+        return result;
+    }
+
+    private static String replaceObsoleteProperties(String orig, User user) {
+
+        if (user == null || orig == null) {
+            return orig;
+        }
+        
+        if (log.isTraceEnabled()) {
+            log.trace("replaceObsoleteProperties()\nstring: " + orig + "\nattrs: " + user.getCustomAttributesMap().keySet());
+        }
+
         for (Entry<String, String> entry : user.getCustomAttributesMap().entrySet()) {
             if (entry == null || entry.getKey() == null || entry.getValue() == null) {
                 continue;
@@ -1148,22 +1215,7 @@ public class ConfigModelV7 extends ConfigModel {
         }
         return orig;
     }
-
-    private static String replaceRoles(final String orig, final User user) {
-        String retVal = orig;
-        if (orig.contains("${user.roles}") || orig.contains("${user_roles}")) {
-            final String commaSeparatedRoles = toQuotedCommaSeparatedString(user.getRoles());
-            retVal = orig.replace("${user.roles}", commaSeparatedRoles).replace("${user_roles}", commaSeparatedRoles);
-        }
-        return retVal;
-    }
-
-    private static String toQuotedCommaSeparatedString(final Set<String> roles) {
-        return Joiner.on(',').join(Iterables.transform(roles, s -> {
-            return new StringBuilder(s.length() + 2).append('"').append(s).append('"').toString();
-        }));
-    }
-
+ 
     private static boolean impliesTypePerm(Set<IndexPattern> ipatterns, Resolved resolved, User user, String[] actions,
                                            IndexNameExpressionResolver resolver, ClusterService cs) {
         Set<String> matchingIndex = new HashSet<>(resolved.getAllIndices());
@@ -1173,7 +1225,14 @@ public class ConfigModelV7 extends ConfigModel {
             Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
             //Set<String> matchingTypes = new HashSet<>(resolved.getTypes(-));
             for (IndexPattern p : ipatterns) {
-                if (WildcardMatcher.matchAny(p.getResolvedIndexPatterns(user, resolver, cs, true), in)) {
+                String[] resolvedIndexPatterns;
+                try {
+                    resolvedIndexPatterns = p.getResolvedIndexPatterns(user, resolver, cs, true);
+                } catch (StringInterpolationException e) {
+                    log.warn("Invalid index pattern " + p.indexPattern, e);
+                    continue;
+                }
+                if (WildcardMatcher.matchAny(resolvedIndexPatterns, in)) {
                     //per resolved index per pattern
                     //for (String t : resolved.getTypes(-)) {
                     //for (TypePerm tp : p.typePerms) {

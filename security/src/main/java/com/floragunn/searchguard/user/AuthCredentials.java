@@ -30,6 +30,8 @@ import java.util.Set;
 
 import org.elasticsearch.ElasticsearchSecurityException;
 
+import com.jayway.jsonpath.JsonPath;
+
 /**
  * AuthCredentials are an abstraction to encapsulate credentials like passwords or generic
  * native credentials like GSS tokens.
@@ -50,9 +52,10 @@ public final class AuthCredentials {
     private boolean complete;
     private final byte[] internalPasswordHash;
     private final Map<String, String> attributes;
-   
+    private final Map<String, Object> structuredAttributes;
+
     private AuthCredentials(String username, String subUserName, byte[] password, Object nativeCredentials, Set<String> backendRoles,
-            boolean complete, byte[] internalPasswordHash, Map<String, String> attributes) {
+            boolean complete, byte[] internalPasswordHash, Map<String, Object> structuredAttributes, Map<String, String> attributes) {
         super();
         this.username = username;
         this.subUserName = subUserName;
@@ -62,8 +65,8 @@ public final class AuthCredentials {
         this.complete = complete;
         this.internalPasswordHash = internalPasswordHash;
         this.attributes = Collections.unmodifiableMap(attributes);
+        this.structuredAttributes = Collections.unmodifiableMap(structuredAttributes);
     }
-
 
     @Deprecated
     public AuthCredentials(final String username, final Object nativeCredentials) {
@@ -87,7 +90,7 @@ public final class AuthCredentials {
     public AuthCredentials(final String username, String... backendRoles) {
         this(username, null, null, backendRoles);
     }
-    
+
     @Deprecated
     private AuthCredentials(final String username, byte[] password, Object nativeCredentials, String... backendRoles) {
         super();
@@ -102,7 +105,7 @@ public final class AuthCredentials {
         this.subUserName = null;
         this.complete = false;
 
-        if(this.password != null) {
+        if (this.password != null) {
             try {
                 MessageDigest digester = MessageDigest.getInstance(DIGEST_ALGORITHM);
                 internalPasswordHash = digester.digest(this.password);
@@ -113,7 +116,7 @@ public final class AuthCredentials {
             internalPasswordHash = null;
         }
 
-        if(password != null) {
+        if (password != null) {
             Arrays.fill(password, (byte) '\0');
             password = null;
         }
@@ -121,15 +124,16 @@ public final class AuthCredentials {
         this.nativeCredentials = nativeCredentials;
         nativeCredentials = null;
 
-        if(backendRoles != null && backendRoles.length > 0) {
+        if (backendRoles != null && backendRoles.length > 0) {
             this.backendRoles = new HashSet<>(Arrays.asList(backendRoles));
         } else {
             this.backendRoles = new HashSet<>();
         }
-        
+
         this.attributes = new HashMap<>();
+        this.structuredAttributes = new HashMap<>();
     }
-    
+
     /**
      * Wipe password and native credentials
      */
@@ -222,8 +226,6 @@ public final class AuthCredentials {
     public Map<String, String> getAttributes() {
         return this.attributes;
     }
-    
-    
 
     public Builder copy() {
         Builder builder = new Builder();
@@ -246,11 +248,10 @@ public final class AuthCredentials {
 
     @Deprecated
     public void addAttribute(String name, String value) {
-        if(name != null && !name.isEmpty()) {
+        if (name != null && !name.isEmpty()) {
             this.attributes.put(name, value);
         }
     }
-
 
     public static class Builder {
         private String userName;
@@ -261,6 +262,7 @@ public final class AuthCredentials {
         private boolean complete;
         private byte[] internalPasswordHash;
         private Map<String, String> attributes = new HashMap<>();
+        private Map<String, Object> structuredAttributes = new HashMap<>();
 
         public Builder() {
 
@@ -294,7 +296,7 @@ public final class AuthCredentials {
 
             return this;
         }
-        
+
         public Builder password(String password) {
             return this.password(password.getBytes(StandardCharsets.UTF_8));
         }
@@ -311,7 +313,7 @@ public final class AuthCredentials {
             if (backendRoles == null) {
                 return this;
             }
-            
+
             this.backendRoles.addAll(Arrays.asList(backendRoles));
             return this;
         }
@@ -327,24 +329,56 @@ public final class AuthCredentials {
             return this;
         }
 
-        public Builder attribute(String name, String value) {
+        public Builder oldAttribute(String name, String value) {
             if (name != null && !name.isEmpty()) {
                 this.attributes.put(name, value);
             }
             return this;
         }
 
-        public Builder attributes(Map<String, String> map) {
+        public Builder oldAttributes(Map<String, String> map) {
             this.attributes.putAll(map);
             return this;
         }
 
-        public Builder prefixAttributes(String keyPrefix, Map<String, ?> map) {
+        public Builder prefixOldAttributes(String keyPrefix, Map<String, ?> map) {
             for (Entry<String, ?> entry : map.entrySet()) {
                 this.attributes.put(keyPrefix + entry.getKey(), entry.getValue() != null ? entry.getValue().toString() : null);
             }
             return this;
         }
+
+        public Builder attribute(String name, Object value) {
+            UserAttributes.validate(value);
+           
+            if (name != null && !name.isEmpty()) {
+                this.structuredAttributes.put(name, value);
+            }
+            return this;
+        }
+
+        public Builder attributes(Map<String, Object> map) {
+            UserAttributes.validate(map);
+            this.structuredAttributes.putAll(map);
+            return this;
+        }
+        
+        public Builder attributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {            
+            for (Map.Entry<String, JsonPath> entry : jsonPathMap.entrySet()) {
+                Object values = JsonPath.parse(source).read(entry.getValue());
+                try {
+                    UserAttributes.validate(values);
+                } catch (IllegalArgumentException e) {
+                    throw new ElasticsearchSecurityException(
+                            "Error while initializing user attributes. Mapping for " + entry.getKey() + " produced invalid values:\n" + e.getMessage(), e);
+                }
+                
+                structuredAttributes.put(entry.getKey(), values);
+            }
+            
+            return this;
+        }
+        
 
         public String getUserName() {
             return userName;
@@ -352,11 +386,15 @@ public final class AuthCredentials {
 
         public AuthCredentials build() {
             AuthCredentials result = new AuthCredentials(userName, subUserName, password, nativeCredentials, backendRoles, complete,
-                    internalPasswordHash, attributes);
+                    internalPasswordHash, structuredAttributes, attributes);
             this.password = null;
             this.nativeCredentials = null;
             this.internalPasswordHash = null;
             return result;
         }
+    }
+
+    public Map<String, Object> getStructuredAttributes() {
+        return structuredAttributes;
     }
 }

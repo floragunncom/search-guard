@@ -35,6 +35,7 @@ import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.get.MultiGetResponse.Failure;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.DeprecationHandler;
@@ -158,7 +159,7 @@ public class ConfigurationLoaderSG7 {
             @Override
             public void onResponse(MultiGetResponse response) {
                 if (log.isTraceEnabled()) {
-                    log.trace("Response for " + mget + ": " + response);
+                    log.trace("Response for " + mget + ": " + Strings.toString(response));
                 }
                 
                 MultiGetItemResponse[] responses = response.getResponses();
