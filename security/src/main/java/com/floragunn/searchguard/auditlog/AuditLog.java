@@ -18,9 +18,11 @@
 package com.floragunn.searchguard.auditlog;
 
 import java.io.Closeable;
+import java.net.InetSocketAddress;
 import java.util.Map;
 
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.Engine.Delete;
 import org.elasticsearch.index.engine.Engine.DeleteResult;
@@ -42,6 +44,12 @@ public interface AuditLog extends Closeable {
     void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, String action, Task task);
     void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request);
 
+    // blocks
+    void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task);
+    void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress);
+    void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, Task task);
+    void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request);
+
     //privs
     void logMissingPrivileges(String privilege, String effectiveUser, RestRequest request);
     void logMissingPrivileges(String privilege, TransportRequest request, Task task);
@@ -50,7 +58,7 @@ public interface AuditLog extends Closeable {
     //spoof
     void logBadHeaders(TransportRequest request, String action, Task task);
     void logBadHeaders(RestRequest request);
-
+        
     void logSgIndexAttempt(TransportRequest request, String action, Task task);
     
     void logImmutableIndexAttempt(TransportRequest request, String action, Task task);

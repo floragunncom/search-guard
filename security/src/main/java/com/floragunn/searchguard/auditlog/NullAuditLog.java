@@ -18,9 +18,11 @@
 package com.floragunn.searchguard.auditlog;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.Map;
 
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.Engine.Delete;
 import org.elasticsearch.index.engine.Engine.DeleteResult;
@@ -130,5 +132,26 @@ public class NullAuditLog implements AuditLog {
     public void setComplianceConfig(ComplianceConfig complianceConfig) {
     	//noop, intentionally left empty
     }
+
+	@Override
+	public void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task) {
+		//noop, intentionally left empty		
+	}
+
+	@Override
+	public void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress) {
+		//noop, intentionally left empty		
+	}
+
+	@Override
+	public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request,
+			Task task) {
+		//noop, intentionally left empty		
+	}
+
+	@Override
+	public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+		//noop, intentionally left empty		
+	}
     
 }

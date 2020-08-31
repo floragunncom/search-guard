@@ -215,6 +215,7 @@ public class BackendRegistry implements DCFListener {
             if (log.isDebugEnabled()) {
                 log.debug("Rejecting transport request because of blocked address: " + request.remoteAddress());
             }
+            auditLog.logBlockedIp(request, action, request.remoteAddress(), task);
             return null;
         }
 
@@ -278,7 +279,15 @@ public class BackendRegistry implements DCFListener {
                 auditLog.logFailedLogin(authenticatedUser.getName(), true, null, request, task);
                 return null;
             }
-
+            
+            if (isUserBlocked(authenticationDomain.getBackend().getClass().getName(), authenticatedUser.getName())) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Rejecting TRANSPORT request because of blocked user: " + authenticatedUser.getName() + "; authDomain: " + authenticationDomain);
+                }                
+                auditLog.logBlockedUser(authenticatedUser.getName(), false, origPKIUser.getName(), request, task);
+                continue;
+            }            
+                        
             if (log.isDebugEnabled()) {
                 log.debug("Transport user '{}' is authenticated", authenticatedUser);
             }
@@ -320,7 +329,7 @@ public class BackendRegistry implements DCFListener {
             if (log.isDebugEnabled()) {
                 log.debug("Rejecting REST request because of blocked address: " + request.getHttpChannel().getRemoteAddress());
             }
-
+            auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
             channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
             return false;
         }
@@ -382,8 +391,8 @@ public class BackendRegistry implements DCFListener {
             if (ac != null && isUserBlocked(authenticationDomain.getBackend().getClass().getName(), ac.getUsername())) {
                 if (log.isDebugEnabled()) {
                     log.debug("Rejecting REST request because of blocked user: " + ac.getUsername() + "; authDomain: " + authenticationDomain);
-                }
-
+                }                
+                auditLog.logBlockedUser(ac.getUsername(), false, ac.getUsername(), request);
                 continue;
             }
 
