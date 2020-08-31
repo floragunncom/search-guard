@@ -18,6 +18,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -200,6 +201,9 @@ public class DisabledCategoriesTest {
 		logTransportBadHeaders(auditLog);
 		logTransportFailedLogin(auditLog);
 		logTransportSucceededLogin(auditLog);
+		
+		logBlockedIp(auditLog);
+		logBlockedUser(auditLog);
     }
 
 	 protected void logRestSucceededLogin(AuditLog auditLog) {
@@ -246,6 +250,17 @@ public class DisabledCategoriesTest {
     protected void logAuthenticatedRequest(AuditLog auditLog) {
     	auditLog.logGrantedPrivileges("action.success", new TransportRequest.Empty(), null);
     }
+    
+    
+
+    protected void logBlockedIp(AuditLog auditLog) {
+        auditLog.logBlockedIp(new MockRestRequest(), new InetSocketAddress(1234));
+    }
+    
+    protected void logBlockedUser(AuditLog auditLog) {
+        auditLog.logBlockedUser("horst", false, "horst", new MockRestRequest());
+    }
+
 
     private static final Category[] filterComplianceCategories(Category[] cats) {
         List<Category> retval = new ArrayList<AuditMessage.Category>();
