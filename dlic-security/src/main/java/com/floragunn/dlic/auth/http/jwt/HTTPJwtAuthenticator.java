@@ -14,18 +14,21 @@
 
 package com.floragunn.dlic.auth.http.jwt;
 
-import com.floragunn.searchguard.auth.HTTPAuthenticator;
-import com.floragunn.searchguard.user.AuthCredentials;
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
-import com.jayway.jsonpath.PathNotFoundException;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtParser;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.WeakKeyException;
-import net.minidev.json.JSONArray;
+import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.Key;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivilegedAction;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -37,15 +40,20 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import java.nio.file.Path;
-import java.security.*;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map.Entry;
+import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.user.UserAttributes;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
+import com.jayway.jsonpath.PathNotFoundException;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.WeakKeyException;
+import net.minidev.json.JSONArray;
 
 public class HTTPJwtAuthenticator implements HTTPAuthenticator {
 
@@ -61,6 +69,7 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
     private final String jsonSubjectPath;
     private final String jsonRolesPath;
     private Configuration jsonPathConfig;
+    private Map<String, JsonPath> attributeMapping;
 
     public HTTPJwtAuthenticator(final Settings settings, final Path configPath) {
         super();
@@ -110,6 +119,7 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
         jsonRolesPath = settings.get("roles_path");
         jsonSubjectPath = settings.get("subject_path");
         jwtParser = _jwtParser;
+        attributeMapping = UserAttributes.getAttributeMapping(settings.getAsSettings("map_claims_to_user_attrs"));
 
         if ((subjectKey != null && jsonSubjectPath != null) || (rolesKey != null && jsonRolesPath != null)) {
             throw new IllegalStateException("Both, subject_key and subject_path or roles_key and roles_path have simultaneously provided." +
@@ -173,7 +183,8 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
             
             final String[] roles = extractRoles(claims);
             
-            return AuthCredentials.forUser(subject).backendRoles(roles).prefixAttributes("attr.jwt.", claims).complete().build();        
+            return AuthCredentials.forUser(subject).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
+                    .prefixOldAttributes("attr.jwt.", claims).complete().build();
             
         } catch (WeakKeyException e) {
             log.error("Cannot authenticate user with JWT because of "+e, e);
@@ -285,4 +296,5 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
 
         return roles;
     }
+   
 }

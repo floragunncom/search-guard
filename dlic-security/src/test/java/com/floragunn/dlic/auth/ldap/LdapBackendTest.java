@@ -14,16 +14,14 @@
 
 package com.floragunn.dlic.auth.ldap;
 
-import com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend;
-import com.floragunn.dlic.auth.ldap.backend.LDAPAuthorizationBackend;
-import com.floragunn.dlic.auth.ldap.srv.EmbeddedLDAPServer;
-import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
-import com.floragunn.dlic.auth.ldap.util.LdapHelper;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchguard.user.User;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.TreeSet;
+
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
+import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -32,9 +30,14 @@ import org.ldaptive.Connection;
 import org.ldaptive.LdapAttribute;
 import org.ldaptive.LdapEntry;
 
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.TreeSet;
+import com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend;
+import com.floragunn.dlic.auth.ldap.backend.LDAPAuthorizationBackend;
+import com.floragunn.dlic.auth.ldap.srv.EmbeddedLDAPServer;
+import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
+import com.floragunn.dlic.auth.ldap.util.LdapHelper;
+import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.user.User;
 
 public class LdapBackendTest {
 
@@ -985,6 +988,27 @@ public class LdapBackendTest {
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("multi").password("multi").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=cabc,ou=people,o=TEST", user.getName());
+    }
+
+    @Test
+    public void testMultiValuedAttributes() throws Exception {
+        final Settings settings = Settings.builder().putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
+                .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})").put(ConfigConstants.LDAP_AUTHC_USERBASE, "ou=people,o=TEST")
+                .put(ConfigConstants.LDAP_AUTHZ_ROLEBASE, "ou=groups,o=TEST").put(ConfigConstants.LDAP_AUTHZ_ROLENAME, "cn")
+                .put(ConfigConstants.LDAP_AUTHZ_ROLESEARCH, "(uniqueMember={0})").put(ConfigConstants.LDAP_AUTHZ_RESOLVE_NESTED_ROLES, true)
+                .put("map_ldap_attrs_to_user_attrs.mapped_mail", "mail").put("map_ldap_attrs_to_user_attrs.mapped_description", "description")
+                .build();
+
+        LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null)
+                .authenticate(AuthCredentials.forUser("multivalued").password("multivalued").build());
+
+        Assert.assertNotNull(user);
+
+        Assert.assertThat((Iterable<?>) user.getStructuredAttributes().get("mapped_mail"),
+                Matchers.containsInAnyOrder("multivalued1@example.com", "multivalued2@example.com", "multivalued3@example.com"));
+
+        Assert.assertThat((Iterable<?>) user.getStructuredAttributes().get("mapped_description"),
+                Matchers.containsInAnyOrder("cn=multivalued1,ou=groups,o=TEST", "cn=multivalued2,ou=groups,o=TEST"));
     }
 
     @AfterClass

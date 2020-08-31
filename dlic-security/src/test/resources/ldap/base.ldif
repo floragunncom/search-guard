@@ -76,6 +76,28 @@ userpassword: ssignsecret
 mail: ssign@example.com
 description: cn=dummyempty,ou=groups,o=TEST
 
+dn: cn=multivalued,ou=people,o=TEST
+objectclass: inetOrgPerson
+cn: multivalued
+sn: multivalued
+uid: multivalued
+userpassword: multivalued
+mail: multivalued1@example.com
+mail: multivalued2@example.com
+mail: multivalued3@example.com
+description: cn=multivalued1,ou=groups,o=TEST
+description: cn=multivalued2,ou=groups,o=TEST
+
+dn: cn=propsreplace,ou=people,o=TEST
+objectclass: inetOrgPerson
+cn: propsreplace
+sn: propsreplace
+uid: propsreplace
+userpassword: propsreplace
+departmentNumber: a
+departmentNumber: b
+departmentNumber: c
+
 dn: cn=Non DN Roles,ou=people,o=TEST
 objectclass: inetOrgPerson
 cn: Non DN Roles

@@ -23,6 +23,7 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
@@ -40,6 +41,7 @@ import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.auth.Destroyable;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.user.UserAttributes;
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
@@ -54,6 +56,7 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
     private final LDAPConnectionManager lcm;
     private final int customAttrMaxValueLen;
     private final List<String> whitelistedAttributes;
+    private Map<String, String> attributeMapping;
 
     public LDAPAuthenticationBackend2(final Settings settings, final Path configPath) throws SSLConfigException, LDAPException {
         this.settings = settings;
@@ -61,6 +64,7 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
         customAttrMaxValueLen = settings.getAsInt(ConfigConstants.LDAP_CUSTOM_ATTR_MAXVAL_LEN, 36);
         whitelistedAttributes = settings.getAsList(ConfigConstants.LDAP_CUSTOM_ATTR_WHITELIST,
                 null);
+        attributeMapping = UserAttributes.getFlatAttributeMapping(settings.getAsSettings("map_ldap_attrs_to_user_attrs"));
     }
     
     @Override
@@ -139,8 +143,11 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
             // length of 36 are included in the user object
             // if the whitelist contains at least one value then all attributes will be
             // additional check if whitelisted (whitelist can contain wildcard and regex)
-            return new LdapUser(username, user, new DirEntry(entry), credentials, customAttrMaxValueLen, whitelistedAttributes);
+            LdapUser ldapUser = new LdapUser(username, user, new DirEntry(entry), credentials, customAttrMaxValueLen, whitelistedAttributes);
 
+            processAttributeMapping(ldapUser, entry);
+            
+            return ldapUser;
         } catch (final Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("Unable to authenticate user due to ", e);
@@ -176,7 +183,26 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
         });
         
     }
+    
+    private void processAttributeMapping(User user, SearchResultEntry ldapEntry) {
+        for (Map.Entry<String, String> entry : attributeMapping.entrySet()) {
+            String sourceAttributeName = entry.getValue();
+            String targetAttributeName = entry.getKey();
 
+            if (sourceAttributeName.equals("dn")) {
+                user.addStructuredAttribute(targetAttributeName, ldapEntry.getDN());
+            } else {
+                Attribute ldapAttribute = ldapEntry.getAttribute(sourceAttributeName);
+
+                if (ldapAttribute == null) {
+                    continue;
+                }
+
+                user.addStructuredAttribute(targetAttributeName, Arrays.asList(ldapAttribute.getValues()));
+            }
+        }
+    }
+    
     private boolean exists0(final User user) {
 
         String userName = user.getName();
@@ -192,6 +218,7 @@ public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destro
             
             if(exists) {
                 user.addAttributes(LdapUser.extractLdapAttributes(userName, new DirEntry(userEntry), customAttrMaxValueLen, whitelistedAttributes));
+                processAttributeMapping(user, userEntry);
             }
             
             return exists;

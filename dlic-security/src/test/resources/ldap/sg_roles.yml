@@ -17,3 +17,19 @@ sg_all_access:
     allowed_actions:
     - "*"
   tenant_permissions: []
+
+sg_prop_replace:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "dls_test"
+    dls: "{\"terms\" : {\"filter_attr\": ${user.attrs.mapped_attr_1|toList|toJson}}}"
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []  

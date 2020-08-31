@@ -20,6 +20,7 @@ import com.floragunn.dlic.auth.http.jwt.keybyoidc.JwtVerifier;
 import com.floragunn.dlic.auth.http.jwt.keybyoidc.KeyProvider;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.user.UserAttributes;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
@@ -46,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator {
@@ -62,6 +64,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
     private final String jsonSubjectPath;
     private final String jsonRolesPath;
     private Configuration jsonPathConfig;
+    private Map<String, JsonPath> attributeMapping;
 
     public AbstractHTTPJwtAuthenticator(Settings settings, Path configPath) {
         jwtUrlParameter = settings.get("jwt_url_parameter");
@@ -83,6 +86,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
                     " Please provide only one combination.");
         }
         jsonPathConfig = Configuration.builder().options(Option.ALWAYS_RETURN_LIST).build();
+        attributeMapping = UserAttributes.getAttributeMapping(settings.getAsSettings("map_claims_to_user_attrs"));
     }
 
     @Override
@@ -128,7 +132,8 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
 
         final String[] roles = extractRoles(claims);
 
-        return AuthCredentials.forUser(subject).backendRoles(roles).prefixAttributes("attr.jwt.", claims.asMap()).complete().build();
+        return AuthCredentials.forUser(subject).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
+                .prefixOldAttributes("attr.jwt.", claims.asMap()).complete().build();
     }
 
     protected String getJwtTokenString(RestRequest request) {

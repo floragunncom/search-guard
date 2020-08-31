@@ -16,9 +16,12 @@ package com.floragunn.dlic.auth.http.jwt;
 
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.util.FakeRestRequest;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.BaseEncoding;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+
 import org.elasticsearch.common.settings.Settings;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.core.Is;
@@ -29,6 +32,7 @@ import org.junit.rules.ExpectedException;
 
 import java.security.*;
 import java.util.*;
+import static com.floragunn.searchguard.test.SgMatchers.equalsAsJson;
 
 public class HTTPJwtAuthenticatorTest {
 
@@ -625,4 +629,35 @@ public class HTTPJwtAuthenticatorTest {
         thrown.expect(IllegalStateException.class);
         new HTTPJwtAuthenticator(settings, null);
     }
+
+    @Test
+    public void attributeAsArray() throws Exception {
+        Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).put("roles_key", "roles")
+                .put("map_claims_to_user_attrs.attr_1", "claimsarray_string").put("map_claims_to_user_attrs.attr_2", "claimsarray_int")
+                .put("map_claims_to_user_attrs.attr_3", "claimsarray_object").put("map_claims_to_user_attrs.attr_4", "claimsarray_mixed")
+                .put("map_claims_to_user_attrs.attr_5", "claimsarray_empty").build();
+
+        String jwsToken = Jwts.builder().setPayload("{" + "\"sub\": \"John Doe\"," //
+                + "\"claimsarray_string\": [\"a\",\"b\",\"c\"],"//
+                + "\"claimsarray_int\": [1,2,3],"//
+                + "\"claimsarray_object\": { \"objectarray\": []},"//
+                + "\"claimsarray_mixed\": [\"a\",\"b\",1],"//
+                + "\"claimsarray_empty\": []"//
+                + "}").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+
+        HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Authorization", "Bearer " + jwsToken);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
+        Assert.assertNotNull(creds);
+        Assert.assertEquals("John Doe", creds.getUsername());
+        Assert.assertEquals(Arrays.asList("a", "b", "c"), creds.getStructuredAttributes().get("attr_1"));
+        Assert.assertEquals(Arrays.asList(1, 2, 3), creds.getStructuredAttributes().get("attr_2"));
+        Assert.assertEquals(ImmutableMap.of("objectarray", Collections.emptyList()), creds.getStructuredAttributes().get("attr_3"));
+        Assert.assertEquals(Arrays.asList("a", "b", 1), creds.getStructuredAttributes().get("attr_4"));
+        Assert.assertEquals(Arrays.asList(), creds.getStructuredAttributes().get("attr_5"));
+
+    }
+
 }
