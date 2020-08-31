@@ -164,7 +164,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
                 .build();
         setup(Settings.EMPTY, null, settings, false);
         RestHelper rh = nonSslRestHelper();
-        Thread.sleep(10000);
+        Thread.sleep(15000);
         
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("admin", "admin")).getStatusCode());
     }

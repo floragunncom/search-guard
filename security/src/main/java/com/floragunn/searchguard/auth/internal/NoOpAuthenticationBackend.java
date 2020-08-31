@@ -38,7 +38,7 @@ public class NoOpAuthenticationBackend implements AuthenticationBackend {
 
     @Override
     public User authenticate(final AuthCredentials credentials) {
-        return User.forUser(credentials.getUsername()).backendRoles(credentials.getBackendRoles()).attributes(credentials.getAttributes()).build();
+        return User.forUser(credentials.getUsername()).with(credentials).build();
     }
 
     @Override

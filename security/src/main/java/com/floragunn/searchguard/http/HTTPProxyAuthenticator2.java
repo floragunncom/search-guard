@@ -19,6 +19,7 @@ package com.floragunn.searchguard.http;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,6 +33,7 @@ import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.user.UserAttributes;
 
 public class HTTPProxyAuthenticator2 implements HTTPAuthenticator {
     
@@ -54,9 +56,11 @@ public class HTTPProxyAuthenticator2 implements HTTPAuthenticator {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final Settings settings;
+    private Map<String, String> attributeMapping;
 
     public HTTPProxyAuthenticator2(Settings settings, final Path configPath) {
         this.settings = settings;
+        attributeMapping = UserAttributes.getFlatAttributeMapping(settings.getAsSettings("map_headers_to_user_attrs"));
     }
 
     public AuthCredentials extractCredentials(final RestRequest restRequest, final ThreadContext threadContext) {
@@ -125,6 +129,7 @@ public class HTTPProxyAuthenticator2 implements HTTPAuthenticator {
         AuthCredentials.Builder authCredentialsBuilder = AuthCredentials.forUser(restRequest.header(userHeader)).backendRoles(backendRoles).complete();
 
         addAdditionalAttributes(authCredentialsBuilder, restRequest);
+        addAdditionalOldAttributes(authCredentialsBuilder, restRequest);
 
         return authCredentialsBuilder.build();
     }
@@ -167,8 +172,23 @@ public class HTTPProxyAuthenticator2 implements HTTPAuthenticator {
     }
 
     private void addAdditionalAttributes(final AuthCredentials.Builder credentials, final RestRequest restRequest) {
+
+        for (Map.Entry<String, String> entry : attributeMapping.entrySet()) {
+            String sourceAttributeName = entry.getValue();
+            String targetAttributeName = entry.getKey();
+            String attributeValue = restRequest.header(sourceAttributeName);
+
+            if (attributeValue != null) {
+                credentials.attribute(targetAttributeName, attributeValue);
+
+            }
+        }
+
+    }
+    
+    private void addAdditionalOldAttributes(final AuthCredentials.Builder credentials, final RestRequest restRequest) {
         
-        credentials.attribute(ATTR_PROXY_USERNAME, credentials.getUserName());
+        credentials.oldAttribute(ATTR_PROXY_USERNAME, credentials.getUserName());
         
         if (settings.getAsList(ATTRIBUTE_HEADERS).isEmpty()) {
             if (log.isTraceEnabled()) {
@@ -183,7 +203,7 @@ public class HTTPProxyAuthenticator2 implements HTTPAuthenticator {
             }
             if (!Strings.isNullOrEmpty(attributeHeaderName) && !Strings.isNullOrEmpty(restRequest.header(attributeHeaderName))) {
                 String attributeValue = restRequest.header(attributeHeaderName);
-                credentials.attribute(ATTR_PROXY_PREFIX+attributeHeaderName, attributeValue);
+                credentials.oldAttribute(ATTR_PROXY_PREFIX+attributeHeaderName, attributeValue);
 
                 if (log.isDebugEnabled()) {
                     log.debug("attributeHeader {}, value {}", attributeHeaderName, attributeValue);

@@ -92,6 +92,7 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     builder.field("remote_address", remoteAddress);
                     builder.field("backend_roles", user==null?null:user.getRoles());
                     builder.field("custom_attribute_names", user==null?null:user.getCustomAttributesMap().keySet());
+                    builder.field("attribute_names", user==null?null:user.getStructuredAttributes().keySet());
                     builder.field("sg_roles", sgRoles);
                     builder.field("sg_tenants", evaluator.mapTenants(user, sgRoles));
                     builder.field("principal", (String)threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL));
@@ -102,6 +103,7 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                         try {
                             builder.field("size_of_user", RamUsageEstimator.humanReadableUnits(Base64Helper.serializeObject(user).length()));
                             builder.field("size_of_custom_attributes", RamUsageEstimator.humanReadableUnits(Base64Helper.serializeObject((Serializable) user.getCustomAttributesMap()).getBytes(StandardCharsets.UTF_8).length));
+                            builder.field("size_of_attributes", RamUsageEstimator.humanReadableUnits(Base64Helper.serializeObject((Serializable) user.getStructuredAttributes()).getBytes(StandardCharsets.UTF_8).length));
                             builder.field("size_of_backendroles", RamUsageEstimator.humanReadableUnits(Base64Helper.serializeObject((Serializable)user.getRoles()).getBytes(StandardCharsets.UTF_8).length));
                         } catch (Throwable e) {
                             //ignore

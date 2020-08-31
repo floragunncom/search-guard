@@ -54,9 +54,10 @@ public class User implements Serializable, CustomAttributesAware {
     private final Set<String> searchGuardRoles;
     private String requestedTenant;
     private Map<String, String> attributes;
+    private Map<String, Object> structuredAttributes;
     private boolean isInjected = false;
 
-    public User(String name, String subName, Set<String> roles, Set<String> searchGuardRoles, String requestedTenant, Map<String, String> attributes,
+    public User(String name, String subName, Set<String> roles, Set<String> searchGuardRoles, String requestedTenant, Map<String, Object> structuredAttributes, Map<String, String> attributes,
             boolean isInjected) {
         super();
         this.name = name;
@@ -64,6 +65,7 @@ public class User implements Serializable, CustomAttributesAware {
         this.roles = roles;
         this.searchGuardRoles = searchGuardRoles;
         this.requestedTenant = requestedTenant;
+        this.structuredAttributes = structuredAttributes;
         this.attributes = attributes;
         this.isInjected = isInjected;
     }
@@ -88,14 +90,17 @@ public class User implements Serializable, CustomAttributesAware {
         this.roles = new HashSet<String>();
         this.searchGuardRoles = new HashSet<String>();
         this.attributes = new HashMap<>();
+        this.structuredAttributes = new HashMap<>();
         if (roles != null) {
             this.addRoles(roles);
         }
 
         if (customAttributes != null) {
             this.attributes.putAll(customAttributes.getAttributes());
+            this.structuredAttributes.putAll(customAttributes.getStructuredAttributes());
         }
 
+        
     }
 
     /**
@@ -155,10 +160,9 @@ public class User implements Serializable, CustomAttributesAware {
     }
 
     /**
-     * Associate this user with a set of roles
-     * 
-     * @param roles The roles
+     * @deprecated Use structured attributes instead
      */
+    @Deprecated
     public final void addAttributes(final Map<String, String> attributes) {
         if (attributes != null) {
             this.attributes.putAll(attributes);
@@ -224,7 +228,10 @@ public class User implements Serializable, CustomAttributesAware {
      * Get the custom attributes associated with this user
      * 
      * @return A modifiable map with all the current custom attributes associated with this user
+     * 
+     * @deprecated use getStructuredAttributes() instead
      */
+    @Deprecated
     public synchronized final Map<String, String> getCustomAttributesMap() {
         if (attributes == null) {
             attributes = new HashMap<>();
@@ -232,6 +239,15 @@ public class User implements Serializable, CustomAttributesAware {
         return attributes;
     }
 
+
+    public Map<String, Object> getStructuredAttributes() {
+        return structuredAttributes;
+    }
+    
+    public void addStructuredAttribute(String key, Object value) {
+        structuredAttributes.put(key, value);
+    }
+    
     public final void addSearchGuardRoles(final Collection<String> sgRoles) {
         if (sgRoles != null && this.searchGuardRoles != null) {
             this.searchGuardRoles.addAll(sgRoles);
@@ -249,6 +265,7 @@ public class User implements Serializable, CustomAttributesAware {
         private final Set<String> searchGuardRoles = new HashSet<String>();
         private String requestedTenant;
         private Map<String, String> attributes = new HashMap<>();
+        private Map<String, Object> structuredAttributes = new HashMap<>();
         private boolean injected;
 
         public Builder name(String name) {
@@ -263,6 +280,13 @@ public class User implements Serializable, CustomAttributesAware {
 
         public Builder requestedTenant(String requestedTenant) {
             this.requestedTenant = requestedTenant;
+            return this;
+        }
+        
+        public Builder with(AuthCredentials authCredentials) {
+            this.backendRoles(authCredentials.getBackendRoles());
+            this.oldAttributes(authCredentials.getAttributes());
+            this.attributes(authCredentials.getStructuredAttributes());
             return this;
         }
 
@@ -288,18 +312,38 @@ public class User implements Serializable, CustomAttributesAware {
             return this;
         }
 
-        public Builder attributes(Map<String, String> attributes) {
+        @Deprecated
+        public Builder oldAttributes(Map<String, String> attributes) {
             this.attributes.putAll(attributes);
             return this;
         }
 
+        public Builder attributes(Map<String, Object> attributes) {
+            UserAttributes.validate(attributes);
+            this.structuredAttributes.putAll(attributes);
+            return this;
+        }
+        
+        public Builder attribute(String key, Object value) {
+            UserAttributes.validate(value);
+            this.structuredAttributes.put(key, value);
+            return this;
+        }
+        
+        @Deprecated
+        public Builder oldAttribute(String key, String value) {
+            this.attributes.put(key, value);
+            return this;
+        }
+        
         public Builder injected() {
             this.injected = true;
             return this;
         }
 
         public User build() {
-            return new User(name, subName, backendRoles, searchGuardRoles, requestedTenant, attributes, injected);
+            return new User(name, subName, backendRoles, searchGuardRoles, requestedTenant, structuredAttributes, attributes, injected);
         }
     }
+
 }
