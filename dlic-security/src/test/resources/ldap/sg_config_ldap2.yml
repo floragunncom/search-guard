@@ -38,6 +38,8 @@ sg_config:
             usersearch: "(uid={0})"
             enable_ssl: true
             verify_hostnames: false
+            map_ldap_attrs_to_user_attrs:
+               mapped_attr_1: departmentNumber            
         description: "Migrated from v6"
     authz: {}
     do_not_fail_on_forbidden: false

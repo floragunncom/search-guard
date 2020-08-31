@@ -399,8 +399,8 @@ public class HTTPSamlAuthenticatorTest {
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
-        AuthCredentials authCredentials = AuthCredentials.forUser("horst").attribute("attr.jwt.sub", "horst")
-                .attribute("attr.jwt.saml_nif", NameIDType.UNSPECIFIED).attribute("attr.jwt.saml_si", "si123").build();
+        AuthCredentials authCredentials = AuthCredentials.forUser("horst").oldAttribute("attr.jwt.sub", "horst")
+                .oldAttribute("attr.jwt.saml_nif", NameIDType.UNSPECIFIED).oldAttribute("attr.jwt.saml_si", "si123").build();
  
         String logoutUrl = samlAuthenticator.buildLogoutUrl(authCredentials);
 
@@ -423,8 +423,8 @@ public class HTTPSamlAuthenticatorTest {
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
-        AuthCredentials authCredentials = AuthCredentials.forUser("horst").attribute("attr.jwt.sub", "horst")
-                .attribute("attr.jwt.saml_nif", NameIDType.UNSPECIFIED).attribute("attr.jwt.saml_si", "si123").build();
+        AuthCredentials authCredentials = AuthCredentials.forUser("horst").oldAttribute("attr.jwt.sub", "horst")
+                .oldAttribute("attr.jwt.saml_nif", NameIDType.UNSPECIFIED).oldAttribute("attr.jwt.saml_si", "si123").build();
 
         String logoutUrl = samlAuthenticator.buildLogoutUrl(authCredentials);
 

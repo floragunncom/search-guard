@@ -32,6 +32,7 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
 import org.ldaptive.Connection;
 import org.ldaptive.ConnectionConfig;
+import org.ldaptive.LdapAttribute;
 import org.ldaptive.LdapEntry;
 import org.ldaptive.SearchFilter;
 import org.ldaptive.SearchScope;
@@ -44,6 +45,7 @@ import com.floragunn.dlic.auth.ldap.util.Utils;
 import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.user.UserAttributes;
 
 public class LDAPAuthenticationBackend implements AuthenticationBackend {
 
@@ -58,6 +60,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend {
     private final List<Map.Entry<String, Settings>> userBaseSettings;
     private final int customAttrMaxValueLen;
     private final List<String> whitelistedAttributes;
+    private Map<String, String> attributeMapping;
 
     public LDAPAuthenticationBackend(final Settings settings, final Path configPath) {
         this.settings = settings;
@@ -67,6 +70,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend {
         customAttrMaxValueLen = settings.getAsInt(ConfigConstants.LDAP_CUSTOM_ATTR_MAXVAL_LEN, 36);
         whitelistedAttributes = settings.getAsList(ConfigConstants.LDAP_CUSTOM_ATTR_WHITELIST,
                 null);
+        attributeMapping = UserAttributes.getFlatAttributeMapping(settings.getAsSettings("map_ldap_attrs_to_user_attrs"));
     }
 
     @Override
@@ -128,7 +132,11 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend {
             // length of 36 are included in the user object
             // if the whitelist contains at least one value then all attributes will be
             // additional check if whitelisted (whitelist can contain wildcard and regex)
-            return new LdapUser(username, user, new DirEntry(entry), credentials, customAttrMaxValueLen, whitelistedAttributes);
+            LdapUser ldapUser = new LdapUser(username, user, new DirEntry(entry), credentials, customAttrMaxValueLen, whitelistedAttributes);
+            
+            processAttributeMapping(ldapUser, entry);
+            
+            return ldapUser;
 
         } catch (final Exception e) {
             if (log.isDebugEnabled()) {
@@ -164,6 +172,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend {
             
             if(exists) {
                 user.addAttributes(LdapUser.extractLdapAttributes(userName, new DirEntry(userEntry), customAttrMaxValueLen, whitelistedAttributes));
+                processAttributeMapping(user, userEntry);
             }
             
             return exists;
@@ -176,6 +185,25 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend {
             return false;
         } finally {
             Utils.unbindAndCloseSilently(ldapConnection);
+        }
+    }
+    
+    private void processAttributeMapping(User user, LdapEntry ldapEntry) {
+        for (Map.Entry<String, String> entry : attributeMapping.entrySet()) {
+            String sourceAttributeName = entry.getValue();
+            String targetAttributeName = entry.getKey();
+
+            if (sourceAttributeName.equals("dn")) {
+                user.addStructuredAttribute(targetAttributeName, ldapEntry.getDn());
+            } else {
+                LdapAttribute ldapAttribute = ldapEntry.getAttribute(sourceAttributeName);
+
+                if (ldapAttribute == null) {
+                    continue;
+                }
+
+                user.addStructuredAttribute(targetAttributeName, ldapAttribute.getStringValues());
+            }
         }
     }
 
