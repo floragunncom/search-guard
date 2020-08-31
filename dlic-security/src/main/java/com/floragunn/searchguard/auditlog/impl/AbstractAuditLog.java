@@ -254,7 +254,52 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         save(msg);
     }
+    
+    @Override
+    public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request,
+    		Task task) {
 
+        final String action = null;
+
+        if(!checkTransportFilter(Category.BLOCKED_USER, action, effectiveUser, request)) {
+            return;
+        }
+
+        final TransportAddress remoteAddress = getRemoteAddress();
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.BLOCKED_USER, getOrigin(), action, null, effectiveUser, sgadmin, initiatingUser, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, excludeSensitiveHeaders, null);
+
+        for(AuditMessage msg: msgs) {
+            save(msg);
+        }    	
+    }
+    
+    @Override
+    public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+        if(!checkRestFilter(Category.BLOCKED_USER, effectiveUser, request)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(Category.BLOCKED_USER, clusterService, getOrigin(), Origin.REST);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
+            msg.addTupleToRequestBody(request.contentOrSourceParam());
+        }
+
+        if(request != null) {
+            msg.addPath(request.path());
+            msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
+            msg.addRestParams(request.params());
+        }
+
+        msg.addInitiatingUser(initiatingUser);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIsAdminDn(sgadmin);
+
+        save(msg);
+    	
+    }
+    
     @Override
     public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, String action, Task task) {
 
@@ -388,7 +433,44 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         save(msg);
     }
+    
+    @Override
+    public void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task) {
+        if(!checkTransportFilter(Category.BLOCKED_IP, action, getUser(), request)) {
+            return;
+        }
 
+        final List<AuditMessage> msgs = RequestResolver.resolve(Category.BLOCKED_IP, getOrigin(), action, null, getUser(), null, null, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterService, settings, logRequestBody, resolveIndices, resolveBulkRequests, searchguardIndex, excludeSensitiveHeaders, null);
+
+        for(AuditMessage msg: msgs) {
+            save(msg);
+        }    	
+    }
+    
+    @Override
+    public void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress) {
+        if(!checkRestFilter(Category.BLOCKED_IP, getUser(), request)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(Category.BLOCKED_IP, clusterService, getOrigin(), Origin.REST);
+        // getAddress() call is checked in BackendRegistry for null
+        msg.addRemoteAddress(remoteAddress.getAddress().getHostAddress());
+        if(request != null && logRequestBody && request.hasContentOrSourceParam()) {
+            msg.addTupleToRequestBody(request.contentOrSourceParam());
+        }
+        if(request != null) {
+            msg.addPath(request.path());
+            msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
+            msg.addRestParams(request.params());
+        }
+
+        msg.addEffectiveUser(getUser());
+
+        save(msg);
+    	
+    }
+    
     @Override
     public void logSgIndexAttempt(TransportRequest request, String action, Task task) {
 
