@@ -757,7 +757,7 @@ public final class IndexResolverReplacer implements DCFListener {
 
             String index = fieldCapabilitiesRequest.index();
 
-            String[] newIndices = provider.provide(new String [] {index}, request, true);
+            String[] newIndices = provider.provide(new String [] {index}, request, false);
             if(!checkIndices(request, newIndices, true, allowEmptyIndices)) {
                 return false;
             }
