@@ -44,7 +44,6 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.floragunn.searchguard.ssl.rest.SSLReloadCertAction;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -139,10 +138,11 @@ import com.floragunn.searchguard.http.SearchGuardHttpServerTransport;
 import com.floragunn.searchguard.http.SearchGuardNonSslHttpServerTransport;
 import com.floragunn.searchguard.http.XFFResolver;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
-import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.SearchGuardModule.BaseDependencies;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
 import com.floragunn.searchguard.privileges.extended_action_handling.ResourceOwnerService;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer;
@@ -157,6 +157,7 @@ import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
+import com.floragunn.searchguard.ssl.rest.SSLReloadCertAction;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -203,6 +204,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private static ProtectedIndices protectedIndices;
     private volatile NamedXContentRegistry namedXContentRegistry = null;
     private volatile DlsFlsRequestValve dlsFlsValve = null;
+    private SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry = new SpecialPrivilegesEvaluationContextProviderRegistry();
        
     private SearchGuardModulesRegistry moduleRegistry = new SearchGuardModulesRegistry();
     
@@ -878,7 +880,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
         
         BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
-                scriptService, xContentRegistry, environment, indexNameExpressionResolver, dcf, cr, protectedIndices);        
+                scriptService, xContentRegistry, environment, indexNameExpressionResolver, dcf, cr, protectedIndices,
+                specialPrivilegesEvaluationContextProviderRegistry);
         
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
                 
