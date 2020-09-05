@@ -49,8 +49,7 @@ public class SearchGuardModulesRegistry {
 
     private SearchGuardComponentRegistry<AuthorizationBackend> authorizationBackends = new SearchGuardComponentRegistry<AuthorizationBackend>(
             AuthorizationBackend.class, (o) -> o.getType()).add(StandardComponents.authzBackends);
-    
-    
+
     public SearchGuardModulesRegistry() {
 
     }
@@ -108,7 +107,7 @@ public class SearchGuardModulesRegistry {
         for (SearchGuardModule<?> module : subModules) {
             result.addAll(module.getContexts());
         }
-        
+
         return result;
     }
 
@@ -120,7 +119,7 @@ public class SearchGuardModulesRegistry {
 
             registerConfigChangeListener(module, baseDependencies.getDynamicConfigFactory());
         }
-        
+
         authenticationBackends.addComponentsWithMatchingType(result);
         authorizationBackends.addComponentsWithMatchingType(result);
 
@@ -152,6 +151,10 @@ public class SearchGuardModulesRegistry {
         dynamicConfigFactory.addConfigChangeListener(configMetadata.getSgConfigType(), (config) -> {
             Object convertedConfig = convert(configMetadata, config);
 
+            if (log.isDebugEnabled()) {
+                log.debug("New configuration for " + module + ": " + convertedConfig);
+            }
+
             @SuppressWarnings("rawtypes")
             Consumer consumer = configMetadata.getConfigConsumer();
 
@@ -167,19 +170,25 @@ public class SearchGuardModulesRegistry {
         Object entry = value.getCEntry(configMetadata.getEntry());
 
         if (entry == null) {
+            if (log.isDebugEnabled()) {
+                log.debug("No config entry " + configMetadata.getEntry() + " in " + value);
+            }
             return null;
         }
 
         JsonNode subNode = DefaultObjectMapper.objectMapper.valueToTree(entry).at(configMetadata.getJsonPointer());
 
         if (subNode == null || subNode.isMissingNode()) {
+            if (log.isDebugEnabled()) {
+                log.debug("JsonPointer " + configMetadata.getJsonPointer() + " in " + value + " not found");
+            }
             return null;
         }
 
         try {
             return configMetadata.getConfigParser().parse(subNode);
         } catch (ConfigValidationException e) {
-            log.error("Error while parsing configuration in " + this, e);
+            log.error("Error while parsing configuration in " + this + "\n" + e.getValidationErrors(), e);
             return null;
         }
     }

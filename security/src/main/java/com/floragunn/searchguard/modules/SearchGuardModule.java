@@ -30,6 +30,7 @@ import org.elasticsearch.watcher.ResourceWatcherService;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchsupport.config.validation.JsonNodeParser;
 
@@ -59,7 +60,7 @@ public interface SearchGuardModule<T> {
     default SgConfigMetadata<T> getSgConfigMetadata() {
         return null;
     }
- 
+
     public class SgConfigMetadata<T> {
         private final Class<?> sgConfigType;
         private final String entry;
@@ -101,23 +102,25 @@ public interface SearchGuardModule<T> {
 
     public class BaseDependencies {
 
-        private Settings settings;
-        private Client localClient;
-        private ClusterService clusterService;
-        private ThreadPool threadPool;
-        private ResourceWatcherService resourceWatcherService;
-        private ScriptService scriptService;
-        private NamedXContentRegistry xContentRegistry;
-        private Environment environment;
-        private IndexNameExpressionResolver indexNameExpressionResolver;
-        private DynamicConfigFactory dynamicConfigFactory;
-        private ConfigurationRepository configurationRepository;
-        private ProtectedIndices protectedIndices;
+        private final Settings settings;
+        private final Client localClient;
+        private final ClusterService clusterService;
+        private final ThreadPool threadPool;
+        private final ResourceWatcherService resourceWatcherService;
+        private final ScriptService scriptService;
+        private final NamedXContentRegistry xContentRegistry;
+        private final Environment environment;
+        private final IndexNameExpressionResolver indexNameExpressionResolver;
+        private final DynamicConfigFactory dynamicConfigFactory;
+        private final ConfigurationRepository configurationRepository;
+        private final ProtectedIndices protectedIndices;
+        private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
 
         public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
                 ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
                 Environment environment, IndexNameExpressionResolver indexNameExpressionResolver, DynamicConfigFactory dynamicConfigFactory,
-                ConfigurationRepository configurationRepository, ProtectedIndices protectedIndices) {
+                ConfigurationRepository configurationRepository, ProtectedIndices protectedIndices,
+                SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry) {
             super();
             this.settings = settings;
             this.localClient = localClient;
@@ -131,102 +134,60 @@ public interface SearchGuardModule<T> {
             this.dynamicConfigFactory = dynamicConfigFactory;
             this.configurationRepository = configurationRepository;
             this.protectedIndices = protectedIndices;
+            this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         }
 
         public Settings getSettings() {
             return settings;
         }
 
-        public void setSettings(Settings settings) {
-            this.settings = settings;
-        }
-
         public Client getLocalClient() {
             return localClient;
-        }
-
-        public void setLocalClient(Client localClient) {
-            this.localClient = localClient;
         }
 
         public ClusterService getClusterService() {
             return clusterService;
         }
 
-        public void setClusterService(ClusterService clusterService) {
-            this.clusterService = clusterService;
-        }
-
         public ThreadPool getThreadPool() {
             return threadPool;
-        }
-
-        public void setThreadPool(ThreadPool threadPool) {
-            this.threadPool = threadPool;
         }
 
         public ResourceWatcherService getResourceWatcherService() {
             return resourceWatcherService;
         }
 
-        public void setResourceWatcherService(ResourceWatcherService resourceWatcherService) {
-            this.resourceWatcherService = resourceWatcherService;
-        }
-
         public ScriptService getScriptService() {
             return scriptService;
-        }
-
-        public void setScriptService(ScriptService scriptService) {
-            this.scriptService = scriptService;
         }
 
         public NamedXContentRegistry getxContentRegistry() {
             return xContentRegistry;
         }
 
-        public void setxContentRegistry(NamedXContentRegistry xContentRegistry) {
-            this.xContentRegistry = xContentRegistry;
-        }
-
         public Environment getEnvironment() {
             return environment;
-        }
-
-        public void setEnvironment(Environment environment) {
-            this.environment = environment;
         }
 
         public IndexNameExpressionResolver getIndexNameExpressionResolver() {
             return indexNameExpressionResolver;
         }
 
-        public void setIndexNameExpressionResolver(IndexNameExpressionResolver indexNameExpressionResolver) {
-            this.indexNameExpressionResolver = indexNameExpressionResolver;
-        }
-
         public DynamicConfigFactory getDynamicConfigFactory() {
             return dynamicConfigFactory;
-        }
-
-        public void setDynamicConfigFactory(DynamicConfigFactory dynamicConfigFactory) {
-            this.dynamicConfigFactory = dynamicConfigFactory;
         }
 
         public ConfigurationRepository getConfigurationRepository() {
             return configurationRepository;
         }
 
-        public void setConfigurationRepository(ConfigurationRepository configurationRepository) {
-            this.configurationRepository = configurationRepository;
-        }
-
         public ProtectedIndices getProtectedIndices() {
             return protectedIndices;
         }
 
-        public void setProtectedIndices(ProtectedIndices protectedIndices) {
-            this.protectedIndices = protectedIndices;
+        public SpecialPrivilegesEvaluationContextProviderRegistry getSpecialPrivilegesEvaluationContextProviderRegistry() {
+            return specialPrivilegesEvaluationContextProviderRegistry;
         }
+
     }
 }
