@@ -25,7 +25,6 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.ScriptService;
@@ -70,10 +69,10 @@ public class SignalsTenant implements Closeable {
     private static final Logger log = LogManager.getLogger(SignalsTenant.class);
 
     public static SignalsTenant create(String name, Client client, ClusterService clusterService, ScriptService scriptService,
-            NamedXContentRegistry xContentRegistry, NodeEnvironment nodeEnvironment, InternalAuthTokenProvider internalAuthTokenProvider,
-            SignalsSettings settings, AccountRegistry accountRegistry) throws SchedulerException {
-        SignalsTenant instance = new SignalsTenant(name, client, clusterService, scriptService, xContentRegistry, nodeEnvironment,
-                internalAuthTokenProvider, settings, accountRegistry);
+            NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
+            AccountRegistry accountRegistry) throws SchedulerException {
+        SignalsTenant instance = new SignalsTenant(name, client, clusterService, scriptService, xContentRegistry, internalAuthTokenProvider, settings,
+                accountRegistry);
 
         instance.init();
 
@@ -102,8 +101,8 @@ public class SignalsTenant implements Closeable {
     private Scheduler scheduler;
 
     public SignalsTenant(String name, Client client, ClusterService clusterService, ScriptService scriptService,
-            NamedXContentRegistry xContentRegistry, NodeEnvironment nodeEnvironment, InternalAuthTokenProvider internalAuthTokenProvider,
-            SignalsSettings settings, AccountRegistry accountRegistry) {
+            NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
+            AccountRegistry accountRegistry) {
         this.name = name;
         this.settings = settings;
         this.scopedName = "signals/" + name;

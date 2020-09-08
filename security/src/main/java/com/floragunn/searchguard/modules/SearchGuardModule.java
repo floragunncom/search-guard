@@ -19,6 +19,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.env.Environment;
+import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
@@ -30,15 +31,16 @@ import org.elasticsearch.watcher.ResourceWatcherService;
 import com.fasterxml.jackson.core.JsonPointer;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchsupport.config.validation.JsonNodeParser;
 
 public interface SearchGuardModule<T> {
-    
+
     default List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            Supplier<DiscoveryNodes> nodesInCluster) {
+            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
         return Collections.emptyList();
     }
 
@@ -61,9 +63,9 @@ public interface SearchGuardModule<T> {
     default SgConfigMetadata<T> getSgConfigMetadata() {
         return null;
     }
-    
+
     default void onNodeStarted() {
-        
+
     }
 
     public class SgConfigMetadata<T> {
@@ -120,11 +122,14 @@ public interface SearchGuardModule<T> {
         private final ConfigurationRepository configurationRepository;
         private final ProtectedConfigIndexService protectedConfigIndexService;
         private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
+        private final NodeEnvironment nodeEnvironment;
+        private final InternalAuthTokenProvider internalAuthTokenProvider;
 
         public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
                 ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
-                Environment environment, IndexNameExpressionResolver indexNameExpressionResolver, DynamicConfigFactory dynamicConfigFactory,
-                ConfigurationRepository configurationRepository, ProtectedConfigIndexService protectedConfigIndexService,
+                Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
+                DynamicConfigFactory dynamicConfigFactory, ConfigurationRepository configurationRepository,
+                ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
                 SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry) {
             super();
             this.settings = settings;
@@ -135,11 +140,13 @@ public interface SearchGuardModule<T> {
             this.scriptService = scriptService;
             this.xContentRegistry = xContentRegistry;
             this.environment = environment;
+            this.nodeEnvironment = nodeEnvironment;
             this.indexNameExpressionResolver = indexNameExpressionResolver;
             this.dynamicConfigFactory = dynamicConfigFactory;
             this.configurationRepository = configurationRepository;
             this.protectedConfigIndexService = protectedConfigIndexService;
             this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
+            this.internalAuthTokenProvider = internalAuthTokenProvider;
         }
 
         public Settings getSettings() {
@@ -192,6 +199,14 @@ public interface SearchGuardModule<T> {
 
         public ProtectedConfigIndexService getProtectedConfigIndexService() {
             return protectedConfigIndexService;
+        }
+
+        public NodeEnvironment getNodeEnvironment() {
+            return nodeEnvironment;
+        }
+
+        public InternalAuthTokenProvider getInternalAuthTokenProvider() {
+            return internalAuthTokenProvider;
         }
 
     }

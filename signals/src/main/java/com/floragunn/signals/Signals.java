@@ -2,41 +2,31 @@ package com.floragunn.signals;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.file.Path;
 import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
-import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
-import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
-import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
-import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.FailureListener;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
@@ -46,35 +36,32 @@ import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.jobs.actions.SchedulerActions;
 import com.floragunn.signals.accounts.AccountRegistry;
-import com.floragunn.signals.actions.SignalsActions;
-import com.floragunn.signals.script.SignalsScriptContexts;
 import com.floragunn.signals.settings.SignalsSettings;
+import com.floragunn.signals.settings.SignalsSettings.StaticSettings.IndexNames;
+import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.state.WatchState;
 import com.google.common.io.BaseEncoding;
 
 public class Signals extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(Signals.class);
 
     private final SignalsSettings signalsSettings;
-    private SignalsIndexes signalsIndexes;
     private final Map<String, SignalsTenant> tenants = new ConcurrentHashMap<>();
     private Set<String> configuredTenants;
     private Client client;
     private ClusterService clusterService;
-    private NodeEnvironment nodeEnvironment;
     private NamedXContentRegistry xContentRegistry;
     private ScriptService scriptService;
     private InternalAuthTokenProvider internalAuthTokenProvider;
     private AccountRegistry accountRegistry;
     private InitializationState initState = InitializationState.INITIALIZING;
     private Exception initException;
-    private ThreadPool threadPool;
     private Settings settings;
     private String nodeId;
     private Map<String, Exception> tenantInitErrors = new ConcurrentHashMap<>();
 
-    public Signals(Settings settings, Path configPath) {
+    public Signals(Settings settings) {
         this.settings = settings;
         this.signalsSettings = new SignalsSettings(settings);
         this.signalsSettings.addChangeListener(this.settingsChangeListener);
@@ -83,7 +70,7 @@ public class Signals extends AbstractLifecycleComponent {
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, InternalAuthTokenProvider internalAuthTokenProvider,
-            ProtectedIndices protectedIndices, NamedWriteableRegistry namedWriteableRegistry, DynamicConfigFactory dynamicConfigFactory) {
+            ProtectedConfigIndexService protectedConfigIndexService, DynamicConfigFactory dynamicConfigFactory) {
 
         try {
             nodeId = nodeEnvironment.nodeId();
@@ -95,14 +82,11 @@ public class Signals extends AbstractLifecycleComponent {
 
             this.client = client;
             this.clusterService = clusterService;
-            this.nodeEnvironment = nodeEnvironment;
             this.xContentRegistry = xContentRegistry;
             this.scriptService = scriptService;
             this.internalAuthTokenProvider = internalAuthTokenProvider;
 
-            this.signalsIndexes = new SignalsIndexes(this, signalsSettings, client);
-            this.signalsIndexes.protectIndexes(protectedIndices);
-            clusterService.addListener(this.signalsIndexes.getClusterStateListener());
+            createIndexes(protectedConfigIndexService);
 
             if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true)
                     && signalsSettings.getStaticSettings().isEnterpriseEnabled()) {
@@ -110,7 +94,6 @@ public class Signals extends AbstractLifecycleComponent {
             }
 
             this.accountRegistry = new AccountRegistry(signalsSettings);
-            this.threadPool = threadPool;
 
             dynamicConfigFactory.registerDCFListener(dcfListener);
 
@@ -154,18 +137,19 @@ public class Signals extends AbstractLifecycleComponent {
         }
     }
 
-    public static List<Setting<?>> getSettings() {
-        return SignalsSettings.StaticSettings.getAvailableSettings();
-    }
+    private void createIndexes(ProtectedConfigIndexService protectedConfigIndexService) {
 
-    public static List<ScriptContext<?>> getContexts() {
-        return SignalsScriptContexts.CONTEXTS;
-    }
+        IndexNames indexNames = signalsSettings.getStaticSettings().getIndexNames();
 
-    public static List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> result = new ArrayList<>(SchedulerActions.getActions());
-        result.addAll(SignalsActions.getActions());
-        return result;
+        String[] allIndexes = new String[] { indexNames.getWatches(), indexNames.getWatchesState(), indexNames.getWatchesTriggerState(),
+                indexNames.getAccounts(), indexNames.getSettings() };
+
+        protectedConfigIndexService.createIndex(
+                new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping()).dependsOnIndices(allIndexes).onIndexReady(this::init));
+        protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesState()).mapping(WatchState.getIndexMapping()));
+        protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesTriggerState()));
+        protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getAccounts()));
+        protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getSettings()));
     }
 
     private void checkInitState() throws SignalsUnavailableException {
@@ -188,71 +172,13 @@ public class Signals extends AbstractLifecycleComponent {
         }
     }
 
-    private void waitForYellowStatus() throws InterruptedException {
-        SignalsSettings.StaticSettings.IndexNames indexNames = signalsSettings.getStaticSettings().getIndexNames();
-        long start = System.currentTimeMillis();
-        Exception lastException = null;
-
-        do {
-            try {
-                ClusterHealthResponse clusterHealthResponse = client.admin().cluster().health(new ClusterHealthRequest(indexNames.getWatches(),
-                        indexNames.getWatchesState(), indexNames.getSettings(), indexNames.getAccounts()).waitForYellowStatus()).actionGet();
-
-                if (log.isDebugEnabled()) {
-                    log.debug("chr: " + clusterHealthResponse);
-                }
-
-                if (clusterHealthResponse.getStatus() == ClusterHealthStatus.YELLOW
-                        || clusterHealthResponse.getStatus() == ClusterHealthStatus.GREEN) {
-                    return;
-                } else {
-                    if (System.currentTimeMillis() - start > 30 * 1000) {
-                        Exception indexInitException = signalsIndexes.getInitException();
-
-                        if (indexInitException != null) {
-                            initException = new Exception("Cluster is still in RED state; " + indexInitException.getMessage(), indexInitException);
-                        } else {
-                            initException = new Exception("Cluster is still in RED state");
-                        }
-                    }
-
-                    Thread.sleep(500);
-                }
-            } catch (InterruptedException e) {
-                throw e;
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Error while waiting for cluster health", e);
-                }
-
-                if (System.currentTimeMillis() - start > 30 * 1000) {
-                    Exception indexInitException = signalsIndexes.getInitException();
-
-                    if (indexInitException != null) {
-                        initException = new Exception("Cluster is still in RED state; " + indexInitException.getMessage(), indexInitException);
-                    } else {
-                        initException = new Exception("Cluster is still in RED state");
-                    }
-                }
-
-                lastException = e;
-
-                Thread.sleep(500);
-            }
-        } while (System.currentTimeMillis() < start + 60 * 60 * 1000);
-
-        throw new RuntimeException("Giving up waiting for YELLOW status after 60 minutes of trying. Don't say that I did not wait long enough! ^^",
-                lastException);
-
-    }
-
     private void createTenant(String name) throws SignalsInitializationException {
         try {
             if ("SGS_GLOBAL_TENANT".equals(name)) {
                 name = "_main";
             }
 
-            SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, scriptService, xContentRegistry, nodeEnvironment,
+            SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, scriptService, xContentRegistry,
                     internalAuthTokenProvider, signalsSettings, accountRegistry);
 
             tenants.put(name, signalsTenant);
@@ -274,7 +200,7 @@ public class Signals extends AbstractLifecycleComponent {
         }
     }
 
-    private synchronized void init() {
+    private synchronized void init(FailureListener failureListener) {
         if (initState == InitializationState.INITIALIZED) {
             return;
         }
@@ -333,6 +259,7 @@ public class Signals extends AbstractLifecycleComponent {
 
             initState = InitializationState.INITIALIZED;
         } catch (SignalsInitializationException e) {
+            failureListener.onFailure(e);
             initState = InitializationState.FAILED;
             initException = e;
         }
@@ -400,14 +327,6 @@ public class Signals extends AbstractLifecycleComponent {
 
     @Override
     protected void doStart() {
-        this.threadPool.generic().submit(() -> {
-            try {
-                waitForYellowStatus();
-                init();
-            } catch (Exception e) {
-                log.error("Error while starting Signals", e);
-            }
-        });
     }
 
     @Override

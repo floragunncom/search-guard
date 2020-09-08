@@ -1,5 +1,6 @@
 package com.floragunn.searchguard.modules;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,6 +28,7 @@ import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptContext;
+import org.elasticsearch.script.ScriptService;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
@@ -50,6 +52,7 @@ public class SearchGuardModulesRegistry {
     private List<SearchGuardModule<?>> subModules = new ArrayList<>();
     private Set<String> moduleNames = new HashSet<>();
     private final Set<String> disabledModules;
+    private final Settings settings;
 
     private SearchGuardComponentRegistry<AuthenticationBackend> authenticationBackends = new SearchGuardComponentRegistry<AuthenticationBackend>(
             AuthenticationBackend.class, (o) -> o.getType()).add(StandardComponents.authcBackends);
@@ -59,12 +62,13 @@ public class SearchGuardModulesRegistry {
 
     private SearchGuardComponentRegistry<HTTPAuthenticator> httpAuthenticators = new SearchGuardComponentRegistry<HTTPAuthenticator>(
             HTTPAuthenticator.class, (o) -> o.getType()).add(StandardComponents.httpAuthenticators);
-    
+
     private SearchGuardComponentRegistry<AuthFailureListener> authFailureListeners = new SearchGuardComponentRegistry<AuthFailureListener>(
             AuthFailureListener.class, (o) -> o.getType()).add(StandardComponents.authFailureListeners);
 
     public SearchGuardModulesRegistry(Settings settings) {
         this.disabledModules = new HashSet<>(DISABLED_MODULES.get(settings));
+        this.settings = settings;
     }
 
     public void add(String... classes) {
@@ -81,7 +85,7 @@ public class SearchGuardModulesRegistry {
 
                 moduleNames.add(clazz);
 
-                Object object = Class.forName(clazz).getDeclaredConstructor().newInstance();
+                Object object = createModule(clazz);
 
                 if (object instanceof SearchGuardModule) {
                     subModules.add((SearchGuardModule<?>) object);
@@ -99,12 +103,12 @@ public class SearchGuardModulesRegistry {
 
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            Supplier<DiscoveryNodes> nodesInCluster) {
+            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
         List<RestHandler> result = new ArrayList<>();
 
         for (SearchGuardModule<?> module : subModules) {
             result.addAll(module.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
-                    indexNameExpressionResolver, nodesInCluster));
+                    indexNameExpressionResolver, scriptService, nodesInCluster));
         }
 
         return result;
@@ -229,6 +233,21 @@ public class SearchGuardModulesRegistry {
 
     public SearchGuardComponentRegistry<AuthFailureListener> getAuthFailureListeners() {
         return authFailureListeners;
+    }
+
+    private Object createModule(String className) throws ClassNotFoundException, InstantiationException, IllegalAccessException,
+            IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+        Class<?> clazz = Class.forName(className);
+
+        try {
+            Constructor<?> constructor = clazz.getDeclaredConstructor(Settings.class);
+
+            return constructor.newInstance(settings);
+        } catch (NoSuchMethodException e) {
+            // ignore
+        }
+
+        return Class.forName(className).getDeclaredConstructor().newInstance();
     }
 
 }
