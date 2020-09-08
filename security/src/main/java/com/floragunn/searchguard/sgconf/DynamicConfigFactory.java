@@ -7,8 +7,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
-import com.floragunn.searchguard.sgconf.impl.v7.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.Client;
@@ -22,6 +22,7 @@ import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.StaticResourceException;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v6.ActionGroupsV6;
@@ -29,6 +30,13 @@ import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6;
 import com.floragunn.searchguard.sgconf.impl.v6.InternalUserV6;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
 import com.floragunn.searchguard.sgconf.impl.v6.RoleV6;
+import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
+import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
+import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
+import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
+import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class DynamicConfigFactory implements Initializable, ConfigurationChangeListener {
@@ -81,15 +89,18 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     private final Settings esSettings;
     private final Path configPath;
     private final InternalAuthenticationBackend iab = new InternalAuthenticationBackend();
+    private final List<Consumer<SgDynamicConfiguration<ConfigV7>>> configChangeConsumers = new ArrayList<>();
+    private final SearchGuardModulesRegistry modulesRegistry;
 
     SgDynamicConfiguration<?> config;
     
     public DynamicConfigFactory(ConfigurationRepository cr, final Settings esSettings, 
-            final Path configPath, Client client, ThreadPool threadPool, ClusterInfoHolder cih) {
+            final Path configPath, Client client, ThreadPool threadPool, ClusterInfoHolder cih, SearchGuardModulesRegistry modulesRegistry) {
         super();
         this.cr = cr;
         this.esSettings = esSettings;
         this.configPath = configPath;
+        this.modulesRegistry = modulesRegistry;
         
         if(esSettings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true)) {
             try {
@@ -100,6 +111,11 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         } else {
             log.info("Static resources will not be loaded.");
         }
+        
+        modulesRegistry.getAuthenticationBackends().add("intern", this.iab).add("internal", this.iab)
+                .add(InternalAuthenticationBackend.class.getName(), this.iab);
+        modulesRegistry.getAuthorizationBackends().add("intern", this.iab).add("internal", this.iab)
+                .add(InternalAuthenticationBackend.class.getName(), this.iab);        
         
         registerDCFListener(this.iab);
         this.cr.subscribeOnChange(this);
@@ -163,7 +179,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
 
 
             //rebuild v7 Models
-            DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), esSettings, configPath, iab);
+            DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), esSettings, configPath, modulesRegistry);
             InternalUsersModel ium = new InternalUsersModelV7((SgDynamicConfiguration<InternalUserV7>) internalusers);
             ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<RoleV7>) roles,(SgDynamicConfiguration<RoleMappingsV7>)rolesmapping,
                     (SgDynamicConfiguration<ActionGroupsV7>)actionGroups, (SgDynamicConfiguration<TenantV7>) tenants, (SgDynamicConfiguration<BlocksV7>) blocks, dcm, esSettings);
@@ -176,9 +192,12 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             	}            	
                 listener.onChanged(cm, dcm, ium);
             }
+            
+            notifyConfigChangeListeners(config);
         
         } else {
             //rebuild v6 Models
+            @SuppressWarnings("deprecation")
             DynamicConfigModel dcmv6 = new DynamicConfigModelV6(getConfigV6(config), esSettings, configPath, iab);
             InternalUsersModel iumv6 = new InternalUsersModelV6((SgDynamicConfiguration<InternalUserV6>) internalusers);
             ConfigModel cmv6 = new ConfigModelV6((SgDynamicConfiguration<RoleV6>) roles, (SgDynamicConfiguration<ActionGroupsV6>)actionGroups, (SgDynamicConfiguration<RoleMappingsV6>)rolesmapping, dcmv6, esSettings);
@@ -224,6 +243,30 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     @Override
     public final boolean isInitialized() {
         return initialized.get();
+    }
+    
+
+    @SuppressWarnings("unchecked")
+    private void notifyConfigChangeListeners(SgDynamicConfiguration<?> config) {
+        for (Consumer<SgDynamicConfiguration<ConfigV7>> consumer : this.configChangeConsumers) {
+            try {
+                consumer.accept((SgDynamicConfiguration<ConfigV7>) config);
+            } catch (Exception e) {
+                log.error("Error in " + consumer + " consuming " + config);
+            }
+        }
+    }
+    
+    public <T> void addConfigChangeListener(Class<T> configType, Consumer<SgDynamicConfiguration<T>> listener) {
+        if (configType.equals(ConfigV7.class)) {
+            @SuppressWarnings("rawtypes")
+            Consumer rawListener = listener;
+            @SuppressWarnings("unchecked")
+            Consumer<SgDynamicConfiguration<ConfigV7>> configListener = (Consumer<SgDynamicConfiguration<ConfigV7>>) rawListener;
+            configChangeConsumers.add(configListener);
+        } else {
+            throw new RuntimeException(configType + " is not supported by addConfigChangeListener()");
+        }
     }
     
     public void registerDCFListener(DCFListener listener) {

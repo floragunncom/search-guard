@@ -10,10 +10,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
@@ -26,7 +24,7 @@ import com.google.common.collect.ImmutableList;
 
 public class ConvertWatchApiAction extends SignalsBaseRestHandler {
 
-    public ConvertWatchApiAction(final Settings settings, final RestController controller, final ThreadPool threadPool) {
+    public ConvertWatchApiAction(final Settings settings) {
         super(settings);
     }
 

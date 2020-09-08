@@ -8,8 +8,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
-import com.floragunn.signals.watch.common.HttpRequestConfig;
-import com.floragunn.signals.support.NestedValueMap;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
@@ -54,6 +52,7 @@ import com.floragunn.signals.watch.action.handlers.email.EmailAction;
 import com.floragunn.signals.watch.action.handlers.email.EmailAction.Attachment;
 import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
 import com.floragunn.signals.watch.action.handlers.slack.SlackActionConf;
+import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.result.ActionLog;
 import com.floragunn.signals.watch.result.Status;

@@ -56,6 +56,10 @@ public abstract class DynamicConfigModel {
     public abstract List<ClientBlockRegistry<InetAddress>> getIpClientBlockRegistries();
     public abstract Multimap<String, ClientBlockRegistry<String>> getAuthBackendClientBlockRegistries();
     
+    /**
+     * @deprecated use the SearchGuardComponentRegistry instances in SearchGuardModuleRegistry
+     */
+    @Deprecated
     protected final Map<String, String> authImplMap = new HashMap<>();
 
     public DynamicConfigModel() {

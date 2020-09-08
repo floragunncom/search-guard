@@ -97,6 +97,12 @@ public class ConfigurationLoaderSG7 {
             public void noData(String id, String type) {
                 //when index was created with ES 6 there are no separate tenants. So we load just empty ones.
                //when index was created with ES 7 and type not "sg" (ES 6 type) there are no rolemappings anymore.
+                
+                if (log.isTraceEnabled()) {
+                    log.trace("noData(" + id + ", " + type + ")");
+                    log.trace("index creation version: " + cs.state().getMetadata().index(searchguardIndex).getCreationVersion());
+                }
+                
                 if(cs.state().getMetadata().index(searchguardIndex).getCreationVersion().before(Version.V_7_0_0) || "sg".equals(type)) {
                     //created with SG 6
                     //skip tenants
@@ -117,7 +123,8 @@ public class ConfigurationLoaderSG7 {
                     rs.put(CType.BLOCKS, SgDynamicConfiguration.empty());
                     latch.countDown();
                 } else {
-                    log.warn("No data for {} while retrieving configuration for {}  (index={} and type={})", id, Arrays.toString(events), searchguardIndex, type);
+                    log.error("No data for {} while retrieving configuration for {}  (index={} and type={})", id, Arrays.toString(events), searchguardIndex, type);
+                    latch.countDown();
                 }
             }
             

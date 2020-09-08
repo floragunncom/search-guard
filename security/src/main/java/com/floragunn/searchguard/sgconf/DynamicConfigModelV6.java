@@ -22,6 +22,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
+@Deprecated
 public class DynamicConfigModelV6 extends DynamicConfigModel {
     
     private final ConfigV6 config;

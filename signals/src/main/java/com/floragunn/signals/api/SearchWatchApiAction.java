@@ -8,14 +8,11 @@ import java.io.IOException;
 import java.util.List;
 
 import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.RestStatusToXContentListener;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.filter.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.search.SearchWatchAction;
@@ -25,7 +22,7 @@ import com.google.common.collect.ImmutableList;
 
 public class SearchWatchApiAction extends BaseRestHandler implements TenantAwareRestHandler {
 
-    public SearchWatchApiAction(final Settings settings, final RestController controller, final ThreadPool threadPool) {
+    public SearchWatchApiAction() {
         super();
     }
 

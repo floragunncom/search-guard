@@ -20,13 +20,11 @@ package com.floragunn.searchguard.support;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
@@ -34,27 +32,17 @@ import java.util.jar.Manifest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
-import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.env.Environment;
-import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.IndexService;
-import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.watcher.ResourceWatcherService;
 
-import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
@@ -62,10 +50,8 @@ import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
-import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.ssl.transport.DefaultPrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.transport.DefaultInterClusterRequestEvaluator;
@@ -191,64 +177,6 @@ public class ReflectionHelper {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public static List<Setting<?>> getSettings(final String className) {
-
-        // TODO We might want to consider defining a better interface for Signals integration
-        
-        try {
-            final Class<?> clazz = Class.forName(className);
-
-            return (List<Setting<?>>) clazz.getDeclaredMethod("getSettings").invoke(null);
-
-        } catch (final Throwable e) {
-            log.warn("Unable to retrieve settings from {} due to {}", className,
-                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            return Collections.emptyList();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public static List<ScriptContext<?>> getContexts(final String className) {
-        // TODO We might want to consider defining a better interface for Signals integration
-
-        try {
-            final Class<?> clazz = Class.forName(className);
-
-            return (List<ScriptContext<?>>) clazz.getDeclaredMethod("getContexts").invoke(null);
-
-        } catch (final Throwable e) {
-            log.warn("Unable to retrieve contexts from {} due to {}", className,
-                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            return Collections.emptyList();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public static List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions(String className) {
-        // TODO We might want to consider defining a better interface for Signals integration
-
-        try {
-            final Class<?> clazz = Class.forName(className);
-
-            return (List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>>) clazz.getDeclaredMethod("getActions").invoke(null);
-
-        } catch (final Throwable e) {
-            log.warn("Unable to retrieve actions from {} due to {}", className,
-                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            return Collections.emptyList();
-        }
-    }
-
     @SuppressWarnings("rawtypes")
     public static Constructor instantiateDlsFlsConstructor() {
 
@@ -364,36 +292,6 @@ public class ReflectionHelper {
                 log.debug("Stacktrace: ", e);
             }
             return noop;
-        }
-    }
-
-    public static Collection<Object> createAlertingComponents(Settings settings, Path configPath, Client client, ClusterService clusterService,
-            ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
-            Environment environment, NodeEnvironment nodeEnvironment, InternalAuthTokenProvider internalAuthTokenProvider, ProtectedIndices protectedIndices,
-            NamedWriteableRegistry namedWriteableRegistry, DynamicConfigFactory dcf) {
-
-        try {
-            Class<?> clazz = Class.forName("com.floragunn.signals.Signals");
-            Constructor<?> constructor = clazz.getConstructor(Settings.class, Path.class);
-            Object impl = constructor.newInstance(settings, configPath);
-            Method createComponentsMethod = impl.getClass().getMethod("createComponents", Client.class, ClusterService.class, ThreadPool.class,
-                    ResourceWatcherService.class, ScriptService.class, NamedXContentRegistry.class, Environment.class, NodeEnvironment.class,
-                    InternalAuthTokenProvider.class, ProtectedIndices.class, NamedWriteableRegistry.class, DynamicConfigFactory.class);
-
-            @SuppressWarnings("unchecked")
-            Collection<Object> result = (Collection<Object>) createComponentsMethod.invoke(impl, client, clusterService, threadPool,
-                    resourceWatcherService, scriptService, xContentRegistry, environment, nodeEnvironment, internalAuthTokenProvider, protectedIndices,
-                    namedWriteableRegistry, dcf);
-
-            addLoadedModule(clazz);
-            return result;
-        } catch (final Throwable e) {
-            log.warn("Unable to enable Alerting due to {}",
-                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            return Collections.emptyList();
         }
     }
 

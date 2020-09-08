@@ -8,17 +8,13 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
@@ -41,8 +37,7 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
     private final Logger log = LogManager.getLogger(this.getClass());
     private final ScriptService scriptService;
 
-    public ExecuteWatchApiAction(Settings settings, RestController controller, ThreadPool threadPool, Client client, ScriptService scriptService,
-            NamedXContentRegistry xContentRegistry) {
+    public ExecuteWatchApiAction(Settings settings, ScriptService scriptService) {
         super(settings);
         this.scriptService = scriptService;
     }
