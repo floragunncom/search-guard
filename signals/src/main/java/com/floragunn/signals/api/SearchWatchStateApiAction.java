@@ -25,7 +25,7 @@ import com.google.common.collect.ImmutableList;
 
 public class SearchWatchStateApiAction extends BaseRestHandler implements TenantAwareRestHandler {
 
-    public SearchWatchStateApiAction(final Settings settings, final RestController controller, final ThreadPool threadPool) {
+    public SearchWatchStateApiAction() {
 
     }
 

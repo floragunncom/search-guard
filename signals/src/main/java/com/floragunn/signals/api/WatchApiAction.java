@@ -15,10 +15,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.filter.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.delete.DeleteWatchAction;
@@ -36,7 +34,7 @@ import com.google.common.collect.ImmutableList;
 
 public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
 
-    public WatchApiAction(final Settings settings, final RestController controller, final ThreadPool threadPool) {
+    public WatchApiAction(final Settings settings) {
         super(settings);
     }
 

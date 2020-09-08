@@ -12,9 +12,12 @@ import org.elasticsearch.painless.spi.Whitelist;
 import org.elasticsearch.painless.spi.WhitelistLoader;
 import org.elasticsearch.script.ScriptContext;
 
+import com.floragunn.signals.SignalsModule;
+
 public class SignalsPainlessExtension implements PainlessExtension {
     private final static Logger log = LogManager.getLogger(SignalsPainlessExtension.class);
-
+    private final static SignalsModule MODULE = new SignalsModule();
+    
     @Override
     public Map<ScriptContext<?>, List<Whitelist>> getContextWhitelists() {
 
@@ -24,7 +27,7 @@ public class SignalsPainlessExtension implements PainlessExtension {
 
         HashMap<ScriptContext<?>, List<Whitelist>> result = new HashMap<>();
 
-        for (ScriptContext<?> context : SignalsScriptContexts.CONTEXTS) {
+        for (ScriptContext<?> context : MODULE.getContexts()) {
             result.put(context, Collections.singletonList(whitelist));
         }
 

@@ -193,14 +193,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private final boolean disabled;
     private final boolean enterpriseModulesEnabled;
     private final boolean sslOnly;
-    private final boolean signalsEnabled;
     private boolean sslCertReloadEnabled;
     private final List<String> demoCertHashes = new ArrayList<String>(3);
     private volatile SearchGuardFilter sgf;
     private volatile ComplianceConfig complianceConfig;
     private volatile IndexResolverReplacer irr;
     private ScriptService scriptService;
-    private NamedXContentRegistry xContentRegistry;
 
     private static ProtectedIndices protectedIndices;
     private ProtectedConfigIndexService protectedConfigIndexService;
@@ -249,7 +247,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             this.dlsFlsConstructor = null;
             this.enterpriseModulesEnabled = false;
             this.sslOnly = false;
-            this.signalsEnabled = false;
             this.sslCertReloadEnabled = false;
             complianceConfig = null;
             SearchGuardPlugin.protectedIndices = new ProtectedIndices();
@@ -263,7 +260,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             this.dlsFlsAvailable = false;
             this.dlsFlsConstructor = null;
             this.enterpriseModulesEnabled = false;
-            this.signalsEnabled = false;
             this.sslCertReloadEnabled = false;
             complianceConfig = null;
             SearchGuardPlugin.protectedIndices = new ProtectedIndices();
@@ -271,7 +267,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             return;
         }
 
-        signalsEnabled = settings.getAsBoolean("signals.enabled", true);
         
         SearchGuardPlugin.protectedIndices = new ProtectedIndices(settings);
 
@@ -390,6 +385,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (enterpriseModulesEnabled) {
             moduleRegistry.add("com.floragunn.searchguard.authtoken.AuthTokenModule");
         }
+        
+        moduleRegistry.add("com.floragunn.signals.SignalsModule");
 
     }
 
@@ -486,14 +483,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
             }
 
-            if (signalsEnabled) {
-                handlers.addAll(ReflectionHelper.instantiateRestApiHandler("com.floragunn.signals.api.SignalsApiActions", settings, configPath,
-                        restController, localClient, adminDns, cr, cs, scriptService, xContentRegistry, principalExtractor, evaluator, threadPool,
-                        auditLog));
-            }
-            
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
-                    indexNameExpressionResolver, nodesInCluster));
+                    indexNameExpressionResolver, scriptService, nodesInCluster));
         }
 
         return handlers;
@@ -518,26 +509,14 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));
         }
 
-        if (signalsEnabled) {
-            actions.addAll(ReflectionHelper.getActions("com.floragunn.signals.Signals"));
-        }
-        
         actions.addAll(moduleRegistry.getActions());
 
         return actions;
     }
 
     @Override
-    public List<ScriptContext<?>> getContexts() {
-        ArrayList<ScriptContext<?>> result = new ArrayList<>();
-
-        if (signalsEnabled) {
-            result.addAll(ReflectionHelper.getContexts("com.floragunn.signals.Signals"));
-        }
-        
-        result.addAll(moduleRegistry.getContexts());
-
-        return result;
+    public List<ScriptContext<?>> getContexts() {        
+        return moduleRegistry.getContexts();
     }
 
     private CheckedFunction<DirectoryReader, DirectoryReader, IOException> loadFlsDlsIndexSearcherWrapper(final IndexService indexService,
@@ -785,7 +764,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         this.cs = clusterService;
         this.localClient = localClient;
         this.scriptService = scriptService;
-        this.xContentRegistry = xContentRegistry;
 
         final List<Object> components = new ArrayList<Object>();
 
@@ -879,15 +857,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(moduleRegistry);
         components.add(protectedConfigIndexService);
         
-        if (signalsEnabled) {
-            components.addAll(ReflectionHelper.createAlertingComponents(settings, configPath, localClient, clusterService, threadPool,
-                    resourceWatcherService, scriptService, xContentRegistry, environment, nodeEnvironment, internalAuthTokenProvider,
-                    protectedIndices, namedWriteableRegistry, dcf));
-        }
-        
         BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
-                scriptService, xContentRegistry, environment, indexNameExpressionResolver, dcf, cr, protectedConfigIndexService,
-                specialPrivilegesEvaluationContextProviderRegistry);
+                scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, dcf, cr, protectedConfigIndexService,
+                internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry);
     
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
                 
@@ -1135,7 +1107,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true, Property.NodeScope, Property.Filtered));
 
-            settings.addAll(ReflectionHelper.getSettings("com.floragunn.signals.Signals"));
             settings.addAll(ResourceOwnerService.SUPPORTED_SETTINGS);
 
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false, Property.NodeScope, Property.Filtered));

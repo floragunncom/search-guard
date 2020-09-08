@@ -13,7 +13,6 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.script.ScriptService;
 import org.junit.Assert;
@@ -43,7 +42,6 @@ public class SignalsTenantTest {
 
     private static ClusterService clusterService;
     private static NamedXContentRegistry xContentRegistry;
-    private static NodeEnvironment nodeEnvironment;
     private static ScriptService scriptService;
     private static InternalAuthTokenProvider internalAuthTokenProvider;
     private static final User UHURA = User.forUser("uhura").backendRoles("signals_admin", "all_access").build();
@@ -55,7 +53,6 @@ public class SignalsTenantTest {
 
         clusterService = node.injector().getInstance(ClusterService.class);
         xContentRegistry = node.injector().getInstance(NamedXContentRegistry.class);
-        nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
         scriptService = node.injector().getInstance(ScriptService.class);
         internalAuthTokenProvider = node.injector().getInstance(InternalAuthTokenProvider.class);
 
@@ -91,8 +88,8 @@ public class SignalsTenantTest {
 
             Settings settings = Settings.builder().build();
 
-            try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, scriptService, xContentRegistry, nodeEnvironment,
-                    internalAuthTokenProvider, new SignalsSettings(settings), null)) {
+            try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, scriptService, xContentRegistry, internalAuthTokenProvider,
+                    new SignalsSettings(settings), null)) {
                 tenant.init();
 
                 Assert.assertEquals(1, tenant.getLocalWatchCount());
@@ -109,8 +106,8 @@ public class SignalsTenantTest {
             SignalsSettings settings = Mockito.mock(SignalsSettings.class, Mockito.RETURNS_DEEP_STUBS);
             Mockito.when(settings.getTenant("test").getNodeFilter()).thenReturn("unknown_attr:true");
 
-            try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, scriptService, xContentRegistry, nodeEnvironment,
-                    internalAuthTokenProvider, settings, null)) {
+            try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, scriptService, xContentRegistry, internalAuthTokenProvider,
+                    settings, null)) {
                 tenant.init();
 
                 Assert.assertEquals(0, tenant.getLocalWatchCount());
@@ -127,7 +124,7 @@ public class SignalsTenantTest {
 
             Settings settings = Settings.builder().build();
 
-            try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, scriptService, xContentRegistry, nodeEnvironment,
+            try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, scriptService, xContentRegistry,
                     internalAuthTokenProvider, new SignalsSettings(settings), null)) {
                 tenant.init();
 
@@ -161,7 +158,7 @@ public class SignalsTenantTest {
 
             Thread.sleep(1000);
 
-            try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, scriptService, xContentRegistry, nodeEnvironment,
+            try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, scriptService, xContentRegistry,
                     internalAuthTokenProvider, new SignalsSettings(settings), null)) {
                 tenant.init();
 

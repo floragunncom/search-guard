@@ -226,7 +226,7 @@ public class ProtectedConfigIndexService {
                             log.debug(ConfigIndexState.this + " reached status " + Strings.toString(clusterHealthResponse));
                         }
 
-                        tryOnIndexReady();
+                        threadPool.generic().submit(() -> tryOnIndexReady());
                         return;
                     }
 
