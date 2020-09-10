@@ -170,6 +170,8 @@ SGS_KIBANA_SERVER:
     - "*:.management-beats*"
     - ".apm-*"
     - "*:.apm-*"
+    - ".kibana-event-log-*"
+    - "*:.kibana-event-log-*"
     allowed_actions:
     - "SGS_INDICES_ALL"
   - index_patterns:
