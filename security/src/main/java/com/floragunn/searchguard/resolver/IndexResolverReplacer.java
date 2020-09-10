@@ -46,6 +46,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -165,7 +166,7 @@ public final class IndexResolverReplacer implements DCFListener {
         final RemoteClusterService remoteClusterService = SearchGuardPlugin.GuiceHolder.getRemoteClusterService();
 
         if (remoteClusterService.isCrossClusterSearchEnabled() && request != null
-                && (request instanceof FieldCapabilitiesRequest || request instanceof SearchRequest)) {
+                && (request instanceof FieldCapabilitiesRequest || request instanceof SearchRequest || request instanceof ResolveIndexAction.Request)) {
             remoteIndices = new HashSet<>();
             final Map<String, OriginalIndices> remoteClusterIndices = SearchGuardPlugin.GuiceHolder.getRemoteClusterService()
                     .groupIndices(indicesOptions, requestedPatterns0, idx -> resolver.hasIndexAbstraction(idx, clusterService.state()));

@@ -90,6 +90,7 @@ SGS_READ:
   allowed_actions:
   - "indices:data/read*"
   - "indices:admin/mappings/fields/get*"
+  - "indices:admin/resolve/index"
   type: "index"
   description: "Allow all read operations"
 SGS_INDICES_ALL:

@@ -88,7 +88,7 @@ public class SgMatchers {
 
         };
     }
-
+    
     public static String getStringSegment(String patternString, String input) {
         Pattern pattern = Pattern.compile("^" + patternString + "$", Pattern.MULTILINE);
         Matcher matcher = pattern.matcher(input);

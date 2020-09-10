@@ -30,16 +30,18 @@ import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.yaml.YamlXContent;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.painless.PainlessPlugin;
 import org.elasticsearch.painless.spi.PainlessExtension;
@@ -50,17 +52,14 @@ import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 
 import com.floragunn.searchguard.SearchGuardPlugin;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.modules.SearchGuardModule;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
-import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
+import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.user.User;
@@ -75,16 +74,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
     protected final String resourceFolder;
     private List<Class<? extends Plugin>> plugins;
 
-    public LocalCluster(String resourceFolder, ClusterConfiguration clusterConfiguration, List<Class<? extends Plugin>> plugins) throws Exception {
-        this(resourceFolder, new DynamicSgConfig(), Settings.EMPTY, clusterConfiguration, plugins);
-    }
-
-    public LocalCluster(String resourceFolder, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, ClusterConfiguration clusterConfiguration,
+    public LocalCluster(String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride, ClusterConfiguration clusterConfiguration,
             List<Class<? extends Plugin>> plugins) {
         this.resourceFolder = resourceFolder;
         this.plugins = plugins;
 
-        setup(Settings.EMPTY, dynamicSgSettings, nodeOverride, true, clusterConfiguration);
+        setup(Settings.EMPTY, testSgConfig, nodeOverride, true, clusterConfiguration);
     }
 
     @Override
@@ -215,7 +210,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
         return new ContextHeaderDecoratorClient(getNodeClient(), ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
     }
 
-    private void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex,
+    private void setup(Settings initTransportClientSettings, TestSgConfig testSgConfig, Settings nodeOverride, boolean initSearchGuardIndex,
             ClusterConfiguration clusterConfiguration) {
         painlessWhitelistKludge();
 
@@ -227,8 +222,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
             throw new RuntimeException(e);
         }
 
-        if (initSearchGuardIndex && dynamicSgSettings != null) {
-            initialize(dynamicSgSettings);
+        if (initSearchGuardIndex && testSgConfig != null) {
+            initialize(testSgConfig);
         }
     }
 
@@ -262,32 +257,19 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
         }
     }
 
-    protected void initialize(DynamicSgConfig sgconfig) {
+    protected void initialize(TestSgConfig testSgConfig) {
 
-        try (Client tc = getInternalClient()) {
+        try (Client client = getInternalClient()) {
 
-            try {
-                tc.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
-            } catch (Exception e) {
-                //ignore
-            }
+            testSgConfig.initIndex(client);
 
-            for (IndexRequest ir : sgconfig.getDynamicConfig(getResourceFolder())) {
-                tc.index(ir).actionGet();
-            }
-
-            ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0])))
-                    .actionGet();
-            Assert.assertFalse(cur.failures().toString(), cur.hasFailures());
-            Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());
-
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "roles")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "rolesmapping")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "actiongroups")).actionGet().isExists());
-            Assert.assertFalse(tc.get(new GetRequest("searchguard", "rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
+            Assert.assertTrue(client.get(new GetRequest("searchguard", "config")).actionGet().isExists());
+            Assert.assertTrue(client.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());
+            Assert.assertTrue(client.get(new GetRequest("searchguard", "roles")).actionGet().isExists());
+            Assert.assertTrue(client.get(new GetRequest("searchguard", "rolesmapping")).actionGet().isExists());
+            Assert.assertTrue(client.get(new GetRequest("searchguard", "actiongroups")).actionGet().isExists());
+            Assert.assertFalse(client.get(new GetRequest("searchguard", "rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
+            Assert.assertTrue(client.get(new GetRequest("searchguard", "config")).actionGet().isExists());
         }
     }
 
@@ -385,6 +367,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
         private Settings.Builder nodeOverrideSettingsBuilder = Settings.builder();
         private List<String> disabledModules = new ArrayList<>();
         private List<Class<? extends Plugin>> plugins = new ArrayList<>();
+        private TestSgConfig testSgConfig = new TestSgConfig();
 
         public Builder sslEnabled() {
             this.sslEnabled = true;
@@ -393,6 +376,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
 
         public Builder resources(String resourceFolder) {
             this.resourceFolder = resourceFolder;
+            testSgConfig.resources(resourceFolder);
             return this;
         }
 
@@ -403,6 +387,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
 
         public Builder singleNode() {
             this.clusterConfiguration = ClusterConfiguration.SINGLENODE;
+            return this;
+        }
+
+        public Builder setInSgConfig(String keyPath, Object value, Object... more) {
+            testSgConfig.sgConfigSettings(keyPath, value, more);
             return this;
         }
 
@@ -437,6 +426,21 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
             return this;
         }
 
+        public Builder user(String name, String password, String... sgRoles) {
+            testSgConfig.user(name, password, sgRoles);
+            return this;
+        }
+
+        public Builder user(String name, String password, Role... sgRoles) {
+            testSgConfig.user(name, password, sgRoles);
+            return this;
+        }
+
+        public Builder roles(Role... roles) {
+            testSgConfig.roles(roles);
+            return this;
+        }
+
         public LocalCluster build() {
             try {
 
@@ -453,13 +457,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
                     nodeOverrideSettingsBuilder.putList(SearchGuardModulesRegistry.DISABLED_MODULES.getKey(), this.disabledModules);
                 }
 
-                return new LocalCluster(resourceFolder,  new DynamicSgConfig(), nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins);
+                return new LocalCluster(resourceFolder, testSgConfig, nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
 
         }
-
     }
 
 }
