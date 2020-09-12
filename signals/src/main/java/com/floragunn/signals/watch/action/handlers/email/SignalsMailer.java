@@ -20,15 +20,21 @@ public class SignalsMailer {
         super();
         this.emailDestination = emailDestination;
 
+        String[] trustedHosts = new String[0];
+
+        if (sslUsed() && emailDestination.getTrustedHosts() != null) {
+            trustedHosts = emailDestination.getTrustedHosts();
+        }
+
         MailerBuilder.MailerRegularBuilder mailerBuilder = MailerBuilder
                 .withSMTPServer(emailDestination.getHost(), emailDestination.getPort(), emailDestination.getUser(), emailDestination.getPassword())
                 .withProxy(emailDestination.getProxyHost(), emailDestination.getProxyPort(), emailDestination.getProxyUser(),
                         emailDestination.getProxyPassword())
                 .withDebugLogging(Boolean.valueOf(emailDestination.isDebug()))
                 .withTransportModeLoggingOnly(Boolean.valueOf(emailDestination.isSimulate())).withTransportStrategy(evalTransportStrategy())
-                .trustingAllHosts(sslUsed() ? Boolean.valueOf(emailDestination.isTrustAll()) : Boolean.FALSE)
-                .trustingSSLHosts(sslUsed() ? emailDestination.getTrustedHosts() : new String[0]).withProperty("mail.smtps.ssl.checkserveridentity",
-                        (sslUsed() && (emailDestination.isTrustAll() || emailDestination.getTrustedHosts().length > 0)) ? "false" : "true");
+                .trustingAllHosts(sslUsed() ? Boolean.valueOf(emailDestination.isTrustAll()) : Boolean.FALSE).trustingSSLHosts(trustedHosts)
+                .withProperty("mail.smtps.ssl.checkserveridentity",
+                        (sslUsed() && (emailDestination.isTrustAll() || trustedHosts.length > 0)) ? "false" : "true");
 
         if (emailDestination.getSessionTimeout() != null) {
             mailerBuilder.withSessionTimeout(emailDestination.getSessionTimeout());
