@@ -24,6 +24,7 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
@@ -314,7 +315,11 @@ public class ResourceOwnerService {
                         public void onFailure(Exception e) {
                             cleanupInProgress = false;
 
-                            log.error("Error while deleting expired entries from " + index, e);
+                            if (e instanceof IndexNotFoundException) {
+                                log.debug("No expired entries have been deleted because the index does not exist", e);
+                            } else {
+                                log.error("Error while deleting expired entries from " + index, e);
+                            }
                         }
                     });
         } catch (Exception e) {
