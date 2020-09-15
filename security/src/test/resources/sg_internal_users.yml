@@ -341,3 +341,19 @@ evil_sulu:
   backend_roles:
   - "own_index_with_sgs"
   #password is: nagilum  
+user_with_attributes:
+  hash: $2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m
+  search_guard_roles:
+  - "sg_index_pattern_with_attr_role"
+  attributes:
+    string_attr: string_content
+    list_attr:
+      - item1
+      - item2
+      - item2
+    object_attr:
+      a: 1
+      b: 2
+      c: [3,4,5]
+      d: a
+  #password is: nagilum    

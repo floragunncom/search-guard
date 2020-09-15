@@ -14,12 +14,12 @@ public class InternalUserV6 implements Hideable, Hashed {
         private boolean readonly;
         private boolean hidden;
         private List<String> roles = Collections.emptyList();
-        private Map<String, String> attributes = Collections.emptyMap();
+        private Map<String, Object> attributes = Collections.emptyMap();
         private String username;
 
         
 
-        public InternalUserV6(String hash, boolean readonly, boolean hidden, List<String> roles, Map<String, String> attributes, String username) {
+        public InternalUserV6(String hash, boolean readonly, boolean hidden, List<String> roles, Map<String, Object> attributes, String username) {
             super();
             this.hash = hash;
             this.readonly = readonly;
@@ -66,10 +66,10 @@ public class InternalUserV6 implements Hideable, Hashed {
         public void setRoles(List<String> roles) {
             this.roles = roles;
         }
-        public Map<String, String> getAttributes() {
+        public Map<String, Object> getAttributes() {
             return attributes;
         }
-        public void setAttributes(Map<String, String> attributes) {
+        public void setAttributes(Map<String, Object> attributes) {
             this.attributes = attributes;
         }
 

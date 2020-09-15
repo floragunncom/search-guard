@@ -11,6 +11,7 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
 
 import com.fasterxml.jackson.core.JsonParser;
@@ -18,13 +19,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
+import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.InvalidPathException;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 
 public class UserAttributes {
 
     private static final Logger log = LogManager.getLogger(UserAttributes.class);
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
+    private static final Configuration JSON_PATH_CONFIG = Configuration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
 
     public static Map<String, JsonPath> getAttributeMapping(Settings settings) {
         HashMap<String, JsonPath> result = new HashMap<>();
@@ -50,7 +54,6 @@ public class UserAttributes {
         if (settings == null) {
             return result;
         }
-
         for (String key : settings.keySet()) {
             result.put(key, settings.get(key));
         }
@@ -65,6 +68,20 @@ public class UserAttributes {
 
     public static void validate(Object value) {
         validate(value, 0);
+    }
+    
+    static void addAttributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source, Map<String, Object> target) {            
+        for (Map.Entry<String, JsonPath> entry : jsonPathMap.entrySet()) {
+            Object values = JsonPath.using(JSON_PATH_CONFIG).parse(source).read(entry.getValue());
+            try {
+                UserAttributes.validate(values);
+            } catch (IllegalArgumentException e) {
+                throw new ElasticsearchSecurityException(
+                        "Error while initializing user attributes. Mapping for " + entry.getKey() + " produced invalid values:\n" + e.getMessage(), e);
+            }
+            
+            target.put(entry.getKey(), values);
+        }
     }
 
     private static void validate(Object value, int depth) {

@@ -1045,3 +1045,12 @@ sg_own_index_with_sgs:
     allowed_actions:
     - SGS_CRUD
   tenant_permissions: []
+
+sg_index_pattern_with_attr_role:
+  cluster_permissions:
+  - SGS_CLUSTER_COMPOSITE_OPS_RO
+  index_permissions:
+  - index_patterns:
+    - "attr_test_${user.attrs.pattern}"
+    allowed_actions:
+    - "*"

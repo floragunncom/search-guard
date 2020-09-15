@@ -20,6 +20,7 @@ package com.floragunn.searchguard.auth.internal;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -28,20 +29,27 @@ import java.util.Map.Entry;
 
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.auth.AuthorizationBackend;
-import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
-import com.floragunn.searchguard.sgconf.DynamicConfigModel;
-import com.floragunn.searchguard.sgconf.InternalUsersModel;
+import com.floragunn.searchguard.modules.SearchGuardComponentRegistry.ComponentFactory;
+import com.floragunn.searchguard.sgconf.internal_users_db.InternalUsersDatabase;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.user.UserAttributes;
+import com.jayway.jsonpath.JsonPath;
 
-public class InternalAuthenticationBackend implements AuthenticationBackend, AuthorizationBackend, DCFListener {
+public class InternalAuthenticationBackend implements AuthenticationBackend, AuthorizationBackend {
 
-    private InternalUsersModel internalUsersModel;
+    private final InternalUsersDatabase internalUsersModel;
+    private Map<String, JsonPath> attributeMapping;
 
+    InternalAuthenticationBackend(Settings settings, InternalUsersDatabase internalUsersDatabase) {
+        this.internalUsersModel = internalUsersDatabase;
+        attributeMapping = UserAttributes.getAttributeMapping(settings.getAsSettings("map_db_attrs_to_user_attrs"));
+    }
+    
     @Override
     public boolean exists(User user) {
 
@@ -55,12 +63,12 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
             user.addRoles(internalUsersModel.getBackenRoles(user.getName()));
             //FIX https://github.com/opendistro-for-elasticsearch/security/pull/23
             //Credits to @turettn
-            final Map<String, String> customAttributes = internalUsersModel.getAttributes(user.getName());
+            final Map<String, Object> customAttributes = internalUsersModel.getAttributes(user.getName());
             Map<String, String> attributeMap = new HashMap<>();
 
             if(customAttributes != null) {
-                for(Entry<String, String> attributeEntry: customAttributes.entrySet()) {
-                    attributeMap.put("attr.internal."+attributeEntry.getKey(), attributeEntry.getValue());
+                for(Entry<String, Object> attributeEntry: customAttributes.entrySet()) {
+                    attributeMap.put("attr.internal."+attributeEntry.getKey(), attributeEntry.getValue() != null ? attributeEntry.getValue().toString() : null);
                 }
             }
 
@@ -70,6 +78,7 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
             }
             
             user.addAttributes(attributeMap);
+            user.addStructuredAttributesByJsonPath(attributeMapping, customAttributes);
             return true;
         }
 
@@ -103,15 +112,18 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
         try {
             if (OpenBSDBCrypt.checkPassword(internalUsersModel.getHash(credentials.getUsername()), array)) {
                 final List<String> backendRoles = internalUsersModel.getBackenRoles(credentials.getUsername());
-                final Map<String, String> customAttributes = internalUsersModel.getAttributes(credentials.getUsername());
+                final Map<String, Object> customAttributes = internalUsersModel.getAttributes(credentials.getUsername());
                 if(customAttributes != null) {
                     credentials = credentials.copy().prefixOldAttributes("attr.internal.", customAttributes).build();
                 }
                 
                 final List<String> searchGuardRoles = internalUsersModel.getSearchGuardRoles(credentials.getUsername());
-                              
-                return User.forUser(credentials.getUsername()).backendRoles(backendRoles).searchGuardRoles(searchGuardRoles)
-                        .attributes(credentials.getStructuredAttributes()).oldAttributes(credentials.getAttributes()).build();
+
+                User user = User.forUser(credentials.getUsername()).backendRoles(backendRoles).searchGuardRoles(searchGuardRoles)
+                        .attributes(credentials.getStructuredAttributes()).attributesByJsonPath(attributeMapping, customAttributes)
+                        .oldAttributes(credentials.getAttributes()).build();
+         
+                return user;
             } else {
                 throw new ElasticsearchSecurityException("password does not match");
             }
@@ -145,10 +157,25 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
         
     }
 
-    @Override
-    public void onChanged(ConfigModel cf, DynamicConfigModel dcf, InternalUsersModel ium) {
-        this.internalUsersModel = ium;
+    public static class Factory implements ComponentFactory<InternalAuthenticationBackend> {
+        private final InternalUsersDatabase internalUsersDatabase;
+
+        public Factory(InternalUsersDatabase internalUsersDatabase) {
+            this.internalUsersDatabase = internalUsersDatabase;
+        }
+
+        @Override
+        public InternalAuthenticationBackend create(Settings settings, Path configPath) {
+           return new InternalAuthenticationBackend(settings, internalUsersDatabase);            
+        }
+
+        @Override
+        public String getClassName() {
+            return InternalAuthenticationBackend.class.getName();
+        }
+        
+        
     }
-    
-    
+
+  
 }

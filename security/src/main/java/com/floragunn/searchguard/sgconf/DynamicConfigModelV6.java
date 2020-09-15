@@ -2,15 +2,28 @@ package com.floragunn.searchguard.sgconf;
 
 import java.net.InetAddress;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
-import com.floragunn.searchguard.auth.*;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 
+import com.floragunn.searchguard.auth.AuthFailureListener;
+import com.floragunn.searchguard.auth.AuthenticationBackend;
+import com.floragunn.searchguard.auth.AuthenticationDomain;
+import com.floragunn.searchguard.auth.AuthorizationBackend;
+import com.floragunn.searchguard.auth.AuthorizationDomain;
+import com.floragunn.searchguard.auth.Destroyable;
+import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
-import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6;
 import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6.Authc;
 import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6.AuthcDomain;
@@ -33,19 +46,19 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
     private Set<AuthorizationDomain> restAuthorizationDomains;
     private Set<AuthorizationDomain> transportAuthorizationDomains;
     private List<Destroyable> destroyableComponents;
-    private final InternalAuthenticationBackend iab;
+    private final SearchGuardModulesRegistry modulesRegistry;
     
     private List<AuthFailureListener> ipAuthFailureListeners;
     private Multimap<String, AuthFailureListener> authBackendFailureListeners;
     private List<ClientBlockRegistry<InetAddress>> ipClientBlockRegistries;
     private Multimap<String, ClientBlockRegistry<String>> authBackendClientBlockRegistries;
     
-    public DynamicConfigModelV6(ConfigV6 config, Settings esSettings, Path configPath, InternalAuthenticationBackend iab) {
+    public DynamicConfigModelV6(ConfigV6 config, Settings esSettings, Path configPath, SearchGuardModulesRegistry modulesRegistry) {
         super();
         this.config = config;
         this.esSettings =  esSettings;
         this.configPath = configPath;
-        this.iab = iab;
+        this.modulesRegistry = modulesRegistry;
         buildAAA();
     }
     @Override
@@ -189,24 +202,16 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
 
             if (httpEnabled || transportEnabled) {
                 try {
-                    final String authzBackendClazz = ad.getValue().authorization_backend.type;
-                    final AuthorizationBackend authorizationBackend;
                     
-                    if(authzBackendClazz.equals(InternalAuthenticationBackend.class.getName()) //NOSONAR
-                            || authzBackendClazz.equals("internal")
-                            || authzBackendClazz.equals("intern")) {
-                        authorizationBackend = iab;
-                        ReflectionHelper.addLoadedModule(InternalAuthenticationBackend.class);
-                    } else {
-                        authorizationBackend = newInstance(
-                                authzBackendClazz,"z",
-                                Settings.builder()
-                                .put(esSettings)
-                                //.putProperties(ads.getAsStringMap(DotPath.of("authorization_backend.config")), DynamicConfiguration.checkKeyFunction()).build(), configPath);
-                                .put(Settings.builder().loadFromSource(ad.getValue().authorization_backend.configAsJson(), XContentType.JSON).build()).build()
-                                , configPath);
-                    }
 
+                    String authzBackendClazz = ad.getValue().authorization_backend.type;
+                    Settings authorizationBackendSettings = Settings.builder().put(esSettings)
+                            .put(Settings.builder().loadFromSource(ad.getValue().authorization_backend.configAsJson(), XContentType.JSON).build())
+                            .build();
+
+                    AuthorizationBackend authorizationBackend = modulesRegistry.getAuthorizationBackends().getInstance(authzBackendClazz,
+                            authorizationBackendSettings, configPath);
+                    
                     List<String> skippedUsers = ad.getValue().skipped_users;
 
                     if (httpEnabled) {
@@ -237,30 +242,27 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
 
             if (httpEnabled || transportEnabled) {
                 try {
-                    AuthenticationBackend authenticationBackend;
-                    final String authBackendClazz = ad.getValue().authentication_backend.type;
-                    if(authBackendClazz.equals(InternalAuthenticationBackend.class.getName()) //NOSONAR
-                            || authBackendClazz.equals("internal")
-                            || authBackendClazz.equals("intern")) {
-                        authenticationBackend = iab;
-                        ReflectionHelper.addLoadedModule(InternalAuthenticationBackend.class);
-                    } else {
-                        authenticationBackend = newInstance(
-                                authBackendClazz,"c",
-                                Settings.builder()
-                                .put(esSettings)
-                                //.putProperties(ads.getAsStringMap(DotPath.of("authentication_backend.config")), DynamicConfiguration.checkKeyFunction()).build()
-                                .put(Settings.builder().loadFromSource(ad.getValue().authentication_backend.configAsJson(), XContentType.JSON).build()).build()
-                                , configPath);
-                    }
+                    String authBackendClazz = ad.getValue().authentication_backend.type;
 
+                    Settings authenticationBackendSettings = Settings.builder()
+                            .put(esSettings)
+                            .put(Settings.builder().loadFromSource(ad.getValue().authentication_backend.configAsJson(), XContentType.JSON).build()).build();
+                    
+                    AuthenticationBackend authenticationBackend = modulesRegistry.getAuthenticationBackends().getInstance(authBackendClazz,
+                            authenticationBackendSettings, configPath);
+             
                     String httpAuthenticatorType = ad.getValue().http_authenticator.type; //no default
-                    HTTPAuthenticator httpAuthenticator = httpAuthenticatorType==null?null:  (HTTPAuthenticator) newInstance(httpAuthenticatorType,"h",
-                            Settings.builder().put(esSettings)
-                            //.putProperties(ads.getAsStringMap(DotPath.of("http_authenticator.config")), DynamicConfiguration.checkKeyFunction()).build(), 
-                            .put(Settings.builder().loadFromSource(ad.getValue().http_authenticator.configAsJson(), XContentType.JSON).build()).build()
+                    
+                    HTTPAuthenticator httpAuthenticator = null;
+                    
+                    if (httpAuthenticatorType != null) {
+                        Settings httpAuthenticatorSettings = Settings.builder().put(esSettings)
+                                .put(Settings.builder().loadFromSource(ad.getValue().http_authenticator.configAsJson(), XContentType.JSON).build())
+                                .build();
 
-                            , configPath);
+                        httpAuthenticator = modulesRegistry.getHttpAuthenticators().getInstance(httpAuthenticatorType, httpAuthenticatorSettings,
+                                configPath);
+                    }
 
                     final AuthenticationDomain _ad = new AuthenticationDomain(authenticationBackend, httpAuthenticator,
                             ad.getValue().http_authenticator.challenge, ad.getValue().order, ad.getValue().skip_users);
@@ -320,27 +322,6 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
         }
     }
     
-    private <T> T newInstance(final String clazzOrShortcut, String type, final Settings settings, final Path configPath) {
-        String clazz = clazzOrShortcut;
-        boolean isEnterprise = false;
-
-        if(authImplMap.containsKey(clazz+"_"+type)) {
-            clazz = authImplMap.get(clazz+"_"+type);
-        } else {
-            isEnterprise = true;
-        }
-
-        if(ReflectionHelper.isEnterpriseAAAModule(clazz)) {
-            isEnterprise = true;
-        }
-
-        return ReflectionHelper.instantiateAAA(clazz, settings, configPath, isEnterprise);
-    }
-    
-    private String translateShortcutToClassName(final String clazzOrShortcut) {
-        return authImplMap.getOrDefault(clazzOrShortcut + "_" + "c", clazzOrShortcut);
-    }
-    
     private void createAuthFailureListeners(List<AuthFailureListener> ipAuthFailureListeners,
             Multimap<String, AuthFailureListener> authBackendFailureListeners, List<ClientBlockRegistry<InetAddress>> ipClientBlockRegistries,
             Multimap<String, ClientBlockRegistry<String>> authBackendUserClientBlockRegistries, List<Destroyable> destroyableComponents0) {
@@ -354,7 +335,7 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
             String type = entry.getValue().type;
             String authenticationBackend = entry.getValue().authentication_backend;
 
-            AuthFailureListener authFailureListener = newInstance(type, "authFailureListener", entrySettings, configPath);
+            AuthFailureListener authFailureListener = modulesRegistry.getAuthFailureListeners().getInstance(type, entrySettings, configPath);
 
             if (Strings.isNullOrEmpty(authenticationBackend)) {
                 ipAuthFailureListeners.add(authFailureListener);
@@ -372,7 +353,7 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
                 }
 
             } else {
-                authenticationBackend = translateShortcutToClassName(authenticationBackend);
+                authenticationBackend = modulesRegistry.getAuthenticationBackends().getClassName(authenticationBackend);
 
                 authBackendFailureListeners.put(authenticationBackend, authFailureListener);
 
