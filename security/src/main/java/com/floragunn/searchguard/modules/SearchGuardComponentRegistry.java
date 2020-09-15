@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -15,6 +16,7 @@ public class SearchGuardComponentRegistry<ComponentType> {
 
     private Class<ComponentType> componentType;
     private Map<String, ComponentType> instanceMap = new HashMap<>();
+    private Map<String, ComponentFactory<? extends ComponentType>> factoryMap = new HashMap<>();
     private Map<String, Class<? extends ComponentType>> classMap = new HashMap<>();
     private Map<String, String> classNameMap = new HashMap<>();
 
@@ -48,6 +50,7 @@ public class SearchGuardComponentRegistry<ComponentType> {
         this.instanceMap.putAll(registry.instanceMap);
         this.classMap.putAll(registry.classMap);
         this.classNameMap.putAll(registry.classNameMap);
+        this.factoryMap.putAll(registry.factoryMap);
         return this;
     }
 
@@ -55,13 +58,24 @@ public class SearchGuardComponentRegistry<ComponentType> {
         this.instanceMap = Collections.unmodifiableMap(this.instanceMap);
         this.classMap = Collections.unmodifiableMap(this.classMap);
         this.classNameMap = Collections.unmodifiableMap(this.classNameMap);
+        this.factoryMap = Collections.unmodifiableMap(this.factoryMap);
 
         return this;
     }
 
-    public SearchGuardComponentRegistry<ComponentType> add(String name, ComponentType instance) {
+    public SearchGuardComponentRegistry<ComponentType> add(String name, ComponentFactory<? extends ComponentType> instance) {
         ensureNameIsVacant(name);
-        this.instanceMap.put(name, instance);
+        this.factoryMap.put(name, instance);
+        return this;
+    }
+
+    public SearchGuardComponentRegistry<ComponentType> add(List<String> names, ComponentFactory<? extends ComponentType> instance) {
+        for (String name : names) {
+            ensureNameIsVacant(name);
+        }
+        for (String name : names) {
+            this.factoryMap.put(name, instance);
+        }
         return this;
     }
 
@@ -78,12 +92,17 @@ public class SearchGuardComponentRegistry<ComponentType> {
     }
 
     public boolean has(String name) {
-        return this.instanceMap.containsKey(name) || this.classMap.containsKey(name) || this.classNameMap.containsKey(name);
+        return this.instanceMap.containsKey(name) || this.factoryMap.containsKey(name) || this.classMap.containsKey(name)
+                || this.classNameMap.containsKey(name);
     }
 
     public Object getAny(String name) {
         if (this.instanceMap.containsKey(name)) {
             return this.instanceMap.get(name);
+        }
+
+        if (this.factoryMap.containsKey(name)) {
+            return this.factoryMap.get(name);
         }
 
         if (this.classMap.containsKey(name)) {
@@ -102,6 +121,10 @@ public class SearchGuardComponentRegistry<ComponentType> {
             ComponentType result = this.instanceMap.get(clazzOrShortcut);
             ReflectionHelper.addLoadedModule(result.getClass());
             return result;
+        } else if (this.factoryMap.containsKey(clazzOrShortcut)) {
+            ComponentType result = this.factoryMap.get(clazzOrShortcut).create(settings, configPath);
+            ReflectionHelper.addLoadedModule(result.getClass());
+            return result;
         } else if (this.classMap.containsKey(clazzOrShortcut)) {
             String className = this.classMap.get(clazzOrShortcut).getName();
             return ReflectionHelper.instantiateAAA(className, settings, configPath, ReflectionHelper.isEnterpriseAAAModule(className));
@@ -116,6 +139,8 @@ public class SearchGuardComponentRegistry<ComponentType> {
     public String getClassName(String clazzOrShortcut) {
         if (this.instanceMap.containsKey(clazzOrShortcut)) {
             return this.instanceMap.get(clazzOrShortcut).getClass().getName();
+        } else if (this.factoryMap.containsKey(clazzOrShortcut)) {
+            return this.factoryMap.get(clazzOrShortcut).getClassName();
         } else if (this.classMap.containsKey(clazzOrShortcut)) {
             return this.classMap.get(clazzOrShortcut).getName();
         } else if (this.classNameMap.containsKey(clazzOrShortcut)) {
@@ -129,5 +154,11 @@ public class SearchGuardComponentRegistry<ComponentType> {
         if (this.has(name)) {
             throw new IllegalStateException("A component with name " + name + " is already defined: " + this.getAny(name));
         }
+    }
+
+    public interface ComponentFactory<ComponentType> {
+        ComponentType create(Settings settings, Path configPath);
+
+        String getClassName();
     }
 }

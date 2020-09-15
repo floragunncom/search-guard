@@ -70,7 +70,9 @@ sg_config:
           config: {}
         authentication_backend:
           type: "intern"
-          config: {}
+          config: 
+            map_db_attrs_to_user_attrs:         
+              pattern: "object_attr.d"           
         description: "Migrated from v6"
     authz:
       roles_from_xxx:

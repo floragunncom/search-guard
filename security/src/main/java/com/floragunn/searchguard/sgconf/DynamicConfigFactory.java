@@ -3,6 +3,7 @@ package com.floragunn.searchguard.sgconf;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,7 @@ import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
+import com.floragunn.searchguard.sgconf.internal_users_db.InternalUsersDatabase;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class DynamicConfigFactory implements Initializable, ConfigurationChangeListener {
@@ -88,10 +90,10 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     private final List<DCFListener> listeners = new ArrayList<>();
     private final Settings esSettings;
     private final Path configPath;
-    private final InternalAuthenticationBackend iab = new InternalAuthenticationBackend();
     private final List<Consumer<SgDynamicConfiguration<ConfigV7>>> configChangeConsumers = new ArrayList<>();
     private final SearchGuardModulesRegistry modulesRegistry;
-
+    private final InternalUsersDatabase internalUsersDatabase;
+    
     SgDynamicConfiguration<?> config;
     
     public DynamicConfigFactory(ConfigurationRepository cr, final Settings esSettings, 
@@ -112,12 +114,15 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             log.info("Static resources will not be loaded.");
         }
         
-        modulesRegistry.getAuthenticationBackends().add("intern", this.iab).add("internal", this.iab)
-                .add(InternalAuthenticationBackend.class.getName(), this.iab);
-        modulesRegistry.getAuthorizationBackends().add("intern", this.iab).add("internal", this.iab)
-                .add(InternalAuthenticationBackend.class.getName(), this.iab);        
+        internalUsersDatabase = new InternalUsersDatabase(this);
         
-        registerDCFListener(this.iab);
+        InternalAuthenticationBackend.Factory internalAuthBackendFactory = new InternalAuthenticationBackend.Factory(internalUsersDatabase);
+        
+        modulesRegistry.getAuthenticationBackends().add(Arrays.asList("intern", "internal", InternalAuthenticationBackend.class.getName()),
+                internalAuthBackendFactory);
+        modulesRegistry.getAuthorizationBackends().add(Arrays.asList("intern", "internal", InternalAuthenticationBackend.class.getName()),
+                internalAuthBackendFactory);
+
         this.cr.subscribeOnChange(this);
     }
     
@@ -198,7 +203,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         } else {
             //rebuild v6 Models
             @SuppressWarnings("deprecation")
-            DynamicConfigModel dcmv6 = new DynamicConfigModelV6(getConfigV6(config), esSettings, configPath, iab);
+            DynamicConfigModel dcmv6 = new DynamicConfigModelV6(getConfigV6(config), esSettings, configPath, modulesRegistry);
             InternalUsersModel iumv6 = new InternalUsersModelV6((SgDynamicConfiguration<InternalUserV6>) internalusers);
             ConfigModel cmv6 = new ConfigModelV6((SgDynamicConfiguration<RoleV6>) roles, (SgDynamicConfiguration<ActionGroupsV6>)actionGroups, (SgDynamicConfiguration<RoleMappingsV6>)rolesmapping, dcmv6, esSettings);
             
@@ -298,7 +303,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         }
 
         @Override
-        public Map<String, String> getAttributes(String user) {
+        public Map<String, Object> getAttributes(String user) {
             InternalUserV7 tmp = configuration.getCEntry(user);
             return tmp==null?null:tmp.getAttributes();
         }
@@ -342,7 +347,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         }
 
         @Override
-        public Map<String, String> getAttributes(String user) {
+        public Map<String, Object> getAttributes(String user) {
             InternalUserV6 tmp = configuration.getCEntry(user);
             return tmp==null?null:tmp.getAttributes();
         }

@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.collect.Lists;
+import com.jayway.jsonpath.JsonPath;
 
 /**
  * A authenticated user and attributes associated to them (like roles, tenant, custom attributes)
@@ -248,6 +249,11 @@ public class User implements Serializable, CustomAttributesAware {
         structuredAttributes.put(key, value);
     }
     
+    public void addStructuredAttributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {       
+        UserAttributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);            
+    }
+
+    
     public final void addSearchGuardRoles(final Collection<String> sgRoles) {
         if (sgRoles != null && this.searchGuardRoles != null) {
             this.searchGuardRoles.addAll(sgRoles);
@@ -329,6 +335,13 @@ public class User implements Serializable, CustomAttributesAware {
             this.structuredAttributes.put(key, value);
             return this;
         }
+        
+        
+        public Builder attributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {       
+            UserAttributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);            
+            return this;
+        }
+        
         
         @Deprecated
         public Builder oldAttribute(String key, String value) {

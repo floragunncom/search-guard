@@ -19,18 +19,9 @@ public class InternalUserV7 implements Hideable, Hashed, StaticDefinable {
         @JsonProperty(value = "static")
         private boolean _static;
         private List<String> backend_roles = Collections.emptyList();
-        private Map<String, String> attributes = Collections.emptyMap();
+        private Map<String, Object> attributes = Collections.emptyMap();
         private String description;
         private List<String> search_guard_roles = Collections.emptyList();
-
-        private InternalUserV7(String hash, boolean reserved, boolean hidden, List<String> backend_roles, Map<String, String> attributes) {
-            super();
-            this.hash = hash;
-            this.reserved = reserved;
-            this.hidden = hidden;
-            this.backend_roles = backend_roles;
-            this.attributes = attributes;
-        }
 
         public InternalUserV7() {
             super();
@@ -79,10 +70,10 @@ public class InternalUserV7 implements Hideable, Hashed, StaticDefinable {
             this.search_guard_roles = search_guard_roles;
         }
 
-        public Map<String, String> getAttributes() {
+        public Map<String, Object> getAttributes() {
             return attributes;
         }
-        public void setAttributes(Map<String, String> attributes) {
+        public void setAttributes(Map<String, Object> attributes) {
             this.attributes = attributes;
         }
 
