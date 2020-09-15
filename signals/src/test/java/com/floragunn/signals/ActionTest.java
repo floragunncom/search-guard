@@ -773,20 +773,84 @@ public class ActionTest {
 
         final int smtpPort = SocketUtils.findAvailableTcpPort();
 
-        //SMTP server for unittesting
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
         try (Client client = cluster.getInternalClient()) {
 
-            EmailAccount emailDestination = new EmailAccount();
-            emailDestination.setHost("localhost");
-            emailDestination.setPort(smtpPort);
-            emailDestination.setDefaultFrom("from@default.sgtest");
-            emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
+            EmailAccount emailAccount = new EmailAccount();
+            emailAccount.setHost("localhost");
+            emailAccount.setPort(smtpPort);
+            emailAccount.setDefaultFrom("from@default.sgtest");
+            emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+
+            EmailAction emailAction = new EmailAction();
+            emailAction.setBody("We searched {{data.x}} shards");
+            emailAction.setSubject("Test Subject");
+            emailAction.setTo(Collections.singletonList("to@specific.sgtest"));
+            emailAction.setAccount("test_destination");
+
+            Attachment attachment1 = new EmailAction.Attachment();
+            attachment1.setType(Attachment.AttachmentType.RUNTIME);
+
+            Attachment attachment2 = new EmailAction.Attachment();
+            attachment2.setType(Attachment.AttachmentType.RUNTIME);
+
+            emailAction.setAttachments(ImmutableMap.of("test2", attachment2, "test1", attachment1));
+
+            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("x", "y");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            ActionExecutionResult result = emailAction.execute(ctx);
+            Assert.assertTrue(result.getRequest(), result.getRequest().contains("Content-Type: text/plain"));
+            Assert.assertFalse(result.getRequest(), result.getRequest().contains("Content-Type: multipart/alternative"));
+
+            if (!greenMail.waitForIncomingEmail(20000, 1)) {
+                Assert.fail("Timeout waiting for mails");
+            }
+
+            String receivedMail = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
+
+            Assert.assertTrue(receivedMail, receivedMail.contains("We searched y shards"));
+            Assert.assertTrue(receivedMail, receivedMail.contains("Subject: Test Subject"));
+            Assert.assertTrue(receivedMail, receivedMail.contains("From: from@default.sgtest"));
+            Assert.assertTrue(receivedMail, receivedMail.contains("To: to@specific.sgtest"));
+            Assert.assertTrue(receivedMail.indexOf("Content-ID: <test2>") < receivedMail.indexOf("Content-ID: <test1>"));
+
+        } finally {
+            greenMail.stop();
+        }
+
+    }
+    
+    @Test
+    public void testEmailActionTls() throws Exception {
+
+        final int smtpPort = SocketUtils.findAvailableTcpPort();
+
+        GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTPS));
+        greenMail.start();
+
+        try (Client client = cluster.getInternalClient()) {
+
+            EmailAccount emailAccount = new EmailAccount();
+            emailAccount.setHost("localhost");
+            emailAccount.setPort(smtpPort);
+            emailAccount.setEnableTls(true);
+            emailAccount.setTrustAll(true);
+            emailAccount.setDefaultFrom("from@default.sgtest");
+            emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
+
+            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setBody("We searched {{data.x}} shards");
