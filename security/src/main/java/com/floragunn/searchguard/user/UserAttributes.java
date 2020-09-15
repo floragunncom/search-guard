@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -69,17 +70,18 @@ public class UserAttributes {
     public static void validate(Object value) {
         validate(value, 0);
     }
-    
-    static void addAttributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source, Map<String, Object> target) {            
+
+    static void addAttributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source, Map<String, Object> target) {
         for (Map.Entry<String, JsonPath> entry : jsonPathMap.entrySet()) {
             Object values = JsonPath.using(JSON_PATH_CONFIG).parse(source).read(entry.getValue());
             try {
                 UserAttributes.validate(values);
             } catch (IllegalArgumentException e) {
                 throw new ElasticsearchSecurityException(
-                        "Error while initializing user attributes. Mapping for " + entry.getKey() + " produced invalid values:\n" + e.getMessage(), e);
+                        "Error while initializing user attributes. Mapping for " + entry.getKey() + " produced invalid values:\n" + e.getMessage(),
+                        e);
             }
-            
+
             target.put(entry.getKey(), values);
         }
     }
@@ -293,6 +295,8 @@ public class UserAttributes {
                     } else {
                         value = Collections.emptyList();
                     }
+                } else if (operation.equals("toRegexFragment")) {
+                    value = toRegexFragment(value);
                 } else {
                     throw new StringInterpolationException(
                             "Unsupported operation " + operation + " in string template at index " + stateStart + ": " + string);
@@ -349,6 +353,33 @@ public class UserAttributes {
 
             } catch (IOException e) {
                 throw new StringInterpolationException("Invalid JSON block at " + start + ": " + string, e);
+            }
+        }
+
+        private String toRegexFragment(Object value) {
+            if (value == null) {
+                return null;
+            } else if (value instanceof Collection) {
+                StringBuilder result = new StringBuilder("(");
+                boolean first = true;
+                
+                for (Object element : (Collection<?>) value) {
+                    if (element != null) {
+                        if (!first) {
+                            result.append("|");
+                        } else {
+                            first = false;
+                        }
+                        
+                        result.append(Pattern.quote(element.toString()));
+                    }
+                }
+
+                result.append(")");
+                
+                return result.toString();
+            } else {
+                return "(" + Pattern.quote(value.toString()) + ")";
             }
         }
     }

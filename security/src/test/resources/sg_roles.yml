@@ -1054,3 +1054,12 @@ sg_index_pattern_with_attr_role:
     - "attr_test_${user.attrs.pattern}"
     allowed_actions:
     - "*"
+    
+sg_index_pattern_with_regex_attr_role:
+  cluster_permissions:
+  - SGS_CLUSTER_COMPOSITE_OPS_RO
+  index_permissions:
+  - index_patterns:
+    - "/attr_test_${user.attrs.pattern|toRegexFragment}/"
+    allowed_actions:
+    - "*"
