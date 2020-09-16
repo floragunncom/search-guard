@@ -16,7 +16,8 @@
                 <exclude>org.elasticsearch:jna</exclude>
                 <exclude>org.apache.lucene:lucene-backward-codecs</exclude>
                 <exclude>org.apache.logging.log4j:log4j-core</exclude>
-                <exclude>*:*:*:test*:*</exclude>
+                <exclude>org.elasticsearch.plugin:reindex-client</exclude>
+                <exclude>io.netty</exclude> <!-- Netty version is dictated by Elasticsearch -->
             </excludes>
         </dependencySet>
     </dependencySets>

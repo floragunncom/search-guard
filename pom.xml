@@ -20,7 +20,7 @@
 	<name>Search Guard Suite - Parent</name>
 
 	<properties>
-		<elasticsearch.version>7.9.0</elasticsearch.version>
+		<elasticsearch.version>7.9.1</elasticsearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
 		<revision>${elasticsearch.version}-${sg-suite.version}</revision>
 
@@ -38,7 +38,7 @@
 		<log4j.version>2.11.1</log4j.version>
 		<guava.version>29.0-jre</guava.version>
 		<commons.cli.version>1.4</commons.cli.version>
-		<jackson-databind.version>2.8.11.6</jackson-databind.version>
+		<jackson-databind.version>2.11.2</jackson-databind.version>
 	    <cxf.version>3.3.7</cxf.version>
 		<http.commons.version>4.5.12</http.commons.version>
 		<quartz.version>2.3.2</quartz.version>
@@ -569,23 +569,40 @@
 	</build>
 
 	<profiles>
-	<profile>
-	<id>enterprise</id>
-	<activation>
-		<file>
-			<exists>../search-guard-suite-enterprise</exists>
-		</file>
-	</activation>
-	<modules>
-		<module>security</module>
-		<module>scheduler</module>
-		<module>signals</module>
-		<module>support</module>
-		<module>../search-guard-suite-enterprise</module>
-		<module>plugin</module>
-	</modules>
+		<profile>
+			<id>enterprise</id>
+			<activation>
+				<file>
+					<exists>../search-guard-suite-enterprise</exists>
+				</file>
+			</activation>
+			<modules>
+				<module>security</module>
+				<module>scheduler</module>
+				<module>signals</module>
+				<module>support</module>
+				<module>../search-guard-suite-enterprise</module>
+				<module>plugin</module>
+			</modules>
+		</profile>
 
-	</profile>
+		<profile>
+			<id>veracode</id>
+			<activation>
+				<file>
+					<exists>../search-guard-suite-enterprise</exists>
+				</file>
+			</activation>
+			<modules>
+				<module>security</module>
+				<module>scheduler</module>
+				<module>signals</module>
+				<module>support</module>
+				<module>../search-guard-suite-enterprise</module>
+				<module>plugin</module>
+			</modules>
+		</profile>
+
 		<profile>
 			<id>release</id>
 			<build>
