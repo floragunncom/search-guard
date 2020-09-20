@@ -36,6 +36,7 @@ import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
 import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.InternalUsersModel;
+import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
@@ -62,6 +63,7 @@ public class ConfigHistoryService {
 
     private final String indexName;
     private final ConfigurationRepository configurationRepository;
+    private final StaticSgConfig staticSgConfig;
     private final PrivilegedConfigClient privilegedConfigClient;
     private final Cache<ConfigVersion, SgDynamicConfiguration<?>> configCache;
     private final Cache<ConfigVersionSet, ConfigModel> configModelCache;
@@ -70,11 +72,13 @@ public class ConfigHistoryService {
 
     private final Settings settings;
 
-    public ConfigHistoryService(ConfigurationRepository configurationRepository, PrivilegedConfigClient privilegedConfigClient,
-            ProtectedConfigIndexService protectedConfigIndexService, DynamicConfigFactory dynamicConfigFactory, Settings settings) {
+    public ConfigHistoryService(ConfigurationRepository configurationRepository, StaticSgConfig staticSgConfig,
+            PrivilegedConfigClient privilegedConfigClient, ProtectedConfigIndexService protectedConfigIndexService,
+            DynamicConfigFactory dynamicConfigFactory, Settings settings) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configurationRepository = configurationRepository;
+        this.staticSgConfig = staticSgConfig;
         this.configCache = CacheBuilder.newBuilder().weakValues().build();
         this.configModelCache = CacheBuilder.newBuilder().maximumSize(MODEL_CACHE_MAX_SIZE.get(settings))
                 .expireAfterAccess(MODEL_CACHE_TTL.get(settings), TimeUnit.MINUTES).build();
@@ -229,15 +233,19 @@ public class ConfigHistoryService {
     }
 
     private ConfigModel createConfigModelForSnapshot(ConfigSnapshot configSnapshot) {
-        SgDynamicConfiguration<RoleV7> roles = configSnapshot.getConfigByType(RoleV7.class);
+        SgDynamicConfiguration<RoleV7> roles = configSnapshot.getConfigByType(RoleV7.class).deepClone();
         SgDynamicConfiguration<RoleMappingsV7> roleMappings = configSnapshot.getConfigByType(RoleMappingsV7.class);
-        SgDynamicConfiguration<ActionGroupsV7> actionGroups = configSnapshot.getConfigByType(ActionGroupsV7.class);
-        SgDynamicConfiguration<TenantV7> tenants = configSnapshot.getConfigByType(TenantV7.class);
+        SgDynamicConfiguration<ActionGroupsV7> actionGroups = configSnapshot.getConfigByType(ActionGroupsV7.class).deepClone();
+        SgDynamicConfiguration<TenantV7> tenants = configSnapshot.getConfigByType(TenantV7.class).deepClone();
         SgDynamicConfiguration<BlocksV7> blocks = configSnapshot.getConfigByType(BlocksV7.class);
 
         if (blocks == null) {
             blocks = SgDynamicConfiguration.empty();
         }
+        
+        staticSgConfig.addTo(roles);
+        staticSgConfig.addTo(actionGroups);
+        staticSgConfig.addTo(tenants);
 
         ConfigModel configModel = new ConfigModelV7(roles, roleMappings, actionGroups, tenants, blocks, currentDynamicConfigModel, settings);
 
