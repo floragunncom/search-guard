@@ -15,6 +15,7 @@ import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
+import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -32,6 +33,7 @@ public class AuthTokenServiceTest {
     private static ProtectedConfigIndexService protectedConfigIndexService;
     private static ThreadPool threadPool;
     private static PrivilegedConfigClient privilegedConfigClient;
+    private static StaticSgConfig staticSgConfig;
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").singleNode().sslEnabled()
@@ -55,6 +57,7 @@ public class AuthTokenServiceTest {
         dynamicConfigFactory = cluster.getInjectable(DynamicConfigFactory.class);
         protectedConfigIndexService = cluster.getInjectable(ProtectedConfigIndexService.class);
         threadPool = cluster.getInjectable(ThreadPool.class);
+        staticSgConfig = cluster.getInjectable(StaticSgConfig.class);
         privilegedConfigClient = PrivilegedConfigClient.adapt(cluster.node().client());
     }
 
@@ -62,11 +65,12 @@ public class AuthTokenServiceTest {
     public void basicTest() throws Exception {
         User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
         AuthTokenServiceConfig config = new AuthTokenServiceConfig();
+
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
 
-        ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, privilegedConfigClient,
+        ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
                 protectedConfigIndexService, config);
@@ -77,7 +81,7 @@ public class AuthTokenServiceTest {
         CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
 
         CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
-        
+
         System.out.println(response.getJwt());
 
         JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
@@ -103,14 +107,13 @@ public class AuthTokenServiceTest {
 
     @Test
     public void reloadFromCacheTest() throws Exception {
-        System.out.println("**********************");
         User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
         AuthTokenServiceConfig config = new AuthTokenServiceConfig();
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
 
-        ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, privilegedConfigClient,
+        ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
                 protectedConfigIndexService, config);
@@ -151,7 +154,7 @@ public class AuthTokenServiceTest {
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
 
-        ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, privilegedConfigClient,
+        ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
                 protectedConfigIndexService, config);
@@ -181,7 +184,7 @@ public class AuthTokenServiceTest {
         Assert.assertEquals(requestedPrivileges.getClusterPermissions(), authToken.getRequestedPrivilges().getClusterPermissions());
         Assert.assertEquals(Collections.singletonList("r1"), authToken.getBase().getBackendRoles());
 
-        ConfigHistoryService configHistoryService2 = new ConfigHistoryService(configurationRepository, privilegedConfigClient,
+        ConfigHistoryService configHistoryService2 = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
         AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient, configHistoryService2, Settings.EMPTY, threadPool,
                 protectedConfigIndexService, config);
