@@ -45,6 +45,7 @@ import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValid
 import com.floragunn.searchguard.dlic.rest.validation.InternalUsersValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.sgconf.Hashed;
+import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -54,10 +55,10 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
 
     @Inject
     public InternalUsersApiAction(final Settings settings, final Path configPath, final RestController controller,
-            final Client client, final AdminDNs adminDNs, final ConfigurationRepository cl,
+            final Client client, final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig,
             final ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
             ThreadPool threadPool, AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, cs, principalExtractor, evaluator, threadPool,
+        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, evaluator, threadPool,
                 auditLog);
     }
     
