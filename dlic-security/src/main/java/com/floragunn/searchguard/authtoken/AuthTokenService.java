@@ -656,6 +656,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         String authTokenId = (String) user.getSpecialAuthzConfig();
 
+        if (log.isTraceEnabled()) {
+            log.trace("AuthTokenService.apply(" + user.getName() + ") on " + authTokenId);
+        }
+        
         try {
             AuthToken authToken = getById(authTokenId);
 
@@ -671,6 +675,13 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             Set<String> mappedBaseRoles = configModelSnapshot.mapSgRoles(userWithRoles, callerTransportAddress);
             SgRoles filteredBaseSgRoles = configModelSnapshot.getSgRoles().filter(mappedBaseRoles);
 
+            if (log.isTraceEnabled()) {
+                log.trace("ConfigSnapshot: " + authToken.getBase().getConfigSnapshot());
+                log.trace("mappedBaseRoles: " + mappedBaseRoles + "; userWithRoles: " + userWithRoles);
+                log.trace("configModelSnapshot.roles" + configModelSnapshot.getSgRoles());
+                log.trace("filteredBaseSgRoles: " + filteredBaseSgRoles);
+            }
+            
             RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivilges(),
                     configModelSnapshot.getActionGroupResolver());
 
