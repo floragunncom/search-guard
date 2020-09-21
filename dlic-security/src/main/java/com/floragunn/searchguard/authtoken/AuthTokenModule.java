@@ -17,6 +17,7 @@ import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.script.ScriptService;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.floragunn.searchguard.authtoken.api.AuthTokenRestAction;
@@ -43,7 +44,7 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
     @Override
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            Supplier<DiscoveryNodes> nodesInCluster) {
+            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
         return Arrays.asList(new AuthTokenRestAction(), new SearchAuthTokenRestAction());
     }
 
