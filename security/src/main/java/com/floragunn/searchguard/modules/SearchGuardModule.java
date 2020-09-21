@@ -34,6 +34,7 @@ import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
+import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchsupport.config.validation.JsonNodeParser;
 
 public interface SearchGuardModule<T> {
@@ -124,11 +125,12 @@ public interface SearchGuardModule<T> {
         private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
         private final NodeEnvironment nodeEnvironment;
         private final InternalAuthTokenProvider internalAuthTokenProvider;
+        private final StaticSgConfig staticSgConfig;
 
         public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
                 ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
                 Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
-                DynamicConfigFactory dynamicConfigFactory, ConfigurationRepository configurationRepository,
+                DynamicConfigFactory dynamicConfigFactory, StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository,
                 ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
                 SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry) {
             super();
@@ -143,6 +145,7 @@ public interface SearchGuardModule<T> {
             this.nodeEnvironment = nodeEnvironment;
             this.indexNameExpressionResolver = indexNameExpressionResolver;
             this.dynamicConfigFactory = dynamicConfigFactory;
+            this.staticSgConfig = staticSgConfig;
             this.configurationRepository = configurationRepository;
             this.protectedConfigIndexService = protectedConfigIndexService;
             this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
@@ -207,6 +210,10 @@ public interface SearchGuardModule<T> {
 
         public InternalAuthTokenProvider getInternalAuthTokenProvider() {
             return internalAuthTokenProvider;
+        }
+        
+        public StaticSgConfig getStaticSgConfig() {
+            return staticSgConfig;
         }
 
     }
