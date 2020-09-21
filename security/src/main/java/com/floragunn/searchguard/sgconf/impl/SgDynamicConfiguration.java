@@ -1,8 +1,6 @@
 package com.floragunn.searchguard.sgconf.impl;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -23,7 +21,6 @@ import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.sgconf.Hashed;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchguard.sgconf.StaticDefinable;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 
 public class SgDynamicConfiguration<T> implements ToXContent {
     
@@ -114,6 +111,13 @@ public class SgDynamicConfiguration<T> implements ToXContent {
 
     public static <T> SgDynamicConfiguration<T> fromNode(JsonNode json, CType ctype, int version, long seqNo, long primaryTerm) throws IOException {
         return fromJson(DefaultObjectMapper.writeValueAsString(json, false), ctype, version, seqNo, primaryTerm);
+    }
+    
+
+    public static <T> SgDynamicConfiguration<T> fromNode(JsonNode json, Class<T> configType, int version, long seqNo,
+            long primaryTerm) throws IOException {
+        return fromJson(DefaultObjectMapper.writeValueAsString(json, false), CType.getByClass(configType), version, seqNo,
+                primaryTerm);
     }
     
     private static int getConfigVersion(Map<String, Object> map, CType ctype) {
@@ -283,28 +287,19 @@ public class SgDynamicConfiguration<T> implements ToXContent {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public boolean add(SgDynamicConfiguration other) {
+    public void add(SgDynamicConfiguration other) {
         if(other.ctype == null || !other.ctype.equals(this.ctype)) {
-            return false;
+            throw new IllegalArgumentException("Config " + other + " has invalid ctype. Expected: " + this.ctype);
         }
         
         if(other.getImplementingClass() == null || !other.getImplementingClass().equals(this.getImplementingClass())) {
-            return false;
+            throw new IllegalArgumentException("Config " + other + " has invalid implementingClass. Expected: " + this.getImplementingClass());
         }
         
         if(other.version != this.version) {
-            return false;
+            throw new IllegalArgumentException("Config " + other + " has invalid version. Expected: " + this.version);
         }
         
         this.centries.putAll(other.centries);
-        return true;
     }
-    
-    @JsonIgnore
-    @SuppressWarnings({ "rawtypes" })
-    public boolean containsAny(SgDynamicConfiguration other) {
-        return !Collections.disjoint(this.centries.keySet(), other.centries.keySet());
-    }
-
-    
 }
