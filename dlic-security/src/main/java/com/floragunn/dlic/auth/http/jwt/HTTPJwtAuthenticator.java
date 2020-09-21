@@ -27,10 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-<<<<<<< Upstream, based on origin/master
 import java.util.Map;
-=======
->>>>>>> 6e9829c Fixes
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -45,10 +42,7 @@ import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
-<<<<<<< Upstream, based on origin/master
 import com.floragunn.searchguard.user.UserAttributes;
-=======
->>>>>>> 6e9829c Fixes
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
