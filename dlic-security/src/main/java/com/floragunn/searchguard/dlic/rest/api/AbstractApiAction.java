@@ -58,9 +58,9 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator.ErrorType;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchguard.sgconf.StaticDefinable;
+import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -79,9 +79,10 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected final Boolean acceptInvalidLicense;
 	protected final AuditLog auditLog;
 	protected final Settings settings;
+	protected final StaticSgConfig staticSgConfig;
 
 	protected AbstractApiAction(final Settings settings, final Path configPath, final RestController controller,
-			final Client client, final AdminDNs adminDNs, final ConfigurationRepository cl,
+			final Client client, final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig,
 			final ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
 			ThreadPool threadPool, AuditLog auditLog) {
 		super();
@@ -96,6 +97,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, evaluator,
 				principalExtractor, configPath, threadPool);
 		this.auditLog = auditLog;
+		this.staticSgConfig = staticSgConfig;
 	}
 
 	protected abstract AbstractConfigurationValidator getValidator(RestRequest request, BytesReference ref, Object... params);
@@ -246,7 +248,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 	protected final SgDynamicConfiguration<?> load(final CType config, boolean logComplianceEvent) {
 	    SgDynamicConfiguration<?> loaded = cl.getConfigurationsFromIndex(Collections.singleton(config), logComplianceEvent).get(config).deepClone();
-	    return DynamicConfigFactory.addStatics(loaded);
+	    staticSgConfig.addTo(loaded);
+	    return loaded;
 	}
 
 	protected boolean ensureIndexExists() {
