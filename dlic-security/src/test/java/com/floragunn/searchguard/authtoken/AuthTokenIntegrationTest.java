@@ -22,8 +22,8 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
-import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
@@ -65,8 +65,10 @@ public class AuthTokenIntegrationTest {
                     "        authentication_backend:\n" + //
                     "          type: sg_auth_token";
 
+    static TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(SGCONFIG));
+
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().sgConfig(CType.CONFIG, SGCONFIG).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().sgConfig(sgConfig).build();
 
     private static RestHelper rh = null;
 
@@ -96,6 +98,8 @@ public class AuthTokenIntegrationTest {
 
         Header auth = basicAuth("spock", "spock");
 
+        System.out.println(request.toJson());
+        
         HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
 
         System.out.println(response.getBody());
