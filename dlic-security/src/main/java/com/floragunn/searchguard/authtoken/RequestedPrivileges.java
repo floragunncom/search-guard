@@ -27,6 +27,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     private List<IndexPermissions> indexPermissions;
     private List<TenantPermissions> tenantPermissions;
     private List<String> roles;
+    private List<String> excludedClusterPermissions;
+    private List<IndexPermissions> excludedIndexPermissions;
 
     public RequestedPrivileges(List<String> clusterPermissions, List<IndexPermissions> indexPermissions, List<TenantPermissions> tenantPermissions,
             List<String> roles) {
@@ -41,6 +43,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         this.clusterPermissions = in.readStringList();
         this.indexPermissions = in.readList(IndexPermissions::new);
         this.tenantPermissions = in.readList(TenantPermissions::new);
+        this.excludedClusterPermissions = in.readStringList();
+        this.excludedIndexPermissions = in.readList(IndexPermissions::new);
         this.roles = in.readOptionalStringList();
     }
 
@@ -61,6 +65,14 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
 
     public List<String> getRoles() {
         return roles;
+    }
+
+    public List<String> getExcludedClusterPermissions() {
+        return excludedClusterPermissions;
+    }
+
+    public List<IndexPermissions> getExcludedIndexPermissions() {
+        return excludedIndexPermissions;
     }
 
     SgDynamicConfiguration<RoleV7> toRolesConfig() {
@@ -106,11 +118,13 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         out.writeStringCollection(clusterPermissions);
         out.writeList(indexPermissions);
         out.writeList(tenantPermissions);
+        out.writeStringCollection(excludedClusterPermissions);
+        out.writeList(excludedIndexPermissions);
         out.writeOptionalStringCollection(roles);
     }
 
     public static class IndexPermissions implements Writeable, ToXContentObject, Serializable {
- 
+
         private static final long serialVersionUID = -2567351561923741922L;
         private List<String> indexPatterns;
         private List<String> allowedActions;
@@ -190,7 +204,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     }
 
     public static class TenantPermissions implements Writeable, ToXContentObject, Serializable {
-  
+
         private static final long serialVersionUID = 170036537583928629L;
         private List<String> tenantPatterns;
         private List<String> allowedActions;
@@ -279,6 +293,14 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         result.tenantPermissions = vJsonNode.list("tenant_permissions", TenantPermissions::parse);
         result.roles = vJsonNode.stringList("roles");
 
+        if (vJsonNode.hasNonNull("exclude")) {
+            try {
+                parseExclusions(vJsonNode.get("exclude"), result);
+            } catch (ConfigValidationException e) {
+                validationErrors.add("exclude", e);
+            }
+        }
+        
         if (result.clusterPermissions == null) {
             result.clusterPermissions = Collections.emptyList();
         }
@@ -303,9 +325,22 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         return result;
     }
 
+    private static void parseExclusions(JsonNode jsonNode,  RequestedPrivileges result) throws ConfigValidationException {
+        ValidationErrors validationErrors = new ValidationErrors();
+        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        
+        result.excludedClusterPermissions = vJsonNode.stringList("cluster_permissions");
+        result.excludedIndexPermissions = vJsonNode.list("index_permissions", IndexPermissions::parse);
+        
+        validationErrors.throwExceptionForPresentErrors();
+
+    }
+    
     public static RequestedPrivileges parseYaml(String yaml) throws ConfigValidationException {
         return parse(ValidatingJsonParser.readYamlTree(yaml));
     }
+    
+    
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
@@ -327,14 +362,23 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
             builder.field("roles", roles);
         }
 
+        if ((excludedClusterPermissions != null && excludedClusterPermissions.size() > 0)
+                || (excludedIndexPermissions != null && excludedIndexPermissions.size() > 0)) {
+            builder.startObject("exclude");
+
+            if (excludedClusterPermissions != null && excludedClusterPermissions.size() > 0) {
+                builder.field("cluster_permissions", excludedClusterPermissions);
+            }
+
+            if ((excludedIndexPermissions != null && excludedIndexPermissions.size() > 0)) {
+                builder.field("index_permissions", excludedIndexPermissions);
+            }
+
+            builder.endObject();
+        }
+
         builder.endObject();
         return builder;
-    }
-
-    @Override
-    public String toString() {
-        return "RequestedPrivileges [clusterPermissions=" + clusterPermissions + ", indexPermissions=" + indexPermissions + ", tenantPermissions="
-                + tenantPermissions + ", roles=" + roles + "]";
     }
 
     @Override
@@ -342,6 +386,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         final int prime = 31;
         int result = 1;
         result = prime * result + ((clusterPermissions == null) ? 0 : clusterPermissions.hashCode());
+        result = prime * result + ((excludedClusterPermissions == null) ? 0 : excludedClusterPermissions.hashCode());
+        result = prime * result + ((excludedIndexPermissions == null) ? 0 : excludedIndexPermissions.hashCode());
         result = prime * result + ((indexPermissions == null) ? 0 : indexPermissions.hashCode());
         result = prime * result + ((roles == null) ? 0 : roles.hashCode());
         result = prime * result + ((tenantPermissions == null) ? 0 : tenantPermissions.hashCode());
@@ -350,34 +396,66 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj)
+        if (this == obj) {
             return true;
-        if (obj == null)
+        }
+        if (obj == null) {
             return false;
-        if (getClass() != obj.getClass())
+        }
+        if (getClass() != obj.getClass()) {
             return false;
+        }
         RequestedPrivileges other = (RequestedPrivileges) obj;
         if (clusterPermissions == null) {
-            if (other.clusterPermissions != null)
+            if (other.clusterPermissions != null) {
                 return false;
-        } else if (!clusterPermissions.equals(other.clusterPermissions))
+            }
+        } else if (!clusterPermissions.equals(other.clusterPermissions)) {
             return false;
+        }
+        if (excludedClusterPermissions == null) {
+            if (other.excludedClusterPermissions != null) {
+                return false;
+            }
+        } else if (!excludedClusterPermissions.equals(other.excludedClusterPermissions)) {
+            return false;
+        }
+        if (excludedIndexPermissions == null) {
+            if (other.excludedIndexPermissions != null) {
+                return false;
+            }
+        } else if (!excludedIndexPermissions.equals(other.excludedIndexPermissions)) {
+            return false;
+        }
         if (indexPermissions == null) {
-            if (other.indexPermissions != null)
+            if (other.indexPermissions != null) {
                 return false;
-        } else if (!indexPermissions.equals(other.indexPermissions))
+            }
+        } else if (!indexPermissions.equals(other.indexPermissions)) {
             return false;
+        }
         if (roles == null) {
-            if (other.roles != null)
+            if (other.roles != null) {
                 return false;
-        } else if (!roles.equals(other.roles))
+            }
+        } else if (!roles.equals(other.roles)) {
             return false;
+        }
         if (tenantPermissions == null) {
-            if (other.tenantPermissions != null)
+            if (other.tenantPermissions != null) {
                 return false;
-        } else if (!tenantPermissions.equals(other.tenantPermissions))
+            }
+        } else if (!tenantPermissions.equals(other.tenantPermissions)) {
             return false;
+        }
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return "RequestedPrivileges [clusterPermissions=" + clusterPermissions + ", indexPermissions=" + indexPermissions + ", tenantPermissions="
+                + tenantPermissions + ", roles=" + roles + ", excludedClusterPermissions=" + excludedClusterPermissions
+                + ", excludedIndexPermissions=" + excludedIndexPermissions + "]";
     }
 
 }
