@@ -40,7 +40,7 @@ public class EmailAccount extends Account {
     @JsonProperty(value = "trust_all")
     private boolean trustAll;
     @JsonProperty(value = "trusted_hosts")
-    private String[] trustedHosts = new String[0];
+    private String[] trustedHosts;
 
     //permissions for from
     //internal vs external recipient (blacklist vs. whitelist)
@@ -48,11 +48,11 @@ public class EmailAccount extends Account {
     @JsonProperty(value = "default_from")
     private String defaultFrom;
     @JsonProperty(value = "default_to")
-    private String[] defaultTo = new String[0];
+    private String[] defaultTo;
     @JsonProperty(value = "default_cc")
-    private String[] defaultCc = new String[0];
+    private String[] defaultCc;
     @JsonProperty(value = "default_bcc")
-    private String[] defaultBcc = new String[0];
+    private String[] defaultBcc;
 
     //    private String forcedFrom;
     //    private String[] forcedTo = new String[0];

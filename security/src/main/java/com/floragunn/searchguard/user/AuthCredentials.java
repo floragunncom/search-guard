@@ -363,23 +363,11 @@ public final class AuthCredentials {
             return this;
         }
         
-        public Builder attributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {            
-            for (Map.Entry<String, JsonPath> entry : jsonPathMap.entrySet()) {
-                Object values = JsonPath.parse(source).read(entry.getValue());
-                try {
-                    UserAttributes.validate(values);
-                } catch (IllegalArgumentException e) {
-                    throw new ElasticsearchSecurityException(
-                            "Error while initializing user attributes. Mapping for " + entry.getKey() + " produced invalid values:\n" + e.getMessage(), e);
-                }
-                
-                structuredAttributes.put(entry.getKey(), values);
-            }
-            
+        public Builder attributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {     
+            UserAttributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);           
             return this;
         }
         
-
         public String getUserName() {
             return userName;
         }

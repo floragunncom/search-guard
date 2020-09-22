@@ -61,13 +61,17 @@ public class ProtectedConfigIndexService {
         }
     }
 
-    public void flushPendingIndices() {
+    public void flushPendingIndices(ClusterState clusterState) {
+        if (this.pendingIndices.isEmpty()) {
+            return;
+        }
+        
         Set<ConfigIndexState> pendingIndices = new HashSet<>(this.pendingIndices);
 
         this.pendingIndices.removeAll(pendingIndices);
 
         for (ConfigIndexState configIndex : pendingIndices) {
-            createIndexNow(configIndex, clusterService.state());
+            createIndexNow(configIndex, clusterState);
         }
     }
 
@@ -82,9 +86,9 @@ public class ProtectedConfigIndexService {
             return;
         }
 
-        if (clusterService.state().nodes().isLocalNodeElectedMaster()) {
-            flushPendingIndices();
-        }
+        if (clusterState.nodes().isLocalNodeElectedMaster() || clusterState.nodes().getMasterNode() != null) {
+            flushPendingIndices(clusterState);
+        } 
     }
 
     private void createIndexNow(ConfigIndexState configIndex, ClusterState clusterState) {

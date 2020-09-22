@@ -155,6 +155,7 @@ import com.floragunn.searchguard.rest.SearchGuardInfoAction;
 import com.floragunn.searchguard.rest.SearchGuardLicenseAction;
 import com.floragunn.searchguard.rest.TenantInfoAction;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
+import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
@@ -207,6 +208,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry = new SpecialPrivilegesEvaluationContextProviderRegistry();
        
     private SearchGuardModulesRegistry moduleRegistry;
+    private StaticSgConfig staticSgConfig;
     
     @Override
     public void close() throws IOException {
@@ -269,6 +271,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         
         SearchGuardPlugin.protectedIndices = new ProtectedIndices(settings);
+        staticSgConfig = new StaticSgConfig(settings);
 
         demoCertHashes.add("54a92508de7a39d06242a0ffbf59414d7eb478633c719e6af03938daf6de8a1a");
         demoCertHashes.add("742e4659c79d7cad89ea86aab70aea490f23bbfc7e72abd5f0a5d3fb4c84d212");
@@ -477,8 +480,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         Objects.requireNonNull(cs), Objects.requireNonNull(adminDns)));
                 handlers.add(new PermissionAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
 
-                handlers.addAll(ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient, adminDns, cr, cs,
-                        Objects.requireNonNull(principalExtractor), evaluator, threadPool, Objects.requireNonNull(auditLog)));
+                handlers.addAll(ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient, adminDns, cr,
+                        staticSgConfig, cs, Objects.requireNonNull(principalExtractor), evaluator, threadPool, Objects.requireNonNull(auditLog)));
 
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
             }
@@ -813,7 +816,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, privilegesInterceptor, cih, irr,
                 enterpriseModulesEnabled);
 
-        final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, settings, configPath, localClient, threadPool, cih, moduleRegistry);
+        final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, staticSgConfig, settings, configPath, localClient, threadPool, cih, moduleRegistry);
         dcf.registerDCFListener(backendRegistry);
         dcf.registerDCFListener(compatConfig);
         dcf.registerDCFListener(irr);
@@ -856,11 +859,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(internalAuthTokenProvider);
         components.add(moduleRegistry);
         components.add(protectedConfigIndexService);
+        components.add(staticSgConfig);
         
         BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
-                scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, dcf, cr, protectedConfigIndexService,
-                internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry);
-    
+                scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, dcf, staticSgConfig, cr,
+                protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry);
+
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
                 
         components.addAll(moduleComponents);
