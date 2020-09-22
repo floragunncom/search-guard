@@ -18,6 +18,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.google.common.base.Joiner;
@@ -149,6 +150,12 @@ public abstract class AbstractConfigurationValidator {
         Set<String> requested = new HashSet<String>();
         try {
             contentAsNode = DefaultObjectMapper.readTree(content.utf8ToString());
+            
+            if (contentAsNode == null || contentAsNode.isMissingNode()) {
+                this.errorType = ErrorType.BODY_NOT_PARSEABLE;
+                return false;
+             }
+            
             requested.addAll(ImmutableList.copyOf(contentAsNode.fieldNames()));
         } catch (Exception e) {
             log.error(ErrorType.BODY_NOT_PARSEABLE.toString(), e);
