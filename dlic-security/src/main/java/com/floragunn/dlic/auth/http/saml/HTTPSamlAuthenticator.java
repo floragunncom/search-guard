@@ -155,9 +155,16 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
         try {
             RestRequest restRequest = restChannel.request();
 
-            if ("/_searchguard/api/authtoken".equals(restRequest.path())
-                    && this.authTokenProcessorHandler.handle(restRequest, restChannel)) {
-                return true;
+            if ("/_searchguard/api/authtoken".equals(restRequest.path())) {
+                String samlResponseBase64 = this.authTokenProcessorHandler.getSamlResponseBase64(restRequest);
+                
+                if (!this.authTokenProcessorHandler.isResponseFromConfiguredEntity(samlResponseBase64)) {
+                    return false;
+                }
+                
+                if (this.authTokenProcessorHandler.handle(restRequest, restChannel)) {
+                    return true;
+                }
             }
 
             Saml2Settings saml2Settings = this.saml2SettingsProvider.getCached();
