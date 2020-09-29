@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyException;
 import java.security.KeyStore;
@@ -57,6 +58,10 @@ public class ClientAuthCredentials {
             }
         }
 
+        public Builder certPem(Path path) throws GenericSSLConfigException {
+            return certPem(path.toFile());
+        }
+        
         public Builder certPem(InputStream inputStream) throws CertificateException {
             authenticationCertificate = PemKeyReader.loadCertificatesFromStream(inputStream);
             return this;
@@ -73,6 +78,10 @@ public class ClientAuthCredentials {
             }
         }
 
+        public Builder certKeyPem(Path path, String password) throws GenericSSLConfigException {
+            return certKeyPem(path.toFile(), password);
+        }
+        
         public Builder certKeyPem(InputStream inputStream, String password) throws NoSuchAlgorithmException, NoSuchPaddingException,
                 InvalidKeySpecException, InvalidAlgorithmParameterException, KeyException, IOException {
             authenticationKey = PemKeyReader.toPrivateKey(inputStream, password);

@@ -124,17 +124,28 @@ public abstract class AbstractSGUnitTest {
 
     protected TransportClient getInternalTransportClient(ClusterInfo info, Settings initTransportClientSettings) {
 
-        final String prefix = getResourceFolder()==null?"":getResourceFolder()+"/";
+        final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 
-        Settings tcSettings = Settings.builder()
-                .put("cluster.name", info.clustername)
-                .put("searchguard.ssl.transport.truststore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath(prefix+"truststore.jks"))
-                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                .put("searchguard.ssl.transport.keystore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath(prefix+"kirk-keystore.jks"))
-                .put(initTransportClientSettings)
-                .build();
+        Settings.Builder settingsBuilder = Settings.builder();
+
+        settingsBuilder.put("cluster.name", info.clustername);
+        settingsBuilder.put("searchguard.ssl.transport.enforce_hostname_verification", false);
+
+        if (initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH) == null
+                && initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH) == null) {
+            settingsBuilder.put("searchguard.ssl.transport.truststore_filepath",
+                    FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"));
+        }
+
+        if (initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH) == null
+                && initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH) == null) {
+            settingsBuilder.put("searchguard.ssl.transport.keystore_filepath",
+                    FileHelper.getAbsoluteFilePathFromClassPath(prefix + "kirk-keystore.jks"));
+        }
+
+        settingsBuilder.put(initTransportClientSettings);
+
+        Settings tcSettings = settingsBuilder.build();
 
         TransportClient tc = new TransportClientImpl(tcSettings, asCollection(Netty4Plugin.class, SearchGuardPlugin.class));
         tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));

@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -44,6 +45,10 @@ public class TrustStore {
             } catch (IOException | CertificateException e) {
                 throw new GenericSSLConfigException("Error while reading certificate file " + file, e);
             }
+        }
+        
+        public Builder certPem(Path path) throws GenericSSLConfigException {
+            return certPem(path.toFile());
         }
 
         public Builder certPem(InputStream inputStream) throws CertificateException {

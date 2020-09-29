@@ -19,15 +19,6 @@
 
 package com.floragunn.searchguard.ssl;
 
-import com.floragunn.searchguard.support.PemKeyReader;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.handler.ssl.ApplicationProtocolConfig;
-import io.netty.handler.ssl.ClientAuth;
-import io.netty.handler.ssl.OpenSsl;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslProvider;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.file.Files;
@@ -40,18 +31,15 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.security.cert.CertificateParsingException;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import javax.crypto.Cipher;
 import javax.net.ssl.SSLContext;
@@ -71,6 +59,15 @@ import org.elasticsearch.env.Environment;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLCertificateHelper;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchguard.support.PemKeyReader;
+
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.handler.ssl.ApplicationProtocolConfig;
+import io.netty.handler.ssl.ClientAuth;
+import io.netty.handler.ssl.OpenSsl;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslProvider;
 
 public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
@@ -100,6 +97,10 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
     private SslContext transportClientSslContext;
     private X509Certificate[] transportCerts;
     private X509Certificate[] httpCerts;
+    private X509Certificate[] transportTrustedCerts;
+    private X509Certificate[] httpTrustedCerts;
+
+    
     private final Environment env;
 
     private void printJCEWarnings() {
@@ -335,7 +336,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                     throw new ElasticsearchException("No truststore configured for server");
                 }
 
-                validateNewCerts(transportCerts, transportKeystoreCert);
+                onNewCerts("Transport", transportCerts, transportKeystoreCert, transportTrustedCerts, trustedTransportCertificates);
                 transportServerSslContext = buildSSLServerContext(transportKeystoreKey, transportKeystoreCert,
                         trustedTransportCertificates, getEnabledSSLCiphers(this.sslTransportServerProvider, false),
                         this.sslTransportServerProvider, ClientAuth.REQUIRE);
@@ -364,8 +365,9 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                 final File pemCertFile = new File(pemCertFilePath);
                 final File trustedCasFile = new File(trustedCas);
                 final X509Certificate[] transportKeystoreCerts = new X509Certificate[]{ PemKeyReader.loadCertificateFromFile(pemCertFilePath) };
+                X509Certificate[] newTrustedCerts = trustedCas != null ? PemKeyReader.loadCertificatesFromFile(trustedCas) : null;
 
-                validateNewCerts(transportCerts, transportKeystoreCerts);
+                onNewCerts("Transport", transportCerts, transportKeystoreCerts, transportTrustedCerts, newTrustedCerts);
                 transportServerSslContext = buildSSLServerContext(pemKeyFile, pemCertFile, trustedCasFile,
                         settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD),
                         getEnabledSSLCiphers(this.sslTransportServerProvider, false),
@@ -475,7 +477,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                     trustedHTTPCertificates = SSLCertificateHelper.exportRootCertificates(ts, truststoreAlias);
                 }
 
-                validateNewCerts(httpCerts, httpKeystoreCert);
+                onNewCerts("HTTP", httpCerts, httpKeystoreCert, httpTrustedCerts, trustedHTTPCertificates);
                 httpSslContext = buildSSLServerContext(httpKeystoreKey, httpKeystoreCert, trustedHTTPCertificates,
                         getEnabledSSLCiphers(this.sslHTTPProvider, true), sslHTTPProvider, httpClientAuthMode);
                 setHttpSSLCerts(httpKeystoreCert);
@@ -497,13 +499,17 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                 final String pemCertFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH, true);
                 final String pemKey = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH, true);
                 final X509Certificate[] httpKeystoreCert = new X509Certificate[]{ PemKeyReader.loadCertificateFromFile(pemCertFilePath) };
-
-                validateNewCerts(httpCerts, httpKeystoreCert);
+                X509Certificate[] newHttpTrustedCerts = trustedCas != null ? PemKeyReader.loadCertificatesFromFile(trustedCas) : null;
+                
+                onNewCerts("HTTP", httpCerts,
+                        httpKeystoreCert, httpTrustedCerts, newHttpTrustedCerts);
                 httpSslContext = buildSSLServerContext(new File(pemKey), new File(pemCertFilePath),
                         trustedCas == null ? null : new File(trustedCas),
                         settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_PASSWORD),
                         getEnabledSSLCiphers(this.sslHTTPProvider, true), sslHTTPProvider, httpClientAuthMode);
                 setHttpSSLCerts(httpKeystoreCert);
+                this.httpTrustedCerts = newHttpTrustedCerts;
+                
 
             } catch (final Exception e) {
                 logExplanation(e);
@@ -518,57 +524,39 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         }
     }
 
-    private void validateNewCerts(final X509Certificate[] currentX509Certs, final X509Certificate[] newX509Certs) throws Exception {
+    private void onNewCerts(String type, final X509Certificate[] currentX509Certs, final X509Certificate[] newX509Certs,
+            X509Certificate[] currentTrustedCertificates, X509Certificate[] newTrustedCertificates) throws Exception {
+        validateNewCerts(type, currentX509Certs != null ? Arrays.asList(currentX509Certs) : null,
+                newX509Certs != null ? Arrays.asList(newX509Certs) : null,
+                currentTrustedCertificates != null ? Arrays.asList(currentTrustedCertificates) : null,
+                newTrustedCertificates != null ? Arrays.asList(newTrustedCertificates) : null);
+    }   
+    
+    private void validateNewCerts(String type, List<? extends Certificate> currentX509Certs,  List<? extends Certificate> newX509Certs, List<? extends Certificate> currentTrustedCertificates,  List<? extends Certificate> newTrustedCertificates) throws Exception {
 
-        // First time we init certs ignore validity check
-        if (currentX509Certs == null) {
-            return;
-        }
+        if (currentTrustedCertificates != null) {
 
-        // Check if new X509 certs have valid expiry date
-        if (!hasValidExpiryDates(currentX509Certs, newX509Certs)) {
-            throw new Exception("New certificates should not expire before the current ones.");
-        }
 
-        // Check if new X509 certs have valid IssuerDN, SubjectDN or SAN
-        if (!hasValidDNs(currentX509Certs, newX509Certs)) {
-            throw new Exception("New Certs do not have valid Issuer DN, Subject DN or SAN.");
-        }
-    }
-
-    /**
-     * Check if new X509 certs have same IssuerDN/SubjectDN as current certificates.
-     * @param currentX509Certs Array of current X509Certificates.
-     * @param newX509Certs Array of new X509Certificates.
-     * @return true if all Issuer DN and Subject DN pairs match; false otherwise.
-     * @throws Exception if certificate is invalid.
-     */
-    private boolean hasValidDNs(final X509Certificate[] currentX509Certs, final X509Certificate[] newX509Certs) {
-
-        final Function<? super X509Certificate, String> formatDNString = cert -> {
-            final String issuerDn = cert !=null && cert.getIssuerX500Principal() != null ? cert.getIssuerX500Principal().getName() : "";
-            final String subjectDn = cert !=null && cert.getSubjectX500Principal() != null ? cert.getSubjectX500Principal().getName() : "";
-            String san = "";
-            try {
-                san = cert !=null && cert.getSubjectAlternativeNames() != null ? cert.getSubjectAlternativeNames().toString() : "";
-            } catch (CertificateParsingException e) {
-                log.error("Issue parsing SubjectAlternativeName:", e);
+            if (!currentTrustedCertificates.equals(newTrustedCertificates)) {
+                log.warn("================================\n" + type + " ROOT certificates updated:\n" + "================================\n"
+                        + "Old:\n" + currentTrustedCertificates + "\n" + "================================\n" + "New:\n" + newTrustedCertificates
+                        + "\n================================");
             }
-            return String.format("%s/%s/%s", issuerDn, subjectDn, san);
-        };
 
-        final List<String> currentCertDNList = Arrays.stream(currentX509Certs)
-                .map(formatDNString)
-                .sorted()
-                .collect(Collectors.toList());
+        }
 
-        final List<String> newCertDNList = Arrays.stream(newX509Certs)
-                .map(formatDNString)
-                .sorted()
-                .collect(Collectors.toList());
+        if (currentX509Certs != null) {
 
-        return currentCertDNList.equals(newCertDNList);
+
+            if (!currentX509Certs.equals(newX509Certs)) {
+                log.warn("================================\n" + type + " NODE certificates updated:\n" + "================================\n"
+                        + "Old:\n" + currentX509Certs + "\n" + "================================\n" + "New:\n" + newX509Certs
+                        + "\n================================");
+            }
+        }
     }
+
+    
 
     public SSLEngine createHTTPSSLEngine() throws SSLException {
 
@@ -636,31 +624,6 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
     private void setTransportSSLCerts(X509Certificate[] transportKeystoreCert) {
         transportCerts = transportKeystoreCert;
-    }
-
-    /**
-     * Check if new X509 certs have expiry date after the current X509 certs.
-     * @param currentX509Certs Array of current X509Certificates.
-     * @param newX509Certs Array of new X509Certificates.
-     * @return true if all of the new certificates expire after the currentX509 certificates.
-     * @throws Exception if certificate is invalid.
-     */
-    private boolean hasValidExpiryDates(final X509Certificate[] currentX509Certs, final X509Certificate[] newX509Certs) {
-
-        // Get earliest expiry date for current certificates
-        final Date earliestExpiryDate = Arrays.stream(currentX509Certs)
-                .map(c -> c.getNotAfter())
-                .min(Date::compareTo)
-                .get();
-
-        // New certificates that expire before or on the same date as the current ones are invalid.
-        boolean newCertsExpireBeforeCurrentCerts = Arrays.stream(newX509Certs)
-                .anyMatch(cert -> {
-                    Date notAfterDate = cert.getNotAfter();
-                    return notAfterDate.before(earliestExpiryDate) || notAfterDate.equals(earliestExpiryDate);
-                });
-
-        return !newCertsExpireBeforeCurrentCerts;
     }
 
     private void logOpenSSLInfos() {
