@@ -13,6 +13,7 @@ import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
 
@@ -38,6 +39,35 @@ public class RestMatchers {
                     return true;
                 } else {
                     mismatchDescription.appendText("Status is not 200 OK: ").appendValue(item);
+                    return false;
+                }
+
+            }
+
+        };
+    }
+
+    public static DiagnosingMatcher<HttpResponse> isForbidden() {
+        return new DiagnosingMatcher<HttpResponse>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("Response has status 403 Forbidden");
+            }
+
+            @Override
+            protected boolean matches(Object item, Description mismatchDescription) {
+                if (!(item instanceof HttpResponse)) {
+                    mismatchDescription.appendValue(item).appendText(" is not a HttpResponse");
+                    return false;
+                }
+
+                HttpResponse response = (HttpResponse) item;
+
+                if (response.getStatusCode() == 403) {
+                    return true;
+                } else {
+                    mismatchDescription.appendText("Status is not 403 Forbidden: ").appendValue(item);
                     return false;
                 }
 
@@ -109,7 +139,7 @@ public class RestMatchers {
                     return false;
                 }
 
-                Configuration config = Configuration.builder().jsonProvider(new JacksonJsonNodeJsonProvider())
+                Configuration config = Configuration.builder().options(Option.SUPPRESS_EXCEPTIONS).jsonProvider(new JacksonJsonNodeJsonProvider())
                         .mappingProvider(new JacksonMappingProvider()).build();
 
                 Object value = JsonPath.using(config).parse(item).read(jsonPath);
