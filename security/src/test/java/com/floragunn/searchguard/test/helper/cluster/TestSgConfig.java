@@ -77,7 +77,6 @@ public class TestSgConfig {
 
         }
 
-
         return this;
     }
 
@@ -98,6 +97,15 @@ public class TestSgConfig {
                                 .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "allowed_actions", p.allowedActions))
                                 .collect(Collectors.toList()));
             }
+
+            if (role.excludedClusterPermissions.size() > 0) {
+                overrideRoleSettings.put(new NestedValueMap.Path(role.name, "exclude_cluster_permissions"), role.excludedClusterPermissions);
+            }
+
+            if (role.excludedIndexPermissions.size() > 0) {
+                overrideRoleSettings.put(new NestedValueMap.Path(role.name, "exclude_index_permissions"), role.excludedIndexPermissions.stream()
+                        .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "actions", p.actions)).collect(Collectors.toList()));
+            }
         }
 
         return this;
@@ -107,7 +115,6 @@ public class TestSgConfig {
         client.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
 
         writeConfigToIndex(client, CType.CONFIG, "sg_config.yml", overrideSgConfigSettings);
-        System.out.println(overrideRoleSettings);
         writeConfigToIndex(client, CType.ROLES, "sg_roles.yml", overrideRoleSettings);
         writeConfigToIndex(client, CType.INTERNALUSERS, "sg_internal_users.yml", overrideUserSettings);
         writeConfigToIndex(client, CType.ROLESMAPPING, "sg_roles_mapping.yml", null);
@@ -132,7 +139,7 @@ public class TestSgConfig {
             }
 
             System.out.println(config.toJsonString());
-            
+
             client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
                     .actionGet();
@@ -164,7 +171,10 @@ public class TestSgConfig {
     public static class Role {
         private String name;
         private List<String> clusterPermissions = new ArrayList<>();
+        private List<String> excludedClusterPermissions = new ArrayList<>();
+
         private List<IndexPermission> indexPermissions = new ArrayList<>();
+        private List<ExcludedIndexPermission> excludedIndexPermissions = new ArrayList<>();
 
         public Role(String name) {
             this.name = name;
@@ -175,8 +185,17 @@ public class TestSgConfig {
             return this;
         }
 
+        public Role excludeClusterPermissions(String... clusterPermissions) {
+            this.excludedClusterPermissions.addAll(Arrays.asList(clusterPermissions));
+            return this;
+        }
+
         public IndexPermission indexPermissions(String... indexPermissions) {
             return new IndexPermission(this, indexPermissions);
+        }
+
+        public ExcludedIndexPermission excludeIndexPermissions(String... indexPermissions) {
+            return new ExcludedIndexPermission(this, indexPermissions);
         }
 
     }
@@ -194,6 +213,24 @@ public class TestSgConfig {
         public Role on(String... indexPatterns) {
             this.indexPatterns = Arrays.asList(indexPatterns);
             this.role.indexPermissions.add(this);
+            return this.role;
+        }
+
+    }
+
+    public static class ExcludedIndexPermission {
+        private List<String> actions;
+        private List<String> indexPatterns;
+        private Role role;
+
+        ExcludedIndexPermission(Role role, String... actions) {
+            this.actions = Arrays.asList(actions);
+            this.role = role;
+        }
+
+        public Role on(String... indexPatterns) {
+            this.indexPatterns = Arrays.asList(indexPatterns);
+            this.role.excludedIndexPermissions.add(this);
             return this.role;
         }
 

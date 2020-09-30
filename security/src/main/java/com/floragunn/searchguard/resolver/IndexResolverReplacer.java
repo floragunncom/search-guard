@@ -375,6 +375,11 @@ public final class IndexResolverReplacer implements DCFListener {
             return aliases.contains("*") && indices.contains("*") && allIndices.contains("*") && types.contains("*");
         }
 
+        public boolean isAll() {
+            return allIndices.contains("*") || allIndices.contains("_all") || originalRequested == null
+                    || IndexResolverReplacer.isLocalAll(originalRequested.toArray(new String[0]));
+        }
+        
         public Set<String> getAliases() {
             return Collections.unmodifiableSet(aliases);
         }

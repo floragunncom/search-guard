@@ -23,6 +23,8 @@ public class RoleV7 implements Hideable, StaticDefinable {
     private List<String> cluster_permissions = Collections.emptyList();
     private List<Index> index_permissions = Collections.emptyList();
     private List<Tenant> tenant_permissions = Collections.emptyList();
+    private List<String> exclude_cluster_permissions = Collections.emptyList();
+    private List<ExcludeIndex> exclude_index_permissions = Collections.emptyList();
     
     public RoleV7() {
         
@@ -131,20 +133,6 @@ public class RoleV7 implements Hideable, StaticDefinable {
         private List<String> tenant_patterns = Collections.emptyList();
         private List<String> allowed_actions = Collections.emptyList();
         
-        /*public Index(String pattern, RoleV6.Index v6Index) {
-            super();
-            index_patterns = Collections.singletonList(pattern);
-            dls = v6Index.get_dls_();
-            fls = v6Index.get_fls_();
-            masked_fields = v6Index.get_masked_fields_();
-            Set<String> tmpActions = new HashSet<>(); 
-            for(Entry<String, List<String>> type: v6Index.getTypes().entrySet()) {
-                tmpActions.addAll(type.getValue());
-            }
-            allowed_actions = new ArrayList<>(tmpActions);
-        }*/
-        
-        
         public Tenant() {
             super();
         }
@@ -173,7 +161,37 @@ public class RoleV7 implements Hideable, StaticDefinable {
         
     }
     
+    public static class ExcludeIndex {
 
+        private List<String> index_patterns = Collections.emptyList();
+        private List<String> actions = Collections.emptyList();
+       
+        public ExcludeIndex() {
+            super();
+        }
+        
+        public List<String> getIndex_patterns() {
+            return index_patterns;
+        }
+        public void setIndex_patterns(List<String> index_patterns) {
+            this.index_patterns = index_patterns;
+        }
+
+        public List<String> getActions() {
+            return actions;
+        }
+
+        public void setActions(List<String> actions) {
+            this.actions = actions;
+        }
+
+        @Override
+        public String toString() {
+            return "ExcludeIndex [index_patterns=" + index_patterns + ", actions=" + actions + "]";
+        }
+    
+    }
+    
     public boolean isHidden() {
         return hidden;
     }
@@ -233,11 +251,28 @@ public class RoleV7 implements Hideable, StaticDefinable {
         this._static = _static;
     }
 
+    public List<String> getExclude_cluster_permissions() {
+        return exclude_cluster_permissions;
+    }
+
+    public void setExclude_cluster_permissions(List<String> exclude_cluster_permissions) {
+        this.exclude_cluster_permissions = exclude_cluster_permissions;
+    }
+
+    public List<ExcludeIndex> getExclude_index_permissions() {
+        return exclude_index_permissions;
+    }
+
+    public void setExclude_index_permissions(List<ExcludeIndex> exclude_index_permissions) {
+        this.exclude_index_permissions = exclude_index_permissions;
+    }
+
     @Override
     public String toString() {
         return "RoleV7 [reserved=" + reserved + ", hidden=" + hidden + ", _static=" + _static + ", description=" + description
                 + ", cluster_permissions=" + cluster_permissions + ", index_permissions=" + index_permissions + ", tenant_permissions="
-                + tenant_permissions + "]";
+                + tenant_permissions + ", exclude_cluster_permissions=" + exclude_cluster_permissions + ", exclude_index_permissions="
+                + exclude_index_permissions + "]";
     }
     
 

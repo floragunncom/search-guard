@@ -66,6 +66,7 @@ import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
+import com.floragunn.searchguard.sgconf.impl.v7.RoleV7.ExcludeIndex;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7.Index;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -251,7 +252,9 @@ public class ConfigModelV7 extends ConfigModel {
 
                 if (actionGroupAsObject != null && actionGroupAsObject instanceof List) {
 
-                    for (final String perm : ((List<String>) actionGroupAsObject)) {
+                    for (Object permObject : ((List<?>) actionGroupAsObject)) {
+                        String perm = String.valueOf(permObject);
+                        
                         if (actionGroups.getCEntries().keySet().contains(perm)) {
                             ret.addAll(resolve(actionGroups, perm));
                         } else {
@@ -591,27 +594,44 @@ public class ConfigModelV7 extends ConfigModel {
         public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
                                                            ClusterService cs) {
             Set<String> retVal = new HashSet<>();
+
             for (SgRole sgr : roles) {
                 retVal.addAll(sgr.getAllResolvedPermittedIndices(Resolved._LOCAL_ALL, user, actions, resolver, cs));
-                retVal.addAll(resolved.getRemoteIndices());
             }
+                        
+            for (SgRole sgRole : roles) {
+                sgRole.removeAllResolvedExcludedIndices(retVal, user, actions, resolver, cs);
+            }
+            
+            retVal.addAll(resolved.getRemoteIndices());
+            
             return Collections.unmodifiableSet(retVal);
         }
 
         //dnfof only
         public Set<String> reduce(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs) {
             Set<String> retVal = new HashSet<>();
+            
             for (SgRole sgr : roles) {
                 retVal.addAll(sgr.getAllResolvedPermittedIndices(resolved, user, actions, resolver, cs));
             }
+            
+            for (SgRole sgRole : roles) {
+                sgRole.removeAllResolvedExcludedIndices(retVal, user, actions, resolver, cs);
+            }
+                        
             if (log.isDebugEnabled()) {
-                log.debug("Reduced requested resolved indices {} to permitted indices {}.", resolved, retVal.toString());
+                log.debug("Reduced requested resolved indices {} to permitted indices {}.", resolved, retVal);
             }
             return Collections.unmodifiableSet(retVal);
         }
 
         //return true on success
         public boolean get(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+            if (isIndexActionExcluded(resolved, user, actions, resolver, cs)) {
+                return false;
+            }
+            
             for (SgRole sgr : roles) {
                 if (ConfigModelV7.impliesTypePerm(sgr.getIpatterns(), resolved, user, actions, resolver, cs)) {
                     return true;
@@ -621,17 +641,57 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
         public boolean impliesClusterPermissionPermission(String action) {
-            return roles.stream().filter(r -> r.impliesClusterPermission(action)).count() > 0;
+            for (SgRole sgRole : roles) {
+                if (sgRole.excludesClusterPermission(action)) {
+                    return false;
+                }
+            }
+            
+            for (SgRole sgRole : roles) {
+                if (sgRole.impliesClusterPermission(action)) {
+                    return true;
+                }
+            }
+            
+            return false;
         }
 
         //rolespan
         public boolean impliesTypePermGlobal(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
                                              ClusterService cs) {
+            if (isIndexActionExcluded(resolved, user, actions, resolver, cs)) {
+                return false;
+            }
+            
             Set<IndexPattern> ipatterns = new HashSet<ConfigModelV7.IndexPattern>();
             roles.stream().forEach(p -> ipatterns.addAll(p.getIpatterns()));
             return ConfigModelV7.impliesTypePerm(ipatterns, resolved, user, actions, resolver, cs);
         }
 
+        
+        private boolean isIndexActionExcluded(Resolved requestedResolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+            for (SgRole sgRole : roles) {
+                for (ExcludedIndexPermissions indexPattern : sgRole.indexPermissionExclusions) {
+                    for (String requestedAction : actions) {
+                        if (WildcardMatcher.matchAny(indexPattern.perms, requestedAction)) {
+                            try {
+                                if (indexPattern.matches(requestedResolved.getIndices(), user, resolver, cs)) {
+                                    return true;
+                                }
+                            } catch (StringInterpolationException e) {
+                                log.warn("Invalid index pattern " + indexPattern.indexPattern + " in permission exclusion.\n"
+                                        + "In order to fail safely, the requested actions will be denied for all indices.", e);
+                                // For interpolation errors we go here for the strict path and also exclude the action. Otherwise, exclusions might break unexpectedly.
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return false;
+        }
+        
         @Override
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startObject();
@@ -686,17 +746,24 @@ public class ConfigModelV7 extends ConfigModel {
                     _indexPattern.addMaskedFields(maskedFields);
                     _indexPattern.addPerm(actionGroupResolver.resolvedActions(permittedAliasesIndex.getAllowed_actions()));
 
-                    /*for(Entry<String, List<String>> type: permittedAliasesIndex.getValue().getTypes(-).entrySet()) {
-                        TypePerm typePerm = new TypePerm(type.getKey());
-                        final List<String> perms = type.getValue();
-                        typePerm.addPerms(agr.resolvedActions(perms));
-                        _indexPattern.addTypePerms(typePerm);
-                    }*/
-
                     result.addIndexPattern(_indexPattern);
 
                 }
 
+            }
+
+            if (roleConfig.getExclude_cluster_permissions() != null) {
+                result.clusterPermissionExclusions.addAll(actionGroupResolver.resolvedActions(roleConfig.getExclude_cluster_permissions()));
+            }
+
+            if (roleConfig.getExclude_index_permissions() != null) {
+                for (ExcludeIndex excludedIndexPermissions : roleConfig.getExclude_index_permissions()) {
+                    for (String pattern : excludedIndexPermissions.getIndex_patterns()) {
+                        ExcludedIndexPermissions excludedIndexPattern = new ExcludedIndexPermissions(pattern);
+                        excludedIndexPattern.addPerm(actionGroupResolver.resolvedActions(excludedIndexPermissions.getActions()));
+                        result.indexPermissionExclusions.add(excludedIndexPattern);
+                    }
+                }
             }
 
             return result;
@@ -706,6 +773,8 @@ public class ConfigModelV7 extends ConfigModel {
         //private final Set<Tenant> tenants = new HashSet<>();
         private final Set<IndexPattern> ipatterns = new HashSet<>();
         private final Set<String> clusterPerms = new HashSet<>();
+        private final Set<ExcludedIndexPermissions> indexPermissionExclusions = new HashSet<>();
+        private final Set<String> clusterPermissionExclusions = new HashSet<>();
 
         private SgRole(String name) {
             super();
@@ -715,6 +784,11 @@ public class ConfigModelV7 extends ConfigModel {
         private boolean impliesClusterPermission(String action) {
             return WildcardMatcher.matchAny(clusterPerms, action);
         }
+        
+        private boolean excludesClusterPermission(String action) {
+            return WildcardMatcher.matchAny(clusterPermissionExclusions, action);
+        }
+        
         //get indices which are permitted for the given types and actions
 
         //dnfof + kibana special only
@@ -727,12 +801,6 @@ public class ConfigModelV7 extends ConfigModel {
                 //what if we cannot resolve one (for create purposes)
                 final boolean patternMatch = WildcardMatcher.matchAll(p.getPerms().toArray(new String[0]), actions);
 
-                //                final Set<TypePerm> tperms = p.getTypePerms();
-                //                for (TypePerm tp : tperms) {
-                //                    if (WildcardMatcher.matchAny(tp.typePattern, resolved.getTypes(-).toArray(new String[0]))) {
-                //                        patternMatch = WildcardMatcher.matchAll(tp.perms.toArray(new String[0]), actions);
-                //                    }
-                //                }
                 if (patternMatch) {
                     //resolved but can contain patterns for nonexistent indices
                     String[] permitted;
@@ -766,6 +834,35 @@ public class ConfigModelV7 extends ConfigModel {
             //all that we want and all thats permitted of them
             return Collections.unmodifiableSet(retVal);
         }
+        
+        private void removeAllResolvedExcludedIndices(Set<String> indices, User user, String[] actions, IndexNameExpressionResolver resolver,
+                ClusterService cs) {
+            
+            for (ExcludedIndexPermissions excludedIndexPattern : indexPermissionExclusions) {
+                if (indices.isEmpty()) {
+                    break;
+                }
+                
+                if (WildcardMatcher.matchAll(excludedIndexPattern.getPerms().toArray(new String[0]), actions)) {
+                    if (excludedIndexPattern.indexPattern.equals("*")) {
+                        indices.clear();
+                        break;
+                    }
+                    
+                    try {
+                        excludedIndexPattern.removeMatches(indices, user, resolver, cs);
+                    } catch (StringInterpolationException e) {
+                        log.warn("Invalid index pattern " + excludedIndexPattern.indexPattern + " in permission exclusion.\n"
+                                + "In order to fail safely, the requested actions will be denied for all indices.", e);
+                        indices.clear();
+                        break;
+                    } 
+                }
+            }
+
+        }
+        
+        
         /*private SgRole addTenant(Tenant tenant) {
             if (tenant != null) {
                 this.tenants.add(tenant);
@@ -786,50 +883,69 @@ public class ConfigModelV7 extends ConfigModel {
             }
             return this;
         }
-
+     
         @Override
         public int hashCode() {
             final int prime = 31;
             int result = 1;
+            result = prime * result + ((clusterPermissionExclusions == null) ? 0 : clusterPermissionExclusions.hashCode());
             result = prime * result + ((clusterPerms == null) ? 0 : clusterPerms.hashCode());
+            result = prime * result + ((indexPermissionExclusions == null) ? 0 : indexPermissionExclusions.hashCode());
             result = prime * result + ((ipatterns == null) ? 0 : ipatterns.hashCode());
             result = prime * result + ((name == null) ? 0 : name.hashCode());
-            //result = prime * result + ((tenants == null) ? 0 : tenants.hashCode());
             return result;
         }
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj)
+            if (this == obj) {
                 return true;
-            if (obj == null)
+            }
+            if (obj == null) {
                 return false;
-            if (getClass() != obj.getClass())
+            }
+            if (getClass() != obj.getClass()) {
                 return false;
+            }
             SgRole other = (SgRole) obj;
+            if (clusterPermissionExclusions == null) {
+                if (other.clusterPermissionExclusions != null) {
+                    return false;
+                }
+            } else if (!clusterPermissionExclusions.equals(other.clusterPermissionExclusions)) {
+                return false;
+            }
             if (clusterPerms == null) {
-                if (other.clusterPerms != null)
+                if (other.clusterPerms != null) {
                     return false;
-            } else if (!clusterPerms.equals(other.clusterPerms))
+                }
+            } else if (!clusterPerms.equals(other.clusterPerms)) {
                 return false;
+            }
+            if (indexPermissionExclusions == null) {
+                if (other.indexPermissionExclusions != null) {
+                    return false;
+                }
+            } else if (!indexPermissionExclusions.equals(other.indexPermissionExclusions)) {
+                return false;
+            }
             if (ipatterns == null) {
-                if (other.ipatterns != null)
+                if (other.ipatterns != null) {
                     return false;
-            } else if (!ipatterns.equals(other.ipatterns))
+                }
+            } else if (!ipatterns.equals(other.ipatterns)) {
                 return false;
+            }
             if (name == null) {
-                if (other.name != null)
+                if (other.name != null) {
                     return false;
-            } else if (!name.equals(other.name))
+                }
+            } else if (!name.equals(other.name)) {
                 return false;
-            //            if (tenants == null) {
-            //                if (other.tenants != null)
-            //                    return false;
-            //            } else if (!tenants.equals(other.tenants))
-            //                return false;
+            }
             return true;
         }
-
+        
         @Override
         public String toString() {
             return System.lineSeparator() + "  " + name + System.lineSeparator() + "    ipatterns=" + ipatterns + System.lineSeparator()
@@ -864,6 +980,14 @@ public class ConfigModelV7 extends ConfigModel {
             if (ipatterns != null && ipatterns.size() > 0) {
                 builder.field("index_permissions", ipatterns);
             }
+            
+            if (clusterPermissionExclusions != null && clusterPermissionExclusions.size() > 0) {
+                builder.field("excluded_cluster_permissions", clusterPermissionExclusions);
+            }
+            
+            if (indexPermissionExclusions != null && indexPermissionExclusions.size() > 0) {
+                builder.field("excluded_index_permissions", indexPermissionExclusions);
+            }
 
             /* TODO ????
              *
@@ -875,6 +999,8 @@ public class ConfigModelV7 extends ConfigModel {
 
             return builder;
         }
+
+     
     }
 
     //sg roles
@@ -973,7 +1099,7 @@ public class ConfigModelV7 extends ConfigModel {
             return System.lineSeparator() + "        indexPattern=" + indexPattern + System.lineSeparator() + "          dlsQuery=" + dlsQuery
                     + System.lineSeparator() + "          fls=" + fls + System.lineSeparator() + "          perms=" + perms;
         }
-
+      
         public String getUnresolvedIndexPattern(User user) throws StringInterpolationException {
             return replaceProperties(indexPattern, user);
         }
@@ -981,7 +1107,7 @@ public class ConfigModelV7 extends ConfigModel {
         private String[] getResolvedIndexPatterns(User user, IndexNameExpressionResolver resolver, ClusterService cs, boolean appendUnresolved) throws StringInterpolationException {
             String unresolved = getUnresolvedIndexPattern(user);
             String[] resolved = null;
-            if (WildcardMatcher.containsWildcard(unresolved)) {
+            if (WildcardMatcher.containsWildcard(unresolved)) {                
                 final String[] aliasesForPermittedPattern = cs.state().getMetadata().getIndicesLookup().entrySet().stream()
                         .filter(e -> e.getValue().getType().equals(Type.ALIAS)).filter(e -> WildcardMatcher.match(unresolved, e.getKey())).map(e -> e.getKey())
                         .toArray(String[]::new);
@@ -1008,6 +1134,8 @@ public class ConfigModelV7 extends ConfigModel {
             	}
             }
         }
+        
+        
 
         public String getDlsQuery(User user) throws StringInterpolationException {
             return replaceProperties(dlsQuery, user);
@@ -1064,71 +1192,227 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
     }
+    
+    public static class ExcludedIndexPermissions implements ToXContentObject {
 
-    /*public static class TypePerm {
-        private final String typePattern;
+        private final String indexPattern;
+
         private final Set<String> perms = new HashSet<>();
-    
-        private TypePerm(String typePattern) {
+
+        public ExcludedIndexPermissions(String indexPattern) {
             super();
-            this.typePattern = Objects.requireNonNull(typePattern);
-            /*if(IGNORED_TYPES.contains(typePattern)) {
-                throw new RuntimeException("typepattern '"+typePattern+"' not allowed");
-            }
+            this.indexPattern = Objects.requireNonNull(indexPattern);
         }
-    
-        private TypePerm addPerms(Collection<String> perms) {
+
+        public ExcludedIndexPermissions addPerm(Set<String> perms) {
             if (perms != null) {
                 this.perms.addAll(perms);
             }
             return this;
         }
-    
+
+        public boolean matches(Set<String> indices, User user, IndexNameExpressionResolver resolver, ClusterService cs)
+                throws StringInterpolationException {
+            // Note: This does not process the obsolete user attributes any more
+            String indexPattern = UserAttributes.replaceAttributes(this.indexPattern, user);
+
+            if (log.isTraceEnabled()) {
+                log.trace("matches(" + indices + ") on " + this.indexPattern + " => " + indexPattern);
+            }
+            
+            if (indexPattern.equals("*")) {
+                return true;
+            }
+
+            if (WildcardMatcher.containsWildcard(indexPattern)) {
+                if (WildcardMatcher.matchAny(indexPattern, indices)) {
+                    if (log.isTraceEnabled()) {
+                        log.trace("Direct pattern match");
+                    }
+                    return true;
+                }
+                
+                String[] aliasesForPermittedPattern = cs.state().getMetadata().getIndicesLookup().entrySet().stream()
+                        .filter(e -> e.getValue().getType().equals(Type.ALIAS)).filter(e -> WildcardMatcher.match(indexPattern, e.getKey()))
+                        .map(e -> e.getKey()).toArray(String[]::new);
+                
+                if (aliasesForPermittedPattern.length > 0) {
+                    String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(),
+                            aliasesForPermittedPattern);
+
+                    for (String resolvedAlias : resolvedAliases) {
+                        if (indices.contains(resolvedAlias)) {
+                            if (log.isTraceEnabled()) {
+                                log.trace("Match on alias: " + resolvedAlias + "; all resolved: " + Arrays.asList(resolvedAliases));
+                            }
+
+                            return true;
+                        }
+                    }
+                }
+                
+                return false;
+            } else {
+                // No wildcard
+                
+                if (indices.contains(indexPattern)) {
+                    if (log.isTraceEnabled()) {
+                        log.trace("Direct match");
+                    }
+                    
+                    return true;
+                }
+                
+                String [] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), indexPattern);
+                
+                for (String resolvedAlias : resolvedAliases) {
+                    if (indices.contains(resolvedAlias)) {
+                        if (log.isTraceEnabled()) {
+                            log.trace("Match on alias: " + resolvedAlias + "; all resolved: " + Arrays.asList(resolvedAliases));
+                        }
+                        
+                        return true;
+                    }
+                }
+
+                if (log.isTraceEnabled()) {
+                    log.trace("No match on resolved aliases: " + Arrays.asList(resolvedAliases));
+                }
+                
+                return false;
+            }            
+        }
+        
+        public void removeMatches(Set<String> indices, User user, IndexNameExpressionResolver resolver, ClusterService cs)
+                throws StringInterpolationException {
+            // Note: This does not process the obsolete user attributes any more
+            String indexPattern = UserAttributes.replaceAttributes(this.indexPattern, user);
+
+            if (log.isTraceEnabled()) {
+                log.trace("removeMatches(" + indices + ") on " + this.indexPattern + " => " + indexPattern);
+            }
+            
+            if (indexPattern.equals("*")) {
+                indices.clear();
+                return;
+            }
+
+            if (WildcardMatcher.containsWildcard(indexPattern)) {               
+                indices.removeIf((index) -> WildcardMatcher.match(indexPattern, index));
+
+                if (log.isTraceEnabled()) {
+                    log.trace("remaining indices after removing matches: " + indices);
+                }
+
+                if (indices.isEmpty()) {
+                    return;
+                }
+
+                String[] aliasesForPermittedPattern = cs.state().getMetadata().getIndicesLookup().entrySet().stream()
+                        .filter(e -> e.getValue().getType().equals(Type.ALIAS)).filter(e -> WildcardMatcher.match(indexPattern, e.getKey()))
+                        .map(e -> e.getKey()).toArray(String[]::new);
+
+                if (aliasesForPermittedPattern.length > 0) {
+
+                    String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(),
+                            aliasesForPermittedPattern);
+
+                    for (String resolvedAlias : resolvedAliases) {
+                        indices.remove(resolvedAlias);
+                    }
+                    
+                    if (log.isTraceEnabled()) {
+                        log.trace("remaining indices after removing matching aliases (" + Arrays.asList(resolvedAliases) + "): " + indices);
+                    }
+                }
+
+            } else {
+                // No wildcard
+
+                indices.remove(indexPattern);
+
+                if (log.isTraceEnabled()) {
+                    log.trace("remaining indices after removing matches: " + indices);
+                }
+
+                if (indices.isEmpty()) {
+                    return;
+                }
+
+                String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), indexPattern);
+
+                for (String resolvedAlias : resolvedAliases) {
+                    indices.remove(resolvedAlias);
+                }
+
+                if (log.isTraceEnabled()) {
+                    log.trace("remaining indices after removing matching aliases (" + Arrays.asList(resolvedAliases) + "): " + indices);
+                }
+
+            }            
+        }
+
+        public Set<String> getPerms() {
+            return Collections.unmodifiableSet(perms);
+        }
+
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.startObject();
+            builder.field("index_patterns", Collections.singletonList(indexPattern));
+
+            if (perms != null && perms.size() > 0) {
+                builder.field("actions", perms);
+            }
+
+            builder.endObject();
+            return builder;
+        }
+
         @Override
         public int hashCode() {
             final int prime = 31;
             int result = 1;
+            result = prime * result + ((indexPattern == null) ? 0 : indexPattern.hashCode());
             result = prime * result + ((perms == null) ? 0 : perms.hashCode());
-            result = prime * result + ((typePattern == null) ? 0 : typePattern.hashCode());
             return result;
         }
-    
+
         @Override
         public boolean equals(Object obj) {
-            if (this == obj)
+            if (this == obj) {
                 return true;
-            if (obj == null)
+            }
+            if (obj == null) {
                 return false;
-            if (getClass() != obj.getClass())
+            }
+            if (getClass() != obj.getClass()) {
                 return false;
-            TypePerm other = (TypePerm) obj;
+            }
+            ExcludedIndexPermissions other = (ExcludedIndexPermissions) obj;
+            if (indexPattern == null) {
+                if (other.indexPattern != null) {
+                    return false;
+                }
+            } else if (!indexPattern.equals(other.indexPattern)) {
+                return false;
+            }
             if (perms == null) {
-                if (other.perms != null)
+                if (other.perms != null) {
                     return false;
-            } else if (!perms.equals(other.perms))
+                }
+            } else if (!perms.equals(other.perms)) {
                 return false;
-            if (typePattern == null) {
-                if (other.typePattern != null)
-                    return false;
-            } else if (!typePattern.equals(other.typePattern))
-                return false;
+            }
             return true;
         }
-    
+
         @Override
         public String toString() {
-            return System.lineSeparator() + "             typePattern=" + typePattern + System.lineSeparator() + "             perms=" + perms;
+            return "ExcludedIndexPermissions [indexPattern=" + indexPattern + ", perms=" + perms + "]";
         }
-    
-        public String getTypePattern() {
-            return typePattern;
-        }
-    
-        public Set<String> getPerms() {
-            return Collections.unmodifiableSet(perms);
-        }
-    
-    }*/
+
+    }
 
     public static class Tenant {
         private final String tenant;
@@ -1196,6 +1480,7 @@ public class ConfigModelV7 extends ConfigModel {
         return result;
     }
 
+    @Deprecated
     private static String replaceObsoleteProperties(String orig, User user) {
 
         if (user == null || orig == null) {
@@ -1223,7 +1508,6 @@ public class ConfigModelV7 extends ConfigModel {
         for (String in : resolved.getAllIndices()) {
             //find index patterns who are matching
             Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
-            //Set<String> matchingTypes = new HashSet<>(resolved.getTypes(-));
             for (IndexPattern p : ipatterns) {
                 String[] resolvedIndexPatterns;
                 try {
@@ -1233,23 +1517,15 @@ public class ConfigModelV7 extends ConfigModel {
                     continue;
                 }
                 if (WildcardMatcher.matchAny(resolvedIndexPatterns, in)) {
-                    //per resolved index per pattern
-                    //for (String t : resolved.getTypes(-)) {
-                    //for (TypePerm tp : p.typePerms) {
-                    //if (WildcardMatcher.match(tp.typePattern, t)) {
-                    //matchingTypes.remove(t);
-                    for (String a : Arrays.asList(actions)) {
+                    for (String a : actions) {
                         if (WildcardMatcher.matchAny(p.perms, a)) {
                             matchingActions.remove(a);
                         }
                     }
-                    //}
-                    //}
-                    //}
                 }
             }
 
-            if (matchingActions.isEmpty() /*&& matchingTypes.isEmpty()*/) {
+            if (matchingActions.isEmpty()) {
                 matchingIndex.remove(in);
             }
         }
