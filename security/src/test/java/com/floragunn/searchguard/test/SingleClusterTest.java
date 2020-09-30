@@ -21,6 +21,7 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.After;
 
+import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
@@ -89,7 +90,26 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
     protected RestHelper restHelper() {
         return new RestHelper(clusterInfo, getResourceFolder());
     }
-    
+
+    protected RestHelper restHelper(GenericSSLConfig sslConfig) {
+        RestHelper result = new RestHelper(clusterInfo, getResourceFolder());
+        result.setSslConfig(sslConfig);
+        return result;
+    }
+
+    protected RestHelper restHelper(int nodeIndex) {
+        RestHelper result = new RestHelper(clusterInfo, getResourceFolder());
+        result.setNodeIndex(nodeIndex);
+        return result;
+    }
+
+    protected RestHelper restHelper(int nodeIndex, GenericSSLConfig sslConfig) {
+        RestHelper result = new RestHelper(clusterInfo, getResourceFolder());
+        result.setNodeIndex(nodeIndex);
+        result.setSslConfig(sslConfig);
+        return result;
+    }
+
     protected RestHelper nonSslRestHelper() {
         return new RestHelper(clusterInfo, false, false, getResourceFolder());
     }

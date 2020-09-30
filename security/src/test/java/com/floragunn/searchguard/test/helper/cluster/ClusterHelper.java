@@ -19,7 +19,6 @@ package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -53,7 +52,6 @@ import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.TransportInfo;
-import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
@@ -316,7 +314,6 @@ public final class ClusterHelper {
                     final TransportAddress his = nodeInfo.getInfo(HttpInfo.class).address().publishAddress();
                     clusterInfo.httpPort = his.getPort();
                     clusterInfo.httpHost = his.getAddress();
-                    clusterInfo.httpAdresses.add(his);
                 } else {
                     throw new RuntimeException("no http host/port for client node");
                 }
@@ -327,7 +324,6 @@ public final class ClusterHelper {
                         final TransportAddress his = nodeInfo.getInfo(HttpInfo.class).address().publishAddress();
                         clusterInfo.httpPort = his.getPort();
                         clusterInfo.httpHost = his.getAddress();
-                        clusterInfo.httpAdresses.add(his);
                         break;
                     }
                 }
@@ -338,10 +334,13 @@ public final class ClusterHelper {
                         final TransportAddress his = nodeInfo.getInfo(HttpInfo.class).address().publishAddress();
                         clusterInfo.httpPort = his.getPort();
                         clusterInfo.httpHost = his.getAddress();
-                        clusterInfo.httpAdresses.add(his);
                         break;
                     }
                 }
+            }
+            
+            for (NodeInfo nodeInfo : nodes) {
+                clusterInfo.httpAdresses.add(nodeInfo.getInfo(HttpInfo.class).address().publishAddress());
             }
         } catch (final ElasticsearchTimeoutException e) {
             throw new IOException("timeout, cluster does not respond to health request, cowardly refusing to continue with operations");

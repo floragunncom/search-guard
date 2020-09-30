@@ -43,7 +43,9 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -200,6 +202,17 @@ public final class PemKeyReader {
         CertificateFactory fact = CertificateFactory.getInstance("X.509");
         try(FileInputStream is = new FileInputStream(file)) {
             return (X509Certificate) fact.generateCertificate(is);
+        }
+    }
+    
+    public static List<? extends Certificate> loadCertificatesFromFileAsList(String file) throws Exception {
+        if(file == null) {
+            return null;
+        }
+        
+        CertificateFactory fact = CertificateFactory.getInstance("X.509");
+        try(FileInputStream is = new FileInputStream(file)) {
+            return new ArrayList<>(fact.generateCertificates(is));
         }
     }
     

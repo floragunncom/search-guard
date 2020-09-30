@@ -98,6 +98,12 @@ public class FileHelper {
 		return sw.toString();
 	}
 	
+	public static void writeFile(String destFile, String content) throws IOException {
+	    FileWriter fw = new FileWriter(destFile, false);
+	    fw.write(content);
+	    fw.close();
+	}
+	
     public static BytesReference readYamlContent(final String file) {
 
 		try (XContentParser parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, new StringReader(loadFile(file)))) {

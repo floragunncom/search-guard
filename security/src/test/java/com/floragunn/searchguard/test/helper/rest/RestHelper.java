@@ -54,6 +54,7 @@ import org.apache.logging.log4j.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
@@ -69,6 +70,8 @@ public class RestHelper {
 	public final String prefix;
 	//public String truststore = "truststore.jks";
 	private ClusterInfo clusterInfo;
+	private int nodeIndex = -1;
+	private GenericSSLConfig sslConfig;
 	
 	public RestHelper(ClusterInfo clusterInfo, String prefix) {
 		this.clusterInfo = clusterInfo;
@@ -175,61 +178,61 @@ public class RestHelper {
 		}
 	}
 	
-	protected final String getHttpServerUri() {
-		final String address = "http" + (enableHTTPClientSSL ? "s" : "") + "://" + clusterInfo.httpHost + ":" + clusterInfo.httpPort;
-		log.debug("Connect to {}", address);
-		return address;
-	}
+    protected final String getHttpServerUri() {
+        if (nodeIndex == -1) {
+            return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + clusterInfo.httpHost + ":" + clusterInfo.httpPort;
+        } else {
+            return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + clusterInfo.httpAdresses.get(nodeIndex).getAddress() + ":"
+                    + clusterInfo.httpAdresses.get(nodeIndex).getPort();
+        }
+    }
 	
 	protected final CloseableHttpClient getHTTPClient() throws Exception {
 
 		final HttpClientBuilder hcb = HttpClients.custom();
 
-		if (enableHTTPClientSSL) {
+        if (sslConfig != null) {
+            hcb.setSSLSocketFactory(sslConfig.toSSLConnectionSocketFactory());
+        } else if (enableHTTPClientSSL) {
 
-			log.debug("Configure HTTP client with SSL");
-			
-			if(prefix != null && !keystore.contains("/")) {
-			    keystore = prefix+"/"+keystore;
-			}
-			
+            log.debug("Configure HTTP client with SSL");
+
+            if (prefix != null && !keystore.contains("/")) {
+                keystore = prefix + "/" + keystore;
+            }
+
             final String keyStorePath = FileHelper.getAbsoluteFilePathFromClassPath(keystore).toFile().getParent();
-                        
-			final KeyStore myTrustStore = KeyStore.getInstance("JKS");
-			myTrustStore.load(new FileInputStream(keyStorePath+"/truststore.jks"),
-					"changeit".toCharArray());
 
-			final KeyStore keyStore = KeyStore.getInstance("JKS");
-			keyStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(keystore).toFile()), "changeit".toCharArray());
+            final KeyStore myTrustStore = KeyStore.getInstance("JKS");
+            myTrustStore.load(new FileInputStream(keyStorePath + "/truststore.jks"), "changeit".toCharArray());
 
-			final SSLContextBuilder sslContextbBuilder = SSLContexts.custom();
+            final KeyStore keyStore = KeyStore.getInstance("JKS");
+            keyStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(keystore).toFile()), "changeit".toCharArray());
 
-			if (trustHTTPServerCertificate) {
-				sslContextbBuilder.loadTrustMaterial(myTrustStore, null);
-			}
+            final SSLContextBuilder sslContextbBuilder = SSLContexts.custom();
 
-			if (sendHTTPClientCertificate) {
-				sslContextbBuilder.loadKeyMaterial(keyStore, "changeit".toCharArray());
-			}
+            if (trustHTTPServerCertificate) {
+                sslContextbBuilder.loadTrustMaterial(myTrustStore, null);
+            }
 
-			final SSLContext sslContext = sslContextbBuilder.build();
+            if (sendHTTPClientCertificate) {
+                sslContextbBuilder.loadKeyMaterial(keyStore, "changeit".toCharArray());
+            }
 
-			String[] protocols = null;
+            final SSLContext sslContext = sslContextbBuilder.build();
 
-			if (enableHTTPClientSSLv3Only) {
-				protocols = new String[] { "SSLv3" };
-			} else {
-				protocols = new String[] { "TLSv1", "TLSv1.1", "TLSv1.2" };
-			}
-			
-			final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(
-			        sslContext, 
-			        protocols, 
-			        null,
-					NoopHostnameVerifier.INSTANCE);
+            String[] protocols = null;
 
-			hcb.setSSLSocketFactory(sslsf);
-		}
+            if (enableHTTPClientSSLv3Only) {
+                protocols = new String[] { "SSLv3" };
+            } else {
+                protocols = new String[] { "TLSv1", "TLSv1.1", "TLSv1.2" };
+            }
+
+            final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sslContext, protocols, null, NoopHostnameVerifier.INSTANCE);
+
+            hcb.setSSLSocketFactory(sslsf);
+        }
 
 		hcb.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 1000).build());
 
@@ -310,6 +313,28 @@ public class RestHelper {
         }
 
 	}
+
+
+    public int getNodeIndex() {
+        return nodeIndex;
+    }
+
+    public void setNodeIndex(int nodeIndex) {
+        this.nodeIndex = nodeIndex;
+    }
+
+    public GenericSSLConfig getSslConfig() {
+        return sslConfig;
+    }
+
+    public void setSslConfig(GenericSSLConfig sslConfig) {
+        this.sslConfig = sslConfig;
+    }
+
+    @Override
+    public String toString() {
+        return "RestHelper [server=" + getHttpServerUri() + ", nodeIndex=" + nodeIndex + ", sslConfig=" + sslConfig + "]";
+    }
 
 	
 }
