@@ -356,4 +356,19 @@ user_with_attributes:
       b: 2
       c: [3,4,5]
       d: a
+user_with_attributes2:
+  hash: $2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m
+  search_guard_roles:
+  - "sg_index_pattern_with_regex_attr_role"
+  attributes:
+    string_attr: string_content
+    list_attr:
+      - item1
+      - item2
+      - item2
+    object_attr:
+      a: 1
+      b: 2
+      c: [3,4,5]
+      d: ["a", "b", "c"]  
   #password is: nagilum    
