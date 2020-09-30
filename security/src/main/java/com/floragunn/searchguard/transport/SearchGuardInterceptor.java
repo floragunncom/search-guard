@@ -18,10 +18,15 @@
 package com.floragunn.searchguard.transport;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -36,6 +41,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Transport.Connection;
 import org.elasticsearch.transport.TransportException;
@@ -61,7 +67,7 @@ import com.google.common.collect.Maps;
 public class SearchGuardInterceptor {
 
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
-    protected final Logger log = LogManager.getLogger(getClass());
+    protected final static Logger log = LogManager.getLogger(SearchGuardInterceptor.class);
     private BackendRegistry backendRegistry;
     private AuditLog auditLog;
     private final ThreadPool threadPool;
@@ -71,6 +77,7 @@ public class SearchGuardInterceptor {
     private final Settings settings;
     private final SslExceptionHandler sslExceptionHandler;
     private final ClusterInfoHolder clusterInfoHolder;
+    private final List<Pattern> customAllowedHeaderPatterns;
 
     public SearchGuardInterceptor(final Settings settings,
             final ThreadPool threadPool, final BackendRegistry backendRegistry,
@@ -88,6 +95,7 @@ public class SearchGuardInterceptor {
         this.settings = settings;
         this.sslExceptionHandler = sslExceptionHandler;
         this.clusterInfoHolder = clusterInfoHolder;
+        this.customAllowedHeaderPatterns = getCustomAllowedHeaderPatterns(settings);
     }
 
     public <T extends TransportRequest> SearchGuardRequestHandler<T> getHandler(String action,
@@ -107,6 +115,8 @@ public class SearchGuardInterceptor {
         final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
         final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
 
+        System.out.println("********* " + origHeaders0);
+        
         //stash headers and transient objects
         try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) {
             
@@ -124,6 +134,7 @@ public class SearchGuardInterceptor {
                     || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest))
                     || k.startsWith("_sg_trace")
                     || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
+                    || checkCustomAllowedHeader(k)
                     )));
             
             if (SearchGuardPlugin.GuiceHolder.getRemoteClusterService().isCrossClusterSearchEnabled() 
@@ -204,6 +215,47 @@ public class SearchGuardInterceptor {
 
     private ThreadContext getThreadContext() {
         return threadPool.getThreadContext();
+    }
+
+    private boolean checkCustomAllowedHeader(String headerKey) {
+        if (headerKey.startsWith(ConfigConstants.SG_CONFIG_PREFIX)) {
+            // SG specific headers are sensitive and thus should not be externally manipulated
+            return false;
+        }
+        
+        if (headerKey.equals(Task.X_OPAQUE_ID)) {
+            // This is included anyway. Including it again would cause an error.
+            return false;
+        }
+        
+        if (customAllowedHeaderPatterns.size() == 0) {
+            return false;
+        }
+        
+        for (Pattern pattern : customAllowedHeaderPatterns) {
+            Matcher matcher = pattern.matcher(headerKey);
+            
+            if (matcher.matches()) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    private static List<Pattern> getCustomAllowedHeaderPatterns(Settings settings) {
+        List<String> patternStrings = settings.getAsList(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, Collections.emptyList());
+        List<Pattern> result = new ArrayList<>(patternStrings.size());
+
+        for (String patternString : patternStrings) {
+            try {
+                result.add(Pattern.compile(patternString));
+            } catch (PatternSyntaxException e) {
+                log.error("Invalid pattern configured in " + ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS + ": " + patternString, e);
+            }
+        }
+
+        return Collections.unmodifiableList(result);
     }
 
      //based on
