@@ -5,7 +5,9 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR
 
-ES_VERSION=7.9.1
+ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
+
+#ES_VERSION=7.9.1
 
 rm -rf elasticsearch-$ES_VERSION
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz

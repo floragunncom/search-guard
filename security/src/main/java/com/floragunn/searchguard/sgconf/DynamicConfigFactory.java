@@ -1,6 +1,5 @@
 package com.floragunn.searchguard.sgconf;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,13 +15,10 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.StaticResourceException;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -39,51 +35,10 @@ import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.sgconf.internal_users_db.InternalUsersDatabase;
-import com.floragunn.searchguard.support.ConfigConstants;
+
 
 public class DynamicConfigFactory implements Initializable, ConfigurationChangeListener {
-    
-    private static SgDynamicConfiguration<RoleV7> staticRoles = SgDynamicConfiguration.empty();
-    private static SgDynamicConfiguration<ActionGroupsV7> staticActionGroups = SgDynamicConfiguration.empty();
-    private static SgDynamicConfiguration<TenantV7> staticTenants = SgDynamicConfiguration.empty();
-    
-    //only for unit testing
-    static void resetStatics() {
-        staticRoles = SgDynamicConfiguration.empty();
-        staticActionGroups = SgDynamicConfiguration.empty();
-        staticTenants = SgDynamicConfiguration.empty();
-    }
-    
-    private void loadStaticConfig() throws IOException {
-        JsonNode staticRolesJsonNode = DefaultObjectMapper.YAML_MAPPER
-                .readTree(DynamicConfigFactory.class.getResourceAsStream("/static_config/static_roles.yml"));
-        staticRoles = SgDynamicConfiguration.fromNode(staticRolesJsonNode, CType.ROLES, 2, 0, 0);
 
-        JsonNode staticActionGroupsJsonNode = DefaultObjectMapper.YAML_MAPPER
-                .readTree(DynamicConfigFactory.class.getResourceAsStream("/static_config/static_action_groups.yml"));
-        staticActionGroups = SgDynamicConfiguration.fromNode(staticActionGroupsJsonNode, CType.ACTIONGROUPS, 2, 0, 0);
-
-        JsonNode staticTenantsJsonNode = DefaultObjectMapper.YAML_MAPPER
-                .readTree(DynamicConfigFactory.class.getResourceAsStream("/static_config/static_tenants.yml"));
-        staticTenants = SgDynamicConfiguration.fromNode(staticTenantsJsonNode, CType.TENANTS, 2, 0, 0);
-    }
-    
-    public static SgDynamicConfiguration<?> addStatics(SgDynamicConfiguration<?> original) {
-        if(original.getCType() == CType.ACTIONGROUPS && !staticActionGroups.getCEntries().isEmpty()) {
-            original.add(staticActionGroups.deepClone());
-        }
-        
-        if(original.getCType() == CType.ROLES && !staticRoles.getCEntries().isEmpty()) {
-            original.add(staticRoles.deepClone());
-        }
-        
-        if(original.getCType() == CType.TENANTS && !staticTenants.getCEntries().isEmpty()) {
-            original.add(staticTenants.deepClone());
-        }
-        
-        return original;
-    }
-    
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final ConfigurationRepository cr;
     private final AtomicBoolean initialized = new AtomicBoolean();
@@ -93,26 +48,18 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     private final List<Consumer<SgDynamicConfiguration<ConfigV7>>> configChangeConsumers = new ArrayList<>();
     private final SearchGuardModulesRegistry modulesRegistry;
     private final InternalUsersDatabase internalUsersDatabase;
+    private final StaticSgConfig staticSgConfig;
     
     SgDynamicConfiguration<?> config;
     
-    public DynamicConfigFactory(ConfigurationRepository cr, final Settings esSettings, 
+    public DynamicConfigFactory(ConfigurationRepository cr, StaticSgConfig staticSgConfig, final Settings esSettings, 
             final Path configPath, Client client, ThreadPool threadPool, ClusterInfoHolder cih, SearchGuardModulesRegistry modulesRegistry) {
         super();
         this.cr = cr;
         this.esSettings = esSettings;
         this.configPath = configPath;
         this.modulesRegistry = modulesRegistry;
-        
-        if(esSettings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true)) {
-            try {
-                loadStaticConfig();
-            } catch (IOException e) {
-                throw new StaticResourceException("Unable to load static resources due to "+e, e);
-            }
-        } else {
-            log.info("Static resources will not be loaded.");
-        }
+        this.staticSgConfig = staticSgConfig;
         
         internalUsersDatabase = new InternalUsersDatabase(this);
         
@@ -149,39 +96,12 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         }
 
         if(config.getImplementingClass() == ConfigV7.class) {
-                //statics
-                
-                if(roles.containsAny(staticRoles)) {
-                    throw new StaticResourceException("Cannot override static roles");
-                }
-                if(!roles.add(staticRoles) && !staticRoles.getCEntries().isEmpty()) {
-                    throw new StaticResourceException("Unable to load static roles");
-                }
+            staticSgConfig.addTo(roles);
+            staticSgConfig.addTo(actionGroups);
+            staticSgConfig.addTo(tenants);
 
-                log.debug("Static roles loaded ({})", staticRoles.getCEntries().size());
-
-                if(actionGroups.containsAny(staticActionGroups)) {
-                    throw new StaticResourceException("Cannot override static action groups");
-                }
-                if(!actionGroups.add(staticActionGroups) && !staticActionGroups.getCEntries().isEmpty()) {
-                    throw new StaticResourceException("Unable to load static action groups");
-                }
-                
-
-                log.debug("Static action groups loaded ({})", staticActionGroups.getCEntries().size());
-                
-                if(tenants.containsAny(staticTenants)) {
-                    throw new StaticResourceException("Cannot override static tenants");
-                }
-                if(!tenants.add(staticTenants) && !staticTenants.getCEntries().isEmpty()) {
-                    throw new StaticResourceException("Unable to load static tenants");
-                }
-                
-
-                log.debug("Static tenants loaded ({})", staticTenants.getCEntries().size());
-
-                log.debug("Static configuration loaded (total roles: {}/total action groups: {}/total tenants: {})", roles.getCEntries().size(), actionGroups.getCEntries().size(), tenants.getCEntries().size());
-
+            log.debug("Static configuration loaded (total roles: {}/total action groups: {}/total tenants: {})", roles.getCEntries().size(),
+                    actionGroups.getCEntries().size(), tenants.getCEntries().size());
 
             //rebuild v7 Models
             DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), esSettings, configPath, modulesRegistry);
