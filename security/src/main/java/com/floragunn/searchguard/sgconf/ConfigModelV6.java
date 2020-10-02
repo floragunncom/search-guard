@@ -193,6 +193,10 @@ public class ConfigModelV6 extends ConfigModel {
 
             @Override
             public Set<String> resolvedActions(final List<String> actions) {
+                if (actions == null || actions.size() == 0) {
+                    return Collections.emptySet();
+                }
+                
                 final Set<String> resolvedActions = new HashSet<String>();
                 for (String string : actions) {
                     final Set<String> groups = getGroupMembers(string);
