@@ -24,7 +24,7 @@ import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.TriggerFactory;
-import com.floragunn.searchsupport.util.duration.DurationFormat;
+import com.floragunn.searchsupport.util.temporal.DurationFormat;
 
 public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
     public static DefaultScheduleFactory INSTANCE = new DefaultScheduleFactory();

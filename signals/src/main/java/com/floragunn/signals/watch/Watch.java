@@ -37,7 +37,7 @@ import com.floragunn.searchsupport.jobs.config.JobConfig;
 import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.searchsupport.jobs.config.schedule.Schedule;
 import com.floragunn.searchsupport.json.JacksonTools;
-import com.floragunn.searchsupport.util.duration.DurationExpression;
+import com.floragunn.searchsupport.util.temporal.DurationExpression;
 import com.floragunn.searchsupport.xcontent.JacksonXContent;
 import com.floragunn.signals.execution.WatchRunner;
 import com.floragunn.signals.support.NestedValueMap;
