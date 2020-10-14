@@ -952,25 +952,5 @@ public class SSLTest extends SingleClusterTest {
     
     }
 
-    @Test
-    public void testBksUnsupported() throws Exception {
-
-        final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_TYPE, "BKS-V1")
-                .put("searchguard.ssl.http.enabled", true)
-                .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
-                .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.bks"))
-                .put("searchguard.ssl.http.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
-                .build();
-
-        
-        try {        
-            setupSslOnlyMode(settings);
-            Assert.fail();
-        } catch (Exception e) {
-            Assert.assertTrue(e.toString(), e.getCause().getCause().getMessage().contains("BKS-V1 not found"));
-        }
-    }
 
 }
