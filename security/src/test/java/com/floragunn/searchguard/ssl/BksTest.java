@@ -7,6 +7,7 @@ import org.junit.Test;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.SingleClusterTest;
+import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class BksTest extends SingleClusterTest {
@@ -20,7 +21,7 @@ public class BksTest extends SingleClusterTest {
                 .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("ssl/truststore.jks")).build();
 
         try {
-            setupSslOnlyMode(settings);
+            setupSslOnlyMode(settings, ClusterConfiguration.SINGLENODE);
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(e.toString(), e.getCause().getCause().getMessage().contains("BKS-V1 not found"));
