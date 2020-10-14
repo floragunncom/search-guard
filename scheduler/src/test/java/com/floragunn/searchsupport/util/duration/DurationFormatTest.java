@@ -6,6 +6,8 @@ import java.time.Duration;
 
 import org.junit.Test;
 
+import com.floragunn.searchsupport.util.temporal.DurationFormat;
+
 public class DurationFormatTest {
 
     @Test

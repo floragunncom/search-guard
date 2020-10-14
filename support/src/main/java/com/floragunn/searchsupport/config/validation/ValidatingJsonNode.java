@@ -22,8 +22,9 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.searchsupport.config.elements.EnumValueParser;
 import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
-import com.floragunn.searchsupport.util.duration.DurationExpression;
-import com.floragunn.searchsupport.util.duration.DurationFormat;
+import com.floragunn.searchsupport.util.temporal.DurationExpression;
+import com.floragunn.searchsupport.util.temporal.DurationFormat;
+import com.floragunn.searchsupport.util.temporal.TemporalAmountFormat;
 
 public class ValidatingJsonNode {
     private ValidationErrors validationErrors;
@@ -425,6 +426,22 @@ public class ValidatingJsonNode {
         }
     }
 
+    public Duration temporalAmount(String attribute) {
+        consume(attribute);
+
+        if (jsonNode.hasNonNull(attribute)) {
+            try {
+                return TemporalAmountFormat.INSTANCE.parse(jsonNode.get(attribute).textValue());
+            } catch (ConfigValidationException e) {
+                validationErrors.add(attribute, e);
+                return null;
+            }
+        } else {
+            return null;
+        }
+    }
+
+    
     public TimeValue timeValue(String attribute) {
         consume(attribute);
 

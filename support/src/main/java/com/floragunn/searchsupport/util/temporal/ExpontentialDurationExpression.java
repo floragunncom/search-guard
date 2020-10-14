@@ -1,4 +1,4 @@
-package com.floragunn.searchsupport.util.duration;
+package com.floragunn.searchsupport.util.temporal;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;

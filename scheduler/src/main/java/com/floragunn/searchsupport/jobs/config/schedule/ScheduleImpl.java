@@ -16,7 +16,7 @@ import com.floragunn.searchsupport.jobs.config.schedule.elements.DailyTrigger;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.HumanReadableCronTrigger;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.MonthlyTrigger;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.WeeklyTrigger;
-import com.floragunn.searchsupport.util.duration.DurationFormat;
+import com.floragunn.searchsupport.util.temporal.DurationFormat;
 
 public class ScheduleImpl implements Schedule {
 

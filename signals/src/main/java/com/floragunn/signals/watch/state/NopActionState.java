@@ -1,6 +1,6 @@
 package com.floragunn.signals.watch.state;
 
-import com.floragunn.searchsupport.util.duration.DurationExpression;
+import com.floragunn.searchsupport.util.temporal.DurationExpression;
 import com.floragunn.signals.watch.common.Ack;
 
 public class NopActionState extends ActionState {

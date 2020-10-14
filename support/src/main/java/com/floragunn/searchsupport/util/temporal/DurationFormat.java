@@ -1,4 +1,4 @@
-package com.floragunn.searchsupport.util.duration;
+package com.floragunn.searchsupport.util.temporal;
 
 import java.time.Duration;
 import java.util.regex.Matcher;
@@ -7,12 +7,20 @@ import java.util.regex.Pattern;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
 
+import static com.floragunn.searchsupport.util.temporal.TemporalAmountFormat.getNumericMatch;
+
 public class DurationFormat {
 
     public static final DurationFormat INSTANCE = new DurationFormat();
 
-    private final Pattern pattern = Pattern
-            .compile("((?<w>[0-9]+)w)?\\s*((?<d>[0-9]+)d)?\\s*((?<h>[0-9]+)h)?\\s*((?<m>[0-9]+)m)?\\s*((?<s>[0-9]+)s)?\\s*((?<ms>[0-9]+)ms)?");
+    static final String PATTERN_STRING = "((?<w>[0-9]+)w)??\\s*" //
+            + "((?<d>[0-9]+)d)??\\s*" //
+            + "((?<h>[0-9]+)h)?\\s*" //
+            + "((?<m>[0-9]+)m)?\\s*" //
+            + "((?<s>[0-9]+)s)?\\s*" //
+            + "((?<ms>[0-9]+)ms)?";
+
+    private final Pattern pattern = Pattern.compile(PATTERN_STRING);
 
     public Duration parse(String durationString) throws ConfigValidationException {
         if (durationString == null) {
@@ -29,6 +37,11 @@ public class DurationFormat {
             throw new ConfigValidationException(
                     new InvalidAttributeValue(null, durationString, "<Weeks>w? <Days>d? <Hours>h? <Minutes>m? <Seconds>s? <Milliseconds>ms?"));
         }
+
+        return parse(matcher);
+    }
+
+    Duration parse(Matcher matcher) {
 
         Duration result = Duration.ZERO;
 
@@ -130,13 +143,4 @@ public class DurationFormat {
         return result.toString();
     }
 
-    private Long getNumericMatch(Matcher matcher, String name) {
-        String group = matcher.group(name);
-
-        if (group != null) {
-            return Long.parseLong(group);
-        } else {
-            return null;
-        }
-    }
 }

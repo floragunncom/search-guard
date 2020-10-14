@@ -14,7 +14,7 @@ import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationError;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
-import com.floragunn.searchsupport.util.duration.DurationExpression;
+import com.floragunn.searchsupport.util.temporal.DurationExpression;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
 import com.floragunn.signals.support.InlinePainlessScript;
 import com.floragunn.signals.watch.action.handlers.ActionHandler;
