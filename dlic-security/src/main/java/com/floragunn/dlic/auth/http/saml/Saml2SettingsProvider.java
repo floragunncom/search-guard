@@ -14,6 +14,8 @@
 
 package com.floragunn.dlic.auth.http.saml;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.HashMap;
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.joda.time.DateTime;
 import org.opensaml.core.criterion.EntityIdCriterion;
@@ -92,10 +95,16 @@ public class Saml2SettingsProvider {
             settingsBuilder.fromValues(configProperties);
             settingsBuilder.fromValues(new SamlSettingsMap(this.esSettings));
 
-            return settingsBuilder.build();
+            SecurityManager sm = System.getSecurityManager();
+
+            if (sm != null) {
+                sm.checkPermission(new SpecialPermission());
+            }
+
+            return AccessController.doPrivileged((PrivilegedAction<Saml2Settings>) () -> settingsBuilder.build());
         } catch (ResolverException e) {
             throw new AuthenticatorUnavailableException(e);
-        }
+        } 
     }
 
     Saml2Settings getCached() throws SamlConfigException {
