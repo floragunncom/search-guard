@@ -28,23 +28,14 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     private List<TenantPermissions> tenantPermissions;
     private List<String> roles;
     private List<String> excludedClusterPermissions;
-    private List<IndexPermissions> excludedIndexPermissions;
-
-    public RequestedPrivileges(List<String> clusterPermissions, List<IndexPermissions> indexPermissions, List<TenantPermissions> tenantPermissions,
-            List<String> roles) {
-        super();
-        this.clusterPermissions = clusterPermissions;
-        this.indexPermissions = indexPermissions;
-        this.tenantPermissions = tenantPermissions;
-        this.roles = roles;
-    }
+    private List<ExcludedIndexPermissions> excludedIndexPermissions;
 
     public RequestedPrivileges(StreamInput in) throws IOException {
         this.clusterPermissions = in.readStringList();
         this.indexPermissions = in.readList(IndexPermissions::new);
         this.tenantPermissions = in.readList(TenantPermissions::new);
         this.excludedClusterPermissions = in.readStringList();
-        this.excludedIndexPermissions = in.readList(IndexPermissions::new);
+        this.excludedIndexPermissions = in.readList(ExcludedIndexPermissions::new);
         this.roles = in.readOptionalStringList();
     }
 
@@ -71,8 +62,47 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         return excludedClusterPermissions;
     }
 
-    public List<IndexPermissions> getExcludedIndexPermissions() {
+    public List<ExcludedIndexPermissions> getExcludedIndexPermissions() {
         return excludedIndexPermissions;
+    }
+    
+    public RequestedPrivileges excludeClusterPermissions(List<String> excludeAddionalClusterPermissions) {
+        if (excludeAddionalClusterPermissions == null || excludeAddionalClusterPermissions.size() == 0) {
+            return this;
+        }
+        
+        RequestedPrivileges result = new RequestedPrivileges();
+        result.clusterPermissions = this.clusterPermissions;
+        result.indexPermissions = this.indexPermissions;
+        result.tenantPermissions = this.tenantPermissions;
+        result.roles = this.roles;
+        result.excludedIndexPermissions = this.excludedIndexPermissions;
+        
+        List<String> newExcludedClusterPermissions = new ArrayList<>(this.excludedClusterPermissions);
+        newExcludedClusterPermissions.addAll(excludeAddionalClusterPermissions);
+        result.excludedClusterPermissions = Collections.unmodifiableList(newExcludedClusterPermissions);
+        
+        return result;
+    }
+    
+    
+    public RequestedPrivileges excludeIndexPermissions(List<ExcludedIndexPermissions> excludeAddionalIndexPermissions) {
+        if (excludeAddionalIndexPermissions == null || excludeAddionalIndexPermissions.size() == 0) {
+            return this;
+        }
+        
+        RequestedPrivileges result = new RequestedPrivileges();
+        result.clusterPermissions = this.clusterPermissions;
+        result.indexPermissions = this.indexPermissions;
+        result.tenantPermissions = this.tenantPermissions;
+        result.roles = this.roles;
+        result.excludedClusterPermissions = this.excludedClusterPermissions;
+        
+        List<ExcludedIndexPermissions> newExcludedIndexPermissions = new ArrayList<>(this.excludedIndexPermissions);
+        newExcludedIndexPermissions.addAll(excludeAddionalIndexPermissions);
+        result.excludedIndexPermissions = Collections.unmodifiableList(newExcludedIndexPermissions);
+        
+        return result;
     }
 
     SgDynamicConfiguration<RoleV7> toRolesConfig() {
@@ -81,7 +111,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         RoleV7 role = new RoleV7();
 
         role.setCluster_permissions(new ArrayList<>(clusterPermissions));
-
+        role.setExclude_cluster_permissions(new ArrayList<>(excludedClusterPermissions));
+        
         List<RoleV7.Index> roleIndexPermissions = new ArrayList<>();
 
         for (IndexPermissions indexPermissionsEntry : this.indexPermissions) {
@@ -94,7 +125,20 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
 
         role.setIndex_permissions(roleIndexPermissions);
+        
+        
+        List<RoleV7.ExcludeIndex> roleExcludeIndexPermissions = new ArrayList<>();
+        
+        for (ExcludedIndexPermissions indexPermissionsEntry : this.excludedIndexPermissions) {
+            RoleV7.ExcludeIndex roleExcludeIndex = new RoleV7.ExcludeIndex();
 
+            roleExcludeIndex.setIndex_patterns(new ArrayList<>(indexPermissionsEntry.indexPatterns));
+            roleExcludeIndex.setActions(new ArrayList<>(indexPermissionsEntry.actions));
+
+            roleExcludeIndexPermissions.add(roleExcludeIndex);
+        }
+
+        role.setIndex_permissions(roleIndexPermissions);
         List<RoleV7.Tenant> roleTenantPermissions = new ArrayList<>();
 
         for (TenantPermissions tenantPermissionsEntry : this.tenantPermissions) {
@@ -283,6 +327,86 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
     }
 
+    public static class ExcludedIndexPermissions implements Writeable, ToXContentObject, Serializable {
+
+        private static final long serialVersionUID = -2567351561923741922L;
+        private List<String> indexPatterns;
+        private List<String> actions;
+
+        ExcludedIndexPermissions(List<String> indexPatterns, List<String> actions) {
+            this.indexPatterns = indexPatterns;
+            this.actions = actions;
+        }
+
+        ExcludedIndexPermissions(StreamInput in) throws IOException {
+            this.indexPatterns = in.readStringList();
+            this.actions = in.readStringList();
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+            out.writeStringCollection(indexPatterns);
+            out.writeStringCollection(actions);
+        }
+
+        public static ExcludedIndexPermissions parse(JsonNode jsonNode) throws ConfigValidationException {
+            ValidationErrors validationErrors = new ValidationErrors();
+            ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+
+            List<String> indexPatterns = vJsonNode.requiredStringList("index_patterns", 1);
+            List<String> actions = vJsonNode.requiredStringList("actions", 1);
+
+            validationErrors.throwExceptionForPresentErrors();
+
+            return new ExcludedIndexPermissions(indexPatterns, actions);
+        }
+
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.startObject();
+            builder.field("index_patterns", indexPatterns);
+            builder.field("actions", actions);
+            builder.endObject();
+            return builder;
+        }
+
+        @Override
+        public String toString() {
+            return "ExcludedIndexPermissions [indexPatterns=" + indexPatterns + ", actions=" + actions + "]";
+        }
+
+        @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + ((actions == null) ? 0 : actions.hashCode());
+            result = prime * result + ((indexPatterns == null) ? 0 : indexPatterns.hashCode());
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            IndexPermissions other = (IndexPermissions) obj;
+            if (actions == null) {
+                if (other.allowedActions != null)
+                    return false;
+            } else if (!actions.equals(other.allowedActions))
+                return false;
+            if (indexPatterns == null) {
+                if (other.indexPatterns != null)
+                    return false;
+            } else if (!indexPatterns.equals(other.indexPatterns))
+                return false;
+            return true;
+        }
+    }
+    
     public static RequestedPrivileges parse(JsonNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
@@ -291,16 +415,10 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         result.clusterPermissions = vJsonNode.stringList("cluster_permissions");
         result.indexPermissions = vJsonNode.list("index_permissions", IndexPermissions::parse);
         result.tenantPermissions = vJsonNode.list("tenant_permissions", TenantPermissions::parse);
+        result.excludedClusterPermissions = vJsonNode.stringList("exclude_cluster_permissions");
+        result.excludedIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);
         result.roles = vJsonNode.stringList("roles");
 
-        if (vJsonNode.hasNonNull("exclude")) {
-            try {
-                parseExclusions(vJsonNode.get("exclude"), result);
-            } catch (ConfigValidationException e) {
-                validationErrors.add("exclude", e);
-            }
-        }
-        
         if (result.clusterPermissions == null) {
             result.clusterPermissions = Collections.emptyList();
         }
@@ -311,6 +429,14 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
 
         if (result.tenantPermissions == null) {
             result.tenantPermissions = Collections.emptyList();
+        }
+
+        if (result.excludedClusterPermissions == null) {
+            result.excludedClusterPermissions = Collections.emptyList();
+        }
+
+        if (result.excludedIndexPermissions == null) {
+            result.excludedIndexPermissions = Collections.emptyList();
         }
 
         if (!validationErrors.hasErrors()) {
@@ -325,22 +451,9 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         return result;
     }
 
-    private static void parseExclusions(JsonNode jsonNode,  RequestedPrivileges result) throws ConfigValidationException {
-        ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
-        
-        result.excludedClusterPermissions = vJsonNode.stringList("cluster_permissions");
-        result.excludedIndexPermissions = vJsonNode.list("index_permissions", IndexPermissions::parse);
-        
-        validationErrors.throwExceptionForPresentErrors();
-
-    }
-    
     public static RequestedPrivileges parseYaml(String yaml) throws ConfigValidationException {
         return parse(ValidatingJsonParser.readYamlTree(yaml));
     }
-    
-    
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
@@ -358,23 +471,16 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
             builder.field("tenant_permissions", tenantPermissions);
         }
 
-        if (roles != null && roles.size() > 0) {
-            builder.field("roles", roles);
+        if (excludedClusterPermissions != null && excludedClusterPermissions.size() > 0) {
+            builder.field("exclude_cluster_permissions", excludedClusterPermissions);
         }
 
-        if ((excludedClusterPermissions != null && excludedClusterPermissions.size() > 0)
-                || (excludedIndexPermissions != null && excludedIndexPermissions.size() > 0)) {
-            builder.startObject("exclude");
+        if ((excludedIndexPermissions != null && excludedIndexPermissions.size() > 0)) {
+            builder.field("exclude_index_permissions", excludedIndexPermissions);
+        }
 
-            if (excludedClusterPermissions != null && excludedClusterPermissions.size() > 0) {
-                builder.field("cluster_permissions", excludedClusterPermissions);
-            }
-
-            if ((excludedIndexPermissions != null && excludedIndexPermissions.size() > 0)) {
-                builder.field("index_permissions", excludedIndexPermissions);
-            }
-
-            builder.endObject();
+        if (roles != null && roles.size() > 0) {
+            builder.field("roles", roles);
         }
 
         builder.endObject();
