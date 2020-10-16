@@ -99,7 +99,7 @@ public class AuthTokenIntegrationTest {
         Header auth = basicAuth("spock", "spock");
 
         System.out.println(request.toJson());
-        
+
         HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
 
         System.out.println(response.getBody());
@@ -142,6 +142,36 @@ public class AuthTokenIntegrationTest {
             }
         }
 
+    }
+
+    @Test
+    public void createTokenWithTokenForbidden() throws Exception {
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                RequestedPrivileges.parseYaml("cluster_permissions: '*'\nindex_permissions:\n- index_patterns: '*'\n  allowed_actions: '*'"));
+
+        request.setTokenName("my_new_token_with_with_i_am_trying_to_create_another_token");
+
+        Header auth = basicAuth("spock", "spock");
+
+        HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+        System.out.println(response.getBody());
+
+        Assert.assertEquals(200, response.getStatusCode());
+
+        String token = response.toJsonNode().get("token").asText();
+        Assert.assertNotNull(token);
+
+        Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
+
+        request = new CreateAuthTokenRequest(
+                RequestedPrivileges.parseYaml("cluster_permissions: '*'\nindex_permissions:\n- index_patterns: '*'\n  allowed_actions: '*'"));
+
+        request.setTokenName("this_token_should_not_be_created");
+
+        response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), tokenAuth);
+        Assert.assertEquals(403, response.getStatusCode());
+        Assert.assertTrue(response.getBody(), response.getBody().contains("no permissions for [cluster:admin:searchguard:authtoken/_own/create]"));
     }
 
     private static Header basicAuth(String username, String password) {

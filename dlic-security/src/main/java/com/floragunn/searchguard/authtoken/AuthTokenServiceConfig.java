@@ -1,6 +1,8 @@
 package com.floragunn.searchguard.authtoken;
 
 import java.time.temporal.TemporalAmount;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
@@ -10,6 +12,8 @@ import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.floragunn.searchguard.authtoken.RequestedPrivileges.ExcludedIndexPermissions;
+import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
 import com.floragunn.searchsupport.config.validation.JsonNodeParser;
@@ -21,13 +25,15 @@ import com.floragunn.searchsupport.config.validation.ValueParser;
 public class AuthTokenServiceConfig {
 
     public static final String DEFAULT_AUDIENCE = "searchguard_tokenauth";
-
+    
     private boolean enabled;
     private JsonWebKey jwtSigningKey;
     private JsonWebKey jwtEncryptionKey;
     private String jwtAud;
     private TemporalAmount maxValidity;
-
+    private List<String> excludeClusterPermissions;
+    private List<RequestedPrivileges.ExcludedIndexPermissions> excludeIndexPermissions;
+    
     public boolean isEnabled() {
         return enabled;
     }
@@ -68,6 +74,22 @@ public class AuthTokenServiceConfig {
         this.maxValidity = maxValidity;
     }
 
+    public List<String> getExcludeClusterPermissions() {
+        return excludeClusterPermissions;
+    }
+
+    public void setExcludeClusterPermissions(List<String> excludeClusterPermissions) {
+        this.excludeClusterPermissions = excludeClusterPermissions;
+    }
+
+    public List<RequestedPrivileges.ExcludedIndexPermissions> getExcludeIndexPermissions() {
+        return excludeIndexPermissions;
+    }
+
+    public void setExcludeIndexPermissions(List<RequestedPrivileges.ExcludedIndexPermissions> excludeIndexPermissions) {
+        this.excludeIndexPermissions = excludeIndexPermissions;
+    }
+    
     public static AuthTokenServiceConfig parse(JsonNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
@@ -92,6 +114,9 @@ public class AuthTokenServiceConfig {
 
             result.jwtAud = vJsonNode.string("jwt_aud_claim", DEFAULT_AUDIENCE);
             result.maxValidity = vJsonNode.temporalAmount("max_validity");
+            
+            result.excludeClusterPermissions = vJsonNode.stringList("exclude_cluster_permissions", Arrays.asList(CreateAuthTokenAction.NAME));
+            result.excludeIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);            
         }
 
         validationErrors.throwExceptionForPresentErrors();
@@ -202,5 +227,6 @@ public class AuthTokenServiceConfig {
             return "A Base64 encoded A256KW key with at least 256 bit (32 bytes, 43 Base64 encoded characters)";
         }
     };
+
 
 }

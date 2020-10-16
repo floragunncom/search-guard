@@ -168,6 +168,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         ConfigSnapshot configSnapshot = configHistoryService.getCurrentConfigSnapshot(CType.ROLES, CType.ROLESMAPPING, CType.ACTIONGROUPS,
                 CType.TENANTS);
 
+        // TODO new attributes
+
         AuthTokenPrivilegeBase base = new AuthTokenPrivilegeBase(restrictRoles(request, user.getRoles()),
                 restrictRoles(request, user.getSearchGuardRoles()), user.getCustomAttributesMap(), configSnapshot.getConfigVersions());
 
@@ -187,8 +189,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         OffsetDateTime expiresAt = getExpiryTime(now, request);
 
-        AuthToken authToken = new AuthToken(id, user.getName(), request.getTokenName(), request.getRequestedPrivileges(), base, now.toEpochSecond(),
-                expiresAt != null ? expiresAt.toEpochSecond() : Long.MAX_VALUE, null);
+        RequestedPrivileges requestedPrivilegesWithDefaultExclusions = request.getRequestedPrivileges()
+                .excludeClusterPermissions(config.getExcludeClusterPermissions()).excludeIndexPermissions(config.getExcludeIndexPermissions());
+
+        AuthToken authToken = new AuthToken(id, user.getName(), request.getTokenName(), requestedPrivilegesWithDefaultExclusions, base,
+                now.toEpochSecond(), expiresAt != null ? expiresAt.toEpochSecond() : Long.MAX_VALUE, null);
 
         this.idToAuthTokenMap.put(id, authToken);
 
@@ -659,7 +664,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (log.isTraceEnabled()) {
             log.trace("AuthTokenService.apply(" + user.getName() + ") on " + authTokenId);
         }
-        
+
         try {
             AuthToken authToken = getById(authTokenId);
 
@@ -681,7 +686,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 log.trace("configModelSnapshot.roles" + configModelSnapshot.getSgRoles());
                 log.trace("filteredBaseSgRoles: " + filteredBaseSgRoles);
             }
-            
+
             RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivilges(),
                     configModelSnapshot.getActionGroupResolver());
 
