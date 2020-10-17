@@ -6,10 +6,6 @@ import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
-/**
- * TODO audience claim https://stackoverflow.com/questions/28418360/jwt-json-web-token-audience-aud-versus-client-id-whats-the-difference 
- *
- */
 public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
 
     private AuthTokenService authTokenService;
@@ -28,8 +24,9 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
         try {
             AuthToken authToken = authTokenService.getByClaims(credentials.getClaims());
 
-            return User.forUser(authToken.getUserName()).subName(authToken.getTokenName() + "[" + authToken.getId() + "]")
-                    .type(AuthTokenService.USER_TYPE).specialAuthzConfig(authToken.getId()).authzComplete().build();
+            return User.forUser(authToken.getUserName()).subName("AuthToken " + authToken.getTokenName() + " [" + authToken.getId() + "]")
+                    .type(AuthTokenService.USER_TYPE).specialAuthzConfig(authToken.getId()).attributes(authToken.getBase().getAttributes())
+                    .authzComplete().build();
 
         } catch (NoSuchAuthTokenException | InvalidTokenException e) {
             throw new ElasticsearchSecurityException(e.getMessage(), e);

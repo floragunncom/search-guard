@@ -5,7 +5,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +25,7 @@ import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.MissingAttribute;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.json.JacksonTools;
 import com.google.common.collect.ImmutableMap;
 
 public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Serializable {
@@ -40,11 +40,11 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
 
     private final List<String> searchGuardRoles;
     private final ConfigVersionSet configVersions;
-    private final Map<String, String> attributes;
+    private final Map<String, Object> attributes;
 
     private transient ConfigSnapshot configSnapshot;
 
-    public AuthTokenPrivilegeBase(Collection<String> backendRoles, Collection<String> searchGuardRoles, Map<String, String> attributes,
+    public AuthTokenPrivilegeBase(Collection<String> backendRoles, Collection<String> searchGuardRoles, Map<String, Object> attributes,
             ConfigVersionSet configVersions) {
         this.configVersions = configVersions;
         this.backendRoles = Collections.unmodifiableList(new ArrayList<>(backendRoles));
@@ -55,7 +55,7 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
     public AuthTokenPrivilegeBase(StreamInput in) throws IOException {
         this.backendRoles = in.readStringList();
         this.searchGuardRoles = in.readStringList();
-        this.attributes = in.readMap(StreamInput::readString, StreamInput::readString);
+        this.attributes = in.readMap();
         this.configVersions = new ConfigVersionSet(in);
     }
 
@@ -108,7 +108,7 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
 
         List<String> backendRoles = vJsonNode.stringList("roles_be", Collections.emptyList());
         List<String> searchGuardRoles = vJsonNode.stringList("roles_sg", Collections.emptyList());
-        Map<String, String> attributes = new LinkedHashMap<>();
+        Map<String, Object> attributes;
 
         if (vJsonNode.hasNonNull("config")) {
             try {
@@ -123,12 +123,9 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
         ObjectNode attrsNode = vJsonNode.getObjectNode("attrs");
 
         if (attrsNode != null) {
-            Iterator<String> fieldNames = attrsNode.fieldNames();
-
-            while (fieldNames.hasNext()) {
-                String fieldName = fieldNames.next();
-                attributes.put(fieldName, attrsNode.get(fieldName).textValue());
-            }
+            attributes = JacksonTools.toMap(attrsNode);
+        } else {
+            attributes = new LinkedHashMap<>();
         }
 
         return new AuthTokenPrivilegeBase(backendRoles, searchGuardRoles, attributes, configVersions);
@@ -150,7 +147,7 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
     public void writeTo(StreamOutput out) throws IOException {
         out.writeStringCollection(this.backendRoles);
         out.writeStringCollection(this.searchGuardRoles);
-        out.writeMap(this.attributes, StreamOutput::writeString, StreamOutput::writeString);
+        out.writeMap(this.attributes);
         this.configVersions.writeTo(out);
     }
 
@@ -201,5 +198,9 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
         } else if (!searchGuardRoles.equals(other.searchGuardRoles))
             return false;
         return true;
+    }
+
+    public Map<String, Object> getAttributes() {
+        return attributes;
     }
 }

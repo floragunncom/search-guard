@@ -168,10 +168,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         ConfigSnapshot configSnapshot = configHistoryService.getCurrentConfigSnapshot(CType.ROLES, CType.ROLESMAPPING, CType.ACTIONGROUPS,
                 CType.TENANTS);
 
-        // TODO new attributes
-
         AuthTokenPrivilegeBase base = new AuthTokenPrivilegeBase(restrictRoles(request, user.getRoles()),
-                restrictRoles(request, user.getSearchGuardRoles()), user.getCustomAttributesMap(), configSnapshot.getConfigVersions());
+                restrictRoles(request, user.getSearchGuardRoles()), user.getStructuredAttributes(), configSnapshot.getConfigVersions());
 
         if (log.isDebugEnabled()) {
             log.debug("base for auth token " + request + ": " + base);
