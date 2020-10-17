@@ -299,40 +299,45 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
                     @Override
                     public void onResponse(SearchResponse searchResponse) {
-                        Map<String, AuthToken> idToAuthTokenMap = new ConcurrentHashMap<>();
-                        SearchHits searchHits = searchResponse.getHits();
+                        try {
+                            Map<String, AuthToken> idToAuthTokenMap = new ConcurrentHashMap<>();
+                            SearchHits searchHits = searchResponse.getHits();
+                            
+                            while (searchHits != null && searchHits.getHits() != null && searchHits.getHits().length > 0) {
+                                for (SearchHit hit : searchHits.getHits()) {
+                                    try {
+                                        String id = hit.getId();
+                                        AuthToken authToken = AuthToken.parse(id, ValidatingJsonParser.readTree(hit.getSourceAsString()));
 
-                        while (searchHits.getTotalHits().value != 0) {
-                            for (SearchHit hit : searchHits.getHits()) {
-                                try {
-                                    String id = hit.getId();
-                                    AuthToken authToken = AuthToken.parse(id, ValidatingJsonParser.readTree(hit.getSourceAsString()));
-
-                                    idToAuthTokenMap.put(id, authToken);
-                                } catch (ConfigValidationException e) {
-                                    log.error("Invalid auth token in index at " + hit + ":\n" + e.getValidationErrors(), e);
+                                        idToAuthTokenMap.put(id, authToken);
+                                    } catch (ConfigValidationException e) {
+                                        log.error("Invalid auth token in index at " + hit + ":\n" + e.getValidationErrors(), e);
+                                    }
                                 }
+
+                                searchResponse = privilegedConfigClient.prepareSearchScroll(searchResponse.getScrollId())
+                                        .setScroll(new TimeValue(10000)).execute().actionGet();
+                                searchHits = searchResponse.getHits();
                             }
 
-                            searchResponse = privilegedConfigClient.prepareSearchScroll(searchResponse.getScrollId()).setScroll(new TimeValue(10000))
-                                    .execute().actionGet();
-                            searchHits = searchResponse.getHits();
+                            if (log.isDebugEnabled()) {
+                                log.debug("Loaded " + idToAuthTokenMap.size() + " auth tokens");
+                            }
+
+                            initConfigSnapshots(idToAuthTokenMap);
+
+                            AuthTokenService.this.idToAuthTokenMap = idToAuthTokenMap;
+
+                            initComplete();
+                        } catch (Exception e) {
+                            log.error("Error in reloadAuthTokensFromIndex()", e);
                         }
-
-                        if (log.isDebugEnabled()) {
-                            log.debug("Loaded " + idToAuthTokenMap.size() + " auth tokens");
-                        }
-
-                        initConfigSnapshots(idToAuthTokenMap);
-
-                        AuthTokenService.this.idToAuthTokenMap = idToAuthTokenMap;
-
-                        initComplete();
                     }
 
                     @Override
                     public void onFailure(Exception e) {
                         if (failureListener != null) {
+                            log.trace("Error while loading auth tokens", e);
                             failureListener.onFailure(e);
                         } else {
                             log.error("Error while loading auth tokens", e);

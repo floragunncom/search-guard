@@ -92,7 +92,7 @@ public class AuthTokenServiceTest {
 
         Assert.assertEquals(testUser.getName(), claims.getSubject());
         Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
-        Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("roles_be"));
+        Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("r_be"));
         Assert.assertEquals(config.getJwtAud(), claims.getAudience());
 
         AuthToken authToken = authTokenService.getByClaims(claims);
@@ -133,7 +133,7 @@ public class AuthTokenServiceTest {
 
         Assert.assertEquals(testUser.getName(), claims.getSubject());
         Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
-        Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("roles_be"));
+        Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("r_be"));
         Assert.assertEquals(config.getJwtAud(), claims.getAudience());
 
         AuthToken authToken = authTokenService.getByClaims(claims);
@@ -159,7 +159,7 @@ public class AuthTokenServiceTest {
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
                 protectedConfigIndexService, config);
         authTokenService.setSendTokenUpdates(false);
-        authTokenService.waitForInitComplete(10000);
+        authTokenService.waitForInitComplete(20000);
 
         RequestedPrivileges requestedPrivileges = RequestedPrivileges.parseYaml("cluster_permissions:\n- cluster:test\nroles:\n- r1\n- r0");
         CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
@@ -173,7 +173,7 @@ public class AuthTokenServiceTest {
 
         Assert.assertEquals(testUser.getName(), claims.getSubject());
         Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
-        Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("roles_be"));
+        Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("r_be"));
         Assert.assertEquals(config.getJwtAud(), claims.getAudience());
 
         AuthToken authToken = authTokenService.getByClaims(claims);
@@ -189,7 +189,7 @@ public class AuthTokenServiceTest {
         AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient, configHistoryService2, Settings.EMPTY, threadPool,
                 protectedConfigIndexService, config);
         authTokenService2.setSendTokenUpdates(false);
-        authTokenService2.waitForInitComplete(10000);
+        authTokenService2.waitForInitComplete(20000);
 
         AuthToken authToken2 = authTokenService2.getByClaims(claims);
 
