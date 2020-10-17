@@ -52,7 +52,10 @@ public class AuthTokenIntegrationTest {
                     "          config: {}\n" + //
                     "        authentication_backend:\n" + //
                     "          type: \"intern\"\n" + //
-                    "          config: {}\n" + //
+                    "          config:\n" + //
+                    "            map_db_attrs_to_user_attrs:\n" + //
+                    "              index: test_attr_1.c\n" + //
+                    "              all: test_attr_1\n" + //
                     "        description: \"Migrated from v6\"\n" + //
                     "      sg_issued_jwt_auth_domain:\n" + //
                     "        description: \"Authenticate via Json Web Tokens issued by Search Guard\"\n" + //
@@ -85,6 +88,11 @@ public class AuthTokenIntegrationTest {
                     "not_allowed_from_token")).actionGet();
             client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
                     "this_is", "allowed")).actionGet();
+            client.index(new IndexRequest("user_attr_foo").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+                    "this_is", "allowed")).actionGet();
+            client.index(new IndexRequest("user_attr_qux").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+                    "this_is", "not_allowed")).actionGet();
+
         }
 
     }
@@ -173,6 +181,61 @@ public class AuthTokenIntegrationTest {
         Assert.assertEquals(403, response.getStatusCode());
         Assert.assertTrue(response.getBody(), response.getBody().contains("no permissions for [cluster:admin:searchguard:authtoken/_own/create]"));
     }
+    
+    @Test
+    public void userAttrTest() throws Exception {
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: 'user_attr_*'\n  allowed_actions: '*'"));
+
+        request.setTokenName("my_new_token");
+
+        Header auth = basicAuth("picard", "picard");
+
+        System.out.println(request.toJson());
+
+        HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+        System.out.println(response.getBody());
+
+        Assert.assertEquals(200, response.getStatusCode());
+
+        String token = response.toJsonNode().get("token").asText();
+        Assert.assertNotNull(token);
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("picard", "picard")) {
+            SearchResponse searchResponse = client.search(new SearchRequest("user_attr_foo")
+                    .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+
+            Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+
+            try {
+                searchResponse = client.search(
+                        new SearchRequest("user_attr_qux").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
+                        RequestOptions.DEFAULT);
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+            }
+        }
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
+            SearchResponse searchResponse = client.search(new SearchRequest("user_attr_foo")
+                    .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+
+            Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+
+            try {
+                searchResponse = client.search(
+                        new SearchRequest("user_attr_qux").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
+                        RequestOptions.DEFAULT);
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+            }
+        }
+
+    }
+
 
     private static Header basicAuth(String username, String password) {
         return new BasicHeader("Authorization",

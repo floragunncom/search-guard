@@ -1049,3 +1049,10 @@ sg_own_index_with_sgs:
 sg_create_auth_tokens:
   cluster_permissions:
     - 'cluster:admin:searchguard:authtoken/_own/*'
+    
+sg_user_attr_index_access:
+  index_permissions:
+  - index_patterns:
+    - "user_attr_${user.attrs.index}"
+    allowed_actions:
+    - "indices:data/read/*"

@@ -137,7 +137,16 @@ picard:
   backend_roles:
   - "captains"
   - "starfleet"
-  attributes: {}
+  - "create_auth_tokens"  
+  search_guard_roles:
+  - sg_user_attr_index_access
+  attributes:
+    test_attr_1:
+      a: 1
+      b: 2
+      c: foo
+      d: bar
+      e: [1,2,3]
   description: "Migrated from v6"
 bug108:
   hash: "$2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m"
