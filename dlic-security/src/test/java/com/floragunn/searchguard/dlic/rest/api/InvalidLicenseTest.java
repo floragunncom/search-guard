@@ -19,6 +19,7 @@ import java.util.Map;
 
 import org.apache.http.Header;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.configuration.SearchGuardLicense;
@@ -27,6 +28,7 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class InvalidLicenseTest extends LicenseTest {
 
+    @Ignore
 	@Test
 	public void testInvalidLicenseUpload() throws Exception {
 
