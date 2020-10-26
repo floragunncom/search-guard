@@ -18,12 +18,11 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.dlic.auth.http.jwt.AbstractHTTPJwtAuthenticator;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
-    private final static Logger log = LogManager.getLogger(AbstractHTTPJwtAuthenticator.class);
+    private final static Logger log = LogManager.getLogger(AuthTokenHttpJwtAuthenticator.class);
 
     private final AuthTokenService authTokenService;
     private final String jwtHeaderName;
@@ -98,7 +97,9 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
         String scheme = authzHeader.substring(0, separatorIndex);
 
         if (!scheme.equalsIgnoreCase("bearer")) {
-            log.info("Unsupported authentication scheme " + scheme);
+            if (log.isDebugEnabled()) {
+                log.debug("Unsupported authentication scheme " + scheme);
+            }
             return null;
         }
 
