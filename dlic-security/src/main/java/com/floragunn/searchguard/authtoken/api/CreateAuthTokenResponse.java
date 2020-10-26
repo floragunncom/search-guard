@@ -39,6 +39,7 @@ public class CreateAuthTokenResponse extends ActionResponse implements ToXConten
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
         builder.field("token", jwt);
+        builder.field("id", authToken.getId());
         authToken.toXContentFragment(builder, params);
         builder.endObject();
         return builder;

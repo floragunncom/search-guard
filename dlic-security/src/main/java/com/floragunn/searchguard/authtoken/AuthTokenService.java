@@ -671,6 +671,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         try {
             AuthToken authToken = getById(authTokenId);
 
+            if (authToken.isRevoked()) {
+                log.info("Using revoked auth token: " + authToken);
+                return null;
+            }
+            
             if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
                 throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
             }

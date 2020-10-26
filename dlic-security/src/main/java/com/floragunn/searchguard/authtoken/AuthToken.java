@@ -95,6 +95,10 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         return base;
     }
 
+    public boolean isRevoked() {
+        return revokedAt != null;
+    }
+    
     AuthToken getRevokedInstance() {
         AuthToken revoked = new AuthToken(id, userName, tokenName, requestedPrivilges, base, creationTime, expiryTime, System.currentTimeMillis());
         revoked.getBase().setConfigSnapshot(null);
