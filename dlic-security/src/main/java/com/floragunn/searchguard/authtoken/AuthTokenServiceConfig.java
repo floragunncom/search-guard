@@ -159,15 +159,16 @@ public class AuthTokenServiceConfig {
 
         @Override
         public JsonWebKey parse(String value) throws ConfigValidationException {
-
+            byte[] key;
+            
             try {
-                byte[] key = JoseUtils.decode(value);
-
-                if (key.length < 64) {
-                    throw new ConfigValidationException(new InvalidAttributeValue(null, "The key contains less than 512 bit", getExpectedValue()));
-                }
+               key = JoseUtils.decode(value);
             } catch (Exception e) {
                 throw new ConfigValidationException(new InvalidAttributeValue(null, e.getMessage(), getExpectedValue()).cause(e));
+            }
+            
+            if (key.length < 64) {
+                throw new ConfigValidationException(new InvalidAttributeValue(null, "The key contains less than 512 bit", getExpectedValue()));
             }
 
             JsonWebKey jwk = new JsonWebKey();
@@ -220,14 +221,16 @@ public class AuthTokenServiceConfig {
 
         @Override
         public JsonWebKey parse(String value) throws ConfigValidationException {
+            byte[] key;
+            
             try {
-                byte[] key = JoseUtils.decode(value);
-
-                if (key.length < 32) {
-                    throw new ConfigValidationException(new InvalidAttributeValue(null, "The key contains less than 256 bit", getExpectedValue()));
-                }
+                key = JoseUtils.decode(value);
             } catch (Exception e) {
                 throw new ConfigValidationException(new InvalidAttributeValue(null, e.getMessage(), getExpectedValue()).cause(e));
+            }
+            
+            if (key.length < 32) {
+                throw new ConfigValidationException(new InvalidAttributeValue(null, "The key contains less than 256 bit", getExpectedValue()));
             }
 
             JsonWebKey jwk = new JsonWebKey();
