@@ -21,6 +21,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
@@ -254,7 +255,7 @@ public class AuthTokenIntegrationTest {
 
         String token = response.toJsonNode().get("token").asText();
         String id = response.toJsonNode().get("id").asText();
-        ;
+
         Assert.assertNotNull(token);
         Assert.assertNotNull(id);
 
@@ -290,6 +291,68 @@ public class AuthTokenIntegrationTest {
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
             }
         }
+
+    }
+
+    @Test
+    public void getAndSearchTest() throws Exception {
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));
+
+        request.setTokenName("get_and_search_test_token");
+
+        Header auth = basicAuth("spock", "spock");
+
+        HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+        Assert.assertEquals(200, response.getStatusCode());
+
+        request.setTokenName("get_and_search_test_token_2");
+
+        response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+        Assert.assertEquals(200, response.getStatusCode());
+
+        request.setTokenName("get_and_search_test_token_picard");
+
+        response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), basicAuth("picard", "picard"));
+
+        Assert.assertEquals(200, response.getStatusCode());
+
+        String picardsTokenId = response.toJsonNode().get("id").textValue();
+
+        String searchRequest = "{\n" + //
+                "    \"query\": {\n" + //
+                "        \"wildcard\": {\n" + //
+                "            \"token_name\": {\n" + //
+                "                \"value\": \"get_and_search_test_*\"\n" + //
+                "            }\n" + //
+                "        }\n" + //
+                "    }\n" + //
+                "}";
+
+        response = rh.executePostRequest("/_searchguard/authtoken/_search", searchRequest, auth);
+
+        System.out.println(response.getBody());
+
+        Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+
+        JsonNode jsonNode = response.toJsonNode();
+
+        Assert.assertEquals(response.getBody(), 2, jsonNode.at("/hits/total/value").intValue());
+        Assert.assertEquals(response.getBody(), "spock", jsonNode.at("/hits/hits/0/_source/user_name").textValue());
+        Assert.assertEquals(response.getBody(), "spock", jsonNode.at("/hits/hits/1/_source/user_name").textValue());
+
+        String id = jsonNode.at("/hits/hits/0/_id").textValue();
+        String tokenName = jsonNode.at("/hits/hits/0/_source/token_name").textValue();
+
+        response = rh.executeGetRequest("/_searchguard/authtoken/" + id, auth);
+
+        Assert.assertEquals(response.getBody(), tokenName, response.toJsonNode().get("token_name").textValue());
+
+        response = rh.executeGetRequest("/_searchguard/authtoken/" + picardsTokenId, auth);
+
+        Assert.assertEquals(404, response.getStatusCode());
 
     }
 

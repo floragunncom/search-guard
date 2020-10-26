@@ -55,12 +55,18 @@ public class GetAuthTokenResponse extends ActionResponse implements StatusToXCon
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         if (authToken != null) {
             authToken.toXContent(builder, params);
-        } else if (restStatus != null) {
-            builder.field("status", restStatus.getStatus());
-        }
+        } else {
+            builder.startObject();
 
-        if (error != null) {
-            builder.field("error", error);
+            if (restStatus != null) {
+                builder.field("status", restStatus.getStatus());
+            }
+
+            if (error != null) {
+                builder.field("error", error);
+            }
+
+            builder.endObject();
         }
 
         return builder;
