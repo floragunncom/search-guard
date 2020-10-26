@@ -4,6 +4,7 @@ import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.cxf.rs.security.jose.common.JoseUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.cxf.rs.security.jose.jwk.KeyType;
@@ -25,7 +26,7 @@ import com.floragunn.searchsupport.config.validation.ValueParser;
 public class AuthTokenServiceConfig {
 
     public static final String DEFAULT_AUDIENCE = "searchguard_tokenauth";
-    
+
     private boolean enabled;
     private JsonWebKey jwtSigningKey;
     private JsonWebKey jwtEncryptionKey;
@@ -33,7 +34,7 @@ public class AuthTokenServiceConfig {
     private TemporalAmount maxValidity;
     private List<String> excludeClusterPermissions;
     private List<RequestedPrivileges.ExcludedIndexPermissions> excludeIndexPermissions;
-    
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -89,7 +90,7 @@ public class AuthTokenServiceConfig {
     public void setExcludeIndexPermissions(List<RequestedPrivileges.ExcludedIndexPermissions> excludeIndexPermissions) {
         this.excludeIndexPermissions = excludeIndexPermissions;
     }
-    
+
     public static AuthTokenServiceConfig parse(JsonNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
@@ -114,9 +115,9 @@ public class AuthTokenServiceConfig {
 
             result.jwtAud = vJsonNode.string("jwt_aud_claim", DEFAULT_AUDIENCE);
             result.maxValidity = vJsonNode.temporalAmount("max_validity");
-            
+
             result.excludeClusterPermissions = vJsonNode.stringList("exclude_cluster_permissions", Arrays.asList(CreateAuthTokenAction.NAME));
-            result.excludeIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);            
+            result.excludeIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);
         }
 
         validationErrors.throwExceptionForPresentErrors();
@@ -158,6 +159,17 @@ public class AuthTokenServiceConfig {
 
         @Override
         public JsonWebKey parse(String value) throws ConfigValidationException {
+
+            try {
+                byte[] key = JoseUtils.decode(value);
+
+                if (key.length < 64) {
+                    throw new ConfigValidationException(new InvalidAttributeValue(null, "The key contains less than 512 bit", getExpectedValue()));
+                }
+            } catch (Exception e) {
+                throw new ConfigValidationException(new InvalidAttributeValue(null, e.getMessage(), getExpectedValue()).cause(e));
+            }
+
             JsonWebKey jwk = new JsonWebKey();
 
             jwk.setKeyType(KeyType.OCTET);
@@ -165,14 +177,12 @@ public class AuthTokenServiceConfig {
             jwk.setPublicKeyUse(PublicKeyUse.SIGN);
             jwk.setProperty("k", value);
 
-            // TODO validate bit size
-
             return jwk;
         }
 
         @Override
         public String getExpectedValue() {
-            return "A Base64 encoded HMAC512 key with at least 512 bit (64 bytes, 86 Base64 encoded characters)";
+            return "A Base64URL encoded HMAC512 key with at least 512 bit (64 bytes, 86 Base64 encoded characters)";
         }
     };
 
@@ -210,6 +220,16 @@ public class AuthTokenServiceConfig {
 
         @Override
         public JsonWebKey parse(String value) throws ConfigValidationException {
+            try {
+                byte[] key = JoseUtils.decode(value);
+
+                if (key.length < 32) {
+                    throw new ConfigValidationException(new InvalidAttributeValue(null, "The key contains less than 256 bit", getExpectedValue()));
+                }
+            } catch (Exception e) {
+                throw new ConfigValidationException(new InvalidAttributeValue(null, e.getMessage(), getExpectedValue()).cause(e));
+            }
+
             JsonWebKey jwk = new JsonWebKey();
 
             jwk.setKeyType(KeyType.OCTET);
@@ -217,16 +237,13 @@ public class AuthTokenServiceConfig {
             jwk.setPublicKeyUse(PublicKeyUse.ENCRYPT);
             jwk.setProperty("k", value);
 
-            // TODO validate bit size
-
             return jwk;
         }
 
         @Override
         public String getExpectedValue() {
-            return "A Base64 encoded A256KW key with at least 256 bit (32 bytes, 43 Base64 encoded characters)";
+            return "A Base64URL encoded A256KW key with at least 256 bit (32 bytes, 43 Base64 encoded characters)";
         }
     };
-
 
 }
