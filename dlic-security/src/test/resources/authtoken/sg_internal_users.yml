@@ -351,3 +351,7 @@ evil_sulu:
   backend_roles:
   - "own_index_with_sgs"
   #password is: nagilum  
+admin:
+  hash: "$2y$12$rW5Z.c3RMDORO5AflgHJyOVBn/NFIL2NnhSiTd.lKSezBJAdMEdFm"
+  search_guard_roles:
+  - SGS_ALL_ACCESS

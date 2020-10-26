@@ -321,6 +321,11 @@ public class AuthTokenIntegrationTest {
 
         String picardsTokenId = response.toJsonNode().get("id").textValue();
 
+        response = rh.executeGetRequest("/_searchguard/authtoken/_search", auth);
+        
+        Assert.assertEquals(200, response.getStatusCode());
+        Assert.assertFalse(response.getBody(), response.getBody().contains("\"picard\""));
+        
         String searchRequest = "{\n" + //
                 "    \"query\": {\n" + //
                 "        \"wildcard\": {\n" + //
@@ -353,7 +358,15 @@ public class AuthTokenIntegrationTest {
         response = rh.executeGetRequest("/_searchguard/authtoken/" + picardsTokenId, auth);
 
         Assert.assertEquals(404, response.getStatusCode());
+        
+        
+        response = rh.executePostRequest("/_searchguard/authtoken/_search", searchRequest, basicAuth("admin", "admin"));
 
+        jsonNode = response.toJsonNode();
+
+        Assert.assertEquals(response.getBody(), 3, jsonNode.at("/hits/total/value").intValue());
+        Assert.assertTrue(response.getBody(), response.getBody().contains("\"spock\""));
+        Assert.assertTrue(response.getBody(), response.getBody().contains("\"picard\""));
     }
 
     private static Header basicAuth(String username, String password) {
