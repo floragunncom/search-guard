@@ -175,6 +175,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     }
 
     public AuthToken create(User user, CreateAuthTokenRequest request) throws TokenCreationException {
+        if (config == null || !config.isEnabled()) {
+            throw new TokenCreationException("Auth token handling is not enabled");
+        }
+        
         String id = getRandomId();
 
         ConfigSnapshot configSnapshot = configHistoryService.getCurrentConfigSnapshot(CType.ROLES, CType.ROLESMAPPING, CType.ACTIONGROUPS,
@@ -732,6 +736,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     @Override
     public SpecialPrivilegesEvaluationContext apply(User user, ThreadContext threadContext) {
+        if (config == null || !config.isEnabled()) {
+            return null;
+        }
+        
         if (user == null || !(USER_TYPE.equals(user.getType()))) {
             return null;
         }
