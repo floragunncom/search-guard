@@ -1,8 +1,6 @@
 package com.floragunn.searchguard.authtoken.update;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
@@ -13,26 +11,30 @@ import com.floragunn.searchguard.authtoken.AuthToken;
 
 public class PushAuthTokenUpdateRequest extends BaseNodesRequest<PushAuthTokenUpdateRequest> {
 
-    private List<AuthToken> updatedTokens;
+    private AuthToken updatedToken;
+    private UpdateType updateType;
+    private long newHash;
 
     public PushAuthTokenUpdateRequest(StreamInput in) throws IOException {
         super(in);
-        this.updatedTokens = in.readList(AuthToken::new);
+        this.updatedToken = new AuthToken(in);
+        this.updateType = in.readEnum(UpdateType.class);
+        this.newHash = in.readLong();
     }
 
-    public PushAuthTokenUpdateRequest(List<AuthToken> updatedTokens) {
+    public PushAuthTokenUpdateRequest(AuthToken updatedToken, UpdateType updateType, long newHash) {
         super(new String[0]);
-        this.updatedTokens = updatedTokens;
-    }
-
-    public PushAuthTokenUpdateRequest(AuthToken updatedToken) {
-        this(Collections.singletonList(updatedToken));
+        this.updatedToken = updatedToken;
+        this.updateType = updateType;
+        this.newHash = newHash;
     }
 
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         super.writeTo(out);
-        out.writeList(updatedTokens);
+        updatedToken.writeTo(out);
+        out.writeEnum(updateType);
+        out.writeLong(newHash);
     }
 
     @Override
@@ -40,16 +42,24 @@ public class PushAuthTokenUpdateRequest extends BaseNodesRequest<PushAuthTokenUp
         return null;
     }
 
-    public List<AuthToken> getUpdatedTokens() {
-        return updatedTokens;
+    public static enum UpdateType {
+        NEW, REVOKED
     }
 
-    public void setUpdatedTokens(List<AuthToken> updatedTokens) {
-        this.updatedTokens = updatedTokens;
+    public AuthToken getUpdatedToken() {
+        return updatedToken;
+    }
+
+    public UpdateType getUpdateType() {
+        return updateType;
     }
 
     @Override
     public String toString() {
-        return "PushAuthTokenUpdateRequest [updatedTokens=" + updatedTokens + "]";
+        return "PushAuthTokenUpdateRequest [updatedToken=" + updatedToken + ", updateType=" + updateType + "]";
+    }
+
+    public long getNewHash() {
+        return newHash;
     }
 }
