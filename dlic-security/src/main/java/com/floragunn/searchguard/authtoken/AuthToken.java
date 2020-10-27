@@ -2,6 +2,8 @@ package com.floragunn.searchguard.authtoken;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Instant;
+import java.util.Map;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -14,21 +16,25 @@ import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.MissingAttribute;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.google.common.collect.ImmutableMap;
 
 public class AuthToken implements ToXContentObject, Writeable, Serializable {
+    public static final Map<String, Object> INDEX_MAPPING = ImmutableMap.of("dynamic", true, "properties",
+            ImmutableMap.of("created_at", ImmutableMap.of("type", "date"), "expires_at", ImmutableMap.of("type", "date")));
+
     private static final long serialVersionUID = 6038589333544878668L;
     private final String userName;
     private final String tokenName;
     private final String id;
-    private final long creationTime;
-    private final long expiryTime;
-    private final Long revokedAt;
+    private final Instant creationTime;
+    private final Instant expiryTime;
+    private final Instant revokedAt;
 
     private final RequestedPrivileges requestedPrivilges;
     private final AuthTokenPrivilegeBase base;
 
-    AuthToken(String id, String userName, String tokenName, RequestedPrivileges requestedPrivilges, AuthTokenPrivilegeBase base, long creationTime,
-            long expiryTime, Long revokedAt) {
+    AuthToken(String id, String userName, String tokenName, RequestedPrivileges requestedPrivilges, AuthTokenPrivilegeBase base, Instant creationTime,
+            Instant expiryTime, Instant revokedAt) {
         this.id = id;
         this.userName = userName;
         this.tokenName = tokenName;
@@ -43,9 +49,9 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         this.id = in.readString();
         this.userName = in.readString();
         this.tokenName = in.readOptionalString();
-        this.creationTime = in.readLong();
-        this.expiryTime = in.readLong();
-        this.revokedAt = in.readOptionalLong();
+        this.creationTime = in.readInstant();
+        this.expiryTime = in.readOptionalInstant();
+        this.revokedAt = in.readOptionalInstant();
 
         this.requestedPrivilges = new RequestedPrivileges(in);
         this.base = new AuthTokenPrivilegeBase(in);
@@ -65,11 +71,14 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         builder.field("requested", requestedPrivilges);
         builder.field("base");
         base.toXContent(builder, params);
-        builder.field("created_at", creationTime);
-        builder.field("expires_at", expiryTime);
+        builder.field("created_at", creationTime.toEpochMilli());
+
+        if (expiryTime != null) {
+            builder.field("expires_at", expiryTime.toEpochMilli());
+        }
 
         if (revokedAt != null) {
-            builder.field("revoked_at", revokedAt);
+            builder.field("revoked_at", revokedAt.toEpochMilli());
         }
 
         return builder;
@@ -98,9 +107,9 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
     public boolean isRevoked() {
         return revokedAt != null;
     }
-    
+
     AuthToken getRevokedInstance() {
-        AuthToken revoked = new AuthToken(id, userName, tokenName, requestedPrivilges, base, creationTime, expiryTime, System.currentTimeMillis());
+        AuthToken revoked = new AuthToken(id, userName, tokenName, requestedPrivilges, base, creationTime, expiryTime, Instant.now());
         revoked.getBase().setConfigSnapshot(null);
         return revoked;
     }
@@ -134,20 +143,20 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
             validationErrors.add(new MissingAttribute("requested", jsonNode));
         }
 
-        long createdAt = vJsonNode.requiredLong("created_at");
-        long expiry = vJsonNode.requiredLong("expires_at");
-        Long revokedAt = vJsonNode.longNumber("revoked_at", null);
+        Instant createdAt = vJsonNode.requiredValue("created_at", (v) -> Instant.ofEpochMilli(v.longValue()));
+        Instant expiry = vJsonNode.value("expires_at", (v) -> Instant.ofEpochMilli(v.longValue()), null);
+        Instant revokedAt = vJsonNode.value("revoked_at", (v) -> Instant.ofEpochMilli(v.longValue()), null);
 
         validationErrors.throwExceptionForPresentErrors();
 
         return new AuthToken(id, userName, tokenName, requestedPrivilges, base, createdAt, expiry, revokedAt);
     }
 
-    public long getCreationTime() {
+    public Instant getCreationTime() {
         return creationTime;
     }
 
-    public long getExpiryTime() {
+    public Instant getExpiryTime() {
         return expiryTime;
     }
 
@@ -156,14 +165,14 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         out.writeString(this.id);
         out.writeString(this.userName);
         out.writeOptionalString(this.tokenName);
-        out.writeLong(this.creationTime);
-        out.writeLong(this.expiryTime);
-        out.writeOptionalLong(this.revokedAt);
+        out.writeInstant(this.creationTime);
+        out.writeOptionalInstant(this.expiryTime);
+        out.writeOptionalInstant(this.revokedAt);
         this.requestedPrivilges.writeTo(out);
         this.base.writeTo(out);
     }
 
-    public Long getRevokedAt() {
+    public Instant getRevokedAt() {
         return revokedAt;
     }
 
@@ -178,11 +187,10 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         final int prime = 31;
         int result = 1;
         result = prime * result + ((base == null) ? 0 : base.hashCode());
-        result = prime * result + (int) (creationTime ^ (creationTime >>> 32));
-        result = prime * result + (int) (expiryTime ^ (expiryTime >>> 32));
+        result = prime * result + ((creationTime == null) ? 0 : creationTime.hashCode());
+        result = prime * result + ((expiryTime == null) ? 0 : expiryTime.hashCode());
         result = prime * result + ((id == null) ? 0 : id.hashCode());
         result = prime * result + ((requestedPrivilges == null) ? 0 : requestedPrivilges.hashCode());
-        result = prime * result + ((revokedAt == null) ? 0 : revokedAt.hashCode());
         result = prime * result + ((tokenName == null) ? 0 : tokenName.hashCode());
         result = prime * result + ((userName == null) ? 0 : userName.hashCode());
         return result;
@@ -202,9 +210,15 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
                 return false;
         } else if (!base.equals(other.base))
             return false;
-        if (creationTime != other.creationTime)
+        if (creationTime == null) {
+            if (other.creationTime != null)
+                return false;
+        } else if (!creationTime.equals(other.creationTime))
             return false;
-        if (expiryTime != other.expiryTime)
+        if (expiryTime == null) {
+            if (other.expiryTime != null)
+                return false;
+        } else if (!expiryTime.equals(other.expiryTime))
             return false;
         if (id == null) {
             if (other.id != null)
@@ -215,11 +229,6 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
             if (other.requestedPrivilges != null)
                 return false;
         } else if (!requestedPrivilges.equals(other.requestedPrivilges))
-            return false;
-        if (revokedAt == null) {
-            if (other.revokedAt != null)
-                return false;
-        } else if (!revokedAt.equals(other.revokedAt))
             return false;
         if (tokenName == null) {
             if (other.tokenName != null)

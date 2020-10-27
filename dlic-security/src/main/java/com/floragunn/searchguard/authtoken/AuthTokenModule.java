@@ -66,7 +66,8 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
                 baseDependencies.getDynamicConfigFactory(), baseDependencies.getSettings());
 
         authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, baseDependencies.getSettings(),
-                baseDependencies.getThreadPool(), baseDependencies.getProtectedConfigIndexService(), new AuthTokenServiceConfig());
+                baseDependencies.getThreadPool(), baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService(),
+                new AuthTokenServiceConfig());
 
         AuthTokenAuthenticationBackend authenticationBackend = new AuthTokenAuthenticationBackend(authTokenService);
 
@@ -79,8 +80,9 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
 
     @Override
     public List<Setting<?>> getSettings() {
-        return Arrays.asList(AuthTokenService.INDEX_NAME, ConfigHistoryService.CACHE_MAX_SIZE, ConfigHistoryService.CACHE_TTL,
-                ConfigHistoryService.INDEX_NAME, ConfigHistoryService.MODEL_CACHE_MAX_SIZE, ConfigHistoryService.MODEL_CACHE_TTL);
+        return Arrays.asList(AuthTokenService.INDEX_NAME, AuthTokenService.CLEANUP_INTERVAL, ConfigHistoryService.CACHE_MAX_SIZE,
+                ConfigHistoryService.CACHE_TTL, ConfigHistoryService.INDEX_NAME, ConfigHistoryService.MODEL_CACHE_MAX_SIZE,
+                ConfigHistoryService.MODEL_CACHE_TTL);
     }
 
     @Override
