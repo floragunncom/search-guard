@@ -39,6 +39,7 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
@@ -73,21 +74,21 @@ import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
 
-/**
- * TODO clean up expired tokens
- */
 public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvider {
 
     private static final Logger log = LogManager.getLogger(AuthTokenService.class);
 
     public static final Setting<String> INDEX_NAME = Setting.simpleString("searchguard.authtokens.index.name", ".searchguard_authtokens",
             Property.NodeScope);
+    public static final Setting<TimeValue> CLEANUP_INTERVAL = Setting.timeSetting("searchguard.authtokens.cleanup_interval",
+            TimeValue.timeValueHours(1), TimeValue.timeValueSeconds(1), Property.NodeScope, Property.Filtered);
 
     public static final String USER_TYPE = "sg_auth_token";
 
@@ -106,9 +107,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private Set<AuthToken> unpushedTokens = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private boolean sendTokenUpdates = true;
     private boolean initialized = false;
+    private IndexCleanupAgent indexCleanupAgent;
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
-            ThreadPool threadPool, ProtectedConfigIndexService protectedConfigIndexService, AuthTokenServiceConfig config) {
+            ThreadPool threadPool, ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService,
+            AuthTokenServiceConfig config) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
@@ -116,8 +119,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         this.setConfig(config);
 
-        protectedConfigIndexService
-                .createIndex(new ConfigIndex(indexName).dependsOnIndices(configHistoryService.getIndexName()).onIndexReady(this::init));
+        protectedConfigIndexService.createIndex(new ConfigIndex(indexName).mapping(AuthToken.INDEX_MAPPING)
+                .dependsOnIndices(configHistoryService.getIndexName()).onIndexReady(this::init));
+
+        this.indexCleanupAgent = new IndexCleanupAgent(indexName, "expires_at", CLEANUP_INTERVAL.get(settings), privilegedConfigClient,
+                clusterService, threadPool);
     }
 
     public AuthToken getById(String id) throws NoSuchAuthTokenException {
@@ -183,7 +189,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                             + request.getRequestedPrivileges().getRoles() + " User: " + user.getRoles() + " + " + user.getSearchGuardRoles());
         }
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now().withNano(0);
 
         OffsetDateTime expiresAt = getExpiryTime(now, request);
 
@@ -191,7 +197,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 .excludeClusterPermissions(config.getExcludeClusterPermissions()).excludeIndexPermissions(config.getExcludeIndexPermissions());
 
         AuthToken authToken = new AuthToken(id, user.getName(), request.getTokenName(), requestedPrivilegesWithDefaultExclusions, base,
-                now.toEpochSecond(), expiresAt != null ? expiresAt.toEpochSecond() : Long.MAX_VALUE, null);
+                now.toInstant(), expiresAt != null ? expiresAt.toInstant() : null, null);
 
         this.idToAuthTokenMap.put(id, authToken);
 
@@ -215,10 +221,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         JwtClaims jwtClaims = new JwtClaims();
         JwtToken jwt = new JwtToken(jwtClaims);
 
-        jwtClaims.setNotBefore(authToken.getCreationTime());
+        jwtClaims.setNotBefore(authToken.getCreationTime().getEpochSecond());
 
-        if (authToken.getExpiryTime() != Long.MAX_VALUE) {
-            jwtClaims.setExpiryTime(authToken.getExpiryTime());
+        if (authToken.getExpiryTime() != null) {
+            jwtClaims.setExpiryTime(authToken.getExpiryTime().getEpochSecond());
         }
 
         jwtClaims.setSubject(user.getName());
@@ -293,57 +299,59 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         long now = System.currentTimeMillis();
 
-        this.privilegedConfigClient.search(new SearchRequest(indexName)
-                .source(new SearchSourceBuilder().query(QueryBuilders.rangeQuery("expires_at").gte(now)).size(1000)).scroll(new TimeValue(10000)),
-                new ActionListener<SearchResponse>() {
+        this.privilegedConfigClient
+                .search(new SearchRequest(indexName)
+                        .source(new SearchSourceBuilder().query(QueryBuilders.boolQuery().should(QueryBuilders.rangeQuery("expires_at").gte(now))
+                                .should(QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery("expires_at")))).size(1000))
+                        .scroll(new TimeValue(10000)), new ActionListener<SearchResponse>() {
 
-                    @Override
-                    public void onResponse(SearchResponse searchResponse) {
-                        try {
-                            Map<String, AuthToken> idToAuthTokenMap = new ConcurrentHashMap<>();
-                            SearchHits searchHits = searchResponse.getHits();
-                            
-                            while (searchHits != null && searchHits.getHits() != null && searchHits.getHits().length > 0) {
-                                for (SearchHit hit : searchHits.getHits()) {
-                                    try {
-                                        String id = hit.getId();
-                                        AuthToken authToken = AuthToken.parse(id, ValidatingJsonParser.readTree(hit.getSourceAsString()));
+                            @Override
+                            public void onResponse(SearchResponse searchResponse) {
+                                try {
+                                    Map<String, AuthToken> idToAuthTokenMap = new ConcurrentHashMap<>();
+                                    SearchHits searchHits = searchResponse.getHits();
 
-                                        idToAuthTokenMap.put(id, authToken);
-                                    } catch (ConfigValidationException e) {
-                                        log.error("Invalid auth token in index at " + hit + ":\n" + e.getValidationErrors(), e);
+                                    while (searchHits != null && searchHits.getHits() != null && searchHits.getHits().length > 0) {
+                                        for (SearchHit hit : searchHits.getHits()) {
+                                            try {
+                                                String id = hit.getId();
+                                                AuthToken authToken = AuthToken.parse(id, ValidatingJsonParser.readTree(hit.getSourceAsString()));
+
+                                                idToAuthTokenMap.put(id, authToken);
+                                            } catch (ConfigValidationException e) {
+                                                log.error("Invalid auth token in index at " + hit + ":\n" + e.getValidationErrors(), e);
+                                            }
+                                        }
+
+                                        searchResponse = privilegedConfigClient.prepareSearchScroll(searchResponse.getScrollId())
+                                                .setScroll(new TimeValue(10000)).execute().actionGet();
+                                        searchHits = searchResponse.getHits();
                                     }
+
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Loaded " + idToAuthTokenMap.size() + " auth tokens");
+                                    }
+
+                                    initConfigSnapshots(idToAuthTokenMap);
+
+                                    AuthTokenService.this.idToAuthTokenMap = idToAuthTokenMap;
+
+                                    initComplete();
+                                } catch (Exception e) {
+                                    log.error("Error in reloadAuthTokensFromIndex()", e);
                                 }
-
-                                searchResponse = privilegedConfigClient.prepareSearchScroll(searchResponse.getScrollId())
-                                        .setScroll(new TimeValue(10000)).execute().actionGet();
-                                searchHits = searchResponse.getHits();
                             }
 
-                            if (log.isDebugEnabled()) {
-                                log.debug("Loaded " + idToAuthTokenMap.size() + " auth tokens");
+                            @Override
+                            public void onFailure(Exception e) {
+                                if (failureListener != null) {
+                                    log.trace("Error while loading auth tokens", e);
+                                    failureListener.onFailure(e);
+                                } else {
+                                    log.error("Error while loading auth tokens", e);
+                                }
                             }
-
-                            initConfigSnapshots(idToAuthTokenMap);
-
-                            AuthTokenService.this.idToAuthTokenMap = idToAuthTokenMap;
-
-                            initComplete();
-                        } catch (Exception e) {
-                            log.error("Error in reloadAuthTokensFromIndex()", e);
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        if (failureListener != null) {
-                            log.trace("Error while loading auth tokens", e);
-                            failureListener.onFailure(e);
-                        } else {
-                            log.error("Error while loading auth tokens", e);
-                        }
-                    }
-                });
+                        });
     }
 
     private void initConfigSnapshots(Map<String, AuthToken> idToAuthTokenMap) {
@@ -675,7 +683,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 log.info("Using revoked auth token: " + authToken);
                 return null;
             }
-            
+
             if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
                 throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
             }
@@ -703,6 +711,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             throw new ElasticsearchSecurityException("Cannot authenticate user due to invalid auth token " + authTokenId, e);
         }
 
+    }
+
+    public void shutdown() {
+        this.indexCleanupAgent.shutdown();
     }
 
     static class SpecialPrivilegesEvaluationContextImpl implements SpecialPrivilegesEvaluationContext {
