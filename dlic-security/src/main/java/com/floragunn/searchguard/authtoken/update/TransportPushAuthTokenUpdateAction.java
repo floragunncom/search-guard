@@ -3,8 +3,6 @@ package com.floragunn.searchguard.authtoken.update;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.nodes.BaseNodeRequest;
@@ -22,7 +20,6 @@ import com.floragunn.searchguard.authtoken.AuthTokenService;
 public class TransportPushAuthTokenUpdateAction extends
         TransportNodesAction<PushAuthTokenUpdateRequest, PushAuthTokenUpdateResponse, TransportPushAuthTokenUpdateAction.NodeRequest, PushAuthTokenUpdateNodeResponse> {
 
-    private static final Logger log = LogManager.getLogger(TransportPushAuthTokenUpdateAction.class);
     private final AuthTokenService authTokenService;
 
     @Inject
