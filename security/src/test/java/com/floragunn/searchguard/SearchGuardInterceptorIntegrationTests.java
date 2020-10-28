@@ -5,9 +5,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 import org.apache.http.Header;
@@ -36,14 +37,16 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestHandler.Route;
+import org.elasticsearch.rest.RestHeaderDefinition;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
-import org.junit.ClassRule;
+import org.junit.Assert;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -53,17 +56,20 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class SearchGuardInterceptorIntegrationTests {
-    @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, ".*").singleNode()
-            .sslEnabled().plugin(MockActionPlugin.class)
-            .user("header_test_user", "secret", new Role("header_test_user_role").indexPermissions("*").on("*").clusterPermissions("*")).build();
 
     @Test
-    public void testHeaders() throws Exception {
-        Header auth = basicAuth("header_test_user", "secret");
-        RestHelper rh = cluster.restHelper();
-        HttpResponse httpResponse = rh.executeGetRequest("/_header_test", auth, new BasicHeader("test_header_name", "test_header_value"));
+    public void testAllowCustomHeaders() throws Exception {
+        try (LocalCluster cluster = new LocalCluster.Builder().nodeSettings(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, ".*").singleNode()
+                .sslEnabled().plugin(MockActionPlugin.class)
+                .user("header_test_user", "secret", new Role("header_test_user_role").indexPermissions("*").on("*").clusterPermissions("*"))
+                .build()) {
+            Header auth = basicAuth("header_test_user", "secret");
+            RestHelper rh = cluster.restHelper();
+            HttpResponse httpResponse = rh.executeGetRequest("/_header_test", auth, new BasicHeader("test_header_name", "test_header_value"));
+            JsonNode headers = httpResponse.toJsonNode().get("headers");
 
+            Assert.assertEquals("test_header_value", headers.get("test_header_name").textValue());
+        }
     }
 
     public static class MockActionPlugin extends Plugin implements ActionPlugin {
@@ -85,13 +91,17 @@ public class SearchGuardInterceptorIntegrationTests {
             return Arrays.asList(new SimpleRestHandler<>(new Route(Method.GET, "/_header_test"), MockTransportAction.TYPE,
                     (request) -> new MockActionRequest(request.param("id"))));
         }
+
+        public Collection<RestHeaderDefinition> getRestHeaders() {
+            return Arrays.asList(new RestHeaderDefinition("test_header_name", true));
+        }
     }
 
     public static class MockTransportAction extends HandledTransportAction<MockActionRequest, MockActionResponse> {
         static ActionType<MockActionResponse> TYPE = new ActionType<>("cluster:admin/header_test", MockActionResponse::new);
 
         private ThreadPool threadPool;
-        
+
         @Inject
         public MockTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
                 final TransportService transportService, final AdminDNs adminDNs, final ActionFilters actionFilters) {
@@ -102,11 +112,7 @@ public class SearchGuardInterceptorIntegrationTests {
 
         @Override
         protected void doExecute(Task task, MockActionRequest request, ActionListener<MockActionResponse> listener) {
-            
-            
-            System.out.println("**** " + threadPool.getThreadContext().getHeaders());
-            
-            listener.onResponse(new MockActionResponse(UUID.randomUUID().toString(), RestStatus.OK));
+            listener.onResponse(new MockActionResponse(threadPool.getThreadContext().getHeaders()));
         }
     }
 
@@ -140,44 +146,32 @@ public class SearchGuardInterceptorIntegrationTests {
 
     public static class MockActionResponse extends ActionResponse implements StatusToXContentObject {
 
-        private String id;
-        private RestStatus restStatus;
+        private Map<String, String> headers;
 
-        public MockActionResponse(String id, RestStatus restStatus) {
-            this.id = id;
-            this.restStatus = restStatus;
+        public MockActionResponse(Map<String, String> headers) {
+            this.headers = headers;
         }
 
         public MockActionResponse(StreamInput in) throws IOException {
-            this.id = in.readOptionalString();
-            this.restStatus = in.readEnum(RestStatus.class);
+            this.headers = in.readMap(StreamInput::readString, StreamInput::readString);
         }
 
         @Override
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startObject();
-            builder.field("id", id);
+            builder.field("headers", headers);
             builder.endObject();
             return builder;
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
-            out.writeOptionalString(id);
-            out.writeEnum(restStatus);
+            out.writeMap(headers, StreamOutput::writeString, StreamOutput::writeString);
         }
 
         @Override
         public RestStatus status() {
-            return restStatus;
-        }
-
-        public String getId() {
-            return id;
-        }
-
-        public void setId(String id) {
-            this.id = id;
+            return RestStatus.OK;
         }
 
     }

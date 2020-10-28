@@ -74,7 +74,6 @@ public class SearchGuardInterceptor {
     private final PrincipalExtractor principalExtractor;
     private final InterClusterRequestEvaluator requestEvalProvider;
     private final ClusterService cs;
-    private final Settings settings;
     private final SslExceptionHandler sslExceptionHandler;
     private final ClusterInfoHolder clusterInfoHolder;
     private final List<Pattern> customAllowedHeaderPatterns;
@@ -92,7 +91,6 @@ public class SearchGuardInterceptor {
         this.principalExtractor = principalExtractor;
         this.requestEvalProvider = requestEvalProvider;
         this.cs = cs;
-        this.settings = settings;
         this.sslExceptionHandler = sslExceptionHandler;
         this.clusterInfoHolder = clusterInfoHolder;
         this.customAllowedHeaderPatterns = getCustomAllowedHeaderPatterns(settings);
@@ -114,8 +112,6 @@ public class SearchGuardInterceptor {
         final String origCCSTransientDls = getThreadContext().getTransient(ConfigConstants.SG_DLS_QUERY_CCS);
         final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
         final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
-
-        System.out.println("********* " + origHeaders0);
         
         //stash headers and transient objects
         try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) {
@@ -218,6 +214,8 @@ public class SearchGuardInterceptor {
     }
 
     private boolean checkCustomAllowedHeader(String headerKey) {
+        System.out.println("ccc " + headerKey + "\n" + customAllowedHeaderPatterns);
+        
         if (headerKey.startsWith(ConfigConstants.SG_CONFIG_PREFIX)) {
             // SG specific headers are sensitive and thus should not be externally manipulated
             return false;
