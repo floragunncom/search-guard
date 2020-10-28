@@ -29,6 +29,9 @@ class TestJwk {
 	static final String OCT_2_K = "YP6Q3IF2qJEagV948dsicXKpG43Ci2W7ZxUpiVTBLZr1vFN9ZGUKxeXGgVWuMFYTmoHvv5AOC8BvoNOpcE3rcJNuNOqTMdujxD92CxjOykiLEKQ0Te_7xQ4LnSQjlqdIJ4U3S7qCnJLd1LxhKOGZcUhE_pjhwf7q2RUUpvC3UOyZZLog9yeflnp9nqqDy5yVqRYWZRcPI06kJTh3Z8IFi2JRJV14iUFQtOHQKuyJRMcsldKnfWl7YW3JdQ9IRN-c1lEYSEBmsavEejcqHZkbli2svqLfmCBJVWffXDRxhq0_VafiL83HC0bP9qeNKivhemw6foVmg8UMs7yJ6ao02A";
 	static final String OCT_3_K = "r3aeW3OK7-B4Hs3hq9BmlT1D3jRiolH9PL82XUz9xAS7dniAdmvMnN5GkOc1vqibOe2T-CC_103UglDm9D0iU9S9zn6wTuQt1L5wfZIoHd9f5IjJ_YFEzZMvsoUY_-ji_0K_ugVvBPwi9JnBQHHS4zrgmP06dGjmcnZDcIf4W_iFas3lDYSXilL1V2QhNaynpSqTarpfBGSphKv4Zg2JhsX8xB0VSaTlEq4lF8pzvpWSxXCW9CtomhB80daSuTizrmSTEPpdN3XzQ2-Tovo1ieMOfDU4csvjEk7Bwc2ThjpnA8ucKQUYpUv9joBxKuCdUltssthWnetrogjYOn_xGA";
 
+	static final String OCT_256_1_K = "Z74PlpmePaZg2Ubm3ipD9QE4uX45GWAPwjMHCKpb6Xk=";
+	static final String OCT_512_1_K = "0c8YGg-YdAuOqIZFMoWm0INDnZhmZmTy3ovdZ3PDeJwAQ1qEYn_sivE0960sIKl8sRQnIti7-JEUeVfeJxgpBg==";
+	
 	static final JsonWebKey OCT_1 = createOct("kid/a", "HS256", OCT_1_K);
 	static final JsonWebKey OCT_2 = createOct("kid/b", "HS256", OCT_2_K);
 	static final JsonWebKey OCT_3 = createOct("kid/c", "HS256", OCT_3_K);

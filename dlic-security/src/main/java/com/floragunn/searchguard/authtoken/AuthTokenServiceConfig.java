@@ -20,6 +20,7 @@ import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
 import com.floragunn.searchsupport.config.validation.JsonNodeParser;
 import com.floragunn.searchsupport.config.validation.MissingAttribute;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.config.validation.ValueParser;
 
@@ -109,7 +110,7 @@ public class AuthTokenServiceConfig {
 
             if (vJsonNode.hasNonNull("jwt_encryption_key")) {
                 result.jwtEncryptionKey = vJsonNode.requiredValue("jwt_encryption_key", JWK_ENCRYPTION_KEY_PARSER);
-            } else if (vJsonNode.hasNonNull("jwt_signing_key_a256kw")) {
+            } else if (vJsonNode.hasNonNull("jwt_encryption_key_a256kw")) {
                 result.jwtEncryptionKey = vJsonNode.requiredValue("jwt_encryption_key_a256kw", JWK_A256KW_ENCRYPTION_KEY_PARSER_A256KW);
             }
 
@@ -118,6 +119,8 @@ public class AuthTokenServiceConfig {
 
             result.excludeClusterPermissions = vJsonNode.stringList("exclude_cluster_permissions", Arrays.asList(CreateAuthTokenAction.NAME));
             result.excludeIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);
+            
+            // TODO create test JWT for more thorough validation (some things are only checked then)
         }
 
         validationErrors.throwExceptionForPresentErrors();
@@ -125,6 +128,11 @@ public class AuthTokenServiceConfig {
         return result;
     }
 
+    public static AuthTokenServiceConfig parseYaml(String yaml) throws ConfigValidationException {
+        return parse(ValidatingJsonParser.readYamlTree(yaml));
+    }
+
+    
     private static final JsonNodeParser<JsonWebKey> JWK_SIGNING_KEY_PARSER = new JsonNodeParser<JsonWebKey>() {
 
         @Override
