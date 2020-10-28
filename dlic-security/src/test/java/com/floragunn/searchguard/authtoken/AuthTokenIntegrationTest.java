@@ -23,7 +23,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ser.std.StdKeySerializers.Default;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -61,7 +60,6 @@ public class AuthTokenIntegrationTest {
                     "            map_db_attrs_to_user_attrs:\n" + //
                     "              index: test_attr_1.c\n" + //
                     "              all: test_attr_1\n" + //
-                    "        description: \"Migrated from v6\"\n" + //
                     "      sg_issued_jwt_auth_domain:\n" + //
                     "        description: \"Authenticate via Json Web Tokens issued by Search Guard\"\n" + //
                     "        http_enabled: true\n" + //
@@ -411,7 +409,6 @@ public class AuthTokenIntegrationTest {
                         "            map_db_attrs_to_user_attrs:\n" + //
                         "              index: test_attr_1.c\n" + //
                         "              all: test_attr_1\n" + //
-                        "        description: \"Migrated from v6\"\n" + //
                         "      sg_issued_jwt_auth_domain:\n" + //
                         "        description: \"Authenticate via Json Web Tokens issued by Search Guard\"\n" + //
                         "        http_enabled: true\n" + //
@@ -493,6 +490,123 @@ public class AuthTokenIntegrationTest {
         }
     }
 
+    @Test
+    public void ecSignedAuthTokenTest() throws Exception {
+        String sgConfigWithEncryption = //
+                "_sg_meta:\n" + //
+                        "  type: \"config\"\n" + //
+                        "  config_version: 2\n" + //
+                        "\n" + //
+                        "sg_config:\n" + //
+                        "  dynamic:\n" + //
+                        "    auth_token_provider: \n" + //
+                        "      enabled: true\n" + //
+                        "      jwt_signing_key: \n" + //
+                        "        kty: EC\n" + // 
+                        "        d: \"1nlQeqOq48OPWiDkmOIXLF_XBWUe9LSznBvWzPI4Ggo\"\n" + 
+                        "        use: sig\n" + 
+                        "        crv: P-256\n" + 
+                        "        x: \"lBybOJZyK6r8Nx54Jn4cKoDUZgyOdLlsQ2EHk-7LStk\"\n" + 
+                        "        y: \"BwSiCmlnS1CDetg_iuxBZKkh6VTMrra0aIT9dBeoCZU\"\n" + 
+                        "        alg: ES256\n" + 
+                        "      jwt_aud: \"searchguard_tokenauth\"\n" + //
+                        "      max_validity: \"1y\"\n" + //
+                        "    authc:\n" + //
+                        "      authentication_domain_basic_internal:\n" + //
+                        "        http_enabled: true\n" + //
+                        "        transport_enabled: true\n" + //
+                        "        order: 1\n" + //
+                        "        http_authenticator:\n" + //
+                        "          challenge: true\n" + //
+                        "          type: \"basic\"\n" + //
+                        "          config: {}\n" + //
+                        "        authentication_backend:\n" + //
+                        "          type: \"intern\"\n" + //
+                        "          config:\n" + //
+                        "            map_db_attrs_to_user_attrs:\n" + //
+                        "              index: test_attr_1.c\n" + //
+                        "              all: test_attr_1\n" + //
+                        "      sg_issued_jwt_auth_domain:\n" + //
+                        "        description: \"Authenticate via Json Web Tokens issued by Search Guard\"\n" + //
+                        "        http_enabled: true\n" + //
+                        "        transport_enabled: false\n" + //
+                        "        order: 0\n" + //
+                        "        http_authenticator:\n" + //
+                        "          type: sg_auth_token\n" + //
+                        "          challenge: false\n" + //
+                        "        authentication_backend:\n" + //
+                        "          type: sg_auth_token";
+
+        TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(sgConfigWithEncryption));
+
+        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig).build()) {
+            RestHelper rh = cluster.restHelper();
+
+            try (Client client = cluster.getInternalClient()) {
+                client.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
+                        "not_allowed_from_token")).actionGet();
+                client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+                        "this_is", "allowed")).actionGet();
+            }
+
+            CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                    RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));
+
+            request.setTokenName("my_new_token");
+
+            Header auth = basicAuth("spock", "spock");
+
+            System.out.println(request.toJson());
+
+            HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+            System.out.println(response.getBody());
+
+            Assert.assertEquals(200, response.getStatusCode());
+
+            String token = response.toJsonNode().get("token").asText();
+            Assert.assertNotNull(token);
+            Assert.assertEquals("ES256", getJwtHeaderValue(token, "alg"));
+            Assert.assertTrue(getJwtPayload(token),
+                    getJwtPayload(token).contains("spock"));
+
+            try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
+                SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
+                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+
+                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+
+                searchResponse = client.search(
+                        new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
+                        RequestOptions.DEFAULT);
+
+                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+                Assert.assertEquals("not_allowed_from_token", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+            }
+
+            try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
+                SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
+                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+
+                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+
+                try {
+
+                    searchResponse = client.search(
+                            new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
+                            RequestOptions.DEFAULT);
+                    Assert.fail(searchResponse.toString());
+                } catch (Exception e) {
+                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+                }
+            }
+
+        }
+    }
+
+    
     private static String getJwtHeaderValue(String jwt, String headerName) throws IOException {
         int p = jwt.indexOf('.');
         String headerBase4 = jwt.substring(0, p);
