@@ -178,7 +178,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (config == null || !config.isEnabled()) {
             throw new TokenCreationException("Auth token handling is not enabled");
         }
-        
+
         String id = getRandomId();
 
         ConfigSnapshot configSnapshot = configHistoryService.getCurrentConfigSnapshot(CType.ROLES, CType.ROLESMAPPING, CType.ACTIONGROUPS,
@@ -241,8 +241,14 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         jwtClaims.setProperty("requested", ObjectTreeXContent.toObjectTree(authToken.getRequestedPrivilges()));
         jwtClaims.setProperty("base", ObjectTreeXContent.toObjectTree(authToken.getBase(), AuthTokenPrivilegeBase.COMPACT));
 
-        String encodedJwt = this.jwtProducer.processJwt(jwt);
+        String encodedJwt;
 
+        try {
+            encodedJwt = this.jwtProducer.processJwt(jwt);
+        } catch (Exception e) {
+            log.error("Error while creating JWT. Possibly the key configuration is not valid.", e);
+            throw new TokenCreationException("Error while creating JWT. Possibly the key configuration is not valid.", e);
+        }
         return new CreateAuthTokenResponse(authToken, encodedJwt);
     }
 
@@ -739,7 +745,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (config == null || !config.isEnabled()) {
             return null;
         }
-        
+
         if (user == null || !(USER_TYPE.equals(user.getType()))) {
             return null;
         }
