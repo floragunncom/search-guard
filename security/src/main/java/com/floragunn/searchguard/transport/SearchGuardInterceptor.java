@@ -213,9 +213,7 @@ public class SearchGuardInterceptor {
         return threadPool.getThreadContext();
     }
 
-    private boolean checkCustomAllowedHeader(String headerKey) {
-        System.out.println("ccc " + headerKey + "\n" + customAllowedHeaderPatterns);
-        
+    private boolean checkCustomAllowedHeader(String headerKey) {        
         if (headerKey.startsWith(ConfigConstants.SG_CONFIG_PREFIX)) {
             // SG specific headers are sensitive and thus should not be externally manipulated
             return false;
