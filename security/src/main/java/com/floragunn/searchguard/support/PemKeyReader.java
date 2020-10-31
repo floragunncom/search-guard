@@ -43,9 +43,7 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -75,37 +73,12 @@ public final class PemKeyReader {
                     "([a-z0-9+/=\\r\\n]+)" +                       // Base64 text
                     "-+END\\s+.*PRIVATE\\s+KEY[^-]*-+",            // Footer
             Pattern.CASE_INSENSITIVE);
-
-    private static byte[] readPrivateKey(File file) throws KeyException {
-        try {
-            InputStream in = new FileInputStream(file);
-
-            try {
-                return readPrivateKey(in);
-            } finally {
-                safeClose(in);
-            }
-        } catch (FileNotFoundException e) {
-            throw new KeyException("could not fine key file: " + file);
-        }
-    }
-
-    private static byte[] readPrivateKey(InputStream in) throws KeyException {
-        String content;
-        try {
-            content = readContent(in);
-        } catch (IOException e) {
-            throw new KeyException("failed to read key input stream", e);
-        }
-
-        Matcher m = KEY_PATTERN.matcher(content);
-        if (!m.find()) {
-            throw new KeyException("could not find a PKCS #8 private key in input stream" +
-                    " (see http://netty.io/wiki/sslcontextbuilder-and-private-key.html for more information)");
-        }
-
-        return Base64.decode(m.group(1));
-    }
+    
+    private static final Pattern RSA_KEY_PATTERN = Pattern.compile(
+            "-+BEGIN RSA PRIVATE KEY[^-]*-+(?:\\s|\\r|\\n)+" + // Header
+                    "([a-z0-9+/=\\r\\n]+)" +                   // Base64 text
+                    "-+END RSA PRIVATE KEY[^-]*-+",            // Footer
+            Pattern.CASE_INSENSITIVE);
 
     private static String readContent(InputStream in) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -145,7 +118,20 @@ public final class PemKeyReader {
         if (keyFile == null) {
             return null;
         }
-        return getPrivateKeyFromByteBuffer(PemKeyReader.readPrivateKey(keyFile), keyPassword);
+        
+        try {
+            InputStream in = new FileInputStream(keyFile);
+
+            try {
+            	return getPrivateKeyFromByteBuffer(in, keyPassword);
+            } finally {
+                safeClose(in);
+            }
+        } catch (FileNotFoundException e) {
+            throw new KeyException("could not find key file: " + keyFile);
+        }
+        
+        
     }
     
     public static PrivateKey toPrivateKey(InputStream in, String keyPassword) throws NoSuchAlgorithmException, NoSuchPaddingException,
@@ -153,10 +139,48 @@ public final class PemKeyReader {
         if (in == null) {
             return null;
         }
-        return getPrivateKeyFromByteBuffer(PemKeyReader.readPrivateKey(in), keyPassword);
+        return getPrivateKeyFromByteBuffer(in, keyPassword);
+    }
+    
+    private static PrivateKey getPrivateKeyFromByteBuffer(InputStream in, String keyPassword) throws NoSuchAlgorithmException,
+    NoSuchPaddingException, InvalidKeySpecException, InvalidAlgorithmParameterException, KeyException, IOException {
+    	
+
+    	String content;
+        try {
+            content = readContent(in);
+        } catch (IOException e) {
+            throw new KeyException("failed to read key input stream", e);
+        }
+        
+        Matcher m = RSA_KEY_PATTERN.matcher(content);
+        if (m.find()) {
+        	
+        	if(keyPassword != null && !keyPassword.isEmpty()) {
+        		throw new KeyException("Encrypted RSA/PKCS#1 private key are not supported");
+
+        	}
+        	
+            return getPKCS1PrivateKeyFromByteBuffer(Base64.decode(m.group(1)));
+        }
+
+        m = KEY_PATTERN.matcher(content);
+        if (!m.find()) {
+            throw new KeyException("could not find a PKCS#8 or RSA/PKCS#1 private key in input stream" +
+                    " (see http://netty.io/wiki/sslcontextbuilder-and-private-key.html for more information)");
+        }
+
+        
+        return getPKCS8PrivateKeyFromByteBuffer(Base64.decode(m.group(1)), keyPassword);
+    	
+    }
+    
+    private static PrivateKey getPKCS1PrivateKeyFromByteBuffer(byte[] encodedKey) throws NoSuchAlgorithmException,
+    NoSuchPaddingException, InvalidKeySpecException, InvalidAlgorithmParameterException, KeyException, IOException {
+    	return new PKCS1Reader(encodedKey).read();
     }
 
-    private static PrivateKey getPrivateKeyFromByteBuffer(byte[] encodedKey, String keyPassword) throws NoSuchAlgorithmException,
+    private static PrivateKey getPKCS8PrivateKeyFromByteBuffer(byte[] encodedKey, String keyPassword) throws NoSuchAlgorithmException,
             NoSuchPaddingException, InvalidKeySpecException, InvalidAlgorithmParameterException, KeyException, IOException {
 
         PKCS8EncodedKeySpec encodedKeySpec = generateKeySpec(keyPassword == null ? null : keyPassword.toCharArray(), encodedKey);
@@ -205,7 +229,7 @@ public final class PemKeyReader {
         }
     }
     
-    public static List<? extends Certificate> loadCertificatesFromFileAsList(String file) throws Exception {
+    /*public static List<? extends Certificate> loadCertificatesFromFileAsList(String file) throws Exception {
         if(file == null) {
             return null;
         }
@@ -214,7 +238,7 @@ public final class PemKeyReader {
         try(FileInputStream is = new FileInputStream(file)) {
             return new ArrayList<>(fact.generateCertificates(is));
         }
-    }
+    }*/
     
     public static X509Certificate loadCertificateFromStream(InputStream in) throws Exception {
         if(in == null) {

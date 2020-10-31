@@ -361,19 +361,20 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                     true);
 
             try {
-                final File pemKeyFile = new File(pemKey);
-                final File pemCertFile = new File(pemCertFilePath);
-                final File trustedCasFile = new File(trustedCas);
-                final X509Certificate[] transportKeystoreCerts = new X509Certificate[]{ PemKeyReader.loadCertificateFromFile(pemCertFilePath) };
+                //final File pemKeyFile = new File(pemKey);
+            	//final File pemCertFile = new File(pemCertFilePath);
+            	//final File trustedCasFile = new File(trustedCas);
+                final X509Certificate[] transportKeystoreCerts = PemKeyReader.loadCertificatesFromFile(pemCertFilePath);
                 X509Certificate[] newTrustedCerts = trustedCas != null ? PemKeyReader.loadCertificatesFromFile(trustedCas) : null;
+            	String pemKeyPassword = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD);
+            	PrivateKey pemPrivateKey = PemKeyReader.loadKeyFromFile(pemKeyPassword, pemKey);
 
+                
                 onNewCerts("Transport", transportCerts, transportKeystoreCerts, transportTrustedCerts, newTrustedCerts);
-                transportServerSslContext = buildSSLServerContext(pemKeyFile, pemCertFile, trustedCasFile,
-                        settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD),
+                transportServerSslContext = buildSSLServerContext(pemPrivateKey, transportKeystoreCerts, newTrustedCerts,
                         getEnabledSSLCiphers(this.sslTransportServerProvider, false),
                         this.sslTransportServerProvider, ClientAuth.REQUIRE);
-                transportClientSslContext = buildSSLClientContext(pemKeyFile, pemCertFile, trustedCasFile,
-                        settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD),
+                transportClientSslContext = buildSSLClientContext(pemPrivateKey, transportKeystoreCerts, newTrustedCerts,
                         getEnabledSSLCiphers(sslTransportClientProvider, false), sslTransportClientProvider);
                 setTransportSSLCerts(transportKeystoreCerts);
             } catch (final Exception e) {
@@ -498,14 +499,15 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
             try {
                 final String pemCertFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH, true);
                 final String pemKey = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH, true);
-                final X509Certificate[] httpKeystoreCert = new X509Certificate[]{ PemKeyReader.loadCertificateFromFile(pemCertFilePath) };
+                final X509Certificate[] httpKeystoreCert = PemKeyReader.loadCertificatesFromFile(pemCertFilePath);
                 X509Certificate[] newHttpTrustedCerts = trustedCas != null ? PemKeyReader.loadCertificatesFromFile(trustedCas) : null;
+                String pemKeyPassword = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_PASSWORD);
+                PrivateKey pemPrivateKey = PemKeyReader.loadKeyFromFile(pemKeyPassword, pemKey);
                 
                 onNewCerts("HTTP", httpCerts,
                         httpKeystoreCert, httpTrustedCerts, newHttpTrustedCerts);
-                httpSslContext = buildSSLServerContext(new File(pemKey), new File(pemCertFilePath),
-                        trustedCas == null ? null : new File(trustedCas),
-                        settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_PASSWORD),
+                httpSslContext = buildSSLServerContext(pemPrivateKey, httpKeystoreCert,
+                        newHttpTrustedCerts,
                         getEnabledSSLCiphers(this.sslHTTPProvider, true), sslHTTPProvider, httpClientAuthMode);
                 setHttpSSLCerts(httpKeystoreCert);
                 this.httpTrustedCerts = newHttpTrustedCerts;
@@ -797,7 +799,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         return buildSSLContext0(_sslContextBuilder);
     }
 
-    private SslContext buildSSLServerContext(final File _key, final File _cert, final File _trustedCerts,
+    /*private SslContext buildSSLServerContext(final File _key, final File _cert, final File _trustedCerts,
             final String pwd, final Iterable<String> ciphers, final SslProvider sslProvider, final ClientAuth authMode)
             throws SSLException {
 
@@ -811,7 +813,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         }
 
         return buildSSLContext0(_sslContextBuilder);
-    }
+    }*/
 
     private SslContext buildSSLClientContext(final PrivateKey _key, final X509Certificate[] _cert,
             final X509Certificate[] _trustedCerts, final Iterable<String> ciphers, final SslProvider sslProvider)
@@ -825,7 +827,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
     }
 
-    private SslContext buildSSLClientContext(final File _key, final File _cert, final File _trustedCerts,
+    /*private SslContext buildSSLClientContext(final File _key, final File _cert, final File _trustedCerts,
             final String pwd, final Iterable<String> ciphers, final SslProvider sslProvider) throws SSLException {
 
         final SslContextBuilder _sslClientContextBuilder = SslContextBuilder.forClient().ciphers(ciphers)
@@ -834,7 +836,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
         return buildSSLContext0(_sslClientContextBuilder);
 
-    }
+    }*/
 
     private SslContext buildSSLContext0(final SslContextBuilder sslContextBuilder) throws SSLException {
 
