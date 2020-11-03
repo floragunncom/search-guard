@@ -43,6 +43,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
@@ -51,7 +52,6 @@ import com.floragunn.searchguard.user.User;
 public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
     private static final String USER_TENANT = "__user__";
-    private static final String EMPTY_STRING = "";
 
     protected final Logger log = LogManager.getLogger(this.getClass());
 
@@ -59,8 +59,14 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         super(resolver, clusterService, client, threadPool);
     }
 
-    private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, SgRoles sgRoles,
+    private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, SgRoles sgRoles, ConfigModel configModel,
             final String requestedTenant) {
+        
+        if (!configModel.isTenantValid(requestedTenant)) {
+            log.warn("Invalid tenant: " + requestedTenant + "; user: " + user);
+
+            return false;
+        }
         
         TenantPermissions tenantPermissions = sgRoles.getTenantPermissions(user, requestedTenant);
         
@@ -90,7 +96,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
      */
     @Override
     public Boolean replaceKibanaIndex(final ActionRequest request, final String action, final User user, final DynamicConfigModel config,
-            final Resolved requestedResolved, SgRoles sgRoles) {
+            final Resolved requestedResolved, SgRoles sgRoles, ConfigModel configModel) {
 
         final boolean enabled = config.isKibanaMultitenancyEnabled();//config.dynamic.kibana.multitenancy_enabled;
 
@@ -116,15 +122,19 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                 log.trace("No tenant, will resolve to " + kibanaIndexName);
             }
             
-            if (kibanaIndexOnly && !isTenantAllowed(request, action, user, sgRoles, "SGS_GLOBAL_TENANT")) {
+            if (kibanaIndexOnly && !isTenantAllowed(request, action, user, sgRoles, configModel, "SGS_GLOBAL_TENANT")) {
                 return Boolean.TRUE;
             }
 
             return null;
         }
 
+        String requestedTenantForIndexName;
+        
         if (USER_TENANT.equals(requestedTenant)) {
-            requestedTenant = user.getName();
+            requestedTenantForIndexName = user.getName();
+        } else {
+            requestedTenantForIndexName = requestedTenant;
         }
 
         if (log.isDebugEnabled() && !user.getName().equals(kibanaserverUsername)) {
@@ -136,16 +146,16 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         if (!user.getName().equals(kibanaserverUsername) && requestedResolved.getAllIndices().size() == 1) {
 
             if (requestedResolved.getAliases().size() == 0) {
-                if (requestedResolved.getAllIndices().contains(toUserIndexName(kibanaIndexName, requestedTenant))) {
+                if (requestedResolved.getAllIndices().contains(toUserIndexName(kibanaIndexName, requestedTenantForIndexName))) {
 
-                    if (isTenantAllowed(request, action, user, sgRoles, requestedTenant)) {
+                    if (isTenantAllowed(request, action, user, sgRoles, configModel, requestedTenant)) {
                         return Boolean.FALSE;
                     }
                 }
             } else {
-                if (requestedResolved.getAliases().contains(toUserIndexName(kibanaIndexName, requestedTenant))) {
+                if (requestedResolved.getAliases().contains(toUserIndexName(kibanaIndexName, requestedTenantForIndexName))) {
 
-                    if (isTenantAllowed(request, action, user, sgRoles, requestedTenant)) {
+                    if (isTenantAllowed(request, action, user, sgRoles, configModel, requestedTenant)) {
                         return Boolean.FALSE;
                     }
                 }
@@ -157,10 +167,10 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
             if (log.isDebugEnabled()) {
                 log.debug("requestedTenant: " + requestedTenant);
-                log.debug("is user tenant: " + requestedTenant.equals(user.getName()));
+                log.debug("is user tenant: " + requestedTenantForIndexName.equals(user.getName()));
             }
 
-            if (!isTenantAllowed(request, action, user, sgRoles, requestedTenant)) {
+            if (!isTenantAllowed(request, action, user, sgRoles, configModel, requestedTenant)) {
                 return Boolean.TRUE;
             }
 
@@ -168,7 +178,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             // regular tenant
             // to avoid security issue
 
-            replaceIndex(request, kibanaIndexName, toUserIndexName(kibanaIndexName, requestedTenant), action);
+            replaceIndex(request, kibanaIndexName, toUserIndexName(kibanaIndexName, requestedTenantForIndexName), action);
             return Boolean.FALSE;
 
         } else if (!user.getName().equals(kibanaserverUsername)) {
@@ -284,7 +294,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             throw new ElasticsearchException("tenant must not be null here");
         }
 
-        return originalKibanaIndex + "_" + tenant.hashCode() + "_" + tenant.toLowerCase().replaceAll("[^a-z0-9]+", EMPTY_STRING);
+        return originalKibanaIndex + "_" + tenant.hashCode() + "_" + tenant.toLowerCase().replaceAll("[^a-z0-9]+", "");
     }
 
     private boolean resolveToKibanaIndexOrAlias(final Resolved requestedResolved, final String kibanaIndexName) {
