@@ -14,8 +14,6 @@
 
 package com.floragunn.searchguard.configuration;
 
-import java.util.Map;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -46,6 +44,8 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.DynamicConfigModel;
+import com.floragunn.searchguard.sgconf.SgRoles;
+import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
 import com.floragunn.searchguard.user.User;
 
 public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
@@ -59,10 +59,12 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         super(resolver, clusterService, client, threadPool);
     }
 
-    private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, final Map<String, Boolean> tenants,
+    private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, SgRoles sgRoles,
             final String requestedTenant) {
-
-        if (!tenants.keySet().contains(requestedTenant)) {
+        
+        TenantPermissions tenantPermissions = sgRoles.getTenantPermissions(user, requestedTenant);
+        
+        if (!tenantPermissions.isReadPermitted()) {
             log.warn("Tenant {} is not allowed for user {}", requestedTenant, user.getName());
             return false;
         } else {
@@ -71,7 +73,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                 log.debug("request " + request.getClass());
             }
 
-            if (tenants.get(requestedTenant) == Boolean.FALSE && action.startsWith("indices:data/write")) {
+            if (!tenantPermissions.isWritePermitted() && action.startsWith("indices:data/write")) {
                 log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, user.getName());
                 return false;
             }
@@ -88,7 +90,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
      */
     @Override
     public Boolean replaceKibanaIndex(final ActionRequest request, final String action, final User user, final DynamicConfigModel config,
-            final Resolved requestedResolved, final Map<String, Boolean> tenants) {
+            final Resolved requestedResolved, SgRoles sgRoles) {
 
         final boolean enabled = config.isKibanaMultitenancyEnabled();//config.dynamic.kibana.multitenancy_enabled;
 
@@ -114,7 +116,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                 log.trace("No tenant, will resolve to " + kibanaIndexName);
             }
             
-            if (kibanaIndexOnly && !isTenantAllowed(request, action, user, tenants, "SGS_GLOBAL_TENANT")) {
+            if (kibanaIndexOnly && !isTenantAllowed(request, action, user, sgRoles, "SGS_GLOBAL_TENANT")) {
                 return Boolean.TRUE;
             }
 
@@ -136,14 +138,14 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             if (requestedResolved.getAliases().size() == 0) {
                 if (requestedResolved.getAllIndices().contains(toUserIndexName(kibanaIndexName, requestedTenant))) {
 
-                    if (isTenantAllowed(request, action, user, tenants, requestedTenant)) {
+                    if (isTenantAllowed(request, action, user, sgRoles, requestedTenant)) {
                         return Boolean.FALSE;
                     }
                 }
             } else {
                 if (requestedResolved.getAliases().contains(toUserIndexName(kibanaIndexName, requestedTenant))) {
 
-                    if (isTenantAllowed(request, action, user, tenants, requestedTenant)) {
+                    if (isTenantAllowed(request, action, user, sgRoles, requestedTenant)) {
                         return Boolean.FALSE;
                     }
                 }
@@ -158,7 +160,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                 log.debug("is user tenant: " + requestedTenant.equals(user.getName()));
             }
 
-            if (!isTenantAllowed(request, action, user, tenants, requestedTenant)) {
+            if (!isTenantAllowed(request, action, user, sgRoles, requestedTenant)) {
                 return Boolean.TRUE;
             }
 

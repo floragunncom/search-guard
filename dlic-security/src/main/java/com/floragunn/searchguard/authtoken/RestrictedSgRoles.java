@@ -2,6 +2,7 @@ package com.floragunn.searchguard.authtoken;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -134,6 +135,61 @@ public class RestrictedSgRoles extends SgRoles {
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public TenantPermissions getTenantPermissions(User user, String requestedTenant) {
+        TenantPermissions restricted = restrictionSgRoles.getTenantPermissions(user, requestedTenant);
+        TenantPermissions base = this.base.getTenantPermissions(user, requestedTenant);
+
+        return new TenantPermissions() {
+
+            @Override
+            public boolean isWritePermitted() {
+                return restricted.isWritePermitted() && base.isWritePermitted();
+            }
+
+            @Override
+            public boolean isReadPermitted() {
+                return restricted.isReadPermitted() && base.isReadPermitted();
+            }
+
+            @Override
+            public Set<String> getPermissions() {
+                return Sets.intersection(restricted.getPermissions(), base.getPermissions());
+            }
+        };
+    }
+
+    @Override
+    public boolean hasTenantPermission(User user, String requestedTenant, String action) {
+        boolean restrictedPermission = restrictionSgRoles.hasTenantPermission(user, requestedTenant, action);
+        
+        if (!restrictedPermission) {
+            return false;
+        }
+        
+        boolean basePermission = base.hasTenantPermission(user, requestedTenant, action);
+        
+        return restrictedPermission && basePermission;
+    }
+
+    @Override
+    public Map<String, Boolean> mapTenants(User user, Set<String> tenantNames) {
+        Map<String, Boolean> restricted = restrictionSgRoles.mapTenants(user, tenantNames);
+        Map<String, Boolean> base = this.base.mapTenants(user, tenantNames);
+        
+        HashMap<String, Boolean> result = new HashMap<>(base.size());
+        
+        for (Map.Entry<String, Boolean> entry : base.entrySet()) {
+            Boolean restrictedBoolean = restricted.get(entry.getKey());
+            
+            if (restrictedBoolean != null) {
+                result.put(entry.getKey(), restrictedBoolean.booleanValue() && entry.getValue());
+            } 
+        }
+
+        return result;
     }
 
 }
