@@ -1,5 +1,6 @@
 package com.floragunn.searchguard.authtoken.api;
 
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
@@ -10,6 +11,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.authtoken.AuthTokenService;
+import com.floragunn.searchguard.authtoken.TokenCreationException;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
@@ -42,6 +44,8 @@ public class TransportCreateAuthTokenAction extends HandledTransportAction<Creat
         threadPool.generic().submit(() -> {
             try {
                 listener.onResponse(authTokenService.createJwt(user, request));
+            } catch (TokenCreationException e) {
+                listener.onFailure(new ElasticsearchStatusException(e.getMessage(), e.getRestStatus(), e));
             } catch (Exception e) {
                 listener.onFailure(e);
             }

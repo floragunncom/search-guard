@@ -35,6 +35,7 @@ public class AuthTokenServiceConfig {
     private TemporalAmount maxValidity;
     private List<String> excludeClusterPermissions;
     private List<RequestedPrivileges.ExcludedIndexPermissions> excludeIndexPermissions;
+    private int maxTokensPerUser;
 
     public boolean isEnabled() {
         return enabled;
@@ -119,6 +120,8 @@ public class AuthTokenServiceConfig {
 
             result.excludeClusterPermissions = vJsonNode.stringList("exclude_cluster_permissions", Arrays.asList(CreateAuthTokenAction.NAME));
             result.excludeIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);
+            
+            result.maxTokensPerUser = vJsonNode.intNumber("max_tokens_per_user", 1000);
             
             // TODO create test JWT for more thorough validation (some things are only checked then)
         }
@@ -256,5 +259,13 @@ public class AuthTokenServiceConfig {
             return "A Base64URL encoded A256KW key with at least 256 bit (32 bytes, 43 Base64 encoded characters)";
         }
     };
+
+    public int getMaxTokensPerUser() {
+        return maxTokensPerUser;
+    }
+
+    public void setMaxTokensPerUser(int maxTokensPerUser) {
+        this.maxTokensPerUser = maxTokensPerUser;
+    }
 
 }
