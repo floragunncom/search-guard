@@ -74,6 +74,7 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
     private AuthTokenProcessorHandler authTokenProcessorHandler;
     private HTTPJwtAuthenticator httpJwtAuthenticator;
     private Settings jwtSettings;
+    private boolean checkIssuer;
 
     public HTTPSamlAuthenticator(final Settings settings, final Path configPath) {
         try {
@@ -87,6 +88,7 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
             spSignatureAlgorithm = settings.get("sp.signature_algorithm", Constants.RSA_SHA256);
             spSignaturePrivateKey = getSpSignaturePrivateKey(settings, configPath);
             useForceAuthn = settings.getAsBoolean("sp.forceAuthn", null);
+            checkIssuer = settings.getAsBoolean("check_issuer", Boolean.TRUE);
 
             if (rolesKey == null || rolesKey.length() == 0) {
                 log.warn("roles_key is not configured, will only extract subject from SAML");
@@ -158,7 +160,7 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
             if ("/_searchguard/api/authtoken".equals(restRequest.path())) {
                 String samlResponseBase64 = this.authTokenProcessorHandler.getSamlResponseBase64(restRequest);
                 
-                if (!this.authTokenProcessorHandler.isResponseFromConfiguredEntity(samlResponseBase64)) {
+                if (checkIssuer && !this.authTokenProcessorHandler.isResponseFromConfiguredEntity(samlResponseBase64)) {
                     return false;
                 }
                 
