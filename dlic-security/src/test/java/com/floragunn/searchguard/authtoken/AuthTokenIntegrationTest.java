@@ -45,6 +45,7 @@ public class AuthTokenIntegrationTest {
                     "      jwt_signing_key_hs512: \"" + TestJwk.OCT_1_K + "\"\n" + //
                     "      jwt_aud: \"searchguard_tokenauth\"\n" + //
                     "      max_validity: \"1y\"\n" + //
+                    "      max_tokens_per_user: 10\n" + //
                     "    authc:\n" + //
                     "      authentication_domain_basic_internal:\n" + //
                     "        http_enabled: true\n" + //
@@ -158,6 +159,31 @@ public class AuthTokenIntegrationTest {
             }
         }
 
+    }
+
+    @Test
+    public void maxTokenCountTest() throws Exception {
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));
+
+        request.setTokenName("my_new_token");
+
+        Header auth = basicAuth("spock", "spock");
+
+        for (int i = 0; i < 10; i++) {
+
+            HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+            Assert.assertEquals(200, response.getStatusCode());
+        }
+
+        HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+        System.out.println(response.getBody());
+
+        Assert.assertEquals(403, response.getStatusCode());
+        Assert.assertEquals("Cannot create token. Token limit per user exceeded. Max number of allowed tokens is 10",
+                response.toJsonNode().at("/error/root_cause/0/reason").textValue());
     }
 
     @Test
@@ -503,13 +529,10 @@ public class AuthTokenIntegrationTest {
                         "      enabled: true\n" + //
                         "      jwt_signing_key: \n" + //
                         "        kty: EC\n" + // 
-                        "        d: \"1nlQeqOq48OPWiDkmOIXLF_XBWUe9LSznBvWzPI4Ggo\"\n" + 
-                        "        use: sig\n" + 
-                        "        crv: P-256\n" + 
-                        "        x: \"lBybOJZyK6r8Nx54Jn4cKoDUZgyOdLlsQ2EHk-7LStk\"\n" + 
-                        "        y: \"BwSiCmlnS1CDetg_iuxBZKkh6VTMrra0aIT9dBeoCZU\"\n" + 
-                        "        alg: ES256\n" + 
-                        "      jwt_aud: \"searchguard_tokenauth\"\n" + //
+                        "        d: \"1nlQeqOq48OPWiDkmOIXLF_XBWUe9LSznBvWzPI4Ggo\"\n" + "        use: sig\n" + "        crv: P-256\n"
+                        + "        x: \"lBybOJZyK6r8Nx54Jn4cKoDUZgyOdLlsQ2EHk-7LStk\"\n"
+                        + "        y: \"BwSiCmlnS1CDetg_iuxBZKkh6VTMrra0aIT9dBeoCZU\"\n" + "        alg: ES256\n"
+                        + "      jwt_aud: \"searchguard_tokenauth\"\n" + //
                         "      max_validity: \"1y\"\n" + //
                         "    authc:\n" + //
                         "      authentication_domain_basic_internal:\n" + //
@@ -567,8 +590,7 @@ public class AuthTokenIntegrationTest {
             String token = response.toJsonNode().get("token").asText();
             Assert.assertNotNull(token);
             Assert.assertEquals("ES256", getJwtHeaderValue(token, "alg"));
-            Assert.assertTrue(getJwtPayload(token),
-                    getJwtPayload(token).contains("spock"));
+            Assert.assertTrue(getJwtPayload(token), getJwtPayload(token).contains("spock"));
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
                 SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
@@ -606,7 +628,6 @@ public class AuthTokenIntegrationTest {
         }
     }
 
-    
     private static String getJwtHeaderValue(String jwt, String headerName) throws IOException {
         int p = jwt.indexOf('.');
         String headerBase4 = jwt.substring(0, p);

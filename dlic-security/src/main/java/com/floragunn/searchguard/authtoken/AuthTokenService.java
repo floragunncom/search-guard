@@ -53,6 +53,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -114,6 +115,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private AtomicLong authTokenHash = new AtomicLong(0);
     private AtomicLong authTokenRevocationHash = new AtomicLong(0);
     private AtomicBoolean reloadingInProgress = new AtomicBoolean(false);
+    private long maxTokensPerUser = 1000;
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
             ThreadPool threadPool, ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService,
@@ -176,7 +178,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     public AuthToken create(User user, CreateAuthTokenRequest request) throws TokenCreationException {
         if (config == null || !config.isEnabled()) {
-            throw new TokenCreationException("Auth token handling is not enabled");
+            throw new TokenCreationException("Auth token handling is not enabled", RestStatus.INTERNAL_SERVER_ERROR);
         }
 
         String id = getRandomId();
@@ -196,7 +198,20 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (base.getBackendRoles().size() == 0 && base.getSearchGuardRoles().size() == 0) {
             throw new TokenCreationException(
                     "Cannot create token. The resulting token would have no privileges as the specified roles do not intersect with the user's roles. Specified: "
-                            + request.getRequestedPrivileges().getRoles() + " User: " + user.getRoles() + " + " + user.getSearchGuardRoles());
+                            + request.getRequestedPrivileges().getRoles() + " User: " + user.getRoles() + " + " + user.getSearchGuardRoles(),
+                    RestStatus.BAD_REQUEST);
+        }
+
+        if (maxTokensPerUser == 0) {
+            throw new TokenCreationException("Cannot create token. max_tokens_per_user is set to 0", RestStatus.FORBIDDEN);
+        } else if (maxTokensPerUser > 0) {
+            long existingTokenCount = countAuthTokensOfUser(user);
+
+            if (existingTokenCount + 1 > maxTokensPerUser) {
+                throw new TokenCreationException(
+                        "Cannot create token. Token limit per user exceeded. Max number of allowed tokens is " + maxTokensPerUser,
+                        RestStatus.FORBIDDEN);
+            }
         }
 
         OffsetDateTime now = OffsetDateTime.now().withNano(0);
@@ -212,7 +227,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         try {
             updateAuthToken(authToken, UpdateType.NEW);
         } catch (Exception e) {
-            throw new TokenCreationException("Error while creating token", e);
+            throw new TokenCreationException("Error while creating token", RestStatus.INTERNAL_SERVER_ERROR, e);
         }
 
         return authToken;
@@ -221,7 +236,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     public CreateAuthTokenResponse createJwt(User user, CreateAuthTokenRequest request) throws TokenCreationException {
 
         if (jwtProducer == null) {
-            throw new TokenCreationException("AuthTokenProvider is not configured");
+            throw new TokenCreationException("AuthTokenProvider is not configured", RestStatus.INTERNAL_SERVER_ERROR);
         }
 
         AuthToken authToken = create(user, request);
@@ -247,7 +262,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             encodedJwt = this.jwtProducer.processJwt(jwt);
         } catch (Exception e) {
             log.error("Error while creating JWT. Possibly the key configuration is not valid.", e);
-            throw new TokenCreationException("Error while creating JWT. Possibly the key configuration is not valid.", e);
+            throw new TokenCreationException("Error while creating JWT. Possibly the key configuration is not valid.",
+                    RestStatus.INTERNAL_SERVER_ERROR, e);
         }
         return new CreateAuthTokenResponse(authToken, encodedJwt);
     }
@@ -303,6 +319,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         this.config = config;
         this.jwtAudience = config.getJwtAud();
+        this.maxTokensPerUser = config.getMaxTokensPerUser();
 
         setKeys(config.getJwtSigningKey(), config.getJwtEncryptionKey());
     }
@@ -621,6 +638,16 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         }
 
         return null;
+    }
+
+    private long countAuthTokensOfUser(User user) {
+
+        SearchRequest searchRequest = new SearchRequest(getIndexName())
+                .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("user_name", user.getName())).size(0));
+
+        SearchResponse searchResponse = privilegedConfigClient.search(searchRequest).actionGet();
+
+        return searchResponse.getHits().getTotalHits().value;
     }
 
     private OffsetDateTime getExpiryTime(OffsetDateTime now, CreateAuthTokenRequest request) {
