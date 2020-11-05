@@ -38,8 +38,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
-import inet.ipaddr.IPAddressString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -53,6 +51,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
+import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v6.ActionGroupsV6;
@@ -69,6 +68,8 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder.SetMultimapBuilder;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
+
+import inet.ipaddr.IPAddress;
 
 public class ConfigModelV6 extends ConfigModel {
 
@@ -133,7 +134,7 @@ public class ConfigModelV6 extends ConfigModel {
     }
 
     @Override
-    public List<ClientBlockRegistry<IPAddressString>> getBlockedNetmasks() {
+    public List<ClientBlockRegistry<IPAddress>> getBlockedNetmasks() {
         return Collections.emptyList();
     }
 

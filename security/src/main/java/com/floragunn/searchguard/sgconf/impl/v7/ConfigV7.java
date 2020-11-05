@@ -235,6 +235,7 @@ public class ConfigV7 {
         public AuthcBackend authentication_backend = new AuthcBackend();
         public String description;
         public List<String> skip_users = new ArrayList<>();
+        public List<String> enabled_only_for_hosts;
 
         public AuthcDomain() {
             super();
