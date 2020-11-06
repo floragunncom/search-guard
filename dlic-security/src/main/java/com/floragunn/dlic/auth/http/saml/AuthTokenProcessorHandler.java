@@ -15,6 +15,7 @@
 package com.floragunn.dlic.auth.http.saml;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.AccessController;
@@ -51,6 +52,8 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 import org.joda.time.DateTime;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -85,8 +88,7 @@ class AuthTokenProcessorHandler {
     private JsonWebKey signingKey;
     private JsonMapObjectReaderWriter jsonMapReaderWriter = new JsonMapObjectReaderWriter();
 
-    AuthTokenProcessorHandler(Settings settings, Settings jwtSettings, Saml2SettingsProvider saml2SettingsProvider)
-            throws Exception {
+    AuthTokenProcessorHandler(Settings settings, Settings jwtSettings, Saml2SettingsProvider saml2SettingsProvider) throws Exception {
         this.saml2SettingsProvider = saml2SettingsProvider;
 
         this.jwtRolesKey = jwtSettings.get("roles_key", "roles");
@@ -130,8 +132,8 @@ class AuthTokenProcessorHandler {
 
             return AccessController.doPrivileged(new PrivilegedExceptionAction<Boolean>() {
                 @Override
-                public Boolean run() throws XPathExpressionException, SamlConfigException, IOException,
-                        ParserConfigurationException, SAXException, SettingsException {
+                public Boolean run() throws XPathExpressionException, SamlConfigException, IOException, ParserConfigurationException, SAXException,
+                        SettingsException {
                     return handleLowLevel(restRequest, restChannel);
                 }
             });
@@ -144,18 +146,14 @@ class AuthTokenProcessorHandler {
         }
     }
 
-    private AuthTokenProcessorAction.Response handleImpl(RestRequest restRequest, RestChannel restChannel,
-            String samlResponseBase64, String samlRequestId, String acsEndpoint, Saml2Settings saml2Settings)
-            throws XPathExpressionException, ParserConfigurationException, SAXException, IOException,
-            SettingsException {
+    private AuthTokenProcessorAction.Response handleImpl(RestRequest restRequest, RestChannel restChannel, String samlResponseBase64,
+            String samlRequestId, String acsEndpoint, Saml2Settings saml2Settings)
+            throws XPathExpressionException, ParserConfigurationException, SAXException, IOException, SettingsException {
         if (token_log.isDebugEnabled()) {
             try {
-                token_log.debug("SAMLResponse for " + samlRequestId + "\n"
-                        + new String(Util.base64decoder(samlResponseBase64), "UTF-8"));
+                token_log.debug("SAMLResponse for " + samlRequestId + "\n" + new String(Util.base64decoder(samlResponseBase64), "UTF-8"));
             } catch (Exception e) {
-                token_log.warn(
-                        "SAMLResponse for " + samlRequestId + " cannot be decoded from base64\n" + samlResponseBase64,
-                        e);
+                token_log.warn("SAMLResponse for " + samlRequestId + " cannot be decoded from base64\n" + samlResponseBase64, e);
             }
         }
 
@@ -181,20 +179,18 @@ class AuthTokenProcessorHandler {
         }
     }
 
-    private boolean handleLowLevel(RestRequest restRequest, RestChannel restChannel) throws SamlConfigException,
-            IOException, XPathExpressionException, ParserConfigurationException, SAXException, SettingsException {
+    private boolean handleLowLevel(RestRequest restRequest, RestChannel restChannel)
+            throws SamlConfigException, IOException, XPathExpressionException, ParserConfigurationException, SAXException, SettingsException {
         try {
 
             if (restRequest.getXContentType() != XContentType.JSON) {
-                throw new ElasticsearchSecurityException(
-                        "/_searchguard/api/authtoken expects content with type application/json",
+                throw new ElasticsearchSecurityException("/_searchguard/api/authtoken expects content with type application/json",
                         RestStatus.UNSUPPORTED_MEDIA_TYPE);
 
             }
 
             if (restRequest.method() != Method.POST) {
-                throw new ElasticsearchSecurityException("/_searchguard/api/authtoken expects POST requests",
-                        RestStatus.METHOD_NOT_ALLOWED);
+                throw new ElasticsearchSecurityException("/_searchguard/api/authtoken expects POST requests", RestStatus.METHOD_NOT_ALLOWED);
             }
 
             Saml2Settings saml2Settings = this.saml2SettingsProvider.getCached();
@@ -210,24 +206,20 @@ class AuthTokenProcessorHandler {
             if (((ObjectNode) jsonRoot).get("SAMLResponse") == null) {
                 log.warn("SAMLResponse is missing from request ");
 
-                throw new ElasticsearchSecurityException("SAMLResponse is missing from request",
-                        RestStatus.BAD_REQUEST);
+                throw new ElasticsearchSecurityException("SAMLResponse is missing from request", RestStatus.BAD_REQUEST);
 
             }
 
             String samlResponseBase64 = ((ObjectNode) jsonRoot).get("SAMLResponse").asText();
-            String samlRequestId = ((ObjectNode) jsonRoot).get("RequestId") != null
-                    ? ((ObjectNode) jsonRoot).get("RequestId").textValue()
-                    : null;
+            String samlRequestId = ((ObjectNode) jsonRoot).get("RequestId") != null ? ((ObjectNode) jsonRoot).get("RequestId").textValue() : null;
             String acsEndpoint = saml2Settings.getSpAssertionConsumerServiceUrl().toString();
 
-            if (((ObjectNode) jsonRoot).get("acsEndpoint") != null
-                    && ((ObjectNode) jsonRoot).get("acsEndpoint").textValue() != null) {
+            if (((ObjectNode) jsonRoot).get("acsEndpoint") != null && ((ObjectNode) jsonRoot).get("acsEndpoint").textValue() != null) {
                 acsEndpoint = getAbsoluteAcsEndpoint(((ObjectNode) jsonRoot).get("acsEndpoint").textValue());
             }
 
-            AuthTokenProcessorAction.Response responseBody = this.handleImpl(restRequest, restChannel,
-                    samlResponseBase64, samlRequestId, acsEndpoint, saml2Settings);
+            AuthTokenProcessorAction.Response responseBody = this.handleImpl(restRequest, restChannel, samlResponseBase64, samlRequestId, acsEndpoint,
+                    saml2Settings);
 
             if (responseBody == null) {
                 return false;
@@ -235,16 +227,14 @@ class AuthTokenProcessorHandler {
 
             String responseBodyString = DefaultObjectMapper.objectMapper.writeValueAsString(responseBody);
 
-            BytesRestResponse authenticateResponse = new BytesRestResponse(RestStatus.OK, "application/json",
-                    responseBodyString);
+            BytesRestResponse authenticateResponse = new BytesRestResponse(RestStatus.OK, "application/json", responseBodyString);
             restChannel.sendResponse(authenticateResponse);
 
             return true;
         } catch (JsonProcessingException e) {
             log.warn("Error while parsing JSON for /_searchguard/api/authtoken", e);
 
-            BytesRestResponse authenticateResponse = new BytesRestResponse(RestStatus.BAD_REQUEST,
-                    "JSON could not be parsed");
+            BytesRestResponse authenticateResponse = new BytesRestResponse(RestStatus.BAD_REQUEST, "JSON could not be parsed");
             restChannel.sendResponse(authenticateResponse);
             return true;
         }
@@ -269,8 +259,7 @@ class AuthTokenProcessorHandler {
             Settings jwkSettings = jwtSettings.getAsSettings("key");
 
             if (jwkSettings.isEmpty()) {
-                throw new Exception(
-                        "Settings for key exchange missing. Please specify at least the option exchange_key with a shared secret.");
+                throw new Exception("Settings for key exchange missing. Please specify at least the option exchange_key with a shared secret.");
             }
 
             JsonWebKey jwk = new JsonWebKey();
@@ -331,8 +320,7 @@ class AuthTokenProcessorHandler {
             if (sessionNotOnOrAfter != null) {
                 return sessionNotOnOrAfter.getMillis() / 1000 + this.expiryOffset;
             } else {
-                throw new Exception(
-                        "Error while determining JWT expiration time: SamlResponse did not contain sessionNotOnOrAfter value");
+                throw new Exception("Error while determining JWT expiration time: SamlResponse did not contain sessionNotOnOrAfter value");
             }
         } else {
             // AUTO
@@ -444,7 +432,7 @@ class AuthTokenProcessorHandler {
     private String getAbsoluteAcsEndpoint(String acsEndpoint) {
         try {
             URI acsEndpointUri = new URI(acsEndpoint);
-            
+
             if (acsEndpointUri.isAbsolute()) {
                 return acsEndpoint;
             } else {
@@ -455,7 +443,7 @@ class AuthTokenProcessorHandler {
             return acsEndpoint;
         }
     }
-    
+
     private enum ExpiryBaseValue {
         AUTO, NOW, SESSION
     }
@@ -463,4 +451,92 @@ class AuthTokenProcessorHandler {
     public JsonWebKey getSigningKey() {
         return signingKey;
     }
+
+    String getSamlResponseBase64(RestRequest restRequest) {
+        try {
+            BytesReference bytesReference = restRequest.requiredContent();
+
+            JsonNode jsonRoot = AccessController.doPrivileged(
+                    (PrivilegedExceptionAction<JsonNode>) () -> DefaultObjectMapper.objectMapper.readTree(BytesReference.toBytes(bytesReference)));
+
+            if (!(jsonRoot instanceof ObjectNode)) {
+                throw new ElasticsearchSecurityException("Unexpected json format: " + jsonRoot, RestStatus.BAD_REQUEST);
+            }
+
+            if (((ObjectNode) jsonRoot).get("SAMLResponse") == null) {
+                log.warn("SAMLResponse is missing from request ");
+
+                throw new ElasticsearchSecurityException("SAMLResponse is missing from request", RestStatus.BAD_REQUEST);
+
+            }
+
+            return jsonRoot.get("SAMLResponse").textValue();
+
+        } catch (PrivilegedActionException e) {
+            throw new ElasticsearchSecurityException("Bad Request: " + e, RestStatus.BAD_REQUEST);
+        }
+    }
+
+    boolean isResponseFromConfiguredEntity(String samlResponseBase64) throws SamlConfigException {
+        try {
+            final SecurityManager sm = System.getSecurityManager();
+
+            if (sm != null) {
+                sm.checkPermission(new SpecialPermission());
+            }
+
+            return AccessController
+                    .doPrivileged((PrivilegedExceptionAction<Boolean>) () -> this.isResponseFromConfiguredEntityImpl(samlResponseBase64));
+        } catch (PrivilegedActionException e) {
+            if (e.getCause() instanceof SamlConfigException) {
+                throw (SamlConfigException) e.getCause();
+            } else {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private boolean isResponseFromConfiguredEntityImpl(String samlResponseBase64) throws SamlConfigException {
+        try {
+            Document samlResponseDocument = Util.loadXML(new String(Util.base64decoder(samlResponseBase64), "UTF-8"));
+            Saml2Settings saml2Settings = this.saml2SettingsProvider.getCached();
+
+            String issuer = getIssuer(samlResponseDocument);
+
+            if (log.isDebugEnabled()) {
+                log.debug("Checking SAML response issuer:\nIssuer: " + issuer + "\nExpected: " + saml2Settings.getIdpEntityId());
+            }
+            
+            if (issuer == null) {
+                // If we have no issuer information, assume true to proceed
+                return true;
+            } else {
+
+                return issuer.equals(saml2Settings.getIdpEntityId());
+            }
+
+        } catch (UnsupportedEncodingException e) {
+            log.error("Error in isResponseFromConfiguredEntity()", e);
+            return false;
+        }
+    }
+
+    private String getIssuer(Document samlResponseDocument) {
+
+        try {
+            NodeList issuerNodeList = Util.query(samlResponseDocument, "/samlp:Response/saml:Issuer");
+
+            if (issuerNodeList.getLength() >= 1) {
+                return issuerNodeList.item(0).getTextContent();
+            } else {
+                log.warn("SAMLResponse does not contain issuer: " + samlResponseDocument);
+                return null;
+            }
+        } catch (XPathExpressionException e) {
+            log.error("Error in getIssuer()", e);
+            return null;
+        }
+
+    }
+
 }
