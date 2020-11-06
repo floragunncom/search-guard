@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.test;
 
+import java.net.InetAddress;
+
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.After;
@@ -91,6 +93,12 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
         return new RestHelper(clusterInfo, getResourceFolder());
     }
 
+    protected RestHelper restHelper(InetAddress bindAddress) {
+        RestHelper result = new RestHelper(clusterInfo, getResourceFolder());
+        result.setLocalAddress(bindAddress);
+        return result;
+    }
+    
     protected RestHelper restHelper(GenericSSLConfig sslConfig) {
         RestHelper result = new RestHelper(clusterInfo, getResourceFolder());
         result.setSslConfig(sslConfig);
@@ -112,6 +120,12 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
 
     protected RestHelper nonSslRestHelper() {
         return new RestHelper(clusterInfo, false, false, getResourceFolder());
+    }
+    
+    protected RestHelper nonSslRestHelper(InetAddress bindAddress) {
+        RestHelper result = new RestHelper(clusterInfo, false, false, getResourceFolder());
+        result.setLocalAddress(bindAddress);
+        return result;
     }
     
     protected TransportClient getInternalTransportClient() {

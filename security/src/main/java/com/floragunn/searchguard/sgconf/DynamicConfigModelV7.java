@@ -29,6 +29,7 @@ import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.Authc;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.AuthcDomain;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.Authz;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.AuthzDomain;
+import com.floragunn.searchguard.support.IPAddressCollection;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
@@ -257,8 +258,14 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
                                 configPath);
                     }
 
+                    IPAddressCollection enabledOnlyForHosts = null;
+                    
+                    if (ad.getValue().enabled_only_for_hosts != null && ad.getValue().enabled_only_for_hosts.size() > 0) {
+                        enabledOnlyForHosts = IPAddressCollection.create(ad.getValue().enabled_only_for_hosts);
+                    }
+                    
                     final AuthenticationDomain _ad = new AuthenticationDomain(authenticationBackend, httpAuthenticator,
-                            ad.getValue().http_authenticator.challenge, ad.getValue().order, ad.getValue().skip_users);
+                            ad.getValue().http_authenticator.challenge, ad.getValue().order, ad.getValue().skip_users, enabledOnlyForHosts);
 
                     if (httpEnabled && _ad.getHttpAuthenticator() != null) {
                         restAuthenticationDomains0.add(_ad);

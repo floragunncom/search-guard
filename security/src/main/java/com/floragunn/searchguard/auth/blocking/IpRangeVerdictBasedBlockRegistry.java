@@ -1,20 +1,20 @@
 package com.floragunn.searchguard.auth.blocking;
 
-import inet.ipaddr.IPAddressString;
-
 import java.util.Collection;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-public class IpRangeVerdictBasedBlockRegistry extends VerdictBasedBlockRegistry<IPAddressString> {
+import inet.ipaddr.IPAddress;
 
-    public IpRangeVerdictBasedBlockRegistry(Set<IPAddressString> allows, Set<IPAddressString> disallows) {
-        super(IPAddressString.class, allows, disallows);
+public class IpRangeVerdictBasedBlockRegistry extends VerdictBasedBlockRegistry<IPAddress> {
+
+    public IpRangeVerdictBasedBlockRegistry(Set<IPAddress> allows, Set<IPAddress> disallows) {
+        super(IPAddress.class, allows, disallows);
     }
 
     @Override
-    protected Function<IPAddressString, Predicate<Collection<IPAddressString>>> check() {
+    protected Function<IPAddress, Predicate<Collection<IPAddress>>> check() {
         return ip -> nets -> nets.stream().anyMatch(net -> net.contains(ip));
     }
 }

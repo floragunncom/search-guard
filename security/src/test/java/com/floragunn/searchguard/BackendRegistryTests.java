@@ -3,6 +3,9 @@ package com.floragunn.searchguard;
 import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.SingleClusterTest;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
+
+import java.net.InetAddress;
+
 import org.apache.http.HttpStatus;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
@@ -75,5 +78,25 @@ public class BackendRegistryTests extends SingleClusterTest {
         // This request should fail due to a IP blocking
         RestHelper.HttpResponse resc = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("any_name", "any_password"));
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, resc.getStatusCode());
+    }
+    
+    @Test
+    public void testEnabledOnlyForHosts() throws Exception {
+        setup(Settings.EMPTY, new DynamicSgConfig()
+                .setSgInternalUsers("sg_internal_users_sgr.yml")
+                .setSgConfig("sg_config_auth_domains_with_disabled_ips.yml"), Settings.EMPTY, true);
+
+        RestHelper rh002 = nonSslRestHelper(InetAddress.getByName("127.0.0.2"));
+        RestHelper rh003 = nonSslRestHelper(InetAddress.getByName("127.0.0.3"));
+
+        RestHelper.HttpResponse resc = rh002.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("any_name", "any_password"));
+        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
+
+        resc = rh003.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("any_name", "any_password"));
+        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, resc.getStatusCode());
+        
+        resc = rh003.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("sgr_user", "nagilum"));
+        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
+        Assert.assertTrue(resc.getBody(), resc.getBody().contains("backend_roles=[abc_ber]"));
     }
 }

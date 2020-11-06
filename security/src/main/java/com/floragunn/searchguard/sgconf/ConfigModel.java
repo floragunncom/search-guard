@@ -22,11 +22,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
-import inet.ipaddr.IPAddressString;
 import org.elasticsearch.common.transport.TransportAddress;
 
+import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.user.User;
+
+import inet.ipaddr.IPAddress;
 
 public abstract class ConfigModel {
     
@@ -48,7 +49,7 @@ public abstract class ConfigModel {
 
     public abstract List<ClientBlockRegistry<String>> getBlockedUsers();
 
-    public abstract List<ClientBlockRegistry<IPAddressString>> getBlockedNetmasks();
+    public abstract List<ClientBlockRegistry<IPAddress>> getBlockedNetmasks();
 
     public interface ActionGroupResolver {
         Set<String> resolvedActions(final List<String> actions);
