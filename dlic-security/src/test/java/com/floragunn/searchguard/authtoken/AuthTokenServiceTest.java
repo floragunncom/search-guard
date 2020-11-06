@@ -45,18 +45,6 @@ public class AuthTokenServiceTest {
             .disableModule(AuthTokenModule.class).build();
 
     @BeforeClass
-    public static void setupTestData() {
-        /*
-        try (Client client = cluster.getInternalClient()) {
-            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
-                    .actionGet();
-            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
-                    .actionGet();
-        }
-        */
-    }
-
-    @BeforeClass
     public static void setupDependencies() {
         configurationRepository = cluster.getInjectable(ConfigurationRepository.class);
         dynamicConfigFactory = cluster.getInjectable(DynamicConfigFactory.class);
@@ -75,6 +63,7 @@ public class AuthTokenServiceTest {
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
+        config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
@@ -122,6 +111,7 @@ public class AuthTokenServiceTest {
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
+        config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
@@ -168,6 +158,7 @@ public class AuthTokenServiceTest {
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
+        config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
@@ -229,6 +220,7 @@ public class AuthTokenServiceTest {
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
+        config.setMaxTokensPerUser(100);
 
         Settings authTokenServiceSettings = Settings.builder().put(AuthTokenService.CLEANUP_INTERVAL.getKey(), TimeValue.timeValueSeconds(1)).build();
 
