@@ -46,7 +46,7 @@ public class AuthTokenProcessorAction extends AbstractApiAction {
     public AuthTokenProcessorAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
             final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor,
             final PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog);
+        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, evaluator, null, threadPool, auditLog);
     }
 
     @Override

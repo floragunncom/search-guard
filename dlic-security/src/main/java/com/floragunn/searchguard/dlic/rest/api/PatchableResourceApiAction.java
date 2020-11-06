@@ -53,6 +53,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -64,8 +65,10 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
     public PatchableResourceApiAction(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDNs,
             ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
-            PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog);
+            PrivilegesEvaluator evaluator, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
+            ThreadPool threadPool, AuditLog auditLog) {
+        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, evaluator,
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
     }
 
     protected List<Route> getStandardResourceRoutes(String resourceName) {

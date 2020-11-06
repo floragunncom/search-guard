@@ -6,6 +6,7 @@ import java.util.Base64;
 import java.util.Objects;
 
 import org.apache.http.Header;
+import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
@@ -75,7 +76,8 @@ public class AuthTokenIntegrationTest {
     static TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(SGCONFIG));
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().sgConfig(sgConfig).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
+            .resources("authtoken").sslEnabled().sgConfig(sgConfig).build();
 
     private static RestHelper rh = null;
 
@@ -168,7 +170,7 @@ public class AuthTokenIntegrationTest {
 
         request.setTokenName("my_new_token");
 
-        Header auth = basicAuth("spock", "spock");
+        Header auth = basicAuth("nagilum", "nagilum");
 
         for (int i = 0; i < 10; i++) {
 
@@ -628,6 +630,87 @@ public class AuthTokenIntegrationTest {
         }
     }
 
+    
+    @Test
+    public void sgAdminRestApiTest() throws Exception {
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                RequestedPrivileges.parseYaml("cluster_permissions: ['*']"));
+
+        request.setTokenName("rest_api_test_token");
+
+        Header auth = basicAuth("admin", "admin");
+
+        HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+        Assert.assertEquals(200, response.getStatusCode());
+        
+        String token = response.toJsonNode().get("token").asText();
+        Assert.assertNotNull(token);
+        
+        Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
+
+        response = rh.executeGetRequest("_searchguard/api/roles", auth);
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        
+        response = rh.executeGetRequest("_searchguard/api/roles", tokenAuth);
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        
+    }
+    
+    
+    @Test
+    public void sgAdminRestApiForbiddenTest() throws Exception {
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));
+
+        request.setTokenName("rest_api_test_token");
+
+        Header auth = basicAuth("admin", "admin");
+
+        HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+        Assert.assertEquals(200, response.getStatusCode());
+        
+        String token = response.toJsonNode().get("token").asText();
+        Assert.assertNotNull(token);
+        
+        Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
+
+        response = rh.executeGetRequest("_searchguard/api/roles", auth);
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        
+        response = rh.executeGetRequest("_searchguard/api/roles", tokenAuth);
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+        
+    }
+    
+    @Test
+    public void sgAdminRestApiExclusionTest() throws Exception {
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                RequestedPrivileges.parseYaml("cluster_permissions: ['*']\nexclude_cluster_permissions: ['cluster:admin:searchguard:configrestapi']"));
+
+        request.setTokenName("rest_api_test_token");
+
+        Header auth = basicAuth("admin", "admin");
+
+        HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+        Assert.assertEquals(200, response.getStatusCode());
+        
+        String token = response.toJsonNode().get("token").asText();
+        Assert.assertNotNull(token);
+        
+        Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
+
+        response = rh.executeGetRequest("_searchguard/api/roles", auth);
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        
+        response = rh.executeGetRequest("_searchguard/api/roles", tokenAuth);
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+        
+    }
+    
+    
     private static String getJwtHeaderValue(String jwt, String headerName) throws IOException {
         int p = jwt.indexOf('.');
         String headerBase4 = jwt.substring(0, p);
