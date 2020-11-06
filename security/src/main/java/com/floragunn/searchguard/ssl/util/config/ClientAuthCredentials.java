@@ -17,6 +17,9 @@ import java.security.spec.InvalidKeySpecException;
 
 import javax.crypto.NoSuchPaddingException;
 
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.pkcs.PKCSException;
+
 import com.floragunn.searchguard.support.PemKeyReader;
 
 public class ClientAuthCredentials {
@@ -67,7 +70,7 @@ public class ClientAuthCredentials {
             return this;
         }
 
-        public Builder certKeyPem(File file, String password) throws GenericSSLConfigException {
+        public Builder certKeyPem(File file, String password) throws GenericSSLConfigException, OperatorCreationException, PKCSException {
             try (FileInputStream in = new FileInputStream(file)) {
                 return certKeyPem(in, password);
             } catch (FileNotFoundException e) {
@@ -78,12 +81,12 @@ public class ClientAuthCredentials {
             }
         }
 
-        public Builder certKeyPem(Path path, String password) throws GenericSSLConfigException {
+        public Builder certKeyPem(Path path, String password) throws GenericSSLConfigException, OperatorCreationException, PKCSException {
             return certKeyPem(path.toFile(), password);
         }
         
         public Builder certKeyPem(InputStream inputStream, String password) throws NoSuchAlgorithmException, NoSuchPaddingException,
-                InvalidKeySpecException, InvalidAlgorithmParameterException, KeyException, IOException {
+                InvalidKeySpecException, InvalidAlgorithmParameterException, KeyException, IOException, OperatorCreationException, PKCSException {
             authenticationKey = PemKeyReader.toPrivateKey(inputStream, password);
 
             return this;
