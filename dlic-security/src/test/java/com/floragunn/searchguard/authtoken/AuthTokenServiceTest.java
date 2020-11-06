@@ -107,7 +107,7 @@ public class AuthTokenServiceTest {
             System.out.println(authToken);
 
             Assert.assertEquals(testUser.getName(), authToken.getUserName());
-            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), authToken.getRequestedPrivilges().getClusterPermissions());
+            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), authToken.getRequestedPrivileges().getClusterPermissions());
             Assert.assertEquals(Collections.singletonList("r1"), authToken.getBase().getBackendRoles());
 
         } finally {
@@ -153,7 +153,7 @@ public class AuthTokenServiceTest {
             System.out.println(authToken);
 
             Assert.assertEquals(testUser.getName(), authToken.getUserName());
-            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), authToken.getRequestedPrivilges().getClusterPermissions());
+            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), authToken.getRequestedPrivileges().getClusterPermissions());
             Assert.assertEquals(Collections.singletonList("r1"), authToken.getBase().getBackendRoles());
 
         } finally {
@@ -198,7 +198,7 @@ public class AuthTokenServiceTest {
             System.out.println(authToken);
 
             Assert.assertEquals(testUser.getName(), authToken.getUserName());
-            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), authToken.getRequestedPrivilges().getClusterPermissions());
+            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), authToken.getRequestedPrivileges().getClusterPermissions());
             Assert.assertEquals(Collections.singletonList("r1"), authToken.getBase().getBackendRoles());
             authTokenService.shutdown();
 
@@ -213,8 +213,8 @@ public class AuthTokenServiceTest {
             AuthToken authToken2 = authTokenService2.getByClaims(claims);
 
             Assert.assertEquals(authToken.getUserName(), authToken2.getUserName());
-            Assert.assertEquals(authToken.getRequestedPrivilges().getClusterPermissions(),
-                    authToken2.getRequestedPrivilges().getClusterPermissions());
+            Assert.assertEquals(authToken.getRequestedPrivileges().getClusterPermissions(),
+                    authToken2.getRequestedPrivileges().getClusterPermissions());
             Assert.assertEquals(authToken.getBase().getBackendRoles(), authToken2.getBase().getBackendRoles());
         } finally {
             authTokenService.shutdown();
@@ -268,7 +268,7 @@ public class AuthTokenServiceTest {
             System.out.println(authToken);
 
             Assert.assertEquals(testUser.getName(), authToken.getUserName());
-            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), authToken.getRequestedPrivilges().getClusterPermissions());
+            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), authToken.getRequestedPrivileges().getClusterPermissions());
             Assert.assertEquals(Collections.singletonList("r1"), authToken.getBase().getBackendRoles());
 
             Thread.sleep(10000);

@@ -3,6 +3,7 @@ package com.floragunn.searchguard.authtoken;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -23,6 +24,7 @@ import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
 public class RequestedPrivileges implements Writeable, ToXContentObject, Serializable {
     private static final long serialVersionUID = 5862219250642101795L;
+    private static final List<String> WILDCARD_LIST = Collections.singletonList("*");
     private List<String> clusterPermissions;
     private List<IndexPermissions> indexPermissions;
     private List<TenantPermissions> tenantPermissions;
@@ -419,6 +421,20 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         result.excludedIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);
         result.roles = vJsonNode.stringList("roles");
 
+        
+        validationErrors.throwExceptionForPresentErrors();
+
+        if (result.clusterPermissions == null && result.indexPermissions == null && result.tenantPermissions == null) {
+            if (result.roles == null || result.roles.isEmpty()) {
+                validationErrors.add(new ValidationError(null, "No permissions or roles have been specified"));
+            } else {
+                // If we have roles, assume an all wildcard permission requests
+                result.clusterPermissions = WILDCARD_LIST;
+                result.indexPermissions = Arrays.asList(new IndexPermissions(WILDCARD_LIST, WILDCARD_LIST));
+                result.tenantPermissions = Arrays.asList(new TenantPermissions(WILDCARD_LIST, WILDCARD_LIST));
+            }
+        }
+                
         if (result.clusterPermissions == null) {
             result.clusterPermissions = Collections.emptyList();
         }

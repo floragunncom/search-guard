@@ -30,15 +30,15 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
     private final Instant expiryTime;
     private final Instant revokedAt;
 
-    private final RequestedPrivileges requestedPrivilges;
+    private final RequestedPrivileges requestedPrivileges;
     private final AuthTokenPrivilegeBase base;
 
-    AuthToken(String id, String userName, String tokenName, RequestedPrivileges requestedPrivilges, AuthTokenPrivilegeBase base, Instant creationTime,
+    AuthToken(String id, String userName, String tokenName, RequestedPrivileges requestedPrivileges, AuthTokenPrivilegeBase base, Instant creationTime,
             Instant expiryTime, Instant revokedAt) {
         this.id = id;
         this.userName = userName;
         this.tokenName = tokenName;
-        this.requestedPrivilges = requestedPrivilges;
+        this.requestedPrivileges = requestedPrivileges;
         this.base = base;
         this.creationTime = creationTime;
         this.expiryTime = expiryTime;
@@ -53,7 +53,7 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         this.expiryTime = in.readOptionalInstant();
         this.revokedAt = in.readOptionalInstant();
 
-        this.requestedPrivilges = new RequestedPrivileges(in);
+        this.requestedPrivileges = new RequestedPrivileges(in);
         this.base = new AuthTokenPrivilegeBase(in);
     }
 
@@ -68,7 +68,7 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
     public XContentBuilder toXContentFragment(XContentBuilder builder, Params params) throws IOException {
         builder.field("user_name", userName);
         builder.field("token_name", tokenName);
-        builder.field("requested", requestedPrivilges);
+        builder.field("requested", requestedPrivileges);
         builder.field("base");
         base.toXContent(builder, params);
         builder.field("created_at", creationTime.toEpochMilli());
@@ -88,8 +88,8 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         return id;
     }
 
-    public RequestedPrivileges getRequestedPrivilges() {
-        return requestedPrivilges;
+    public RequestedPrivileges getRequestedPrivileges() {
+        return requestedPrivileges;
     }
 
     public String getUserName() {
@@ -109,7 +109,7 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
     }
 
     AuthToken getRevokedInstance() {
-        AuthToken revoked = new AuthToken(id, userName, tokenName, requestedPrivilges, base, creationTime, expiryTime, Instant.now());
+        AuthToken revoked = new AuthToken(id, userName, tokenName, requestedPrivileges, base, creationTime, expiryTime, Instant.now());
         revoked.getBase().setConfigSnapshot(null);
         return revoked;
     }
@@ -168,7 +168,7 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         out.writeInstant(this.creationTime);
         out.writeOptionalInstant(this.expiryTime);
         out.writeOptionalInstant(this.revokedAt);
-        this.requestedPrivilges.writeTo(out);
+        this.requestedPrivileges.writeTo(out);
         this.base.writeTo(out);
     }
 
@@ -179,7 +179,7 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
     @Override
     public String toString() {
         return "AuthToken [userName=" + userName + ", tokenName=" + tokenName + ", id=" + id + ", creationTime=" + creationTime + ", expiryTime="
-                + expiryTime + ", revokedAt=" + revokedAt + ", requestedPrivilges=" + requestedPrivilges + ", base=" + base + "]";
+                + expiryTime + ", revokedAt=" + revokedAt + ", requestedPrivilges=" + requestedPrivileges + ", base=" + base + "]";
     }
 
     @Override
@@ -190,7 +190,7 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         result = prime * result + ((creationTime == null) ? 0 : creationTime.hashCode());
         result = prime * result + ((expiryTime == null) ? 0 : expiryTime.hashCode());
         result = prime * result + ((id == null) ? 0 : id.hashCode());
-        result = prime * result + ((requestedPrivilges == null) ? 0 : requestedPrivilges.hashCode());
+        result = prime * result + ((requestedPrivileges == null) ? 0 : requestedPrivileges.hashCode());
         result = prime * result + ((tokenName == null) ? 0 : tokenName.hashCode());
         result = prime * result + ((userName == null) ? 0 : userName.hashCode());
         return result;
@@ -225,10 +225,10 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
                 return false;
         } else if (!id.equals(other.id))
             return false;
-        if (requestedPrivilges == null) {
-            if (other.requestedPrivilges != null)
+        if (requestedPrivileges == null) {
+            if (other.requestedPrivileges != null)
                 return false;
-        } else if (!requestedPrivilges.equals(other.requestedPrivilges))
+        } else if (!requestedPrivileges.equals(other.requestedPrivileges))
             return false;
         if (tokenName == null) {
             if (other.tokenName != null)

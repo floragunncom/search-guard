@@ -121,7 +121,7 @@ public class AuthTokenServiceConfig {
             result.excludeClusterPermissions = vJsonNode.stringList("exclude_cluster_permissions", Arrays.asList(CreateAuthTokenAction.NAME));
             result.excludeIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);
             
-            result.maxTokensPerUser = vJsonNode.intNumber("max_tokens_per_user", 1000);
+            result.maxTokensPerUser = vJsonNode.intNumber("max_tokens_per_user", 100);
             
             // TODO create test JWT for more thorough validation (some things are only checked then)
         }

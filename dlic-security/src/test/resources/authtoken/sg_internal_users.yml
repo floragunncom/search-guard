@@ -159,7 +159,8 @@ nagilum:
   hash: "$2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m"
   reserved: false
   hidden: false
-  backend_roles: []
+  backend_roles:
+  - "create_auth_tokens"
   attributes: {}
   description: "Migrated from v6"
 custattr:
@@ -355,3 +356,4 @@ admin:
   hash: "$2y$12$rW5Z.c3RMDORO5AflgHJyOVBn/NFIL2NnhSiTd.lKSezBJAdMEdFm"
   search_guard_roles:
   - SGS_ALL_ACCESS
+  - sg_admin

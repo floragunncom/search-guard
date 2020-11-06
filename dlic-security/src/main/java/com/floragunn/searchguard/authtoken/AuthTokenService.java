@@ -115,7 +115,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private AtomicLong authTokenHash = new AtomicLong(0);
     private AtomicLong authTokenRevocationHash = new AtomicLong(0);
     private AtomicBoolean reloadingInProgress = new AtomicBoolean(false);
-    private long maxTokensPerUser = 1000;
+    private long maxTokensPerUser = 100;
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
             ThreadPool threadPool, ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService,
@@ -253,7 +253,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         jwtClaims.setSubject(user.getName());
         jwtClaims.setTokenId(authToken.getId());
         jwtClaims.setAudience(config.getJwtAud());
-        jwtClaims.setProperty("requested", ObjectTreeXContent.toObjectTree(authToken.getRequestedPrivilges()));
+        jwtClaims.setProperty("requested", ObjectTreeXContent.toObjectTree(authToken.getRequestedPrivileges()));
         jwtClaims.setProperty("base", ObjectTreeXContent.toObjectTree(authToken.getBase(), AuthTokenPrivilegeBase.COMPACT));
 
         String encodedJwt;
@@ -810,10 +810,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 log.trace("filteredBaseSgRoles: " + filteredBaseSgRoles);
             }
 
-            RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivilges(),
+            RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivileges(),
                     configModelSnapshot.getActionGroupResolver());
 
-            return new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles);
+            return new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles, authToken.getRequestedPrivileges());
         } catch (NoSuchAuthTokenException e) {
             throw new ElasticsearchSecurityException("Cannot authenticate user due to invalid auth token " + authTokenId, e);
         }
@@ -829,11 +829,13 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         private final User user;
         private final Set<String> mappedRoles;
         private final SgRoles sgRoles;
+        private final RequestedPrivileges requestedPrivileges;
 
-        SpecialPrivilegesEvaluationContextImpl(User user, Set<String> mappedRoles, SgRoles sgRoles) {
+        SpecialPrivilegesEvaluationContextImpl(User user, Set<String> mappedRoles, SgRoles sgRoles, RequestedPrivileges requestedPrivileges) {
             this.user = user;
             this.mappedRoles = mappedRoles;
             this.sgRoles = sgRoles;
+            this.requestedPrivileges = requestedPrivileges;
         }
 
         @Override
@@ -849,6 +851,14 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         @Override
         public SgRoles getSgRoles() {
             return sgRoles;
+        }
+        
+        @Override
+        public boolean isSgConfigRestApiAllowed() {
+            // This is kind of a hack in order to allow the creation of tokens which don't have the privilege to use the rest API
+            return (requestedPrivileges.getClusterPermissions().contains("*")
+                    || requestedPrivileges.getClusterPermissions().contains("cluster:admin:searchguard:configrestapi"))
+                    && !requestedPrivileges.getExcludedClusterPermissions().contains("cluster:admin:searchguard:configrestapi");
         }
 
     }
