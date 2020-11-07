@@ -429,6 +429,10 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                 }
 
             }
+            
+            if ("BKS-V1".equalsIgnoreCase(keystoreType)) {
+                throw new ElasticsearchException("Keystores of type BKS-V1 are not supported");
+            }
 
             try {
 
