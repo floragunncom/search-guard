@@ -74,6 +74,7 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
     private AuthTokenProcessorHandler authTokenProcessorHandler;
     private HTTPJwtAuthenticator httpJwtAuthenticator;
     private Settings jwtSettings;
+    private boolean checkIssuer;
 
     public HTTPSamlAuthenticator(final Settings settings, final Path configPath) {
         try {
@@ -87,6 +88,7 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
             spSignatureAlgorithm = settings.get("sp.signature_algorithm", Constants.RSA_SHA256);
             spSignaturePrivateKey = getSpSignaturePrivateKey(settings, configPath);
             useForceAuthn = settings.getAsBoolean("sp.forceAuthn", null);
+            checkIssuer = settings.getAsBoolean("check_issuer", Boolean.TRUE);
 
             if (rolesKey == null || rolesKey.length() == 0) {
                 log.warn("roles_key is not configured, will only extract subject from SAML");
@@ -155,9 +157,16 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
         try {
             RestRequest restRequest = restChannel.request();
 
-            if ("/_searchguard/api/authtoken".equals(restRequest.path())
-                    && this.authTokenProcessorHandler.handle(restRequest, restChannel)) {
-                return true;
+            if ("/_searchguard/api/authtoken".equals(restRequest.path())) {
+                String samlResponseBase64 = this.authTokenProcessorHandler.getSamlResponseBase64(restRequest);
+                
+                if (checkIssuer && !this.authTokenProcessorHandler.isResponseFromConfiguredEntity(samlResponseBase64)) {
+                    return false;
+                }
+                
+                if (this.authTokenProcessorHandler.handle(restRequest, restChannel)) {
+                    return true;
+                }
             }
 
             Saml2Settings saml2Settings = this.saml2SettingsProvider.getCached();

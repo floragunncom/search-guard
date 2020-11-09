@@ -14,18 +14,15 @@
 
 package com.floragunn.dlic.auth.http.jwt;
 
-import com.floragunn.dlic.auth.http.jwt.keybyoidc.AuthenticatorUnavailableException;
-import com.floragunn.dlic.auth.http.jwt.keybyoidc.BadCredentialsException;
-import com.floragunn.dlic.auth.http.jwt.keybyoidc.JwtVerifier;
-import com.floragunn.dlic.auth.http.jwt.keybyoidc.KeyProvider;
-import com.floragunn.searchguard.auth.HTTPAuthenticator;
-import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchguard.user.UserAttributes;
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
-import com.jayway.jsonpath.PathNotFoundException;
-import net.minidev.json.JSONArray;
+import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
@@ -40,15 +37,19 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.AuthenticatorUnavailableException;
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.BadCredentialsException;
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.JwtVerifier;
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.KeyProvider;
+import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.user.UserAttributes;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
+import com.jayway.jsonpath.PathNotFoundException;
+
+import net.minidev.json.JSONArray;
 
 public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator {
     private final static Logger log = LogManager.getLogger(AbstractHTTPJwtAuthenticator.class);
@@ -108,7 +109,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         if (Strings.isNullOrEmpty(jwtString)) {
             return null;
         }
-
+                
         JwtToken jwt;
 
         try {
@@ -123,6 +124,10 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
 
         JwtClaims claims = jwt.getClaims();
 
+        if (log.isTraceEnabled()) {
+            log.trace("Claims from JWT: " + claims);
+        }
+        
         final String subject = extractSubject(claims);
 
         if (subject == null) {
@@ -131,7 +136,11 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         }
 
         final String[] roles = extractRoles(claims);
-
+        
+        if (log.isTraceEnabled()) {
+            log.trace("From JWT:\nSubject: " + subject + "\nRoles: " + Arrays.asList(roles));
+        }
+        
         return AuthCredentials.forUser(subject).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
                 .prefixOldAttributes("attr.jwt.", claims.asMap()).complete().build();
     }
@@ -139,6 +148,10 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
     protected String getJwtTokenString(RestRequest request) {
         String jwtToken = request.header(jwtHeaderName);
 
+        if (jwtToken != null && jwtToken.toLowerCase().startsWith("basic ")) {
+            jwtToken = null;
+        }
+        
         if (jwtUrlParameter != null) {
             if (jwtToken == null || jwtToken.isEmpty()) {
                 jwtToken = request.param(jwtUrlParameter);
@@ -151,13 +164,13 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         if (jwtToken == null) {
             return null;
         }
-
+        
         int index;
 
         if ((index = jwtToken.toLowerCase().indexOf(BEARER)) > -1) { // detect Bearer
             jwtToken = jwtToken.substring(index + BEARER.length());
         }
-
+        
         return jwtToken;
     }
 
@@ -193,7 +206,6 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         return subject;
     }
 
-    @SuppressWarnings("unchecked")
     protected String[] extractRoles(JwtClaims claims) {
         if (rolesKey == null && jsonRolesPath == null) {
             return new String[0];
@@ -233,7 +245,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
             List<String> roles0 = new ArrayList<>();
             for (Object o : ((JSONArray) rolesObject)) {
                 if (o instanceof List) {
-                    for (Object oo : (List) o) {
+                    for (Object oo : (List<?>) o) {
                         roles0.addAll(Arrays.asList(String.valueOf(oo).split(",")));
                     }
                 } else {
