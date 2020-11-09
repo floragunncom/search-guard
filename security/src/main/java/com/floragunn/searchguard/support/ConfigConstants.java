@@ -224,6 +224,8 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL = "searchguard.dfm_empty_overrides_all";
     public static final String SEARCHGUARD_FILTER_SGINDEX_FROM_ALL_REQUESTS = "searchguard.filter_sgindex_from_all_requests";
 
+    public static final String SEARCHGUARD_ALLOW_CUSTOM_HEADERS = "searchguard.allow_custom_headers";
+    
     // Illegal Opcodes from here on
     public static final String SEARCHGUARD_UNSUPPORTED_RESTAPI_ACCEPT_INVALID_LICENSE = "searchguard.unsupported.restapi.accept_invalid_license";
     public static final String SEARCHGUARD_UNSUPPORTED_DISABLE_REST_AUTH_INITIALLY = "searchguard.unsupported.disable_rest_auth_initially";

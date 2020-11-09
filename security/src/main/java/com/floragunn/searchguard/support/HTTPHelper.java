@@ -33,7 +33,7 @@ public class HTTPHelper {
 
         if (authorizationHeader != null) {
             if (!authorizationHeader.trim().toLowerCase().startsWith("basic ")) {
-                log.warn("No 'Basic Authorization' header, send 401 and 'WWW-Authenticate Basic'");
+                log.debug("No 'Basic Authorization' header, send 401 and 'WWW-Authenticate Basic'");
                 return null;
             } else {
 

@@ -21,6 +21,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import com.floragunn.searchguard.support.IPAddressCollection;
+
 public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
 
     private final AuthenticationBackend backend;
@@ -28,15 +30,17 @@ public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
     private final int order;
     private final boolean challenge;
     private final List<String> skippedUsers;
+    private final IPAddressCollection enabledOnlyForIps;
 
     public AuthenticationDomain(final AuthenticationBackend backend, final HTTPAuthenticator httpAuthenticator, boolean challenge,
-                                final int order, List<String> skippedUsers) {
+                                final int order, List<String> skippedUsers, IPAddressCollection enabledOnlyForIps) {
         super();
         this.backend = Objects.requireNonNull(backend);
         this.httpAuthenticator = httpAuthenticator;
         this.order = order;
         this.challenge = challenge;
         this.skippedUsers = skippedUsers;
+        this.enabledOnlyForIps = enabledOnlyForIps;
     }
 
     public boolean isChallenge() {
@@ -69,4 +73,10 @@ public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
     public List<String> getSkippedUsers() {
         return Collections.unmodifiableList(skippedUsers);
     }
+
+    public IPAddressCollection getEnabledOnlyForIps() {
+        return enabledOnlyForIps;
+    }
+    
+    
 }

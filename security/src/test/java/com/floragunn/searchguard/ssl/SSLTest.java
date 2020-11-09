@@ -951,4 +951,6 @@ public class SSLTest extends SingleClusterTest {
         Assert.assertTrue(rh.executeSimpleRequest("_searchguard/sslinfo?pretty").contains("TLS"));
     
     }
+
+
 }

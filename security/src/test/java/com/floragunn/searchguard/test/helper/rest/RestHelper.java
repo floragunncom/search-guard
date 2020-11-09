@@ -19,6 +19,7 @@ package com.floragunn.searchguard.test.helper.rest;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.util.Arrays;
@@ -30,6 +31,7 @@ import javax.net.ssl.SSLContext;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
@@ -72,6 +74,7 @@ public class RestHelper {
 	private ClusterInfo clusterInfo;
 	private int nodeIndex = -1;
 	private GenericSSLConfig sslConfig;
+	private  RequestConfig requestConfig;
 	
 	public RestHelper(ClusterInfo clusterInfo, String prefix) {
 		this.clusterInfo = clusterInfo;
@@ -235,7 +238,11 @@ public class RestHelper {
         }
 
 		hcb.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 1000).build());
-
+		
+		if (requestConfig != null) {
+		    hcb.setDefaultRequestConfig(requestConfig);
+		}
+		
 		return hcb.build();
 	}
 
@@ -336,5 +343,20 @@ public class RestHelper {
         return "RestHelper [server=" + getHttpServerUri() + ", nodeIndex=" + nodeIndex + ", sslConfig=" + sslConfig + "]";
     }
 
+    public RequestConfig getRequestConfig() {
+        return requestConfig;
+    }
+
+    public void setRequestConfig(RequestConfig requestConfig) {
+        this.requestConfig = requestConfig;
+    }
+
+    public void setLocalAddress(InetAddress inetAddress) {
+        if (requestConfig == null) {
+            requestConfig = RequestConfig.custom().setLocalAddress(inetAddress).build();
+        } else {
+            requestConfig = RequestConfig.copy(requestConfig).setLocalAddress(inetAddress).build();
+        }
+    }
 	
 }
