@@ -99,4 +99,32 @@ public class BackendRegistryTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("backend_roles=[abc_ber]"));
     }
+    
+    @Test
+    public void testEnabledOnlyForNetmask() throws Exception {
+        setup(Settings.EMPTY, new DynamicSgConfig()
+                .setSgInternalUsers("sg_internal_users_sgr.yml")
+                .setSgConfig("sg_config_auth_domains_with_disabled_ips2.yml"), Settings.EMPTY, true);
+
+        RestHelper rh002 = nonSslRestHelper(InetAddress.getByName("127.0.0.2"));
+        RestHelper rh003 = nonSslRestHelper(InetAddress.getByName("127.0.0.3"));
+        RestHelper rh004 = nonSslRestHelper(InetAddress.getByName("127.0.0.4"));
+        RestHelper rh005 = nonSslRestHelper(InetAddress.getByName("127.0.0.5"));
+
+        RestHelper.HttpResponse resc = rh004.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("any_name", "any_password"));
+        Assert.assertEquals(resc.getBody(), HttpStatus.SC_OK, resc.getStatusCode());
+
+        resc = rh005.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("any_name", "any_password"));
+        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
+        
+        resc = rh002.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("any_name", "any_password"));
+        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, resc.getStatusCode());
+        
+        resc = rh003.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("any_name", "any_password"));
+        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, resc.getStatusCode());
+        
+        resc = rh003.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("sgr_user", "nagilum"));
+        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
+        Assert.assertTrue(resc.getBody(), resc.getBody().contains("backend_roles=[abc_ber]"));
+    }
 }

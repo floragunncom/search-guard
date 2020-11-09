@@ -28,7 +28,7 @@ public class IPAddressCollection {
         if (ipv4trie != null) {
             IPv4Address ipv4Address = ipAddress.toIPv4();
 
-            if (ipv4Address != null && ipv4trie.contains(ipv4Address)) {
+            if (ipv4Address != null && ipv4trie.elementsContaining(ipv4Address) != null) {
                 return true;
             }
         }
@@ -36,7 +36,7 @@ public class IPAddressCollection {
         if (ipv6trie != null) {
             IPv6Address ipv6Address = ipAddress.toIPv6();
 
-            if (ipv6Address != null && ipv6trie.contains(ipv6Address)) {
+            if (ipv6Address != null && ipv6trie.elementsContaining(ipv6Address) != null) {
                 return true;
             }
         }
@@ -68,6 +68,20 @@ public class IPAddressCollection {
         }
 
         return new IPAddressCollection(ipv4trie, ipv6trie);
+    }
+
+    @Override
+    public String toString() {
+        if (ipv4trie == null  && ipv6trie == null) {
+            return "Empty IPAddressCollection";
+        } else if (ipv4trie == null) {
+            return ipv6trie.toString();
+        } else if (ipv6trie == null) {
+            return ipv4trie.toString();
+        } else {
+            return "IPAddressCollection [ipv4trie=" + ipv4trie + ", ipv6trie=" + ipv6trie + "]";
+        }
+        
     }
 
 }
