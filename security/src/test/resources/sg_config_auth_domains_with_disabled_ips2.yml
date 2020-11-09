@@ -24,7 +24,7 @@ sg_config:
         http_enabled: true
         transport_enabled: true
         enabled_only_for_ips: 
-          - "127.0.0.2"        
+          - "127.0.0.4/30"        
         order: 1
         http_authenticator:
           challenge: true

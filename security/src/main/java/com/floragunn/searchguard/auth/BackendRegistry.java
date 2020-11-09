@@ -397,7 +397,7 @@ public class BackendRegistry implements DCFListener {
             
             if (authenticationDomain.getEnabledOnlyForIps() != null && !authenticationDomain.getEnabledOnlyForIps().contains(remoteIpAddress)) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Skipping " + authenticationDomain + " because it is disabled for " + remoteIpAddress);
+                    log.debug("Skipping " + authenticationDomain + " because it is disabled for " + remoteIpAddress + ": " + authenticationDomain.getEnabledOnlyForIps());
                 }
                 
                 continue;

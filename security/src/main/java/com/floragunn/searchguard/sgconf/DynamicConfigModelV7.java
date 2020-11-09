@@ -260,8 +260,8 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
 
                     IPAddressCollection enabledOnlyForHosts = null;
                     
-                    if (ad.getValue().enabled_only_for_hosts != null && ad.getValue().enabled_only_for_hosts.size() > 0) {
-                        enabledOnlyForHosts = IPAddressCollection.create(ad.getValue().enabled_only_for_hosts);
+                    if (ad.getValue().enabled_only_for_ips != null && ad.getValue().enabled_only_for_ips.size() > 0) {
+                        enabledOnlyForHosts = IPAddressCollection.create(ad.getValue().enabled_only_for_ips);
                     }
                     
                     final AuthenticationDomain _ad = new AuthenticationDomain(authenticationBackend, httpAuthenticator,
