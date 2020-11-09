@@ -30,26 +30,40 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 
 public class SearchGuardRestApiActions {
 
-	public static Collection<RestHandler> getHandler(Settings settings, Path configPath, RestController controller, Client client, 
-	        AdminDNs adminDns, ConfigurationRepository cr, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor, 
-	        final PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog) {
-	    final List<RestHandler> handlers = new ArrayList<>();
-	    handlers.add(new InternalUsersApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new RolesMappingApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new RolesApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new ActionGroupsApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new FlushCacheApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new LicenseApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new SgConfigAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new PermissionsInfoAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new AuthTokenProcessorAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    handlers.add(new TenantsApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
-		handlers.add(new BlocksApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
-	    return Collections.unmodifiableCollection(handlers);
-	}
+    public static Collection<RestHandler> getHandler(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDns,
+            ConfigurationRepository cr, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
+            final PrivilegesEvaluator evaluator,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
+            AuditLog auditLog) {
+        final List<RestHandler> handlers = new ArrayList<>();
+        handlers.add(new InternalUsersApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor,
+                evaluator, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
+        handlers.add(new RolesMappingApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor,
+                evaluator, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
+        handlers.add(new RolesApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator,
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
+        handlers.add(new ActionGroupsApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor,
+                evaluator, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
+        handlers.add(new FlushCacheApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor,
+                evaluator, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
+        handlers.add(new LicenseApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator,
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
+        handlers.add(new SgConfigAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator,
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
+        handlers.add(new PermissionsInfoAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, evaluator,
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
+        handlers.add(new AuthTokenProcessorAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor,
+                evaluator, threadPool, auditLog));
+        handlers.add(new TenantsApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator,
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
+        handlers.add(new BlocksApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator,
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
+        return Collections.unmodifiableCollection(handlers);
+    }
 }

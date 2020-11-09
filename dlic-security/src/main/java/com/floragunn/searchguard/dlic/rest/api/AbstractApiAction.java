@@ -58,6 +58,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator.ErrorType;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchguard.sgconf.StaticDefinable;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
@@ -81,10 +82,11 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected final Settings settings;
 	protected final StaticSgConfig staticSgConfig;
 
-	protected AbstractApiAction(final Settings settings, final Path configPath, final RestController controller,
-			final Client client, final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig,
-			final ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
-			ThreadPool threadPool, AuditLog auditLog) {
+    protected AbstractApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
+            final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs,
+            final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
+            AuditLog auditLog) {
 		super();
 		this.settings = settings;
 		this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME,
@@ -94,8 +96,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		this.cl = cl;
 		this.cs = cs;
 		this.threadPool = threadPool;
-		this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, evaluator,
-				principalExtractor, configPath, threadPool);
+        this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, evaluator,
+                specialPrivilegesEvaluationContextProviderRegistry, principalExtractor, configPath, threadPool);
 		this.auditLog = auditLog;
 		this.staticSgConfig = staticSgConfig;
 	}
