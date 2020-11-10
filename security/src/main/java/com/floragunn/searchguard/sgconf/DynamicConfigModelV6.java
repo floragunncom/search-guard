@@ -29,7 +29,6 @@ import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6.Authc;
 import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6.AuthcDomain;
 import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6.Authz;
 import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6.AuthzDomain;
-import com.floragunn.searchguard.support.ReflectionHelper;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
@@ -265,7 +264,7 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
                     }
 
                     final AuthenticationDomain _ad = new AuthenticationDomain(authenticationBackend, httpAuthenticator,
-                            ad.getValue().http_authenticator.challenge, ad.getValue().order, ad.getValue().skip_users);
+                            ad.getValue().http_authenticator.challenge, ad.getValue().order, ad.getValue().skip_users, null);
 
                     if (httpEnabled && _ad.getHttpAuthenticator() != null) {
                         restAuthenticationDomains0.add(_ad);

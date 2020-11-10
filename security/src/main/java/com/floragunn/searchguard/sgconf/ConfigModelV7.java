@@ -82,6 +82,7 @@ import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 
 import inet.ipaddr.AddressStringException;
+import inet.ipaddr.IPAddress;
 import inet.ipaddr.IPAddressString;
 
 public class ConfigModelV7 extends ConfigModel {
@@ -99,7 +100,7 @@ public class ConfigModelV7 extends ConfigModel {
     private SgDynamicConfiguration<TenantV7> tenants;
     private ClientBlockRegistry<InetAddress> blockedIpAddresses;
     private ClientBlockRegistry<String> blockedUsers;
-    private ClientBlockRegistry<IPAddressString> blockeNetmasks;    
+    private ClientBlockRegistry<IPAddress> blockeNetmasks;    
 
     public ConfigModelV7(SgDynamicConfiguration<RoleV7> roles, SgDynamicConfiguration<RoleMappingsV7> rolemappings,
                          SgDynamicConfiguration<ActionGroupsV7> actiongroups, SgDynamicConfiguration<TenantV7> tenants,
@@ -128,12 +129,12 @@ public class ConfigModelV7 extends ConfigModel {
 
     }
 
-    private ClientBlockRegistry<IPAddressString> reloadBlockedNetmasks(SgDynamicConfiguration<BlocksV7> blocks) {
-        Function<String, Optional<IPAddressString>> parsedIp = s -> {
+    private ClientBlockRegistry<IPAddress> reloadBlockedNetmasks(SgDynamicConfiguration<BlocksV7> blocks) {
+        Function<String, Optional<IPAddress>> parsedIp = s -> {
             IPAddressString ipAddressString = new IPAddressString(s);
             try {
                 ipAddressString.validate();
-                return Optional.of(ipAddressString);
+                return Optional.of(ipAddressString.toAddress());
             } catch (AddressStringException e) {
                 log.error("Reloading blocked IP addresses failed ", e);
                 return Optional.empty();
@@ -141,8 +142,8 @@ public class ConfigModelV7 extends ConfigModel {
         };
 
         Tuple<Set<String>, Set<String>> b = readBlocks(blocks, BlocksV7.Type.net_mask);
-        Set<IPAddressString> allows = b.v1().stream().map(parsedIp).flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty)).collect(Collectors.toSet());
-        Set<IPAddressString> disallows = b.v2().stream().map(parsedIp).flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty)).collect(Collectors.toSet());
+        Set<IPAddress> allows = b.v1().stream().map(parsedIp).flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty)).collect(Collectors.toSet());
+        Set<IPAddress> disallows = b.v2().stream().map(parsedIp).flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty)).collect(Collectors.toSet());
 
         return new IpRangeVerdictBasedBlockRegistry(allows, disallows);
     }
@@ -217,7 +218,7 @@ public class ConfigModelV7 extends ConfigModel {
     }
 
     @Override
-    public List<ClientBlockRegistry<IPAddressString>> getBlockedNetmasks() {
+    public List<ClientBlockRegistry<IPAddress>> getBlockedNetmasks() {
         return Collections.singletonList(blockeNetmasks);
     }
 

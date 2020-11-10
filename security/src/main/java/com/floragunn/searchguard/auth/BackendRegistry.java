@@ -18,6 +18,35 @@
 package com.floragunn.searchguard.auth;
 
 
+import java.net.InetAddress;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.concurrent.TimeUnit;
+
+import javax.naming.InvalidNameException;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
+
+import org.apache.commons.collections.ListUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.tasks.Task;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
+
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.auth.internal.NoOpAuthenticationBackend;
@@ -41,29 +70,14 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
-import inet.ipaddr.IPAddressString;
-import org.apache.commons.collections.ListUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.*;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 
-import javax.naming.InvalidNameException;
-import javax.naming.ldap.LdapName;
-import javax.naming.ldap.Rdn;
-import java.net.InetAddress;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import inet.ipaddr.IPAddress;
+import inet.ipaddr.IPAddressNetwork.IPAddressGenerator;
 
 public class BackendRegistry implements DCFListener {
     private static final String BLOCKED_USERS = "BLOCKED_USERS";
     protected final Logger log = LogManager.getLogger(this.getClass());
+    private final IPAddressGenerator ipAddressGenerator = new IPAddressGenerator();
     private SortedSet<AuthenticationDomain> restAuthenticationDomains;
     private SortedSet<AuthenticationDomain> transportAuthenticationDomains;
     private Set<AuthorizationDomain> restAuthorizationDomains;
@@ -73,7 +87,7 @@ public class BackendRegistry implements DCFListener {
     private Multimap<String, AuthFailureListener> authBackendFailureListeners;
     private List<ClientBlockRegistry<InetAddress>> ipClientBlockRegistries;
     private Multimap<String, ClientBlockRegistry<String>> authBackendClientBlockRegistries;
-    private List<ClientBlockRegistry<IPAddressString>> blockedNetmasks;
+    private List<ClientBlockRegistry<IPAddress>> blockedNetmasks;
 
     private volatile boolean initialized;
     private final AdminDNs adminDns;
@@ -95,7 +109,7 @@ public class BackendRegistry implements DCFListener {
     private Cache<String, User> transportImpersonationCache; //used for transport impersonation
 
     private volatile String transportUsernameAttribute = null;
-
+    
     private void createCaches() {
         userCache = CacheBuilder.newBuilder().expireAfterWrite(ttlInMin, TimeUnit.MINUTES)
                 .removalListener((RemovalListener<AuthCredentials, User>) notification ->
@@ -211,7 +225,13 @@ public class BackendRegistry implements DCFListener {
             return origPKIUser;
         }
 
-        if (request.remoteAddress() != null && isIpBlocked(request.remoteAddress().address().getAddress())) {
+        IPAddress remoteIpAddress = null;
+        
+        if (request.remoteAddress() != null) {
+            remoteIpAddress = ipAddressGenerator.from(request.remoteAddress().address().getAddress());
+        }
+        
+        if (isIpBlocked(remoteIpAddress)) {
             if (log.isDebugEnabled()) {
                 log.debug("Rejecting transport request because of blocked address: " + request.remoteAddress());
             }
@@ -325,7 +345,13 @@ public class BackendRegistry implements DCFListener {
             return true;
         }
 
-        if (request.getHttpChannel().getRemoteAddress() != null && isIpBlocked(request.getHttpChannel().getRemoteAddress().getAddress())) {
+        IPAddress remoteIpAddress = null;
+        
+        if (request.getHttpChannel().getRemoteAddress() != null) {
+            remoteIpAddress = ipAddressGenerator.from(request.getHttpChannel().getRemoteAddress().getAddress());
+        }
+        
+        if (isIpBlocked(remoteIpAddress)) {
             if (log.isDebugEnabled()) {
                 log.debug("Rejecting REST request because of blocked address: " + request.getHttpChannel().getRemoteAddress());
             }
@@ -367,6 +393,14 @@ public class BackendRegistry implements DCFListener {
             if (log.isDebugEnabled()) {
                 log.debug("Check authdomain for rest {}/{} or {} in total", authenticationDomain.getBackend().getType(),
                         authenticationDomain.getOrder(), restAuthenticationDomains.size());
+            }
+            
+            if (authenticationDomain.getEnabledOnlyForIps() != null && !authenticationDomain.getEnabledOnlyForIps().contains(remoteIpAddress)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Skipping " + authenticationDomain + " because it is disabled for " + remoteIpAddress + ": " + authenticationDomain.getEnabledOnlyForIps());
+                }
+                
+                continue;
             }
 
             final HTTPAuthenticator httpAuthenticator = authenticationDomain.getHttpAuthenticator();
@@ -770,23 +804,30 @@ public class BackendRegistry implements DCFListener {
         return pkiUser;
     }
 
-    private boolean isIpBlocked(InetAddress address) {
+    private boolean isIpBlocked(IPAddress address) {
+        if (address == null) {
+            log.warn("isIpBlocked(null)");
+            return false;
+        }
+        
         if ((this.ipClientBlockRegistries == null || this.ipClientBlockRegistries.isEmpty()) &&
                 (this.blockedNetmasks == null || this.blockedNetmasks.isEmpty())) {
             return false;
         }
+        
+        InetAddress inetAddress = address.toInetAddress();
 
         if (ipClientBlockRegistries != null) {
             for (ClientBlockRegistry<InetAddress> clientBlockRegistry : ipClientBlockRegistries) {
-                if (clientBlockRegistry.isBlocked(address)) {
+                if (clientBlockRegistry.isBlocked(inetAddress)) {
                     return true;
                 }
             }
         }
 
         if (blockedNetmasks != null) {
-            for (ClientBlockRegistry<IPAddressString> registry : blockedNetmasks) {
-                if (registry.isBlocked(new IPAddressString(address.getHostAddress()))) {
+            for (ClientBlockRegistry<IPAddress> registry : blockedNetmasks) {
+                if (registry.isBlocked(address)) {
                     return true;
                 }
             }
