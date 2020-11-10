@@ -88,7 +88,8 @@ public final class PemKeyReader {
         }
         return getPrivateKeyFromByteBuffer(in, keyPassword);
     }
-    
+
+    //return null if there is no private key found in InputStream
     private static PrivateKey getPrivateKeyFromByteBuffer(InputStream in, String keyPassword) throws IOException, OperatorCreationException, PKCSException {
 
     	final JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
@@ -98,7 +99,7 @@ public final class PemKeyReader {
 	    	final Object object = pemParser.readObject();
 
 	    	if(object == null) {
-	        	throw new IOException("No private key found");
+	        	return null;
 	    	} else if(object instanceof PEMKeyPair) {
 	    		return converter.getKeyPair((PEMKeyPair) object).getPrivate();	
 	    	} else if (object instanceof PEMEncryptedKeyPair) {
@@ -112,7 +113,7 @@ public final class PemKeyReader {
 	    				.build(keyPassword==null?null:keyPassword.toCharArray());
 	    		return converter.getPrivateKey(((PKCS8EncryptedPrivateKeyInfo) object).decryptPrivateKeyInfo(pdp));
 	    	} else {
-	    		throw new IOException("Unable to decrypt private key (Type: "+object.getClass()+" )");
+	    		throw new PKCSException("Unable to decrypt private key (Type: "+object.getClass()+" )");
 	    	}
         }
         
@@ -128,17 +129,6 @@ public final class PemKeyReader {
             return (X509Certificate) fact.generateCertificate(is);
         }
     }
-    
-    /*public static List<? extends Certificate> loadCertificatesFromFileAsList(String file) throws Exception {
-        if(file == null) {
-            return null;
-        }
-        
-        CertificateFactory fact = CertificateFactory.getInstance("X.509");
-        try(FileInputStream is = new FileInputStream(file)) {
-            return new ArrayList<>(fact.generateCertificates(is));
-        }
-    }*/
     
     public static X509Certificate loadCertificateFromStream(InputStream in) throws Exception {
         if(in == null) {

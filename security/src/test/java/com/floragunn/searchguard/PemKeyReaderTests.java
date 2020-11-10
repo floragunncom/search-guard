@@ -18,18 +18,27 @@
  package com.floragunn.searchguard;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.security.Security;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.EncryptionException;
 import org.bouncycastle.openssl.PasswordException;
+import org.bouncycastle.pkcs.PKCSException;
 import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.searchguard.support.PemKeyReader;
 
 public class PemKeyReaderTests {
+	
+	static {
+		
+		
+		if (Security.getProvider("BC") == null) {
+	        Security.addProvider(new BouncyCastleProvider());
+	    }
+		
+	}
 	
 	//openssl genpkey -algorithm RSA
 	String pkcs8RsaUnencrypted = "-----BEGIN PRIVATE KEY-----\n"
@@ -269,10 +278,6 @@ public class PemKeyReaderTests {
 	@Test
 	public void testKeys() throws Exception {
 		
-		if (Security.getProvider("BC") == null) {
-            Security.addProvider(new BouncyCastleProvider());
-        }
-		
 		Assert.assertNotNull(PemKeyReader.toPrivateKey(new ByteArrayInputStream(pkcs8RsaUnencrypted.getBytes()), null));
 		Assert.assertNotNull(PemKeyReader.toPrivateKey(new ByteArrayInputStream(pkcs1EcUnencrypted.getBytes()), null));
 		Assert.assertNotNull(PemKeyReader.toPrivateKey(new ByteArrayInputStream(pksc1Unencrypted.getBytes()), null));
@@ -302,17 +307,13 @@ public class PemKeyReaderTests {
 		}
 		
 		try {
-			Assert.assertNotNull(PemKeyReader.toPrivateKey(new ByteArrayInputStream(invalid.getBytes()), null));
-		} catch (IOException e) {
-			//assumed
+			Assert.assertNull(PemKeyReader.toPrivateKey(new ByteArrayInputStream(invalid.getBytes()), null));
 		} catch (Exception e) {
 			Assert.fail(e.toString());
 		}
 		
 		try {
-			Assert.assertNotNull(PemKeyReader.toPrivateKey(new ByteArrayInputStream("".getBytes()), null));
-		} catch (IOException e) {
-			//assumed
+			Assert.assertNull(PemKeyReader.toPrivateKey(new ByteArrayInputStream("".getBytes()), null));
 		} catch (Exception e) {
 			Assert.fail(e.toString());
 		}

@@ -6,16 +6,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.KeyException;
 import java.security.KeyStore;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.security.spec.InvalidKeySpecException;
-
-import javax.crypto.NoSuchPaddingException;
 
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.pkcs.PKCSException;
@@ -70,24 +64,26 @@ public class ClientAuthCredentials {
             return this;
         }
 
-        public Builder certKeyPem(File file, String password) throws GenericSSLConfigException, OperatorCreationException, PKCSException {
+        public Builder certKeyPem(File file, String password) throws GenericSSLConfigException {
             try (FileInputStream in = new FileInputStream(file)) {
                 return certKeyPem(in, password);
             } catch (FileNotFoundException e) {
                 throw new GenericSSLConfigException("Could not find certificate key file " + file, e);
-            } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeySpecException | InvalidAlgorithmParameterException | KeyException
-                    | IOException e) {
+            } catch (IOException e) {
                 throw new GenericSSLConfigException("Error while reading certificate key file " + file, e);
             }
         }
 
-        public Builder certKeyPem(Path path, String password) throws GenericSSLConfigException, OperatorCreationException, PKCSException {
+        public Builder certKeyPem(Path path, String password) throws GenericSSLConfigException {
             return certKeyPem(path.toFile(), password);
         }
         
-        public Builder certKeyPem(InputStream inputStream, String password) throws NoSuchAlgorithmException, NoSuchPaddingException,
-                InvalidKeySpecException, InvalidAlgorithmParameterException, KeyException, IOException, OperatorCreationException, PKCSException {
-            authenticationKey = PemKeyReader.toPrivateKey(inputStream, password);
+        public Builder certKeyPem(InputStream inputStream, String password) throws GenericSSLConfigException {
+            try {
+				authenticationKey = PemKeyReader.toPrivateKey(inputStream, password);
+			} catch (OperatorCreationException | IOException | PKCSException e) {
+				throw new GenericSSLConfigException("Could not load private key", e);
+			}
 
             return this;
         }
