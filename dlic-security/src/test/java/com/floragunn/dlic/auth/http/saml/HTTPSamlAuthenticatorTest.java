@@ -21,6 +21,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -35,6 +36,7 @@ import javax.net.ssl.KeyManagerFactory;
 
 import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
@@ -60,6 +62,16 @@ import com.floragunn.searchguard.util.FakeRestRequest;
 import com.google.common.collect.ImmutableMap;
 
 public class HTTPSamlAuthenticatorTest {
+	
+	static {
+		
+		
+		if (Security.getProvider("BC") == null) {
+	        Security.addProvider(new BouncyCastleProvider());
+	    }
+		
+	}
+	
     protected static MockSamlIdpServer mockSamlIdpServer;
     private static final Pattern WWW_AUTHENTICATE_PATTERN = Pattern
             .compile("([^\\s]+)\\s*([^\\s=]+)=\"([^\"]+)\"\\s*([^\\s=]+)=\"([^\"]+)\"\\s*([^\\s=]+)=\"([^\"]+)\"\\s*");
