@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
@@ -78,6 +79,7 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
             
             final Boolean showDn = request.paramAsBoolean("show_dn", Boolean.FALSE);
             final Boolean showServerCerts = request.paramAsBoolean("show_server_certs", Boolean.FALSE);
+            final Boolean showFullServerCerts = request.paramAsBoolean("show_full_server_certs", Boolean.FALSE);
 
             @Override
             public void accept(RestChannel channel) throws Exception {
@@ -120,10 +122,10 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
                         builder.field("ssl_openssl_supports_hostname_validation", false);
                     }
 
-                    if (showServerCerts == Boolean.TRUE) {
+                    if (showServerCerts == Boolean.TRUE || showFullServerCerts == Boolean.TRUE) {
                         if (sgks != null) {
-                            builder.field("http_certificates_list", generateCertDetailList(sgks.getHttpCerts()));
-                            builder.field("transport_certificates_list", generateCertDetailList(sgks.getTransportCerts()));
+                            builder.field("http_certificates_list", generateCertDetailList(sgks.getHttpCerts(), showFullServerCerts));
+                            builder.field("transport_certificates_list", generateCertDetailList(sgks.getTransportCerts(), showFullServerCerts));
                         } else {
                             builder.field("message", "keystore is not initialized");
                         }
@@ -153,12 +155,15 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
         };
     }
 
-    private List<Map<String, String>> generateCertDetailList(final X509Certificate[] certs) {
+    private List<Map<String, String>> generateCertDetailList(final X509Certificate[] certs, final boolean fullChain) {
         if (certs == null) {
             return null;
         }
-        return Arrays.stream(certs)
-                .map(cert -> {
+        
+        return Arrays
+        		.stream(certs)
+        		.limit(fullChain?certs.length:1)
+        		.map(cert -> {
                     final String issuerDn = cert != null && cert.getIssuerX500Principal() != null ? cert.getIssuerX500Principal().getName(): "";
                     final String subjectDn = cert != null && cert.getSubjectX500Principal() != null ? cert.getSubjectX500Principal().getName(): "";
 

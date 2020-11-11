@@ -5,22 +5,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.KeyException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
-import java.security.spec.InvalidKeySpecException;
 import java.util.Collection;
 import java.util.Map;
-
-import javax.crypto.NoSuchPaddingException;
 
 import org.apache.http.ssl.PrivateKeyDetails;
 import org.apache.http.ssl.PrivateKeyStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.pkcs.PKCSException;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
@@ -89,8 +85,7 @@ public class TlsClientAuthConfig implements ToXContentObject {
 
         try {
             return PemKeyReader.toPrivateKey(inputStream, keyPassword);
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeySpecException | InvalidAlgorithmParameterException | KeyException
-                | IOException e) {
+        } catch (IOException | OperatorCreationException | PKCSException e) {
             validationErrors.add(new InvalidAttributeValue(attribute, pem, "Private key in PEM file", jsonNode).cause(e));
             return null;
         }
