@@ -14,10 +14,15 @@
 
 package com.floragunn.searchguard.configuration;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -30,11 +35,18 @@ import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.io.stream.DelayableWriteable;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.query.ParsedQuery;
+import org.elasticsearch.search.DocValueFormat;
+import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
+import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.internal.SearchContext;
+import org.elasticsearch.search.query.QuerySearchResult;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -42,6 +54,7 @@ import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SgUtils;
 
 public class DlsFlsValveImpl implements DlsFlsRequestValve {
+    private static final Logger log = LogManager.getLogger(DlsFlsValveImpl.class);
 
     /**
      * 
@@ -152,26 +165,28 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         
         return true;
     }
-    
+
     @Override
     public void handleSearchContext(SearchContext context, ThreadPool threadPool, NamedXContentRegistry namedXContentRegistry) {
         try {
+            @SuppressWarnings("unchecked")
             final Map<String, Set<String>> queries = (Map<String, Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadPool.getThreadContext(),
                     ConfigConstants.SG_DLS_QUERY_HEADER);
 
             final String dlsEval = SgUtils.evalMap(queries, context.indexShard().indexSettings().getIndex().getName());
 
             if (dlsEval != null) {
-                
-                if(context.suggest() != null) {
+
+                if (context.suggest() != null) {
                     return;
                 }
-                
+
                 assert context.parsedQuery() != null;
-                
+
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 if (unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) {
-                    final ParsedQuery dlsQuery = DlsQueryParser.parse(unparsedDlsQueries, context.parsedQuery(), context.getQueryShardContext(), namedXContentRegistry);
+                    final ParsedQuery dlsQuery = DlsQueryParser.parse(unparsedDlsQueries, context.parsedQuery(), context.getQueryShardContext(),
+                            namedXContentRegistry);
                     context.parsedQuery(dlsQuery);
                     context.preProcess(true);
                 }
@@ -181,4 +196,152 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         }
 
     }
+
+    @Override
+    public void onQueryPhase(SearchContext searchContext, long tookInNanos) {        
+        QuerySearchResult queryResult = searchContext.queryResult();
+        if (queryResult == null) {
+            return;
+        }
+
+        DelayableWriteable<InternalAggregations> aggregationsDelayedWritable = queryResult.aggregations();
+        if (aggregationsDelayedWritable == null) {
+            return;
+        }
+
+        InternalAggregations aggregations = aggregationsDelayedWritable.expand();
+        if (aggregations == null) {
+            return;
+        }
+
+        if (areBucketKeysDistinct(aggregations)) {
+            return;
+        }
+        
+        if (log.isDebugEnabled()) {
+            log.debug("Found buckets with equal keys. Merging these buckets: " + aggregations);
+        }
+        
+        // TODO check order
+        
+        ArrayList<InternalAggregation> modifiedAggregations = new ArrayList<>(aggregations.asList().size());
+
+        for (Aggregation aggregation : aggregations) {
+            if (!(aggregation instanceof StringTerms)) {
+                modifiedAggregations.add((InternalAggregation) aggregation);
+                continue;
+            }
+            
+            StringTerms stringTerms = (StringTerms) aggregation;
+            if (areBucketKeysDistinct(stringTerms.getBuckets())) {
+                modifiedAggregations.add((StringTerms) aggregation);
+                continue;
+             }
+            
+            
+            List<StringTerms.Bucket> buckets = mergeBucketKeys(stringTerms.getBuckets());
+            
+            StringTerms modifiedStringTerms = stringTerms.create(buckets);
+            
+            modifiedAggregations.add(modifiedStringTerms);
+        }
+        
+        queryResult.aggregations(InternalAggregations.from(modifiedAggregations));
+
+    }
+    
+    private boolean areBucketKeysDistinct(InternalAggregations aggregations) {
+        for (Aggregation aggregation : aggregations) {
+            if (!(aggregation instanceof StringTerms)) {
+                continue;
+            }
+
+            StringTerms stringTerms = (StringTerms) aggregation;
+            if (!areBucketKeysDistinct(stringTerms.getBuckets())) {
+                return false;
+            }
+
+        }
+        
+        return true;
+    }
+
+    private boolean areBucketKeysDistinct(List<StringTerms.Bucket> buckets) {
+        StringTerms.Bucket prevBucket = null;
+
+        for (StringTerms.Bucket bucket : buckets) {
+            if (prevBucket == null) {
+                prevBucket = bucket;
+                continue;
+            }
+            
+            if (prevBucket.getKey().equals(bucket.getKey())) {
+                return false;
+            }
+
+            prevBucket = bucket;
+        }
+
+        return true;
+    }
+
+    private List<StringTerms.Bucket> mergeBucketKeys(List<StringTerms.Bucket> buckets) {
+        int bucketCount = buckets.size();
+        StringTerms.Bucket[] bucketArray = buckets.toArray(new StringTerms.Bucket[bucketCount]);
+        ArrayList<StringTerms.Bucket> result = new ArrayList<StringTerms.Bucket>(bucketCount);
+
+        
+       if (log.isDebugEnabled()) {
+           log.debug("Merging buckets: " + buckets.stream().map(b -> b.getKeyAsString()).collect(Collectors.toList()));
+       }
+       
+        
+        for (int i = 0; i < bucketCount; ) {
+            StringTerms.Bucket currentBucket = bucketArray[i];
+
+            if (i + 1 < bucketCount && currentBucket.getKey().equals(bucketArray[i + 1].getKey())) {
+                int k = i + 1;
+                long mergedDocCount = currentBucket.getDocCount();
+                long mergedDocCountError;
+
+                try {
+                    mergedDocCountError = currentBucket.getDocCountError();
+                } catch (IllegalStateException e) {
+                    mergedDocCountError = -1;
+                }
+
+                do {
+                    StringTerms.Bucket equalKeyBucket = bucketArray[k];
+                    mergedDocCount += equalKeyBucket.getDocCount();
+
+                    if (mergedDocCountError != -1) {
+                        try {
+                            mergedDocCountError += equalKeyBucket.getDocCountError();
+                        } catch (IllegalStateException e) {
+                            mergedDocCountError = -1;
+                        }
+                    }
+
+                    k++;
+                } while (k < bucketCount && currentBucket.getKey().equals(bucketArray[k].getKey()));
+
+                result.add(new StringTerms.Bucket(new BytesRef(currentBucket.getKeyAsString()), mergedDocCount, (InternalAggregations) currentBucket.getAggregations(),
+                        mergedDocCountError != -1, mergedDocCountError, DocValueFormat.RAW));
+                
+                i = k;
+
+            } else {
+                result.add(currentBucket);
+                i++;
+            }
+
+        }
+                
+        if (log.isDebugEnabled()) {
+            log.debug("New buckets: " + result.stream().map(b -> b.getKeyAsString()).collect(Collectors.toList()));
+        }
+        
+        return result;
+    }
+
 }
