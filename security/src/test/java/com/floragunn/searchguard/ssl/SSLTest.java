@@ -60,7 +60,6 @@ import org.junit.rules.ExpectedException;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.SingleClusterTest;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
@@ -952,42 +951,6 @@ public class SSLTest extends SingleClusterTest {
         Assert.assertTrue(rh.executeSimpleRequest("_searchguard/sslinfo?pretty").contains("TLS"));
     
     }
-    
-    @Test
-    public void testHttpsAndNodeSSLPCKS1() throws Exception {
 
-        final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/tls.crt"))
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/tls.key"))
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/ca.crt"))
-                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                .put("searchguard.ssl.transport.resolve_hostname", false)
 
-                .put("searchguard.ssl.http.enabled", true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/tls.crt"))
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/tls.key"))
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/ca.crt"))
-                .build();
-
-        setupSslOnlyMode(settings);
-
-        RestHelper rh = restHelper();
-        
-        try {
-        
-        
-        rh.enableHTTPClientSSL = true;
-        rh.setSslConfig(new GenericSSLConfig.Builder().trustAll(true).build());
-        
-        System.out.println(rh.executeSimpleRequest("_searchguard/sslinfo?pretty"));
-        Assert.assertTrue(rh.executeSimpleRequest("_searchguard/sslinfo?pretty").contains("TLS"));
-        Assert.assertTrue(rh.executeSimpleRequest("_searchguard/sslinfo?pretty").length() > 0);
-        Assert.assertTrue(rh.executeSimpleRequest("_nodes/settings?pretty").contains(clusterInfo.clustername));
-        } finally {
-        	rh.setSslConfig(null);
-        }
-    }
 }
