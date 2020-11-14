@@ -692,6 +692,53 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
     }
 
+    private class SearchGuardStoredFieldsReader extends StoredFieldsReader {
+
+        private final StoredFieldsReader delegate;
+
+        public SearchGuardStoredFieldsReader(StoredFieldsReader delegate) {
+            super();
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void close() throws IOException {
+            delegate.close();
+        }
+
+        @Override
+        public long ramBytesUsed() {
+            return delegate.ramBytesUsed();
+        }
+
+        @Override
+        public void visitDocument(int docID, StoredFieldVisitor visitor) throws IOException {
+            if (complianceConfig.readHistoryEnabledForIndex(indexService.index().getName())) {
+                visitor = new ComplianceAwareStoredFieldVisitor(visitor);
+            }
+
+            if (maskFields) {
+                visitor = new HashingStoredFieldVisitor(visitor);
+            }
+
+            if (flsEnabled) {
+                visitor = new FlsStoredFieldVisitor(visitor);
+            }
+
+            delegate.visitDocument(docID, visitor);
+        }
+
+        @Override
+        public StoredFieldsReader clone() {
+            return new SearchGuardStoredFieldsReader(delegate);
+        }
+
+        @Override
+        public void checkIntegrity() throws IOException {
+            delegate.checkIntegrity();
+        }
+    }
+    
     @Override
     public Fields getTermVectors(final int docID) throws IOException {
         final Fields fields = in.getTermVectors(docID);
@@ -1237,6 +1284,6 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
     @Override
     protected StoredFieldsReader doGetSequentialStoredFieldsReader(StoredFieldsReader reader) {
-        return reader;
+        return new SearchGuardStoredFieldsReader(reader);
     }
 }
