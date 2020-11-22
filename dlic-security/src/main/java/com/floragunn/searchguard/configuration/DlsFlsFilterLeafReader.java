@@ -864,61 +864,73 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
                 @Override
                 public BytesRef binaryValue() throws IOException {
+                    new Exception().printStackTrace();
                     return mf.mask(sortedDocValues.binaryValue());
                 }
 
                 @Override
                 public int lookupTerm(BytesRef key) throws IOException {
+                    new Exception().printStackTrace();
                     return sortedDocValues.lookupTerm(key);
                 }
 
                 @Override
                 public TermsEnum termsEnum() throws IOException {
+                    new Exception().printStackTrace();
                     return new MaskedTermsEnum(sortedDocValues.termsEnum(), mf);
                 }
 
                 @Override
                 public TermsEnum intersect(CompiledAutomaton automaton) throws IOException {
+                    new Exception().printStackTrace();
                     return new MaskedTermsEnum(sortedDocValues.intersect(automaton), mf);
                 }
 
                 @Override
                 public int nextDoc() throws IOException {
+                    new Exception().printStackTrace();
                     return sortedDocValues.nextDoc();
                 }
 
                 @Override
                 public int docID() {
+                    new Exception().printStackTrace();
                     return sortedDocValues.docID();
                 }
 
                 @Override
                 public long cost() {
+                    new Exception().printStackTrace();
                     return sortedDocValues.cost();
                 }
 
                 @Override
                 public int advance(int target) throws IOException {
+                    new Exception().printStackTrace();
                     return sortedDocValues.advance(target);
                 }
 
                 @Override
                 public boolean advanceExact(int target) throws IOException {
+                    new Exception().printStackTrace();
                     return sortedDocValues.advanceExact(target);
                 }
 
                 @Override
                 public int ordValue() throws IOException {
+                    new Exception().printStackTrace();
                     return sortedDocValues.ordValue();
                 }
 
                 @Override
                 public BytesRef lookupOrd(int ord) throws IOException {
+                    new Exception().printStackTrace();
                     return mf.mask(sortedDocValues.lookupOrd(ord));
                 }
 
                 @Override
                 public int getValueCount() {
+                    new Exception().printStackTrace();
                     return sortedDocValues.getValueCount();
                 }
             };
@@ -955,57 +967,72 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
                 @Override
                 public long lookupTerm(BytesRef key) throws IOException {
+                    new Exception().printStackTrace();
                     return sortedSetDocValues.lookupTerm(key);
                 }
 
                 @Override
                 public TermsEnum termsEnum() throws IOException {
-                    return new MaskedTermsEnum(sortedSetDocValues.termsEnum(), mf);
+                    TermsEnum e = sortedSetDocValues.termsEnum();
+                    System.out.println("termsEnum " + e);
+                    new Exception().printStackTrace();
+                    return new MaskedTermsEnum(e, mf);
                 }
 
                 @Override
                 public TermsEnum intersect(CompiledAutomaton automaton) throws IOException {
+                    new Exception().printStackTrace();
                     return new MaskedTermsEnum(sortedSetDocValues.intersect(automaton), mf);
                 }
 
                 @Override
                 public int nextDoc() throws IOException {
+                    new Exception().printStackTrace();
                     return sortedSetDocValues.nextDoc();
                 }
 
                 @Override
                 public int docID() {
+                    new Exception().printStackTrace();
                     return sortedSetDocValues.docID();
                 }
 
                 @Override
                 public long cost() {
+                    new Exception().printStackTrace();
                     return sortedSetDocValues.cost();
                 }
 
                 @Override
                 public int advance(int target) throws IOException {
+                    new Exception().printStackTrace();
                     return sortedSetDocValues.advance(target);
                 }
 
                 @Override
                 public boolean advanceExact(int target) throws IOException {
+                    new Exception().printStackTrace();
                     return sortedSetDocValues.advanceExact(target);
                 }
 
                 @Override
                 public long nextOrd() throws IOException {
+                    new Exception().printStackTrace();
                     return sortedSetDocValues.nextOrd();
                 }
 
                 @Override
                 public BytesRef lookupOrd(long ord) throws IOException {
+                    new Exception().printStackTrace();
                     return mf.mask(sortedSetDocValues.lookupOrd(ord));
                 }
 
                 @Override
                 public long getValueCount() {
-                    return sortedSetDocValues.getValueCount();
+                    new Exception().printStackTrace();
+                    long vc = sortedSetDocValues.getValueCount();
+                    System.out.println("getValueCount " + vc + " " + sortedSetDocValues);
+                    return vc;
                 }
             };
         } else {
@@ -1195,6 +1222,8 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
         @Override
         public BytesRef next() throws IOException {
+            new Exception().printStackTrace();
+
             return delegate.next(); //no masking here
         }
 
@@ -1225,7 +1254,13 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
         @Override
         public BytesRef term() throws IOException {
-            return mf.mask(delegate.term());
+            BytesRef o = delegate.term();
+            BytesRef r = mf.mask(o);
+            
+            System.out.println(o.utf8ToString() + " -> " + r.utf8ToString());
+            new Exception().printStackTrace();
+            
+            return r;
         }
 
         @Override

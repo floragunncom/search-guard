@@ -54,6 +54,67 @@ public class CustomFieldMaskedComplexMappingTest extends AbstractDlsFlsTest{
     }
 
     @Test
+    public void testComplexMappingAggregations() throws Exception {
+
+        setup();
+
+
+        String query = "{"+
+                "\"aggs\" : {"+
+                "\"ips\" : { \"terms\" : { \"field\" : \"machine.os.keyword\", \"size\": 1002, \"show_term_doc_count_error\": true } }"+
+                "}"+
+                "}";
+
+
+
+        HttpResponse res;
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/logs/_search?pretty&size=0", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
+        System.out.println(res.getBody());
+
+        Assert.assertTrue(res.getBody().contains("win 8"));
+        Assert.assertTrue(res.getBody().contains("win xp"));
+        Assert.assertTrue(res.getBody().contains("ios"));
+        Assert.assertTrue(res.getBody().contains("osx"));
+        Assert.assertTrue(res.getBody().contains("win 7"));
+
+        Assert.assertTrue(res.getBody().contains("\"doc_count\" : 11"));
+        Assert.assertTrue(res.getBody().contains("\"doc_count\" : 9"));
+        Assert.assertTrue(res.getBody().contains("\"doc_count\" : 7"));
+        Assert.assertTrue(res.getBody().contains("\"doc_count\" : 6"));
+
+        Assert.assertFalse(res.getBody().contains("047f2c11be727"));
+        Assert.assertFalse(res.getBody().contains("4dce2825bb66e"));
+        Assert.assertFalse(res.getBody().contains("f47ed84663640"));
+        Assert.assertFalse(res.getBody().contains("88783587fef7"));
+        Assert.assertFalse(res.getBody().contains("c1f04335d9f41"));
+
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/logs/_search?pretty&size=0", query, encodeBasicHeader("user_masked_nowc", "password"))).getStatusCode());
+        System.out.println(res.getBody());
+
+        Assert.assertFalse(res.getBody().contains("\"aaa"));
+        
+        Assert.assertTrue(res.getBody().contains("047f2c11be727"));
+        Assert.assertTrue(res.getBody().contains("4dce2825bb66e"));
+        Assert.assertTrue(res.getBody().contains("f47ed84663640"));
+        Assert.assertTrue(res.getBody().contains("88783587fef7"));
+        Assert.assertTrue(res.getBody().contains("c1f04335d9f41"));
+
+        Assert.assertTrue(res.getBody().contains("\"doc_count\" : 11"));
+        Assert.assertTrue(res.getBody().contains("\"doc_count\" : 9"));
+        Assert.assertTrue(res.getBody().contains("\"doc_count\" : 7"));
+        Assert.assertTrue(res.getBody().contains("\"doc_count\" : 6"));
+
+        Assert.assertFalse(res.getBody().contains("win 8"));
+        Assert.assertFalse(res.getBody().contains("win xp"));
+        Assert.assertFalse(res.getBody().contains("ios"));
+        Assert.assertFalse(res.getBody().contains("osx"));
+        Assert.assertFalse(res.getBody().contains("win 7"));
+        
+        
+        
+    }
+    
+    @Test
     public void testComplexMappingAggregationsRace() throws Exception {
 
         setup();

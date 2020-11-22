@@ -94,6 +94,7 @@ public class CustomFieldMaskedTest extends AbstractDlsFlsTest{
             Assert.assertFalse(res.getBody().contains("XXX"));
     
             Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty&size=0", query, encodeBasicHeader("user_masked_custom", "password"))).getStatusCode());
+            System.out.println(res.getBody());
             Assert.assertTrue(res.getBody().contains("\"doc_count\" : 31"));
             Assert.assertTrue(res.getBody().contains("\"doc_count\" : 1"));
             Assert.assertFalse(res.getBody().contains("100.100"));
