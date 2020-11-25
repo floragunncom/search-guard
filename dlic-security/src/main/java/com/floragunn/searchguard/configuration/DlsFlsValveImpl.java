@@ -196,9 +196,21 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         }
 
     }
-
+    
     @Override
-    public void onQueryPhase(SearchContext searchContext, long tookInNanos) {        
+    public void onQueryPhase(SearchContext searchContext, long tookInNanos, ThreadPool threadPool) {
+    	
+    	final Map<String, Set<String>> maskedFieldsMap = (Map<String, Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadPool.getThreadContext(),
+                ConfigConstants.SG_MASKED_FIELD_HEADER);
+
+        final String maskedEval = SgUtils.evalMap(maskedFieldsMap, searchContext.indexShard().indexSettings().getIndex().getName());
+    	
+        if (maskedEval != null) {
+        	doOnQueryPhase(searchContext, tookInNanos, threadPool);
+        }
+    }
+
+    private void doOnQueryPhase(SearchContext searchContext, long tookInNanos, ThreadPool threadPool) {
         QuerySearchResult queryResult = searchContext.queryResult();
         if (queryResult == null) {
             return;
