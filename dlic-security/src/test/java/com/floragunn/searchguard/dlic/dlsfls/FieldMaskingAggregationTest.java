@@ -73,7 +73,7 @@ public class FieldMaskingAggregationTest {
     private final static byte[] salt = ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT_DEFAULT.getBytes(StandardCharsets.UTF_8);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().users(MASKED_TEST_USER, UNMASKED_TEST_USER).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().users(MASKED_TEST_USER, UNMASKED_TEST_USER).resources("dlsfls").build();
 
     private static Random random = new Random(SEED);
     private static String[] testDataIpAddresses = createRandomIpAddresses();
