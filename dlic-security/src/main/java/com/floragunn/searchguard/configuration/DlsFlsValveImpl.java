@@ -211,7 +211,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     }
 
     @Override
-    public void onQueryPhase(SearchContext searchContext, long tookInNanos) {
+    public void onQueryPhase(SearchContext searchContext, long tookInNanos, ThreadPool threadPool) {
         QuerySearchResult queryResult = searchContext.queryResult();
         if (queryResult == null) {
             return;
@@ -222,11 +222,15 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             return;
         }
 
+        if (!isFieldMaskingConfigured(threadPool)) {
+            return;
+        }
+
         InternalAggregations aggregations = aggregationsDelayedWritable.expand();
         if (aggregations == null) {
             return;
         }
-
+        
         if (checkForCorrectReduceOrder(aggregations)) {
             return;
         }
@@ -260,6 +264,14 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
         queryResult.aggregations(InternalAggregations.from(modifiedAggregations));
 
+    }
+
+    private boolean isFieldMaskingConfigured(ThreadPool threadPool) {
+        @SuppressWarnings("unchecked")
+        Map<String, Set<String>> maskedFieldsMap = (Map<String, Set<String>>) HeaderHelper.deserializeSafeFromHeader(threadPool.getThreadContext(),
+                ConfigConstants.SG_MASKED_FIELD_HEADER);
+
+        return (maskedFieldsMap != null && !maskedFieldsMap.isEmpty());
     }
 
     private boolean checkForCorrectReduceOrder(InternalAggregations aggregations) {
@@ -364,7 +376,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
         return result;
     }
-    
+
     private static BucketOrder getReduceOrder(InternalTerms<?, ?> aggregation) {
         final SecurityManager sm = System.getSecurityManager();
 
