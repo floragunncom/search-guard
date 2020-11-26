@@ -14,7 +14,12 @@
 
 package com.floragunn.searchguard.configuration;
 
+import java.lang.reflect.Field;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,6 +29,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
@@ -41,8 +47,11 @@ import org.elasticsearch.index.query.ParsedQuery;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
+import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation.Bucket;
+import org.elasticsearch.search.aggregations.bucket.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.internal.SearchContext;
@@ -55,6 +64,10 @@ import com.floragunn.searchguard.support.SgUtils;
 
 public class DlsFlsValveImpl implements DlsFlsRequestValve {
     private static final Logger log = LogManager.getLogger(DlsFlsValveImpl.class);
+
+    private static final Field REDUCE_ORDER_FIELD = getField(InternalTerms.class, "reduceOrder");
+    private static final Field BUCKET_TERM_BYTES = getField(StringTerms.Bucket.class, "termBytes");
+    private static final Field BUCKET_FORMAT = getField(InternalTerms.Bucket.class, "format");
 
     /**
      * 
@@ -198,7 +211,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     }
 
     @Override
-    public void onQueryPhase(SearchContext searchContext, long tookInNanos) {        
+    public void onQueryPhase(SearchContext searchContext, long tookInNanos) {
         QuerySearchResult queryResult = searchContext.queryResult();
         if (queryResult == null) {
             return;
@@ -214,59 +227,66 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             return;
         }
 
-        if (areBucketKeysDistinct(aggregations)) {
+        if (checkForCorrectReduceOrder(aggregations)) {
             return;
         }
-        
+
         if (log.isDebugEnabled()) {
             log.debug("Found buckets with equal keys. Merging these buckets: " + aggregations);
         }
-        
-        // TODO check order
-        
-        ArrayList<InternalAggregation> modifiedAggregations = new ArrayList<>(aggregations.asList().size());
+
+        ArrayList<InternalAggregation> modifiedAggregations = new ArrayList<>(aggregations.asList().size() + 1);
 
         for (Aggregation aggregation : aggregations) {
             if (!(aggregation instanceof StringTerms)) {
                 modifiedAggregations.add((InternalAggregation) aggregation);
                 continue;
             }
-            
+
             StringTerms stringTerms = (StringTerms) aggregation;
-            if (areBucketKeysDistinct(stringTerms.getBuckets())) {
+            BucketOrder reduceOrder = getReduceOrder(stringTerms);
+
+            if (checkForCorrectReduceOrder(reduceOrder, stringTerms.getBuckets())) {
                 modifiedAggregations.add((StringTerms) aggregation);
                 continue;
-             }
-            
-            
-            List<StringTerms.Bucket> buckets = mergeBucketKeys(stringTerms.getBuckets());
-            
+            }
+
+            List<StringTerms.Bucket> buckets = sortAndMergeBucketKeys(reduceOrder, stringTerms.getBuckets());
+
             StringTerms modifiedStringTerms = stringTerms.create(buckets);
-            
+
             modifiedAggregations.add(modifiedStringTerms);
         }
-        
+
         queryResult.aggregations(InternalAggregations.from(modifiedAggregations));
 
     }
-    
-    private boolean areBucketKeysDistinct(InternalAggregations aggregations) {
+
+    private boolean checkForCorrectReduceOrder(InternalAggregations aggregations) {
         for (Aggregation aggregation : aggregations) {
             if (!(aggregation instanceof StringTerms)) {
                 continue;
             }
 
             StringTerms stringTerms = (StringTerms) aggregation;
-            if (!areBucketKeysDistinct(stringTerms.getBuckets())) {
+            BucketOrder reduceOrder = getReduceOrder(stringTerms);
+
+            if (!checkForCorrectReduceOrder(reduceOrder, stringTerms.getBuckets())) {
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Aggregation needs correction: " + stringTerms + " " + reduceOrder);
+                }
+
                 return false;
             }
 
         }
-        
+
         return true;
     }
 
-    private boolean areBucketKeysDistinct(List<StringTerms.Bucket> buckets) {
+    private boolean checkForCorrectReduceOrder(BucketOrder reduceOrder, List<StringTerms.Bucket> buckets) {
+        Comparator<Bucket> comparator = reduceOrder.comparator();
         StringTerms.Bucket prevBucket = null;
 
         for (StringTerms.Bucket bucket : buckets) {
@@ -274,8 +294,8 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
                 prevBucket = bucket;
                 continue;
             }
-            
-            if (prevBucket.getKey().equals(bucket.getKey())) {
+
+            if (comparator.compare(prevBucket, bucket) >= 0) {
                 return false;
             }
 
@@ -285,21 +305,22 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         return true;
     }
 
-    private List<StringTerms.Bucket> mergeBucketKeys(List<StringTerms.Bucket> buckets) {
+    private List<StringTerms.Bucket> sortAndMergeBucketKeys(BucketOrder reduceOrder, List<StringTerms.Bucket> buckets) {
+        Comparator<Bucket> comparator = reduceOrder.comparator();
         int bucketCount = buckets.size();
         StringTerms.Bucket[] bucketArray = buckets.toArray(new StringTerms.Bucket[bucketCount]);
         ArrayList<StringTerms.Bucket> result = new ArrayList<StringTerms.Bucket>(bucketCount);
 
-        
-       if (log.isDebugEnabled()) {
-           log.debug("Merging buckets: " + buckets.stream().map(b -> b.getKeyAsString()).collect(Collectors.toList()));
-       }
-       
-        
-        for (int i = 0; i < bucketCount; ) {
+        Arrays.sort(bucketArray, comparator);
+
+        if (log.isDebugEnabled()) {
+            log.debug("Merging buckets: " + buckets.stream().map(b -> b.getKeyAsString()).collect(Collectors.toList()));
+        }
+
+        for (int i = 0; i < bucketCount;) {
             StringTerms.Bucket currentBucket = bucketArray[i];
 
-            if (i + 1 < bucketCount && currentBucket.getKey().equals(bucketArray[i + 1].getKey())) {
+            if (i + 1 < bucketCount && comparator.compare(currentBucket, bucketArray[i + 1]) == 0) {
                 int k = i + 1;
                 long mergedDocCount = currentBucket.getDocCount();
                 long mergedDocCountError;
@@ -323,11 +344,11 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
                     }
 
                     k++;
-                } while (k < bucketCount && currentBucket.getKey().equals(bucketArray[k].getKey()));
+                } while (k < bucketCount && comparator.compare(currentBucket, bucketArray[k]) == 0);
 
-                result.add(new StringTerms.Bucket(new BytesRef(currentBucket.getKeyAsString()), mergedDocCount, (InternalAggregations) currentBucket.getAggregations(),
-                        mergedDocCountError != -1, mergedDocCountError, DocValueFormat.RAW));
-                
+                result.add(new StringTerms.Bucket(getTerm(currentBucket), mergedDocCount, (InternalAggregations) currentBucket.getAggregations(),
+                        mergedDocCountError != -1, mergedDocCountError, getDocValueFormat(currentBucket)));
+
                 i = k;
 
             } else {
@@ -336,12 +357,79 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             }
 
         }
-                
+
         if (log.isDebugEnabled()) {
             log.debug("New buckets: " + result.stream().map(b -> b.getKeyAsString()).collect(Collectors.toList()));
         }
-        
+
         return result;
+    }
+    
+    private static BucketOrder getReduceOrder(InternalTerms<?, ?> aggregation) {
+        final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        return AccessController.doPrivileged((PrivilegedAction<BucketOrder>) () -> {
+            try {
+                return (BucketOrder) REDUCE_ORDER_FIELD.get(aggregation);
+            } catch (IllegalArgumentException | IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private static BytesRef getTerm(StringTerms.Bucket bucket) {
+        final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        return AccessController.doPrivileged((PrivilegedAction<BytesRef>) () -> {
+            try {
+                return (BytesRef) BUCKET_TERM_BYTES.get(bucket);
+            } catch (IllegalArgumentException | IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private static DocValueFormat getDocValueFormat(InternalTerms.Bucket<?> bucket) {
+        final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        return AccessController.doPrivileged((PrivilegedAction<DocValueFormat>) () -> {
+            try {
+                return (DocValueFormat) BUCKET_FORMAT.get(bucket);
+            } catch (IllegalArgumentException | IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private static Field getField(Class<?> clazz, String name) {
+        final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        return AccessController.doPrivileged((PrivilegedAction<Field>) () -> {
+
+            try {
+                Field field = clazz.getDeclaredField(name);
+                field.setAccessible(true);
+                return field;
+            } catch (NoSuchFieldException | SecurityException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
 }
