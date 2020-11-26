@@ -36,12 +36,8 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.yaml.YamlXContent;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.painless.PainlessPlugin;
 import org.elasticsearch.painless.spi.PainlessExtension;
@@ -57,7 +53,6 @@ import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
@@ -161,6 +156,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
         TransportClient tc = new TransportClientImpl(tcSettings, Arrays.asList(Netty4Plugin.class, SearchGuardPlugin.class));
         tc.addTransportAddress(new TransportAddress(new InetSocketAddress(clusterInfo.nodeHost, clusterInfo.nodePort)));
         return tc;
+    }
+    
+    public RestHighLevelClient getRestHighLevelClient(TestSgConfig.User user) {
+        return getRestHighLevelClient(user.getName(), user.getPassword());
     }
 
     public RestHighLevelClient getRestHighLevelClient(String user, String password) {
@@ -425,6 +424,20 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
 
             return this;
         }
+        
+        public Builder users(TestSgConfig.User... users) {
+            for (TestSgConfig.User user : users) {
+                testSgConfig.user(user);
+            }
+            return this;
+        }
+
+        
+        public Builder user(TestSgConfig.User user) {
+            testSgConfig.user(user);
+            return this;
+        }
+
 
         public Builder user(String name, String password, String... sgRoles) {
             testSgConfig.user(name, password, sgRoles);

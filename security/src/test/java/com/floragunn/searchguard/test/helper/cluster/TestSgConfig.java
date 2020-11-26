@@ -49,6 +49,10 @@ public class TestSgConfig {
         return this;
     }
 
+    public TestSgConfig user(User user) {
+        return this.user(user.name, user.password, user.roles);
+    }
+
     public TestSgConfig user(String name, String password, String... sgRoles) {
         if (overrideUserSettings == null) {
             overrideUserSettings = new NestedValueMap();
@@ -71,39 +75,44 @@ public class TestSgConfig {
         overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), Hasher.hash(password.toCharArray()));
 
         if (sgRoles != null && sgRoles.length > 0) {
-            overrideUserSettings.put(new NestedValueMap.Path(name, "search_guard_roles"),
-                    Arrays.asList(sgRoles).stream().map((r) -> r.name).collect(Collectors.toList()));
-            roles(sgRoles);
+            String roleNamePrefix = "user_" + name + "__";
 
+            overrideUserSettings.put(new NestedValueMap.Path(name, "search_guard_roles"),
+                    Arrays.asList(sgRoles).stream().map((r) -> roleNamePrefix + r.name).collect(Collectors.toList()));
+            roles(roleNamePrefix, sgRoles);
         }
 
         return this;
     }
 
     public TestSgConfig roles(Role... roles) {
+        return roles("", roles);
+    }
+
+    public TestSgConfig roles(String roleNamePrefix, Role... roles) {
         if (overrideRoleSettings == null) {
             overrideRoleSettings = new NestedValueMap();
         }
 
         for (Role role : roles) {
 
+            String name = roleNamePrefix + role.name;
+
             if (role.clusterPermissions.size() > 0) {
-                overrideRoleSettings.put(new NestedValueMap.Path(role.name, "cluster_permissions"), role.clusterPermissions);
+                overrideRoleSettings.put(new NestedValueMap.Path(name, "cluster_permissions"), role.clusterPermissions);
             }
 
             if (role.indexPermissions.size() > 0) {
-                overrideRoleSettings.put(new NestedValueMap.Path(role.name, "index_permissions"),
-                        role.indexPermissions.stream()
-                                .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "allowed_actions", p.allowedActions))
-                                .collect(Collectors.toList()));
+                overrideRoleSettings.put(new NestedValueMap.Path(name, "index_permissions"),
+                        role.indexPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
             }
 
             if (role.excludedClusterPermissions.size() > 0) {
-                overrideRoleSettings.put(new NestedValueMap.Path(role.name, "exclude_cluster_permissions"), role.excludedClusterPermissions);
+                overrideRoleSettings.put(new NestedValueMap.Path(name, "exclude_cluster_permissions"), role.excludedClusterPermissions);
             }
 
             if (role.excludedIndexPermissions.size() > 0) {
-                overrideRoleSettings.put(new NestedValueMap.Path(role.name, "exclude_index_permissions"), role.excludedIndexPermissions.stream()
+                overrideRoleSettings.put(new NestedValueMap.Path(name, "exclude_index_permissions"), role.excludedIndexPermissions.stream()
                         .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "actions", p.actions)).collect(Collectors.toList()));
             }
         }
@@ -168,6 +177,35 @@ public class TestSgConfig {
         return is;
     }
 
+    public static class User {
+        private String name;
+        private String password;
+        private Role[] roles;
+
+        public User(String name) {
+            this.name = name;
+            this.password = "secret";
+        }
+
+        public User password(String password) {
+            this.password = password;
+            return this;
+        }
+
+        public User roles(Role... roles) {
+            this.roles = roles;
+            return this;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+    }
+
     public static class Role {
         private String name;
         private List<String> clusterPermissions = new ArrayList<>();
@@ -204,16 +242,55 @@ public class TestSgConfig {
         private List<String> allowedActions;
         private List<String> indexPatterns;
         private Role role;
+        private String dlsQuery;
+        private List<String> fls;
+        private List<String> maskedFields;
 
         IndexPermission(Role role, String... allowedActions) {
             this.allowedActions = Arrays.asList(allowedActions);
             this.role = role;
         }
 
+        public IndexPermission dls(String dlsQuery) {
+            this.dlsQuery = dlsQuery;
+            return this;
+        }
+
+        public IndexPermission fls(String... fls) {
+            this.fls = Arrays.asList(fls);
+            return this;
+        }
+
+        public IndexPermission maskedFields(String... maskedFields) {
+            this.maskedFields = Arrays.asList(maskedFields);
+            return this;
+        }
+
         public Role on(String... indexPatterns) {
             this.indexPatterns = Arrays.asList(indexPatterns);
             this.role.indexPermissions.add(this);
             return this.role;
+        }
+
+        public NestedValueMap toJsonMap() {
+            NestedValueMap result = new NestedValueMap();
+
+            result.put("index_patterns", indexPatterns);
+            result.put("allowed_actions", allowedActions);
+
+            if (dlsQuery != null) {
+                result.put("dls", dlsQuery);
+            }
+
+            if (fls != null) {
+                result.put("fls", fls);
+            }
+
+            if (maskedFields != null) {
+                result.put("masked_fields", maskedFields);
+            }
+
+            return result;
         }
 
     }
