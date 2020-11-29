@@ -374,7 +374,8 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
     @Override
     public void document(final int docID, final StoredFieldVisitor visitor) throws IOException {
-         
+        // TODO fix code duplication wrt SearchGuardStoredFieldsReader 
+
         if(complianceConfig.readHistoryEnabledForIndex(indexService.index().getName())) {
             final ComplianceAwareStoredFieldVisitor cv = new ComplianceAwareStoredFieldVisitor(visitor);
             
@@ -713,8 +714,12 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
         @Override
         public void visitDocument(int docID, StoredFieldVisitor visitor) throws IOException {
+            // TODO fix code duplication wrt DlsFlsDirectoryReader 
+            
+            ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = null;
+            
             if (complianceConfig.readHistoryEnabledForIndex(indexService.index().getName())) {
-                visitor = new ComplianceAwareStoredFieldVisitor(visitor);
+                visitor = complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor);
             }
 
             if (maskFields) {
@@ -726,6 +731,10 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             }
 
             delegate.visitDocument(docID, visitor);
+            
+            if (complianceAwareStoredFieldVisitor != null) {
+                complianceAwareStoredFieldVisitor.finished();
+            }
         }
 
         @Override
