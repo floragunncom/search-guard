@@ -26,6 +26,7 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.OidcConfigRestAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -50,6 +51,7 @@ public class SearchGuardRestApiActions {
 	    handlers.add(new AuthTokenProcessorAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
 	    handlers.add(new TenantsApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
 		handlers.add(new BlocksApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog));
+		handlers.add(new OidcConfigRestAction());
 	    return Collections.unmodifiableCollection(handlers);
 	}
 }
