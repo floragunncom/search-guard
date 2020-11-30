@@ -77,4 +77,8 @@ public interface HTTPAuthenticator {
      * If true is returned {@code channel.sendResponse()} must be called so that the request completes.
      */
     boolean reRequestAuthentication(final RestChannel channel, AuthCredentials credentials);
+    
+    default boolean handleMetaRequest(RestRequest restRequest, RestChannel restChannel, String generalRequestPathComponent, String specificRequestPathComponent, ThreadContext threadContext) {
+        return false;
+    }
 }

@@ -90,10 +90,12 @@ public class BasicJsonWriter {
             generator.writeNumber(object.toString());
         } else if (object instanceof Boolean) {
             generator.writeBoolean(((Boolean) object).booleanValue());
+        } else if (object instanceof Enum) {
+            generator.writeString(((Enum<?>) object).name());
         } else if (object == null) {
             generator.writeNull();
         } else {
-            generator.writeString(object.toString());
+            throw new JsonGenerationException("Unsupported object type: " + object, generator);
         }
     }
 }

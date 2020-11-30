@@ -25,6 +25,7 @@ import com.floragunn.searchguard.support.IPAddressCollection;
 
 public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
 
+    private final String id;
     private final AuthenticationBackend backend;
     private final HTTPAuthenticator httpAuthenticator;
     private final int order;
@@ -32,9 +33,10 @@ public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
     private final List<String> skippedUsers;
     private final IPAddressCollection enabledOnlyForIps;
 
-    public AuthenticationDomain(final AuthenticationBackend backend, final HTTPAuthenticator httpAuthenticator, boolean challenge,
+    public AuthenticationDomain(String id, final AuthenticationBackend backend, final HTTPAuthenticator httpAuthenticator, boolean challenge,
                                 final int order, List<String> skippedUsers, IPAddressCollection enabledOnlyForIps) {
         super();
+        this.id = id;
         this.backend = Objects.requireNonNull(backend);
         this.httpAuthenticator = httpAuthenticator;
         this.order = order;
@@ -76,6 +78,10 @@ public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
 
     public IPAddressCollection getEnabledOnlyForIps() {
         return enabledOnlyForIps;
+    }
+
+    public String getId() {
+        return id;
     }
     
     

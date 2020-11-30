@@ -263,7 +263,7 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
                                 configPath);
                     }
 
-                    final AuthenticationDomain _ad = new AuthenticationDomain(authenticationBackend, httpAuthenticator,
+                    final AuthenticationDomain _ad = new AuthenticationDomain(ad.getKey(), authenticationBackend, httpAuthenticator,
                             ad.getValue().http_authenticator.challenge, ad.getValue().order, ad.getValue().skip_users, null);
 
                     if (httpEnabled && _ad.getHttpAuthenticator() != null) {

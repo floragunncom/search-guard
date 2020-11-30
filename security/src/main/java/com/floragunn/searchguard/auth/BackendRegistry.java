@@ -387,7 +387,10 @@ public class BackendRegistry implements DCFListener {
         AuthCredentials authCredenetials = null;
 
         HTTPAuthenticator firstChallengingHttpAuthenticator = null;
-
+        
+        MetaRequestInfo authDomainMetaRequest = checkAuthDomainMetaRequest(request);
+        boolean isAuthDomainMetaRequest = authDomainMetaRequest != null;
+        
         //loop over all http/rest auth domains
         for (final AuthenticationDomain authenticationDomain : restAuthenticationDomains) {
             if (log.isDebugEnabled()) {
@@ -409,6 +412,15 @@ public class BackendRegistry implements DCFListener {
                 firstChallengingHttpAuthenticator = httpAuthenticator;
             }
 
+            if (isAuthDomainMetaRequest && authDomainMetaRequest.authDomainType.equals(httpAuthenticator.getType())
+                    && ("_first".equals(authDomainMetaRequest.authDomainId)
+                            || authenticationDomain.getId().equals(authDomainMetaRequest.authDomainId))) {
+
+                if (httpAuthenticator.handleMetaRequest(request, channel, authDomainMetaRequest.authDomainPath, authDomainMetaRequest.remainingPath, threadContext)) {
+                    return false;
+                }
+            }
+            
             if (log.isTraceEnabled()) {
                 log.trace("Try to extract auth creds from {} http authenticator", httpAuthenticator.getType());
             }
@@ -864,6 +876,56 @@ public class BackendRegistry implements DCFListener {
         }
 
         return false;
+    }
+    
+    private MetaRequestInfo checkAuthDomainMetaRequest(RestRequest restRequest) {
+        String prefix = "/_searchguard/auth_domain/";
+        String path = restRequest.path();
+        
+        if (!path.startsWith(prefix)) {
+            return null;
+        }
+                
+        int nextSlash = path.indexOf('/', prefix.length());
+        
+        if (nextSlash <= 0) {
+            return null;
+        }
+        
+        String authDomainId = path.substring(prefix.length(), nextSlash);
+        
+        int nextNextSlash = path.indexOf('/', nextSlash + 1);
+        
+        String authDomainType = null;
+        String authDomainPath = null;
+        String remainingPath = "";
+        
+        if (nextNextSlash > 0) {
+            authDomainPath = path.substring(0, nextNextSlash);
+            authDomainType = path.substring(nextSlash + 1, nextNextSlash);
+            remainingPath = path.substring(nextNextSlash + 1);
+        } else {
+            authDomainPath = path;
+            authDomainType = path.substring(nextSlash + 1);
+        }
+        
+        return new MetaRequestInfo(authDomainId, authDomainType, authDomainPath, remainingPath);
+    }
+    
+    private static class MetaRequestInfo {
+     
+        
+        final String authDomainId;
+        final String authDomainType;
+        final String authDomainPath;
+        final String remainingPath;
+        
+        public MetaRequestInfo(String authDomainId, String authDomainType, String authDomainPath, String remainingPath) {
+            this.authDomainId = authDomainId;
+            this.authDomainType = authDomainType;
+            this.authDomainPath = authDomainPath;
+            this.remainingPath = remainingPath;
+        }
     }
 
 }

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -31,6 +32,34 @@ public class BasicJsonReader {
             return new BasicJsonReader(parser).read();
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public static Map<String, Object> readObject(InputStream in) throws JsonProcessingException, IOException {
+        Object parsedDocument = read(in);
+
+        if (parsedDocument instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = (Map<String, Object>) parsedDocument;
+
+            return result;
+        } else {
+            throw new UnexpectedJsonStructureException(
+                    "Expected a JSON object. Got: " + (parsedDocument instanceof List ? "Array" : String.valueOf(parsedDocument)));
+        }
+    }
+    
+    public static Map<String, Object> readObject(String string) throws JsonProcessingException, IOException {
+        Object parsedDocument = read(string);
+
+        if (parsedDocument instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = (Map<String, Object>) parsedDocument;
+
+            return result;
+        } else {
+            throw new UnexpectedJsonStructureException(
+                    "Expected a JSON object. Got: " + (parsedDocument instanceof List ? "Array" : String.valueOf(parsedDocument)));
         }
     }
 
@@ -116,7 +145,7 @@ public class BasicJsonReader {
                 break;
             }
         }
-        
+
         parser.clearCurrentToken();
 
         return topNode;
@@ -126,7 +155,7 @@ public class BasicJsonReader {
         if (topNode == null) {
             topNode = newNode;
         }
-        
+
         if (currentNode instanceof Collection) {
             @SuppressWarnings("unchecked")
             Collection<Object> collection = (Collection<Object>) currentNode;
