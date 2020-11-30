@@ -2,14 +2,10 @@ package com.floragunn.searchguard.dlic.dlsfls;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -19,11 +15,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.crypto.digests.Blake2bDigest;
 import org.bouncycastle.util.encoders.Hex;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
@@ -34,7 +25,6 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
@@ -48,10 +38,10 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.test.TestData;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
-import com.google.common.collect.ImmutableMap;
 
 public class FieldMaskingAggregationTest {
 
@@ -59,10 +49,6 @@ public class FieldMaskingAggregationTest {
      * Increase DOC_COUNT for manual test runs with bigger test data sets
      */
     private static final int DOC_COUNT = 1000;
-    private static final int DELETED_DOC_COUNT = (int) (DOC_COUNT * 0.06);
-    private static final int SEGMENT_COUNT = 17;
-    private static final int REFRESH_AFTER = DOC_COUNT / SEGMENT_COUNT;
-    private static final int SEED = 1234;
 
     private final static TestSgConfig.User MASKED_TEST_USER = new TestSgConfig.User("masked_test")
             .roles(new Role("mask").indexPermissions("*").maskedFields("*ip::/[0-9]{1,3}$/::XXX", "source_loc").on("ip").clusterPermissions("*"));
@@ -73,12 +59,9 @@ public class FieldMaskingAggregationTest {
     private final static byte[] salt = ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT_DEFAULT.getBytes(StandardCharsets.UTF_8);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().users(MASKED_TEST_USER, UNMASKED_TEST_USER).resources("dlsfls").build();
-
-    private static Random random = new Random(SEED);
-    private static String[] testDataIpAddresses = createRandomIpAddresses();
-    private static String[] testDataLocationNames = createRandomLocationNames();
-
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().users(MASKED_TEST_USER, UNMASKED_TEST_USER).resources("dlsfls")
+            .build();
+    
     /**
      * This table also aggregates the test data and serves as reference for the tests
      */
@@ -90,11 +73,11 @@ public class FieldMaskingAggregationTest {
 
     @BeforeClass
     public static void setupTestData() {
-
-        log.info("Creating test data");
-        createTestIndex("ip", DOC_COUNT, DELETED_DOC_COUNT, REFRESH_AFTER, Settings.builder().put("index.number_of_shards", 5).build());
-        log.info("Creating test data finished");
-
+        try (Client client = cluster.getInternalClient()) {
+            TestData testData = TestData.documentCount(DOC_COUNT).get();           
+            testData.createIndex(client, "ip", Settings.builder().put("index.number_of_shards", 5).build());
+            referenceAggregationTable.add(testData.getRetainedDocuments().values());
+        }
     }
 
     @Test
@@ -236,107 +219,6 @@ public class FieldMaskingAggregationTest {
 
         }
 
-    }
-
-    /**
-     * Creates an index with test data. The index will consist of segments of roughly the size specified by the refreshAfter parameter. 
-     * The actual segment size will be however randomized, it is possible to have segments with only one document and segments with twice the specified size.
-     * The function will also randomly delete documents after they were created. The amount of deleted documents is specified by the deletedDocumentCount parameter.
-     * 
-     * The index will contain these attributes:
-     * - source_ip, dest_ip: Strings with random IP addresses with equal distribution
-     * - source_loc, dest_loc: Strings with random location names with Gaussian distribution
-     */
-    private static void createTestIndex(String name, int size, int deletedDocumentCount, int refreshAfter, Settings settings) {
-        log.info("creating test index " + name + "; size: " + size + "; deletedDocumentCount: " + deletedDocumentCount + "; refreshAfter: "
-                + refreshAfter);
-
-        try (Client client = cluster.getInternalClient()) {
-
-            Map<String, Map<String, ?>> createdDocuments = new HashMap<>(size);
-
-            client.admin().indices().create(new CreateIndexRequest(name).settings(settings)).actionGet();
-
-            int nextRefresh = (int) Math.floor((random.nextGaussian() * 0.5 + 0.5) * refreshAfter);
-
-            for (int i = 0; i < size; i++) {
-                Map<String, ?> document = ImmutableMap.of("source_ip", randomIpAddress(), "dest_ip", randomIpAddress(), "source_loc",
-                        randomLocationName(), "dest_loc", randomLocationName());
-
-                IndexResponse indexResponse = client.index(new IndexRequest(name).source(document, XContentType.JSON)).actionGet();
-
-                createdDocuments.put(indexResponse.getId(), document);
-
-                if (i > nextRefresh) {
-                    client.admin().indices().refresh(new RefreshRequest(name)).actionGet();
-                    double g = random.nextGaussian();
-
-                    nextRefresh = (int) Math.floor((g * 0.5 + 1) * refreshAfter) + i + 1;
-                    log.debug("refresh at " + i + " " + g + " " + (g * 0.5 + 1));
-                }
-            }
-
-            client.admin().indices().refresh(new RefreshRequest(name)).actionGet();
-
-            List<String> createdDocIds = new ArrayList<>(createdDocuments.keySet());
-
-            Collections.shuffle(createdDocIds, random);
-
-            for (int i = 0; i < deletedDocumentCount; i++) {
-                String key = createdDocIds.get(i);
-                client.delete(new DeleteRequest(name, key)).actionGet();
-                createdDocuments.remove(key);
-            }
-
-            client.admin().indices().refresh(new RefreshRequest(name)).actionGet();
-
-            referenceAggregationTable.add(createdDocuments.values());
-        }
-    }
-
-    private static String[] createRandomIpAddresses() {
-        String[] result = new String[2000];
-
-        for (int i = 0; i < result.length; i++) {
-            result[i] = (random.nextInt(10) + 100) + "." + (random.nextInt(5) + 100) + "." + random.nextInt(255) + "." + random.nextInt(255);
-        }
-
-        return result;
-    }
-
-    private static String[] createRandomLocationNames() {
-        String[] p1 = new String[] { "Schön", "Schöner", "Tempel", "Friedens", "Friedrichs", "Blanken", "Rosen", "Charlotten", "Malch", "Lichten",
-                "Lichter", "Hasel", "Kreuz", "Pank", "Marien", "Adlers", "Zehlen", "Haken", "Witten", "Jungfern", "Hellers", "Finster", "Birken",
-                "Falken", "Freders", "Karls", "Grün", "Wilmers", "Heiners", "Lieben", "Marien", "Wiesen", "Biesen", "Schmachten", "Rahns", "Rangs",
-                "Herms", "Rüders", "Wuster", "Hoppe" };
-        String[] p2 = new String[] { "au", "ow", "berg", "feld", "felde", "tal", "thal", "höhe", "burg", "horst", "hausen", "dorf", "hof", "heide",
-                "weide", "hain", "walde", "linde", "hagen", "eiche", "witz", "rade", "werder", "see", "fließ", "krug", "mark" };
-
-        ArrayList<String> result = new ArrayList<>(p1.length * p2.length);
-
-        for (int i = 0; i < p1.length; i++) {
-            for (int k = 0; k < p2.length; k++) {
-                result.add(p1[i] + p2[k]);
-            }
-        }
-
-        Collections.shuffle(result, random);
-
-        return result.toArray(new String[result.size()]);
-    }
-
-    private static String randomIpAddress() {
-        return testDataIpAddresses[random.nextInt(testDataIpAddresses.length)];
-    }
-
-    private static String randomLocationName() {
-        int i = (int) Math.floor(random.nextGaussian() * testDataLocationNames.length * 0.333 + testDataLocationNames.length);
-
-        if (i < 0 || i >= testDataLocationNames.length) {
-            i = random.nextInt(testDataLocationNames.length);
-        }
-
-        return testDataLocationNames[i];
     }
 
     private static String toxToString(ToXContent toXContentObject) {
