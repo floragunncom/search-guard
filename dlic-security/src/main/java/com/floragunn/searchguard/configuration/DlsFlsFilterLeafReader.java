@@ -30,13 +30,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
+import org.apache.lucene.codecs.StoredFieldsReader;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.FilterDirectoryReader;
-import org.apache.lucene.index.FilterLeafReader;
 import org.apache.lucene.index.ImpactsEnum;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.NumericDocValues;
@@ -66,6 +66,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.lucene.index.SequentialStoredFieldsLeafReader;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentHelper;
@@ -87,7 +88,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 
-class DlsFlsFilterLeafReader extends FilterLeafReader {
+class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
     private static final String KEYWORD = ".keyword";
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
@@ -373,7 +374,8 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
     @Override
     public void document(final int docID, final StoredFieldVisitor visitor) throws IOException {
-         
+        // TODO fix code duplication wrt SearchGuardStoredFieldsReader 
+
         if(complianceConfig.readHistoryEnabledForIndex(indexService.index().getName())) {
             final ComplianceAwareStoredFieldVisitor cv = new ComplianceAwareStoredFieldVisitor(visitor);
             
@@ -691,6 +693,61 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
 
     }
 
+    private class SearchGuardStoredFieldsReader extends StoredFieldsReader {
+
+        private final StoredFieldsReader delegate;
+
+        public SearchGuardStoredFieldsReader(StoredFieldsReader delegate) {
+            super();
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void close() throws IOException {
+            delegate.close();
+        }
+
+        @Override
+        public long ramBytesUsed() {
+            return delegate.ramBytesUsed();
+        }
+
+        @Override
+        public void visitDocument(int docID, StoredFieldVisitor visitor) throws IOException {
+            // TODO fix code duplication wrt DlsFlsDirectoryReader 
+            
+            ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = null;
+            
+            if (complianceConfig.readHistoryEnabledForIndex(indexService.index().getName())) {
+                visitor = complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor);
+            }
+
+            if (maskFields) {
+                visitor = new HashingStoredFieldVisitor(visitor);
+            }
+
+            if (flsEnabled) {
+                visitor = new FlsStoredFieldVisitor(visitor);
+            }
+
+            delegate.visitDocument(docID, visitor);
+            
+            if (complianceAwareStoredFieldVisitor != null) {
+                complianceAwareStoredFieldVisitor.finished();
+            }
+        }
+
+        @Override
+        public StoredFieldsReader clone() {
+            return new SearchGuardStoredFieldsReader(delegate);
+        }
+
+        @Override
+        public void checkIntegrity() throws IOException {
+            delegate.checkIntegrity();
+        }
+    }
+    
     @Override
     public Fields getTermVectors(final int docID) throws IOException {
         final Fields fields = in.getTermVectors(docID);
@@ -1232,5 +1289,10 @@ class DlsFlsFilterLeafReader extends FilterLeafReader {
         //we need to apply here if it is not a search request
         //(a get for example)
         return !action.startsWith("indices:data/read/search");
+    }
+
+    @Override
+    protected StoredFieldsReader doGetSequentialStoredFieldsReader(StoredFieldsReader reader) {
+        return new SearchGuardStoredFieldsReader(reader);
     }
 }
