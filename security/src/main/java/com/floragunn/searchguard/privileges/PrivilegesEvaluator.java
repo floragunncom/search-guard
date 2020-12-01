@@ -159,7 +159,7 @@ public class PrivilegesEvaluator implements DCFListener {
         if (action0.startsWith("internal:indices/admin/upgrade")) {
             action0 = "indices:admin/upgrade";
         }
-
+        
         TransportAddress caller;
         Set<String> mappedRoles;
         SgRoles sgRoles;
@@ -204,6 +204,10 @@ public class PrivilegesEvaluator implements DCFListener {
         }
 
         if (isClusterPerm(action0)) {
+            if (enterpriseModulesEnabled) {
+                dlsFlsEvaluator.evaluate(request, clusterService, resolver, requestedResolved, user, sgRoles, presponse);
+            }
+            
             if (!sgRoles.impliesClusterPermissionPermission(action0)) {
                 presponse.missingPrivileges.add(action0);
                 presponse.allowed = false;

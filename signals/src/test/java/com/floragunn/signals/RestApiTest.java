@@ -448,7 +448,7 @@ public class RestApiTest {
                     parsedResponse.get("detail").get("checks[testsearch].type").get(0).get("error").asText());
             Assert.assertEquals(response.getBody(), "searchx",
                     parsedResponse.get("detail").get("checks[testsearch].type").get(0).get("value").asText());
-            Assert.assertEquals(response.getBody(), "Variable [x] is not defined.",
+            Assert.assertEquals(response.getBody(), "cannot resolve symbol [x]",
                     parsedResponse.get("detail").get("checks[].source").get(0).get("error").asText());
             Assert.assertTrue(response.getBody(),
                     parsedResponse.get("detail").get("trigger.schedule.cron").get(0).get("error").asText().contains("Invalid cron expression"));

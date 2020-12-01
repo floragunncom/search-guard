@@ -98,6 +98,7 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.search.internal.ReaderContext;
 import org.elasticsearch.search.internal.ScrollContext;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -609,7 +610,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             indexModule.addSearchOperationListener(new SearchOperationListener() {
 
                 @Override
-                public void onNewContext(SearchContext context) {
+                public void onPreQueryPhase(SearchContext context) {
 
                     if (enterpriseModulesEnabled) {
                         dlsFlsValve.handleSearchContext(context, threadPool, namedXContentRegistry);
@@ -617,46 +618,49 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 }
 
                 @Override
-                public void onNewScrollContext(SearchContext context) {
+                public void onNewScrollContext(ReaderContext context) {
+                    final boolean interClusterRequest = HeaderHelper.isInterClusterRequest(threadPool.getThreadContext());
+                    if (Origin.LOCAL.toString().equals(threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN))
+                            && (interClusterRequest || HeaderHelper.isDirectRequest(threadPool.getThreadContext()))
+
+                    ) {
+                        context.putInContext("_sg_scroll_auth_local", Boolean.TRUE);
+
+                    } else {
+                        context.putInContext("_sg_scroll_auth", threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER));
+                    }
+                }
+
+                @Override
+                public void validateReaderContext(ReaderContext context, TransportRequest transportRequest) {
 
                     final ScrollContext scrollContext = context.scrollContext();
-
                     if (scrollContext != null) {
-
-                        final boolean interClusterRequest = HeaderHelper.isInterClusterRequest(threadPool.getThreadContext());
-                        if (Origin.LOCAL.toString().equals(threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN))
-                                && (interClusterRequest || HeaderHelper.isDirectRequest(threadPool.getThreadContext()))
-
-                        ) {
-                            scrollContext.putInContext("_sg_scroll_auth_local", Boolean.TRUE);
-
-                        } else {
-                            scrollContext.putInContext("_sg_scroll_auth", threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER));
+                        final Object _isLocal = context.getFromContext("_sg_scroll_auth_local");
+                        final Object _user = context.getFromContext("_sg_scroll_auth");
+                        if (_user != null && (_user instanceof User)) {
+                            final User scrollUser = (User) _user;
+                            final User currentUser = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
+                            if (!scrollUser.equals(currentUser)) {
+                                auditLog.logMissingPrivileges(SearchScrollAction.NAME, transportRequest, null);
+                                log.error("Wrong user {} in scroll context, expected {}", scrollUser, currentUser);
+                                throw new ElasticsearchSecurityException("Wrong user in scroll context", RestStatus.FORBIDDEN);
+                            }
+                        } else if (_isLocal != Boolean.TRUE) {
+                            auditLog.logMissingPrivileges(SearchScrollAction.NAME, transportRequest, null);
+                            throw new ElasticsearchSecurityException("No user in scroll context", RestStatus.FORBIDDEN);
                         }
                     }
                 }
 
                 @Override
-                public void validateSearchContext(SearchContext context, TransportRequest transportRequest) {
+                public void onQueryPhase(SearchContext searchContext, long tookInNanos) {
 
-                    final ScrollContext scrollContext = context.scrollContext();
-                    if (scrollContext != null) {
-                        final Object _isLocal = scrollContext.getFromContext("_sg_scroll_auth_local");
-                        final Object _user = scrollContext.getFromContext("_sg_scroll_auth");
-                        if (_user != null && (_user instanceof User)) {
-                            final User scrollUser = (User) _user;
-                            final User currentUser = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
-                            if (!scrollUser.equals(currentUser)) {
-                                auditLog.logMissingPrivileges(SearchScrollAction.NAME, transportRequest, context.getTask());
-                                log.error("Wrong user {} in scroll context, expected {}", scrollUser, currentUser);
-                                throw new ElasticsearchSecurityException("Wrong user in scroll context", RestStatus.FORBIDDEN);
-                            }
-                        } else if (_isLocal != Boolean.TRUE) {
-                            auditLog.logMissingPrivileges(SearchScrollAction.NAME, transportRequest, context.getTask());
-                            throw new ElasticsearchSecurityException("No user in scroll context", RestStatus.FORBIDDEN);
-                        }
+                    if (enterpriseModulesEnabled) {
+                        dlsFlsValve.onQueryPhase(searchContext, tookInNanos, threadPool);
                     }
                 }
+
             });
         }
     }
