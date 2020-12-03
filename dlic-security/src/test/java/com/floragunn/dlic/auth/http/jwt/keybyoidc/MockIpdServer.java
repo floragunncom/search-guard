@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -20,16 +20,13 @@ import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.BindException;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
-import java.util.Map;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -41,16 +38,12 @@ import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.http.HttpConnectionFactory;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
-import org.apache.http.HttpInetConnection;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.config.ConnectionConfig;
 import org.apache.http.config.MessageConstraints;
 import org.apache.http.entity.ContentLengthStrategy;
-import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.ConnSupport;
 import org.apache.http.impl.DefaultBHttpServerConnection;
@@ -61,25 +54,19 @@ import org.apache.http.io.HttpMessageParserFactory;
 import org.apache.http.io.HttpMessageWriterFactory;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpRequestHandler;
-import org.apache.http.util.EntityUtils;
 
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.floragunn.searchsupport.json.BasicJsonWriter;
-import com.google.common.collect.ImmutableMap;
 
 class MockIpdServer implements Closeable {
     final static String CTX_DISCOVER = "/discover";
     final static String CTX_KEYS = "/api/oauth/keys";
-    final static String CTX_TOKEN = "/token";
 
     private final HttpServer httpServer;
     private final int port;
     private final String uri;
     private final boolean ssl;
     private final JsonWebKeys jwks;
-
-    private InetAddress acceptConnectionsOnlyFromInetAddress;
 
     static MockIpdServer start(JsonWebKeys jwks) throws IOException {
 
@@ -129,14 +116,6 @@ class MockIpdServer implements Closeable {
                 handleKeysRequest(request, response, context);
 
             }
-        }).registerHandler(CTX_TOKEN, new HttpRequestHandler() {
-
-            @Override
-            public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
-
-                handleTokenRequest(request, response, context);
-
-            }
         });
 
         if (ssl) {
@@ -166,11 +145,6 @@ class MockIpdServer implements Closeable {
         httpServer.start();
     }
 
-    public MockIpdServer acceptConnectionsOnlyFromInetAddress(InetAddress inetAddress) {
-        this.acceptConnectionsOnlyFromInetAddress = inetAddress;
-        return this;
-    }
-
     @Override
     public void close() throws IOException {
         httpServer.stop();
@@ -193,68 +167,15 @@ class MockIpdServer implements Closeable {
     }
 
     protected void handleDiscoverRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
-
-        if (!checkClientAddress(request, response, context)) {
-            return;
-        }
-
         response.setStatusCode(200);
         response.setHeader("Cache-Control", "public, max-age=31536000");
-        response.setEntity(new StringEntity("{\"jwks_uri\": \"" + uri + CTX_KEYS + "\",\n" + "\"issuer\": \"" + uri
-                + "\", \"unknownPropertyToBeIgnored\": 42, \"token_endpoint\": \"" + uri + CTX_TOKEN + "\"}"));
+        response.setEntity(new StringEntity(
+                "{\"jwks_uri\": \"" + uri + CTX_KEYS + "\",\n" + "\"issuer\": \"" + uri + "\", \"unknownPropertyToBeIgnored\": 42}"));
     }
 
     protected void handleKeysRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
-        if (!checkClientAddress(request, response, context)) {
-            return;
-        }
-
         response.setStatusCode(200);
         response.setEntity(new StringEntity(toJson(jwks)));
-    }
-
-    protected void handleTokenRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
-        if (!checkClientAddress(request, response, context)) {
-            return;
-        }
-
-        if (!"POST".equalsIgnoreCase(request.getRequestLine().getMethod())) {
-            response.setStatusCode(400);
-            response.setEntity(new StringEntity("Not a POST request"));
-            return;
-        }
-        
-        if (request.getFirstHeader("Content-Type") == null) {
-            response.setStatusCode(400);
-            response.setEntity(new StringEntity("Content-Type header is missing"));
-            return;
-        }
-        
-        if (!request.getFirstHeader("Content-Type").getValue().toLowerCase().startsWith("application/x-www-form-urlencoded")) {
-            response.setStatusCode(400);
-            response.setEntity(new StringEntity("Content-Type is not application/x-www-form-urlencoded"));
-            return;
-        }
-
-        if (!(request instanceof HttpEntityEnclosingRequest)) {
-            response.setStatusCode(400);
-            response.setEntity(new StringEntity("Missing entity"));
-        }
-
-        HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
-        String entityAsString = EntityUtils.toString(entity);
-
-        if (!entityAsString.contains("grant_type=")) {
-            response.setStatusCode(400);
-            response.setEntity(new StringEntity("Missing grant_type"));
-        }
-
-        response.setStatusCode(200);
-
-        Map<String, Object> responseBody = ImmutableMap.of("access_token", "totototototo", "token_type", "bearer", "expires_in", 3600, "scope",
-                "profile app:read app:write", "id_token", "kenkenken");
-
-        response.setEntity(new StringEntity(BasicJsonWriter.writeAsString(responseBody), ContentType.APPLICATION_JSON));
     }
 
     private SSLContext createSSLContext() {
@@ -281,23 +202,6 @@ class MockIpdServer implements Closeable {
             return sslContext;
         } catch (GeneralSecurityException | IOException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    private boolean checkClientAddress(HttpRequest request, HttpResponse response, HttpContext context) throws UnsupportedEncodingException {
-        if (acceptConnectionsOnlyFromInetAddress == null) {
-            return true;
-        }
-
-        HttpInetConnection connection = (HttpInetConnection) context.getAttribute("http.connection");
-
-        if (connection.getRemoteAddress().equals(acceptConnectionsOnlyFromInetAddress)) {
-            return true;
-        } else {
-            response.setStatusCode(451);
-            response.setEntity(new StringEntity(
-                    "We are not accepting connections from " + connection.getRemoteAddress() + "; only: " + acceptConnectionsOnlyFromInetAddress));
-            return false;
         }
     }
 

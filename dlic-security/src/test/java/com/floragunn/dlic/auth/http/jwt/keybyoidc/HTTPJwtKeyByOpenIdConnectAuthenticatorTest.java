@@ -14,52 +14,29 @@
 
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.MCCOY_SUBJECT;
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.ROLES_CLAIM;
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.TEST_AUDIENCE;
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.create;
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.createSigned;
-
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.util.FakeRestRequest;
+import com.google.common.collect.ImmutableMap;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestResponse;
-import org.elasticsearch.rest.RestRequest.Method;
 import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
-import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchguard.util.FakeRestRequest;
-import com.floragunn.searchsupport.json.BasicJsonReader;
-import com.google.common.collect.ImmutableMap;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+
+import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.*;
 
 public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
     protected static MockIpdServer mockIdpServer;
-    protected static BrowserUpProxy httpProxy;
 
     @BeforeClass
     public static void setUp() throws Exception {
         mockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL);
-        httpProxy = new BrowserUpProxyServer();
-        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
 
     @AfterClass
@@ -70,10 +47,6 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-
-        if (httpProxy != null) {
-            httpProxy.abort();
         }
     }
 
@@ -91,47 +64,6 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         Assert.assertEquals(TestJwts.TEST_AUDIENCE, creds.getAttributes().get("attr.jwt.aud"));
         Assert.assertEquals(0, creds.getBackendRoles().size());
         Assert.assertEquals(3, creds.getAttributes().size());
-    }
-
-    @Test
-    public void proxyTest() throws UnknownHostException, IOException {
-        try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL)
-                .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"))) {
-            Settings settings = Settings.builder().put("openid_connect_url", proxyOnlyMockIdpServer.getDiscoverUri()).put("proxy.host", "127.0.0.8")
-                    .put("proxy.port", httpProxy.getPort()).put("proxy.scheme", "http").build();
-
-            HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
-
-            AuthCredentials creds = jwtAuth.extractCredentials(
-                    new FakeRestRequest(ImmutableMap.of("Authorization", TestJwts.MC_COY_SIGNED_OCT_1), new HashMap<String, String>()), null);
-
-            Assert.assertNotNull(creds);
-            Assert.assertEquals(TestJwts.MCCOY_SUBJECT, creds.getUsername());
-            Assert.assertEquals(TestJwts.TEST_AUDIENCE, creds.getAttributes().get("attr.jwt.aud"));
-            Assert.assertEquals(0, creds.getBackendRoles().size());
-            Assert.assertEquals(3, creds.getAttributes().size());
-
-            FakeRestRequest restRequest = new FakeRestRequest();
-            TestRestChannel restChannel = new TestRestChannel(restRequest);
-
-            jwtAuth.handleMetaRequest(restRequest, restChannel, "/_searchguard/test/openid", "config", null);
-            String response = restChannel.response.content().utf8ToString();
-            Map<String, Object> parsedResponse = BasicJsonReader.readObject(response);
-
-            Assert.assertTrue(response, parsedResponse.containsKey("token_endpoint_proxy"));
-
-            restRequest = new FakeRestRequest.Builder().withMethod(Method.POST)
-                    .withContent(new BytesArray("grant_type=authorization_code&code=wusch"))
-                    .withHeaders(ImmutableMap.of("Content-Type", "application/x-www-form-urlencoded")).build();
-            restChannel = new TestRestChannel(restRequest);
-
-            jwtAuth.handleMetaRequest(restRequest, restChannel, "/_searchguard/test/openid", "token", null);
-
-            response = restChannel.response.content().utf8ToString();
-            parsedResponse = BasicJsonReader.readObject(response);
-
-            Assert.assertTrue(response, parsedResponse.containsKey("id_token"));
-        }
     }
 
     @Test
@@ -167,13 +99,13 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
     @Test
     public void testRolesJsonPath() throws Exception {
-        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri())
-                .put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.sub").build();
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.sub")
+                .build();
 
         HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
-        AuthCredentials creds = jwtAuth
-                .extractCredentials(new FakeRestRequest(ImmutableMap.of("Authorization", TestJwts.MC_COY_SIGNED_OCT_1), new HashMap<>()), null);
+        AuthCredentials creds = jwtAuth.extractCredentials(
+                new FakeRestRequest(ImmutableMap.of("Authorization", TestJwts.MC_COY_SIGNED_OCT_1), new HashMap<>()), null);
 
         Assert.assertNotNull(creds);
         Assert.assertEquals(TestJwts.MCCOY_SUBJECT, creds.getUsername());
@@ -182,20 +114,14 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
     @Test
     public void testRolesCollectionJsonPath() throws Exception {
-        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri())
-                .put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.sub").build();
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.sub")
+                .build();
 
         HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
-        AuthCredentials creds = jwtAuth
-                .extractCredentials(
-                        new FakeRestRequest(
-                                ImmutableMap
-                                        .of("Authorization",
-                                                createSigned(create(MCCOY_SUBJECT, TEST_AUDIENCE, ROLES_CLAIM,
-                                                        Arrays.asList("role 1", "role 2", "role 3, role 4")), TestJwk.OCT_1)),
-                                new HashMap<>()),
-                        null);
+        AuthCredentials creds = jwtAuth.extractCredentials(
+                new FakeRestRequest(ImmutableMap.of("Authorization", createSigned(create(MCCOY_SUBJECT, TEST_AUDIENCE,
+                        ROLES_CLAIM, Arrays.asList("role 1", "role 2", "role 3, role 4")), TestJwk.OCT_1)), new HashMap<>()), null);
 
         Assert.assertNotNull(creds);
         Assert.assertEquals(TestJwts.MCCOY_SUBJECT, creds.getUsername());
@@ -204,8 +130,8 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
     @Test
     public void testInvalidSubjectJsonPath() throws Exception {
-        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri())
-                .put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.subasd").build();
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.subasd")
+                .build();
 
         HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
@@ -217,8 +143,8 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
     @Test
     public void testInvalidRolesJsonPath() throws Exception {
-        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri())
-                .put("roles_path", "$.asd" + TestJwts.ROLES_CLAIM).put("subject_path", "$.sub").build();
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).put("roles_path", "$.asd" + TestJwts.ROLES_CLAIM).put("subject_path", "$.sub")
+                .build();
 
         HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
@@ -287,57 +213,6 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         Assert.assertEquals(TestJwts.TEST_AUDIENCE, creds.getAttributes().get("attr.jwt.aud"));
         Assert.assertEquals(0, creds.getBackendRoles().size());
         Assert.assertEquals(3, creds.getAttributes().size());
-    }
-
-    static class TestRestChannel implements RestChannel {
-
-        final RestRequest restRequest;
-        RestResponse response;
-
-        TestRestChannel(RestRequest restRequest) {
-            this.restRequest = restRequest;
-        }
-
-        @Override
-        public XContentBuilder newBuilder() throws IOException {
-            return null;
-        }
-
-        @Override
-        public XContentBuilder newErrorBuilder() throws IOException {
-            return null;
-        }
-
-        @Override
-        public XContentBuilder newBuilder(XContentType xContentType, boolean useFiltering) throws IOException {
-            return null;
-        }
-
-        @Override
-        public BytesStreamOutput bytesOutput() {
-            return null;
-        }
-
-        @Override
-        public RestRequest request() {
-            return restRequest;
-        }
-
-        @Override
-        public boolean detailedErrorsEnabled() {
-            return false;
-        }
-
-        @Override
-        public void sendResponse(RestResponse response) {
-            this.response = response;
-
-        }
-
-        @Override
-        public XContentBuilder newBuilder(XContentType xContentType, XContentType responseContentType, boolean useFiltering) throws IOException {
-            return null;
-        }
     }
 
 }
