@@ -379,9 +379,6 @@ public class ConfigHistoryService {
         @Override
         public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
             ConfigHistoryService.this.currentDynamicConfigModel = dcm;
-
-            // TODO invalidate only when necessary
-            ConfigHistoryService.this.configModelCache.invalidateAll();
         }
     };
 
