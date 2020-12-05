@@ -48,12 +48,14 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.tools.SearchGuardAdmin;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 import net.minidev.json.JSONObject;
 
 public class SSLReloadCertsActionTests extends SingleClusterTest {
 
     private final String GET_CERT_DETAILS_ENDPOINT = "/_searchguard/sslinfo?show_server_certs=true";
+    private final String GET_CERT_FULL_DETAILS_ENDPOINT = "/_searchguard/sslinfo?show_full_server_certs=true";
     private final String RELOAD_TRANSPORT_CERTS_ENDPOINT = "/_searchguard/api/ssl/transport/reloadcerts";
     private final String RELOAD_HTTP_CERTS_ENDPOINT = "/_searchguard/api/ssl/http/reloadcerts";
 
@@ -64,6 +66,18 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
             "CN=Example Com Inc. Signing CA,OU=Example Com Inc. Signing CA,O=Example Com Inc.,DC=example,DC=com", "subject_dn",
             "CN=node-1.example.com,OU=SSL,O=Test,L=Test,C=DE", "san", "[[2, node-1.example.com], [2, localhost], [7, 127.0.0.1], [8, 1.2.3.4.5.5]]",
             "not_before", "2020-02-17T16:19:25Z", "not_after", "2022-02-16T16:19:25Z"));
+    
+    private final List<Map<String, String>> NODE_FULL_CERT_DETAILS = ImmutableList.of(
+    		NODE_CERT_DETAILS.get(0),
+    		ImmutableMap.of("issuer_dn",
+    	            "CN=Example Com Inc. Root CA,OU=Example Com Inc. Root CA,O=Example Com Inc.,DC=example,DC=com", "subject_dn",
+    	            "CN=Example Com Inc. Signing CA,OU=Example Com Inc. Signing CA,O=Example Com Inc.,DC=example,DC=com", "san", "",
+    	            "not_before", "2020-02-17T16:19:16Z", "not_after", "2030-02-16T16:19:16Z"),
+    		ImmutableMap.of("issuer_dn",
+    	            "CN=Example Com Inc. Root CA,OU=Example Com Inc. Root CA,O=Example Com Inc.,DC=example,DC=com", "subject_dn",
+    	            "CN=Example Com Inc. Root CA,OU=Example Com Inc. Root CA,O=Example Com Inc.,DC=example,DC=com", "san", "",
+    	            "not_before", "2020-02-17T16:19:16Z", "not_after", "2030-02-16T16:19:16Z")
+    		);
 
     private final List<Map<String, String>> NEW_NODE_CERT_DETAILS = ImmutableList.of(ImmutableMap.of("issuer_dn",
             "CN=Example Com Inc. Signing CA,OU=Example Com Inc. Signing CA,O=Example Com Inc.,DC=example,DC=com", "subject_dn",
@@ -86,6 +100,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
         rh.keystore = "ssl/reload/kirk-keystore.jks";
 
         String nodeCertAsJson = DefaultObjectMapper.writeValueAsString(NODE_CERT_DETAILS, false);
+        String nodeFullCertAsJson = DefaultObjectMapper.writeValueAsString(NODE_FULL_CERT_DETAILS, false);
 
         String certDetailsResponse = rh.executeSimpleRequest(GET_CERT_DETAILS_ENDPOINT);
 
@@ -94,6 +109,14 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
 
         JsonNode http_certificates_list = DefaultObjectMapper.readTree(certDetailsResponse).get("http_certificates_list");
         Assert.assertEquals(http_certificates_list.toString(), nodeCertAsJson);
+        
+        String certDetailsResponseFull = rh.executeSimpleRequest(GET_CERT_FULL_DETAILS_ENDPOINT);
+
+        JsonNode transport_certificates_list_full = DefaultObjectMapper.readTree(certDetailsResponseFull).get("transport_certificates_list");
+        Assert.assertEquals(transport_certificates_list_full.toString(), nodeFullCertAsJson);
+
+        JsonNode http_certificates_list_full = DefaultObjectMapper.readTree(certDetailsResponseFull).get("http_certificates_list");
+        Assert.assertEquals(http_certificates_list_full.toString(), nodeFullCertAsJson);
 
         // Test Valid Case: Change transport file details to "ssl/pem/node-new.crt.pem" and "ssl/pem/node-new.key.pem"
         FileHelper.copyFileContents(FileHelper.getAbsoluteFilePathFromClassPath("ssl/reload/node-new.crt.pem").toString(), pemCertFilePath);
