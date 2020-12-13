@@ -347,7 +347,7 @@ public class RestApiPrivilegesEvaluator {
             SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = null;
 
             if (specialPrivilegesEvaluationContextProviderRegistry != null) {
-                specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.apply(user, threadPool.getThreadContext());
+                specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.provide(user, threadPool.getThreadContext());
             }
 
             TransportAddress remoteAddress;

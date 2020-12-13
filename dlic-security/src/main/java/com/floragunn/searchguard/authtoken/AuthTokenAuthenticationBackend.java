@@ -14,13 +14,15 @@
 
 package com.floragunn.searchguard.authtoken;
 
+import java.util.function.Consumer;
+
 import org.elasticsearch.ElasticsearchSecurityException;
 
-import com.floragunn.searchguard.auth.SyncAuthenticationBackend;
+import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
-public class AuthTokenAuthenticationBackend implements SyncAuthenticationBackend {
+public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
 
     private AuthTokenService authTokenService;
 
@@ -34,16 +36,24 @@ public class AuthTokenAuthenticationBackend implements SyncAuthenticationBackend
     }
 
     @Override
-    public User authenticate(AuthCredentials credentials) throws ElasticsearchSecurityException {
+    public void authenticate(AuthCredentials credentials, Consumer<User> onSuccess, Consumer<Exception> onFailure) {
         try {
-            AuthToken authToken = authTokenService.getByClaims(credentials.getClaims());
+            authTokenService.getByClaims(credentials.getClaims(), (authToken) -> {
+                System.out.println("ATAB " + authToken);
+                
+                onSuccess.accept(User.forUser(authToken.getUserName())
+                        .subName("AuthToken " + authToken.getTokenName() + " [" + authToken.getId() + "]").type(AuthTokenService.USER_TYPE)
+                        .specialAuthzConfig(authToken.getId()).attributes(authToken.getBase().getAttributes()).authzComplete().build());
+            }, (noSuchAuthTokenException) -> {
+                onFailure.accept(new ElasticsearchSecurityException(noSuchAuthTokenException.getMessage(), noSuchAuthTokenException));
+            }, (e) -> {
+                onFailure.accept(e);
+            });
 
-            return User.forUser(authToken.getUserName()).subName("AuthToken " + authToken.getTokenName() + " [" + authToken.getId() + "]")
-                    .type(AuthTokenService.USER_TYPE).specialAuthzConfig(authToken.getId()).attributes(authToken.getBase().getAttributes())
-                    .authzComplete().build();
-
-        } catch (NoSuchAuthTokenException | InvalidTokenException e) {
-            throw new ElasticsearchSecurityException(e.getMessage(), e);
+        } catch (InvalidTokenException e) {
+            onFailure.accept(new ElasticsearchSecurityException(e.getMessage(), e));
+        } catch (Exception e) {
+            onFailure.accept(e);
         }
     }
 
@@ -57,4 +67,5 @@ public class AuthTokenAuthenticationBackend implements SyncAuthenticationBackend
     public UserCachingPolicy userCachingPolicy() {
         return UserCachingPolicy.NEVER;
     }
+
 }

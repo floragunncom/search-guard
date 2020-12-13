@@ -16,18 +16,18 @@ package com.floragunn.searchguard.authtoken;
 
 import java.nio.ByteBuffer;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
@@ -68,8 +68,6 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -87,7 +85,6 @@ import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
-import com.floragunn.searchguard.sgconf.history.ConfigVersionSet;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -96,6 +93,8 @@ import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
 
@@ -114,7 +113,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private final PrivilegedConfigClient privilegedConfigClient;
     private final ConfigHistoryService configHistoryService;
     private final ThreadPool threadPool;
-    private volatile Map<String, AuthToken> idToAuthTokenMap = new ConcurrentHashMap<>();
+    private final Cache<String, AuthToken> idToAuthTokenMap = CacheBuilder.newBuilder().expireAfterWrite(60, TimeUnit.MINUTES).build();
     private JoseJwtProducer jwtProducer;
     private String jwtAudience;
     private JsonWebKey encryptionKey;
@@ -126,9 +125,6 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private boolean sendTokenUpdates = true;
     private boolean initialized = false;
     private IndexCleanupAgent indexCleanupAgent;
-    private AtomicLong authTokenHash = new AtomicLong(0);
-    private AtomicLong authTokenRevocationHash = new AtomicLong(0);
-    private AtomicBoolean reloadingInProgress = new AtomicBoolean(false);
     private long maxTokensPerUser = 100;
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
@@ -149,32 +145,106 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     }
 
     public AuthToken getById(String id) throws NoSuchAuthTokenException {
-        AuthToken result = idToAuthTokenMap.get(id);
+        AuthToken result = idToAuthTokenMap.getIfPresent(id);
 
         if (result != null) {
             return result;
         } else {
-            throw new NoSuchAuthTokenException(id);
+            return getByIdFromIndex(id);
+        }
+    }
+
+    public void getById(String id, Consumer<AuthToken> onResult, Consumer<NoSuchAuthTokenException> onNoSuchAuthToken,
+            Consumer<Exception> onFailure) {
+
+        AuthToken result = idToAuthTokenMap.getIfPresent(id);
+
+        if (result != null) {
+            onResult.accept(result);
+        } else {
+            getByIdFromIndex(id, onResult, onNoSuchAuthToken, onFailure);
         }
     }
 
     public AuthToken getByIdFromIndex(String id) throws NoSuchAuthTokenException {
+
+        CompletableFuture<AuthToken> completableFuture = new CompletableFuture<>();
+
+        getByIdFromIndex(id, completableFuture::complete, completableFuture::completeExceptionally, completableFuture::completeExceptionally);
+
         try {
-            GetResponse getResponse = privilegedConfigClient.get(new GetRequest(indexName, id)).actionGet();
-
-            if (!getResponse.isExists()) {
-                throw new NoSuchAuthTokenException(id);
+            return completableFuture.get();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof NoSuchAuthTokenException) {
+                throw (NoSuchAuthTokenException) e.getCause();
+            } else {
+                throw new RuntimeException(e.getCause());
             }
-
-            return AuthToken.parse(id, ValidatingJsonParser.readTree(getResponse.getSourceAsString()));
-        } catch (IndexNotFoundException e) {
-            throw new NoSuchAuthTokenException(id, e);
-        } catch (ConfigValidationException e) {
-            throw new RuntimeException("Token " + id + " is not stored in a valid format", e);
         }
     }
 
+    public void getByIdFromIndex(String id, Consumer<AuthToken> onResult, Consumer<NoSuchAuthTokenException> onNoSuchAuthToken,
+            Consumer<Exception> onFailure) {
+
+        privilegedConfigClient.get(new GetRequest(indexName, id), new ActionListener<GetResponse>() {
+
+            @Override
+            public void onResponse(GetResponse getResponse) {
+                if (getResponse.isExists()) {
+
+                    try {
+                        AuthToken authToken = AuthToken.parse(id, ValidatingJsonParser.readTree(getResponse.getSourceAsString()));
+
+                        idToAuthTokenMap.put(id, authToken);
+
+                        onResult.accept(authToken);
+                    } catch (ConfigValidationException e) {
+                        onFailure.accept(new RuntimeException("Token " + id + " is not stored in a valid format", e));
+                    } catch (Exception e) {
+                        log.error(e);
+                        onFailure.accept(e);
+                    }
+
+                } else {
+                    onNoSuchAuthToken.accept(new NoSuchAuthTokenException(id));
+                }
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                if (e instanceof IndexNotFoundException) {
+                    onNoSuchAuthToken.accept(new NoSuchAuthTokenException(id));
+                } else {
+                    onFailure.accept(e);
+                }
+            }
+        });
+
+    }
+
     public AuthToken getByClaims(Map<String, Object> claims) throws NoSuchAuthTokenException, InvalidTokenException {
+
+        CompletableFuture<AuthToken> completableFuture = new CompletableFuture<>();
+
+        getByClaims(claims, completableFuture::complete, completableFuture::completeExceptionally, completableFuture::completeExceptionally);
+
+        try {
+            return completableFuture.get();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof NoSuchAuthTokenException) {
+                throw (NoSuchAuthTokenException) e.getCause();
+            } else {
+                throw new RuntimeException(e.getCause());
+            }
+        }
+    }    
+    
+    public void getByClaims(Map<String, Object> claims, Consumer<AuthToken> onResult, Consumer<NoSuchAuthTokenException> onNoSuchAuthToken,
+            Consumer<Exception> onFailure) throws InvalidTokenException {
         String id = Objects.toString(claims.get(JwtConstants.CLAIM_JWT_ID), null);
         Set<String> audience = getClaimAsSet(claims, JwtConstants.CLAIM_AUDIENCE);
 
@@ -186,10 +256,25 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             throw new InvalidTokenException("Supplied auth token does not have an id claim");
         }
 
-        return getById(id);
-
+        getById(id, onResult, onNoSuchAuthToken, onFailure);
     }
 
+    public void getByIdWithConfigSnapshot(String id, Consumer<AuthToken> onResult, Consumer<NoSuchAuthTokenException> onNoSuchAuthToken,
+            Consumer<Exception> onFailure) {
+        
+        getById(id, (authToken) -> {
+            if (authToken.getBase().getConfigSnapshot() != null) {
+                onResult.accept(authToken);
+            } else {
+                configHistoryService.getConfigSnapshot(authToken.getBase().getConfigVersions(), (configSnapshot) -> {
+                    authToken.getBase().setConfigSnapshot(configSnapshot);
+                    onResult.accept(authToken);
+                }, onFailure);
+            }
+        }, onNoSuchAuthToken, onFailure);
+        
+    }
+    
     public AuthToken create(User user, CreateAuthTokenRequest request) throws TokenCreationException {
         if (config == null || !config.isEnabled()) {
             throw new TokenCreationException("Auth token handling is not enabled", RestStatus.INTERNAL_SERVER_ERROR);
@@ -339,116 +424,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     }
 
     private void init(ProtectedConfigIndexService.FailureListener failureListener) {
-        reloadAuthTokensFromIndex(failureListener);
-    }
-
-    private void reloadAuthTokensFromIndexAsync() {
-        threadPool.schedule(() -> {
-            if (reloadingInProgress.compareAndSet(false, true)) {
-                reloadAuthTokensFromIndex(null);
-            }
-        }, TimeValue.timeValueSeconds(5), ThreadPool.Names.GENERIC);
-    }
-
-    private void reloadAuthTokensFromIndex(ProtectedConfigIndexService.FailureListener failureListener) {
-        if (log.isDebugEnabled()) {
-            log.debug("Reloading auth tokens");
-        }
-
-        long now = System.currentTimeMillis();
-
-        this.privilegedConfigClient
-                .search(new SearchRequest(indexName)
-                        .source(new SearchSourceBuilder().query(QueryBuilders.boolQuery().should(QueryBuilders.rangeQuery("expires_at").gte(now))
-                                .should(QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery("expires_at")))).size(1000))
-                        .scroll(new TimeValue(10000)), new ActionListener<SearchResponse>() {
-
-                            @Override
-                            public void onResponse(SearchResponse searchResponse) {
-                                try {
-                                    long authTokenHash = 0;
-                                    long authTokenRevocationHash = 0;
-                                    Map<String, AuthToken> idToAuthTokenMap = new ConcurrentHashMap<>();
-                                    SearchHits searchHits = searchResponse.getHits();
-
-                                    while (searchHits != null && searchHits.getHits() != null && searchHits.getHits().length > 0) {
-                                        for (SearchHit hit : searchHits.getHits()) {
-                                            try {
-                                                String id = hit.getId();
-                                                AuthToken authToken = AuthToken.parse(id, ValidatingJsonParser.readTree(hit.getSourceAsString()));
-
-                                                if (authToken.isRevoked()) {
-                                                    authTokenRevocationHash += authToken.getId().hashCode();
-                                                }
-
-                                                authTokenHash += authToken.getId().hashCode();
-
-                                                idToAuthTokenMap.put(id, authToken);
-                                            } catch (ConfigValidationException e) {
-                                                log.error("Invalid auth token in index at " + hit + ":\n" + e.getValidationErrors(), e);
-                                            }
-                                        }
-
-                                        searchResponse = privilegedConfigClient.prepareSearchScroll(searchResponse.getScrollId())
-                                                .setScroll(new TimeValue(10000)).execute().actionGet();
-                                        searchHits = searchResponse.getHits();
-                                    }
-
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Loaded " + idToAuthTokenMap.size() + " auth tokens");
-                                    }
-
-                                    initConfigSnapshots(idToAuthTokenMap);
-
-                                    AuthTokenService.this.idToAuthTokenMap = idToAuthTokenMap;
-                                    AuthTokenService.this.authTokenHash.set(authTokenHash);
-                                    AuthTokenService.this.authTokenRevocationHash.set(authTokenRevocationHash);
-                                    reloadingInProgress.set(false);
-
-                                    initComplete();
-                                } catch (Exception e) {
-                                    reloadingInProgress.set(false);
-                                    log.error("Error in reloadAuthTokensFromIndex()", e);
-                                }
-                            }
-
-                            @Override
-                            public void onFailure(Exception e) {
-                                reloadingInProgress.set(false);
-
-                                if (failureListener != null) {
-                                    log.trace("Error while loading auth tokens", e);
-                                    failureListener.onFailure(e);
-                                } else {
-                                    log.error("Error while loading auth tokens", e);
-                                }
-                            }
-                        });
-    }
-
-    private void initConfigSnapshots(Map<String, AuthToken> idToAuthTokenMap) {
-        Set<ConfigVersionSet> configVersionSets = new HashSet<>(idToAuthTokenMap.size());
-
-        for (AuthToken authToken : idToAuthTokenMap.values()) {
-            configVersionSets.add(authToken.getBase().getConfigVersions());
-        }
-
-        Map<ConfigVersionSet, ConfigSnapshot> configSnapshotMap = configHistoryService.getConfigSnapshots(configVersionSets);
-
-        if (log.isDebugEnabled()) {
-            log.debug("Loaded " + configSnapshotMap.size() + " config snapshots");
-        }
-
-        for (AuthToken authToken : idToAuthTokenMap.values()) {
-            ConfigSnapshot configSnapshot = configSnapshotMap.get(authToken.getBase().getConfigVersions());
-
-            if (configSnapshot != null) {
-                authToken.getBase().setConfigSnapshot(configSnapshot);
-            } else {
-                log.warn("Could not find config snapshot for " + authToken);
-            }
-        }
-
+        initComplete();
     }
 
     private void validateClaims(JwtToken jwt) throws JwtException {
@@ -501,107 +477,28 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             log.debug("got auth token update: " + request);
         }
 
-        int configCacheHits = 0;
-        int existing = 0;
-        int existingUpdated = 0;
-        int processed = 0;
-
-        List<AuthToken> pendingAuthTokens = new ArrayList<>();
-
         AuthToken updatedAuthToken = request.getUpdatedToken();
-        AuthToken existingAuthToken = this.idToAuthTokenMap.get(updatedAuthToken.getId());
+        AuthToken existingAuthToken = this.idToAuthTokenMap.getIfPresent(updatedAuthToken.getId());
 
-        if (existingAuthToken != null) {
-            existing++;
-
-            if (updatedAuthToken.equals(existingAuthToken) && Objects.equals(existingAuthToken.getRevokedAt(), updatedAuthToken.getRevokedAt())) {
-                return "Auth token was already present";
-            } else {
-                existingUpdated++;
-            }
-        }
-
-        processed++;
-
-        ConfigSnapshot configSnapshotForUpdatedAuthToken = configHistoryService
-                .peekConfigSnapshotFromCache(updatedAuthToken.getBase().getConfigVersions());
-
-        if (!configSnapshotForUpdatedAuthToken.hasMissingConfigVersions()) {
-            updatedAuthToken.getBase().setConfigSnapshot(configSnapshotForUpdatedAuthToken);
-            configCacheHits++;
-            this.idToAuthTokenMap.put(updatedAuthToken.getId(), updatedAuthToken);
-
-            updateAndCheckHash(request);
+        if (existingAuthToken == null) {
+            return "Auth token is not cached";
         } else {
-            pendingAuthTokens.add(updatedAuthToken);
-        }
-
-        if (pendingAuthTokens.size() > 0) {
-            this.threadPool.generic().submit(() -> {
-                for (AuthToken authToken : pendingAuthTokens) {
-                    try {
-                        ConfigVersionSet configVersionSet = authToken.getBase().getConfigVersions();
-
-                        ConfigSnapshot configSnapshot = configHistoryService.peekConfigSnapshot(configVersionSet);
-
-                        if (log.isDebugEnabled()) {
-                            log.debug("Loaded configSnapshot for " + authToken + ": " + configSnapshot);
-                        }
-
-                        if (configSnapshot.hasMissingConfigVersions()) {
-                            log.error("Could not get complete config snapshot for " + authToken + ": " + configSnapshot);
-                            continue;
-                        }
-
-                        authToken.getBase().setConfigSnapshot(configSnapshot);
-                        this.idToAuthTokenMap.put(authToken.getId(), authToken);
-                        updateAndCheckHash(request);
-                    } catch (Exception e) {
-                        log.error("Error while loading config snapshot for " + authToken, e);
-                    }
-                }
-            });
-
-        }
-
-        String status = "config cache hits: " + configCacheHits + "/" + processed + "; existing updated: " + existingUpdated + "/" + existing;
-
-        if (log.isDebugEnabled()) {
-            log.debug(status);
-        }
-
-        return status;
-    }
-
-    private void updateAndCheckHash(PushAuthTokenUpdateRequest request) {
-        AuthToken updatedAuthToken = request.getUpdatedToken();
-        long newHash = 0;
-
-        if (request.getUpdateType() == UpdateType.NEW) {
-            newHash = this.authTokenHash.addAndGet(updatedAuthToken.getId().hashCode());
-        } else if (request.getUpdateType() == UpdateType.REVOKED) {
-            newHash = this.authTokenRevocationHash.addAndGet(updatedAuthToken.getId().hashCode());
-        }
-
-        if (newHash != request.getNewHash()) {
-            log.warn("Got hash mismatch for " + request + "; " + newHash + " != " + request.getNewHash() + " (" + updatedAuthToken.getId().hashCode()
-                    + ")\nWill reload all auth tokens");
-            reloadAuthTokensFromIndexAsync();
+            this.idToAuthTokenMap.put(updatedAuthToken.getId(), updatedAuthToken);
+            return "Auth token updated";
         }
     }
 
     private String updateAuthToken(AuthToken authToken, UpdateType updateType) throws TokenUpdateException {
-        if (updateType == UpdateType.NEW && this.idToAuthTokenMap.containsKey(authToken.getId())) {
-            throw new TokenUpdateException("Token ID already exists: " + authToken.getId());
+        AuthToken oldToken = null;
+
+        try {
+            oldToken = getById(authToken.getId());
+        } catch (NoSuchAuthTokenException e) {
+            oldToken = null;
         }
 
-        AuthToken oldToken = this.idToAuthTokenMap.put(authToken.getId(), authToken);
-        long newHash = 0;
-
-        if (updateType == UpdateType.NEW) {
-            newHash = this.authTokenHash.addAndGet(authToken.getId().hashCode());
-        } else if (updateType == UpdateType.REVOKED) {
-            newHash = this.authTokenRevocationHash.addAndGet(authToken.getId().hashCode());
+        if (updateType == UpdateType.NEW && oldToken != null) {
+            throw new TokenUpdateException("Token ID already exists: " + authToken.getId());
         }
 
         try (XContentBuilder xContentBuilder = XContentFactory.jsonBuilder()) {
@@ -616,14 +513,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             }
 
         } catch (Exception e) {
-            this.idToAuthTokenMap.put(oldToken.getId(), oldToken);
-
-            if (updateType == UpdateType.NEW) {
-                this.authTokenHash.addAndGet(-authToken.getId().hashCode());
-            } else if (updateType == UpdateType.REVOKED) {
-                this.authTokenRevocationHash.addAndGet(-authToken.getId().hashCode());
+            if (oldToken != null) {
+                this.idToAuthTokenMap.put(oldToken.getId(), oldToken);
+            } else {
+                this.idToAuthTokenMap.invalidate(authToken.getId());
             }
-
             log.warn("Error while storing token " + authToken, e);
             throw new TokenUpdateException(e);
         }
@@ -634,7 +528,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         try {
             PushAuthTokenUpdateResponse pushAuthTokenUpdateResponse = privilegedConfigClient
-                    .execute(PushAuthTokenUpdateAction.INSTANCE, new PushAuthTokenUpdateRequest(authToken, updateType, newHash)).actionGet();
+                    .execute(PushAuthTokenUpdateAction.INSTANCE, new PushAuthTokenUpdateRequest(authToken, updateType, 0)).actionGet();
 
             if (log.isDebugEnabled()) {
                 log.debug("Token update pushed: " + pushAuthTokenUpdateResponse);
@@ -647,6 +541,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         } catch (Exception e) {
             log.warn("Token update push failed: " + authToken, e);
+            // TODO
             unpushedTokens.add(authToken);
             return "Update partially failed: " + e;
         }
@@ -782,56 +677,70 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     }
 
     @Override
-    public SpecialPrivilegesEvaluationContext apply(User user, ThreadContext threadContext) {
+    public void provide(User user, ThreadContext threadContext, Consumer<SpecialPrivilegesEvaluationContext> onResult,
+            Consumer<Exception> onFailure) {
+                
         if (config == null || !config.isEnabled()) {
-            return null;
+            onResult.accept(null);
+            return;
         }
 
         if (user == null || !(USER_TYPE.equals(user.getType()))) {
-            return null;
+            onResult.accept(null);
+            return;
         }
 
         String authTokenId = (String) user.getSpecialAuthzConfig();
 
         if (log.isTraceEnabled()) {
-            log.trace("AuthTokenService.apply(" + user.getName() + ") on " + authTokenId);
+            log.trace("AuthTokenService.provide(" + user.getName() + ") on " + authTokenId);
         }
 
-        try {
-            AuthToken authToken = getById(authTokenId);
+        getByIdWithConfigSnapshot(authTokenId, (authToken) -> {
 
-            if (authToken.isRevoked()) {
-                log.info("Using revoked auth token: " + authToken);
-                return null;
+            try {
+                if (log.isTraceEnabled()) {
+                    log.trace("Got token: " + authToken);
+                }
+                
+                if (authToken.isRevoked()) {
+                    log.info("Using revoked auth token: " + authToken);
+                    onResult.accept(null);
+                    return;
+                }
+
+                if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
+                    throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
+                }
+
+                ConfigModel configModelSnapshot = configHistoryService.getConfigModelForSnapshot(authToken.getBase().getConfigSnapshot());
+
+                User userWithRoles = user.copy().backendRoles(authToken.getBase().getBackendRoles())
+                        .searchGuardRoles(authToken.getBase().getSearchGuardRoles()).build();
+                TransportAddress callerTransportAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+                Set<String> mappedBaseRoles = configModelSnapshot.mapSgRoles(userWithRoles, callerTransportAddress);
+                SgRoles filteredBaseSgRoles = configModelSnapshot.getSgRoles().filter(mappedBaseRoles);
+
+                if (log.isTraceEnabled()) {
+                    log.trace("ConfigSnapshot: " + authToken.getBase().getConfigSnapshot());
+                    log.trace("mappedBaseRoles: " + mappedBaseRoles + "; userWithRoles: " + userWithRoles);
+                    log.trace("configModelSnapshot.roles" + configModelSnapshot.getSgRoles());
+                    log.trace("filteredBaseSgRoles: " + filteredBaseSgRoles);
+                }
+
+                RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivileges(),
+                        configModelSnapshot.getActionGroupResolver());
+
+                onResult.accept(new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles,
+                        authToken.getRequestedPrivileges()));
+            } catch (Exception e) {
+                log.error("Error in provide(" + user + "); authTokenId: " + authTokenId, e);
+                onFailure.accept(e);
             }
-
-            if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
-                throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
-            }
-
-            ConfigModel configModelSnapshot = configHistoryService.getConfigModelForSnapshot(authToken.getBase().getConfigSnapshot());
-
-            User userWithRoles = user.copy().backendRoles(authToken.getBase().getBackendRoles())
-                    .searchGuardRoles(authToken.getBase().getSearchGuardRoles()).build();
-            TransportAddress callerTransportAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-            Set<String> mappedBaseRoles = configModelSnapshot.mapSgRoles(userWithRoles, callerTransportAddress);
-            SgRoles filteredBaseSgRoles = configModelSnapshot.getSgRoles().filter(mappedBaseRoles);
-
-            if (log.isTraceEnabled()) {
-                log.trace("ConfigSnapshot: " + authToken.getBase().getConfigSnapshot());
-                log.trace("mappedBaseRoles: " + mappedBaseRoles + "; userWithRoles: " + userWithRoles);
-                log.trace("configModelSnapshot.roles" + configModelSnapshot.getSgRoles());
-                log.trace("filteredBaseSgRoles: " + filteredBaseSgRoles);
-            }
-
-            RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivileges(),
-                    configModelSnapshot.getActionGroupResolver());
-
-            return new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles, authToken.getRequestedPrivileges());
-        } catch (NoSuchAuthTokenException e) {
-            throw new ElasticsearchSecurityException("Cannot authenticate user due to invalid auth token " + authTokenId, e);
-        }
-
+        }, (noSuchAuthTokenException) -> {
+            onFailure.accept(new ElasticsearchSecurityException("Cannot authenticate user due to invalid auth token " + authTokenId,
+                    noSuchAuthTokenException));
+        }, onFailure);
     }
 
     public void shutdown() {
@@ -866,7 +775,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         public SgRoles getSgRoles() {
             return sgRoles;
         }
-        
+
         @Override
         public boolean isSgConfigRestApiAllowed() {
             // This is kind of a hack in order to allow the creation of tokens which don't have the privilege to use the rest API

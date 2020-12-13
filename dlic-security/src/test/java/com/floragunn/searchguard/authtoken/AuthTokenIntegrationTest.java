@@ -228,7 +228,7 @@ public class AuthTokenIntegrationTest {
         request.setTokenName("this_token_should_not_be_created");
 
         response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), tokenAuth);
-        Assert.assertEquals(403, response.getStatusCode());
+        Assert.assertEquals(response.getBody(), 403, response.getStatusCode());
         Assert.assertTrue(response.getBody(), response.getBody().contains("no permissions for [cluster:admin:searchguard:authtoken/_own/create]"));
     }
 

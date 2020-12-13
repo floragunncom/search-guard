@@ -21,11 +21,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.get.GetResponse;
@@ -141,18 +145,21 @@ public class ConfigHistoryService {
         }
     }
 
-    public ConfigSnapshot getConfigSnapshot(ConfigVersionSet configVersionSet) throws UnknownConfigVersionException {
+    public void getConfigSnapshot(ConfigVersionSet configVersionSet, Consumer<ConfigSnapshot> onResult, Consumer<Exception> onFailure) {
 
-        ConfigSnapshot configSnapshot = peekConfigSnapshot(configVersionSet);
+        peekConfigSnapshot(configVersionSet, (configSnapshot) -> {
 
-        if (configSnapshot.hasMissingConfigVersions()) {
-            throw new UnknownConfigVersionException(configSnapshot.getMissingConfigVersions());
-        }
-
-        return configSnapshot;
+            if (configSnapshot.hasMissingConfigVersions()) {
+                onFailure.accept(new UnknownConfigVersionException(configSnapshot.getMissingConfigVersions()));
+            } else {
+                onResult.accept(configSnapshot);
+            }
+        }, onFailure);
+        
     }
 
-    public Map<ConfigVersionSet, ConfigSnapshot> getConfigSnapshots(Set<ConfigVersionSet> configVersionSets) {
+    public void getConfigSnapshots(Set<ConfigVersionSet> configVersionSets, Consumer<Map<ConfigVersionSet, ConfigSnapshot>> onResult,
+            Consumer<Exception> onFailure) {
         Map<ConfigVersion, SgDynamicConfiguration<?>> configVersionMap = new HashMap<>(configVersionSets.size() * 2);
         Set<ConfigVersion> missingConfigVersions = new HashSet<>(configVersionSets.size() * 2);
 
@@ -172,42 +179,62 @@ public class ConfigHistoryService {
             log.debug("missingConfigVersions: " + missingConfigVersions.size());
         }
 
-        if (missingConfigVersions.size() > 0) {
-
+        if (missingConfigVersions.size() == 0) {
+            onResult.accept(buildConfigSnapshotResultMap(configVersionSets, configVersionMap));
+        } else {
             MultiGetRequest multiGetRequest = new MultiGetRequest();
 
             for (ConfigVersion configurationVersion : missingConfigVersions) {
                 multiGetRequest.add(indexName, configurationVersion.toId());
             }
 
-            MultiGetResponse response = privilegedConfigClient.multiGet(multiGetRequest).actionGet();
+            privilegedConfigClient.multiGet(multiGetRequest, new ActionListener<MultiGetResponse>() {
 
-            for (MultiGetItemResponse itemResponse : response.getResponses()) {
-                if (itemResponse.getResponse() == null) {
-                    if (itemResponse.getFailure() != null) {
-                        if (itemResponse.getFailure().getFailure() instanceof IndexNotFoundException) {
-                            continue;
-                        } else {
-                            log.warn("Error while retrieving configuration versions " + itemResponse + ": " + itemResponse.getFailure().getFailure());
+                @Override
+                public void onResponse(MultiGetResponse response) {
+                    try {
+                        for (MultiGetItemResponse itemResponse : response.getResponses()) {
+                            if (itemResponse.getResponse() == null) {
+                                if (itemResponse.getFailure() != null) {
+                                    if (itemResponse.getFailure().getFailure() instanceof IndexNotFoundException) {
+                                        continue;
+                                    } else {
+                                        log.warn("Error while retrieving configuration versions " + itemResponse + ": "
+                                                + itemResponse.getFailure().getFailure());
+                                    }
+                                } else {
+                                    log.warn("Error while retrieving configuration versions " + itemResponse);
+                                }
+                                continue;
+                            }
+
+                            if (itemResponse.getResponse().isExists()) {
+
+                                SgDynamicConfiguration<?> sgDynamicConfig = parseConfig(itemResponse.getResponse());
+                                ConfigVersion configVersion = new ConfigVersion(sgDynamicConfig.getCType(), sgDynamicConfig.getDocVersion());
+
+                                configVersionMap.put(configVersion, sgDynamicConfig);
+                                configCache.put(configVersion, sgDynamicConfig);
+                            }
+
+                            onResult.accept(buildConfigSnapshotResultMap(configVersionSets, configVersionMap));
                         }
-                    } else {
-                        log.warn("Error while retrieving configuration versions " + itemResponse);
+                    } catch (Exception e) {
+                        onFailure(e);
                     }
-                    continue;
                 }
 
-                if (itemResponse.getResponse().isExists()) {
-
-                    SgDynamicConfiguration<?> sgDynamicConfig = parseConfig(itemResponse.getResponse());
-                    ConfigVersion configVersion = new ConfigVersion(sgDynamicConfig.getCType(), sgDynamicConfig.getDocVersion());
-
-                    configVersionMap.put(configVersion, sgDynamicConfig);
-                    configCache.put(configVersion, sgDynamicConfig);
+                @Override
+                public void onFailure(Exception e) {
+                    onFailure(e);
                 }
+            });
 
-            }
         }
+    }
 
+    private Map<ConfigVersionSet, ConfigSnapshot> buildConfigSnapshotResultMap(Set<ConfigVersionSet> configVersionSets,
+            Map<ConfigVersion, SgDynamicConfiguration<?>> configVersionMap) {
         Map<ConfigVersionSet, ConfigSnapshot> result = new HashMap<>(configVersionSets.size());
 
         for (ConfigVersionSet configVersionSet : configVersionSets) {
@@ -220,6 +247,7 @@ public class ConfigHistoryService {
 
             result.put(configVersionSet, configSnapshot);
         }
+
         return result;
     }
 
@@ -235,17 +263,6 @@ public class ConfigHistoryService {
         return createConfigModelForSnapshot(configSnapshot);
     }
 
-    public ConfigModel getConfigSnapshotAsModel(ConfigVersionSet configVersionSet) throws UnknownConfigVersionException {
-
-        ConfigModel configModel = configModelCache.getIfPresent(configVersionSet);
-
-        if (configModel != null) {
-            return configModel;
-        }
-
-        return createConfigModelForSnapshot(getConfigSnapshot(configVersionSet));
-    }
-
     private ConfigModel createConfigModelForSnapshot(ConfigSnapshot configSnapshot) {
         SgDynamicConfiguration<RoleV7> roles = configSnapshot.getConfigByType(RoleV7.class).deepClone();
         SgDynamicConfiguration<RoleMappingsV7> roleMappings = configSnapshot.getConfigByType(RoleMappingsV7.class);
@@ -256,7 +273,7 @@ public class ConfigHistoryService {
         if (blocks == null) {
             blocks = SgDynamicConfiguration.empty();
         }
-        
+
         staticSgConfig.addTo(roles);
         staticSgConfig.addTo(actionGroups);
         staticSgConfig.addTo(tenants);
@@ -283,55 +300,85 @@ public class ConfigHistoryService {
     }
 
     public ConfigSnapshot peekConfigSnapshot(ConfigVersionSet configVersionSet) {
-        Map<CType, SgDynamicConfiguration<?>> configByType = new HashMap<>();
+        CompletableFuture<ConfigSnapshot> completableFuture = new CompletableFuture<>();
 
-        for (ConfigVersion configurationVersion : configVersionSet) {
-            SgDynamicConfiguration<?> configuration = configCache.getIfPresent(configurationVersion);
+        peekConfigSnapshot(configVersionSet, completableFuture::complete, completableFuture::completeExceptionally);
 
-            if (configuration != null) {
-                configByType.put(configurationVersion.getConfigurationType(), configuration);
-            }
+        try {
+            return completableFuture.get();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
         }
+    }
 
-        if (configByType.size() != configVersionSet.size()) {
-            MultiGetRequest multiGetRequest = new MultiGetRequest();
+    public void peekConfigSnapshot(ConfigVersionSet configVersionSet, Consumer<ConfigSnapshot> onResult, Consumer<Exception> onFailure) {
+        try {
+            Map<CType, SgDynamicConfiguration<?>> configByType = new HashMap<>();
 
             for (ConfigVersion configurationVersion : configVersionSet) {
-                if (!configByType.containsKey(configurationVersion.getConfigurationType())) {
-                    multiGetRequest.add(indexName, configurationVersion.toId());
+                SgDynamicConfiguration<?> configuration = configCache.getIfPresent(configurationVersion);
+
+                if (configuration != null) {
+                    configByType.put(configurationVersion.getConfigurationType(), configuration);
                 }
             }
 
-            MultiGetResponse response = privilegedConfigClient.multiGet(multiGetRequest).actionGet();
+            if (configByType.size() == configVersionSet.size()) {
+                onResult.accept(new ConfigSnapshot(configByType, configVersionSet));
+            } else {
+                MultiGetRequest multiGetRequest = new MultiGetRequest();
 
-            for (MultiGetItemResponse itemResponse : response.getResponses()) {
-                if (itemResponse.getResponse() == null) {
-                    if (itemResponse.getFailure() != null) {
-                        if (itemResponse.getFailure().getFailure() instanceof IndexNotFoundException) {
-                            continue;
-                        } else {
-                            throw new ElasticsearchException("Error while retrieving configuration versions " + configVersionSet + ": "
-                                    + itemResponse.getFailure().getFailure());
-                        }
-                    } else {
-                        throw new ElasticsearchException("Error while retrieving configuration versions " + configVersionSet + ": " + itemResponse);
+                for (ConfigVersion configurationVersion : configVersionSet) {
+                    if (!configByType.containsKey(configurationVersion.getConfigurationType())) {
+                        multiGetRequest.add(indexName, configurationVersion.toId());
                     }
                 }
 
-                if (itemResponse.getResponse().isExists()) {
+                privilegedConfigClient.multiGet(multiGetRequest, new ActionListener<MultiGetResponse>() {
 
-                    SgDynamicConfiguration<?> sgDynamicConfig = parseConfig(itemResponse.getResponse());
+                    @Override
+                    public void onResponse(MultiGetResponse response) {
 
-                    configByType.put(sgDynamicConfig.getCType(), sgDynamicConfig);
-                    configCache.put(new ConfigVersion(sgDynamicConfig.getCType(), sgDynamicConfig.getDocVersion()), sgDynamicConfig);
-                }
+                        for (MultiGetItemResponse itemResponse : response.getResponses()) {
+                            if (itemResponse.getResponse() == null) {
+                                if (itemResponse.getFailure() != null) {
+                                    if (itemResponse.getFailure().getFailure() instanceof IndexNotFoundException) {
+                                        continue;
+                                    } else {
+                                        throw new ElasticsearchException("Error while retrieving configuration versions " + configVersionSet + ": "
+                                                + itemResponse.getFailure().getFailure());
+                                    }
+                                } else {
+                                    throw new ElasticsearchException(
+                                            "Error while retrieving configuration versions " + configVersionSet + ": " + itemResponse);
+                                }
+                            }
 
+                            if (itemResponse.getResponse().isExists()) {
+
+                                SgDynamicConfiguration<?> sgDynamicConfig = parseConfig(itemResponse.getResponse());
+
+                                configByType.put(sgDynamicConfig.getCType(), sgDynamicConfig);
+                                configCache.put(new ConfigVersion(sgDynamicConfig.getCType(), sgDynamicConfig.getDocVersion()), sgDynamicConfig);
+                            }
+
+                        }
+
+                        onResult.accept(new ConfigSnapshot(configByType, configVersionSet));
+
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        onFailure(e);
+                    }
+                });
             }
-
+        } catch (Exception e) {
+            onFailure.accept(e);
         }
-
-        return new ConfigSnapshot(configByType, configVersionSet);
-
     }
 
     public SgDynamicConfiguration<?> parseConfig(GetResponse singleGetResponse) {
