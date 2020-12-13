@@ -72,7 +72,7 @@ import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.auth.ldap.util.LdapHelper;
 import com.floragunn.dlic.auth.ldap.util.Utils;
-import com.floragunn.searchguard.auth.AuthorizationBackend;
+import com.floragunn.searchguard.auth.SyncAuthorizationBackend;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.PemKeyReader;
 import com.floragunn.searchguard.support.WildcardMatcher;
@@ -82,7 +82,7 @@ import com.google.common.collect.HashMultimap;
 
 import io.netty.util.internal.PlatformDependent;
 
-public class LDAPAuthorizationBackend implements AuthorizationBackend {
+public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
 
     private static final AtomicInteger CONNECTION_COUNTER = new AtomicInteger();
     private static final String COM_SUN_JNDI_LDAP_OBJECT_DISABLE_ENDPOINT_IDENTIFICATION = "com.sun.jndi.ldap.object.disableEndpointIdentification";

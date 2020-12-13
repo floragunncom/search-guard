@@ -37,8 +37,8 @@ import com.floragunn.dlic.auth.ldap.LdapUser.DirEntry;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.auth.ldap.util.Utils;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
-import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.auth.Destroyable;
+import com.floragunn.searchguard.auth.SyncAuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserAttributes;
@@ -47,7 +47,7 @@ import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 
-public class LDAPAuthenticationBackend2 implements AuthenticationBackend, Destroyable {
+public class LDAPAuthenticationBackend2 implements SyncAuthenticationBackend, Destroyable {
 
     protected static final Logger log = LogManager.getLogger(LDAPAuthenticationBackend2.class);
 

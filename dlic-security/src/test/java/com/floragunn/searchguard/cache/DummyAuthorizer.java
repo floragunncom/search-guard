@@ -19,11 +19,11 @@ import java.nio.file.Path;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
 
-import com.floragunn.searchguard.auth.AuthorizationBackend;
+import com.floragunn.searchguard.auth.SyncAuthorizationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
-public class DummyAuthorizer implements AuthorizationBackend {
+public class DummyAuthorizer implements SyncAuthorizationBackend {
 
     private static volatile long count;
 
