@@ -58,6 +58,11 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
     public PrivilegesInterceptorImpl(IndexNameExpressionResolver resolver, ClusterService clusterService, Client client, ThreadPool threadPool) {
         super(resolver, clusterService, client, threadPool);
     }
+    
+    @Override
+    public boolean isGlobalTenantAllowed(final ActionRequest request, final String action, final User user, final Map<String, Boolean> tenants) {
+    	return isTenantAllowed(request, action, user, tenants, "SGS_GLOBAL_TENANT");
+    }
 
     private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, final Map<String, Boolean> tenants,
             final String requestedTenant) {
@@ -114,7 +119,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                 log.trace("No tenant, will resolve to " + kibanaIndexName);
             }
             
-            if (kibanaIndexOnly && !isTenantAllowed(request, action, user, tenants, "SGS_GLOBAL_TENANT")) {
+            if (kibanaIndexOnly && !isGlobalTenantAllowed(request, action, user, tenants)) {
                 return Boolean.TRUE;
             }
 
