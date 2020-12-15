@@ -71,6 +71,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.authtoken.AuthTokenServiceConfig.FreezePrivileges;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
@@ -108,11 +109,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             TimeValue.timeValueHours(1), TimeValue.timeValueSeconds(1), Property.NodeScope, Property.Filtered);
 
     public static final String USER_TYPE = "sg_auth_token";
+    public static final String USER_TYPE_FULL_CURRENT_PERMISSIONS = "sg_auth_token_full_current_permissions";
 
     private final String indexName;
     private final PrivilegedConfigClient privilegedConfigClient;
     private final ConfigHistoryService configHistoryService;
-    private final ThreadPool threadPool;
     private final Cache<String, AuthToken> idToAuthTokenMap = CacheBuilder.newBuilder().expireAfterWrite(60, TimeUnit.MINUTES).build();
     private JoseJwtProducer jwtProducer;
     private String jwtAudience;
@@ -133,7 +134,6 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
-        this.threadPool = threadPool;
 
         this.setConfig(config);
 
@@ -263,7 +263,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             Consumer<Exception> onFailure) {
 
         getById(id, (authToken) -> {
-            if (authToken.getBase().getConfigSnapshot() != null) {
+            if (authToken.getBase().getConfigVersions() == null || authToken.getBase().peekConfigSnapshot() != null) {
                 onResult.accept(authToken);
             } else {
                 configHistoryService.getConfigSnapshot(authToken.getBase().getConfigVersions(), (configSnapshot) -> {
@@ -308,7 +308,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         Set<String> baseSearchGuardRoles;
         Map<String, Object> baseAttributes;
         ConfigSnapshot configSnapshot;
-
+       
         if (USER_TYPE.equals(user.getType())) {
             // TODO test for this
             log.debug("User is based on an auth token. Resulting auth token will be based on the original one");
@@ -324,8 +324,14 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 throw new TokenCreationException("Error while creating auth token: Could not find base token " + authTokenId,
                         RestStatus.INTERNAL_SERVER_ERROR, e);
             }
-        } else {
-            configSnapshot = configHistoryService.getCurrentConfigSnapshot(CType.ROLES, CType.ROLESMAPPING, CType.ACTIONGROUPS, CType.TENANTS);
+        } else {        
+            if ((request.isFreezePrivileges() && config.getFreezePrivileges() == FreezePrivileges.USER_CHOOSES)
+                    || config.getFreezePrivileges() == FreezePrivileges.ALWAYS) {
+                configSnapshot = configHistoryService.getCurrentConfigSnapshot(CType.ROLES, CType.ROLESMAPPING, CType.ACTIONGROUPS, CType.TENANTS);
+            } else {
+                configSnapshot = null;
+            }
+
             baseBackendRoles = user.getRoles();
             baseSearchGuardRoles = user.getSearchGuardRoles();
             baseAttributes = user.getStructuredAttributes();
@@ -334,7 +340,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         String id = getRandomId();
 
         AuthTokenPrivilegeBase base = new AuthTokenPrivilegeBase(restrictRoles(request, baseBackendRoles),
-                restrictRoles(request, baseSearchGuardRoles), baseAttributes, configSnapshot.getConfigVersions());
+                restrictRoles(request, baseSearchGuardRoles), baseAttributes, configSnapshot != null ? configSnapshot.getConfigVersions() : null);
 
         if (log.isDebugEnabled()) {
             log.debug("base for auth token " + request + ": " + base);
@@ -757,12 +763,18 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                     return;
                 }
 
-                if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
-                    throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
+                ConfigModel configModelSnapshot;
+                
+                if (authToken.getBase().getConfigSnapshot() == null) {
+                    configModelSnapshot = configHistoryService.getCurrentConfigModel();
+                } else {
+                    if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
+                        throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
+                    }
+                    
+                    configModelSnapshot = configHistoryService.getConfigModelForSnapshot(authToken.getBase().getConfigSnapshot());
                 }
-
-                ConfigModel configModelSnapshot = configHistoryService.getConfigModelForSnapshot(authToken.getBase().getConfigSnapshot());
-
+                
                 User userWithRoles = user.copy().backendRoles(authToken.getBase().getBackendRoles())
                         .searchGuardRoles(authToken.getBase().getSearchGuardRoles()).build();
                 TransportAddress callerTransportAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);

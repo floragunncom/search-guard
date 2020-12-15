@@ -81,44 +81,80 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     public List<ExcludedIndexPermissions> getExcludedIndexPermissions() {
         return excludedIndexPermissions;
     }
-    
+
     public RequestedPrivileges excludeClusterPermissions(List<String> excludeAddionalClusterPermissions) {
         if (excludeAddionalClusterPermissions == null || excludeAddionalClusterPermissions.size() == 0) {
             return this;
         }
-        
+
         RequestedPrivileges result = new RequestedPrivileges();
         result.clusterPermissions = this.clusterPermissions;
         result.indexPermissions = this.indexPermissions;
         result.tenantPermissions = this.tenantPermissions;
         result.roles = this.roles;
         result.excludedIndexPermissions = this.excludedIndexPermissions;
-        
+
         List<String> newExcludedClusterPermissions = new ArrayList<>(this.excludedClusterPermissions);
         newExcludedClusterPermissions.addAll(excludeAddionalClusterPermissions);
         result.excludedClusterPermissions = Collections.unmodifiableList(newExcludedClusterPermissions);
-        
+
         return result;
     }
-    
-    
+
     public RequestedPrivileges excludeIndexPermissions(List<ExcludedIndexPermissions> excludeAddionalIndexPermissions) {
         if (excludeAddionalIndexPermissions == null || excludeAddionalIndexPermissions.size() == 0) {
             return this;
         }
-        
+
         RequestedPrivileges result = new RequestedPrivileges();
         result.clusterPermissions = this.clusterPermissions;
         result.indexPermissions = this.indexPermissions;
         result.tenantPermissions = this.tenantPermissions;
         result.roles = this.roles;
         result.excludedClusterPermissions = this.excludedClusterPermissions;
-        
+
         List<ExcludedIndexPermissions> newExcludedIndexPermissions = new ArrayList<>(this.excludedIndexPermissions);
         newExcludedIndexPermissions.addAll(excludeAddionalIndexPermissions);
         result.excludedIndexPermissions = Collections.unmodifiableList(newExcludedIndexPermissions);
-        
+
         return result;
+    }
+    
+    public boolean isTotalWildcard() {
+        if (!clusterPermissions.contains("*")) {
+            return false;
+        }
+        
+        if (excludedClusterPermissions != null && excludedClusterPermissions.size() > 0) {
+            return false;
+        }
+        
+        if (excludedIndexPermissions != null && excludedIndexPermissions.size() > 0) {
+            return false;
+        }
+        
+        if (roles != null && roles.size() > 0) {
+            return false;
+        }
+        
+        if (indexPermissions.size() != 1) {
+            return false; 
+        }
+        
+        if (!indexPermissions.get(0).isWildcard()) {
+            return false;
+        }
+        
+        if (tenantPermissions.size() != 1) {
+            return false;
+        }
+        
+        if (!tenantPermissions.get(0).isWildcard()) {
+            return false;
+        }
+        
+        
+        return true;
     }
 
     SgDynamicConfiguration<RoleV7> toRolesConfig() {
@@ -128,7 +164,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
 
         role.setCluster_permissions(new ArrayList<>(clusterPermissions));
         role.setExclude_cluster_permissions(new ArrayList<>(excludedClusterPermissions));
-        
+
         List<RoleV7.Index> roleIndexPermissions = new ArrayList<>();
 
         for (IndexPermissions indexPermissionsEntry : this.indexPermissions) {
@@ -141,10 +177,9 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
 
         role.setIndex_permissions(roleIndexPermissions);
-        
-        
+
         List<RoleV7.ExcludeIndex> roleExcludeIndexPermissions = new ArrayList<>();
-        
+
         for (ExcludedIndexPermissions indexPermissionsEntry : this.excludedIndexPermissions) {
             RoleV7.ExcludeIndex roleExcludeIndex = new RoleV7.ExcludeIndex();
 
@@ -261,6 +296,10 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                 return false;
             return true;
         }
+        
+        public boolean isWildcard() {
+            return indexPatterns.contains("*") & allowedActions.contains("*");
+        }
     }
 
     public static class TenantPermissions implements Writeable, ToXContentObject, Serializable {
@@ -341,6 +380,11 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                 return false;
             return true;
         }
+        
+        public boolean isWildcard() {
+            return tenantPatterns.contains("*") & allowedActions.contains("*");
+        }
+
     }
 
     public static class ExcludedIndexPermissions implements Writeable, ToXContentObject, Serializable {
@@ -422,8 +466,14 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
             return true;
         }
     }
-    
+
     public static RequestedPrivileges parse(JsonNode jsonNode) throws ConfigValidationException {
+        if (jsonNode.isTextual()) {
+            if (jsonNode.textValue().equals("*")) {
+                return totalWildcard();
+            }
+        }
+        
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
         RequestedPrivileges result = new RequestedPrivileges();
@@ -446,6 +496,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                 result.clusterPermissions = WILDCARD_LIST;
                 result.indexPermissions = Arrays.asList(new IndexPermissions(WILDCARD_LIST, WILDCARD_LIST));
                 result.tenantPermissions = Arrays.asList(new TenantPermissions(WILDCARD_LIST, WILDCARD_LIST));
+            
+                return result;
             }
         }
                 
@@ -477,6 +529,16 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
 
         validationErrors.throwExceptionForPresentErrors();
+
+        return result;
+    }
+
+    public static RequestedPrivileges totalWildcard() {
+        RequestedPrivileges result = new RequestedPrivileges();
+
+        result.clusterPermissions = WILDCARD_LIST;
+        result.indexPermissions = Arrays.asList(new IndexPermissions(WILDCARD_LIST, WILDCARD_LIST));
+        result.tenantPermissions = Arrays.asList(new TenantPermissions(WILDCARD_LIST, WILDCARD_LIST));
 
         return result;
     }

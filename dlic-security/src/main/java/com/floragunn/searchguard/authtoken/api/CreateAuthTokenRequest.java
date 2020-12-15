@@ -42,6 +42,7 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
     private String audience;
     private TemporalAmount expiresAfter;
     private RequestedPrivileges requestedPrivileges;
+    private boolean freezePrivileges = true;
 
     public CreateAuthTokenRequest() {
         super();
@@ -90,6 +91,7 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
         result.tokenName = vJsonNode.string("name");
         result.audience = vJsonNode.string("audience");
         result.expiresAfter = vJsonNode.temporalAmount("expires_after");
+        result.freezePrivileges = vJsonNode.booleanAttribute("freeze_privileges", Boolean.TRUE);
 
         if (vJsonNode.hasNonNull("requested")) {
             try {
@@ -138,6 +140,14 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
         this.tokenName = tokenName;
     }
 
+    public boolean isFreezePrivileges() {
+        return freezePrivileges;
+    }
+
+    public void setFreezePrivileges(boolean snapshotPrivileges) {
+        this.freezePrivileges = snapshotPrivileges;
+    }
+
     public String toJson() {
         return Strings.toString(this);
     }
@@ -157,6 +167,8 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
             builder.field("requested", requestedPrivileges);
         }
 
+        builder.field("freeze_privileges", freezePrivileges);
+
         builder.endObject();
         return builder;
     }
@@ -164,7 +176,7 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
     @Override
     public String toString() {
         return "CreateAuthTokenRequest [tokenName=" + tokenName + ", audience=" + audience + ", expiresAfter=" + expiresAfter
-                + ", requestedPrivileges=" + requestedPrivileges + "]";
+                + ", requestedPrivileges=" + requestedPrivileges + ", freezePrivileges=" + freezePrivileges + "]";
     }
 
 }

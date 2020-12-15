@@ -87,7 +87,8 @@ public class ConfigHistoryService {
     private final Cache<ConfigVersionSet, ConfigModel> configModelCache;
 
     private volatile DynamicConfigModel currentDynamicConfigModel;
-
+    private volatile ConfigModel currentConfigModel;
+    
     private final Settings settings;
 
     public ConfigHistoryService(ConfigurationRepository configurationRepository, StaticSgConfig staticSgConfig,
@@ -426,10 +427,15 @@ public class ConfigHistoryService {
         @Override
         public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
             ConfigHistoryService.this.currentDynamicConfigModel = dcm;
+            ConfigHistoryService.this.currentConfigModel = cm;
         }
     };
 
     public String getIndexName() {
         return indexName;
+    }
+
+    public ConfigModel getCurrentConfigModel() {
+        return currentConfigModel;
     }
 }

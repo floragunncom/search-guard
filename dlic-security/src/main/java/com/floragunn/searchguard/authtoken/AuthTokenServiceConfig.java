@@ -50,6 +50,7 @@ public class AuthTokenServiceConfig {
     private List<String> excludeClusterPermissions;
     private List<RequestedPrivileges.ExcludedIndexPermissions> excludeIndexPermissions;
     private int maxTokensPerUser;
+    private FreezePrivileges freezePrivileges;
 
     public boolean isEnabled() {
         return enabled;
@@ -136,6 +137,8 @@ public class AuthTokenServiceConfig {
             result.excludeIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);
             
             result.maxTokensPerUser = vJsonNode.intNumber("max_tokens_per_user", 100);
+            
+            result.freezePrivileges = vJsonNode.caseInsensitiveEnum("freeze_privileges", FreezePrivileges.class, FreezePrivileges.USER_CHOOSES);
             
             // TODO create test JWT for more thorough validation (some things are only checked then)
         }
@@ -280,6 +283,20 @@ public class AuthTokenServiceConfig {
 
     public void setMaxTokensPerUser(int maxTokensPerUser) {
         this.maxTokensPerUser = maxTokensPerUser;
+    }
+    
+    public enum FreezePrivileges {
+        ALWAYS,
+        NEVER,
+        USER_CHOOSES
+    }
+
+    public FreezePrivileges getFreezePrivileges() {
+        return freezePrivileges;
+    }
+
+    public void setFreezePrivileges(FreezePrivileges freezePrivileges) {
+        this.freezePrivileges = freezePrivileges;
     }
 
 }

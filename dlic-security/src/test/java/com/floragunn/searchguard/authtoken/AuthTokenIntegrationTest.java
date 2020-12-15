@@ -17,6 +17,7 @@ package com.floragunn.searchguard.authtoken;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Objects;
 
 import org.apache.http.Header;
@@ -44,10 +45,13 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchsupport.json.BasicJsonReader;
 import com.google.common.io.BaseEncoding;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 
 public class AuthTokenIntegrationTest {
-
     private static String SGCONFIG = //
             "_sg_meta:\n" + //
                     "  type: \"config\"\n" + //
@@ -88,6 +92,7 @@ public class AuthTokenIntegrationTest {
                     "          type: sg_auth_token";
 
     static TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(SGCONFIG));
+    private static Configuration JSON_PATH_CONFIG = Configuration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
@@ -138,7 +143,72 @@ public class AuthTokenIntegrationTest {
         String token = response.toJsonNode().get("token").asText();
         Assert.assertNotNull(token);
         Assert.assertEquals("HS512", getJwtHeaderValue(token, "alg"));
-        Assert.assertTrue(getJwtPayload(token), getJwtPayload(token).contains("spock"));
+
+        String tokenPayload = getJwtPayload(token);
+        Map<String, Object> parsedTokenPayload = BasicJsonReader.readObject(tokenPayload);
+        Assert.assertEquals(tokenPayload, "spock", JsonPath.parse(parsedTokenPayload).read("sub"));
+        Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") != null);
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
+            SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
+                    .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+
+            Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+
+            searchResponse = client.search(
+                    new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
+                    RequestOptions.DEFAULT);
+
+            Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals("not_allowed_from_token", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+        }
+
+        for (int i = 0; i < 3; i++) {
+            try (RestHighLevelClient client = cluster.getRestHighLevelClientForNode(i, new BasicHeader("Authorization", "Bearer " + token))) {
+                SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
+                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+
+                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+
+                try {
+
+                    searchResponse = client.search(
+                            new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
+                            RequestOptions.DEFAULT);
+                    Assert.fail(searchResponse.toString());
+                } catch (Exception e) {
+                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+                }
+            }
+        }
+
+    }
+
+    @Test
+    public void basicTestUnfrozenPrivileges() throws Exception {
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));
+        request.setFreezePrivileges(false);
+
+        request.setTokenName("my_new_token_unfrozen_privileges");
+
+        Header auth = basicAuth("spock", "spock");
+
+        HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
+
+        Assert.assertEquals(200, response.getStatusCode());
+
+        String token = response.toJsonNode().get("token").asText();
+        
+        Assert.assertNotNull(token);
+        Assert.assertEquals("HS512", getJwtHeaderValue(token, "alg"));
+        
+        String tokenPayload = getJwtPayload(token);
+        Map<String, Object> parsedTokenPayload = BasicJsonReader.readObject(tokenPayload);
+        Assert.assertEquals(tokenPayload, "spock", JsonPath.parse(parsedTokenPayload).read("sub"));
+        Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") == null);
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
             SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
@@ -545,10 +615,12 @@ public class AuthTokenIntegrationTest {
                         "      enabled: true\n" + //
                         "      jwt_signing_key: \n" + //
                         "        kty: EC\n" + // 
-                        "        d: \"1nlQeqOq48OPWiDkmOIXLF_XBWUe9LSznBvWzPI4Ggo\"\n" + "        use: sig\n" + "        crv: P-256\n"
-                        + "        x: \"lBybOJZyK6r8Nx54Jn4cKoDUZgyOdLlsQ2EHk-7LStk\"\n"
-                        + "        y: \"BwSiCmlnS1CDetg_iuxBZKkh6VTMrra0aIT9dBeoCZU\"\n" + "        alg: ES256\n"
-                        + "      jwt_aud: \"searchguard_tokenauth\"\n" + //
+                        "        d: \"1nlQeqOq48OPWiDkmOIXLF_XBWUe9LSznBvWzPI4Ggo\"\n" + //
+                        "        use: sig\n" + "        crv: P-256\n" + //
+                        "        x: \"lBybOJZyK6r8Nx54Jn4cKoDUZgyOdLlsQ2EHk-7LStk\"\n" + //
+                        "        y: \"BwSiCmlnS1CDetg_iuxBZKkh6VTMrra0aIT9dBeoCZU\"\n" + //
+                        "        alg: ES256\n" + //
+                        "      jwt_aud: \"searchguard_tokenauth\"\n" + //
                         "      max_validity: \"1y\"\n" + //
                         "    authc:\n" + //
                         "      authentication_domain_basic_internal:\n" + //
@@ -644,11 +716,9 @@ public class AuthTokenIntegrationTest {
         }
     }
 
-    
     @Test
     public void sgAdminRestApiTest() throws Exception {
-        CreateAuthTokenRequest request = new CreateAuthTokenRequest(
-                RequestedPrivileges.parseYaml("cluster_permissions: ['*']"));
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(RequestedPrivileges.parseYaml("cluster_permissions: ['*']"));
 
         request.setTokenName("rest_api_test_token");
 
@@ -657,21 +727,20 @@ public class AuthTokenIntegrationTest {
         HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
 
         Assert.assertEquals(200, response.getStatusCode());
-        
+
         String token = response.toJsonNode().get("token").asText();
         Assert.assertNotNull(token);
-        
+
         Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
 
         response = rh.executeGetRequest("_searchguard/api/roles", auth);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        
+
         response = rh.executeGetRequest("_searchguard/api/roles", tokenAuth);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        
+
     }
-    
-    
+
     @Test
     public void sgAdminRestApiForbiddenTest() throws Exception {
         CreateAuthTokenRequest request = new CreateAuthTokenRequest(
@@ -684,24 +753,24 @@ public class AuthTokenIntegrationTest {
         HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
 
         Assert.assertEquals(200, response.getStatusCode());
-        
+
         String token = response.toJsonNode().get("token").asText();
         Assert.assertNotNull(token);
-        
+
         Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
 
         response = rh.executeGetRequest("_searchguard/api/roles", auth);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        
+
         response = rh.executeGetRequest("_searchguard/api/roles", tokenAuth);
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
-        
+
     }
-    
+
     @Test
     public void sgAdminRestApiExclusionTest() throws Exception {
-        CreateAuthTokenRequest request = new CreateAuthTokenRequest(
-                RequestedPrivileges.parseYaml("cluster_permissions: ['*']\nexclude_cluster_permissions: ['cluster:admin:searchguard:configrestapi']"));
+        CreateAuthTokenRequest request = new CreateAuthTokenRequest(RequestedPrivileges
+                .parseYaml("cluster_permissions: ['*']\nexclude_cluster_permissions: ['cluster:admin:searchguard:configrestapi']"));
 
         request.setTokenName("rest_api_test_token");
 
@@ -710,23 +779,22 @@ public class AuthTokenIntegrationTest {
         HttpResponse response = rh.executePostRequest("/_searchguard/authtoken", request.toJson(), auth);
 
         Assert.assertEquals(200, response.getStatusCode());
-        
+
         String token = response.toJsonNode().get("token").asText();
         Assert.assertNotNull(token);
-        
+
         Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
 
         response = rh.executeGetRequest("_searchguard/api/roles", auth);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        
+
         response = rh.executeGetRequest("_searchguard/api/roles", tokenAuth);
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
-        
+
     }
-    
-    
+
     // TODO a test for attribute interpolation, DLS/FLS
-    
+
     private static String getJwtHeaderValue(String jwt, String headerName) throws IOException {
         int p = jwt.indexOf('.');
         String headerBase4 = jwt.substring(0, p);

@@ -36,7 +36,6 @@ import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.sgconf.history.ConfigVersionSet;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.MissingAttribute;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.json.JacksonTools;
@@ -70,7 +69,7 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
         this.backendRoles = in.readStringList();
         this.searchGuardRoles = in.readStringList();
         this.attributes = in.readMap();
-        this.configVersions = new ConfigVersionSet(in);
+        this.configVersions = in.readOptionalWriteable(ConfigVersionSet::new);
     }
 
     public List<String> getBackendRoles() {
@@ -103,11 +102,13 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
             builder.field(compact ? "a" : "attrs", attributes);
         }
 
-        if (compact) {
-            builder.array("c", new long[] { configVersions.get(CType.ROLES).getVersion(), configVersions.get(CType.ROLESMAPPING).getVersion(),
-                    configVersions.get(CType.ACTIONGROUPS).getVersion(), configVersions.get(CType.TENANTS).getVersion() });
-        } else {
-            builder.field("config", (ToXContent) configVersions);
+        if (configVersions != null) {
+            if (compact) {
+                builder.array("c", new long[] { configVersions.get(CType.ROLES).getVersion(), configVersions.get(CType.ROLESMAPPING).getVersion(),
+                        configVersions.get(CType.ACTIONGROUPS).getVersion(), configVersions.get(CType.TENANTS).getVersion() });
+            } else {
+                builder.field("config", (ToXContent) configVersions);
+            }
         }
 
         builder.endObject();
@@ -130,8 +131,6 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
             } catch (ConfigValidationException e) {
                 validationErrors.add("config", e);
             }
-        } else {
-            validationErrors.add(new MissingAttribute("config", jsonNode));
         }
 
         ObjectNode attrsNode = vJsonNode.getObjectNode("attrs");
@@ -145,7 +144,18 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
         return new AuthTokenPrivilegeBase(backendRoles, searchGuardRoles, attributes, configVersions);
     }
 
+    public ConfigSnapshot peekConfigSnapshot() {
+        return configSnapshot;
+    }
+
     public ConfigSnapshot getConfigSnapshot() {
+        if (configSnapshot == null) {
+            if (configVersions == null) {
+                return null;
+            } else {
+                throw new IllegalStateException("ConfigSnapshot has not been loaded yet. configVersions: " + configVersions);
+            }
+        }
         return configSnapshot;
     }
 
@@ -162,7 +172,7 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
         out.writeStringCollection(this.backendRoles);
         out.writeStringCollection(this.searchGuardRoles);
         out.writeMap(this.attributes);
-        this.configVersions.writeTo(out);
+        out.writeOptionalWriteable(this.configVersions);
     }
 
     @Override
