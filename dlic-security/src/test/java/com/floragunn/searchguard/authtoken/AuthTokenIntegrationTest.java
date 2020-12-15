@@ -725,6 +725,8 @@ public class AuthTokenIntegrationTest {
     }
     
     
+    // TODO a test for attribute interpolation, DLS/FLS
+    
     private static String getJwtHeaderValue(String jwt, String headerName) throws IOException {
         int p = jwt.indexOf('.');
         String headerBase4 = jwt.substring(0, p);

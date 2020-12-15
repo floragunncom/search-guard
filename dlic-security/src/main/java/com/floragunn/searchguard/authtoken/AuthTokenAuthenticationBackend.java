@@ -38,9 +38,7 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
     @Override
     public void authenticate(AuthCredentials credentials, Consumer<User> onSuccess, Consumer<Exception> onFailure) {
         try {
-            authTokenService.getByClaims(credentials.getClaims(), (authToken) -> {
-                System.out.println("ATAB " + authToken);
-                
+            authTokenService.getByClaims(credentials.getClaims(), (authToken) -> {                
                 onSuccess.accept(User.forUser(authToken.getUserName())
                         .subName("AuthToken " + authToken.getTokenName() + " [" + authToken.getId() + "]").type(AuthTokenService.USER_TYPE)
                         .specialAuthzConfig(authToken.getId()).attributes(authToken.getBase().getAttributes()).authzComplete().build());

@@ -241,8 +241,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 throw new RuntimeException(e.getCause());
             }
         }
-    }    
-    
+    }
+
     public void getByClaims(Map<String, Object> claims, Consumer<AuthToken> onResult, Consumer<NoSuchAuthTokenException> onNoSuchAuthToken,
             Consumer<Exception> onFailure) throws InvalidTokenException {
         String id = Objects.toString(claims.get(JwtConstants.CLAIM_JWT_ID), null);
@@ -261,7 +261,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     public void getByIdWithConfigSnapshot(String id, Consumer<AuthToken> onResult, Consumer<NoSuchAuthTokenException> onNoSuchAuthToken,
             Consumer<Exception> onFailure) {
-        
+
         getById(id, (authToken) -> {
             if (authToken.getBase().getConfigSnapshot() != null) {
                 onResult.accept(authToken);
@@ -272,21 +272,69 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 }, onFailure);
             }
         }, onNoSuchAuthToken, onFailure);
-        
+
     }
-    
+
+    public AuthToken getByIdWithConfigSnapshot(String id) throws NoSuchAuthTokenException {
+
+        CompletableFuture<AuthToken> completableFuture = new CompletableFuture<>();
+
+        getByIdWithConfigSnapshot(id, completableFuture::complete, completableFuture::completeExceptionally,
+                completableFuture::completeExceptionally);
+
+        try {
+            return completableFuture.get();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof NoSuchAuthTokenException) {
+                throw (NoSuchAuthTokenException) e.getCause();
+            } else {
+                throw new RuntimeException(e.getCause());
+            }
+        }
+    }
+
     public AuthToken create(User user, CreateAuthTokenRequest request) throws TokenCreationException {
         if (config == null || !config.isEnabled()) {
             throw new TokenCreationException("Auth token handling is not enabled", RestStatus.INTERNAL_SERVER_ERROR);
         }
 
+        if (log.isDebugEnabled()) {
+            log.debug("create(user: " + user + ", request: " + request + ")");
+        }
+
+        Set<String> baseBackendRoles;
+        Set<String> baseSearchGuardRoles;
+        Map<String, Object> baseAttributes;
+        ConfigSnapshot configSnapshot;
+
+        if (USER_TYPE.equals(user.getType())) {
+            // TODO test for this
+            log.debug("User is based on an auth token. Resulting auth token will be based on the original one");
+            String authTokenId = (String) user.getSpecialAuthzConfig();
+
+            try {
+                AuthToken existingAuthToken = getByIdWithConfigSnapshot(authTokenId);
+                configSnapshot = existingAuthToken.getBase().getConfigSnapshot();
+                baseBackendRoles = new HashSet<>(existingAuthToken.getBase().getBackendRoles());
+                baseSearchGuardRoles = new HashSet<>(existingAuthToken.getBase().getSearchGuardRoles());
+                baseAttributes = existingAuthToken.getBase().getAttributes();
+            } catch (NoSuchAuthTokenException e) {
+                throw new TokenCreationException("Error while creating auth token: Could not find base token " + authTokenId,
+                        RestStatus.INTERNAL_SERVER_ERROR, e);
+            }
+        } else {
+            configSnapshot = configHistoryService.getCurrentConfigSnapshot(CType.ROLES, CType.ROLESMAPPING, CType.ACTIONGROUPS, CType.TENANTS);
+            baseBackendRoles = user.getRoles();
+            baseSearchGuardRoles = user.getSearchGuardRoles();
+            baseAttributes = user.getStructuredAttributes();
+        }
+
         String id = getRandomId();
 
-        ConfigSnapshot configSnapshot = configHistoryService.getCurrentConfigSnapshot(CType.ROLES, CType.ROLESMAPPING, CType.ACTIONGROUPS,
-                CType.TENANTS);
-
-        AuthTokenPrivilegeBase base = new AuthTokenPrivilegeBase(restrictRoles(request, user.getRoles()),
-                restrictRoles(request, user.getSearchGuardRoles()), user.getStructuredAttributes(), configSnapshot.getConfigVersions());
+        AuthTokenPrivilegeBase base = new AuthTokenPrivilegeBase(restrictRoles(request, baseBackendRoles),
+                restrictRoles(request, baseSearchGuardRoles), baseAttributes, configSnapshot.getConfigVersions());
 
         if (log.isDebugEnabled()) {
             log.debug("base for auth token " + request + ": " + base);
@@ -297,7 +345,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (base.getBackendRoles().size() == 0 && base.getSearchGuardRoles().size() == 0) {
             throw new TokenCreationException(
                     "Cannot create token. The resulting token would have no privileges as the specified roles do not intersect with the user's roles. Specified: "
-                            + request.getRequestedPrivileges().getRoles() + " User: " + user.getRoles() + " + " + user.getSearchGuardRoles(),
+                            + request.getRequestedPrivileges().getRoles() + " User: " + baseBackendRoles + " + " + baseSearchGuardRoles,
                     RestStatus.BAD_REQUEST);
         }
 
@@ -679,7 +727,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     @Override
     public void provide(User user, ThreadContext threadContext, Consumer<SpecialPrivilegesEvaluationContext> onResult,
             Consumer<Exception> onFailure) {
-                
+
         if (config == null || !config.isEnabled()) {
             onResult.accept(null);
             return;
@@ -692,8 +740,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         String authTokenId = (String) user.getSpecialAuthzConfig();
 
-        if (log.isTraceEnabled()) {
-            log.trace("AuthTokenService.provide(" + user.getName() + ") on " + authTokenId);
+        if (log.isDebugEnabled()) {
+            log.debug("AuthTokenService.provide(" + user.getName() + ") on " + authTokenId);
         }
 
         getByIdWithConfigSnapshot(authTokenId, (authToken) -> {
@@ -702,7 +750,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 if (log.isTraceEnabled()) {
                     log.trace("Got token: " + authToken);
                 }
-                
+
                 if (authToken.isRevoked()) {
                     log.info("Using revoked auth token: " + authToken);
                     onResult.accept(null);
@@ -721,11 +769,9 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 Set<String> mappedBaseRoles = configModelSnapshot.mapSgRoles(userWithRoles, callerTransportAddress);
                 SgRoles filteredBaseSgRoles = configModelSnapshot.getSgRoles().filter(mappedBaseRoles);
 
-                if (log.isTraceEnabled()) {
-                    log.trace("ConfigSnapshot: " + authToken.getBase().getConfigSnapshot());
-                    log.trace("mappedBaseRoles: " + mappedBaseRoles + "; userWithRoles: " + userWithRoles);
-                    log.trace("configModelSnapshot.roles" + configModelSnapshot.getSgRoles());
-                    log.trace("filteredBaseSgRoles: " + filteredBaseSgRoles);
+                if (log.isDebugEnabled()) {
+                    log.debug("AuthTokenService.provide returns SpecialPrivilegesEvaluationContext for " + user + "\nuserWithRoles: " + userWithRoles
+                            + "\nmappedBaseRoles: " + mappedBaseRoles + "\nfilteredBaseSgRoles: " + filteredBaseSgRoles);
                 }
 
                 RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivileges(),
