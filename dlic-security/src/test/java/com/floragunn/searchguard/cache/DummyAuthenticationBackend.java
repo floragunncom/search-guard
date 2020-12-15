@@ -19,7 +19,7 @@ import java.nio.file.Path;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
 
-import com.floragunn.searchguard.auth.SyncAuthenticationBackend;
+import com.floragunn.searchguard.auth.api.SyncAuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 

@@ -72,7 +72,7 @@ import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.auth.ldap.util.LdapHelper;
 import com.floragunn.dlic.auth.ldap.util.Utils;
-import com.floragunn.searchguard.auth.SyncAuthorizationBackend;
+import com.floragunn.searchguard.auth.api.SyncAuthorizationBackend;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.PemKeyReader;
 import com.floragunn.searchguard.support.WildcardMatcher;
