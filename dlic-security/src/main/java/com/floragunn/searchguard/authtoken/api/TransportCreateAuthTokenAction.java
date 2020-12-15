@@ -19,41 +19,35 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.searchguard.auth.AuthInfoService;
 import com.floragunn.searchguard.authtoken.AuthTokenService;
 import com.floragunn.searchguard.authtoken.TokenCreationException;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
 public class TransportCreateAuthTokenAction extends HandledTransportAction<CreateAuthTokenRequest, CreateAuthTokenResponse> {
 
     private final AuthTokenService authTokenService;
+    private final AuthInfoService authInfoService;
     private final ThreadPool threadPool;
 
     @Inject
     public TransportCreateAuthTokenAction(TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
-            AuthTokenService authTokenService) {
+            AuthTokenService authTokenService, AuthInfoService authInfoService) {
         super(CreateAuthTokenAction.NAME, transportService, actionFilters, CreateAuthTokenRequest::new);
 
         this.authTokenService = authTokenService;
         this.threadPool = threadPool;
+        this.authInfoService = authInfoService;
     }
 
     @Override
     protected final void doExecute(Task task, CreateAuthTokenRequest request, ActionListener<CreateAuthTokenResponse> listener) {
 
-        ThreadContext threadContext = threadPool.getThreadContext();
-
-        User user = threadContext.getTransient(ConfigConstants.SG_USER);
-
-        if (user == null) {
-            listener.onFailure(new Exception("Request did not contain user"));
-            return;
-        }
+        User user = authInfoService.getCurrentUser();
 
         threadPool.generic().submit(() -> {
             try {
