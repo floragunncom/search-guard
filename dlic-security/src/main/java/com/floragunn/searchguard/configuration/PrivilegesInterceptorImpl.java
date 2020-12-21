@@ -105,16 +105,17 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         if (log.isDebugEnabled()) {
             log.debug("raw requestedTenant: '" + requestedTenant + "'");
         }
-        
-        //intercept when requests are not made by the kibana server and if the kibana index/alias (.kibana) is the only index/alias involved
-        final boolean kibanaIndexOnly = !user.getName().equals(kibanaserverUsername) && resolveToKibanaIndexOrAlias(requestedResolved, kibanaIndexName);
-
+                
         if (requestedTenant == null || requestedTenant.length() == 0) {
             if (log.isTraceEnabled()) {
                 log.trace("No tenant, will resolve to " + kibanaIndexName);
             }
             
-            if (kibanaIndexOnly && !isTenantAllowed(request, action, user, tenants, "SGS_GLOBAL_TENANT")) {
+            if(isTenantAllowed(request, action, user, tenants, "SGS_GLOBAL_TENANT")) {
+            	return null;
+            }
+            
+            if (isKibanaIndexOnly(user, kibanaserverUsername, requestedResolved, kibanaIndexName)) {
                 return Boolean.TRUE;
             }
 
@@ -151,7 +152,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         }
 
         //intercept when requests are not made by the kibana server and if the kibana index/alias (.kibana) is the only index/alias involved
-        if (kibanaIndexOnly) {
+        if (isKibanaIndexOnly(user, kibanaserverUsername, requestedResolved, kibanaIndexName)) {
 
             if (log.isDebugEnabled()) {
                 log.debug("requestedTenant: " + requestedTenant);
@@ -289,4 +290,10 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         return (requestedResolved.getAllIndices().size() == 1 && requestedResolved.getAllIndices().contains(kibanaIndexName))
                 || (requestedResolved.getAliases().size() == 1 && requestedResolved.getAliases().contains(kibanaIndexName));
     }
+    
+    //intercept when requests are not made by the kibana server and if the kibana index/alias (.kibana) is the only index/alias involved
+    private boolean isKibanaIndexOnly(User user, String kibanaserverUsername, Resolved requestedResolved, String kibanaIndexName) {
+    	return requestedResolved == null || (!user.getName().equals(kibanaserverUsername) && resolveToKibanaIndexOrAlias(requestedResolved, kibanaIndexName));
+    }
+
 }
