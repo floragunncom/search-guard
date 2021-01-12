@@ -218,7 +218,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             
 
         try {
-            dge = new DlsGetEvaluator(dlsQuery, in, applyDlsHere());
+            dge = new DlsGetEvaluator(dlsQuery, in);
         } catch (IOException e) {
             throw ExceptionsHelper.convertToElastic(e);
         }
@@ -231,8 +231,8 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         private final CacheHelper readerCacheHelper;
         private final boolean hasDeletions;
  
-        public DlsGetEvaluator(final Query dlsQuery, final LeafReader in, boolean applyDlsHere) throws IOException {
-            if(dlsQuery != null && applyDlsHere) {
+        public DlsGetEvaluator(final Query dlsQuery, final LeafReader in) throws IOException {
+            if(dlsQuery != null) {
                 //borrowed from Apache Lucene (Copyright Apache Software Foundation (ASF))
                 //https://github.com/apache/lucene-solr/blob/branch_6_3/lucene/misc/src/java/org/apache/lucene/index/PKIndexSplitter.java
                 final IndexSearcher searcher = new IndexSearcher(DlsFlsFilterLeafReader.this);
@@ -1267,28 +1267,6 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             return delegate.termState();
         }
         
-    }
-
-    private String getRuntimeActionName() {
-        return (String) threadContext.getTransient(ConfigConstants.SG_ACTION_NAME);
-    }
-    
-    private boolean isSuggest() {
-        return threadContext.getTransient("_sg_issuggest") == Boolean.TRUE;
-    }
-    
-    private boolean applyDlsHere() {
-        if(isSuggest()) {
-            //we need to apply it here
-            return true;
-        }
-        
-        
-        final String action = getRuntimeActionName();
-        assert action != null;
-        //we need to apply here if it is not a search request
-        //(a get for example)
-        return !action.startsWith("indices:data/read/search");
     }
 
     @Override
