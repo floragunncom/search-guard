@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2021 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -40,10 +40,15 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.DelayableWriteable;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.query.ParsedQuery;
+import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
@@ -61,6 +66,8 @@ import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.query.QuerySearchResult;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SgUtils;
@@ -73,138 +80,132 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     private static final Field BUCKET_TERM_BYTES = getField(StringTerms.Bucket.class, "termBytes");
     private static final Field BUCKET_FORMAT = getField(InternalTerms.Bucket.class, "format");
 
+    private final Client nodeClient;
+    private final NamedXContentRegistry namedXContentRegistry;
+    private final ClusterService clusterService;
+    private final IndicesService indicesService;
+    private final ThreadContext threadContext;
+
+    public DlsFlsValveImpl(Settings settings, Client nodeClient, ClusterService clusterService, IndicesService indicesService,
+            NamedXContentRegistry namedXContentRegistry, ThreadContext threadContext) {
+        super();
+        this.nodeClient = nodeClient;
+        this.clusterService = clusterService;
+        this.indicesService = indicesService;
+        this.namedXContentRegistry = namedXContentRegistry;
+        this.threadContext = threadContext;
+    }
+
     /**
      * 
      * @param request
      * @param listener
      * @return false on error
      */
-    public boolean invoke(final ActionRequest request, final ActionListener<?> listener, 
-            final Map<String,Set<String>> allowedFlsFields, 
-            final Map<String,Set<String>> maskedFields, 
-            final Map<String,Set<String>> queries,
-            boolean localHashingEnabled) {
-        
-        final boolean fls = allowedFlsFields != null && !allowedFlsFields.isEmpty();
-        final boolean masked = maskedFields != null && !maskedFields.isEmpty();
-        final boolean dls = queries != null && !queries.isEmpty();
+    public boolean invoke(final ActionRequest request, final ActionListener<?> listener, final EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
+            final boolean localHashingEnabled, final Resolved resolved) {
 
-        //When we encounter a terms or sampler aggregation with masked fields activated we forcibly
-        //need to switch off global ordinals because field masking can break ordering
-        //https://www.elastic.co/guide/en/elasticsearch/reference/master/eager-global-ordinals.html#_avoiding_global_ordinal_loading
-        if (masked && request instanceof SearchRequest) {
-            
-            SearchRequest searchRequest = ((SearchRequest) request);
-            
-            if (searchRequest.source() != null && searchRequest.source().aggregations() != null) {
-                for (AggregationBuilder aggregationBuilder : searchRequest.source().aggregations().getAggregatorFactories()) {
-                    if (aggregationBuilder instanceof TermsAggregationBuilder) {
-                        ((TermsAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
-                    }
-
-                    if (aggregationBuilder instanceof SignificantTermsAggregationBuilder) {
-                        ((SignificantTermsAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
-                    }
-
-                    if (aggregationBuilder instanceof DiversifiedAggregationBuilder) {
-                        ((DiversifiedAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
-                    }
-                }
-            }
+        if (log.isDebugEnabled()) {
+            log.debug("DlsFlsValveImpl.invoke()\nrequest: " + request + "\nevaluatedDlsFlsConfig: " + evaluatedDlsFlsConfig + "\nresolved: "
+                    + resolved);
         }
 
-        if(fls || masked || dls) {
-            
-            if(request instanceof RealtimeRequest) {
-                ((RealtimeRequest) request).realtime(Boolean.FALSE);
-            }
-            
-            if(request instanceof SearchRequest) {
-                
-                SearchRequest sr = ((SearchRequest)request);
-                
-                if(localHashingEnabled && !fls && !dls && sr.source().aggregations() != null) {
-                
-                    boolean cacheable = true;
-                    
-                    for(AggregationBuilder af: sr.source().aggregations().getAggregatorFactories()) {
-                        
-                        if(!af.getType().equals("cardinality") && !af.getType().equals("count")) {
-                            cacheable = false;
-                            continue;
-                        }
-                        
-                        StringBuffer sb = new StringBuffer();
-                        //sb.append(System.lineSeparator()+af.getName()+System.lineSeparator());
-                        //sb.append(af.getType()+System.lineSeparator());
-                        //sb.append(af.getClass().getSimpleName()+System.lineSeparator());
-                        
-                        if(sr.source() != null) {
-                            //sb.append(sr.source().query()+System.lineSeparator());
-                            sb.append(Strings.toString(sr.source())+System.lineSeparator());
-                        }
-                        
-                        sb.append(Strings.toString(af)+System.lineSeparator());
-                        
-                        LogManager.getLogger("debuglogger").error(sb.toString());
-                        
+        if (evaluatedDlsFlsConfig == null || evaluatedDlsFlsConfig.isEmpty()) {
+            return true;
+        }
+
+        if (request instanceof RealtimeRequest) {
+            ((RealtimeRequest) request).realtime(Boolean.FALSE);
+        }
+
+        if (request instanceof SearchRequest) {
+
+            SearchRequest sr = ((SearchRequest) request);
+
+            if (localHashingEnabled && !evaluatedDlsFlsConfig.hasFls() && !evaluatedDlsFlsConfig.hasDls() && sr.source().aggregations() != null) {
+
+                boolean cacheable = true;
+
+                for (AggregationBuilder af : sr.source().aggregations().getAggregatorFactories()) {
+
+                    if (!af.getType().equals("cardinality") && !af.getType().equals("count")) {
+                        cacheable = false;
+                        continue;
                     }
-                    
-                    if(!cacheable) {
-                        sr.requestCache(Boolean.FALSE);
-                    } else {
-                        LogManager.getLogger("debuglogger").error("Shard requestcache enabled for "+(sr.source()==null?"<NULL>":Strings.toString(sr.source())));
+
+                    StringBuilder sb = new StringBuilder();
+
+                    if (sr.source() != null) {
+                        sb.append(Strings.toString(sr.source()) + System.lineSeparator());
                     }
-                
-                } else {
+
+                    sb.append(Strings.toString(af) + System.lineSeparator());
+
+                    LogManager.getLogger("debuglogger").error(sb.toString());
+
+                }
+
+                if (!cacheable) {
                     sr.requestCache(Boolean.FALSE);
+                } else {
+                    LogManager.getLogger("debuglogger")
+                            .error("Shard requestcache enabled for " + (sr.source() == null ? "<NULL>" : Strings.toString(sr.source())));
                 }
-            }
-            
-            if(request instanceof UpdateRequest) {
-                listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS or DLS or Fieldmasking is activated"));
-                return false;
-            }
-            
-            if(request instanceof BulkRequest) {
-                for(DocWriteRequest<?> inner:((BulkRequest) request).requests()) {
-                    if(inner instanceof UpdateRequest) {
-                        listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS or DLS or Fieldmasking is activated"));
-                        return false;
-                    }
-                }
-            }
-            
-            if(request instanceof BulkShardRequest) {
-                for(BulkItemRequest inner:((BulkShardRequest) request).items()) {
-                    if(inner.request() instanceof UpdateRequest) {
-                        listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS or DLS or Fieldmasking is activated"));
-                        return false;
-                    }
-                }
-            }
-            
-            if(request instanceof ResizeRequest) {
-                listener.onFailure(new ElasticsearchSecurityException("Resize is not supported when FLS or DLS or Fieldmasking is activated"));
-                return false;
+
+            } else {
+                sr.requestCache(Boolean.FALSE);
             }
         }
-        
-        if(dls) {
-            if(request instanceof SearchRequest) {
-                final SearchSourceBuilder source = ((SearchRequest)request).source();
-                if(source != null) {
-                    
-                    if(source.profile()) {
+
+        if (request instanceof UpdateRequest) {
+            listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS or DLS or Fieldmasking is activated"));
+            return false;
+        }
+
+        if (request instanceof BulkRequest) {
+            for (DocWriteRequest<?> inner : ((BulkRequest) request).requests()) {
+                if (inner instanceof UpdateRequest) {
+                    listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS or DLS or Fieldmasking is activated"));
+                    return false;
+                }
+            }
+        }
+
+        if (request instanceof BulkShardRequest) {
+            for (BulkItemRequest inner : ((BulkShardRequest) request).items()) {
+                if (inner.request() instanceof UpdateRequest) {
+                    listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS or DLS or Fieldmasking is activated"));
+                    return false;
+                }
+            }
+        }
+
+        if (request instanceof ResizeRequest) {
+            listener.onFailure(new ElasticsearchSecurityException("Resize is not supported when FLS or DLS or Fieldmasking is activated"));
+            return false;
+        }
+
+        if (evaluatedDlsFlsConfig.hasDls()) {
+            if (request instanceof SearchRequest) {
+
+                final SearchSourceBuilder source = ((SearchRequest) request).source();
+                if (source != null) {
+
+                    if (source.profile()) {
                         listener.onFailure(new ElasticsearchSecurityException("Profiling is not supported when DLS is activated"));
                         return false;
                     }
-                    
+
                 }
             }
         }
-        
-        return true;
+
+        if (evaluatedDlsFlsConfig.hasFilterLevelDlsQueries()) {
+            return new DlsFilterLevelHandler(request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService, indicesService,
+                    namedXContentRegistry, threadContext).handle();
+        } else {
+            return true;
+        }
     }
 
     @Override
@@ -226,10 +227,13 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 if (unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) {
-                    final ParsedQuery dlsQuery = DlsQueryParser.parse(unparsedDlsQueries, context.parsedQuery(), context.getSearchExecutionContext(),
-                            namedXContentRegistry);
-                    context.parsedQuery(dlsQuery);
-                    context.preProcess(true);
+                    final ParsedQuery dlsQuery = DlsQueryParser.parseForValve(unparsedDlsQueries, context.parsedQuery(), context.getSearchExecutionContext(),
+                            namedXContentRegistry, threadPool.getThreadContext());
+                    
+                    if(dlsQuery != null) {
+	                    context.parsedQuery(dlsQuery);
+	                    context.preProcess(true);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -258,7 +262,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         if (aggregations == null) {
             return;
         }
-        
+
         if (checkForCorrectReduceOrder(aggregations)) {
             return;
         }
@@ -327,6 +331,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
         return true;
     }
+
 
     private boolean checkForCorrectReduceOrder(BucketOrder reduceOrder, List<StringTerms.Bucket> buckets) {
         Comparator<Bucket> comparator = reduceOrder.comparator();

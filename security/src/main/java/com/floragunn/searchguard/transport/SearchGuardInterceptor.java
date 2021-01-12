@@ -136,6 +136,9 @@ public class SearchGuardInterceptor {
                     || k.equals(ConfigConstants.SG_DLS_QUERY_HEADER)
                     || k.equals(ConfigConstants.SG_FLS_FIELDS_HEADER)
                     || k.equals(ConfigConstants.SG_MASKED_FIELD_HEADER)
+                    || k.equals(ConfigConstants.SG_DOC_WHITELST_HEADER)
+                    || k.equals(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE)
+                    || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
                     || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest))
                     || k.startsWith("_sg_trace")
                     || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
@@ -154,8 +157,10 @@ public class SearchGuardInterceptor {
                     log.debug("remove dls/fls/mf because we sent a ccs request to a remote cluster");
                 }
                 headerMap.remove(ConfigConstants.SG_DLS_QUERY_HEADER);
+                headerMap.remove(ConfigConstants.SG_DLS_MODE_HEADER);
                 headerMap.remove(ConfigConstants.SG_MASKED_FIELD_HEADER);
                 headerMap.remove(ConfigConstants.SG_FLS_FIELDS_HEADER);
+                headerMap.remove(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE);
             }
             
             if (remoteClusterService.isCrossClusterSearchEnabled() 

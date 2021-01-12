@@ -48,6 +48,7 @@ import org.elasticsearch.action.bulk.BulkItemRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteAction;
+import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.MultiGetAction;
 import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.search.MultiSearchAction;
@@ -65,6 +66,7 @@ import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.reindex.ReindexAction;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -108,17 +110,16 @@ public class PrivilegesEvaluator implements DCFListener {
     private final SnapshotRestoreEvaluator snapshotRestoreEvaluator;
     private final SearchGuardIndexAccessEvaluator sgIndexAccessEvaluator;
     private final TermsAggregationEvaluator termsAggregationEvaluator;
-    private final DlsFlsEvaluator dlsFlsEvaluator;
     private final boolean enterpriseModulesEnabled;
     private DynamicConfigModel dcm;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
+    private final NamedXContentRegistry namedXContentRegistry;
 
     public PrivilegesEvaluator(final ClusterService clusterService, final ThreadPool threadPool,
             final ConfigurationRepository configurationRepository, final IndexNameExpressionResolver resolver, AuditLog auditLog,
             final Settings settings, final ClusterInfoHolder clusterInfoHolder,
             final IndexResolverReplacer irr, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
-            GuiceDependencies guiceDependencies, boolean enterpriseModulesEnabled) {
-
+            GuiceDependencies guiceDependencies,  NamedXContentRegistry namedXContentRegistry, boolean enterpriseModulesEnabled) {
         super();
         this.clusterService = clusterService;
         this.resolver = resolver;
@@ -135,9 +136,9 @@ public class PrivilegesEvaluator implements DCFListener {
         this.irr = irr;
         snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog, guiceDependencies);
         sgIndexAccessEvaluator = new SearchGuardIndexAccessEvaluator(settings, auditLog, irr);
-        dlsFlsEvaluator = new DlsFlsEvaluator(settings, threadPool);
         termsAggregationEvaluator = new TermsAggregationEvaluator();
         this.enterpriseModulesEnabled = enterpriseModulesEnabled;
+        this.namedXContentRegistry = namedXContentRegistry;
     }
 
     @Override
@@ -213,6 +214,7 @@ public class PrivilegesEvaluator implements DCFListener {
         
 
         final Resolved requestedResolved = irr.resolveRequest(request);
+        presponse.resolved = requestedResolved;
 
         if (log.isDebugEnabled()) {
             log.debug("requestedResolved : {}", requestedResolved);
@@ -233,12 +235,12 @@ public class PrivilegesEvaluator implements DCFListener {
         if (log.isTraceEnabled()) {
             log.trace("dnfof enabled? {}", dnfofEnabled);
         }
-
-        if (isClusterPerm(action0)) {
-            if (enterpriseModulesEnabled) {
-                dlsFlsEvaluator.evaluate(request, clusterService, resolver, requestedResolved, user, sgRoles, presponse);
-            }
-            
+        
+        if (enterpriseModulesEnabled) {
+            presponse.evaluatedDlsFlsConfig = sgRoles.getDlsFls(user, resolver, clusterService, namedXContentRegistry);
+        }
+        
+        if (isClusterPerm(action0)) {       
             if (!sgRoles.impliesClusterPermissionPermission(action0)) {
                 presponse.missingPrivileges.add(action0);
                 presponse.allowed = false;
@@ -316,11 +318,9 @@ public class PrivilegesEvaluator implements DCFListener {
                 return presponse;
             }
         }
-
-        // check dlsfls 
-        if (enterpriseModulesEnabled
-                //&& (action0.startsWith("indices:data/read") || action0.equals(ClusterSearchShardsAction.NAME))
-                && dlsFlsEvaluator.evaluate(request, clusterService, resolver, requestedResolved, user, sgRoles, presponse).isComplete()) {
+        
+        if (checkDocWhitelistHeader(user, action0, request)) {
+            presponse.allowed = true;
             return presponse;
         }
 
@@ -564,7 +564,7 @@ public class PrivilegesEvaluator implements DCFListener {
         return Collections.unmodifiableSet(additionalPermissionsRequired);
     }
 
-    private static boolean isClusterPerm(String action0) {
+    public static boolean isClusterPerm(String action0) {
         return !isTenantPerm(action0) && (action0.startsWith("searchguard:cluster:") || action0.startsWith("cluster:")
                 || action0.startsWith("indices:admin/template/") || action0.startsWith("indices:admin/index_template/")
                 || action0.startsWith(SearchScrollAction.NAME) || (action0.equals(BulkAction.NAME)) || (action0.equals(MultiGetAction.NAME))
@@ -574,8 +574,12 @@ public class PrivilegesEvaluator implements DCFListener {
 
     }
 
-    private static boolean isTenantPerm(String action0) {
+    public static boolean isTenantPerm(String action0) {
         return action0.startsWith("cluster:admin:searchguard:tenant:");
+    }
+    
+    public static boolean isIndexPerm(String action) {
+        return !isClusterPerm(action) && !isTenantPerm(action);
     }
 
     private boolean checkFilteredAliases(Set<String> requestedResolvedIndices, String action) {
@@ -754,6 +758,37 @@ public class PrivilegesEvaluator implements DCFListener {
         return sgRoles.impliesClusterPermissionPermission(action);
     }
 
+    private boolean checkDocWhitelistHeader(User user, String action, ActionRequest request) {
+        String docWhitelistHeader = threadContext.getHeader(ConfigConstants.SG_DOC_WHITELST_HEADER);
+
+        if (docWhitelistHeader == null) {
+            return false;
+        }
+
+        if (!(request instanceof GetRequest)) {
+            return false;
+        }
+
+        try {
+            DocumentWhitelist documentWhitelist = DocumentWhitelist.parse(docWhitelistHeader);
+            GetRequest getRequest = (GetRequest) request;
+
+            if (documentWhitelist.isWhitelisted(getRequest.index(), getRequest.id())) {               
+                if (log.isDebugEnabled()) {
+                    log.debug("Request " + request + " is whitelisted by " + documentWhitelist);
+                }
+                
+                return true;
+            } else {
+                return false;
+            }
+
+        } catch (Exception e) {
+            log.error("Error while handling document whitelist: " + docWhitelistHeader, e);
+            return false;
+        }
+    }
+    
     public boolean isKibanaRbacEnabled() {
         return dcm.isKibanaRbacEnabled();
     }

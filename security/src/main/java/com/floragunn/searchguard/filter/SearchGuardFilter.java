@@ -48,6 +48,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
@@ -94,10 +95,12 @@ public class SearchGuardFilter implements ActionFilter {
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
     private final ExtendedActionHandlingService extendedActionHandlingService;
     private final DiagnosticContext diagnosticContext;
+    private final NamedXContentRegistry namedXContentRegistry;
 
     public SearchGuardFilter(final PrivilegesEvaluator evalp, final AdminDNs adminDns, DlsFlsRequestValve dlsFlsValve, AuditLog auditLog,
             ThreadPool threadPool, ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, final CompatConfig compatConfig,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ExtendedActionHandlingService extendedActionHandlingService) {
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ExtendedActionHandlingService extendedActionHandlingService,
+            NamedXContentRegistry namedXContentRegistry) {
         this.evalp = evalp;
         this.adminDns = adminDns;
         this.dlsFlsValve = dlsFlsValve;
@@ -109,6 +112,7 @@ public class SearchGuardFilter implements ActionFilter {
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         this.extendedActionHandlingService = extendedActionHandlingService;
         this.diagnosticContext = diagnosticContext;
+        this.namedXContentRegistry = namedXContentRegistry;
     }
 
     @Override
@@ -306,8 +310,8 @@ public class SearchGuardFilter implements ActionFilter {
                     threadContext.putHeader(ConfigConstants.SG_USER_NAME, user.getName());
                 }
 
-                if (!dlsFlsValve.invoke(request, listener, pres.getAllowedFlsFields(), pres.getMaskedFields(), pres.getQueries(),
-                        complianceConfig != null && complianceConfig.isLocalHashingEnabled())) {
+                if (!dlsFlsValve.invoke(action, request, listener, pres.getEvaluatedDlsFlsConfig(),
+                        complianceConfig != null && complianceConfig.isLocalHashingEnabled(), pres.getResolved())) {
                     return;
                 }
 

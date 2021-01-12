@@ -17,12 +17,9 @@
 
 package com.floragunn.searchguard.support;
 
-import org.elasticsearch.common.settings.Settings;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 public class ConfigConstants {
@@ -36,11 +33,16 @@ public class ConfigConstants {
     public static final String SG_ORIGIN_HEADER = SG_CONFIG_PREFIX+"origin_header";
 
     public static final String SG_DLS_QUERY_HEADER = SG_CONFIG_PREFIX+"dls_query";
+    
+    public static final String SG_DLS_MODE_HEADER = SG_CONFIG_PREFIX+"dls_mode";
 
     public static final String SG_FLS_FIELDS_HEADER = SG_CONFIG_PREFIX+"fls_fields";
     
     public static final String SG_MASKED_FIELD_HEADER = SG_CONFIG_PREFIX+"masked_fields";
     
+    public static final String SG_DOC_WHITELST_HEADER = SG_CONFIG_PREFIX+"doc_whitelist";
+    public static final String SG_FILTER_LEVEL_DLS_DONE = SG_CONFIG_PREFIX+"filter_level_dls_done";
+
     //public static final String SG_LOCAL_HASH_SALT_HEADER = SG_CONFIG_PREFIX+"local_hash_salt";
     
     public static final String SG_DLS_QUERY_CCS = SG_CONFIG_PREFIX+"dls_query_ccs";
@@ -226,6 +228,8 @@ public class ConfigConstants {
 
     public static final String SEARCHGUARD_ALLOW_CUSTOM_HEADERS = "searchguard.allow_custom_headers";
     
+    public static final String SEARCHGUARD_DLS_MODE = "searchguard.dls.mode";
+    
     // Illegal Opcodes from here on
     public static final String SEARCHGUARD_UNSUPPORTED_RESTAPI_ACCEPT_INVALID_LICENSE = "searchguard.unsupported.restapi.accept_invalid_license";
     public static final String SEARCHGUARD_UNSUPPORTED_DISABLE_REST_AUTH_INITIALLY = "searchguard.unsupported.disable_rest_auth_initially";
@@ -237,4 +241,5 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_UNSUPPORTED_RESTAPI_ALLOW_SGCONFIG_MODIFICATION = "searchguard.unsupported.restapi.allow_sgconfig_modification";
 
     public static final String SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES = "searchguard.unsupported.load_static_resources";
+    
 }

@@ -5,7 +5,7 @@ import java.util.Set;
 
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
@@ -26,10 +26,8 @@ public abstract class SgRoles implements ToXContentObject {
     public abstract boolean get(Resolved requestedResolved, User user, String[] allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
             ClusterService clusterService);
 
-    public abstract Map<String, Set<String>> getMaskedFields(User user, IndexNameExpressionResolver resolver, ClusterService clusterService);
-
-    public abstract Tuple<Map<String, Set<String>>, Map<String, Set<String>>> getDlsFls(User user, IndexNameExpressionResolver resolver,
-            ClusterService clusterService);
+    public abstract EvaluatedDlsFlsConfig getDlsFls(User user, IndexNameExpressionResolver resolver,
+            ClusterService clusterService, NamedXContentRegistry namedXContentRegistry);
 
     public abstract Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs);
 

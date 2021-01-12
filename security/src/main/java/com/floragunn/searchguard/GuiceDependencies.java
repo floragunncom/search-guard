@@ -21,6 +21,7 @@ import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.component.LifecycleListener;
 import org.elasticsearch.common.component.Lifecycle.State;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.transport.TransportService;
 
@@ -30,6 +31,7 @@ import org.elasticsearch.transport.TransportService;
 public class GuiceDependencies {
     private RepositoriesService repositoriesService;
     private TransportService transportService;
+    private IndicesService indicesService;
     
     /** 
      * Can be only used via instance from SearchGuardPlugin
@@ -45,13 +47,18 @@ public class GuiceDependencies {
     public TransportService getTransportService() {
         return transportService;
     }
+
+    public IndicesService getIndicesService() {
+        return indicesService;
+    }
     
     public static class GuiceRedirector implements LifecycleComponent {
 
         @Inject
-        public GuiceRedirector(GuiceDependencies baseDependencies, RepositoriesService repositoriesService, TransportService transportService) {
+        public GuiceRedirector(GuiceDependencies baseDependencies, RepositoriesService repositoriesService, TransportService transportService, IndicesService indicesService) {
             baseDependencies.repositoriesService = repositoriesService;
             baseDependencies.transportService = transportService;
+            baseDependencies.indicesService = indicesService;
         }
 
         @Override
@@ -80,4 +87,5 @@ public class GuiceDependencies {
         }
 
     }
+
 }
