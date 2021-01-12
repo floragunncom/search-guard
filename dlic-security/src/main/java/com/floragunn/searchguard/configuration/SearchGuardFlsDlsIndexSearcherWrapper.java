@@ -98,8 +98,10 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 if(unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) { 
                     //disable reader optimizations
-                    dlsQuery = DlsQueryParser.parse(unparsedDlsQueries, this.indexService.newQueryShardContext(shardId.getId(), null, nowInMillis, null)
-                            , this.indexService.xContentRegistry());
+                    dlsQuery = DlsQueryParser.parseForWrapper(unparsedDlsQueries,
+                            this.indexService.newQueryShardContext(shardId.getId(), null, nowInMillis, null),
+                            this.indexService.xContentRegistry(), threadContext);
+
                 }
             }
             
