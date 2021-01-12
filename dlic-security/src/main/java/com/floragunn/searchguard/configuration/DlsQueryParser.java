@@ -29,6 +29,8 @@ import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.join.BitSetProducer;
 import org.apache.lucene.search.join.ToChildBlockJoinQuery;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -37,7 +39,9 @@ import org.elasticsearch.index.query.AbstractQueryBuilder;
 import org.elasticsearch.index.query.ParsedQuery;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryShardContext;
+import org.elasticsearch.index.query.TermsQueryBuilder;
 
+import com.floragunn.searchguard.support.ConfigConstants;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
@@ -65,10 +69,15 @@ final class DlsQueryParser {
     }
 
     static Query parse(final Set<String> unparsedDlsQueries, final QueryShardContext queryShardContext,
-            final NamedXContentRegistry namedXContentRegistry) throws IOException {
+            final NamedXContentRegistry namedXContentRegistry, final ThreadContext threadContext) throws IOException {
 
         if (unparsedDlsQueries == null || unparsedDlsQueries.isEmpty()) {
             return null;
+        }
+        
+        if(skip(unparsedDlsQueries, namedXContentRegistry, threadContext)) {
+        	System.out.println("skipped2");
+        	return null;
         }
         
         final boolean hasNestedMapping = queryShardContext.getMapperService().hasNested();
@@ -77,29 +86,15 @@ final class DlsQueryParser {
         dlsQueryBuilder.setMinimumNumberShouldMatch(1);
 
         for (final String unparsedDlsQuery : unparsedDlsQueries) {
-            try {
 
-                final QueryBuilder qb = queries.get(unparsedDlsQuery, new Callable<QueryBuilder>() {
-
-                    @Override
-                    public QueryBuilder call() throws Exception {
-                        final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, unparsedDlsQuery);                
-                        final QueryBuilder qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
-                        return qb;
-                    }
-
-                });
-                final ParsedQuery parsedQuery = queryShardContext.toQuery(qb);
+            	final QueryBuilder qb = parse(unparsedDlsQuery, namedXContentRegistry);
+                final ParsedQuery parsedQuery = parseSafely(queryShardContext, qb);
                 final Query dlsQuery = parsedQuery.query();
                 dlsQueryBuilder.add(dlsQuery, Occur.SHOULD);
                 
                 if (hasNestedMapping) {
                     handleNested(queryShardContext, dlsQueryBuilder, dlsQuery);
-                }  
-
-            } catch (ExecutionException e) {
-                throw new IOException(e);
-            }
+                }
         }
 
         // no need for scoring here, so its possible to wrap this in a
@@ -109,9 +104,14 @@ final class DlsQueryParser {
     }
     
     static ParsedQuery parse(final Set<String> unparsedDlsQueries, ParsedQuery originalQuery, final QueryShardContext queryShardContext,
-            final NamedXContentRegistry namedXContentRegistry) throws IOException {
+            final NamedXContentRegistry namedXContentRegistry, final ThreadContext threadContext) throws IOException {
         if (unparsedDlsQueries == null || unparsedDlsQueries.isEmpty()) {
             return null;
+        }
+        
+        if(skip(unparsedDlsQueries, namedXContentRegistry, threadContext)) {
+        	System.out.println("skipped1");
+        	return null;
         }
         
         final boolean hasNestedMapping = queryShardContext.getMapperService().hasNested();
@@ -120,19 +120,10 @@ final class DlsQueryParser {
         dlsQueryBuilder.setMinimumNumberShouldMatch(1);
 
         for (final String unparsedDlsQuery : unparsedDlsQueries) {
-            try {
+         
 
-                final QueryBuilder qb = queries.get(unparsedDlsQuery, new Callable<QueryBuilder>() {
-
-                    @Override
-                    public QueryBuilder call() throws Exception {
-                        final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, unparsedDlsQuery);                
-                        final QueryBuilder qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
-                        return qb;
-                    }
-
-                });
-                final ParsedQuery parsedQuery = queryShardContext.toQuery(qb);
+            	final QueryBuilder qb = parse(unparsedDlsQuery, namedXContentRegistry);
+                final ParsedQuery parsedQuery = parseSafely(queryShardContext, qb);
                 
                 // no need for scoring here, so its possible to wrap this in a
                 // ConstantScoreQuery
@@ -141,11 +132,7 @@ final class DlsQueryParser {
                 
                 if (hasNestedMapping) {
                     handleNested(queryShardContext, dlsQueryBuilder, dlsQuery);
-                }  
-
-            } catch (ExecutionException e) {
-                throw new IOException(e);
-            }
+                }
         }
 
         dlsQueryBuilder.add(originalQuery.query(), Occur.MUST);
@@ -159,5 +146,66 @@ final class DlsQueryParser {
         dlsQueryBuilder.add(new ToChildBlockJoinQuery(parentQuery, parentDocumentsFilter), Occur.SHOULD);
     }
 
+    private static boolean skip(final Set<String> unparsedDlsQueries, final NamedXContentRegistry namedXContentRegistry, final ThreadContext threadContext) throws IOException {
+    	
+    	if(unparsedDlsQueries.size() == 1) {
+    		final String unparsedDlsQuery = unparsedDlsQueries.iterator().next();
+    		final QueryBuilder qb = parse(unparsedDlsQuery, namedXContentRegistry);
+    		
+    		if (qb.getClass() == TermsQueryBuilder.class && ((TermsQueryBuilder) qb).termsLookup() != null) {
+    			
+    			final String actionName = (String) threadContext.getTransient(ConfigConstants.SG_ACTION_NAME);
+    	    	
+    			if(actionName.startsWith("indices:data/read/search") && threadContext.getTransient("_sg_issuggest") != Boolean.TRUE) {
+    				//we skip dls here because its handled in the valve
+        			return true;
+    			}
+    		}
+    		
+    	} else {
+    		for (final String unparsedDlsQuery : unparsedDlsQueries) {
+    			final QueryBuilder qb = parse(unparsedDlsQuery, namedXContentRegistry);
+        		
+        		if (qb.getClass() == TermsQueryBuilder.class) { 
+        			throw new ElasticsearchSecurityException("Terms lookup queries are not supported as dls queries alongside with other queries");
+        		}
+    		}
+    	}
+    	
+    	return false;
+    }
+    
+    private static QueryBuilder parse(final String unparsedDlsQuery, final NamedXContentRegistry namedXContentRegistry) throws IOException {
+    	try {
+			final QueryBuilder qb = queries.get(unparsedDlsQuery, new Callable<QueryBuilder>() {
+
+			    @Override
+			    public QueryBuilder call() throws Exception {
+			        final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, unparsedDlsQuery);                
+			        final QueryBuilder qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
+			        return qb;
+			    }
+
+			});
+			
+			return qb;
+		} catch (ExecutionException e) {
+			if(e.getCause() instanceof IOException) {
+				throw (IOException) e.getCause();
+			} else {
+				throw new IOException(e.getCause());
+			}
+		}
+    }
+    
+    private static ParsedQuery parseSafely(final QueryShardContext queryShardContext, QueryBuilder qb) throws IOException {
+        try {
+			return queryShardContext.toQuery(qb);
+		} catch (Exception e) {
+			//https://forum.search-guard.com/t/terms-lookup-in-dls-query/1479			
+			throw new IOException("Terms lookup queries, geo shape queries with indexed shapes and percolate queries are not supported as DLS queries", e);
+		}
+
+    }
 
 }

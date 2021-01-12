@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.configuration;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -42,8 +43,16 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.DelayableWriteable;
+import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.query.AbstractQueryBuilder;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.ParsedQuery;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.TermsQueryBuilder;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
@@ -79,7 +88,8 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             final Map<String,Set<String>> allowedFlsFields, 
             final Map<String,Set<String>> maskedFields, 
             final Map<String,Set<String>> queries,
-            boolean localHashingEnabled) {
+            final boolean localHashingEnabled,
+            final NamedXContentRegistry namedXContentRegistry) {
         
         final boolean fls = allowedFlsFields != null && !allowedFlsFields.isEmpty();
         final boolean masked = maskedFields != null && !maskedFields.isEmpty();
@@ -162,19 +172,57 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             }
         }
         
-        if(dls) {
-            if(request instanceof SearchRequest) {
-                final SearchSourceBuilder source = ((SearchRequest)request).source();
-                if(source != null) {
-                    
-                    if(source.profile()) {
-                        listener.onFailure(new ElasticsearchSecurityException("Profiling is not supported when DLS is activated"));
-                        return false;
-                    }
-                    
-                }
-            }
-        }
+		if (dls) {
+			if (request instanceof SearchRequest) {
+
+				final SearchSourceBuilder source = ((SearchRequest) request).source();
+				if (source != null) {
+
+					if (source.profile()) {
+						listener.onFailure(
+								new ElasticsearchSecurityException("Profiling is not supported when DLS is activated"));
+						return false;
+					}
+
+				}
+
+				///
+				SearchRequest sr = ((SearchRequest) request);
+				QueryBuilder qb = null;
+				
+				if (queries.size() == 1) {
+					final Set<String> s = queries.entrySet().iterator().next().getValue();
+
+					if (s != null && s.size() == 1) {
+						final String unparsedQuery = s.iterator().next();
+						try {
+							final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry,
+									DeprecationHandler.THROW_UNSUPPORTED_OPERATION, unparsedQuery);
+							qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
+						} catch (IOException e) {
+							throw new ElasticsearchSecurityException("Unable to parse: "+unparsedQuery, e);
+						}
+					}
+				}
+
+				if (qb != null && qb.getClass() == TermsQueryBuilder.class && ((TermsQueryBuilder) qb).termsLookup() != null) {
+
+					BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery();
+					dlsQueryBuilder.minimumShouldMatch(1);
+
+					dlsQueryBuilder.should(qb);
+
+					if (sr.source().query() != null) { // match all query
+						dlsQueryBuilder.must(sr.source().query());
+					}
+
+					sr.source().query(dlsQueryBuilder);
+				}
+				
+				///
+
+			}
+		}
         
         return true;
     }
@@ -199,9 +247,12 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 if (unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) {
                     final ParsedQuery dlsQuery = DlsQueryParser.parse(unparsedDlsQueries, context.parsedQuery(), context.getQueryShardContext(),
-                            namedXContentRegistry);
-                    context.parsedQuery(dlsQuery);
-                    context.preProcess(true);
+                            namedXContentRegistry, threadPool.getThreadContext());
+                    
+                    if(dlsQuery != null) {
+	                    context.parsedQuery(dlsQuery);
+	                    context.preProcess(true);
+                    }
                 }
             }
         } catch (Exception e) {
