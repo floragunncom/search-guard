@@ -218,7 +218,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             
 
         try {
-            dge = new DlsGetEvaluator(dlsQuery, in, DlsQueryParser.isNoSearchOrSuggest(threadContext));
+            dge = new DlsGetEvaluator(dlsQuery, in);
         } catch (IOException e) {
             throw ExceptionsHelper.convertToElastic(e);
         }
@@ -231,8 +231,8 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         private final CacheHelper readerCacheHelper;
         private final boolean hasDeletions;
  
-        public DlsGetEvaluator(final Query dlsQuery, final LeafReader in, boolean applyDlsHere) throws IOException {
-            if(dlsQuery != null && applyDlsHere) {
+        public DlsGetEvaluator(final Query dlsQuery, final LeafReader in) throws IOException {
+            if(dlsQuery != null) {
                 //borrowed from Apache Lucene (Copyright Apache Software Foundation (ASF))
                 //https://github.com/apache/lucene-solr/blob/branch_6_3/lucene/misc/src/java/org/apache/lucene/index/PKIndexSplitter.java
                 final IndexSearcher searcher = new IndexSearcher(DlsFlsFilterLeafReader.this);

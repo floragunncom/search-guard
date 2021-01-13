@@ -70,12 +70,12 @@ public class DlsTermsLookupTest extends AbstractDlsFlsTest{
         HttpResponse res;
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_search?pretty&q=_index:deals", encodeBasicHeader("sg_dls_lookup_user1", "password"))).getStatusCode());
-        Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
-        Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("\"value\" : 1,\n      \"relation"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("\"failed\" : 0"));
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_search?pretty&q=_index:unknownindex", encodeBasicHeader("sg_dls_lookup_user1", "password"))).getStatusCode());
-        Assert.assertTrue(res.getBody().contains("\"value\" : 0,\n      \"relation"));
-        Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("\"value\" : 0,\n      \"relation"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("\"failed\" : 0"));
 
     }
 
@@ -84,10 +84,10 @@ public class DlsTermsLookupTest extends AbstractDlsFlsTest{
 
         setup();
 
-        HttpResponse res;
+        HttpResponse res = null;
         
-        Assert.assertEquals(HttpStatus.SC_INTERNAL_SERVER_ERROR, (res = rh.executeGetRequest("/deals/_doc/0?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"))).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_INTERNAL_SERVER_ERROR, (res = rh.executeGetRequest("/deals/_doc/1?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, (res = rh.executeGetRequest("/deals/_doc/0?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, (res = rh.executeGetRequest("/deals/_doc/1?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"))).getStatusCode());
     
         Assert.assertTrue(res.getBody().contains("async actions are left after rewrite"));
     }

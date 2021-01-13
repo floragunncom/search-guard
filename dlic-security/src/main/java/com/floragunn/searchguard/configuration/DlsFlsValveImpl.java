@@ -43,6 +43,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.DelayableWriteable;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.ParsedQuery;
@@ -84,7 +85,8 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             final Map<String,Set<String>> maskedFields, 
             final Map<String,Set<String>> queries,
             final boolean localHashingEnabled,
-            final NamedXContentRegistry namedXContentRegistry) {
+            final NamedXContentRegistry namedXContentRegistry,
+            final ThreadContext threadContext) {
         
         final boolean fls = allowedFlsFields != null && !allowedFlsFields.isEmpty();
         final boolean masked = maskedFields != null && !maskedFields.isEmpty();
@@ -183,33 +185,19 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
 				///
 				SearchRequest sr = ((SearchRequest) request);
-				QueryBuilder qb = null;
 				
-				if (queries.size() == 1) {
-					final Set<String> s = queries.entrySet().iterator().next().getValue();
-
-					if (s != null && s.size() == 1) {
-						final String unparsedQuery = s.iterator().next();
-						try {
-							qb = DlsQueryParser.parse(unparsedQuery, namedXContentRegistry);
-						} catch (IOException e) {
-							throw new ElasticsearchSecurityException("Unable to parse: "+unparsedQuery, e);
-						}
-					}
-				}
-
-				if (DlsQueryParser.isTermsLookupQuery(qb)) {
-
-					BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery();
-					dlsQueryBuilder.minimumShouldMatch(1);
-
-					dlsQueryBuilder.should(qb);
-
-					if (sr.source().query() != null) { // match all query
-						dlsQueryBuilder.must(sr.source().query());
+				try {
+					if (sr.indices().length == 1 && queries.size() == 1
+							&& queries.entrySet().iterator().next().getKey().equals(sr.indices()[0])) {
+						handleTLQueries(sr, queries.entrySet().iterator().next().getValue(), namedXContentRegistry, threadContext);
+					} else if (queries.containsKey("*")) {
+						handleTLQueries(sr, queries.get("*"), namedXContentRegistry, threadContext);
+					} else {
+						
 					}
 
-					sr.source().query(dlsQueryBuilder);
+				} catch (IOException e) {
+					throw new ElasticsearchSecurityException("Unable to parse: " + queries, e);
 				}
 				
 				///
@@ -218,6 +206,35 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 		}
         
         return true;
+    }
+    
+    private static void handleTLQueries(SearchRequest sr, Set<String> queries, NamedXContentRegistry namedXContentRegistry, ThreadContext threadContext) throws IOException {
+    	
+    	//threadContext.putTransient("_sg_tl_handled", Boolean.TRUE);
+    	
+    	if(queries == null || queries.isEmpty()) {
+    		return;
+    	}
+    	
+    	final Set<String> tlQueries = DlsQueryParser.getTermsLookupQueries(queries, namedXContentRegistry);
+    	
+    	if(tlQueries.isEmpty()) {
+    		return;
+    	}
+    	
+    	BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery();
+		dlsQueryBuilder.minimumShouldMatch(1);
+		
+		for(String unparsedTLQuery: tlQueries) {
+			final QueryBuilder qb = DlsQueryParser.parseRaw(unparsedTLQuery, namedXContentRegistry);
+			dlsQueryBuilder.should(qb);
+		}
+
+		if (sr.source().query() != null) { // match all query
+			dlsQueryBuilder.must(sr.source().query());
+		}
+
+		sr.source().query(dlsQueryBuilder);
     }
 
     @Override
@@ -239,7 +256,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 if (unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) {
-                    final ParsedQuery dlsQuery = DlsQueryParser.parse(unparsedDlsQueries, context.parsedQuery(), context.getQueryShardContext(),
+                    final ParsedQuery dlsQuery = DlsQueryParser.parseForValve(unparsedDlsQueries, context.parsedQuery(), context.getQueryShardContext(),
                             namedXContentRegistry, threadPool.getThreadContext());
                     
                     if(dlsQuery != null) {
