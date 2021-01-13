@@ -218,7 +218,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             
 
         try {
-            dge = new DlsGetEvaluator(dlsQuery, in, applyDlsHere());
+            dge = new DlsGetEvaluator(dlsQuery, in, DlsQueryParser.isNoSearchOrSuggest(threadContext));
         } catch (IOException e) {
             throw ExceptionsHelper.convertToElastic(e);
         }
@@ -1267,28 +1267,6 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             return delegate.termState();
         }
         
-    }
-
-    private String getRuntimeActionName() {
-        return (String) threadContext.getTransient(ConfigConstants.SG_ACTION_NAME);
-    }
-    
-    private boolean isSuggest() {
-        return threadContext.getTransient("_sg_issuggest") == Boolean.TRUE;
-    }
-    
-    private boolean applyDlsHere() {
-        if(isSuggest()) {
-            //we need to apply it here
-            return true;
-        }
-        
-        
-        final String action = getRuntimeActionName();
-        assert action != null;
-        //we need to apply here if it is not a search request
-        //(a get for example)
-        return !action.startsWith("indices:data/read/search");
     }
 
     @Override

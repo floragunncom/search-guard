@@ -76,7 +76,6 @@ final class DlsQueryParser {
         }
         
         if(skip(unparsedDlsQueries, namedXContentRegistry, threadContext)) {
-        	System.out.println("skipped2");
         	return null;
         }
         
@@ -110,7 +109,6 @@ final class DlsQueryParser {
         }
         
         if(skip(unparsedDlsQueries, namedXContentRegistry, threadContext)) {
-        	System.out.println("skipped1");
         	return null;
         }
         
@@ -152,21 +150,16 @@ final class DlsQueryParser {
     		final String unparsedDlsQuery = unparsedDlsQueries.iterator().next();
     		final QueryBuilder qb = parse(unparsedDlsQuery, namedXContentRegistry);
     		
-    		if (qb.getClass() == TermsQueryBuilder.class && ((TermsQueryBuilder) qb).termsLookup() != null) {
-    			
-    			final String actionName = (String) threadContext.getTransient(ConfigConstants.SG_ACTION_NAME);
-    	    	
-    			if(actionName.startsWith("indices:data/read/search") && threadContext.getTransient("_sg_issuggest") != Boolean.TRUE) {
-    				//we skip dls here because its handled in the valve
-        			return true;
-    			}
-    		}
+			if (isTermsLookupQuery(qb) && isSearchAndNoSuggest(threadContext)) {
+				// we skip dls here because its handled in the valve
+				return true;
+			}
     		
     	} else {
     		for (final String unparsedDlsQuery : unparsedDlsQueries) {
     			final QueryBuilder qb = parse(unparsedDlsQuery, namedXContentRegistry);
         		
-        		if (qb.getClass() == TermsQueryBuilder.class) { 
+    			if (isTermsLookupQuery(qb)) {
         			throw new ElasticsearchSecurityException("Terms lookup queries are not supported as dls queries alongside with other queries");
         		}
     		}
@@ -175,7 +168,7 @@ final class DlsQueryParser {
     	return false;
     }
     
-    private static QueryBuilder parse(final String unparsedDlsQuery, final NamedXContentRegistry namedXContentRegistry) throws IOException {
+    static QueryBuilder parse(final String unparsedDlsQuery, final NamedXContentRegistry namedXContentRegistry) throws IOException {
     	try {
 			final QueryBuilder qb = queries.get(unparsedDlsQuery, new Callable<QueryBuilder>() {
 
@@ -206,6 +199,28 @@ final class DlsQueryParser {
 			throw new IOException("Terms lookup queries, geo shape queries with indexed shapes and percolate queries are not supported as DLS queries", e);
 		}
 
+    }
+    
+    static boolean isTermsLookupQuery(QueryBuilder qb) {
+    	return qb != null && qb.getClass() == TermsQueryBuilder.class && ((TermsQueryBuilder) qb).termsLookup() != null;	
+    }
+    
+    static boolean isSearchAndNoSuggest(ThreadContext threadContext) {
+    	return !isNoSearchOrSuggest(threadContext);
+    }
+    
+    static boolean isNoSearchOrSuggest(ThreadContext threadContext) {
+        if(threadContext.getTransient("_sg_issuggest") == Boolean.TRUE) {
+            //we need to apply it here
+            return true;
+        }
+        
+        
+        final String action = (String) threadContext.getTransient(ConfigConstants.SG_ACTION_NAME);
+        assert action != null;
+        //we need to apply here if it is not a search request
+        //(a get for example)
+        return !action.startsWith("indices:data/read/search");
     }
 
 }

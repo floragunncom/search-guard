@@ -43,16 +43,11 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.DelayableWriteable;
-import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.index.query.AbstractQueryBuilder;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.ParsedQuery;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.TermsQueryBuilder;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
@@ -196,16 +191,14 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 					if (s != null && s.size() == 1) {
 						final String unparsedQuery = s.iterator().next();
 						try {
-							final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry,
-									DeprecationHandler.THROW_UNSUPPORTED_OPERATION, unparsedQuery);
-							qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
+							qb = DlsQueryParser.parse(unparsedQuery, namedXContentRegistry);
 						} catch (IOException e) {
 							throw new ElasticsearchSecurityException("Unable to parse: "+unparsedQuery, e);
 						}
 					}
 				}
 
-				if (qb != null && qb.getClass() == TermsQueryBuilder.class && ((TermsQueryBuilder) qb).termsLookup() != null) {
+				if (DlsQueryParser.isTermsLookupQuery(qb)) {
 
 					BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery();
 					dlsQueryBuilder.minimumShouldMatch(1);
