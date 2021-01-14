@@ -83,6 +83,7 @@ final class DlsQueryParser {
         }
         
         if(isSearchAndNoSuggest(threadContext)) {
+        	//TL is not supported for GET or suggest operations
         	stripTermsLookupQueries(unparsedDlsQueries, namedXContentRegistry);
         }
         
@@ -129,10 +130,11 @@ final class DlsQueryParser {
         	return null;
         }
         
-        //if(threadContext.getTransient("_sg_tl_handled") == Boolean.TRUE) {
+        //if(threadContext.getTransient("_sg_tl_handled") == Boolean.TRUE) { //this gets not passed through from the valve
         	//ignore TL quietly
             stripTermsLookupQueries(unparsedDlsQueries, namedXContentRegistry);
 
+            //if not queries left we can return null because no DLS needs to be executed
             if(unparsedDlsQueries.isEmpty()) {
             	return null;
             }

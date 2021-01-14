@@ -186,6 +186,12 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 				///
 				SearchRequest sr = ((SearchRequest) request);
 				
+				//The problem here is that we (unlike on the shard level) here do not operate on a single known index
+				//and so we can not fully evaluate the queries map to select the proper queries
+				//Idea is to intercept if we surely know that we have a TLQ and know that we have to apply it.
+				//Thats the case when only one index is queried and the map onöy contains this index OR
+				//the map contains queries we have to apply to all (*) indices.
+				
 				try {
 					if (sr.indices().length == 1 && queries.size() == 1
 							&& queries.entrySet().iterator().next().getKey().equals(sr.indices()[0])) {
@@ -210,6 +216,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     
     private static void handleTLQueries(SearchRequest sr, Set<String> queries, NamedXContentRegistry namedXContentRegistry, ThreadContext threadContext) throws IOException {
     	
+    	//This seems not to get passed through to the DlsQueryParser
     	//threadContext.putTransient("_sg_tl_handled", Boolean.TRUE);
     	
     	if(queries == null || queries.isEmpty()) {
