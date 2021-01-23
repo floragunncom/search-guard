@@ -41,8 +41,8 @@ import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.auth.ldap.util.Utils;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
-import com.floragunn.searchguard.auth.AuthorizationBackend;
 import com.floragunn.searchguard.auth.Destroyable;
+import com.floragunn.searchguard.auth.api.SyncAuthorizationBackend;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -54,7 +54,7 @@ import com.unboundid.ldap.sdk.ResultCode;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 import com.unboundid.ldap.sdk.SearchScope;
 
-public class LDAPAuthorizationBackend2 implements AuthorizationBackend, Destroyable {
+public class LDAPAuthorizationBackend2 implements SyncAuthorizationBackend, Destroyable {
 
     static final int ZERO_PLACEHOLDER = 0;
     static final int ONE_PLACEHOLDER = 1;
