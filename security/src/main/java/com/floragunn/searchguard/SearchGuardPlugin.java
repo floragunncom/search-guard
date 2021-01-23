@@ -124,6 +124,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.AuditLogSslExceptionHandler;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
+import com.floragunn.searchguard.auth.AuthInfoService;
 import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
@@ -210,6 +211,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
        
     private SearchGuardModulesRegistry moduleRegistry;
     private StaticSgConfig staticSgConfig;
+    private AuthInfoService authInfoService;
     
     @Override
     public void close() throws IOException {
@@ -817,8 +819,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, auditLog, threadPool);
         final CompatConfig compatConfig = new CompatConfig(environment);
 
-        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, privilegesInterceptor, cih, irr,
-                enterpriseModulesEnabled);
+        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, privilegesInterceptor,
+                cih, irr, specialPrivilegesEvaluationContextProviderRegistry, enterpriseModulesEnabled);
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, staticSgConfig, settings, configPath, localClient, threadPool, cih, moduleRegistry);
         dcf.registerDCFListener(backendRegistry);
@@ -834,7 +836,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(dcf);
         specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);
-
+        authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
         
         ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, settings);
         ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
@@ -855,7 +857,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(principalExtractor);
         
         protectedConfigIndexService = new ProtectedConfigIndexService(localClient, clusterService, threadPool, protectedIndices);
-
+        
         components.add(adminDns);
         components.add(cr);
         components.add(xffResolver);
@@ -867,6 +869,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(moduleRegistry);
         components.add(protectedConfigIndexService);
         components.add(staticSgConfig);
+        components.add(authInfoService);
         
         BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
                 scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, dcf, staticSgConfig, cr,

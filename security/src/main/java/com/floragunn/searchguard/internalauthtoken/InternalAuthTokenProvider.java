@@ -5,6 +5,7 @@ import java.time.temporal.TemporalAmount;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
@@ -90,6 +91,14 @@ public class InternalAuthTokenProvider implements DCFListener {
         return encodedJwt;
     }
 
+    public void userAuthFromToken(User user, ThreadContext threadContext, Consumer<SpecialPrivilegesEvaluationContext> onResult, Consumer<Exception> onFailure) {
+        try {
+            onResult.accept(userAuthFromToken(user, threadContext));
+        } catch (Exception e) {
+            onFailure.accept(e);
+        }
+    }
+    
     public AuthFromInternalAuthToken userAuthFromToken(User user, ThreadContext threadContext) {
         final String authToken = threadContext.getHeader(TOKEN_HEADER);
         final String authTokenAudience = HeaderHelper.getSafeFromHeader(threadContext, AUDIENCE_HEADER);

@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 
 import com.jayway.jsonpath.JsonPath;
@@ -38,6 +40,7 @@ import com.jayway.jsonpath.JsonPath;
  *
  */
 public final class AuthCredentials {
+    private static final Logger log = LogManager.getLogger(AuthCredentials.class);
 
     public static Builder forUser(String username) {
         return new Builder().userName(username);
@@ -50,12 +53,20 @@ public final class AuthCredentials {
     private Object nativeCredentials;
     private final Set<String> backendRoles;
     private boolean complete;
+    private final boolean authzComplete;
     private final byte[] internalPasswordHash;
+    private boolean secretsCleared;
+    private Exception secretsClearedAt;
+
+    /**
+     * Attributes which will be passed on to further authz mechanism like DLS/FLS.  Passed on to the User object.
+     * See https://docs.search-guard.com/latest/document-level-security#ldap-and-jwt-user-attributes 
+     */
     private final Map<String, String> attributes;
     private final Map<String, Object> structuredAttributes;
 
     private AuthCredentials(String username, String subUserName, byte[] password, Object nativeCredentials, Set<String> backendRoles,
-            boolean complete, byte[] internalPasswordHash, Map<String, Object> structuredAttributes, Map<String, String> attributes) {
+            boolean complete, boolean authzComplete, byte[] internalPasswordHash, Map<String, Object> structuredAttributes, Map<String, String> attributes) {
         super();
         this.username = username;
         this.subUserName = subUserName;
@@ -63,6 +74,7 @@ public final class AuthCredentials {
         this.nativeCredentials = nativeCredentials;
         this.backendRoles = Collections.unmodifiableSet(backendRoles);
         this.complete = complete;
+        this.authzComplete = authzComplete;
         this.internalPasswordHash = internalPasswordHash;
         this.attributes = Collections.unmodifiableMap(attributes);
         this.structuredAttributes = Collections.unmodifiableMap(structuredAttributes);
@@ -104,6 +116,7 @@ public final class AuthCredentials {
         this.password = password == null ? null : Arrays.copyOf(password, password.length);
         this.subUserName = null;
         this.complete = false;
+        this.authzComplete = false;
 
         if (this.password != null) {
             try {
@@ -138,6 +151,16 @@ public final class AuthCredentials {
      * Wipe password and native credentials
      */
     public void clearSecrets() {
+        if (secretsCleared) {
+            return;
+        }
+        
+        secretsCleared = true;
+        
+        if (log.isDebugEnabled()) {
+            secretsClearedAt = new Exception("clearSecrets() called at:");
+        }
+        
         if (password != null) {
             Arrays.fill(password, (byte) '\0');
             password = null;
@@ -155,6 +178,10 @@ public final class AuthCredentials {
     }
 
     public byte[] getPassword() {
+        if (secretsCleared) {
+            throw new IllegalStateException("Secrets for " + this + " have been already cleared", secretsClearedAt);
+        }
+        
         // make defensive copy
         return password == null ? null : Arrays.copyOf(password, password.length);
     }
@@ -223,6 +250,10 @@ public final class AuthCredentials {
         return complete;
     }
 
+    public boolean isAuthzComplete() {
+        return authzComplete;
+    }
+    
     public Map<String, String> getAttributes() {
         return this.attributes;
     }
@@ -260,6 +291,7 @@ public final class AuthCredentials {
         private Object nativeCredentials;
         private Set<String> backendRoles = new HashSet<>();
         private boolean complete;
+        private boolean authzComplete;
         private byte[] internalPasswordHash;
         private Map<String, String> attributes = new HashMap<>();
         private Map<String, Object> structuredAttributes = new HashMap<>();
@@ -336,6 +368,11 @@ public final class AuthCredentials {
             return this;
         }
 
+        public Builder authzComplete() {
+            this.authzComplete = true;
+            return this;
+        }
+
         public Builder oldAttributes(Map<String, String> map) {
             this.attributes.putAll(map);
             return this;
@@ -373,7 +410,7 @@ public final class AuthCredentials {
         }
 
         public AuthCredentials build() {
-            AuthCredentials result = new AuthCredentials(userName, subUserName, password, nativeCredentials, backendRoles, complete,
+            AuthCredentials result = new AuthCredentials(userName, subUserName, password, nativeCredentials, backendRoles, complete, authzComplete,
                     internalPasswordHash, structuredAttributes, attributes);
             this.password = null;
             this.nativeCredentials = null;

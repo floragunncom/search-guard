@@ -1,9 +1,9 @@
 package com.floragunn.searchguard.modules;
 
 import com.floragunn.searchguard.auth.AuthFailureListener;
-import com.floragunn.searchguard.auth.AuthenticationBackend;
-import com.floragunn.searchguard.auth.AuthorizationBackend;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.searchguard.auth.api.AuthenticationBackend;
+import com.floragunn.searchguard.auth.api.AuthorizationBackend;
 import com.floragunn.searchguard.auth.internal.NoOpAuthenticationBackend;
 import com.floragunn.searchguard.auth.internal.NoOpAuthorizationBackend;
 import com.floragunn.searchguard.auth.limiting.AddressBasedRateLimiter;

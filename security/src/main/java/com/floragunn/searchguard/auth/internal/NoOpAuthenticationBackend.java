@@ -21,11 +21,11 @@ import java.nio.file.Path;
 
 import org.elasticsearch.common.settings.Settings;
 
-import com.floragunn.searchguard.auth.AuthenticationBackend;
+import com.floragunn.searchguard.auth.api.SyncAuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
-public class NoOpAuthenticationBackend implements AuthenticationBackend {
+public class NoOpAuthenticationBackend implements SyncAuthenticationBackend {
 
     public NoOpAuthenticationBackend(final Settings settings, final Path configPath) {
         super();
@@ -44,6 +44,11 @@ public class NoOpAuthenticationBackend implements AuthenticationBackend {
     @Override
     public boolean exists(User user) {
         return true;
+    }
+    
+    @Override
+    public UserCachingPolicy userCachingPolicy() {
+        return UserCachingPolicy.ONLY_IF_AUTHZ_SEPARATE;
     }
 
 }

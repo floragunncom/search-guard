@@ -224,8 +224,8 @@ public class SgDynamicConfiguration<T> implements ToXContent {
 
     @Override
     public String toString() {
-        return "SgDynamicConfiguration [seqNo=" + seqNo + ", primaryTerm=" + primaryTerm + ", ctype=" + ctype + ", version=" + version + ", centries="
-                + centries + ", getImplementingClass()=" + getImplementingClass() + "]";
+        return "SgDynamicConfiguration [seqNo=" + seqNo + ", primaryTerm=" + primaryTerm + ", ctype=" + ctype + ", version=" + version
+                 + ", centries=" + centries + ", getImplementingClass()=" + getImplementingClass() + "]";
     }
 
     @Override

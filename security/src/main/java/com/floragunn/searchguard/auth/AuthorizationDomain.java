@@ -3,6 +3,8 @@ package com.floragunn.searchguard.auth;
 import java.util.Collections;
 import java.util.List;
 
+import com.floragunn.searchguard.auth.api.AuthorizationBackend;
+
 public class AuthorizationDomain {
 
     private final AuthorizationBackend authorizationBackend;

@@ -18,10 +18,13 @@
 package com.floragunn.searchguard.auth.internal;
 
 import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.function.Consumer;
 
 import org.elasticsearch.common.settings.Settings;
 
-import com.floragunn.searchguard.auth.AuthorizationBackend;
+import com.floragunn.searchguard.auth.api.AuthorizationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
@@ -37,8 +40,8 @@ public class NoOpAuthorizationBackend implements AuthorizationBackend {
     }
 
     @Override
-    public void fillRoles(final User user, final AuthCredentials authCreds) {
-        // no-op
+    public void retrieveRoles(User user, AuthCredentials credentials, Consumer<Collection<String>> onSuccess, Consumer<Exception> onFailure) {
+        onSuccess.accept(Collections.emptyList());
     }
 
 }

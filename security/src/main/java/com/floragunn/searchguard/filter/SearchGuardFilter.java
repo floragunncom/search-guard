@@ -116,14 +116,23 @@ public class SearchGuardFilter implements ActionFilter {
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, final String action, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
-        try (StoredContext ctx = threadContext.newStoredContext(true)) {
-            org.apache.logging.log4j.ThreadContext.clearAll();
-            apply0(task, action, request, listener, chain);
-        }
+
+        specialPrivilegesEvaluationContextProviderRegistry.provide(threadContext.getTransient(ConfigConstants.SG_USER), threadContext,
+                (specialPrivilegesEvaluationContext) -> {
+                    try (StoredContext ctx = threadContext.newStoredContext(true)) {
+                        org.apache.logging.log4j.ThreadContext.clearAll();
+                        apply0(task, action, request, listener, chain, specialPrivilegesEvaluationContext);
+                    } catch (Exception e) {
+                        log.error(e);
+                    }
+                }, (e) -> {
+                    log.error(e);
+                    listener.onFailure(new ElasticsearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR, e));
+                });
     }
 
     private <Request extends ActionRequest, Response extends ActionResponse> void apply0(Task task, final String action, Request request,
-            ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
+            ActionListener<Response> listener, ActionFilterChain<Request, Response> chain, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext ) {
 
         try {
 
@@ -145,8 +154,6 @@ public class SearchGuardFilter implements ActionFilter {
 
             final boolean internalRequest = (interClusterRequest || HeaderHelper.isDirectRequest(threadContext)) && action.startsWith("internal:")
                     && !action.startsWith("internal:transport/proxy");
-
-            SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.apply(user, threadContext);
 
             if (specialPrivilegesEvaluationContext != null) {
                 if (log.isDebugEnabled()) {

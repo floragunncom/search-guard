@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.support.IPAddressCollection;
 
 public class AuthenticationDomain implements Comparable<AuthenticationDomain> {

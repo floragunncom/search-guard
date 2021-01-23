@@ -16,12 +16,12 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 
 import com.floragunn.searchguard.auth.AuthFailureListener;
-import com.floragunn.searchguard.auth.AuthenticationBackend;
 import com.floragunn.searchguard.auth.AuthenticationDomain;
-import com.floragunn.searchguard.auth.AuthorizationBackend;
 import com.floragunn.searchguard.auth.AuthorizationDomain;
 import com.floragunn.searchguard.auth.Destroyable;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.searchguard.auth.api.AuthenticationBackend;
+import com.floragunn.searchguard.auth.api.AuthorizationBackend;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6;

@@ -70,7 +70,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider.AuthFromInternalAuthToken;
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig;
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfigRegistry;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer;
@@ -108,11 +107,12 @@ public class PrivilegesEvaluator implements DCFListener {
     private final DlsFlsEvaluator dlsFlsEvaluator;
     private final boolean enterpriseModulesEnabled;
     private DynamicConfigModel dcm;
+    private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
 
     public PrivilegesEvaluator(final ClusterService clusterService, final ThreadPool threadPool,
             final ConfigurationRepository configurationRepository, final IndexNameExpressionResolver resolver, AuditLog auditLog,
             final Settings settings, final PrivilegesInterceptor privilegesInterceptor, final ClusterInfoHolder clusterInfoHolder,
-            final IndexResolverReplacer irr, boolean enterpriseModulesEnabled) {
+            final IndexResolverReplacer irr, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, boolean enterpriseModulesEnabled) {
 
         super();
         this.clusterService = clusterService;
@@ -126,6 +126,7 @@ public class PrivilegesEvaluator implements DCFListener {
                 ConfigConstants.SG_DEFAULT_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES);
 
         this.clusterInfoHolder = clusterInfoHolder;
+        this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
 
         this.irr = irr;
         snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog);
@@ -677,6 +678,32 @@ public class PrivilegesEvaluator implements DCFListener {
         }
 
         return WildcardMatcher.matchAny(permissions, action);
+    }
+
+    public boolean hasClusterPermission(User user, String action) {
+        SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.provide(user,
+                threadContext);
+
+        if (specialPrivilegesEvaluationContext != null) {
+            user = specialPrivilegesEvaluationContext.getUser();
+        }
+
+        TransportAddress caller;
+        Set<String> mappedRoles;
+        SgRoles sgRoles;
+
+        if (specialPrivilegesEvaluationContext == null) {
+            caller = Objects.requireNonNull((TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
+            mappedRoles = mapSgRoles(user, caller);
+            sgRoles = getSgRoles(mappedRoles);
+        } else {
+            caller = specialPrivilegesEvaluationContext.getCaller() != null ? specialPrivilegesEvaluationContext.getCaller()
+                    : (TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+            mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
+            sgRoles = specialPrivilegesEvaluationContext.getSgRoles();
+        }
+
+        return sgRoles.impliesClusterPermissionPermission(action);
     }
 
     public boolean isKibanaRbacEnabled() {

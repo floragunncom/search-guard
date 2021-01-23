@@ -31,8 +31,8 @@ import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
 
-import com.floragunn.searchguard.auth.AuthenticationBackend;
-import com.floragunn.searchguard.auth.AuthorizationBackend;
+import com.floragunn.searchguard.auth.api.SyncAuthenticationBackend;
+import com.floragunn.searchguard.auth.api.SyncAuthorizationBackend;
 import com.floragunn.searchguard.modules.SearchGuardComponentRegistry.ComponentFactory;
 import com.floragunn.searchguard.sgconf.internal_users_db.InternalUsersDatabase;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -40,7 +40,7 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserAttributes;
 import com.jayway.jsonpath.JsonPath;
 
-public class InternalAuthenticationBackend implements AuthenticationBackend, AuthorizationBackend {
+public class InternalAuthenticationBackend implements SyncAuthenticationBackend, SyncAuthorizationBackend {
 
     private final InternalUsersDatabase internalUsersModel;
     private Map<String, JsonPath> attributeMapping;

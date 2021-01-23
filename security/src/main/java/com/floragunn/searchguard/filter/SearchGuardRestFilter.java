@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.filter;
 
+import java.io.IOException;
 import java.nio.file.Path;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
@@ -37,6 +38,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.auth.AuthczResult;
 import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.configuration.CompatConfig;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -45,11 +47,10 @@ import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HTTPHelper;
-import com.floragunn.searchguard.user.User;
 
 public class SearchGuardRestFilter {
 
-    protected final Logger log = LogManager.getLogger(this.getClass());
+    private static final Logger log = LogManager.getLogger(SearchGuardRestFilter.class);
     private final BackendRegistry registry;
     private final AuditLog auditLog;
     private final ThreadContext threadContext;
@@ -58,9 +59,8 @@ public class SearchGuardRestFilter {
     private final Path configPath;
     private final CompatConfig compatConfig;
 
-    public SearchGuardRestFilter(final BackendRegistry registry, final AuditLog auditLog,
-            final ThreadPool threadPool, final PrincipalExtractor principalExtractor,
-            final Settings settings, final Path configPath, final CompatConfig compatConfig) {
+    public SearchGuardRestFilter(final BackendRegistry registry, final AuditLog auditLog, final ThreadPool threadPool,
+            final PrincipalExtractor principalExtractor, final Settings settings, final Path configPath, final CompatConfig compatConfig) {
         super();
         this.registry = registry;
         this.auditLog = auditLog;
@@ -70,49 +70,90 @@ public class SearchGuardRestFilter {
         this.configPath = configPath;
         this.compatConfig = compatConfig;
     }
-    
+
     public RestHandler wrap(RestHandler original) {
         return new RestHandler() {
-            
+
             @Override
             public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
                 org.apache.logging.log4j.ThreadContext.clearAll();
-                if(!checkAndAuthenticateRequest(original, request, channel, client)) {
+
+                if (!checkRequest(original, request, channel, client)) {
+                    return;
+                }
+
+                if (isAuthczRequired(request)) {
+                    registry.authenticate(original, request, channel, threadContext, (result) -> {
+                        if (result.getStatus() == AuthczResult.Status.PASS) {
+                            // make it possible to filter logs by username
+                            org.apache.logging.log4j.ThreadContext.clearAll();
+                            org.apache.logging.log4j.ThreadContext.put("user", result.getUser() != null ? result.getUser().getName() : null);
+                            
+                            try {
+                                original.handleRequest(request, channel, client);
+                            } catch (Exception e) {
+                                log.error("Error in " + original, e);
+                                try {
+                                    channel.sendResponse(new BytesRestResponse(channel, e));
+                                } catch (IOException e1) {
+                                   log.error(e1);
+                                }
+                            }
+                        } else {
+                            org.apache.logging.log4j.ThreadContext.remove("user");
+                            
+                            if (result.getRestStatus() != null && result.getRestStatusMessage() != null) {
+                                channel.sendResponse(new BytesRestResponse(result.getRestStatus(), result.getRestStatusMessage()));
+                            }
+                        }
+                    }, (e) -> {
+                        try {
+                            channel.sendResponse(new BytesRestResponse(channel, e));
+                        } catch (IOException e1) {
+                            log.error(e1);
+                        }
+                    });
+                } else {
                     original.handleRequest(request, channel, client);
                 }
             }
         };
     }
 
-    private boolean checkAndAuthenticateRequest(RestHandler restHandler, RestRequest request, RestChannel channel, NodeClient client) throws Exception {
+    private boolean isAuthczRequired(RestRequest request) {
+        return compatConfig.restAuthEnabled() && request.method() != Method.OPTIONS && !"/_searchguard/license".equals(request.path())
+                && !"/_searchguard/health".equals(request.path());
+    }
+
+    private boolean checkRequest(RestHandler restHandler, RestRequest request, RestChannel channel, NodeClient client) throws Exception {
 
         threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.REST.toString());
-        
-        if(HTTPHelper.containsBadHeader(request)) {
+
+        if (HTTPHelper.containsBadHeader(request)) {
             final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
             log.error(exception);
             auditLog.logBadHeaders(request);
             channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, exception));
-            return true;
+            return false;
         }
-        
-        if(SSLRequestHelper.containsBadHeader(threadContext, ConfigConstants.SG_CONFIG_PREFIX)) {
+
+        if (SSLRequestHelper.containsBadHeader(threadContext, ConfigConstants.SG_CONFIG_PREFIX)) {
             final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
             log.error(exception);
             auditLog.logBadHeaders(request);
             channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, exception));
-            return true;
+            return false;
         }
 
         final SSLInfo sslInfo;
         try {
-            if((sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor)) != null) {
-                if(sslInfo.getPrincipal() != null) {
+            if ((sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor)) != null) {
+                if (sslInfo.getPrincipal() != null) {
                     threadContext.putTransient("_sg_ssl_principal", sslInfo.getPrincipal());
                 }
-                
-                if(sslInfo.getX509Certs() != null) {
-                     threadContext.putTransient("_sg_ssl_peer_certificates", sslInfo.getX509Certs());
+
+                if (sslInfo.getX509Certs() != null) {
+                    threadContext.putTransient("_sg_ssl_peer_certificates", sslInfo.getX509Certs());
                 }
                 threadContext.putTransient("_sg_ssl_protocol", sslInfo.getProtocol());
                 threadContext.putTransient("_sg_ssl_cipher", sslInfo.getCipher());
@@ -121,26 +162,10 @@ public class SearchGuardRestFilter {
             log.error("No ssl info", e);
             auditLog.logSSLException(request, e);
             channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, e));
-            return true;
-        }
-        
-        if(!compatConfig.restAuthEnabled()) {
             return false;
         }
 
-        if(request.method() != Method.OPTIONS 
-                && !"/_searchguard/license".equals(request.path())
-                && !"/_searchguard/health".equals(request.path())) {
-            if (!registry.authenticate(restHandler, request, channel, threadContext)) {
-                // another roundtrip
-                org.apache.logging.log4j.ThreadContext.remove("user");
-                return true;
-            } else {
-                // make it possible to filter logs by username
-                org.apache.logging.log4j.ThreadContext.put("user", ((User)threadContext.getTransient(ConfigConstants.SG_USER)).getName());
-            }
-        }
-        
-        return false;
+        return true;
     }
+
 }

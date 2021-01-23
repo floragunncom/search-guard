@@ -209,7 +209,7 @@ public class SystemIntegratorsTests extends SingleClusterTest {
       
       // injected user is admin, access to SG index must be allowed
       resc = rh.executeGetRequest("searchguard/_search?pretty", new BasicHeader(ConfigConstants.SG_INJECTED_USER, "injectedadmin|role1|127.0.0:80|key1,value1"));
-      Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
+      Assert.assertEquals(resc.getBody(), HttpStatus.SC_OK, resc.getStatusCode());
       Assert.assertTrue(resc.getBody().contains("\"_id\" : \"config\""));
       Assert.assertTrue(resc.getBody().contains("\"_id\" : \"roles\""));
       Assert.assertTrue(resc.getBody().contains("\"_id\" : \"internalusers\""));

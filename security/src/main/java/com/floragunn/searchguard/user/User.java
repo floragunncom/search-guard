@@ -59,9 +59,10 @@ public class User implements Serializable, CustomAttributesAware {
     private Map<String, String> attributes;
     private Map<String, Object> structuredAttributes;
     private boolean isInjected = false;
+    private transient boolean authzComplete = false;
 
     public User(String name, String subName, String type, Set<String> roles, Set<String> searchGuardRoles,  Object specialAuthzConfig, String requestedTenant, Map<String, Object> structuredAttributes, Map<String, String> attributes,
-            boolean isInjected) {
+            boolean isInjected, boolean authzComplete) {
         super();
         this.name = name;
         this.subName = subName;
@@ -73,6 +74,7 @@ public class User implements Serializable, CustomAttributesAware {
         this.structuredAttributes = structuredAttributes;
         this.attributes = attributes;
         this.isInjected = isInjected;
+        this.authzComplete = authzComplete;
     }
 
     /**
@@ -277,6 +279,10 @@ public class User implements Serializable, CustomAttributesAware {
     public Object getSpecialAuthzConfig() {
         return specialAuthzConfig;
     }
+    
+    public boolean isAuthzComplete() {
+        return authzComplete;
+    }
 
     public Builder copy() {
         Builder builder = new Builder();
@@ -289,6 +295,7 @@ public class User implements Serializable, CustomAttributesAware {
         builder.attributes.putAll(attributes);
         builder.injected = isInjected;
         builder.specialAuthzConfig = specialAuthzConfig;
+        builder.authzComplete = authzComplete;
 
         return builder;
     }
@@ -304,6 +311,7 @@ public class User implements Serializable, CustomAttributesAware {
         private Map<String, Object> structuredAttributes = new HashMap<>();
         private boolean injected;
         private Object specialAuthzConfig;
+        private boolean authzComplete;
 
         public Builder name(String name) {
             this.name = name;
@@ -394,9 +402,14 @@ public class User implements Serializable, CustomAttributesAware {
             this.specialAuthzConfig = specialAuthzConfig;
             return this;
         }
+        
+        public Builder authzComplete() {
+            this.authzComplete = true;
+            return this;
+        }
 
         public User build() {
-            return new User(name, subName, type, backendRoles, searchGuardRoles, specialAuthzConfig, requestedTenant, structuredAttributes, attributes, injected);
+            return new User(name, subName, type, backendRoles, searchGuardRoles, specialAuthzConfig, requestedTenant, structuredAttributes, attributes, injected, authzComplete);
         }
     }
 

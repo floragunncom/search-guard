@@ -21,9 +21,9 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.floragunn.searchguard.auth.AuthenticationBackend;
-import com.floragunn.searchguard.auth.AuthorizationBackend;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.searchguard.auth.api.AuthenticationBackend;
+import com.floragunn.searchguard.auth.api.AuthorizationBackend;
 import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.auth.internal.NoOpAuthenticationBackend;
 import com.floragunn.searchguard.auth.internal.NoOpAuthorizationBackend;

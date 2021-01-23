@@ -8,6 +8,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.support.ContextPreservingActionListener;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.FilterClient;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -31,11 +32,11 @@ public class ContextHeaderDecoratorClient extends FilterClient {
             ActionListener<Response> listener) {
 
         ThreadContext threadContext = threadPool().getThreadContext();
-
+        ContextPreservingActionListener<Response> wrappedListener = ContextPreservingActionListener.wrapPreservingContext(listener, threadContext);
         try (StoredContext ctx = threadContext.stashContext()) {
             threadContext.putHeader(this.headers);
 
-            super.doExecute(action, request, listener);
+            super.doExecute(action, request, wrappedListener);
         }
     }
 
