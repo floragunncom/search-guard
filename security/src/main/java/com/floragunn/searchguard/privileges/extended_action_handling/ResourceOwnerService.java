@@ -17,21 +17,13 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterChangedEvent;
-import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.index.IndexNotFoundException;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
-import org.elasticsearch.index.reindex.DeleteByQueryAction;
-import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.Scheduler.Cancellable;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
@@ -39,6 +31,7 @@ import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfi
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig.Resource;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
 import com.google.common.base.Objects;
 
 public class ResourceOwnerService {
@@ -62,29 +55,23 @@ public class ResourceOwnerService {
 
     private final String index = ".searchguard_resource_owner";
     private final PrivilegedConfigClient privilegedConfigClient;
-    private final ThreadPool threadPool;
-    private Cancellable cleanupJob;
-    private volatile boolean cleanupInProgress;
-    private volatile long cleanupInProgressSince;
+    private IndexCleanupAgent indexCleanupAgent;
 
     private final int maxCheckRetries;
     private final long checkRetryDelay;
-    private final TimeValue cleanupInterval;
     private final TimeValue defaultResourceLifetime;
     private final WriteRequest.RefreshPolicy refreshPolicy;
 
     public ResourceOwnerService(Client client, ClusterService clusterService, ThreadPool threadPool, ProtectedIndices protectedIndices,
             Settings settings) {
         this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-        this.threadPool = threadPool;
         this.maxCheckRetries = MAX_CHECK_RETRIES.get(settings);
         this.checkRetryDelay = CHECK_RETRY_DELAY.get(settings);
-        this.cleanupInterval = CLEANUP_INTERVAL.get(settings);
         this.defaultResourceLifetime = DEFAULT_RESOURCE_LIFETIME.get(settings);
         this.refreshPolicy = WriteRequest.RefreshPolicy.parse(REFRESH_POLICY.get(settings));
 
-        clusterService.addListener(clusterStateListener);
-
+        this.indexCleanupAgent = new IndexCleanupAgent(index, CLEANUP_INTERVAL.get(settings), privilegedConfigClient, clusterService, threadPool);
+        
         protectedIndices.add(index);
     }
 
@@ -285,67 +272,10 @@ public class ResourceOwnerService {
         return Objects.equal(currentUser.getName(), storedUserName);
     }
 
-    private void cleanupExpiredEntries() {
-        if (cleanupInProgress) {
-            log.warn("Cleanup is still in progress since " + (System.currentTimeMillis() - cleanupInProgressSince) + " ms. Skipping next cleanup");
-            return;
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("Starting cleanup. Interval: " + cleanupInterval);
-        }
-
-        cleanupInProgress = true;
-        cleanupInProgressSince = System.currentTimeMillis();
-
-        try {
-            new DeleteByQueryRequestBuilder(privilegedConfigClient, DeleteByQueryAction.INSTANCE)
-                    .filter(QueryBuilders.rangeQuery("expires").lt(System.currentTimeMillis())).source(index)
-                    .execute(new ActionListener<BulkByScrollResponse>() {
-                        @Override
-                        public void onResponse(BulkByScrollResponse response) {
-                            cleanupInProgress = false;
-
-                            long deleted = response.getDeleted();
-
-                            log.debug("Deleted " + deleted + " expired entries from " + index);
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            cleanupInProgress = false;
-
-                            if (e instanceof IndexNotFoundException) {
-                                log.debug("No expired entries have been deleted because the index does not exist", e);
-                            } else {
-                                log.error("Error while deleting expired entries from " + index, e);
-                            }
-                        }
-                    });
-        } catch (Exception e) {
-            log.error("Error while starting cleanup", e);
-            cleanupInProgress = false;
-        }
+    public void shutdown() {
+        this.indexCleanupAgent.shutdown();
     }
-
-    private final ClusterStateListener clusterStateListener = new ClusterStateListener() {
-
-        @Override
-        public void clusterChanged(ClusterChangedEvent event) {
-            boolean isMaster = event.state().nodes().isLocalNodeElectedMaster();
-
-            if (isMaster && cleanupJob == null) {
-                cleanupJob = threadPool.scheduleWithFixedDelay(() -> cleanupExpiredEntries(), cleanupInterval, ThreadPool.Names.GENERIC);
-            } else if (!isMaster && cleanupJob != null) {
-                cleanupJob.cancel();
-                cleanupJob = null;
-                cleanupInProgress = false;
-            }
-
-        }
-
-    };
-
+    
     static class CheckOwnerResponse {
         private GetResponse getResponse;
 
