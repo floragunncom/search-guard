@@ -1,5 +1,6 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -50,6 +51,7 @@ import org.junit.rules.ExternalResource;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.modules.SearchGuardModule;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -61,6 +63,15 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
 
 public class LocalCluster extends ExternalResource implements AutoCloseable {
+
+    private static final ResourceConfig<CType> DEFAULT_RESOURCE_CONFIG_SG_CONFIG = new ResourceConfig<CType>()
+            .setYamlDoc(CType.CONFIG, new File("sg_config.yml"))//
+            .setYamlDoc(CType.ROLES, new File("sg_roles.yml"))//
+            .setYamlDoc(CType.ROLESMAPPING, new File("sg_roles_mapping.yml"))//
+            .setYamlDoc(CType.ACTIONGROUPS, new File("sg_action_groups.yml"))//
+            .setYamlDoc(CType.TENANTS, new File("sg_roles_tenants.yml"))//
+            .setYamlDoc(CType.INTERNALUSERS, new File("sg_internal_users.yml"))//
+            .setYamlDoc(CType.BLOCKS, new File("sg_blocks.yml"));
 
     protected static final AtomicLong num = new AtomicLong();
     protected ClusterHelper clusterHelper = new ClusterHelper(

@@ -8,8 +8,11 @@ import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
 public class PrivilegedConfigClient extends ContextHeaderDecoratorClient {
 
     public PrivilegedConfigClient(Client in) {
-        super(in, ConfigConstants.SG_CONF_REQUEST_HEADER, "true", InternalAuthTokenProvider.TOKEN_HEADER, null,
-                InternalAuthTokenProvider.AUDIENCE_HEADER, null);
+        //super(in, ConfigConstants.SG_CONF_REQUEST_HEADER, "true", InternalAuthTokenProvider.TOKEN_HEADER, null,
+        //        InternalAuthTokenProvider.AUDIENCE_HEADER, null);
+
+        super(in, ConfigConstants.SG_CONF_REQUEST_HEADER, "true", InternalAuthTokenProvider.TOKEN_HEADER, "",
+                InternalAuthTokenProvider.AUDIENCE_HEADER, "");
     }
 
     public static PrivilegedConfigClient adapt(Client client) {

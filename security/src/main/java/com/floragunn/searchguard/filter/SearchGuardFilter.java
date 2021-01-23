@@ -67,6 +67,8 @@ import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider.AuthFromInternalAuthToken;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluatorResponse;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig;
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfigRegistry;
 import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
@@ -88,12 +90,12 @@ public class SearchGuardFilter implements ActionFilter {
     private final ClusterService cs;
     private final ComplianceConfig complianceConfig;
     private final CompatConfig compatConfig;
-    private final InternalAuthTokenProvider internalAuthTokenProvider;
+    private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
     private final ExtendedActionHandlingService extendedActionHandlingService;
 
     public SearchGuardFilter(final PrivilegesEvaluator evalp, final AdminDNs adminDns, DlsFlsRequestValve dlsFlsValve, AuditLog auditLog,
             ThreadPool threadPool, ClusterService cs, ComplianceConfig complianceConfig, final CompatConfig compatConfig,
-            InternalAuthTokenProvider internalAuthTokenProvider, ExtendedActionHandlingService extendedActionHandlingService) {
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ExtendedActionHandlingService extendedActionHandlingService) {
         this.evalp = evalp;
         this.adminDns = adminDns;
         this.dlsFlsValve = dlsFlsValve;
@@ -102,7 +104,7 @@ public class SearchGuardFilter implements ActionFilter {
         this.cs = cs;
         this.complianceConfig = complianceConfig;
         this.compatConfig = compatConfig;
-        this.internalAuthTokenProvider = internalAuthTokenProvider;
+        this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         this.extendedActionHandlingService = extendedActionHandlingService;
     }
 
@@ -144,17 +146,17 @@ public class SearchGuardFilter implements ActionFilter {
             final boolean internalRequest = (interClusterRequest || HeaderHelper.isDirectRequest(threadContext)) && action.startsWith("internal:")
                     && !action.startsWith("internal:transport/proxy");
 
-            AuthFromInternalAuthToken authFromInternalAuthToken = internalAuthTokenProvider.userAuthFromToken(threadContext);
+            SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.apply(user, threadContext);
 
-            if (authFromInternalAuthToken != null) {
+            if (specialPrivilegesEvaluationContext != null) {
                 if (log.isDebugEnabled()) {
                     log.debug("userIsAdmin: " + userIsAdmin + "\n" + "interClusterRequest: " + interClusterRequest + "\ntrustedClusterRequest: "
                             + trustedClusterRequest + "\nconfRequest: " + confRequest + "\npassThroughRequest: " + passThroughRequest);
-                    log.debug("Getting auth from internal auth token.\nOld user: " + user + "\nNew auth: " + authFromInternalAuthToken);
+                    log.debug("Getting auth from internal auth token.\nOld user: " + user + "\nNew auth: " + specialPrivilegesEvaluationContext);
                     log.debug(threadContext.getHeaders());
                 }
 
-                user = authFromInternalAuthToken.getUser();
+                user = specialPrivilegesEvaluationContext.getUser();
                 
                 if (user != null && threadContext.getTransient(ConfigConstants.SG_USER) == null) {
                     threadContext.putTransient(ConfigConstants.SG_USER, user);
@@ -233,7 +235,8 @@ public class SearchGuardFilter implements ActionFilter {
             }
 
             if (Origin.LOCAL.toString().equals(threadContext.getTransient(ConfigConstants.SG_ORIGIN))
-                    && (interClusterRequest || HeaderHelper.isDirectRequest(threadContext) && authFromInternalAuthToken == null)) {
+                    && (interClusterRequest || HeaderHelper.isDirectRequest(threadContext) && (specialPrivilegesEvaluationContext == null
+                            || !specialPrivilegesEvaluationContext.requiresPrivilegeEvaluationForLocalRequests()))) {
 
                 chain.proceed(task, action, request, listener);
                 return;
@@ -279,7 +282,7 @@ public class SearchGuardFilter implements ActionFilter {
                 log.trace("Evaluate permissions for user: {}", user.getName());
             }
 
-            final PrivilegesEvaluatorResponse pres = eval.evaluate(user, action, request, task, actionConfig, authFromInternalAuthToken);
+            final PrivilegesEvaluatorResponse pres = eval.evaluate(user, action, request, task, actionConfig, specialPrivilegesEvaluationContext);
 
             if (log.isDebugEnabled()) {
                 log.debug(pres);

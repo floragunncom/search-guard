@@ -10,7 +10,7 @@ import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
 
 public class TemporalAmountFormat {
-    public static final DurationFormat INSTANCE = new DurationFormat();
+    public static final TemporalAmountFormat INSTANCE = new TemporalAmountFormat();
 
     private final Pattern pattern = Pattern.compile("((?<period>" //
             + PeriodFormat.PATTERN_STRING //

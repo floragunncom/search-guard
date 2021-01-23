@@ -47,24 +47,28 @@ public class User implements Serializable, CustomAttributesAware {
     private static final long serialVersionUID = -5500938501822658596L;
     private final String name;
     private final String subName;
+    private final String type;
 
     /**
      * roles == backend_roles
      */
     private final Set<String> roles;
     private final Set<String> searchGuardRoles;
+    private final Object specialAuthzConfig;
     private String requestedTenant;
     private Map<String, String> attributes;
     private Map<String, Object> structuredAttributes;
     private boolean isInjected = false;
 
-    public User(String name, String subName, Set<String> roles, Set<String> searchGuardRoles, String requestedTenant, Map<String, Object> structuredAttributes, Map<String, String> attributes,
+    public User(String name, String subName, String type, Set<String> roles, Set<String> searchGuardRoles,  Object specialAuthzConfig, String requestedTenant, Map<String, Object> structuredAttributes, Map<String, String> attributes,
             boolean isInjected) {
         super();
         this.name = name;
         this.subName = subName;
+        this.type = type;
         this.roles = roles;
         this.searchGuardRoles = searchGuardRoles;
+        this.specialAuthzConfig = specialAuthzConfig;
         this.requestedTenant = requestedTenant;
         this.structuredAttributes = structuredAttributes;
         this.attributes = attributes;
@@ -88,10 +92,12 @@ public class User implements Serializable, CustomAttributesAware {
 
         this.name = name;
         this.subName = null;
+        this.type = null;
         this.roles = new HashSet<String>();
         this.searchGuardRoles = new HashSet<String>();
         this.attributes = new HashMap<>();
         this.structuredAttributes = new HashMap<>();
+        this.specialAuthzConfig = null;
         if (roles != null) {
             this.addRoles(roles);
         }
@@ -264,15 +270,40 @@ public class User implements Serializable, CustomAttributesAware {
         return this.searchGuardRoles == null ? Collections.emptySet() : Collections.unmodifiableSet(this.searchGuardRoles);
     }
 
+    public String getType() {
+        return type;
+    }
+
+    public Object getSpecialAuthzConfig() {
+        return specialAuthzConfig;
+    }
+
+    public Builder copy() {
+        Builder builder = new Builder();
+        builder.name = name;
+        builder.subName = subName;
+        builder.type = type;
+        builder.backendRoles.addAll(roles);
+        builder.searchGuardRoles.addAll(searchGuardRoles);
+        builder.requestedTenant = requestedTenant;
+        builder.attributes.putAll(attributes);
+        builder.injected = isInjected;
+        builder.specialAuthzConfig = specialAuthzConfig;
+
+        return builder;
+    }
+
     public static class Builder {
         private String name;
         private String subName;
+        private String type;
         private final Set<String> backendRoles = new HashSet<String>();
         private final Set<String> searchGuardRoles = new HashSet<String>();
         private String requestedTenant;
         private Map<String, String> attributes = new HashMap<>();
         private Map<String, Object> structuredAttributes = new HashMap<>();
         private boolean injected;
+        private Object specialAuthzConfig;
 
         public Builder name(String name) {
             this.name = name;
@@ -281,6 +312,11 @@ public class User implements Serializable, CustomAttributesAware {
 
         public Builder subName(String subName) {
             this.subName = subName;
+            return this;
+        }
+
+        public Builder type(String type) {
+            this.type = type;
             return this;
         }
 
@@ -354,8 +390,13 @@ public class User implements Serializable, CustomAttributesAware {
             return this;
         }
 
+        public Builder specialAuthzConfig(Object specialAuthzConfig) {
+            this.specialAuthzConfig = specialAuthzConfig;
+            return this;
+        }
+
         public User build() {
-            return new User(name, subName, backendRoles, searchGuardRoles, requestedTenant, structuredAttributes, attributes, injected);
+            return new User(name, subName, type, backendRoles, searchGuardRoles, specialAuthzConfig, requestedTenant, structuredAttributes, attributes, injected);
         }
     }
 

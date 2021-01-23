@@ -11,18 +11,30 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 public class ValidatingJsonParser {
     
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper jsonMapper = new ObjectMapper();
+    private static final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
 
     public static JsonNode readTree(String string) throws ConfigValidationException {
         try {
-            return readTree0(string);
+            return readTree0(string, jsonMapper);
         } catch (JsonParseException e) {
             throw new ConfigValidationException(new JsonValidationError(null, e));
         } catch (IOException e) {
             throw new ConfigValidationException(new ValidationError(null, "Error while parsing JSON document: " + e.getMessage(), null).cause(e));
+        }
+    }
+    
+    public static JsonNode readYamlTree(String string) throws ConfigValidationException {
+        try {
+            return readTree0(string, yamlMapper);
+        } catch (JsonParseException e) {
+            throw new ConfigValidationException(new JsonValidationError(null, e));
+        } catch (IOException e) {
+            throw new ConfigValidationException(new ValidationError(null, "Error while parsing YAML document: " + e.getMessage(), null).cause(e));
         }
     }
 
@@ -36,7 +48,7 @@ public class ValidatingJsonParser {
         }
     }
 
-    private static JsonNode readTree0(String string) throws IOException {
+    private static JsonNode readTree0(String string, ObjectMapper objectMapper) throws IOException {
 
         final SecurityManager sm = System.getSecurityManager();
 

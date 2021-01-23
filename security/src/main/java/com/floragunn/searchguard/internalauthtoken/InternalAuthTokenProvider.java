@@ -2,7 +2,6 @@ package com.floragunn.searchguard.internalauthtoken;
 
 import java.time.Instant;
 import java.time.temporal.TemporalAmount;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -24,8 +23,10 @@ import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.ConfigModelV7;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
@@ -38,7 +39,6 @@ import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
-import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
@@ -90,11 +90,11 @@ public class InternalAuthTokenProvider implements DCFListener {
         return encodedJwt;
     }
 
-    public AuthFromInternalAuthToken userAuthFromToken(ThreadContext threadContext) {
+    public AuthFromInternalAuthToken userAuthFromToken(User user, ThreadContext threadContext) {
         final String authToken = threadContext.getHeader(TOKEN_HEADER);
         final String authTokenAudience = HeaderHelper.getSafeFromHeader(threadContext, AUDIENCE_HEADER);
 
-        if (authToken == null || authTokenAudience == null) {
+        if (authToken == null || authTokenAudience == null || authToken.equals("") || authTokenAudience.equals("")) {
             return null;
         }
 
@@ -221,7 +221,7 @@ public class InternalAuthTokenProvider implements DCFListener {
         throw new JwtException("Internal auth token does not allow audience: " + authTokenAudience + "\nAllowed audiences: " + claims.getAudiences());
     }
 
-    public static class AuthFromInternalAuthToken {
+    public static class AuthFromInternalAuthToken implements SpecialPrivilegesEvaluationContext {
 
         private final User user;
         private final SgRoles sgRoles;
@@ -242,6 +242,21 @@ public class InternalAuthTokenProvider implements DCFListener {
         @Override
         public String toString() {
             return "AuthFromInternalAuthToken [user=" + user + ", sgRoles=" + sgRoles + "]";
+        }
+
+        @Override
+        public Set<String> getMappedRoles() {
+            return sgRoles.getRoleNames();
+        }
+
+        @Override
+        public TransportAddress getCaller() {
+            return null;
+        }
+
+        @Override
+        public boolean requiresPrivilegeEvaluationForLocalRequests() {
+            return true;
         }
     }
 

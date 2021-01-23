@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -341,7 +342,33 @@ public class ValidatingJsonNode {
         }
     }
 
+    public List<String> requiredStringList(String attribute, int minLength) {
+        consume(attribute);
+
+        if (jsonNode.hasNonNull(attribute)) {
+            List<String> result = stringList(attribute);
+
+            if (result != null && result.size() < minLength) {
+                if (minLength == 1) {
+                    validationErrors.add(new InvalidAttributeValue(attribute, jsonNode.get(attribute), "At least one element is required"));
+                } else {
+                    validationErrors
+                            .add(new InvalidAttributeValue(attribute, jsonNode.get(attribute), "At least " + minLength + " elements are required"));
+                }
+            }
+
+            return result;
+        } else {
+            validationErrors.add(new MissingAttribute(attribute, jsonNode));
+            return null;
+        }
+    }
+    
     public List<String> stringList(String attribute) {
+        return stringList(attribute, null);
+    }
+
+    public List<String> stringList(String attribute, List<String> defaultValue) {
         consume(attribute);
 
         if (jsonNode.hasNonNull(attribute)) {
@@ -361,7 +388,7 @@ public class ValidatingJsonNode {
             }
 
         } else {
-            return null;
+            return defaultValue;
         }
     }
 
@@ -426,7 +453,7 @@ public class ValidatingJsonNode {
         }
     }
 
-    public Duration temporalAmount(String attribute) {
+    public TemporalAmount temporalAmount(String attribute) {
         consume(attribute);
 
         if (jsonNode.hasNonNull(attribute)) {

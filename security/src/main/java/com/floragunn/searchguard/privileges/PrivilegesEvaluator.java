@@ -150,7 +150,7 @@ public class PrivilegesEvaluator implements DCFListener {
     }
 
     public PrivilegesEvaluatorResponse evaluate(final User user, String action0, final ActionRequest request, Task task, ActionConfig actionConfig,
-            AuthFromInternalAuthToken authFromInternalAuthToken) {
+            SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
 
         if (!isInitialized()) {
             throw new ElasticsearchSecurityException("Search Guard is not initialized.");
@@ -164,14 +164,15 @@ public class PrivilegesEvaluator implements DCFListener {
         Set<String> mappedRoles;
         SgRoles sgRoles;
 
-        if (authFromInternalAuthToken == null) {
+        if (specialPrivilegesEvaluationContext == null) {
             caller = Objects.requireNonNull((TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
             mappedRoles = mapSgRoles(user, caller);
             sgRoles = getSgRoles(mappedRoles);
         } else {
-            caller = null;
-            mappedRoles = authFromInternalAuthToken.getSgRoles().getRoleNames();
-            sgRoles = authFromInternalAuthToken.getSgRoles();
+            caller = specialPrivilegesEvaluationContext.getCaller() != null ? specialPrivilegesEvaluationContext.getCaller()
+                    : (TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+            mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
+            sgRoles = specialPrivilegesEvaluationContext.getSgRoles();
         }
 
         final PrivilegesEvaluatorResponse presponse = new PrivilegesEvaluatorResponse();
@@ -225,6 +226,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
                     if (privilegesInterceptor.getClass() != PrivilegesInterceptor.class) {
 
+                        //TODO auth token
                         final Boolean replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user, dcm, requestedResolved,
                                 mapTenants(user, mappedRoles));
 
@@ -276,6 +278,8 @@ public class PrivilegesEvaluator implements DCFListener {
         }
 
         if (isTenantPerm(action0)) {
+            
+            // TODO auth token
             if (!hasTenantPermission(user, mappedRoles, action0)) {
                 presponse.missingPrivileges.add(action0);
                 presponse.allowed = false;
@@ -625,6 +629,7 @@ public class PrivilegesEvaluator implements DCFListener {
             return Collections.emptyMap();
         }
 
+        // TODO authtoken
         final Set<String> mappedRoles = mapSgRoles(user, caller);
         final Map<String, Set<String>> tenantsPerms = this.configModel.mapTenantPermissions(user, mappedRoles);
 

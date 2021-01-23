@@ -833,11 +833,14 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         cr.setDynamicConfigFactory(dcf);
 
         InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(dcf);
+        specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);
+
+        
         ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, settings);
         ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
 
         sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, complianceConfig, compatConfig,
-                internalAuthTokenProvider, extendedActionHandlingService);
+                specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService);
 
         final String principalExtractorClass = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, null);
 
