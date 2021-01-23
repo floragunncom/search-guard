@@ -30,7 +30,6 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.Strings;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
@@ -82,6 +81,7 @@ import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
+import com.google.common.base.Strings;
 
 public class PrivilegesEvaluator implements DCFListener {
 
@@ -229,7 +229,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
                         //TODO auth token
                         final Boolean replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user, dcm, requestedResolved,
-                                mapTenants(user, mappedRoles));
+                                sgRoles, configModel);
 
                         if (log.isDebugEnabled()) {
                             log.debug("Result from privileges interceptor for cluster perm: {}", replaceResult);
@@ -278,10 +278,8 @@ public class PrivilegesEvaluator implements DCFListener {
             }
         }
 
-        if (isTenantPerm(action0)) {
-            
-            // TODO auth token
-            if (!hasTenantPermission(user, mappedRoles, action0)) {
+        if (isTenantPerm(action0)) {  
+            if (!hasTenantPermission(user, sgRoles, action0)) {
                 presponse.missingPrivileges.add(action0);
                 presponse.allowed = false;
                 log.info("No {}-level perm match for {} {} [Action [{}]] [RolesChecked {}]", "tenant", user, requestedResolved, action0, mappedRoles);
@@ -327,8 +325,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
         if (privilegesInterceptor.getClass() != PrivilegesInterceptor.class) {
 
-            final Boolean replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user, dcm, requestedResolved,
-                    mapTenants(user, mappedRoles));
+            final Boolean replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user, dcm, requestedResolved, sgRoles, configModel);
 
             if (log.isDebugEnabled()) {
                 log.debug("Result from privileges interceptor: {}", replaceResult);
@@ -440,10 +437,6 @@ public class PrivilegesEvaluator implements DCFListener {
 
     public Set<String> mapSgRoles(final User user, final TransportAddress caller) {
         return this.configModel.mapSgRoles(user, caller);
-    }
-
-    public Map<String, Boolean> mapTenants(final User user, Set<String> roles) {
-        return this.configModel.mapTenants(user, roles);
     }
 
     public Set<String> getAllConfiguredTenantNames() {
@@ -622,30 +615,32 @@ public class PrivilegesEvaluator implements DCFListener {
 
         return Collections.unmodifiableList(ret);
     }
+    
+    /**
+     * Only used for authinfo REST API
+     */
+    public Map<String, Boolean> mapTenants(User user, Set<String> roles) {
+        SgRoles sgRoles = this.getSgRoles(roles);
+        return sgRoles.mapTenants(user, this.configModel.getAllConfiguredTenantNames());
+    }
+    
+    public Map<String, Boolean> evaluateKibanaApplicationPrivileges(User user, TransportAddress caller, Collection<String> privilegesAskedFor) {
 
-    public Map<String, Boolean> evaluateKibanaApplicationPrivileges(User user, TransportAddress caller, Collection<String> privileges) {
-
-        if (privileges == null || privileges.isEmpty() || user == null) {
-            log.debug(() -> "Privileges or user empty");
+        if (privilegesAskedFor == null || privilegesAskedFor.isEmpty() || user == null) {
+            log.debug("Privileges or user empty");
             return Collections.emptyMap();
         }
 
-        // TODO authtoken
-        final Set<String> mappedRoles = mapSgRoles(user, caller);
-        final Map<String, Set<String>> tenantsPerms = this.configModel.mapTenantPermissions(user, mappedRoles);
-
-        final String requestedTenant = user.getRequestedTenant();
-
-        if (requestedTenant != null && !"".equals(requestedTenant) && multitenancyEnabled()) {
-            //non-global tenant
-            log.debug(() -> "Non global tenant: " + requestedTenant);
-            return evaluateTenantPrivileges(tenantsPerms.get(requestedTenant.equals(User.USER_TENANT) ? user.getName() : requestedTenant),
-                    privileges);
-        } else {
-            //global tenant or no mt enabled
-            log.debug(() -> "Global tenant");
-            return evaluateTenantPrivileges(tenantsPerms.get("SGS_GLOBAL_TENANT"), privileges);
+        Set<String> mappedRoles = mapSgRoles(user, caller);
+        SgRoles sgRoles = getSgRoles(mappedRoles);
+        String requestedTenant = getRequestedTenant(user);
+        
+        if (!configModel.isTenantValid(requestedTenant)) {
+            log.info("Invalid tenant: " + requestedTenant + "; user: " + user);
+            return Collections.emptyMap();
         }
+
+        return evaluateTenantPrivileges(sgRoles.getTenantPermissions(user, requestedTenant).getPermissions(), privilegesAskedFor);
     }
 
     private Map<String, Boolean> evaluateTenantPrivileges(Set<String> privilegesGranted, Collection<String> privilegesAskedFor) {
@@ -662,22 +657,30 @@ public class PrivilegesEvaluator implements DCFListener {
         return Collections.unmodifiableMap(result);
     }
 
-    public boolean hasTenantPermission(User user, Set<String> mappedRoles, String action) {
-        Map<String, Set<String>> tenantsPerms = this.configModel.mapTenantPermissions(user, mappedRoles);
-
-        String requestedTenant = Strings.isNotEmpty(user.getRequestedTenant()) ? user.getRequestedTenant() : "SGS_GLOBAL_TENANT";
+    private boolean hasTenantPermission(User user, SgRoles sgRoles, String action) {
+        String requestedTenant = !Strings.isNullOrEmpty(user.getRequestedTenant()) ? user.getRequestedTenant() : "SGS_GLOBAL_TENANT";
 
         if (!multitenancyEnabled() && !"SGS_GLOBAL_TENANT".equals(requestedTenant)) {
             return false;
         }
 
-        Set<String> permissions = tenantsPerms.get(requestedTenant);
-
-        if (permissions == null || permissions.isEmpty()) {
+        if (!configModel.isTenantValid(requestedTenant)) {
+            log.info("Invalid tenant: " + requestedTenant + "; user: " + user);
             return false;
         }
 
-        return WildcardMatcher.matchAny(permissions, action);
+        return sgRoles.hasTenantPermission(user, requestedTenant, action);
+    }
+    
+    private String getRequestedTenant(User user) {
+
+        String requestedTenant = user.getRequestedTenant();
+
+        if (Strings.isNullOrEmpty(requestedTenant) || !multitenancyEnabled()) {
+            return "SGS_GLOBAL_TENANT";
+        } else {
+            return requestedTenant;
+        }
     }
 
     public boolean hasClusterPermission(User user, String action) {

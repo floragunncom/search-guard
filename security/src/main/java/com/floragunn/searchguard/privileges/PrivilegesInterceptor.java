@@ -17,8 +17,6 @@
 
 package com.floragunn.searchguard.privileges;
 
-import java.util.Map;
-
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -27,7 +25,9 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigModel;
+import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
 
 public class PrivilegesInterceptor {
@@ -46,7 +46,7 @@ public class PrivilegesInterceptor {
     }
 
     public Boolean replaceKibanaIndex(final ActionRequest request, final String action, final User user, final DynamicConfigModel config,
-            final Resolved requestedResolved, final Map<String, Boolean> tenants) {
+            final Resolved requestedResolved, SgRoles sgRoles, ConfigModel configModel) {
         throw new RuntimeException("not implemented");
     }
 
