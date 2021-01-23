@@ -120,7 +120,7 @@ public final class SgUtils {
         }
         return map;
     }
-    
+        
     public static String replaceEnvVars(String in, Settings settings) {
         if(in == null || in.isEmpty()) {
             return in;

@@ -15,7 +15,7 @@ public class ConfigValidationException extends Exception implements ToXContentOb
     private ValidationErrors validationErrors;
 
     public ConfigValidationException(ValidationErrors validationErrors) {
-        super(getMessage(validationErrors));
+        super(getMessage(validationErrors), validationErrors.getCause());
 
         this.validationErrors = validationErrors;
     }

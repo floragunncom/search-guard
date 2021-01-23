@@ -62,7 +62,7 @@ public class SearchGuardModulesRegistry {
 
     private SearchGuardComponentRegistry<HTTPAuthenticator> httpAuthenticators = new SearchGuardComponentRegistry<HTTPAuthenticator>(
             HTTPAuthenticator.class, (o) -> o.getType()).add(StandardComponents.httpAuthenticators);
-
+    
     private SearchGuardComponentRegistry<AuthFailureListener> authFailureListeners = new SearchGuardComponentRegistry<AuthFailureListener>(
             AuthFailureListener.class, (o) -> o.getType()).add(StandardComponents.authFailureListeners);
 
@@ -130,7 +130,7 @@ public class SearchGuardModulesRegistry {
         for (SearchGuardModule<?> module : subModules) {
             result.addAll(module.getContexts());
         }
-
+        
         return result;
     }
 
@@ -249,5 +249,6 @@ public class SearchGuardModulesRegistry {
 
         return Class.forName(className).getDeclaredConstructor().newInstance();
     }
+
 
 }

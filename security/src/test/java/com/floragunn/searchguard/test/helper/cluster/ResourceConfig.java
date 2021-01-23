@@ -37,7 +37,21 @@ public class ResourceConfig<K> {
 
     public ResourceConfig(String baseDir, ResourceConfig<K> copy) {
         this(baseDir);
-        this.map.putAll(copy.map);
+
+        for (Map.Entry<K, Resource> entry : copy.entrySet()) {
+            if (entry.getValue().file == null) {
+                this.map.put(entry.getKey(), entry.getValue());
+            } else if (entry.getValue() instanceof Doc) {
+                try {
+                    this.map.put(entry.getKey(),
+                            new Doc(DefaultObjectMapper.YAML_MAPPER.readTree(getStream(entry.getValue().file)), entry.getValue().file));
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                this.map.put(entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     public Set<Entry<K, Resource>> entrySet() {
@@ -58,7 +72,7 @@ public class ResourceConfig<K> {
 
     public ResourceConfig<K> setYamlDoc(K key, String yaml) {
         try {
-            this.map.put(key, new Doc(DefaultObjectMapper.YAML_MAPPER.readTree(yaml)));
+            this.map.put(key, new Doc(DefaultObjectMapper.YAML_MAPPER.readTree(yaml), null));
             return this;
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -67,7 +81,7 @@ public class ResourceConfig<K> {
 
     public ResourceConfig<K> setYamlDoc(K key, File file) {
         try {
-            this.map.put(key, new Doc(DefaultObjectMapper.YAML_MAPPER.readTree(getStream(file))));
+            this.map.put(key, new Doc(DefaultObjectMapper.YAML_MAPPER.readTree(getStream(file)), file));
             return this;
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -75,13 +89,20 @@ public class ResourceConfig<K> {
     }
 
     public static abstract class Resource {
+        final File file;
+
+        Resource(File file) {
+            this.file = file;
+        }
+
         public abstract BytesReference asBytesReference();
     }
 
     public static class Doc extends Resource {
         private JsonNode doc;
 
-        Doc(JsonNode doc) {
+        Doc(JsonNode doc, File file) {
+            super(file);
             this.doc = doc;
         }
 

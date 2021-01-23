@@ -49,7 +49,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     private final SearchGuardModulesRegistry modulesRegistry;
     private final InternalUsersDatabase internalUsersDatabase;
     private final StaticSgConfig staticSgConfig;
-    
+
     SgDynamicConfiguration<?> config;
     
     public DynamicConfigFactory(ConfigurationRepository cr, StaticSgConfig staticSgConfig, final Settings esSettings, 
@@ -137,6 +137,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         initialized.set(true);
         
     }
+    
     
     public String getLicenseString() {
         

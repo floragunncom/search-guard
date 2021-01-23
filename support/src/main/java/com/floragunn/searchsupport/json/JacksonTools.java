@@ -2,8 +2,8 @@ package com.floragunn.searchsupport.json;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,7 +24,7 @@ public class JacksonTools {
             return null;
         } else if (jsonNode instanceof ObjectNode) {
             ObjectNode objectNode = (ObjectNode) jsonNode;
-            Map<String, Object> result = new HashMap<>(objectNode.size());
+            Map<String, Object> result = new LinkedHashMap<>(objectNode.size());
             Iterator<Map.Entry<String, JsonNode>> iter = objectNode.fields();
 
             while (iter.hasNext()) {
@@ -35,7 +35,7 @@ public class JacksonTools {
 
             return result;
         } else {
-            Map<String, Object> result = new HashMap<>(1);
+            Map<String, Object> result = new LinkedHashMap<>(1);
 
             result.put("_value", toObject(jsonNode));
 

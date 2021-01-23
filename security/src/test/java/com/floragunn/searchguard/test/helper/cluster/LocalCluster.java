@@ -18,6 +18,7 @@ import java.util.stream.StreamSupport;
 
 import javax.net.ssl.SSLContext;
 
+import org.apache.http.Header;
 import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
@@ -198,6 +199,24 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
                             }
 
                         }));
+
+        return new RestHighLevelClient(builder);
+    }
+
+    public RestHighLevelClient getRestHighLevelClient(Header... headers) {
+
+        RestClientBuilder builder = RestClient.builder(new HttpHost(clusterInfo.httpHost, clusterInfo.httpPort, "https")).setDefaultHeaders(headers)
+                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(getSSLIOSessionStrategy()));
+
+        return new RestHighLevelClient(builder);
+    }
+
+    public RestHighLevelClient getRestHighLevelClientForNode(int node, Header... headers) {
+
+        RestClientBuilder builder = RestClient
+                .builder(new HttpHost(clusterInfo.httpAdresses.get(node).getAddress(), clusterInfo.httpAdresses.get(node).getPort(), "https"))
+                .setDefaultHeaders(headers)
+                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(getSSLIOSessionStrategy()));
 
         return new RestHighLevelClient(builder);
     }
@@ -397,6 +416,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
 
         public Builder singleNode() {
             this.clusterConfiguration = ClusterConfiguration.SINGLENODE;
+            return this;
+        }
+
+        public Builder sgConfig(TestSgConfig testSgConfig) {
+            this.testSgConfig = testSgConfig;
             return this;
         }
 

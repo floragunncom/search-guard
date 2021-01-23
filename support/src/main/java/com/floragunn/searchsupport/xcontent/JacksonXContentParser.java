@@ -55,12 +55,16 @@ public class JacksonXContentParser {
                     nodeStack.add(currentNode);
                 }
 
-                currentNode = addNode(nodeFactory.objectNode());
+                currentNode = addNode(nodeFactory.arrayNode());
                 break;
 
             case END_OBJECT:
             case END_ARRAY:
-                currentNode = nodeStack.removeLast();
+                if (!nodeStack.isEmpty()) {
+                    currentNode = nodeStack.removeLast();
+                } else {
+                    currentNode = null;
+                }
                 break;
 
             case FIELD_NAME:
@@ -73,7 +77,7 @@ public class JacksonXContentParser {
 
             case VALUE_EMBEDDED_OBJECT:
                 throw new IOException("VALUE_EMBEDDED_OBJECT is not supported: " + parser);
-                
+
             case VALUE_NULL:
                 addNode(nodeFactory.nullNode());
                 break;
@@ -118,12 +122,12 @@ public class JacksonXContentParser {
             ((ArrayNode) currentNode).add(newNode);
         } else if (currentNode instanceof ObjectNode) {
             if (currentAttributeName == null) {
-                throw new IOException("Missing attribute name at " + parser);
+                throw new IOException("Missing attribute name at " + parser.getTokenLocation());
             }
 
             ((ObjectNode) currentNode).set(currentAttributeName, newNode);
         } else if (currentNode != null) {
-            throw new IOException("Object node in wrong context " + parser);
+            throw new IOException("Object node in wrong context " + parser.getTokenLocation());
         }
 
         currentAttributeName = null;

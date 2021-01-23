@@ -195,12 +195,20 @@ public class User implements Serializable, CustomAttributesAware {
     }
 
     public final String toStringWithAttributes() {
-        return "User [name=" + name + ", backend_roles=" + roles + ", requestedTenant=" + requestedTenant + ", attributes=" + attributes + "]";
+        if (subName != null && subName.length() > 0) {
+            return "User [name=" + name + " (" + subName + "), backend_roles=" + roles + ", requestedTenant=" + requestedTenant + ", attributes=" + attributes + "]";
+        } else {
+            return "User [name=" + name + ", backend_roles=" + roles + ", requestedTenant=" + requestedTenant + ", attributes=" + attributes + "]";
+        }
     }
 
     @Override
     public final String toString() {
-        return "User [name=" + name + ", backend_roles=" + roles + ", requestedTenant=" + requestedTenant + "]";
+        if (subName != null && subName.length() > 0) {
+            return "User [name=" + name + " (" + subName + "), backend_roles=" + roles + ", requestedTenant=" + requestedTenant + "]";
+        } else {
+            return "User [name=" + name + ", backend_roles=" + roles + ", requestedTenant=" + requestedTenant + "]";
+        }
     }
 
     @Override
@@ -293,6 +301,7 @@ public class User implements Serializable, CustomAttributesAware {
         builder.searchGuardRoles.addAll(searchGuardRoles);
         builder.requestedTenant = requestedTenant;
         builder.attributes.putAll(attributes);
+        builder.structuredAttributes.putAll(structuredAttributes);
         builder.injected = isInjected;
         builder.specialAuthzConfig = specialAuthzConfig;
         builder.authzComplete = authzComplete;

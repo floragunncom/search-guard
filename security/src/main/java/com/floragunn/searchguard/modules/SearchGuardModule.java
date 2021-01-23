@@ -38,7 +38,6 @@ import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchsupport.config.validation.JsonNodeParser;
 
 public interface SearchGuardModule<T> {
-
     default List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
@@ -64,9 +63,9 @@ public interface SearchGuardModule<T> {
     default SgConfigMetadata<T> getSgConfigMetadata() {
         return null;
     }
-
+    
     default void onNodeStarted() {
-
+        
     }
 
     public class SgConfigMetadata<T> {

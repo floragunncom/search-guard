@@ -141,6 +141,16 @@ public class ValidationErrors implements ToXContent {
             return null;
         }
     }
+    
+    public Exception getCause() {
+        for (ValidationError validationError : attributeToErrorMap.values()) {
+            if (validationError.getCause() != null) {
+                return validationError.getCause();
+            }
+        }
+        
+        return null;
+    }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {

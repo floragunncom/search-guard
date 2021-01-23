@@ -92,6 +92,7 @@ public class ConfigV7 {
         public String transport_userrname_attribute;
         public boolean do_not_fail_on_forbidden_empty;
         public String field_anonymization_salt2;
+        public HashMap<String, Object> auth_token_provider = new HashMap<>();
         
         @Override
         public String toString() {
@@ -128,7 +129,7 @@ public class ConfigV7 {
         
         
     }
-    
+   
     public static class AuthFailureListeners {
         @JsonIgnore
         private final Map<String, AuthFailureListener> listeners = new HashMap<>();

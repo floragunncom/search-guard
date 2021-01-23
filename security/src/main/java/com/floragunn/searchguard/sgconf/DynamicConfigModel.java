@@ -2,6 +2,7 @@ package com.floragunn.searchguard.sgconf;
 
 import java.net.InetAddress;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 
@@ -44,5 +45,7 @@ public abstract class DynamicConfigModel {
     public abstract Multimap<String, AuthFailureListener> getAuthBackendFailureListeners();
     public abstract List<ClientBlockRegistry<InetAddress>> getIpClientBlockRegistries();
     public abstract Multimap<String, ClientBlockRegistry<String>> getAuthBackendClientBlockRegistries();
+    public abstract Map<String, Object> getAuthTokenProviderConfig();
     
+
 }

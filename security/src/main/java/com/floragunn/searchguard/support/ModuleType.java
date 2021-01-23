@@ -58,6 +58,8 @@ public enum ModuleType implements Serializable {
 	CUSTOM_AUTHORIZATION_BACKEND("Custom authorization backend", null, Boolean.TRUE),
 	CUSTOM_INTERCLUSTER_REQUEST_EVALUATOR("Intercluster Request Evaluator", null, Boolean.FALSE),
 	CUSTOM_PRINCIPAL_EXTRACTOR("TLS Principal Extractor", null, Boolean.FALSE),
+    AUTH_TOKEN_AUTHENTICATION_BACKEND("Search Guard Auth Token authentication backend", "com.floragunn.searchguard.authtoken.AuthTokenAuthenticationBackend", Boolean.TRUE),
+    AUTH_TOKEN_HTTP_AUTHENTICATOR("Search Guard Auth Token HTTP authenticator", "com.floragunn.searchguard.authtoken.AuthTokenHttpJwtAuthenticator", Boolean.TRUE),
 	//COMPLIANCE("Compliance", "com.floragunn.searchguard.compliance.ComplianceIndexingOperationListenerImpl", Boolean.TRUE),
 	UNKNOWN("Unknown type", null, Boolean.TRUE);
 

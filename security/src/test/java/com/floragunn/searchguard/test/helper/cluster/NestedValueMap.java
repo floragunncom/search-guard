@@ -215,7 +215,7 @@ public class NestedValueMap extends HashMap<String, Object> {
         checkWritable();
 
         if (path.isEmpty()) {
-            if (path instanceof Map) {
+            if (object instanceof Map) {
                 putAllFromAnyMap((Map<?, ?>) object);
             } else {
                 throw new IllegalArgumentException("put([], " + object + "): If an empty path is given, the object must be of type map");
@@ -461,7 +461,11 @@ public class NestedValueMap extends HashMap<String, Object> {
         }
 
         public static Path parse(String path) {
-            return new Path(path.split("\\."));
+            if (path.length() == 0) {
+                return new Path(new String [0]);
+            } else {
+                return new Path(path.split("\\."));
+            }
         }
     }
 

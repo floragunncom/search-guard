@@ -271,7 +271,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             log.warn("Search Guard plugin run in ssl only mode. No authentication or authorization is performed");
             return;
         }
-
         
         SearchGuardPlugin.protectedIndices = new ProtectedIndices(settings);
         staticSgConfig = new StaticSgConfig(settings);
@@ -393,7 +392,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
         
         moduleRegistry.add("com.floragunn.signals.SignalsModule");
-
     }
 
     private String sha256(Path p) {
@@ -484,7 +482,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(new PermissionAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
 
                 handlers.addAll(ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient, adminDns, cr,
-                        staticSgConfig, cs, Objects.requireNonNull(principalExtractor), evaluator, threadPool, Objects.requireNonNull(auditLog)));
+                        staticSgConfig, cs, Objects.requireNonNull(principalExtractor), evaluator, specialPrivilegesEvaluationContextProviderRegistry,
+                        threadPool, Objects.requireNonNull(auditLog)));
 
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
             }

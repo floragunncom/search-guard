@@ -50,6 +50,10 @@ public final class AuthCredentials {
     private final String username;
     private final String subUserName;
     private byte[] password;
+
+    /**
+     * Raw credentials like a unparsed token
+     */
     private Object nativeCredentials;
     private final Set<String> backendRoles;
     private boolean complete;
@@ -64,9 +68,16 @@ public final class AuthCredentials {
      */
     private final Map<String, String> attributes;
     private final Map<String, Object> structuredAttributes;
+    
+    /**
+     * Claims or assertions from the authc information. In contrast to attributes, these don't have prefixes and may be complex valued. This is for inter-module communication during the authz phase.
+     *  These attributes won't be automatically made available in the user object. 
+     */
+    private final Map<String, Object> claims;
 
     private AuthCredentials(String username, String subUserName, byte[] password, Object nativeCredentials, Set<String> backendRoles,
-            boolean complete, boolean authzComplete, byte[] internalPasswordHash, Map<String, Object> structuredAttributes, Map<String, String> attributes) {
+            boolean complete, boolean authzComplete, byte[] internalPasswordHash, Map<String, Object> structuredAttributes,
+            Map<String, String> attributes, Map<String, Object> claims) {
         super();
         this.username = username;
         this.subUserName = subUserName;
@@ -78,6 +89,7 @@ public final class AuthCredentials {
         this.internalPasswordHash = internalPasswordHash;
         this.attributes = Collections.unmodifiableMap(attributes);
         this.structuredAttributes = Collections.unmodifiableMap(structuredAttributes);
+        this.claims = Collections.unmodifiableMap(claims);
     }
 
     @Deprecated
@@ -145,6 +157,7 @@ public final class AuthCredentials {
 
         this.attributes = new HashMap<>();
         this.structuredAttributes = new HashMap<>();
+        this.claims = new HashMap<>();
     }
 
     /**
@@ -268,6 +281,7 @@ public final class AuthCredentials {
         builder.complete = this.complete;
         builder.internalPasswordHash = this.internalPasswordHash;
         builder.attributes.putAll(this.attributes);
+        builder.structuredAttributes.putAll(this.structuredAttributes);
         return builder;
     }
 
@@ -295,7 +309,8 @@ public final class AuthCredentials {
         private byte[] internalPasswordHash;
         private Map<String, String> attributes = new HashMap<>();
         private Map<String, Object> structuredAttributes = new HashMap<>();
-
+        private Map<String, Object> claims = new HashMap<>();
+        
         public Builder() {
 
         }
@@ -405,13 +420,19 @@ public final class AuthCredentials {
             return this;
         }
         
+        public Builder claims(Map<String, Object> map) {
+            this.claims.putAll(map);
+            return this;
+        }
+
+        
         public String getUserName() {
             return userName;
         }
 
         public AuthCredentials build() {
             AuthCredentials result = new AuthCredentials(userName, subUserName, password, nativeCredentials, backendRoles, complete, authzComplete,
-                    internalPasswordHash, structuredAttributes, attributes);
+                    internalPasswordHash, structuredAttributes, attributes, claims);
             this.password = null;
             this.nativeCredentials = null;
             this.internalPasswordHash = null;
@@ -421,5 +442,9 @@ public final class AuthCredentials {
 
     public Map<String, Object> getStructuredAttributes() {
         return structuredAttributes;
+    }
+
+    public Map<String, Object> getClaims() {
+        return claims;
     }
 }

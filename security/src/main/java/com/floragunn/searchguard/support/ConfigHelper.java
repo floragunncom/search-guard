@@ -46,7 +46,7 @@ public class ConfigHelper {
     public static void uploadFile(Client tc, String filepath, String index, CType cType, int configVersion) throws Exception {
         LOGGER.info("Will update '" + cType + "' with " + filepath);
 
-        ConfigHelper.fromYamlFile(filepath, cType, configVersion, 0, 0);
+        ConfigHelper.fromYamlFile(filepath, cType, configVersion);
         
         try (Reader reader = new FileReader(filepath)) {
 
@@ -80,9 +80,9 @@ public class ConfigHelper {
         return retVal;
     }
     
-    public static <T> SgDynamicConfiguration<T> fromYamlReader(Reader yamlReader, CType ctype, int version, long seqNo, long primaryTerm) throws IOException {
+    public static <T> SgDynamicConfiguration<T> fromYamlReader(Reader yamlReader, CType ctype, int version) throws IOException {
         try {
-            return SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(yamlReader), ctype, version, seqNo, primaryTerm);
+            return SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(yamlReader), ctype, version, 0, 0, 0);
         } finally {
             if(yamlReader != null) {
                 yamlReader.close();
@@ -90,12 +90,12 @@ public class ConfigHelper {
         }
     }
     
-    public static <T> SgDynamicConfiguration<T> fromYamlFile(String filepath, CType ctype, int version, long seqNo, long primaryTerm) throws IOException {
-        return fromYamlReader(new FileReader(filepath), ctype, version, seqNo, primaryTerm);
+    public static <T> SgDynamicConfiguration<T> fromYamlFile(String filepath, CType ctype, int version) throws IOException {
+        return fromYamlReader(new FileReader(filepath), ctype, version);
     }
     
-    public static <T> SgDynamicConfiguration<T> fromYamlString(String yamlString, CType ctype, int version, long seqNo, long primaryTerm) throws IOException {
-        return fromYamlReader(new StringReader(yamlString), ctype, version, seqNo, primaryTerm);
+    public static <T> SgDynamicConfiguration<T> fromYamlString(String yamlString, CType ctype, int version) throws IOException {
+        return fromYamlReader(new StringReader(yamlString), ctype, version);
     }
 
 }

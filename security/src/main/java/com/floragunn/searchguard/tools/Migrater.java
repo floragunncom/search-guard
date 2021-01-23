@@ -99,31 +99,31 @@ public class Migrater {
             if(cType == CType.ACTIONGROUPS) {
                 SgDynamicConfiguration<?> val;
                 try {
-                    val = Migration.migrateActionGroups(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.ACTIONGROUPS, 0, 0, 0));
+                    val = Migration.migrateActionGroups(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.ACTIONGROUPS, 0, 0, 0, 0));
                 } catch (Exception e) {
-                    val = Migration.migrateActionGroups(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.ACTIONGROUPS, 1, 0, 0));
+                    val = Migration.migrateActionGroups(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.ACTIONGROUPS, 1, 0, 0, 0));
                 }
                 return backupAndWrite(file, val, backup);
             }
             
             if(cType == CType.CONFIG) {
-                SgDynamicConfiguration<?> val = Migration.migrateConfig(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.CONFIG, 1, 0, 0));
+                SgDynamicConfiguration<?> val = Migration.migrateConfig(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.CONFIG, 1, 0, 0, 0));
                 return backupAndWrite(file, val, backup);
             }
             
             if(cType == CType.ROLES) {
-                Tuple<SgDynamicConfiguration<RoleV7>, SgDynamicConfiguration<TenantV7>> tup = Migration.migrateRoles(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.ROLES, 1, 0, 0), null);
+                Tuple<SgDynamicConfiguration<RoleV7>, SgDynamicConfiguration<TenantV7>> tup = Migration.migrateRoles(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.ROLES, 1, 0, 0, 0), null);
                 boolean roles = backupAndWrite(file, tup.v1(), backup);
                 return roles && backupAndWrite(new File(file.getParent(),"sg_tenants.yml"), tup.v2(), backup);
             }
             
             if(cType == CType.ROLESMAPPING) {
-                SgDynamicConfiguration<?> val = Migration.migrateRoleMappings(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.ROLESMAPPING, 1, 0, 0));
+                SgDynamicConfiguration<?> val = Migration.migrateRoleMappings(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.ROLESMAPPING, 1, 0, 0, 0));
                 return backupAndWrite(file, val, backup);
             }
             
             if(cType == CType.INTERNALUSERS) {
-                SgDynamicConfiguration<?> val = Migration.migrateInternalUsers(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.INTERNALUSERS, 1, 0, 0));
+                SgDynamicConfiguration<?> val = Migration.migrateInternalUsers(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(file), CType.INTERNALUSERS, 1, 0, 0, 0));
                 return backupAndWrite(file, val, backup);
             }
         } catch (Exception e) {

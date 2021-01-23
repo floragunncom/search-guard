@@ -176,6 +176,14 @@ public class TestSgConfig {
 
         return is;
     }
+    
+    public static NestedValueMap fromYaml(String yamlString) {
+        try {
+            return NestedValueMap.fromYaml(yamlString);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public static class User {
         private String name;
@@ -204,6 +212,8 @@ public class TestSgConfig {
         public String getPassword() {
             return password;
         }
+        
+        
     }
 
     public static class Role {

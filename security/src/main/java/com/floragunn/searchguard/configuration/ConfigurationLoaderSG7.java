@@ -45,12 +45,9 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.SgUtils;
 
 public class ConfigurationLoaderSG7 {
 
@@ -59,7 +56,7 @@ public class ConfigurationLoaderSG7 {
     private final String searchguardIndex;
     private final ClusterService cs;
     private final Settings settings;
-    
+
     ConfigurationLoaderSG7(final Client client, ThreadPool threadPool, final Settings settings, ClusterService cs) {
         super();
         this.client = client;
@@ -68,57 +65,60 @@ public class ConfigurationLoaderSG7 {
         this.cs = cs;
         log.debug("Index is: {}", searchguardIndex);
     }
-    
+
     Map<CType, SgDynamicConfiguration<?>> load(final CType[] events, long timeout, TimeUnit timeUnit) throws InterruptedException, TimeoutException {
         final CountDownLatch latch = new CountDownLatch(events.length);
         final Map<CType, SgDynamicConfiguration<?>> rs = new HashMap<>(events.length);
-        
+
         loadAsync(events, new ConfigCallback() {
-            
+
             @Override
             public void success(SgDynamicConfiguration<?> dConf) {
-                if(latch.getCount() <= 0) {
-                    log.error("Latch already counted down (for {} of {})  (index={})", dConf.getCType().toLCString(), Arrays.toString(events), searchguardIndex);
+                if (latch.getCount() <= 0) {
+                    log.error("Latch already counted down (for {} of {})  (index={})", dConf.getCType().toLCString(), Arrays.toString(events),
+                            searchguardIndex);
                 }
-                
+
                 rs.put(dConf.getCType(), dConf);
                 latch.countDown();
-                if(log.isDebugEnabled()) {
-                    log.debug("Received config for {} (of {}) with current latch value={}", dConf.getCType().toLCString(), Arrays.toString(events), latch.getCount());
+                if (log.isDebugEnabled()) {
+                    log.debug("Received config for {} (of {}) with current latch value={}", dConf.getCType().toLCString(), Arrays.toString(events),
+                            latch.getCount());
                 }
             }
-            
+
             @Override
             public void singleFailure(Failure failure) {
-                log.error("Failure {} retrieving configuration for {} (index={})", failure==null?null:failure.getMessage(), Arrays.toString(events), searchguardIndex);
+                log.error("Failure {} retrieving configuration for {} (index={})", failure == null ? null : failure.getMessage(),
+                        Arrays.toString(events), searchguardIndex);
             }
-            
+
             @Override
             public void noData(String id, String type) {
                 //when index was created with ES 6 there are no separate tenants. So we load just empty ones.
-               //when index was created with ES 7 and type not "sg" (ES 6 type) there are no rolemappings anymore.
+                //when index was created with ES 7 and type not "sg" (ES 6 type) there are no rolemappings anymore.
                 
                 if (log.isTraceEnabled()) {
                     log.trace("noData(" + id + ", " + type + ")");
                     log.trace("index creation version: " + cs.state().getMetadata().index(searchguardIndex).getCreationVersion());
                 }
                 
-                if(cs.state().getMetadata().index(searchguardIndex).getCreationVersion().before(Version.V_7_0_0) || "sg".equals(type)) {
+                if (cs.state().getMetadata().index(searchguardIndex).getCreationVersion().before(Version.V_7_0_0) || "sg".equals(type)) {
                     //created with SG 6
                     //skip tenants
-                    
-                    if(log.isDebugEnabled()) {
+
+                    if (log.isDebugEnabled()) {
                         log.debug("Skip tenants because we not yet migrated to ES 7 (index was created with ES 6 and type is legacy [{}])", type);
                         log.debug("Skip blocks since they were added in v7+ ");
                     }
-                    
-                    if(CType.fromString(id) == CType.TENANTS || CType.fromString(id) == CType.BLOCKS) {
+
+                    if (CType.fromString(id) == CType.TENANTS || CType.fromString(id) == CType.BLOCKS) {
                         rs.put(CType.fromString(id), SgDynamicConfiguration.empty());
                         latch.countDown();
                         return;
                     }
                 }
-                if("blocks".equals(id)) {
+                if ("blocks".equals(id)) {
                     log.debug("No data for SG_Block found, creating empty SG_Block.");
                     rs.put(CType.BLOCKS, SgDynamicConfiguration.empty());
                     latch.countDown();
@@ -127,34 +127,36 @@ public class ConfigurationLoaderSG7 {
                     latch.countDown();
                 }
             }
-            
+
             @Override
             public void failure(Throwable t) {
-                log.error("Exception {} while retrieving configuration for {}  (index={})",t,t.toString(), Arrays.toString(events), searchguardIndex);
+                log.error("Exception {} while retrieving configuration for {}  (index={})", t, t.toString(), Arrays.toString(events),
+                        searchguardIndex);
             }
         });
-        
-        if(!latch.await(timeout, timeUnit)) {
+
+        if (!latch.await(timeout, timeUnit)) {
             //timeout
-            throw new TimeoutException("Timeout after "+timeout+""+timeUnit+" while retrieving configuration for "+Arrays.toString(events)+ "(index="+searchguardIndex+")");
+            throw new TimeoutException("Timeout after " + timeout + "" + timeUnit + " while retrieving configuration for " + Arrays.toString(events)
+                    + "(index=" + searchguardIndex + ")");
         }
-        
+
         return rs;
     }
-    
+
     void loadAsync(final CType[] events, final ConfigCallback callback) {
-        if(events == null || events.length == 0) {
+        if (events == null || events.length == 0) {
             log.warn("No config events requested to load");
             return;
         }
-        
+
         final MultiGetRequest mget = new MultiGetRequest();
 
         for (CType cType : events) {
             final String event = cType.toLCString();
             mget.add(searchguardIndex, event);
         }
-        
+
         mget.refresh(true);
         mget.realtime(true);
         
@@ -196,7 +198,7 @@ public class ConfigurationLoaderSG7 {
                     }
                 }
             }
-            
+
             @Override
             public void onFailure(Exception e) {
                 if (log.isTraceEnabled()) {
@@ -205,7 +207,7 @@ public class ConfigurationLoaderSG7 {
                 callback.failure(e);
             }
         });
-        
+
     }
 
     private SgDynamicConfiguration<?> toConfig(GetResponse singleGetResponse) throws Exception {
@@ -213,15 +215,15 @@ public class ConfigurationLoaderSG7 {
         final String id = singleGetResponse.getId();
         final long seqNo = singleGetResponse.getSeqNo();
         final long primaryTerm = singleGetResponse.getPrimaryTerm();
-        
-        
+        final long docVersion = singleGetResponse.getVersion();
 
         if (ref == null || ref.length() == 0) {
             log.error("Empty or null byte reference for {}", id);
             return null;
         }
 
-        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, ref, XContentType.JSON)) {
+        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, ref,
+                XContentType.JSON)) {
             parser.nextToken();
             parser.nextToken();
 
@@ -232,33 +234,7 @@ public class ConfigurationLoaderSG7 {
 
             parser.nextToken();
 
-            final String jsonAsString = SgUtils.replaceEnvVars(new String(parser.binaryValue()), settings);
-            final JsonNode jsonNode = DefaultObjectMapper.readTree(jsonAsString);
-            int configVersion = 1;
-
-            if (jsonNode.get("_sg_meta") != null) {
-                assert jsonNode.get("_sg_meta").get("type").asText().equals(id);
-                configVersion = jsonNode.get("_sg_meta").get("config_version").asInt();
-            }
-
-            if (log.isDebugEnabled()) {
-                log.debug("Load " + id + " with version " + configVersion);
-            }
-
-            if (CType.ACTIONGROUPS.toLCString().equals(id)) {
-                try {
-                    return SgDynamicConfiguration.fromJson(jsonAsString, CType.fromString(id), configVersion, seqNo, primaryTerm);
-                } catch (Exception e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Unable to load " + id + " with version " + configVersion + " - Try loading legacy format ...");
-                    }
-                    return SgDynamicConfiguration.fromJson(jsonAsString, CType.fromString(id), 0, seqNo, primaryTerm);
-                }
-            }
-
-            return SgDynamicConfiguration.fromJson(jsonAsString, CType.fromString(id), configVersion, seqNo, primaryTerm);
-
+            return SgDynamicConfiguration.fromJson(new String(parser.binaryValue()), CType.fromString(id), docVersion, seqNo, primaryTerm, settings);
         }
-        //ignore
     }
 }

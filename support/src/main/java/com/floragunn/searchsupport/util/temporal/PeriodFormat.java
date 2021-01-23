@@ -13,9 +13,9 @@ public class PeriodFormat {
 
     public static final PeriodFormat INSTANCE = new PeriodFormat();
 
-    static final String PATTERN_STRING = "((?<y>[0-9]+)y)?\\s* " //
+    static final String PATTERN_STRING = "((?<y>[0-9]+)y)?\\s*" //
             + "((?<M>[0-9]+)M)?\\s*" //
-            + "((?<pw>[0-9]+)w)?\\s* " //
+            + "((?<pw>[0-9]+)w)?\\s*" //
             + "((?<pd>[0-9]+)d)?\\s*";
 
     private final Pattern pattern = Pattern.compile(PATTERN_STRING);

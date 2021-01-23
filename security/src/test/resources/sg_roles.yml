@@ -1063,3 +1063,7 @@ sg_index_pattern_with_regex_attr_role:
     - "/attr_test_${user.attrs.pattern|toRegexFragment}/"
     allowed_actions:
     - "*"
+ 
+sg_create_auth_tokens:
+  cluster_permissions:
+    - 'cluster:admin:searchguard:authtoken/_own/*'

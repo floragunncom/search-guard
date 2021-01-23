@@ -181,6 +181,10 @@ public class PrivilegesEvaluator implements DCFListener {
         if (log.isDebugEnabled()) {
             log.debug("### evaluate permissions for {} on {}", user, clusterService.localNode().getName());
             log.debug("action: " + action0 + " (" + request.getClass().getSimpleName() + ")");
+            
+            if (specialPrivilegesEvaluationContext != null) {
+                log.debug("specialPrivilegesEvaluationContext: " + specialPrivilegesEvaluationContext);
+            }
         }
 
         final Resolved requestedResolved = irr.resolveRequest(request);
@@ -227,7 +231,6 @@ public class PrivilegesEvaluator implements DCFListener {
 
                     if (privilegesInterceptor.getClass() != PrivilegesInterceptor.class) {
 
-                        //TODO auth token
                         final Boolean replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user, dcm, requestedResolved,
                                 sgRoles, configModel);
 
@@ -625,12 +628,13 @@ public class PrivilegesEvaluator implements DCFListener {
     }
     
     public Map<String, Boolean> evaluateKibanaApplicationPrivileges(User user, TransportAddress caller, Collection<String> privilegesAskedFor) {
-
         if (privilegesAskedFor == null || privilegesAskedFor.isEmpty() || user == null) {
             log.debug("Privileges or user empty");
             return Collections.emptyMap();
         }
 
+        // Note: This does not take authtokens into account yet. However, as this is only an API for Kibana and Kibana does not use authtokens, 
+        // this does not really matter        
         Set<String> mappedRoles = mapSgRoles(user, caller);
         SgRoles sgRoles = getSgRoles(mappedRoles);
         String requestedTenant = getRequestedTenant(user);

@@ -14,9 +14,15 @@ public interface SpecialPrivilegesEvaluationContext {
 
     SgRoles getSgRoles();
     
-    TransportAddress getCaller();
+    default TransportAddress getCaller() {
+        return null;
+    }
     
     default boolean requiresPrivilegeEvaluationForLocalRequests() {
+        return false;
+    }
+    
+    default boolean isSgConfigRestApiAllowed() {
         return false;
     }
 }

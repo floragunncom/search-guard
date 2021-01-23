@@ -93,12 +93,24 @@ public class ProtectedConfigIndexService {
 
     private void createIndexNow(ConfigIndexState configIndex, ClusterState clusterState) {
 
+        if (log.isTraceEnabled()) {
+            log.trace("createIndexNow(" + configIndex + ")");
+        }
+        
         if (completedIndices.contains(configIndex)) {
+            if (log.isTraceEnabled()) {
+                log.trace(configIndex + " is already completed");
+            }
             return;
         }
 
         if (clusterState.getMetadata().getIndices().containsKey(configIndex.getName())) {
+            if (log.isTraceEnabled()) {
+                log.trace(configIndex + " does already exist.");
+            }
+            
             completedIndices.add(configIndex);
+            configIndex.setCreated(true);
 
             if (configIndex.getListener() != null) {
                 configIndex.waitForYellowStatus();
@@ -219,6 +231,10 @@ public class ProtectedConfigIndexService {
         }
 
         public void waitForYellowStatus() {
+            if (log.isTraceEnabled()) {
+                log.trace("waitForYellowStatus(" + this + ")");
+            }
+            
             client.admin().cluster().health(new ClusterHealthRequest(allIndices).waitForYellowStatus(), new ActionListener<ClusterHealthResponse>() {
 
                 @Override
@@ -231,6 +247,7 @@ public class ProtectedConfigIndexService {
                         }
 
                         threadPool.generic().submit(() -> tryOnIndexReady());
+
                         return;
                     }
 
@@ -268,6 +285,10 @@ public class ProtectedConfigIndexService {
 
         private void tryOnIndexReady() {
             try {
+                if (log.isTraceEnabled()) {
+                    log.trace("tryOnIndexReady(" + this + ")");
+                }
+                
                 listener.onIndexReady(new FailureListener() {
 
                     @Override

@@ -87,7 +87,8 @@ public class ConfigModelV7 extends ConfigModel {
 
     private static final Logger log = LogManager.getLogger(ConfigModelV7.class);
     private static final String KIBANA_ALL_SAVED_OBJECTS_WRITE = "kibana:saved_objects/*/write";
-    
+    private static final Set<String> KIBANA_ALL_SAVED_OBJECTS_WRITE_SET = ImmutableSet.of(KIBANA_ALL_SAVED_OBJECTS_WRITE);
+
 	private static boolean dfmEmptyOverridesAll;
 
     private ConfigConstants.RolesMappingResolution rolesMappingResolution;
@@ -704,7 +705,7 @@ public class ConfigModelV7 extends ConfigModel {
 
             if ("SGS_GLOBAL_TENANT".equals(requestedTenant) && permissions.isEmpty() && (roles.containsKey("sg_kibana_user") || roles.containsKey("SGS_KIBANA_USER")
                     || roles.containsKey("sg_all_access") || roles.containsKey("SGS_ALL_ACCESS"))) {
-                return FULL_TENANT_PERMISSIONS;
+                return RW_TENANT_PERMISSIONS;
             }
             
             return new TenantPermissionsImpl(permissions);
@@ -1794,7 +1795,7 @@ public class ConfigModelV7 extends ConfigModel {
         }
         
         public boolean isWritePermitted() {
-            return permissions.contains("kibana:saved_objects/*/write") || permissions.contains("*");
+            return permissions.contains(KIBANA_ALL_SAVED_OBJECTS_WRITE) || permissions.contains("*");
         }
 
         public Set<String> getPermissions() {
@@ -1803,6 +1804,26 @@ public class ConfigModelV7 extends ConfigModel {
     }
     
     private final static Set<String> SET_OF_EVERYTHING = ImmutableSet.of("*");
+    
+    
+    private static final TenantPermissions RW_TENANT_PERMISSIONS = new TenantPermissions() {
+        
+        
+        @Override
+        public boolean isWritePermitted() {
+            return true;
+        }
+        
+        @Override
+        public boolean isReadPermitted() {
+            return true;
+        }
+        
+        @Override
+        public Set<String> getPermissions() {
+            return KIBANA_ALL_SAVED_OBJECTS_WRITE_SET;
+        }
+    };
     
     private static final TenantPermissions FULL_TENANT_PERMISSIONS = new TenantPermissions() {
         

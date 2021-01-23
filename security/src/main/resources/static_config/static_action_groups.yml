@@ -250,6 +250,34 @@ SGS_CLUSTER_MANAGE_PIPELINES:
   type: "cluster"
   description: "Manage pipelines"
 
+### Auth Tokens
+
+SGS_CREATE_MANAGE_OWN_AUTH_TOKEN:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "cluster:admin:searchguard:authtoken/_own/create"
+  - "cluster:admin:searchguard:authtoken/_own/get"
+  - "cluster:admin:searchguard:authtoken/_own/revoke"
+  - "cluster:admin:searchguard:authtoken/_own/search"
+  type: "cluster"
+  description: "Allows a user to create and manage auth tokens for themselves"
+  
+SGS_MANAGE_ALL_AUTH_TOKEN:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "cluster:admin:searchguard:authtoken/_own/get"
+  - "cluster:admin:searchguard:authtoken/_own/revoke"
+  - "cluster:admin:searchguard:authtoken/_own/search"
+  - "cluster:admin:searchguard:authtoken/_all/get"
+  - "cluster:admin:searchguard:authtoken/_all/revoke"
+  - "cluster:admin:searchguard:authtoken/_all/search"
+  type: "cluster"
+  description: "Allows a user to manage auth tokens of all users"  
+
 ### Signals
 
 SGS_SIGNALS_ALL:

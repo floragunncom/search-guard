@@ -149,6 +149,24 @@ public class ValidatingJsonNode {
         }
     }
 
+    public long requiredLong(String attribute) {
+        consume(attribute);
+
+        if (jsonNode.hasNonNull(attribute)) {
+            JsonNode attributeNode = jsonNode.get(attribute);
+
+            if (attributeNode.isNumber()) {
+                return attributeNode.asLong();
+            } else {
+                validationErrors.add(new InvalidAttributeValue(attribute, attributeNode.toString(), "number", attributeNode));
+                return 0;
+            }
+        } else {
+            validationErrors.add(new MissingAttribute(attribute, jsonNode));
+            return 0;
+        }
+    }
+
     public BigDecimal requiredBigDecimal(String attribute) {
         consume(attribute);
 
@@ -326,6 +344,22 @@ public class ValidatingJsonNode {
         }
     }
 
+    public Long longNumber(String attribute, Long defaultValue) {
+        consume(attribute);
+
+        if (jsonNode.hasNonNull(attribute)) {
+            JsonNode attributeNode = jsonNode.get(attribute);
+
+            if (attributeNode.isNumber()) {
+                return attributeNode.asLong();
+            } else {
+                return defaultValue;
+            }
+        } else {
+            return defaultValue;
+        }
+    }
+
     public Boolean booleanAttribute(String attribute, Boolean defaultValue) {
         consume(attribute);
 
@@ -335,6 +369,23 @@ public class ValidatingJsonNode {
             if (attributeNode.isBoolean()) {
                 return attributeNode.asBoolean();
             } else {
+                return defaultValue;
+            }
+        } else {
+            return defaultValue;
+        }
+    }
+
+    public Boolean booleanAttributeStrict(String attribute, Boolean defaultValue) {
+        consume(attribute);
+
+        if (jsonNode.hasNonNull(attribute)) {
+            JsonNode attributeNode = jsonNode.get(attribute);
+
+            if (attributeNode.isBoolean()) {
+                return attributeNode.asBoolean();
+            } else {
+                validationErrors.add(new InvalidAttributeValue(attribute, jsonNode.get(attribute), "Must be true or false"));
                 return defaultValue;
             }
         } else {
@@ -363,7 +414,7 @@ public class ValidatingJsonNode {
             return null;
         }
     }
-    
+
     public List<String> stringList(String attribute) {
         return stringList(attribute, null);
     }
@@ -468,7 +519,6 @@ public class ValidatingJsonNode {
         }
     }
 
-    
     public TimeValue timeValue(String attribute) {
         consume(attribute);
 
@@ -647,6 +697,72 @@ public class ValidatingJsonNode {
             validationErrors.add(new InvalidAttributeValue(attribute, value, valueParser.getExpectedValue(), jsonNode).cause(e));
             return defaultValue;
         }
+    }
+
+    public <R> R requiredValue(String attribute, JsonNodeParser<R> valueParser) {
+        consume(attribute);
+
+        if (jsonNode.hasNonNull(attribute)) {
+            return value(attribute, valueParser, null);
+        } else {
+            validationErrors.add(new MissingAttribute(attribute, jsonNode));
+            return null;
+        }
+    }
+
+    public <R> R value(String attribute, JsonNodeParser<R> conversionFunction, R defaultValue) {
+        consume(attribute);
+
+        if (!jsonNode.hasNonNull(attribute)) {
+            return defaultValue;
+        }
+
+        JsonNode subNode = jsonNode.get(attribute);
+
+        try {
+            return conversionFunction.parse(subNode);
+        } catch (ConfigValidationException e) {
+            validationErrors.add(attribute, e.getValidationErrors());
+            return defaultValue;
+        } catch (Exception e) {
+            validationErrors.add(new InvalidAttributeValue(attribute, subNode, conversionFunction.getExpectedValue(), jsonNode).cause(e));
+            return defaultValue;
+        }
+    }
+
+    public <R> List<R> list(String attribute, JsonNodeParser<R> conversionFunction) {
+        return list(attribute, conversionFunction, Collections.emptyList());
+    }
+
+    public <R> List<R> list(String attribute, JsonNodeParser<R> conversionFunction, List<R> defaultValue) {
+        consume(attribute);
+
+        if (!jsonNode.hasNonNull(attribute)) {
+            return defaultValue;
+        }
+
+        JsonNode value = jsonNode.get(attribute);
+
+        if (!value.isArray()) {
+            validationErrors.add(new InvalidAttributeValue(attribute, value, "Array", jsonNode));
+            return defaultValue;
+        }
+
+        ArrayNode arrayNode = (ArrayNode) value;
+
+        List<R> result = new ArrayList<>(arrayNode.size());
+
+        for (JsonNode elementNode : arrayNode) {
+
+            try {
+                result.add(conversionFunction.parse(elementNode));
+            } catch (Exception e) {
+                validationErrors.add(new InvalidAttributeValue(attribute, value, null, jsonNode).cause(e));
+                return defaultValue;
+            }
+        }
+
+        return result;
     }
 
     public <E extends Enum<E>> E caseInsensitiveEnum(String attribute, Class<E> enumClass, E defaultValue) {

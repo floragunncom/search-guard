@@ -63,8 +63,6 @@ import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.CompatConfig;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
-import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
-import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider.AuthFromInternalAuthToken;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluatorResponse;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
@@ -159,7 +157,7 @@ public class SearchGuardFilter implements ActionFilter {
                 if (log.isDebugEnabled()) {
                     log.debug("userIsAdmin: " + userIsAdmin + "\n" + "interClusterRequest: " + interClusterRequest + "\ntrustedClusterRequest: "
                             + trustedClusterRequest + "\nconfRequest: " + confRequest + "\npassThroughRequest: " + passThroughRequest);
-                    log.debug("Getting auth from internal auth token.\nOld user: " + user + "\nNew auth: " + specialPrivilegesEvaluationContext);
+                    log.debug("Getting auth from specialPrivilegesEvaluationContext.\nOld user: " + user + "\nNew auth: " + specialPrivilegesEvaluationContext);
                     log.debug(threadContext.getHeaders());
                 }
 

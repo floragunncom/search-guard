@@ -84,8 +84,25 @@ sg_config:
           ###### see https://docs.oracle.com/javase/7/docs/api/java/util/regex/Pattern.html for regex help
           ###### more information about XFF https://en.wikipedia.org/wiki/X-Forwarded-For
           ###### and here https://tools.ietf.org/html/rfc7239
-          ###### and https://tomcat.apache.org/tomcat-8.0-doc/config/valve.html#Remote_IP_Valve
-            
+          ###### and https://tomcat.apache.org/tomcat-8.0-doc/config/valve.html#Remote_IP_Valve          
+      auth_token_provider: # NOT FREE FOR COMMERCIAL USE
+        # To enable using Search Guard auth tokens, you also need to enable the sg_issued_jwt_auth_domain below.
+        enabled: false
+        # JWTs produced by Search Guard are signed by default with a symmetric HMAC512 hash. For production systems, 
+        # you must replace the value specified here by your own key. You can generate a new key for example with:
+        #  openssl rand -base64 512 | tr '/+' '_-'
+        # If you want ot use another signature algorithm, you can specify a complete JWK using the attriubute jwt_signing_key.
+        # Refer to the documentation for details.
+        jwt_signing_key_hs512: "eTDZjSqRD9Abhod9iqeGX_7o93a-eElTeXWAF6FmzQshmRIrPD-C9ET3pFjJ_IBrzmWIZDk8ig-X_PIyGmKsxNMsrU-0BNWF5gJq5xOp4rYTl8z66Tw9wr8tHLxLxgJqkLSuUCRBZvlZlQ7jNdhBBxgM-hdSSzsN1T33qdIwhrUeJ-KXI5yKUXHjoWFYb9tETbYQ4NvONowkCsXK_flp-E3F_OcKe_z5iVUszAV8QfCod1zhbya540kDejXCL6N_XMmhWJqum7UJ3hgf6DEtroPSnVpHt4iR5w9ArKK-IBgluPght03gNcoNqwz7p77TFbdOmUKF_PWy1bcdbaUoSg"
+        # JWTs produced by Search Guard are unencrypted by default. Set a key here to activate encryption using AES Key Wrap.
+        # If you want ot use another signature algorithm, you can specify a complete JWK using the attriubute jwt_encryption_key.
+        # Refer to the documentation for details.
+        #jwt_encryption_key_a256kw: "..." 
+        # Specify the maximum time period an auth token may be valid. Omit max_validity to have keys with unlimited lifetime. 
+        # Note that when creating auth tokens, users can specify an even shorter time period.
+        max_validity: "1y"    
+        # This specifies the maximum number of valid tokens a user can have at the same time. 
+        max_tokens_per_user: 100
       authc:
         kerberos_auth_domain: 
           http_enabled: false
@@ -140,6 +157,17 @@ sg_config:
               subject_key: null
           authentication_backend:
             type: noop
+        sg_issued_jwt_auth_domain:
+          description: "Authenticate via Json Web Tokens issued by Search Guard"
+          http_enabled: false
+          # This auth domain is only available for HTTP
+          order: 1
+          http_authenticator:
+            type: sg_auth_token
+            challenge: false
+            # This auth domain automatically pulls configuration from the auth_token_provider config above
+          authentication_backend:
+            type: sg_auth_token   
         clientcert_auth_domain:
           description: "Authenticate via SSL client certificates"
           http_enabled: false

@@ -950,7 +950,7 @@ public class SearchGuardAdmin {
             id = _id;
             
             try {
-                ConfigHelper.fromYamlFile(filepath, CType.fromString(_id), 1, 0, 0);
+                ConfigHelper.fromYamlFile(filepath, CType.fromString(_id), 1);
             } catch (Exception e) {
                 System.out.println("ERR: Seems "+filepath+" is not in legacy format: "+e);
                 return false;
@@ -958,7 +958,7 @@ public class SearchGuardAdmin {
             
         } else {
             try {
-                ConfigHelper.fromYamlFile(filepath, CType.fromString(_id), 2, 0, 0);
+                ConfigHelper.fromYamlFile(filepath, CType.fromString(_id), 2);
             } catch (Exception e) {
                 System.out.println("ERR: Seems "+filepath+" is not in SG 7 format: "+e);
                 return false;
@@ -1013,14 +1013,14 @@ public class SearchGuardAdmin {
                 
                 if(legacy) {
                     try {
-                        ConfigHelper.fromYamlString(yaml, CType.fromString(_id), 1, 0, 0);
+                        ConfigHelper.fromYamlString(yaml, CType.fromString(_id), 1);
                     } catch (Exception e) {
                         System.out.println("ERR: Seems "+_id+" from cluster is not in legacy format: "+e);
                         return false;
                     }
                 } else {
                     try {
-                        ConfigHelper.fromYamlString(yaml, CType.fromString(_id), 2, 0, 0);
+                        ConfigHelper.fromYamlString(yaml, CType.fromString(_id), 2);
                     } catch (Exception e) {
                         System.out.println("ERR: Seems "+_id+" from cluster is not in SG 7 format: "+e);
                         return false;
@@ -1365,11 +1365,11 @@ public class SearchGuardAdmin {
         try {
 
             System.out.println("-> Migrate configuration to new format and store it here: "+v7Dir.getAbsolutePath());
-            SgDynamicConfiguration<ActionGroupsV7> actionGroupsV7 = Migration.migrateActionGroups(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_action_groups.yml")), CType.ACTIONGROUPS, 1, 0, 0));
-            SgDynamicConfiguration<ConfigV7> configV7 = Migration.migrateConfig(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_config.yml")), CType.CONFIG, 1, 0, 0));
-            SgDynamicConfiguration<InternalUserV7> internalUsersV7 = Migration.migrateInternalUsers(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_internal_users.yml")), CType.INTERNALUSERS, 1, 0, 0));
-            SgDynamicConfiguration<RoleMappingsV6> rolesmappingV6 = SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_roles_mapping.yml")), CType.ROLESMAPPING, 1, 0, 0);
-            Tuple<SgDynamicConfiguration<RoleV7>, SgDynamicConfiguration<TenantV7>> rolesTenantsV7 = Migration.migrateRoles(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_roles.yml")), CType.ROLES, 1, 0, 0), rolesmappingV6);
+            SgDynamicConfiguration<ActionGroupsV7> actionGroupsV7 = Migration.migrateActionGroups(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_action_groups.yml")), CType.ACTIONGROUPS, 1, 0, 0, 0));
+            SgDynamicConfiguration<ConfigV7> configV7 = Migration.migrateConfig(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_config.yml")), CType.CONFIG, 1, 0, 0, 0));
+            SgDynamicConfiguration<InternalUserV7> internalUsersV7 = Migration.migrateInternalUsers(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_internal_users.yml")), CType.INTERNALUSERS, 1, 0, 0, 0));
+            SgDynamicConfiguration<RoleMappingsV6> rolesmappingV6 = SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_roles_mapping.yml")), CType.ROLESMAPPING, 1, 0, 0, 0);
+            Tuple<SgDynamicConfiguration<RoleV7>, SgDynamicConfiguration<TenantV7>> rolesTenantsV7 = Migration.migrateRoles(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_roles.yml")), CType.ROLES, 1, 0, 0, 0), rolesmappingV6);
             SgDynamicConfiguration<RoleMappingsV7> rolesmappingV7 = Migration.migrateRoleMappings(rolesmappingV6);
             SgDynamicConfiguration<BlocksV7> blocksV7 = SgDynamicConfiguration.empty();
 
@@ -1432,7 +1432,7 @@ public class SearchGuardAdmin {
                     return -1;
                 }
                 
-                ConfigHelper.fromYamlFile(file, CType.fromString(type), version==7?2:1, 0, 0);
+                ConfigHelper.fromYamlFile(file, CType.fromString(type), version==7?2:1);
                 return 0;
             } catch (Exception e) {
                 System.out.println("ERR: Seems "+file+" is not in SG "+version+" format: "+e);
@@ -1462,7 +1462,7 @@ public class SearchGuardAdmin {
     
     private static boolean validateConfigFile(String file, CType cType, int version) {
         try {
-            ConfigHelper.fromYamlFile(file, cType, version==7?2:1, 0, 0);
+            ConfigHelper.fromYamlFile(file, cType, version==7?2:1);
             System.out.println(file+" OK" );
             return true;
         } catch (Exception e) {

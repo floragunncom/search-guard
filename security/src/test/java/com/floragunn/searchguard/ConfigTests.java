@@ -108,8 +108,8 @@ public class ConfigTests {
         SgDynamicConfiguration<?> dc = load(file, cType);
         Assert.assertNotNull(dc);
         String jsonSerialize = DefaultObjectMapper.objectMapper.writeValueAsString(dc);
-        SgDynamicConfiguration<?> conf = SgDynamicConfiguration.fromJson(jsonSerialize, cType, configVersion, 0, 0);
-        SgDynamicConfiguration.fromJson(Strings.toString(conf), cType, configVersion, 0, 0);
+        SgDynamicConfiguration<?> conf = SgDynamicConfiguration.fromJson(jsonSerialize, null, cType, configVersion, 0, 0, 0);
+        SgDynamicConfiguration.fromJson(Strings.toString(conf), null, cType, configVersion, 0, 0, 0);
     }
     
     private SgDynamicConfiguration<?> load(String file, CType cType) throws Exception {
@@ -121,6 +121,6 @@ public class ConfigTests {
             configVersion = jsonNode.get("_sg_meta").get("config_version").asInt();
         }
         
-        return SgDynamicConfiguration.fromNode(jsonNode, cType, configVersion, 0, 0);
+        return SgDynamicConfiguration.fromNode(jsonNode, cType, configVersion, 0l, 0l, 0l);
     }
 }
