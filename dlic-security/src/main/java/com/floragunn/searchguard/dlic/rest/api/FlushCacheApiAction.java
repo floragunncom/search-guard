@@ -39,6 +39,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.NoOpValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -48,9 +49,12 @@ public class FlushCacheApiAction extends AbstractApiAction {
 
     @Inject
     public FlushCacheApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
-            final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor,
-            final PrivilegesEvaluator evaluator, ThreadPool threadPool, AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, evaluator, threadPool, auditLog);
+            final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs,
+            final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
+            AuditLog auditLog) {
+        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, evaluator,
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
     }
 
     @Override

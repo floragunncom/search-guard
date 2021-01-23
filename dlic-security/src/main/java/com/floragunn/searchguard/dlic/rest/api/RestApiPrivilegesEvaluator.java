@@ -39,19 +39,21 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
-// TODO: Make Singleton?
 public class RestApiPrivilegesEvaluator {
 
 	protected final Logger logger = LogManager.getLogger(this.getClass());
 
 	private final AdminDNs adminDNs;
 	private final PrivilegesEvaluator privilegesEvaluator;
+	private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
 	private final PrincipalExtractor principalExtractor;
 	private final Path configPath;
 	private final ThreadPool threadPool;
@@ -75,8 +77,9 @@ public class RestApiPrivilegesEvaluator {
 
 	private final Boolean roleBasedAccessEnabled;
 
-	public RestApiPrivilegesEvaluator(Settings settings, AdminDNs adminDNs, PrivilegesEvaluator privilegesEvaluator, PrincipalExtractor principalExtractor, Path configPath,
-			ThreadPool threadPool) {
+    public RestApiPrivilegesEvaluator(Settings settings, AdminDNs adminDNs, PrivilegesEvaluator privilegesEvaluator,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
+            PrincipalExtractor principalExtractor, Path configPath, ThreadPool threadPool) {
 
 		this.adminDNs = adminDNs;
 		this.privilegesEvaluator = privilegesEvaluator;
@@ -84,7 +87,8 @@ public class RestApiPrivilegesEvaluator {
 		this.configPath = configPath;
 		this.threadPool = threadPool;
 		this.settings = settings;
-
+		this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
+		
 		// set up
 		
 		// all endpoints and methods
@@ -231,15 +235,17 @@ public class RestApiPrivilegesEvaluator {
 		return constructAccessErrorMessage(roleBasedAccessFailureReason, certBasedAccessFailureReason);
 	}
 
-	public Boolean currentUserHasRestApiAccess(Set<String> userRoles) {
+	public boolean currentUserHasRestApiAccess(Set<String> userRoles) {
 
 		// check if user has any role that grants access
 		return !Collections.disjoint(allowedRoles, userRoles);
 
 	}
 
-	public Map<Endpoint, List<Method>> getDisabledEndpointsForCurrentUser(String userPrincipal, Set<String> userRoles) {
+	public Map<Endpoint, List<Method>> getDisabledEndpointsForCurrentUser(User user, Set<String> userRoles) {
 		
+	    String userPrincipal = user.getName();
+	    
 		// cache
 		if (disabledEndpointsForUsers.containsKey(userPrincipal)) {
 			return disabledEndpointsForUsers.get(userPrincipal);
@@ -336,12 +342,32 @@ public class RestApiPrivilegesEvaluator {
 		// and that the role has also access to this endpoint.
 		if (this.roleBasedAccessEnabled) {
 
-			// get current user and roles
-			final User user = (User) threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
-			final TransportAddress remoteAddress = (TransportAddress) threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+            // get current user and roles
+            User user = (User) threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
+            SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = null;
 
-			// map the users SG roles
-			Set<String> userRoles = privilegesEvaluator.mapSgRoles(user, remoteAddress);
+            if (specialPrivilegesEvaluationContextProviderRegistry != null) {
+                specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.provide(user, threadPool.getThreadContext());
+            }
+
+            TransportAddress remoteAddress;
+            Set<String> userRoles;
+
+            if (specialPrivilegesEvaluationContext == null) {
+                remoteAddress = (TransportAddress) threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+                userRoles = privilegesEvaluator.mapSgRoles(user, remoteAddress);
+            } else {
+                user = specialPrivilegesEvaluationContext.getUser();
+                remoteAddress = specialPrivilegesEvaluationContext.getCaller() != null ? specialPrivilegesEvaluationContext.getCaller()
+                        : (TransportAddress) threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+                userRoles = specialPrivilegesEvaluationContext.getMappedRoles();
+               
+                
+                if (!specialPrivilegesEvaluationContext.isSgConfigRestApiAllowed()) {
+                    logger.info("User {} is authenticated with auth token which does not allow REST API access.", user, userRoles);
+                    return "User " + user.getName() + " is authenticated with auth token which does not allow REST API access.";
+                }
+            }
 
 			// check if user has any role that grants access
 			if (currentUserHasRestApiAccess(userRoles)) {
@@ -349,7 +375,7 @@ public class RestApiPrivilegesEvaluator {
 				// multiple roles, the endpoint
 				// needs to be disabled in all roles.
 
-				Map<Endpoint, List<Method>> disabledEndpointsForUser = getDisabledEndpointsForCurrentUser(user.getName(), userRoles);
+				Map<Endpoint, List<Method>> disabledEndpointsForUser = getDisabledEndpointsForCurrentUser(user, userRoles);
 
 				if (logger.isDebugEnabled()) {
 					logger.debug("Disabled endpoints for user {} : {} ", user, disabledEndpointsForUser);

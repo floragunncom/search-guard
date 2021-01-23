@@ -40,6 +40,8 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
@@ -53,15 +55,19 @@ public class PermissionsInfoAction extends BaseRestHandler {
     private final RestApiPrivilegesEvaluator restApiPrivilegesEvaluator;
     private final ThreadPool threadPool;
     private final PrivilegesEvaluator privilegesEvaluator;
+    private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
 
     protected PermissionsInfoAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
             final AdminDNs adminDNs, final ConfigurationRepository cl, final ClusterService cs, final PrincipalExtractor principalExtractor,
-            final PrivilegesEvaluator privilegesEvaluator, ThreadPool threadPool, AuditLog auditLog) {
+            final PrivilegesEvaluator privilegesEvaluator,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
+            AuditLog auditLog) {
         super();
         this.threadPool = threadPool;
         this.privilegesEvaluator = privilegesEvaluator;
-        this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, privilegesEvaluator, principalExtractor, configPath,
-                threadPool);
+        this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, privilegesEvaluator,
+                specialPrivilegesEvaluationContextProviderRegistry, principalExtractor, configPath, threadPool);
+        this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
     }
 
     @Override
@@ -95,12 +101,31 @@ public class PermissionsInfoAction extends BaseRestHandler {
 
                 try {
 
-                    final User user = (User) threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
-                    final TransportAddress remoteAddress = (TransportAddress) threadPool.getThreadContext()
-                            .getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-                    Set<String> userRoles = privilegesEvaluator.mapSgRoles(user, remoteAddress);
-                    Boolean hasApiAccess = restApiPrivilegesEvaluator.currentUserHasRestApiAccess(userRoles);
-                    Map<Endpoint, List<Method>> disabledEndpoints = restApiPrivilegesEvaluator.getDisabledEndpointsForCurrentUser(user.getName(),
+                    User user = (User) threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
+                    SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = null;
+
+                    if (specialPrivilegesEvaluationContextProviderRegistry != null) {
+                        specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.provide(user, threadPool.getThreadContext());
+                    }
+
+                    TransportAddress remoteAddress;
+                    Set<String> userRoles;
+                    boolean hasApiAccess = true;
+                    
+                    if (specialPrivilegesEvaluationContext == null) {
+                        remoteAddress = (TransportAddress) threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+                        userRoles = privilegesEvaluator.mapSgRoles(user, remoteAddress);
+                    } else {
+                        user = specialPrivilegesEvaluationContext.getUser();
+                        remoteAddress = specialPrivilegesEvaluationContext.getCaller() != null ? specialPrivilegesEvaluationContext.getCaller()
+                                : (TransportAddress) threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+                        userRoles = specialPrivilegesEvaluationContext.getMappedRoles();
+                        hasApiAccess = specialPrivilegesEvaluationContext.isSgConfigRestApiAllowed();
+                    }
+
+                    
+                    hasApiAccess = hasApiAccess && restApiPrivilegesEvaluator.currentUserHasRestApiAccess(userRoles);
+                    Map<Endpoint, List<Method>> disabledEndpoints = restApiPrivilegesEvaluator.getDisabledEndpointsForCurrentUser(user,
                             userRoles);
 
                     builder.startObject();

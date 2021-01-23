@@ -67,7 +67,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
     private Configuration jsonPathConfig;
     private Map<String, JsonPath> attributeMapping;
 
-    public AbstractHTTPJwtAuthenticator(Settings settings, Path configPath) {
+    protected AbstractHTTPJwtAuthenticator(Settings settings, Path configPath) {
         jwtUrlParameter = settings.get("jwt_url_parameter");
         jwtHeaderName = settings.get("jwt_header", "Authorization");
         rolesKey = settings.get("roles_key");
@@ -83,16 +83,15 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         }
 
         if ((subjectKey != null && jsonSubjectPath != null) || (rolesKey != null && jsonRolesPath != null)) {
-            throw new IllegalStateException("Both, subject_key and subject_path or roles_key and roles_path have simultaneously provided." +
-                    " Please provide only one combination.");
+            throw new IllegalStateException("Both, subject_key and subject_path or roles_key and roles_path have simultaneously provided."
+                    + " Please provide only one combination.");
         }
         jsonPathConfig = Configuration.builder().options(Option.ALWAYS_RETURN_LIST).build();
         attributeMapping = UserAttributes.getAttributeMapping(settings.getAsSettings("map_claims_to_user_attrs"));
     }
 
     @Override
-    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context)
-            throws ElasticsearchSecurityException {
+    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
         final SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
@@ -188,8 +187,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
             // We expect a String. If we find something else, convert to String but issue a
             // warning
             if (!(subjectObject instanceof String)) {
-                log.warn(
-                        "Expected type String for roles in the JWT for subject_key {}, but value was '{}' ({}). Will convert this value to String.",
+                log.warn("Expected type String for roles in the JWT for subject_key {}, but value was '{}' ({}). Will convert this value to String.",
                         subjectKey, subjectObject, subjectObject.getClass());
                 subject = String.valueOf(subjectObject);
             } else {
@@ -224,8 +222,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         Object rolesObject = claims.getClaim(rolesKey);
 
         if (rolesObject == null) {
-            log.warn(
-                    "Failed to get roles from JWT claims with roles_key '{}'. Check if this key is correct and available in the JWT payload.",
+            log.warn("Failed to get roles from JWT claims with roles_key '{}'. Check if this key is correct and available in the JWT payload.",
                     rolesKey);
             return new String[0];
         }
