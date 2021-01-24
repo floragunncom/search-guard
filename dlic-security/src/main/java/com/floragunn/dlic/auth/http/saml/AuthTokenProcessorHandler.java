@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathExpressionException;
@@ -87,6 +88,7 @@ class AuthTokenProcessorHandler {
     private ExpiryBaseValue expiryBaseValue = ExpiryBaseValue.AUTO;
     private JsonWebKey signingKey;
     private JsonMapObjectReaderWriter jsonMapReaderWriter = new JsonMapObjectReaderWriter();
+    private Pattern subjectPattern;
 
     AuthTokenProcessorHandler(Settings settings, Settings jwtSettings, Saml2SettingsProvider saml2SettingsProvider) throws Exception {
         this.saml2SettingsProvider = saml2SettingsProvider;
@@ -98,6 +100,8 @@ class AuthTokenProcessorHandler {
         this.samlSubjectKey = settings.get("subject_key");
         this.samlRolesSeparator = settings.get("roles_seperator");
         this.kibanaRootUrl = settings.get("kibana_url");
+
+        this.subjectPattern = getSubjectPattern(settings);
 
         if (samlRolesKey == null || samlRolesKey.length() == 0) {
             log.warn("roles_key is not configured, will only extract subject from SAML");
@@ -371,7 +375,7 @@ class AuthTokenProcessorHandler {
 
     private String extractSubject(SamlResponse samlResponse) throws Exception {
         if (this.samlSubjectKey == null) {
-            return samlResponse.getNameId();
+            return applySubjectPattern(samlResponse.getNameId());
         }
 
         List<String> values = samlResponse.getAttributes().get(this.samlSubjectKey);
@@ -380,9 +384,46 @@ class AuthTokenProcessorHandler {
             return null;
         }
 
-        return values.get(0);
+        return applySubjectPattern(values.get(0));
     }
 
+    private String applySubjectPattern(String subject) {
+        if (subject == null) {
+            return null;
+        }
+        
+        if (subjectPattern == null) {
+            return subject;
+        }
+
+        Matcher matcher = subjectPattern.matcher(subject);
+
+        if (!matcher.matches()) {
+            log.warn("Subject " + subject + " does not match subject_pattern " + subjectPattern);
+            return null;
+        }
+
+        if (matcher.groupCount() == 1) {
+            subject = matcher.group(1);
+        } else if (matcher.groupCount() > 1) {
+            StringBuilder subjectBuilder = new StringBuilder();
+
+            for (int i = 1; i <= matcher.groupCount(); i++) {
+                if (matcher.group(i) != null) {
+                    subjectBuilder.append(matcher.group(i));
+                }
+            }
+
+            if (subjectBuilder.length() != 0) {
+                subject = subjectBuilder.toString();
+            } else {
+                subject = null;
+            }
+        }
+        
+        return subject;        
+    }
+    
     private String[] extractRoles(SamlResponse samlResponse) throws XPathExpressionException, ValidationError {
         if (this.samlRolesKey == null) {
             return new String[0];
@@ -537,6 +578,21 @@ class AuthTokenProcessorHandler {
             return null;
         }
 
+    }
+
+    private static Pattern getSubjectPattern(Settings settings) {
+        String patternString = settings.get("subject_pattern");
+
+        if (patternString == null) {
+            return null;
+        }
+
+        try {
+            return Pattern.compile(patternString);
+        } catch (PatternSyntaxException e) {
+            log.error("Invalid regular expression for subject_pattern: " + patternString, e);
+            return null;
+        }
     }
 
 }

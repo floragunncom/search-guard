@@ -437,7 +437,7 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
         }
 
     }
-
+    
     private enum IdpEndpointType {
         SSO, SLO
     }
