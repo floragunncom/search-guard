@@ -660,4 +660,20 @@ public class HTTPJwtAuthenticatorTest {
 
     }
 
+    @Test
+    public void testSubjectPattern() throws Exception {
+        Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).put("subject_pattern", "^(.+)@(?:.+)$")
+                .build();
+
+        String jwsToken = Jwts.builder().setSubject("leonard@mccoy.com").setAudience("myaud")
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+
+        HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Authorization", "Bearer " + jwsToken);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
+        Assert.assertNotNull(creds);
+        Assert.assertEquals("leonard", creds.getUsername());
+    }
 }

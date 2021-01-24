@@ -28,6 +28,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -58,7 +61,7 @@ import net.minidev.json.JSONArray;
 public class HTTPJwtAuthenticator implements HTTPAuthenticator {
 
     
-    protected final Logger log = LogManager.getLogger(this.getClass());
+    private static final Logger log = LogManager.getLogger(HTTPJwtAuthenticator.class);
     
     private static final String BEARER = "bearer ";
     private final JwtParser jwtParser;
@@ -70,9 +73,12 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
     private final String jsonRolesPath;
     private Configuration jsonPathConfig;
     private Map<String, JsonPath> attributeMapping;
+    private final Pattern subjectPattern;
 
     public HTTPJwtAuthenticator(final Settings settings, final Path configPath) {
         super();
+        
+        subjectPattern = getSubjectPattern(settings);
 
         JwtParser _jwtParser = null;
         
@@ -232,6 +238,34 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
                 log.error("The provided JSON path {} could not be found ", jsonSubjectPath);
             }
         }
+        
+        if (subject != null && subjectPattern != null) {
+            Matcher matcher = subjectPattern.matcher(subject);
+            
+            if (!matcher.matches()) {
+                log.warn("Subject " + subject + " does not match subject_pattern " + subjectPattern);
+                return null;
+            }
+            
+            if (matcher.groupCount() == 1) {
+                subject = matcher.group(1);
+            } else if (matcher.groupCount() > 1) {
+                StringBuilder subjectBuilder = new StringBuilder();
+                
+                for (int i = 1; i <= matcher.groupCount(); i++) {
+                    if (matcher.group(i) != null) {
+                        subjectBuilder.append(matcher.group(i));
+                    }
+                }
+                
+                if (subjectBuilder.length() != 0) {
+                    subject = subjectBuilder.toString();
+                } else {
+                    subject = null;
+                }
+            }
+        }
+        
         return subject;
     }
     
@@ -295,6 +329,22 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
         }
 
         return roles;
+    }
+    
+
+    private static Pattern getSubjectPattern(Settings settings) {
+        String patternString = settings.get("subject_pattern");
+
+        if (patternString == null) {
+            return null;
+        }
+
+        try {
+            return Pattern.compile(patternString);
+        } catch (PatternSyntaxException e) {
+            log.error("Invalid regular expression for subject_pattern: " + patternString, e);
+            return null;
+        }
     }
    
 }
