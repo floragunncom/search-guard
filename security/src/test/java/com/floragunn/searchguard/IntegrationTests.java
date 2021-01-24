@@ -876,6 +876,19 @@ public class IntegrationTests extends SingleClusterTest {
         res = rh.executePostRequest("searchguard/_freeze", "",encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertTrue(res.getStatusCode() >= 400);
 
+        String bulkBody = "{ \"index\" : { \"_index\" : \"searchguard\", \"_id\" : \"1\" } }\n" //
+                + "{ \"field1\" : \"value1\" }\n"//
+                + "{ \"index\" : { \"_index\" : \"searchguard\", \"_id\" : \"2\" } }\n" //
+                + "{ \"field2\" : \"value2\" }\n"//
+                + "{ \"index\" : { \"_index\" : \"myindex\", \"_id\" : \"2\" } }\n" //
+                + "{ \"field2\" : \"value2\" }\n" //
+                + "{ \"delete\" : { \"_index\" : \"searchguard\", \"_id\" : \"config\" } }\n";
+        res = rh.executePostRequest("_bulk?refresh=true&pretty", bulkBody, encodeBasicHeader("nagilum", "nagilum"));
+        System.out.println(res.getBody());
+        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        
+        Assert.assertEquals(4, res.getBody().split("\"status\" : 403,").length);
+
     }
     
     @Test

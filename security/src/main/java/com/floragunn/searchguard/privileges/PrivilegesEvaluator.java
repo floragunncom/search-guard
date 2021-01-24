@@ -43,6 +43,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsReques
 import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkItemRequest;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteAction;
 import org.elasticsearch.action.get.MultiGetAction;
@@ -186,6 +187,25 @@ public class PrivilegesEvaluator implements DCFListener {
                 log.debug("specialPrivilegesEvaluationContext: " + specialPrivilegesEvaluationContext);
             }
         }
+        
+        if (request instanceof BulkRequest && (com.google.common.base.Strings.isNullOrEmpty(user.getRequestedTenant()))) {
+            // Shortcut for bulk actions. The details are checked on the lower level of the BulkShardRequests (Action indices:data/write/bulk[s]).
+            // This shortcut is only possible if the default tenant is selected, as we might need to rewrite the request for non-default tenants.
+            // No further access check for the default tenant is necessary, as access will be also checked on the TransportShardBulkAction level.
+            
+            if (!sgRoles.impliesClusterPermissionPermission(action0)) {
+                presponse.missingPrivileges.add(action0);
+                presponse.allowed = false;
+                log.info("No {}-level perm match for {} [Action [{}]] [RolesChecked {}]", "cluster", user, action0,
+                        sgRoles.getRoleNames());
+                log.info("No permissions for {}", presponse.missingPrivileges);
+                return presponse;
+            } else {
+                presponse.allowed = true;
+                return presponse;
+            }
+        }
+        
 
         final Resolved requestedResolved = irr.resolveRequest(request);
 
