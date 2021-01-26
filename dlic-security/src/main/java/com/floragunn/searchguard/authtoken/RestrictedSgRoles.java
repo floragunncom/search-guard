@@ -97,6 +97,11 @@ public class RestrictedSgRoles extends SgRoles {
 
         return restrictedPermission && basePermission;
     }
+    
+    @Override
+    public Set<String> getClusterPermissions(User user) {
+        return Sets.intersection(base.getClusterPermissions(user), restrictionSgRoles.getClusterPermissions(user));
+    }
 
     @Override
     public boolean get(Resolved requestedResolved, User user, String[] allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
@@ -205,5 +210,7 @@ public class RestrictedSgRoles extends SgRoles {
 
         return result;
     }
+
+  
 
 }
