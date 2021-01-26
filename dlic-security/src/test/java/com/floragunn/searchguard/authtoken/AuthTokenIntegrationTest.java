@@ -843,6 +843,14 @@ public class AuthTokenIntegrationTest {
 
     }
 
+    @Test
+    public void infoApiTest() throws Exception {
+        HttpResponse response = rh.executeGetRequest("/_searchguard/authtoken/_info", basicAuth("admin", "admin"));
+        
+        Assert.assertEquals(200, response.getStatusCode());
+        Assert.assertTrue(response.getBody(), response.toJsonNode().get("enabled").asBoolean());
+    }
+    
     private static String getJwtHeaderValue(String jwt, String headerName) throws IOException {
         int p = jwt.indexOf('.');
         String headerBase4 = jwt.substring(0, p);

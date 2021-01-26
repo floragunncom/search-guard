@@ -850,4 +850,12 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         this.sendTokenUpdates = sendTokenUpdates;
     }
 
+    public AuthTokenServiceConfig getConfig() {
+        return config;
+    }
+
+    public boolean isInitialized() {
+        return initialized;
+    }
+
 }
