@@ -155,6 +155,7 @@ SGS_KIBANA_SERVER:
   - "indices:admin/template*"
   - "indices:data/read/scroll*"
   - "SGS_CLUSTER_MANAGE_ILM"
+  - "cluster:admin:searchguard:authtoken/info"
   index_permissions:
   - index_patterns:
     - ".kibana"

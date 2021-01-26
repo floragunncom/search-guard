@@ -261,6 +261,7 @@ SGS_CREATE_MANAGE_OWN_AUTH_TOKEN:
   - "cluster:admin:searchguard:authtoken/_own/get"
   - "cluster:admin:searchguard:authtoken/_own/revoke"
   - "cluster:admin:searchguard:authtoken/_own/search"
+  - "cluster:admin:searchguard:authtoken/info"
   type: "cluster"
   description: "Allows a user to create and manage auth tokens for themselves"
   
@@ -275,6 +276,7 @@ SGS_MANAGE_ALL_AUTH_TOKEN:
   - "cluster:admin:searchguard:authtoken/_all/get"
   - "cluster:admin:searchguard:authtoken/_all/revoke"
   - "cluster:admin:searchguard:authtoken/_all/search"
+  - "cluster:admin:searchguard:authtoken/info"
   type: "cluster"
   description: "Allows a user to manage auth tokens of all users"  
 
