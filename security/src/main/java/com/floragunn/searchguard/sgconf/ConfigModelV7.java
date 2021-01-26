@@ -740,7 +740,7 @@ public class ConfigModelV7 extends ConfigModel {
 
                     for (String tenantName : allTenantNames) {
 
-                        if (WildcardMatcher.match(tenantName, tenantPattern)) {
+                        if (WildcardMatcher.match(tenantPattern, tenantName)) {
 
                             if (rw || !result.containsKey(tenantName)) { //RW outperforms RO
                                 result.put(tenantName, rw);
