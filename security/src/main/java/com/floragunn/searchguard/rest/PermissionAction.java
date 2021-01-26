@@ -72,7 +72,7 @@ public class PermissionAction extends BaseRestHandler {
                 TransportAddress caller = Objects.requireNonNull(
                         (TransportAddress) threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
 
-                Map<String, Boolean> evaluationResult = evaluator.evaluateKibanaApplicationPrivileges(user, caller,
+                Map<String, Boolean> evaluationResult = evaluator.evaluateClusterAndTenantPrivileges(user, caller,
                         permissions);
                 
                 try (XContentBuilder builder = channel.newBuilder()) {

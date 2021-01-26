@@ -647,7 +647,7 @@ public class PrivilegesEvaluator implements DCFListener {
         return sgRoles.mapTenants(user, this.configModel.getAllConfiguredTenantNames());
     }
     
-    public Map<String, Boolean> evaluateKibanaApplicationPrivileges(User user, TransportAddress caller, Collection<String> privilegesAskedFor) {
+    public Map<String, Boolean> evaluateClusterAndTenantPrivileges(User user, TransportAddress caller, Collection<String> privilegesAskedFor) {
         if (privilegesAskedFor == null || privilegesAskedFor.isEmpty() || user == null) {
             log.debug("Privileges or user empty");
             return Collections.emptyMap();
@@ -658,16 +658,20 @@ public class PrivilegesEvaluator implements DCFListener {
         Set<String> mappedRoles = mapSgRoles(user, caller);
         SgRoles sgRoles = getSgRoles(mappedRoles);
         String requestedTenant = getRequestedTenant(user);
+        Set<String> privilegesGranted = new HashSet<>();
         
-        if (!configModel.isTenantValid(requestedTenant)) {
+        if (configModel.isTenantValid(requestedTenant)) {
+            privilegesGranted.addAll(sgRoles.getTenantPermissions(user, requestedTenant).getPermissions());
+        } else {
             log.info("Invalid tenant: " + requestedTenant + "; user: " + user);
-            return Collections.emptyMap();
         }
+        
+        privilegesGranted.addAll(sgRoles.getClusterPermissions(user));
 
-        return evaluateTenantPrivileges(sgRoles.getTenantPermissions(user, requestedTenant).getPermissions(), privilegesAskedFor);
+        return matchPrivileges(privilegesGranted, privilegesAskedFor);
     }
 
-    private Map<String, Boolean> evaluateTenantPrivileges(Set<String> privilegesGranted, Collection<String> privilegesAskedFor) {
+    private Map<String, Boolean> matchPrivileges(Set<String> privilegesGranted, Collection<String> privilegesAskedFor) {
         log.debug(() -> "Check " + privilegesGranted + " against " + privilegesAskedFor);
         final Map<String, Boolean> result = new HashMap<>();
         for (String privilegeAskedFor : privilegesAskedFor) {

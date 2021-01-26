@@ -36,6 +36,9 @@ public abstract class SgRoles implements ToXContentObject {
     public abstract SgRoles filter(Set<String> roles);
 
     public abstract TenantPermissions getTenantPermissions(User user, String requestedTenant);
+    
+    public abstract Set<String> getClusterPermissions(User user);
+    
     public abstract boolean hasTenantPermission(User user, String requestedTenant, String action);
     
     /**

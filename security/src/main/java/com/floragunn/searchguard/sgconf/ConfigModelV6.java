@@ -52,6 +52,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.ConfigModelV7.SgRole;
 import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v6.ActionGroupsV6;
@@ -527,6 +528,18 @@ public class ConfigModelV6 extends ConfigModel {
             return ConfigModelV6.impliesTypePerm(ipatterns, resolved, user, actions, resolver, cs);
         }
 
+
+        @Override
+        public Set<String> getClusterPermissions(User user) {
+            Set<String> result = new HashSet<>();
+
+            for (SgRole role : roles.values()) {
+                result.addAll(role.getClusterPerms());
+            }
+            
+            return result;
+        }
+        
         @Override
         public TenantPermissions getTenantPermissions(User user, String requestedTenant) {
             if (user == null) {

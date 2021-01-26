@@ -6,6 +6,7 @@ import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -67,6 +68,8 @@ public class PrivilegesEvaluatorTest {
                     new Role("exclusion_test_user_cluster_permission_role").clusterPermissions("*")
                             .excludeClusterPermissions("indices:data/read/msearch").indexPermissions("*").on("exclude_test_*")
                             .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
+            .user("admin", "admin", new Role("admin_role").clusterPermissions("*"))//
+            .user("permssion_rest_api_user", "secret", new Role("permssion_rest_api_user_role").clusterPermissions("indices:data/read/mtv"))//
             .build();
 
     @ClassRule
@@ -373,6 +376,30 @@ public class PrivilegesEvaluatorTest {
         httpResponse = rh.executePostRequest("/exclude_test_*/_msearch", "{}\n{\"query\": {\"match_all\": {}}}\n",
                 basicAuth("exclusion_test_user_cluster_permission", "secret"));
         Assert.assertThat(httpResponse, isForbidden());
+    }
+
+    @Test
+    public void evaluateClusterAndTenantPrivileges() throws Exception {
+        RestHelper rh = cluster.restHelper();
+
+        HttpResponse httpResponse = rh.executeGetRequest("/_searchguard/permission?permissions=indices:data/read/mtv,indices:data/read/viva",
+                basicAuth("admin", "admin"));
+
+        Assert.assertThat(httpResponse, isOk());
+        Assert.assertThat(httpResponse,
+                json(nodeAt("permissions['indices:data/read/mtv']", equalTo(true))));
+        Assert.assertThat(httpResponse,
+                json(nodeAt("permissions['indices:data/read/viva']", equalTo(true))));
+
+        httpResponse = rh.executeGetRequest("/_searchguard/permission?permissions=indices:data/read/mtv,indices:data/read/viva",
+                basicAuth("permssion_rest_api_user", "secret"));
+
+        Assert.assertThat(httpResponse, isOk());
+        Assert.assertThat(httpResponse,
+                json(nodeAt("permissions['indices:data/read/mtv']", equalTo(true))));
+        Assert.assertThat(httpResponse,
+                json(nodeAt("permissions['indices:data/read/viva']", equalTo(false))));
+        
     }
 
     private static Header basicAuth(String username, String password) {

@@ -681,6 +681,18 @@ public class ConfigModelV7 extends ConfigModel {
             return ConfigModelV7.impliesTypePerm(ipatterns, resolved, user, actions, resolver, cs);
         }
         
+
+        @Override
+        public Set<String> getClusterPermissions(User user) {
+            Set<String> result = new HashSet<>();
+
+            for (SgRole role : roles.values()) {
+                result.addAll(role.getClusterPerms());
+            }
+            
+            return result;
+        }
+        
         @Override
         public TenantPermissions getTenantPermissions(User user, String requestedTenant) {
             if (user == null) {
@@ -799,6 +811,7 @@ public class ConfigModelV7 extends ConfigModel {
             builder.endObject();
             return builder;
         }
+
     }
 
     public static class SgRole implements ToXContentObject {
