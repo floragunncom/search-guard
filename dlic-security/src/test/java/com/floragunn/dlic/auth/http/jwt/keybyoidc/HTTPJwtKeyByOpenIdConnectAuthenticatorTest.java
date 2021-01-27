@@ -288,6 +288,23 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         Assert.assertEquals(0, creds.getBackendRoles().size());
         Assert.assertEquals(3, creds.getAttributes().size());
     }
+    
+    @Test
+    public void testSubjectPattern() {
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).put("subject_pattern", "^(.)(?:.*)$").build();
+
+        HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(
+                new FakeRestRequest(ImmutableMap.of("Authorization", TestJwts.MC_COY_SIGNED_OCT_1), new HashMap<String, String>()), null);
+
+        Assert.assertNotNull(creds);
+        Assert.assertEquals(TestJwts.MCCOY_SUBJECT.substring(0, 1), creds.getUsername());
+        Assert.assertEquals(TestJwts.TEST_AUDIENCE, creds.getAttributes().get("attr.jwt.aud"));
+        Assert.assertEquals(0, creds.getBackendRoles().size());
+        Assert.assertEquals(3, creds.getAttributes().size());
+    }
+
 
     static class TestRestChannel implements RestChannel {
 

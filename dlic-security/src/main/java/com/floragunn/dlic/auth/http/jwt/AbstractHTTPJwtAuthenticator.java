@@ -22,6 +22,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
@@ -61,6 +64,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
     private final String jwtHeaderName;
     private final String jwtUrlParameter;
     private final String subjectKey;
+    private final Pattern subjectPattern;
     private final String rolesKey;
     private final String jsonSubjectPath;
     private final String jsonRolesPath;
@@ -74,7 +78,8 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         subjectKey = settings.get("subject_key");
         jsonRolesPath = settings.get("roles_path");
         jsonSubjectPath = settings.get("subject_path");
-
+        subjectPattern = getSubjectPattern(settings);
+      
         try {
             this.keyProvider = this.initKeyProvider(settings, configPath);
             jwtVerifier = new JwtVerifier(keyProvider);
@@ -155,7 +160,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
             if (jwtToken == null || jwtToken.isEmpty()) {
                 jwtToken = request.param(jwtUrlParameter);
             } else {
-                // just consume to avoid "contains unrecognized parameter"
+                // just consume to avoid "contains unrecognized para)meter"
                 request.param(jwtUrlParameter);
             }
         }
@@ -201,6 +206,34 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
                 return null;
             }
         }
+        
+        if (subject != null && subjectPattern != null) {
+            Matcher matcher = subjectPattern.matcher(subject);
+            
+            if (!matcher.matches()) {
+                log.warn("Subject " + subject + " does not match subject_pattern " + subjectPattern);
+                return null;
+            }
+            
+            if (matcher.groupCount() == 1) {
+                subject = matcher.group(1);
+            } else if (matcher.groupCount() > 1) {
+                StringBuilder subjectBuilder = new StringBuilder();
+                
+                for (int i = 1; i <= matcher.groupCount(); i++) {
+                    if (matcher.group(i) != null) {
+                        subjectBuilder.append(matcher.group(i));
+                    }
+                }
+                
+                if (subjectBuilder.length() != 0) {
+                    subject = subjectBuilder.toString();
+                } else {
+                    subject = null;
+                }
+            }
+        }
+        
         return subject;
     }
 
@@ -271,4 +304,18 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         return true;
     }
 
+    private static Pattern getSubjectPattern(Settings settings) {
+        String patternString = settings.get("subject_pattern");
+
+        if (patternString == null) {
+            return null;
+        }
+
+        try {
+            return Pattern.compile(patternString);
+        } catch (PatternSyntaxException e) {
+            log.error("Invalid regular expression for subject_pattern: " + patternString, e);
+            return null;
+        }
+    }
 }
