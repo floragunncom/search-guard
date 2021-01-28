@@ -8,11 +8,11 @@ sg_dls_lookup:
     - '*'
   index_permissions:
     - index_patterns:
-      - "users"
+      - "use*"
       allowed_actions:
         - '*'
     - index_patterns:
-      - "deals"
+      - "de*a*"
       allowed_actions:
         - '*'
       dls: |

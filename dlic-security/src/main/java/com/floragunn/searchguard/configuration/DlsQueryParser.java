@@ -130,15 +130,13 @@ final class DlsQueryParser {
         	return null;
         }
         
-        //if(threadContext.getTransient("_sg_tl_handled") == Boolean.TRUE) { //this gets not passed through from the valve
-        	//ignore TL quietly
-            stripTermsLookupQueries(unparsedDlsQueries, namedXContentRegistry);
+    	//ignore TL quietly because they are already handled in the valve
+        stripTermsLookupQueries(unparsedDlsQueries, namedXContentRegistry);
 
-            //if not queries left we can return null because no DLS needs to be executed
-            if(unparsedDlsQueries.isEmpty()) {
-            	return null;
-            }
-        //}
+        //if not queries left we can return null because no DLS needs to be executed
+        if(unparsedDlsQueries.isEmpty()) {
+        	return null;
+        }
         
         final boolean hasNestedMapping = queryShardContext.getMapperService().hasNested();
 
@@ -162,13 +160,6 @@ final class DlsQueryParser {
 
         dlsQueryBuilder.add(originalQuery.query(), Occur.MUST);
         return new ParsedQuery(dlsQueryBuilder.build());
-    }
-    
-    private static void handleNested(final QueryShardContext queryShardContext, 
-            final BooleanQuery.Builder dlsQueryBuilder, 
-            final Query parentQuery) {      
-        final BitSetProducer parentDocumentsFilter = queryShardContext.bitsetFilter(NON_NESTED_QUERY);
-        dlsQueryBuilder.add(new ToChildBlockJoinQuery(parentQuery, parentDocumentsFilter), Occur.SHOULD);
     }
     
     static QueryBuilder parseRaw(final String unparsedDlsQuery, final NamedXContentRegistry namedXContentRegistry) throws IOException {
@@ -237,16 +228,20 @@ final class DlsQueryParser {
     
     private static boolean isNoSearchOrSuggest(ThreadContext threadContext) {
         if(threadContext.getTransient("_sg_issuggest") == Boolean.TRUE) {
-            //we need to apply it here
             return true;
         }
         
         
         final String action = (String) threadContext.getTransient(ConfigConstants.SG_ACTION_NAME);
         assert action != null;
-        //we need to apply here if it is not a search request
-        //(a get for example)
         return !action.startsWith("indices:data/read/search");
+    }
+    
+    private static void handleNested(final QueryShardContext queryShardContext, 
+            final BooleanQuery.Builder dlsQueryBuilder, 
+            final Query parentQuery) {      
+        final BitSetProducer parentDocumentsFilter = queryShardContext.bitsetFilter(NON_NESTED_QUERY);
+        dlsQueryBuilder.add(new ToChildBlockJoinQuery(parentQuery, parentDocumentsFilter), Occur.SHOULD);
     }
 
 }

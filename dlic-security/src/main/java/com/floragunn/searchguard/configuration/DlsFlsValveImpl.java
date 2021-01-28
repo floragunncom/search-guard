@@ -43,11 +43,10 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.DelayableWriteable;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.ParsedQuery;
-import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregation;
@@ -63,6 +62,7 @@ import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.query.QuerySearchResult;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SgUtils;
@@ -73,8 +73,15 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     private static final Field REDUCE_ORDER_FIELD = getField(InternalTerms.class, "reduceOrder");
     private static final Field BUCKET_TERM_BYTES = getField(StringTerms.Bucket.class, "termBytes");
     private static final Field BUCKET_FORMAT = getField(InternalTerms.Bucket.class, "format");
+    
+    private final boolean allowTLQueries;
 
-    /**
+    public DlsFlsValveImpl(Settings settings) {
+		super();
+		allowTLQueries = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_ALLOW_TLQ_IN_DLS, false);
+	}
+
+	/**
      * 
      * @param request
      * @param listener
@@ -86,7 +93,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             final Map<String,Set<String>> queries,
             final boolean localHashingEnabled,
             final NamedXContentRegistry namedXContentRegistry,
-            final ThreadContext threadContext) {
+            final Resolved resolved) {
         
         final boolean fls = allowedFlsFields != null && !allowedFlsFields.isEmpty();
         final boolean masked = maskedFields != null && !maskedFields.isEmpty();
@@ -183,65 +190,59 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
 				}
 
-				///
 				SearchRequest sr = ((SearchRequest) request);
-				
-				//The problem here is that we (unlike on the shard level) here do not operate on a single known index
-				//and so we can not fully evaluate the queries map to select the proper queries
-				//Idea is to intercept if we surely know that we have a TLQ and know that we have to apply it.
-				//Thats the case when only one index is queried and the map onöy contains this index OR
-				//the map contains queries we have to apply to all (*) indices.
-				
+
 				try {
-					if (sr.indices().length == 1 && queries.size() == 1
-							&& queries.entrySet().iterator().next().getKey().equals(sr.indices()[0])) {
-						handleTLQueries(sr, queries.entrySet().iterator().next().getValue(), namedXContentRegistry, threadContext);
-					} else if (queries.containsKey("*")) {
-						handleTLQueries(sr, queries.get("*"), namedXContentRegistry, threadContext);
-					} else {
-						
+
+					BoolQueryBuilder dlsQueryBuilder = null;
+
+					for (String index : resolved.getAllIndices()) {
+						final String dlsEval = SgUtils.evalMap(queries, index);
+
+						if (dlsEval != null) {
+							final Set<String> unparsedDlsQueries = DlsQueryParser
+									.getTermsLookupQueries(queries.get(dlsEval), namedXContentRegistry);
+							
+							if(!allowTLQueries && !unparsedDlsQueries.isEmpty()) {
+								listener.onFailure(new ElasticsearchSecurityException("Terms lookup queries are not allowed as DLS queries"));
+								return false;
+							}
+
+							for (String unparsedDlsQuery : unparsedDlsQueries) {
+								BoolQueryBuilder inner = QueryBuilders.boolQuery();
+								inner.must(QueryBuilders.termQuery("_index", index));
+								inner.must(DlsQueryParser.parseRaw(unparsedDlsQuery, namedXContentRegistry));
+
+								if (dlsQueryBuilder == null) {
+									dlsQueryBuilder = QueryBuilders.boolQuery();
+								}
+
+								dlsQueryBuilder.should(inner);
+							}
+						}
+					}
+
+					// only manipulate source query if we have really term lookup queries in the DLS
+					// map
+					if (dlsQueryBuilder != null) {
+
+						dlsQueryBuilder.minimumShouldMatch(1);
+
+						if (sr.source().query() != null) { // match all query
+							dlsQueryBuilder.must(sr.source().query());
+						}
+
+						sr.source().query(dlsQueryBuilder);
 					}
 
 				} catch (IOException e) {
-					throw new ElasticsearchSecurityException("Unable to parse: " + queries, e);
+					listener.onFailure(new ElasticsearchSecurityException("Unable to handle terms lookup queries", e));
+					return false;
 				}
-				
-				///
-
 			}
 		}
         
         return true;
-    }
-    
-    private static void handleTLQueries(SearchRequest sr, Set<String> queries, NamedXContentRegistry namedXContentRegistry, ThreadContext threadContext) throws IOException {
-    	
-    	//This seems not to get passed through to the DlsQueryParser
-    	//threadContext.putTransient("_sg_tl_handled", Boolean.TRUE);
-    	
-    	if(queries == null || queries.isEmpty()) {
-    		return;
-    	}
-    	
-    	final Set<String> tlQueries = DlsQueryParser.getTermsLookupQueries(queries, namedXContentRegistry);
-    	
-    	if(tlQueries.isEmpty()) {
-    		return;
-    	}
-    	
-    	BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery();
-		dlsQueryBuilder.minimumShouldMatch(1);
-		
-		for(String unparsedTLQuery: tlQueries) {
-			final QueryBuilder qb = DlsQueryParser.parseRaw(unparsedTLQuery, namedXContentRegistry);
-			dlsQueryBuilder.should(qb);
-		}
-
-		if (sr.source().query() != null) { // match all query
-			dlsQueryBuilder.must(sr.source().query());
-		}
-
-		sr.source().query(dlsQueryBuilder);
     }
 
     @Override
