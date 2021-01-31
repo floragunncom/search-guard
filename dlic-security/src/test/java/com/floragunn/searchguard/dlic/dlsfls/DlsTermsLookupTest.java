@@ -92,10 +92,16 @@ public class DlsTermsLookupTest extends AbstractDlsFlsTest{
 
         HttpResponse res = null;
         
-        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, (res = rh.executeGetRequest("/deals/_doc/0?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"))).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, (res = rh.executeGetRequest("/deals/_doc/1?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_doc/1?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"))).getStatusCode());
+        
+        // TODO check body content
+        System.out.println(res.getBody());
+
+        Assert.assertEquals(HttpStatus.SC_NOT_FOUND, (res = rh.executeGetRequest("/deals/_doc/0?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"))).getStatusCode());
     
-        Assert.assertTrue(res.getBody().contains("async actions are left after rewrite"));
+        // TODO check body content
+        System.out.println(res.getBody());
+        
     }
     
     @Test

@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -39,16 +40,23 @@ import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkItemRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.DelayableWriteable;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.index.get.GetResult;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.ParsedQuery;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.search.DocValueFormat;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.BucketOrder;
@@ -75,10 +83,12 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     private static final Field BUCKET_FORMAT = getField(InternalTerms.Bucket.class, "format");
     
     private final boolean allowTLQueries;
-
-    public DlsFlsValveImpl(Settings settings) {
+    private final Client nodeClient;
+    
+    public DlsFlsValveImpl(Settings settings, Client nodeClient) {
 		super();
 		allowTLQueries = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_ALLOW_TLQ_IN_DLS, false);
+		this.nodeClient = nodeClient;
 	}
 
 	/**
@@ -239,10 +249,95 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 					listener.onFailure(new ElasticsearchSecurityException("Unable to handle terms lookup queries", e));
 					return false;
 				}
-			}
+            } else if (request instanceof GetRequest && allowTLQueries) {
+                BoolQueryBuilder tlqQueries = null;
+
+                try {
+                    tlqQueries = createTlqQuery(queries, resolved, namedXContentRegistry);
+                } catch (IOException e) {
+                    listener.onFailure(new ElasticsearchSecurityException("Unable to handle terms lookup queries", e));
+                    return false;
+                }
+                
+                if (tlqQueries != null) {
+                    GetRequest getRequest = (GetRequest) request;
+                    SearchRequest searchRequest = new SearchRequest(getRequest.indices());
+                    BoolQueryBuilder query = QueryBuilders.boolQuery().must(QueryBuilders.idsQuery().addIds(getRequest.id())).must(tlqQueries);
+                    searchRequest.source(SearchSourceBuilder.searchSource().query(query));
+
+                    nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
+
+                        @SuppressWarnings("deprecation")
+                        @Override
+                        public void onResponse(SearchResponse response) {
+                            try {
+
+                                long hits = response.getHits().getTotalHits().value;
+
+                                @SuppressWarnings("unchecked")
+                                ActionListener<GetResponse> getListener = (ActionListener<GetResponse>) listener;
+                                if (hits == 1) {
+                                    SearchHit hit = response.getHits().getAt(0);
+
+                                    // TODO separate docFields and metaFields 
+                                    getListener.onResponse(new GetResponse(new GetResult(hit.getIndex(), hit.getType(), hit.getId(), hit.getSeqNo(),
+                                            hit.getPrimaryTerm(), hit.getVersion(), true, hit.getSourceRef(), hit.getFields(), hit.getFields())));
+
+                                } else if (hits == 0) {
+                                    getListener.onResponse(new GetResponse(
+                                            new GetResult(searchRequest.indices()[0], "_doc", getRequest.id(), SequenceNumbers.UNASSIGNED_SEQ_NO,
+                                                    SequenceNumbers.UNASSIGNED_PRIMARY_TERM, -1, false, null, null, null)));
+                                } else {
+                                    log.error("Unexpected hit count " + hits + " in " + response);
+                                    listener.onFailure(new ElasticsearchSecurityException("Internal error when performing DLS"));
+                                }
+
+                            } catch (Exception e) {
+                                listener.onFailure(e);
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            listener.onFailure(e);
+                        }
+                    });
+                    
+                    return false;
+                }
+
+            }
 		}
         
         return true;
+    }
+    
+    private BoolQueryBuilder createTlqQuery(Map<String,Set<String>> queries, Resolved resolved, NamedXContentRegistry namedXContentRegistry) throws IOException {
+        BoolQueryBuilder dlsQueryBuilder = null;
+
+        for (String index : resolved.getAllIndices()) {
+            final String dlsEval = SgUtils.evalMap(queries, index);
+
+            if (dlsEval != null) {
+                final Set<String> unparsedDlsQueries = DlsQueryParser
+                        .getTermsLookupQueries(queries.get(dlsEval), namedXContentRegistry);
+                
+                for (String unparsedDlsQuery : unparsedDlsQueries) {
+                    BoolQueryBuilder inner = QueryBuilders.boolQuery();
+                    inner.must(QueryBuilders.termQuery("_index", index));
+                    inner.must(DlsQueryParser.parseRaw(unparsedDlsQuery, namedXContentRegistry));
+
+                    if (dlsQueryBuilder == null) {
+                        dlsQueryBuilder = QueryBuilders.boolQuery();
+                        dlsQueryBuilder.minimumShouldMatch(1);
+                    }
+
+                    dlsQueryBuilder.should(inner);
+                }
+            }
+        }
+        
+        return dlsQueryBuilder;
     }
 
     @Override

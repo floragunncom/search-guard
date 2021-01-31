@@ -82,7 +82,7 @@ final class DlsQueryParser {
             return null;
         }
         
-        if(isSearchAndNoSuggest(threadContext)) {
+        if(!isSuggest(threadContext)) {
         	//TL is not supported for GET or suggest operations
         	stripTermsLookupQueries(unparsedDlsQueries, namedXContentRegistry);
         }
@@ -105,7 +105,7 @@ final class DlsQueryParser {
         }
         
         //to make check for "now" in date math queries we can not perform this check earlier
-        if(isSearchAndNoSuggest(threadContext)) {
+        if(!isSuggest(threadContext)) {
         	//we handle this in the valve
         	return null;
         }
@@ -224,6 +224,14 @@ final class DlsQueryParser {
     
     private static boolean isSearchAndNoSuggest(ThreadContext threadContext) {
     	return !isNoSearchOrSuggest(threadContext);
+    }
+    
+    private static boolean isSuggest(ThreadContext threadContext) {
+        if (threadContext.getTransient("_sg_issuggest") == Boolean.TRUE) {
+            return true;
+        } else {
+            return false;
+        }
     }
     
     private static boolean isNoSearchOrSuggest(ThreadContext threadContext) {
