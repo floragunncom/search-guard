@@ -63,6 +63,7 @@ import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ConfigVariableProviders;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
@@ -71,6 +72,7 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
@@ -110,11 +112,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final PrivilegedConfigClient privilegedConfigClient;
     public final static Map<String, ?> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap.of("encoded_config",
             ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
-
     private final static Map<String, ?> SG_INDEX_SETTINGS = ImmutableMap.of("index.number_of_shards", 1, "index.auto_expand_replicas", "0-all");    
     
-    private ConfigurationRepository(Settings settings, final Path configPath, ThreadPool threadPool, 
-            Client client, ClusterService clusterService, AuditLog auditLog, ComplianceConfig complianceConfig) {
+    public ConfigurationRepository(Settings settings, final Path configPath, ThreadPool threadPool, 
+            Client client, ClusterService clusterService, AuditLog auditLog, ComplianceConfig complianceConfig,
+            SearchGuardModulesRegistry searchGuardModulesRegistry, ConfigVariableProviders configVariableProviders) {
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         this.settings = settings;
         this.client = client;
@@ -126,7 +128,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.licenseChangeListener = new ArrayList<LicenseChangeListener>();
         this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.componentState.setMandatory(true);
-        cl = new ConfigurationLoaderSG7(client, threadPool, settings, clusterService, componentState);
+        cl = new ConfigurationLoaderSG7(client, threadPool, settings, clusterService, componentState, searchGuardModulesRegistry, configVariableProviders);
         
         configCache = CacheBuilder
                       .newBuilder()
@@ -167,6 +169,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
                                         if(configVersion == 2) {
                                             ConfigHelper.uploadFile(client, cd+"sg_tenants.yml", searchguardIndex, CType.TENANTS, configVersion);
                                             ConfigHelper.uploadFile(client, cd+"sg_blocks.yml", searchguardIndex, CType.BLOCKS, configVersion);
+                                            ConfigHelper.uploadFile(client, cd+"sg_frontend_config.yml", searchguardIndex, CType.FRONTEND_CONFIG, configVersion);
+
                                         }
                                         LOGGER.info("Default config applied");
                                     } else {
@@ -280,12 +284,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
             bgThread.start();
             componentState.addLastException("initOnNodeStart", e2);
         }
-    }
-
-    public static ConfigurationRepository create(Settings settings, final Path configPath, final ThreadPool threadPool, 
-            Client client,  ClusterService clusterService, AuditLog auditLog, ComplianceConfig complianceConfig) {
-        final ConfigurationRepository repository = new ConfigurationRepository(settings, configPath, threadPool, client, clusterService, auditLog, complianceConfig);
-        return repository;
     }
 
     public void setDynamicConfigFactory(DynamicConfigFactory dynamicConfigFactory) {
@@ -448,7 +446,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
 
             try {
-                SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype);
+                SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype, null, null);
                 configInstance.removeStatic();
 
                 String id = ctype.toLCString();

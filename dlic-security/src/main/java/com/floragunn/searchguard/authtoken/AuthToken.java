@@ -33,8 +33,10 @@ import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.google.common.collect.ImmutableMap;
 
 public class AuthToken implements ToXContentObject, Writeable, Serializable {
-    public static final Map<String, Object> INDEX_MAPPING = ImmutableMap.of("dynamic", true, "properties",
-            ImmutableMap.of("created_at", ImmutableMap.of("type", "date"), "expires_at", ImmutableMap.of("type", "date")));
+    public static final String EXPIRES_AT = "expires_at";
+    public static final String DYNAMIC_EXPIRES_AT = "dynamic_expires_at";
+    public static final Map<String, Object> INDEX_MAPPING = ImmutableMap.of("dynamic", true, "properties", ImmutableMap.of("created_at",
+            ImmutableMap.of("type", "date"), EXPIRES_AT, ImmutableMap.of("type", "date"), DYNAMIC_EXPIRES_AT, ImmutableMap.of("type", "date")));
 
     private static final long serialVersionUID = 6038589333544878668L;
     private final String userName;
@@ -43,12 +45,13 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
     private final Instant creationTime;
     private final Instant expiryTime;
     private final Instant revokedAt;
+    private final Instant dynamicExpiryTime;
 
     private final RequestedPrivileges requestedPrivileges;
     private final AuthTokenPrivilegeBase base;
 
-    AuthToken(String id, String userName, String tokenName, RequestedPrivileges requestedPrivileges, AuthTokenPrivilegeBase base, Instant creationTime,
-            Instant expiryTime, Instant revokedAt) {
+    AuthToken(String id, String userName, String tokenName, RequestedPrivileges requestedPrivileges, AuthTokenPrivilegeBase base,
+            Instant creationTime, Instant expiryTime, Instant dynamicExpiryTime, Instant revokedAt) {
         this.id = id;
         this.userName = userName;
         this.tokenName = tokenName;
@@ -56,6 +59,7 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         this.base = base;
         this.creationTime = creationTime;
         this.expiryTime = expiryTime;
+        this.dynamicExpiryTime = dynamicExpiryTime;
         this.revokedAt = revokedAt;
     }
 
@@ -65,6 +69,9 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         this.tokenName = in.readOptionalString();
         this.creationTime = in.readInstant();
         this.expiryTime = in.readOptionalInstant();
+        // XXX
+        //this.dynamicExpiryTime = in.readOptionalInstant();
+        this.dynamicExpiryTime = null;
         this.revokedAt = in.readOptionalInstant();
 
         this.requestedPrivileges = new RequestedPrivileges(in);
@@ -89,6 +96,10 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
 
         if (expiryTime != null) {
             builder.field("expires_at", expiryTime.toEpochMilli());
+        }
+
+        if (dynamicExpiryTime != null) {
+            builder.field(DYNAMIC_EXPIRES_AT, dynamicExpiryTime.toEpochMilli());
         }
 
         if (revokedAt != null) {
@@ -123,7 +134,8 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
     }
 
     AuthToken getRevokedInstance() {
-        AuthToken revoked = new AuthToken(id, userName, tokenName, requestedPrivileges, base, creationTime, expiryTime, Instant.now());
+        AuthToken revoked = new AuthToken(id, userName, tokenName, requestedPrivileges, base, creationTime, expiryTime, dynamicExpiryTime,
+                Instant.now());
         revoked.getBase().setConfigSnapshot(null);
         return revoked;
     }
@@ -159,11 +171,12 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
 
         Instant createdAt = vJsonNode.requiredValue("created_at", (v) -> Instant.ofEpochMilli(v.longValue()));
         Instant expiry = vJsonNode.value("expires_at", (v) -> Instant.ofEpochMilli(v.longValue()), null);
+        Instant dynamicExpiry = vJsonNode.value(AuthToken.DYNAMIC_EXPIRES_AT, (v) -> Instant.ofEpochMilli(v.longValue()), null);
         Instant revokedAt = vJsonNode.value("revoked_at", (v) -> Instant.ofEpochMilli(v.longValue()), null);
 
         validationErrors.throwExceptionForPresentErrors();
 
-        return new AuthToken(id, userName, tokenName, requestedPrivilges, base, createdAt, expiry, revokedAt);
+        return new AuthToken(id, userName, tokenName, requestedPrivilges, base, createdAt, expiry, dynamicExpiry, revokedAt);
     }
 
     public Instant getCreationTime() {
@@ -255,6 +268,10 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         } else if (!userName.equals(other.userName))
             return false;
         return true;
+    }
+
+    public Instant getDynamicExpiryTime() {
+        return dynamicExpiryTime;
     }
 
 }

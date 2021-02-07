@@ -196,6 +196,12 @@
 					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
 					<version>${project.version}</version>
 				</dependency>		
+
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-suite-security-legacy</artifactId>
+					<version>${project.version}</version>
+				</dependency>				
 				
 				<!-- necessary for sgadmin-standalone. we should find a different solution for this -->
 				<dependency>
@@ -203,6 +209,7 @@
 					<artifactId>elasticsearch</artifactId>
 					<scope>provided</scope>				
 				</dependency>			
+				
 			</dependencies>
 		</profile>
 		<profile>
@@ -281,6 +288,12 @@
 					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
 					<version>${project.version}</version>
 				</dependency>				
+
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-suite-security-legacy</artifactId>
+					<version>${project.version}</version>
+				</dependency>
 			</dependencies>
 		</profile>
 	</profiles>

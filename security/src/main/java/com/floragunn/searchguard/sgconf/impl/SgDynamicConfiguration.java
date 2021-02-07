@@ -21,13 +21,19 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ConfigVariableProviders;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.codova.validation.jackson.JacksonExceptions;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.Hashed;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchguard.sgconf.StaticDefinable;
+import com.floragunn.searchguard.sgconf.impl.v7.FrontendConfig;
 import com.floragunn.searchguard.support.SgUtils;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 
 public class SgDynamicConfiguration<T> implements ToXContent {
     
@@ -51,8 +57,13 @@ public class SgDynamicConfiguration<T> implements ToXContent {
         return new SgDynamicConfiguration<T>();
     }
     
-    public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType ctype, long docVersion, long seqNo, long primaryTerm, Settings settings) throws IOException, ConfigValidationException {
+    public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType ctype, long docVersion, long seqNo, long primaryTerm, Settings settings, SearchGuardModulesRegistry searchGuardModulesRegistry, ConfigVariableProviders configVariableProviders) throws IOException, ConfigValidationException {
         String jsonString = SgUtils.replaceEnvVars(uninterpolatedJson, settings);
+        
+        if (ctype == CType.FRONTEND_CONFIG) {
+            return fromJsonNew(jsonString, uninterpolatedJson, ctype, docVersion, seqNo, primaryTerm, searchGuardModulesRegistry, configVariableProviders);
+        }
+     
         JsonNode jsonNode = DefaultObjectMapper.readTree(jsonString);
         int configVersion = 1;
 
@@ -104,19 +115,79 @@ public class SgDynamicConfiguration<T> implements ToXContent {
         return sdc;
     }
     
-    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype) throws ConfigValidationException {
+    public static <T> SgDynamicConfiguration<T> fromJsonNew(String json, String uninterpolatedJson, CType ctype, long docVersion, long seqNo, long primaryTerm, SearchGuardModulesRegistry searchGuardModulesRegistry, ConfigVariableProviders configVariableProviders) throws ConfigValidationException {
+        Map<String, Object> parsedJson = ValidatingJsonParser.readObjectAsMap(json);
+        
+        return fromMapNew(parsedJson, uninterpolatedJson, ctype, docVersion, seqNo, primaryTerm, searchGuardModulesRegistry, configVariableProviders);
+    }
+    
+    public static <T> SgDynamicConfiguration<T> fromMapNew(Map<String, Object> parsedJson, String uninterpolatedJson, CType ctype, long docVersion, long seqNo, long primaryTerm, SearchGuardModulesRegistry searchGuardModulesRegistry, ConfigVariableProviders configVariableProviders) throws ConfigValidationException {
+        SgDynamicConfiguration<T> result = new SgDynamicConfiguration<>();
+        result.ctype = ctype;
+        result.seqNo = seqNo;
+        result.primaryTerm = primaryTerm;
+        result.docVersion = docVersion;
+        result.version = 2;
+        result.uninterpolatedJson = uninterpolatedJson;
+        
+        if (ctype == CType.FRONTEND_CONFIG) {
+            
+            ValidationErrors validationErrors = new ValidationErrors();
+            
+            for (Map.Entry<String, Object> entry : parsedJson.entrySet()) {
+                
+                String id = entry.getKey();
+                
+                if (id.startsWith("_sg")) {
+                    continue;
+                }
+                
+                if (!(entry.getValue() instanceof Map)) {
+                    validationErrors.add(new InvalidAttributeValue(id, entry.getValue(), "A JSON object"));
+                    continue;
+                }
+                
+                @SuppressWarnings("unchecked")
+                Map<String, Object> record = (Map<String, Object>) entry.getValue();
+                
+                try {
+                    @SuppressWarnings("unchecked")
+                    T frontendConfig = (T) FrontendConfig.parse(record,
+                            searchGuardModulesRegistry != null ? searchGuardModulesRegistry.getApiAuthenticationFrontends() : null,
+                            configVariableProviders);
+
+                    result.centries.put(id, frontendConfig);
+                } catch (ConfigValidationException e) {
+                    validationErrors.add(id, e);
+                }
+            }
+            
+            validationErrors.throwExceptionForPresentErrors();
+            
+            return result;
+            
+        } else {
+            throw new IllegalArgumentException("Unsupported ctype " + ctype);
+        }
+    }
+    
+    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype, SearchGuardModulesRegistry searchGuardModulesRegistry, ConfigVariableProviders configVariableProviders) throws ConfigValidationException {
         int configVersion = getConfigVersion(map, ctype);
         
-        return fromMap(map, ctype, configVersion, -1, -1, -1);
+        return fromMap(map, ctype, configVersion, -1, -1, -1, searchGuardModulesRegistry, configVariableProviders);
     }
     
    
-    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype, int version, long docVersion, long seqNo, long primaryTerm) throws ConfigValidationException {
+    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype, int version, long docVersion, long seqNo, long primaryTerm, SearchGuardModulesRegistry searchGuardModulesRegistry, ConfigVariableProviders configVariableProviders) throws ConfigValidationException {
         SgDynamicConfiguration<T> sdc;
         if(ctype != null) {
             final Class<?> implementationClass = ctype.getImplementationClass().get(version);
             if(implementationClass == null) {
                 throw new IllegalArgumentException("No implementation class found for "+ctype+" and config version "+version);
+            }
+            
+            if (ctype == CType.FRONTEND_CONFIG) {
+                return fromMapNew(map, null, ctype, docVersion, seqNo, primaryTerm, searchGuardModulesRegistry, configVariableProviders);
             }
             
             try {
@@ -164,7 +235,11 @@ public class SgDynamicConfiguration<T> implements ToXContent {
     }
 
     public static <T> SgDynamicConfiguration<T> fromNode(JsonNode json, CType ctype, int version, long docVersion, long seqNo, long primaryTerm) throws IOException, ConfigValidationException {
-        return fromJson(DefaultObjectMapper.writeValueAsString(json, false), null, ctype, version, docVersion, seqNo, primaryTerm);
+        if (ctype == CType.FRONTEND_CONFIG) {
+            return fromJsonNew(DefaultObjectMapper.writeValueAsString(json, false), null, ctype, docVersion, seqNo, primaryTerm, null, null);
+        } else {        
+            return fromJson(DefaultObjectMapper.writeValueAsString(json, false), null, ctype, version, docVersion, seqNo, primaryTerm);
+        }
     }
     
 
@@ -327,6 +402,11 @@ public class SgDynamicConfiguration<T> implements ToXContent {
     @JsonIgnore
     public SgDynamicConfiguration<T> deepClone() {
         try {
+            if (ctype == CType.FRONTEND_CONFIG) {
+                // TODO
+                return this;
+            }
+            
             return fromJson(DefaultObjectMapper.writeValueAsString(this, false), uninterpolatedJson, ctype, version, docVersion, seqNo, primaryTerm);
         } catch (Exception e) {
             throw ExceptionsHelper.convertToElastic(e);

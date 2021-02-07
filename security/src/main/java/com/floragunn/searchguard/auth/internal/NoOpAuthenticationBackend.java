@@ -27,6 +27,8 @@ import com.floragunn.searchguard.user.User;
 
 public class NoOpAuthenticationBackend implements SyncAuthenticationBackend {
 
+    public static final NoOpAuthenticationBackend INSTANCE = new NoOpAuthenticationBackend(null, null);
+    
     public NoOpAuthenticationBackend(final Settings settings, final Path configPath) {
         super();
     }

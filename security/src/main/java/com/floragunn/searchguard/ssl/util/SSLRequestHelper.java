@@ -171,6 +171,7 @@ public class SSLRequestHelper {
         if (context != null) {
             for (final Entry<String, String> header : context.getHeaders().entrySet()) {
                 if (header != null && header.getKey() != null && header.getKey().trim().toLowerCase().startsWith(prefix)) {
+                    log.warn("Found unexpected header: " + header + "\n" + context.getHeaders());
                     return true;
                 }
             }

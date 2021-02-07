@@ -17,26 +17,20 @@ package com.floragunn.searchguard.authtoken;
 import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
-import org.apache.cxf.rs.security.jose.common.JoseUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
-import org.apache.cxf.rs.security.jose.jwk.KeyType;
-import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
+import org.elasticsearch.common.xcontent.XContentType;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.authtoken.RequestedPrivileges.ExcludedIndexPermissions;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
-import com.floragunn.searchsupport.config.validation.JsonNodeParser;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.searchguard.configuration.secrets.SecretsService;
+import com.floragunn.searchguard.support.JoseParsers;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
-import com.floragunn.searchsupport.config.validation.ValueParser;
 
 public class AuthTokenServiceConfig {
 
@@ -108,37 +102,38 @@ public class AuthTokenServiceConfig {
         this.excludeIndexPermissions = excludeIndexPermissions;
     }
 
-    public static AuthTokenServiceConfig parse(JsonNode jsonNode) throws ConfigValidationException {
+    public static AuthTokenServiceConfig parse(Map<String, Object> jsonNode, SecretsService secretsStorageService) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors).expandVariables("secret", secretsStorageService::get);
 
         AuthTokenServiceConfig result = new AuthTokenServiceConfig();
-        result.enabled = vJsonNode.booleanAttribute("enabled", false);
+        result.enabled = vJsonNode.get("enabled").withDefault(false).asBoolean();
 
         if (result.enabled) {
             if (vJsonNode.hasNonNull("jwt_signing_key")) {
-                result.jwtSigningKey = vJsonNode.requiredValue("jwt_signing_key", JWK_SIGNING_KEY_PARSER);
+                result.jwtSigningKey = vJsonNode.get("jwt_signing_key").expected("JSON Web Key").byString(JoseParsers::parseJwkSigningKey);
             } else if (vJsonNode.hasNonNull("jwt_signing_key_hs512")) {
-                result.jwtSigningKey = vJsonNode.requiredValue("jwt_signing_key_hs512", JWK_HS512_SIGNING_KEY_PARSER);
+                result.jwtSigningKey = vJsonNode.get("jwt_signing_key_hs512").byString(JoseParsers::parseJwkHs512SigningKey);
             } else {
                 validationErrors.add(new MissingAttribute("jwt_signing_key", jsonNode));
             }
 
             if (vJsonNode.hasNonNull("jwt_encryption_key")) {
-                result.jwtEncryptionKey = vJsonNode.requiredValue("jwt_encryption_key", JWK_ENCRYPTION_KEY_PARSER);
+                result.jwtEncryptionKey = vJsonNode.get("jwt_encryption_key").expected("JSON Web Key").byString(JoseParsers::parseJwkEcryptionKey);
+
             } else if (vJsonNode.hasNonNull("jwt_encryption_key_a256kw")) {
-                result.jwtEncryptionKey = vJsonNode.requiredValue("jwt_encryption_key_a256kw", JWK_A256KW_ENCRYPTION_KEY_PARSER_A256KW);
+                result.jwtEncryptionKey = vJsonNode.get("jwt_encryption_key_a256kw").byString(JoseParsers::parseJwkA256kwEncryptionKey);
             }
 
-            result.jwtAud = vJsonNode.string("jwt_aud_claim", DEFAULT_AUDIENCE);
-            result.maxValidity = vJsonNode.temporalAmount("max_validity");
+            result.jwtAud = vJsonNode.get("jwt_aud_claim").withDefault(DEFAULT_AUDIENCE).asString();
+            result.maxValidity = vJsonNode.get("max_validity").asTemporalAmount();
 
-            result.excludeClusterPermissions = vJsonNode.stringList("exclude_cluster_permissions", Arrays.asList(CreateAuthTokenAction.NAME));
-            result.excludeIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);
+            result.excludeClusterPermissions = vJsonNode.get("exclude_cluster_permissions").asList().withDefault(CreateAuthTokenAction.NAME).ofStrings();
+            result.excludeIndexPermissions = vJsonNode.get("exclude_index_permissions").asList(ExcludedIndexPermissions::parse);
             
-            result.maxTokensPerUser = vJsonNode.intNumber("max_tokens_per_user", 100);
+            result.maxTokensPerUser = vJsonNode.get("max_tokens_per_user").withDefault(100).asInt();
             
-            result.freezePrivileges = vJsonNode.caseInsensitiveEnum("freeze_privileges", FreezePrivileges.class, FreezePrivileges.USER_CHOOSES);
+            result.freezePrivileges = vJsonNode.get("freeze_privileges").withDefault(FreezePrivileges.USER_CHOOSES).asEnum(FreezePrivileges.class);
             
             // TODO create test JWT for more thorough validation (some things are only checked then)
         }
@@ -148,135 +143,12 @@ public class AuthTokenServiceConfig {
         return result;
     }
 
-    public static AuthTokenServiceConfig parseYaml(String yaml) throws ConfigValidationException {
-        return parse(ValidatingJsonParser.readYamlTree(yaml));
+    public static AuthTokenServiceConfig parseYaml(String yaml, SecretsService secretsStorageService) throws ConfigValidationException {
+        return parse(ValidatingJsonParser.readObjectAsMap(yaml, XContentType.YAML), secretsStorageService);
     }
-
     
-    private static final JsonNodeParser<JsonWebKey> JWK_SIGNING_KEY_PARSER = new JsonNodeParser<JsonWebKey>() {
-
-        @Override
-        public JsonWebKey parse(JsonNode jsonNode) throws ConfigValidationException {
-
-            try {
-                String jwkJsonString = new ObjectMapper().writeValueAsString(jsonNode);
-
-                JsonWebKey result = JwkUtils.readJwkKey(jwkJsonString);
-
-                PublicKeyUse publicKeyUse = result.getPublicKeyUse();
-
-                if (publicKeyUse != null && publicKeyUse != PublicKeyUse.SIGN) {
-                    throw new ConfigValidationException(
-                            new InvalidAttributeValue("use", publicKeyUse, "The use claim must designate the JWK for signing"));
-                }
-
-                return result;
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-
-        }
-
-        @Override
-        public String getExpectedValue() {
-            return "JSON Web Key";
-        }
-    };
-
-    private static final ValueParser<JsonWebKey> JWK_HS512_SIGNING_KEY_PARSER = new ValueParser<JsonWebKey>() {
-
-        @Override
-        public JsonWebKey parse(String value) throws ConfigValidationException {
-            byte[] key;
-            
-            try {
-               key = JoseUtils.decode(value);
-            } catch (Exception e) {
-                throw new ConfigValidationException(new InvalidAttributeValue(null, e.getMessage(), getExpectedValue()).cause(e));
-            }
-            
-            if (key.length < 64) {
-                throw new ConfigValidationException(new InvalidAttributeValue(null, "The key contains less than 512 bit", getExpectedValue()));
-            }
-
-            JsonWebKey jwk = new JsonWebKey();
-
-            jwk.setKeyType(KeyType.OCTET);
-            jwk.setAlgorithm("HS512");
-            jwk.setPublicKeyUse(PublicKeyUse.SIGN);
-            jwk.setProperty("k", value);
-
-            return jwk;
-        }
-
-        @Override
-        public String getExpectedValue() {
-            return "A Base64URL encoded HMAC512 key with at least 512 bit (64 bytes, 86 Base64 encoded characters)";
-        }
-    };
-
-    private static final JsonNodeParser<JsonWebKey> JWK_ENCRYPTION_KEY_PARSER = new JsonNodeParser<JsonWebKey>() {
-
-        @Override
-        public JsonWebKey parse(JsonNode jsonNode) throws ConfigValidationException {
-
-            try {
-                String jwkJsonString = new ObjectMapper().writeValueAsString(jsonNode);
-
-                JsonWebKey result = JwkUtils.readJwkKey(jwkJsonString);
-
-                PublicKeyUse publicKeyUse = result.getPublicKeyUse();
-
-                if (publicKeyUse != null && publicKeyUse != PublicKeyUse.ENCRYPT) {
-                    throw new ConfigValidationException(
-                            new InvalidAttributeValue("use", publicKeyUse, "The use claim must designate the JWK for encryption"));
-                }
-
-                return result;
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-
-        }
-
-        @Override
-        public String getExpectedValue() {
-            return "JSON Web Key";
-        }
-    };
-
-    private static final ValueParser<JsonWebKey> JWK_A256KW_ENCRYPTION_KEY_PARSER_A256KW = new ValueParser<JsonWebKey>() {
-
-        @Override
-        public JsonWebKey parse(String value) throws ConfigValidationException {
-            byte[] key;
-            
-            try {
-                key = JoseUtils.decode(value);
-            } catch (Exception e) {
-                throw new ConfigValidationException(new InvalidAttributeValue(null, e.getMessage(), getExpectedValue()).cause(e));
-            }
-            
-            if (key.length < 32) {
-                throw new ConfigValidationException(new InvalidAttributeValue(null, "The key contains less than 256 bit", getExpectedValue()));
-            }
-
-            JsonWebKey jwk = new JsonWebKey();
-
-            jwk.setKeyType(KeyType.OCTET);
-            jwk.setAlgorithm("A256KW");
-            jwk.setPublicKeyUse(PublicKeyUse.ENCRYPT);
-            jwk.setProperty("k", value);
-
-            return jwk;
-        }
-
-        @Override
-        public String getExpectedValue() {
-            return "A Base64URL encoded A256KW key with at least 256 bit (32 bytes, 43 Base64 encoded characters)";
-        }
-    };
-
+ 
+    
     public int getMaxTokensPerUser() {
         return maxTokensPerUser;
     }

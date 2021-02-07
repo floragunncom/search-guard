@@ -17,11 +17,14 @@
 
 package com.floragunn.searchguard.auth;
 
+import static java.util.stream.Collectors.toList;
+
 import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.concurrent.TimeUnit;
@@ -49,22 +52,28 @@ import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
+import com.floragunn.searchguard.auth.api.AuthenticationBackend.UserCachingPolicy;
 import com.floragunn.searchguard.auth.api.SyncAuthenticationBackend;
 import com.floragunn.searchguard.auth.api.SyncAuthorizationBackend;
-import com.floragunn.searchguard.auth.api.AuthenticationBackend.UserCachingPolicy;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
+import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.auth.session.ApiAuthenticationProcessor;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.http.XFFResolver;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
 import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.InternalUsersModel;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.sgconf.impl.v7.FrontendConfig;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HTTPHelper;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.user.UserAttributes;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -80,10 +89,11 @@ public class BackendRegistry implements DCFListener {
     private static final String BLOCKED_USERS = "BLOCKED_USERS";
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final IPAddressGenerator ipAddressGenerator = new IPAddressGenerator();
-    private SortedSet<AuthenticationDomain> restAuthenticationDomains;
-    private SortedSet<AuthenticationDomain> transportAuthenticationDomains;
+    private SortedSet<AuthenticationDomain<HTTPAuthenticator>> restAuthenticationDomains;
+    private SortedSet<AuthenticationDomain<HTTPAuthenticator>> transportAuthenticationDomains;
     private Set<AuthorizationDomain> restAuthorizationDomains;
     private Set<AuthorizationDomain> transportAuthorizationDomains;
+    private Map<String, List<AuthenticationDomain<ApiAuthenticationFrontend>>> apiAuthenticationDomainMap;
 
     private List<AuthFailureListener> ipAuthFailureListeners;
     private Multimap<String, AuthFailureListener> authBackendFailureListeners;
@@ -91,6 +101,8 @@ public class BackendRegistry implements DCFListener {
     private Multimap<String, ClientBlockRegistry<String>> authBackendClientBlockRegistries;
     private List<ClientBlockRegistry<IPAddress>> blockedNetmasks;
 
+    private SgDynamicConfiguration<FrontendConfig> frontendConfig;
+    
     private volatile boolean initialized;
     private final AdminDNs adminDns;
     private final XFFResolver xffResolver;
@@ -100,6 +112,7 @@ public class BackendRegistry implements DCFListener {
     private final AuditLog auditLog;
     private final ThreadPool threadPool;
     private final UserInjector userInjector;
+    private final PrivilegesEvaluator privilegesEvaluator;
     private final int ttlInMin;
     private Cache<AuthCredentials, User> userCache; //rest standard
     private Cache<String, User> restImpersonationCache; //used for rest impersonation
@@ -111,6 +124,7 @@ public class BackendRegistry implements DCFListener {
     private Cache<String, User> transportImpersonationCache; //used for transport impersonation
 
     private volatile String transportUsernameAttribute = null;
+    private boolean debug;
 
     private void createCaches() {
         userCache = CacheBuilder.newBuilder().expireAfterWrite(ttlInMin, TimeUnit.MINUTES)
@@ -151,13 +165,14 @@ public class BackendRegistry implements DCFListener {
     }
 
     public BackendRegistry(final Settings settings, final AdminDNs adminDns, final XFFResolver xffResolver, final AuditLog auditLog,
-            final ThreadPool threadPool) {
+            PrivilegesEvaluator privilegesEvaluator, final ThreadPool threadPool) {
         this.adminDns = adminDns;
         this.esSettings = settings;
         this.xffResolver = xffResolver;
         this.auditLog = auditLog;
         this.threadPool = threadPool;
         this.userInjector = new UserInjector(settings, threadPool, auditLog, xffResolver);
+        this.privilegesEvaluator = privilegesEvaluator;
 
         this.ttlInMin = settings.getAsInt(ConfigConstants.SEARCHGUARD_CACHE_TTL_MINUTES, 60);
 
@@ -191,11 +206,13 @@ public class BackendRegistry implements DCFListener {
         transportAuthenticationDomains = Collections.unmodifiableSortedSet(dcm.getTransportAuthenticationDomains());
         restAuthorizationDomains = Collections.unmodifiableSet(dcm.getRestAuthorizationDomains());
         transportAuthorizationDomains = Collections.unmodifiableSet(dcm.getTransportAuthorizationDomains());
+        apiAuthenticationDomainMap = dcm.getApiAuthenticationDomainMap();
 
         ipAuthFailureListeners = dcm.getIpAuthFailureListeners();
         authBackendFailureListeners = dcm.getAuthBackendFailureListeners();
         ipClientBlockRegistries = dcm.getIpClientBlockRegistries();
         authBackendClientBlockRegistries = dcm.getAuthBackendClientBlockRegistries();
+        debug = dcm.isAuthDebugEnabled();
 
         if (cm.getBlockIpAddresses() != null) {
             if (ipClientBlockRegistries == null) {
@@ -217,6 +234,8 @@ public class BackendRegistry implements DCFListener {
         if (cm.getBlockedNetmasks() != null) {
             blockedNetmasks = cm.getBlockedNetmasks();
         }
+        
+        frontendConfig = dcm.getFrontendConfig();
 
         //SG6 no default authc
         initialized = !restAuthenticationDomains.isEmpty() || anonymousAuthEnabled;
@@ -268,7 +287,7 @@ public class BackendRegistry implements DCFListener {
         }
 
         //loop over all transport auth domains
-        for (final AuthenticationDomain authenticationDomain : transportAuthenticationDomains) {
+        for (final AuthenticationDomain<HTTPAuthenticator> authenticationDomain : transportAuthenticationDomains) {
             if (log.isDebugEnabled()) {
                 log.debug("Check transport authdomain {}/{} or {} in total", authenticationDomain.getBackend().getType(),
                         authenticationDomain.getOrder(), transportAuthenticationDomains.size());
@@ -376,9 +395,9 @@ public class BackendRegistry implements DCFListener {
 
         if (isIpBlocked(remoteIpAddress)) {
             if (log.isDebugEnabled()) {
-                log.debug("Rejecting REST request because of blocked address: " + request.getHttpChannel().getRemoteAddress());
+                log.debug("Rejecting REST request because of blocked address: " + remoteAddress);
             }
-            auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
+            auditLog.logBlockedIp(request, remoteAddress.address());
             channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
             onResult.accept(new AuthczResult(AuthczResult.Status.STOP));
             return;
@@ -390,8 +409,9 @@ public class BackendRegistry implements DCFListener {
             return;
         }
 
-        threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
 
+        threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
+        
         if (!isInitialized()) {
             log.error("Not yet initialized (you may need to run sgadmin)");
             channel.sendResponse(new BytesRestResponse(RestStatus.SERVICE_UNAVAILABLE,
@@ -400,11 +420,118 @@ public class BackendRegistry implements DCFListener {
             return;
         }
 
-        new RestAuthenticationProcessor(restHandler, request, channel, remoteIpAddress, threadContext, restAuthenticationDomains,
-                restAuthorizationDomains, adminDns, authenticatedUserCacheTransport, restRoleCache, restImpersonationCache, auditLog,
-                authBackendFailureListeners, authBackendClientBlockRegistries, ipAuthFailureListeners, anonymousAuthEnabled).authenticate(onResult,
-                        onFailure);
+        new HTTPAuthenticationProcessor(restHandler, request, channel, remoteIpAddress, threadContext, restAuthenticationDomains,
+                restAuthorizationDomains, adminDns, privilegesEvaluator, authenticatedUserCacheTransport, restRoleCache, restImpersonationCache,
+                auditLog, authBackendFailureListeners, authBackendClientBlockRegistries, ipAuthFailureListeners, Collections.emptyList(),
+                anonymousAuthEnabled, debug).authenticate(onResult, onFailure);
 
+    }
+
+    public void authenticateApi(Map<String, Object> request, RestRequest restRequest, List<String> requiredLoginPrivileges,
+            ThreadContext threadContext, Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+
+        final TransportAddress remoteAddress = xffResolver.resolve(restRequest);
+
+        if (log.isTraceEnabled()) {
+            log.trace("Rest authentication request from " + remoteAddress + "\n" + request);
+        }
+
+        IPAddress remoteIpAddress = null;
+
+        if (remoteAddress != null) {
+            remoteIpAddress = ipAddressGenerator.from(remoteAddress.address().getAddress());
+        }
+
+        if (isIpBlocked(remoteIpAddress)) {
+            if (log.isDebugEnabled()) {
+                log.debug("Rejecting REST request because of blocked address: " + remoteAddress);
+            }
+            auditLog.logBlockedIp(restRequest, remoteAddress.address());
+            onResult.accept(new AuthczResult(AuthczResult.Status.STOP, RestStatus.UNAUTHORIZED, "Authentication finally failed"));
+            return;
+        }
+
+        if (!isInitialized()) {
+            log.error("Not yet initialized (you may need to run sgadmin)");
+            onResult.accept(new AuthczResult(AuthczResult.Status.STOP, RestStatus.SERVICE_UNAVAILABLE,
+                    "Search Guard not initialized (SG11). See https://docs.search-guard.com/latest/sgadmin"));
+            return;
+        }
+        
+        String configId = request.get("config_id") != null ? request.get("config_id").toString() : "default";        
+                        
+        List<AuthenticationDomain<ApiAuthenticationFrontend>> apiAuthenticationDomains = this.apiAuthenticationDomainMap.get(configId);
+
+        if (apiAuthenticationDomains == null) {
+            log.error("Invalid config_id: " + configId +  "; available: " + this.apiAuthenticationDomainMap.keySet());
+            onResult.accept(new AuthczResult(AuthczResult.Status.STOP, RestStatus.BAD_REQUEST, "Invalid config_id"));
+            return;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("Using auth domains from frontend config " + configId + ": " + apiAuthenticationDomains);
+        }
+        
+        String mode = request.get("mode") != null ? request.get("mode").toString() : null;
+
+        if (mode != null) {
+            apiAuthenticationDomains = apiAuthenticationDomains.stream().filter((d) -> mode.equals(d.getHttpAuthenticator().getType()))
+                    .collect(toList());
+        }
+
+        String id = request.get("id") != null ? request.get("id").toString() : null;
+
+        if (id != null) {
+            apiAuthenticationDomains = apiAuthenticationDomains.stream().filter((d) -> id.equals(d.getId())).collect(toList());
+        }
+        
+        if (log.isDebugEnabled()) {
+            log.debug("Auth domains after filtering by mode " + mode + " and id " + id + ": " + apiAuthenticationDomains);
+        }
+        
+        new ApiAuthenticationProcessor(request, restRequest, remoteIpAddress, threadContext, apiAuthenticationDomains, restAuthorizationDomains,
+                adminDns, privilegesEvaluator, auditLog, authBackendFailureListeners, authBackendClientBlockRegistries, ipAuthFailureListeners,
+                requiredLoginPrivileges, anonymousAuthEnabled, debug).authenticate(onResult, onFailure);
+
+    }
+
+    public String getSsoLogoutUrl(User user) {
+        String authType = user.getAttributeAsString(UserAttributes.AUTH_TYPE);
+
+        if (authType == null) {
+            // Handle legacy implementations
+            return (String) threadPool.getThreadContext().getTransient(ConfigConstants.SSO_LOGOUT_URL);
+        }
+        
+        String frontendConfigId = user.getAttributeAsString(UserAttributes.FRONTEND_CONFIG_ID);
+        
+        if (frontendConfigId == null) {
+            frontendConfigId = "default";
+        }
+        
+        List<AuthenticationDomain<ApiAuthenticationFrontend>> apiAuthenticationDomains = this.apiAuthenticationDomainMap.get(frontendConfigId);
+        
+        if (apiAuthenticationDomains == null) {
+            log.error("Cannot determine logoutUrl because frontend config " + frontendConfigId + " is not known: " + user);
+            return null;
+        }
+        
+        apiAuthenticationDomains = apiAuthenticationDomains.stream()
+                .filter((d) -> authType.equals(d.getHttpAuthenticator().getType())).collect(toList());
+
+        for (AuthenticationDomain<ApiAuthenticationFrontend> domain : apiAuthenticationDomains) {
+            try {
+                String logoutUrl = domain.getHttpAuthenticator().getLogoutUrl(user);
+
+                if (logoutUrl != null) {
+                    return logoutUrl;
+                }
+            } catch (Exception e) {
+                log.error("Error while determining logoutUrl via " + domain, e);
+            }
+        }
+
+        return null;
     }
 
     private void notifyIpAuthFailureListeners(InetAddress remoteAddress, AuthCredentials authCredentials, Object request) {
@@ -563,7 +690,7 @@ public class BackendRegistry implements DCFListener {
                 throw new ElasticsearchSecurityException(
                         "'" + origPKIuser.getName() + "' is not allowed to impersonate as transport user '" + impersonatedUser + "'");
             } else {
-                for (final AuthenticationDomain authenticationDomain : transportAuthenticationDomains) {
+                for (final AuthenticationDomain<HTTPAuthenticator> authenticationDomain : transportAuthenticationDomains) {
                     final AuthenticationBackend authenticationBackend = authenticationDomain.getBackend();
                     final User impersonatedUserObject = checkExistsAndAuthz(transportImpersonationCache,
                             new User(impersonatedUser, AuthDomainInfo.IMPERSONATION_TLS), authenticationBackend, transportAuthorizationDomains);
@@ -668,6 +795,10 @@ public class BackendRegistry implements DCFListener {
         }
 
         return false;
+    }
+
+    public SgDynamicConfiguration<FrontendConfig> getFrontendConfig() {
+        return frontendConfig;
     }
 
 }
