@@ -29,11 +29,36 @@ import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestStatus;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.google.common.base.Charsets;
 
 public class Responses {
     private static final Logger log = LogManager.getLogger(Responses.class);
+
+    public static void send(RestChannel channel, RestStatus status, ToXContent document) {
+
+        try {
+            final XContentBuilder builder = channel.newBuilder();
+            builder.prettyPrint();
+            builder.humanReadable(true);
+
+            if (document.isFragment()) {
+                builder.startObject();
+            }
+
+            document.toXContent(builder, ToXContent.EMPTY_PARAMS);
+            
+            if (document.isFragment()) {
+                builder.endObject();
+            }
+
+            channel.sendResponse(new BytesRestResponse(status, builder));
+        } catch (Exception e) {
+            log.error(e.toString(), e);
+            throw ExceptionsHelper.convertToElastic(e);
+        }
+    }
 
     public static void sendError(RestChannel channel, RestStatus status, String error) {
         sendError(channel, status, error, (String) null);
@@ -90,6 +115,8 @@ public class Responses {
     public static void sendError(RestChannel channel, Exception e) {
         if (e instanceof ConfigValidationException) {
             sendError(channel, RestStatus.BAD_REQUEST, e.getMessage(), ((ConfigValidationException) e).getValidationErrors());
+        } else if (e instanceof JsonParseException) {
+            sendError(channel, RestStatus.BAD_REQUEST, e.getMessage());
         } else {
             sendError(channel, ExceptionsHelper.status(e), e.getMessage());
         }
