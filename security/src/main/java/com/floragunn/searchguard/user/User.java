@@ -323,6 +323,16 @@ public class User implements Serializable, CustomAttributesAware, UserInformatio
     public Map<String, Object> getStructuredAttributes() {
         return structuredAttributes;
     }
+    
+    public String getAttributeAsString(String key) {
+        Object value = this.structuredAttributes.get(key);
+        
+        if (value != null) {
+            return value.toString();
+        } else {
+            return null;
+        }
+    }
 
     public void addStructuredAttribute(String key, Object value) {
         structuredAttributes.put(key, value);

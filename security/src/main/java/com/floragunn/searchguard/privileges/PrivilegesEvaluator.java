@@ -203,7 +203,13 @@ public class PrivilegesEvaluator implements DCFListener {
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
             sgRoles = specialPrivilegesEvaluationContext.getSgRoles();
         }
-
+        
+        if ("cluster:admin:searchguard:session/_own/delete".equals(action0)) {
+            // Special case for deleting own session: This is always allowed
+            presponse.allowed = true;
+            return presponse;            
+        }
+        
         if (request instanceof BulkRequest && (com.google.common.base.Strings.isNullOrEmpty(user.getRequestedTenant()))) {
             // Shortcut for bulk actions. The details are checked on the lower level of the BulkShardRequests (Action indices:data/write/bulk[s]).
             // This shortcut is only possible if the default tenant is selected, as we might need to rewrite the request for non-default tenants.
@@ -677,7 +683,7 @@ public class PrivilegesEvaluator implements DCFListener {
         }
     }
 
-    public boolean hasClusterPermission(User user, String action) {
+    public boolean hasClusterPermission(User user, String action, TransportAddress callerTransportAddress) {
         SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.provide(user,
                 threadContext);
 
@@ -685,17 +691,13 @@ public class PrivilegesEvaluator implements DCFListener {
             user = specialPrivilegesEvaluationContext.getUser();
         }
 
-        TransportAddress caller;
         Set<String> mappedRoles;
         SgRoles sgRoles;
 
         if (specialPrivilegesEvaluationContext == null) {
-            caller = Objects.requireNonNull((TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
-            mappedRoles = mapSgRoles(user, caller);
+            mappedRoles = mapSgRoles(user, callerTransportAddress);
             sgRoles = getSgRoles(mappedRoles);
         } else {
-            caller = specialPrivilegesEvaluationContext.getCaller() != null ? specialPrivilegesEvaluationContext.getCaller()
-                    : (TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
             sgRoles = specialPrivilegesEvaluationContext.getSgRoles();
         }
@@ -703,6 +705,38 @@ public class PrivilegesEvaluator implements DCFListener {
         return sgRoles.impliesClusterPermissionPermission(action);
     }
 
+    public boolean hasClusterPermissions(User user, List<String> permissions, TransportAddress callerTransportAddress) {
+        if (permissions.isEmpty()) {
+            return true;
+        }
+                
+        SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.provide(user,
+                threadContext);
+
+        if (specialPrivilegesEvaluationContext != null) {
+            user = specialPrivilegesEvaluationContext.getUser();
+        }
+
+        Set<String> mappedRoles;
+        SgRoles sgRoles;
+
+        if (specialPrivilegesEvaluationContext == null) {
+            mappedRoles = mapSgRoles(user, callerTransportAddress);
+            sgRoles = getSgRoles(mappedRoles);
+        } else {
+            mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
+            sgRoles = specialPrivilegesEvaluationContext.getSgRoles();
+        }
+        
+        for (String permission : permissions) {
+            if (!sgRoles.impliesClusterPermissionPermission(permission)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    
     private boolean checkDocWhitelistHeader(User user, String action, ActionRequest request) {
         String docWhitelistHeader = threadContext.getHeader(ConfigConstants.SG_DOC_WHITELST_HEADER);
 

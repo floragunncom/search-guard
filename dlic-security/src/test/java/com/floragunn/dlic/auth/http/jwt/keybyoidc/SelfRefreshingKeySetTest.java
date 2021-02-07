@@ -23,6 +23,11 @@ import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.enterprise.auth.oidc.BadCredentialsException;
+import com.floragunn.searchguard.enterprise.auth.oidc.KeySetProvider;
+import com.floragunn.searchguard.enterprise.auth.oidc.SelfRefreshingKeySet;
+
 public class SelfRefreshingKeySetTest {
 
 	@Test

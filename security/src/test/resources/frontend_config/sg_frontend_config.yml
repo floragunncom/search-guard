@@ -1,0 +1,23 @@
+_sg_meta:
+  type: "frontend_config"
+  config_version: 2
+    
+default:
+  base_url: https://kibana.example.com:5601/
+  authcz: 
+  - type: basic
+    label: "Login"
+  - type: oidc
+    enabled: false
+    label: "Hallo OIDC"
+    client_id: "Id"
+    client_secret: "Secret"
+    idp.openid_configuration_url: http://oidc.example.com/   
+    user_mapping.roles: roles
+  - type: saml
+    enabled: false
+    label: "Hallo SAML"
+    idp:
+      metadata_url: https://idp.example.com
+      entity_id: "entity_id"
+    user_mapping.roles: roles                  

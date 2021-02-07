@@ -49,8 +49,17 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
         super();
     }
 
+    public CreateAuthTokenRequest(String tokenName, RequestedPrivileges requestedPrivileges) {
+        super();
+        this.tokenName = tokenName;
+        this.requestedPrivileges = requestedPrivileges;
+
+    }
+
+    
     public CreateAuthTokenRequest(RequestedPrivileges requestedPrivileges) {
         super();
+        this.tokenName = "";
         this.requestedPrivileges = requestedPrivileges;
 
     }

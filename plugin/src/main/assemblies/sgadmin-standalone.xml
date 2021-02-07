@@ -45,9 +45,6 @@
       <outputDirectory>${file.separator}deps</outputDirectory>
       <useProjectArtifact>false</useProjectArtifact>
       <unpack>false</unpack>
-      <excludes>
-        <exclude>*:dlic*</exclude>
-      </excludes>
     </dependencySet>
   </dependencySets>
 </assembly>

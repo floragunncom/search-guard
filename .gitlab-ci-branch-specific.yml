@@ -1,5 +1,4 @@
 variables:
-  SG_KI_PLUGIN: "b-master-SNAPSHOT"
-#  IT_BRANCH: ""
-#  KI_VERSION: "7.14.0"
-
+  IT_BRANCH: ""
+  SG_KI_PLUGIN: "b-308-session-based-and-multiple-auth-for-7.13.x-SNAPSHOT"
+  KI_VERSION: "7.14.0"
