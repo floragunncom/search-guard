@@ -53,6 +53,7 @@ public class TestSgConfig {
     private NestedValueMap overrideSgConfigSettings;
     private NestedValueMap overrideUserSettings;
     private NestedValueMap overrideRoleSettings;
+    private NestedValueMap overrideFrontendConfigSettings;
     private String indexName = "searchguard";
 
     public TestSgConfig() {
@@ -95,6 +96,26 @@ public class TestSgConfig {
 
         overrideSgConfigSettings.put(new NestedValueMap.Path("sg_config", "dynamic", "http", "xff"),
                 NestedValueMap.of("enabled", true, "internalProxies", proxies));
+
+        return this;
+    }
+
+    public TestSgConfig frontendAuthcz(FrontendAuthcz... frontendAuthcz) {
+        return frontendAuthcz("default", frontendAuthcz);
+    }
+
+    public TestSgConfig frontendAuthcz(String configId, FrontendAuthcz... frontendAuthcz) {
+        if (overrideFrontendConfigSettings == null) {
+            overrideFrontendConfigSettings = new NestedValueMap();
+        }
+
+        List<NestedValueMap> values = new ArrayList<>();
+
+        for (FrontendAuthcz authcz : frontendAuthcz) {
+            values.add(NestedValueMap.copy(authcz.toMap()));
+        }
+
+        overrideFrontendConfigSettings.put(new Path(configId, "authcz"), values);
 
         return this;
     }
@@ -226,6 +247,7 @@ public class TestSgConfig {
         writeConfigToIndex(client, CType.ACTIONGROUPS, "sg_action_groups.yml", null);
         writeConfigToIndex(client, CType.TENANTS, "sg_roles_tenants.yml", null);
         writeConfigToIndex(client, CType.BLOCKS, "sg_blocks.yml", null);
+        writeOptionalConfigToIndex(client, CType.FRONTEND_CONFIG, "sg_frontend_config.yml", overrideFrontendConfigSettings);
 
         ConfigUpdateResponse configUpdateResponse = client
                 .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
@@ -255,7 +277,39 @@ public class TestSgConfig {
             client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
                     .actionGet();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException("Error while initializing config for " + indexName, e);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while initializing config for " + indexName, e);
+        }
+    }
 
+    private void writeOptionalConfigToIndex(Client client, CType configType, String file, NestedValueMap overrides) {
+        try {
+            NestedValueMap config = null;
+
+            if (resourceFolder != null) {
+                try {
+                    config = NestedValueMap.fromYaml(openFile(file));
+                } catch (FileNotFoundException e) {
+                    // ingore
+                }
+            }
+
+            if (config == null) {
+                config = NestedValueMap.of(new NestedValueMap.Path("_sg_meta", "type"), configType.toLCString(),
+                        new NestedValueMap.Path("_sg_meta", "config_version"), 2);
+            }
+
+            if (overrides != null) {
+                config.overrideLeafs(overrides);
+            }
+
+            log.info("Writing " + configType + "\n:" + config.toJsonString());
+
+            client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
+                    .actionGet();
         } catch (Exception e) {
             throw new RuntimeException("Error while initializing config for " + indexName, e);
         }
@@ -575,6 +629,46 @@ public class TestSgConfig {
                 return result;
             }
         }
+    }
+
+    public static class FrontendAuthcz {
+        private final String type;
+        private String label;
+        private NestedValueMap moreProperties = new NestedValueMap();
+
+        public FrontendAuthcz(String type) {
+            this.type = type;
+        }
+
+        public FrontendAuthcz label(String label) {
+            this.label = label;
+            return this;
+        }
+
+        public FrontendAuthcz config(String key, Object value) {
+            this.moreProperties.put(Path.parse(key), value);
+            return this;
+        }
+
+        public FrontendAuthcz config(String key, Object value, Object... kvPairs) {
+            this.moreProperties.put(Path.parse(key), value);
+
+            if (kvPairs != null && kvPairs.length >= 2) {
+                for (int i = 0; i < kvPairs.length; i += 2) {
+                    this.moreProperties.put(Path.parse(String.valueOf(kvPairs[i])), kvPairs[i + 1]);
+                }
+            }
+
+            return this;
+        }
+
+        NestedValueMap toMap() {
+            NestedValueMap result = this.moreProperties.clone();
+            result.put("type", type);
+            result.put("label", label);
+            return result;
+        }
+
     }
 
     public static class AuthFailureListener {

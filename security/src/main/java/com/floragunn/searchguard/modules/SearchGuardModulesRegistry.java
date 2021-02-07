@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.modules;
 
 import java.lang.reflect.Constructor;
@@ -7,6 +24,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -32,12 +50,14 @@ import org.elasticsearch.script.ScriptService;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.auth.api.AuthorizationBackend;
+import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
@@ -65,6 +85,9 @@ public class SearchGuardModulesRegistry {
 
     private SearchGuardComponentRegistry<HTTPAuthenticator> httpAuthenticators = new SearchGuardComponentRegistry<HTTPAuthenticator>(
             HTTPAuthenticator.class, (o) -> o.getType()).add(StandardComponents.httpAuthenticators);
+
+    private SearchGuardComponentRegistry<ApiAuthenticationFrontend> apiAuthenticationFrontends = new SearchGuardComponentRegistry<ApiAuthenticationFrontend>(
+            ApiAuthenticationFrontend.class, (o) -> o.getType()).add(StandardComponents.apiAuthenticationFrontends);
 
     private SearchGuardComponentRegistry<AuthFailureListener> authFailureListeners = new SearchGuardComponentRegistry<AuthFailureListener>(
             AuthFailureListener.class, (o) -> o.getType()).add(StandardComponents.authFailureListeners);
@@ -284,9 +307,17 @@ public class SearchGuardModulesRegistry {
             }
             return null;
         }
+        
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = DefaultObjectMapper.readTree(subNode, Map.class);
 
-        return configMetadata.getConfigParser().parse(subNode);
-
+            return configMetadata.getConfigParser().apply(map);
+        } catch (ConfigValidationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
+        }
     }
 
     public SearchGuardComponentRegistry<AuthenticationBackend> getAuthenticationBackends() {
@@ -301,6 +332,10 @@ public class SearchGuardModulesRegistry {
         return httpAuthenticators;
     }
 
+    public SearchGuardComponentRegistry<ApiAuthenticationFrontend> getApiAuthenticationFrontends() {
+        return apiAuthenticationFrontends;
+    }
+    
     public SearchGuardComponentRegistry<AuthFailureListener> getAuthFailureListeners() {
         return authFailureListeners;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
+ * Copyright 2015-2021 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,13 +43,7 @@ import com.floragunn.searchguard.user.AuthCredentials;
  * https://floragunn.com
  * </b>
  */
-public interface HTTPAuthenticator {
-
-    /**
-     * The type (name) of the authenticator. Only for logging.  
-     * @return the type
-     */
-    String getType();
+public interface HTTPAuthenticator extends AuthenticationFrontend {
     
     /**
      * Extract {@link AuthCredentials} from {@link RestRequest}

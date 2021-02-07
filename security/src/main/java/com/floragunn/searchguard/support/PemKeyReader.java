@@ -233,6 +233,11 @@ public final class PemKeyReader {
     
     public static String resolve(String propName, Settings settings, Path configPath, boolean mustBeValid) {        
         final String originalPath = settings.get(propName, null);
+        
+        if (originalPath == null) {
+            return null;
+        }
+        
         return resolve(originalPath, propName, settings, configPath, mustBeValid);
     }
 

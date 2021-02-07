@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -367,6 +368,15 @@ public final class AuthCredentials implements UserInformation {
             }
 
             this.backendRoles.addAll(Arrays.asList(backendRoles));
+            return this;
+        }
+        
+        public Builder backendRoles(Collection<String> backendRoles) {
+            if (backendRoles == null) {
+                return this;
+            }
+
+            this.backendRoles.addAll(backendRoles);
             return this;
         }
 

@@ -28,6 +28,7 @@ SGS_KIBANA_USER:
   description: "Provide the minimum permissions for a kibana user"
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
+    - "cluster:searchguard:login/session"
   index_permissions:
     - index_patterns:
         - ".kibana"
@@ -156,6 +157,7 @@ SGS_KIBANA_SERVER:
   - "indices:data/read/scroll*"
   - "SGS_CLUSTER_MANAGE_ILM"
   - "cluster:admin:searchguard:authtoken/info"
+  - "cluster:admin:searchguard:auth/frontend/config/get"
   index_permissions:
   - index_patterns:
     - ".kibana"

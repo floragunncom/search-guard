@@ -28,6 +28,8 @@ stages:
   - "Frontend Int Tests Core"
   - "Frontend Int Tests Features"
   - "Frontend Int Tests External Features"
+  - "Frontend Compat Int Tests 1"
+  - "Frontend Compat Int Tests 2"
   - release
 
 workflow:
@@ -229,6 +231,26 @@ test_dlic_security:
     paths:
       - .m2/repository
     policy: pull
+    
+test_dlic_security_legacy:
+  stage: test
+  interruptible: true
+  tags:
+    - openstack-runner
+  script:
+    - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo
+    paths:
+      - .m2/repository
+    policy: pull    
 
 test_dlic_auditlog:
   stage: test
@@ -385,6 +407,8 @@ include:
   - local: 'ci/frontend-int-tests.yml'
   - local: 'ci/frontend-int-tests-features.yml'
   - local: 'ci/frontend-int-tests-external-features.yml'
+  - local: 'ci/frontend-int-tests-compat1.yml'
+  - local: 'ci/frontend-int-tests-compat2.yml'
 
 deploy_release:
   stage: release

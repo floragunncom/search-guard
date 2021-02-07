@@ -481,6 +481,10 @@ public class ValidatingJsonNode {
     }
 
     public Duration duration(String attribute) {
+        return duration(attribute, null);
+    }
+
+    public Duration duration(String attribute, Duration defaultValue) {
         consume(attribute);
 
         if (jsonNode.hasNonNull(attribute)) {
@@ -488,10 +492,10 @@ public class ValidatingJsonNode {
                 return DurationFormat.INSTANCE.parse(jsonNode.get(attribute).textValue());
             } catch (ConfigValidationException e) {
                 validationErrors.add(attribute, e);
-                return null;
+                return defaultValue;
             }
         } else {
-            return null;
+            return defaultValue;
         }
     }
 
@@ -511,6 +515,10 @@ public class ValidatingJsonNode {
     }
 
     public TemporalAmount temporalAmount(String attribute) {
+        return temporalAmount(attribute, null);
+    }
+
+    public TemporalAmount temporalAmount(String attribute, TemporalAmount defaultValue) {
         consume(attribute);
 
         if (jsonNode.hasNonNull(attribute)) {
@@ -518,10 +526,10 @@ public class ValidatingJsonNode {
                 return TemporalAmountFormat.INSTANCE.parse(jsonNode.get(attribute).textValue());
             } catch (ConfigValidationException e) {
                 validationErrors.add(attribute, e);
-                return null;
+                return defaultValue;
             }
         } else {
-            return null;
+            return defaultValue;
         }
     }
 
