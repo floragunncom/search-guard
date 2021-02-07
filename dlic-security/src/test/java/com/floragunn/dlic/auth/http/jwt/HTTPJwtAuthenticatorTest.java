@@ -190,6 +190,27 @@ public class HTTPJwtAuthenticatorTest {
     }
 
     @Test
+    public void testApi() throws Exception {
+        Settings settings = Settings.builder()
+                .put("signing_key", BaseEncoding.base64().encode(secretKey))
+                .put("roles_key", "roles")
+                .build();
+        
+        String jwsToken = Jwts.builder()
+                .setSubject("Leonard McCoy")
+                .claim("roles", "role1,role2")
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        
+        HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
+        
+        AuthCredentials creds = jwtAuth.extractCredentials(ImmutableMap.of("jwt", jwsToken));
+        Assert.assertNotNull(creds);
+        Assert.assertEquals("Leonard McCoy", creds.getUsername());
+        Assert.assertEquals(2, creds.getBackendRoles().size());
+    }
+
+    
+    @Test
     public void testNullClaim() throws Exception {
         Settings settings = Settings.builder()
                 .put("signing_key", BaseEncoding.base64().encode(secretKey))

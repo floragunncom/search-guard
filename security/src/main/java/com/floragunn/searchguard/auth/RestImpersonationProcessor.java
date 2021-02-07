@@ -33,21 +33,22 @@ import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 
-public class RestImpersonationProcessor {
+public class RestImpersonationProcessor<AuthenticatorType extends AuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(RestImpersonationProcessor.class);
 
     private final User originalUser;
 
-    private final Collection<AuthenticationDomain> authenticationDomains;
-    private final Iterator<AuthenticationDomain> authenticationDomainIter;
+    private final Collection<AuthenticationDomain<AuthenticatorType>> authenticationDomains;
+    private final Iterator<AuthenticationDomain<AuthenticatorType>> authenticationDomainIter;
     private final Set<AuthorizationDomain> authorizationDomains;
     private final AdminDNs adminDns;
     private final Cache<String, User> impersonationCache;
     private final String impersonatedUserHeader;
     private boolean cacheResult = true;
 
-    public RestImpersonationProcessor(User originalUser, String impersonatedUserHeader, Collection<AuthenticationDomain> authenticationDomains,
-            Set<AuthorizationDomain> authorizationDomains, AdminDNs adminDns, Cache<String, User> impersonationCache) {
+    public RestImpersonationProcessor(User originalUser, String impersonatedUserHeader,
+            Collection<AuthenticationDomain<AuthenticatorType>> authenticationDomains, Set<AuthorizationDomain> authorizationDomains,
+            AdminDNs adminDns, Cache<String, User> impersonationCache) {
 
         this.originalUser = originalUser;
         this.authenticationDomains = authenticationDomains;
@@ -76,12 +77,14 @@ public class RestImpersonationProcessor {
                         "'" + originalUser.getName() + "' is not allowed to impersonate as '" + impersonatedUserHeader + "'", RestStatus.FORBIDDEN);
             }
 
-            User impersonatedUser = impersonationCache.getIfPresent(impersonatedUserHeader);
+            if (impersonationCache != null) {
+                User impersonatedUser = impersonationCache.getIfPresent(impersonatedUserHeader);
 
-            if (impersonatedUser != null) {
-                impersonatedUser.setRequestedTenant(originalUser.getRequestedTenant());
-                onResult.accept(AuthczResult.pass(impersonatedUser));
-                return;
+                if (impersonatedUser != null) {
+                    impersonatedUser.setRequestedTenant(originalUser.getRequestedTenant());
+                    onResult.accept(AuthczResult.pass(impersonatedUser));
+                    return;
+                }
             }
 
             checkNextAuthenticationDomains(onResult, onFailure);
@@ -94,7 +97,7 @@ public class RestImpersonationProcessor {
 
         try {
             while (authenticationDomainIter.hasNext()) {
-                AuthenticationDomain authenticationDomain = authenticationDomainIter.next();
+                AuthenticationDomain<AuthenticatorType> authenticationDomain = authenticationDomainIter.next();
 
                 AuthDomainState state = checkCurrentAuthenticationDomain(authenticationDomain, onResult, onFailure);
 
@@ -116,8 +119,8 @@ public class RestImpersonationProcessor {
         }
     }
 
-    private AuthDomainState checkCurrentAuthenticationDomain(AuthenticationDomain authenticationDomain, Consumer<AuthczResult> onResult,
-            Consumer<Exception> onFailure) {
+    private AuthDomainState checkCurrentAuthenticationDomain(AuthenticationDomain<AuthenticatorType> authenticationDomain,
+            Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
 
         try {
             if (log.isDebugEnabled()) {
@@ -132,7 +135,7 @@ public class RestImpersonationProcessor {
                 authz(impersonatedUser, (user) -> {
                     impersonatedUser.setRequestedTenant(originalUser.getRequestedTenant());
 
-                    if (cacheResult) {
+                    if (cacheResult && impersonationCache != null) {
                         impersonationCache.put(impersonatedUserHeader, impersonatedUser);
                     }
 

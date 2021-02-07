@@ -179,5 +179,4 @@ public class BaseDependencies {
         return auditLog;
     }
 
-
 }

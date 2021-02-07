@@ -29,14 +29,14 @@ import org.apache.logging.log4j.util.Strings;
 
 import com.google.common.collect.ImmutableSet;
 
-class TestJwts {
-    static final String ROLES_CLAIM = "roles";
-    static final Set<String> TEST_ROLES = ImmutableSet.of("role1", "role2");
-    static final String TEST_ROLES_STRING = Strings.join(TEST_ROLES, ',');
+public class TestJwts {
+    public static final String ROLES_CLAIM = "roles";
+    public static final Set<String> TEST_ROLES = ImmutableSet.of("role1", "role2");
+    public static final String TEST_ROLES_STRING = Strings.join(TEST_ROLES, ',');
 
-    static final String TEST_AUDIENCE = "TestAudience";
+    public static final String TEST_AUDIENCE = "TestAudience";
 
-    static final String MCCOY_SUBJECT = "Leonard McCoy";
+    public static final String MCCOY_SUBJECT = "Leonard McCoy";
 
     static final JwtToken MC_COY = create(MCCOY_SUBJECT, TEST_AUDIENCE, ROLES_CLAIM, TEST_ROLES_STRING);
 
@@ -46,13 +46,13 @@ class TestJwts {
     
     static final JwtToken MC_LIST_2_CLAIM = create("McList", TEST_AUDIENCE, ROLES_CLAIM, TEST_ROLES_STRING, "n", Arrays.asList("mcl", "mcl2"));
     
-    static final String MC_COY_SIGNED_OCT_1 = createSigned(MC_COY, TestJwk.OCT_1);
+    public static final String MC_COY_SIGNED_OCT_1 = createSigned(MC_COY, TestJwk.OCT_1);
 
-    static final String MC_COY_SIGNED_RSA_1 = createSigned(MC_COY, TestJwk.RSA_1);
+    public static final String MC_COY_SIGNED_RSA_1 = createSigned(MC_COY, TestJwk.RSA_1);
 
-    static final String MC_COY_SIGNED_RSA_X = createSigned(MC_COY, TestJwk.RSA_X);
+    public static final String MC_COY_SIGNED_RSA_X = createSigned(MC_COY, TestJwk.RSA_X);
 
-    static final String MC_COY_EXPIRED_SIGNED_OCT_1 = createSigned(MC_COY_EXPIRED, TestJwk.OCT_1);
+    public static final String MC_COY_EXPIRED_SIGNED_OCT_1 = createSigned(MC_COY_EXPIRED, TestJwk.OCT_1);
 
     static final String MC_LIST_CLAIM_SIGNED_OCT_1 = createSigned(MC_LIST_CLAIM, TestJwk.OCT_1);
     
@@ -65,14 +65,14 @@ class TestJwts {
         static final String MC_COY_SIGNED_RSA_X = createSignedWithoutKeyId(MC_COY, TestJwk.RSA_X);
     }
 
-    static class PeculiarEscaping {
+    public static class PeculiarEscaping {
         // CXF starting with 3.3.11 can be no longer used to create the peculiar escaping: https://github.com/apache/cxf/pull/819
         // Thus, we need to hardcode the value here. This was produced with 
         //         jwsHeaders.setKeyId(jwk.getKeyId().replace("/", "\\/"));
-        static final String MC_COY_SIGNED_RSA_1 = "eyJraWQiOiJraWRcLzEiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJMZW9uYXJkIE1jQ295IiwiYXVkIjoiVGVzdEF1ZGllbmNlIiwicm9sZXMiOiJyb2xlMSxyb2xlMiJ9.C0ntlhZtalpOYzgrzq_I4c6NxeQEmUk9Id5fVI6SXLIyscBrpS8nQ3bZrtX3qDiCYZDbp5n1OJMp3nhC7Ro2qdWjFe3FRSewKyZSowzVdQSlPetEsyLh3KdEs2ZPx3vry_y8SeCcJw_tiUOysceTMKzseL3DzF2PmoRRARLbQVI6zQvanRC8-WREraA2gTXpv_R-haOy7sf00VQhjGPMTCjqxXTfO6gzCz5-02tpGOOooQ8BcPy_At0nKjmuZgw_jODTL4TYs_T48M9tHxuY02qF3zv6iLonFz1mrb7Ff-65OUo4QVfqiOMxCOAe1JFP9o1tbtgaoiaWVznezjRK6A";
+        public static final String MC_COY_SIGNED_RSA_1 = "eyJraWQiOiJraWRcLzEiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJMZW9uYXJkIE1jQ295IiwiYXVkIjoiVGVzdEF1ZGllbmNlIiwicm9sZXMiOiJyb2xlMSxyb2xlMiJ9.C0ntlhZtalpOYzgrzq_I4c6NxeQEmUk9Id5fVI6SXLIyscBrpS8nQ3bZrtX3qDiCYZDbp5n1OJMp3nhC7Ro2qdWjFe3FRSewKyZSowzVdQSlPetEsyLh3KdEs2ZPx3vry_y8SeCcJw_tiUOysceTMKzseL3DzF2PmoRRARLbQVI6zQvanRC8-WREraA2gTXpv_R-haOy7sf00VQhjGPMTCjqxXTfO6gzCz5-02tpGOOooQ8BcPy_At0nKjmuZgw_jODTL4TYs_T48M9tHxuY02qF3zv6iLonFz1mrb7Ff-65OUo4QVfqiOMxCOAe1JFP9o1tbtgaoiaWVznezjRK6A";
     }
 
-    static JwtToken create(String subject, String audience, Object... moreClaims) {
+    public static JwtToken create(String subject, String audience, Object... moreClaims) {
         JwtClaims claims = new JwtClaims();
 
         claims.setSubject(subject);
@@ -89,11 +89,11 @@ class TestJwts {
         return result;
     }
 
-    static String createSigned(JwtToken baseJwt, JsonWebKey jwk) {
+    public static String createSigned(JwtToken baseJwt, JsonWebKey jwk) {
         return createSigned(baseJwt, jwk, JwsUtils.getSignatureProvider(jwk));
     }
 
-    static String createSigned(JwtToken baseJwt, JsonWebKey jwk, JwsSignatureProvider signatureProvider) {
+    public static String createSigned(JwtToken baseJwt, JsonWebKey jwk, JwsSignatureProvider signatureProvider) {
         JwsHeaders jwsHeaders = new JwsHeaders();
         JwtToken signedToken = new JwtToken(jwsHeaders, baseJwt.getClaims());
 

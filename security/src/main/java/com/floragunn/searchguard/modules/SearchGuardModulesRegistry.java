@@ -60,6 +60,7 @@ import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.auth.api.AuthorizationBackend;
+import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
@@ -88,6 +89,9 @@ public class SearchGuardModulesRegistry {
 
     private SearchGuardComponentRegistry<HTTPAuthenticator> httpAuthenticators = new SearchGuardComponentRegistry<HTTPAuthenticator>(
             HTTPAuthenticator.class, (o) -> o.getType()).add(StandardComponents.httpAuthenticators);
+
+    private SearchGuardComponentRegistry<ApiAuthenticationFrontend> apiAuthenticationFrontends = new SearchGuardComponentRegistry<ApiAuthenticationFrontend>(
+            ApiAuthenticationFrontend.class, (o) -> o.getType()).add(StandardComponents.apiAuthenticationFrontends);
 
     private SearchGuardComponentRegistry<AuthFailureListener> authFailureListeners = new SearchGuardComponentRegistry<AuthFailureListener>(
             AuthFailureListener.class, (o) -> o.getType()).add(StandardComponents.authFailureListeners);
@@ -323,10 +327,11 @@ public class SearchGuardModulesRegistry {
 
         try {
             return configMetadata.getConfigParser().apply(DocNode.wrap(subObject));
+        } catch (ConfigValidationException e) {
+            throw e;
         } catch (Exception e) {
             throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
         }
-
     }
 
     public SearchGuardComponentRegistry<AuthenticationBackend> getAuthenticationBackends() {
@@ -341,6 +346,10 @@ public class SearchGuardModulesRegistry {
         return httpAuthenticators;
     }
 
+    public SearchGuardComponentRegistry<ApiAuthenticationFrontend> getApiAuthenticationFrontends() {
+        return apiAuthenticationFrontends;
+    }
+    
     public SearchGuardComponentRegistry<AuthFailureListener> getAuthFailureListeners() {
         return authFailureListeners;
     }

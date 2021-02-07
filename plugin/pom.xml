@@ -202,6 +202,12 @@
 					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
 					<version>${project.version}</version>
 				</dependency>		
+
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-suite-security-legacy</artifactId>
+					<version>${project.version}</version>
+				</dependency>				
 				
 				<dependency>
 					<groupId>${project.groupId}</groupId>
@@ -215,6 +221,7 @@
 					<artifactId>elasticsearch</artifactId>
 					<scope>provided</scope>				
 				</dependency>			
+				
 			</dependencies>
 		</profile>
 		<profile>
@@ -305,6 +312,12 @@
 					<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
 					<version>${project.version}</version>
 				</dependency>								
+
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-suite-security-legacy</artifactId>
+					<version>${project.version}</version>
+				</dependency>
 			</dependencies>
 		</profile>
 	</profiles>

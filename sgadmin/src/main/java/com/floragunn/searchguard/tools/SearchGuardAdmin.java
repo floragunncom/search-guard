@@ -97,6 +97,7 @@ import org.elasticsearch.plugins.PluginInfo;
 import org.elasticsearch.transport.Netty4Plugin;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -586,15 +587,15 @@ public class SearchGuardAdmin {
 
             if(!whoAmIRes.isAdmin()) {
                 
-            	System.out.println("ERR: "+whoAmIRes.getDn()+" is not an admin user");
+                System.out.println("ERR: "+whoAmIRes.getDn()+" is not an admin user");
                 
                 if(!whoAmIRes.isNodeCertificateRequest()) {
-                	System.out.println("Seems you use a client certificate but this one is not registered as admin_dn");
-                	System.out.println("Make sure elasticsearch.yml on all nodes contains:");
+                    System.out.println("Seems you use a client certificate but this one is not registered as admin_dn");
+                    System.out.println("Make sure elasticsearch.yml on all nodes contains:");
                     System.out.println("searchguard.authcz.admin_dn:"+System.lineSeparator()+
                                        "  - \""+whoAmIRes.getDn()+"\"");
                 } else {
-                	System.out.println("Seems you use a node certificate. This is not permitted, you have to use a client certificate and register it as admin_dn in elasticsearch.yml");
+                    System.out.println("Seems you use a node certificate. This is not permitted, you have to use a client certificate and register it as admin_dn in elasticsearch.yml");
                 }
                 return (-1);
             } else if(whoAmIRes.isNodeCertificateRequest()) {
@@ -828,6 +829,7 @@ public class SearchGuardAdmin {
                 if(!legacy) {
                     success = retrieveFile(tc, cd+"sg_tenants_"+date+".yml", index, "tenants", legacy) && success;
                     success = retrieveFile(tc, cd+"sg_blocks_"+date+".yml", index, "blocks", legacy) && success;
+                    success = retrieveFile(tc, cd+"sg_frontend_config_"+date+".yml", index, "frontend_config", legacy) && success;
                 }
                 return (success?0:-1);
             }
@@ -918,6 +920,16 @@ public class SearchGuardAdmin {
                 return false;
             }
             
+        } else {
+            try {
+                ConfigHelper.fromYamlFile(filepath, CType.fromString(_id), 2);
+            } catch (ConfigValidationException e) {
+                System.out.println("ERR: " + filepath + " is invalid:\n" + e.getMessage() + "\n" + e.getValidationErrors());
+                return false;
+            } catch (Exception e) {
+                System.out.println("ERR: Seems "+filepath+" is not in SG 7 format: "+e);
+                return false;
+            }
         }
         
         System.out.println("Will update '"+type+"/" + id + "' with " + filepath+" "+(legacy?"(legacy mode)":""));
@@ -1250,6 +1262,7 @@ public class SearchGuardAdmin {
         if(!legacy) {
             success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_tenants.yml", index, "tenants", legacy) && success;
             success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_blocks.yml", index, "blocks", legacy) && success;
+            success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_frontend_config.yml", index, "frontend_config", legacy) && success;
         }
         
         return success?0:-1;
@@ -1273,8 +1286,12 @@ public class SearchGuardAdmin {
         if(!legacy) {
             success = uploadFile(tc, cd+"sg_tenants.yml", index, "tenants", legacy, resolveEnvVars) && success;
 
-            if (new File(cd+"sg_blocks.yml").exists()) {
-                success = uploadFile(tc, cd+"sg_blocks.yml", index, "blocks", legacy, resolveEnvVars) && success;
+            if (new File(cd + "sg_blocks.yml").exists()) {
+                success = uploadFile(tc, cd + "sg_blocks.yml", index, "blocks", legacy, resolveEnvVars) && success;
+            }
+
+            if (new File(cd + "sg_frontend_config.yml").exists()) {
+                success = uploadFile(tc, cd + "sg_frontend_config.yml", index, "frontend_config", legacy, resolveEnvVars) && success;
             }
         }
         
@@ -1332,6 +1349,10 @@ public class SearchGuardAdmin {
 
             if(new File(cd+"sg_blocks.yml").exists() && version != 6) {
                 success = validateConfigFile(cd+"sg_blocks.yml", CType.BLOCKS, version) && success;
+            }
+            
+            if(new File(cd+"sg_frontend_config.yml").exists() && version != 6) {
+                success = validateConfigFile(cd+"sg_frontend_config.yml", CType.FRONTEND_CONFIG, version) && success;
             }
             
             return success?0:-1;

@@ -39,6 +39,9 @@ import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 public class RequestedPrivileges implements Writeable, ToXContentObject, Serializable {
     private static final long serialVersionUID = 5862219250642101795L;
     private static final List<String> WILDCARD_LIST = Collections.singletonList("*");
+    
+    public static final RequestedPrivileges ALL = new RequestedPrivileges(WILDCARD_LIST, IndexPermissions.ALL, TenantPermissions.ALL);
+    
     private List<String> clusterPermissions;
     private List<IndexPermissions> indexPermissions;
     private List<TenantPermissions> tenantPermissions;
@@ -53,6 +56,14 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         this.excludedClusterPermissions = in.readStringList();
         this.excludedIndexPermissions = in.readList(ExcludedIndexPermissions::new);
         this.roles = in.readOptionalStringList();
+    }
+    
+    RequestedPrivileges(List<String> clusterPermissions,  List<IndexPermissions> indexPermissions, List<TenantPermissions> tenantPermissions) {
+        this.clusterPermissions = clusterPermissions;
+        this.indexPermissions = indexPermissions;
+        this.tenantPermissions = tenantPermissions;
+        this.excludedClusterPermissions = Collections.emptyList();
+        this.excludedIndexPermissions = Collections.emptyList();
     }
 
     private RequestedPrivileges() {
@@ -219,6 +230,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
 
     public static class IndexPermissions implements Writeable, ToXContentObject, Serializable {
 
+        public static final List<IndexPermissions> ALL = Collections.singletonList(new IndexPermissions(WILDCARD_LIST, WILDCARD_LIST));
+        
         private static final long serialVersionUID = -2567351561923741922L;
         private List<String> indexPatterns;
         private List<String> allowedActions;
@@ -302,6 +315,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     }
 
     public static class TenantPermissions implements Writeable, ToXContentObject, Serializable {
+        public static final List<TenantPermissions> ALL = Collections.singletonList(new TenantPermissions(WILDCARD_LIST, WILDCARD_LIST));
 
         private static final long serialVersionUID = 170036537583928629L;
         private List<String> tenantPatterns;
@@ -419,7 +433,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
 
             return new ExcludedIndexPermissions(indexPatterns, actions);
         }
-
+        
         @Override
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startObject();

@@ -20,6 +20,8 @@ import java.security.Key;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
@@ -41,8 +43,11 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.dlic.util.Roles;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.UserAttributes;
 import com.jayway.jsonpath.Configuration;
@@ -56,7 +61,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.WeakKeyException;
 
-public class HTTPJwtAuthenticator implements HTTPAuthenticator {
+public class HTTPJwtAuthenticator implements HTTPAuthenticator, ApiAuthenticationFrontend {
 
     
     private static final Logger log = LogManager.getLogger(HTTPJwtAuthenticator.class);
@@ -156,6 +161,18 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
 
         return AccessController.doPrivileged((PrivilegedAction<AuthCredentials>) () -> extractCredentials0(request));
     }
+    
+    @Override
+    public AuthCredentials extractCredentials(Map<String, Object> request) throws ElasticsearchSecurityException, ConfigValidationException {
+        String jwtString = request.containsKey("jwt") ? String.valueOf(request.get("jwt")) : null;
+
+        if (jwtString == null) {
+            throw new ConfigValidationException(new MissingAttribute("jwt"));
+        }
+        
+        return extractCredentials(jwtString);
+    }
+ 
 
     private AuthCredentials extractCredentials0(final RestRequest request) {        
         if (jwtParser == null) {
@@ -188,14 +205,35 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
             }
         }
         
+        
+        return extractCredentials(jwtToken);
+    }
+    
+    private AuthCredentials extractCredentials(String jwtToken) {        
+        if (jwtParser == null) {
+            log.error("Missing Signing Key. JWT authentication will not work");
+            return null;
+        }
+        
         try {
-            final Claims claims = jwtParser.parseClaimsJws(jwtToken).getBody();
+
+            Claims claims;
             
-            final String subject = extractSubject(claims, request);
+            try {
+                claims = AccessController.doPrivileged((PrivilegedExceptionAction<Claims>) () -> jwtParser.parseClaimsJws(jwtToken).getBody());
+            } catch (PrivilegedActionException e) {
+                if (e.getCause() instanceof Exception) {
+                    throw (Exception) e.getCause();
+                } else {
+                    throw new RuntimeException(e.getCause());
+                }
+            }
+            
+            final String subject = extractSubject(claims);
             
             if (subject == null) {
-            	log.error("No subject found in JWT token");
-            	return null;
+                log.error("No subject found in JWT token");
+                return null;
             }
             
             final String[] roles = extractRoles(claims);
@@ -227,7 +265,7 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
         return "jwt";
     }
     
-    protected String extractSubject(final Claims claims, final RestRequest request) {
+    protected String extractSubject(final Claims claims) {
         String subject = claims.getSubject();        
         if(subjectKey != null) {
     		// try to get roles from claims, first as Object to avoid having to catch the ExpectedTypeException
@@ -350,5 +388,6 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
             return null;
         }
     }
+
    
 }

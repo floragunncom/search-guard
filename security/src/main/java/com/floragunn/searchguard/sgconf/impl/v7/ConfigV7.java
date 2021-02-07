@@ -10,6 +10,8 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
@@ -46,7 +48,10 @@ public class ConfigV7 {
         public boolean do_not_fail_on_forbidden_empty;
         public String field_anonymization_salt2;
         public HashMap<String, Object> auth_token_provider = new HashMap<>();
-        
+        public HashMap<String, Object> sessions = new HashMap<>();
+        @JsonInclude(Include.NON_NULL)
+        public Boolean debug;
+
         @Override
         public String toString() {
             return "Dynamic [filtered_alias_mode=" + filtered_alias_mode + ", kibana=" + kibana + ", http=" + http + ", authc=" + authc + ", authz="
@@ -172,6 +177,8 @@ public class ConfigV7 {
 
         public boolean http_enabled= true;
         public boolean transport_enabled= true;
+        @JsonInclude(Include.NON_NULL)
+        public Boolean session_enabled = null;
         //public boolean enabled= true;
         public int order = 0;
         public HttpAuthenticator http_authenticator = new HttpAuthenticator();

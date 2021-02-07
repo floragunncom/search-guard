@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.sgconf.impl;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.HashMap;
@@ -37,13 +38,12 @@ import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.RedactableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -57,11 +57,11 @@ import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchguard.sgconf.StaticDefinable;
 import com.floragunn.searchguard.support.SgUtils;
+import com.google.common.base.Charsets;
 
 public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, RedactableDocument {
     
     private static final Logger log = LogManager.getLogger(SgDynamicConfiguration.class);
-    private static final TypeReference<HashMap<String,Object>> typeRefMSO = new TypeReference<HashMap<String,Object>>() {};
 
     @JsonIgnore
     private final Map<String, T> centries = new HashMap<>();
@@ -79,8 +79,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     public static <T> SgDynamicConfiguration<T> empty() {
         return new SgDynamicConfiguration<T>();
     }
-    
-    
+        
     public static <T> SgDynamicConfiguration<T> from(Reader reader, CType<T> ctype, Format docType, ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
         if (ctype.getParser() != null) {
             return fromMap(DocReader.format(docType).readObject(reader), ctype, parserContext);
@@ -91,6 +90,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     
     public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo, long primaryTerm, Settings settings, ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
         String jsonString = SgUtils.replaceEnvVars(uninterpolatedJson, settings);
+      
         JsonNode jsonNode = DefaultObjectMapper.readTree(jsonString);
         int configVersion = 1;
         
@@ -134,6 +134,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             if(implementationClass == null) {
                 throw new IllegalArgumentException("No implementation class found for "+ctype+" and config version "+version);
             }
+                        
             sdc = DefaultObjectMapper.readValue(json, DefaultObjectMapper.getTypeFactory().constructParametricType(SgDynamicConfiguration.class, implementationClass));
         
             validate(sdc, version, ctype);
@@ -170,7 +171,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             if(implementationClass == null) {
                 throw new IllegalArgumentException("No implementation class found for "+ctype+" and config version "+version);
             }
-            
+                      
             try {
                 sdc = DefaultObjectMapper.convertValue(map, DefaultObjectMapper.getTypeFactory().constructParametricType(SgDynamicConfiguration.class, implementationClass));
             } catch (IllegalArgumentException e) {
@@ -337,6 +338,8 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     
     @JsonIgnore
     public void removeHidden() {
+        uninterpolatedJson = null;
+
         for(Entry<String, T> entry: new HashMap<String, T>(centries).entrySet()) {
             if(entry.getValue() instanceof Hideable && ((Hideable) entry.getValue()).isHidden()) {
                 centries.remove(entry.getKey());
@@ -346,6 +349,8 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     
     @JsonIgnore
     public void removeStatic() {
+        uninterpolatedJson = null;
+
         for(Entry<String, T> entry: new HashMap<String, T>(centries).entrySet()) {
             if(entry.getValue() instanceof StaticDefinable && ((StaticDefinable) entry.getValue()).isStatic()) {
                 centries.remove(entry.getKey());
@@ -354,6 +359,8 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     }
 
     public void removeOthers(String key) {
+        uninterpolatedJson = null;
+
         T tmp = this.centries.get(key);
         this.centries.clear();
         this.centries.put(key, tmp);
@@ -361,9 +368,10 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     
     @JsonIgnore
     public T putCEntry(String key, T value) {
+        uninterpolatedJson = null;
         return centries.put(key, value);
     }
- 
+        
     @JsonIgnore
     public T getCEntry(String key) {
         return centries.get(key);
@@ -436,13 +444,40 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     @Override
     @JsonIgnore
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        final boolean omitDefaults = params != null && params.paramAsBoolean("omit_defaults", false);
-        
-        if (Document.class.isAssignableFrom(this.ctype.getType())) {
+
+        if (uninterpolatedJson != null) {
+            builder.rawValue(new ByteArrayInputStream(uninterpolatedJson.getBytes(Charsets.UTF_8)), XContentType.JSON);
+        } else  if (Document.class.isAssignableFrom(this.ctype.getType())) {
             return builder.value(toBasicObject());
         } else {
-            return builder.map(DefaultObjectMapper.readValue(DefaultObjectMapper.writeValueAsString(this, omitDefaults), typeRefMSO));
+            boolean omitDefaults = params != null && params.paramAsBoolean("omit_defaults", false);
+            builder.startObject();
+                        
+            if (get_sg_meta() != null) {
+                builder.field("_sg_meta", get_sg_meta().toBasicObject());
+            }
+            
+            for (Map.Entry<String, T> entry : centries.entrySet()) {
+                String key = entry.getKey();
+                T value = entry.getValue();
+                
+                if (value instanceof Document) {
+                    builder.field(key, ((Document<?>) value).toBasicObject());
+                } else {                    
+                    builder.rawField(key,
+                            new ByteArrayInputStream(DefaultObjectMapper.writeValueAsString(value, omitDefaults).getBytes(Charsets.UTF_8)),
+                            XContentType.JSON);
+                }
+            }
+            
+            builder.endObject();
         }
+        
+        return builder;
+    }
+    
+    public void resetUninterpolatedJson() {
+        uninterpolatedJson = null;
     }
 
     @Override

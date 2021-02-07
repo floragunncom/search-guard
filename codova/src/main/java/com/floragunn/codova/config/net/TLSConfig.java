@@ -224,7 +224,7 @@ public class TLSConfig implements Document<TLSConfig> {
             ClientCertAuthConfig clientCertAuthConfig = new ClientCertAuthConfig();
             clientCertAuthConfig.alias = alias;
             clientCertAuthConfig.keyStore = keyStore;
-            clientCertAuthConfig.password = password;
+            clientCertAuthConfig.keyStorePassword = password;
 
             tlsConfig.clientCertAuthConfig = clientCertAuthConfig;
 
@@ -578,37 +578,7 @@ public class TLSConfig implements Document<TLSConfig> {
             }
         }
 
-        private static PrivateKey toPrivateKey(String string, String keyPassword) throws ConfigValidationException {
-
-            JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
-
-            try (PEMParser pemParser = new PEMParser(new StringReader(string))) {
-
-                Object object = pemParser.readObject();
-
-                if (object == null) {
-                    return null;
-                } else if (object instanceof PEMKeyPair) {
-                    return converter.getKeyPair((PEMKeyPair) object).getPrivate();
-                } else if (object instanceof PEMEncryptedKeyPair) {
-                    PEMDecryptorProvider pdp = new BcPEMDecryptorProvider(keyPassword == null ? null : keyPassword.toCharArray());
-                    PEMKeyPair kp = ((PEMEncryptedKeyPair) object).decryptKeyPair(pdp);
-                    return converter.getKeyPair(kp).getPrivate();
-                } else if (object instanceof PrivateKeyInfo) {
-                    return converter.getPrivateKey((PrivateKeyInfo) object);
-                } else if (object instanceof PKCS8EncryptedPrivateKeyInfo) {
-                    InputDecryptorProvider pdp = new JceOpenSSLPKCS8DecryptorProviderBuilder()
-                            .build(keyPassword == null ? null : keyPassword.toCharArray());
-                    return converter.getPrivateKey(((PKCS8EncryptedPrivateKeyInfo) object).decryptPrivateKeyInfo(pdp));
-                } else {
-                    throw new ConfigValidationException(new ValidationError(null, "Unknown object type: " + object.getClass()));
-                }
-            } catch (IOException | OperatorCreationException | PKCSException e) {
-                log.info("Error while parsing private key", e);
-                throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
-            }
-        }
-
+   
         public Collection<? extends Certificate> getCertificateChain() {
             return certificateChain;
         }
