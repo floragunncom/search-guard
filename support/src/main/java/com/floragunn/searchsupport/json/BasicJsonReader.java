@@ -17,6 +17,7 @@
 
 package com.floragunn.searchsupport.json;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -27,11 +28,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.XContentType;
+
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 /**
  * A lightweight, reflection-less way of parsing JSON. Parses JSON to these basic Java types:
@@ -49,9 +54,7 @@ public class BasicJsonReader {
     }
 
     public static Object read(InputStream in) throws JsonProcessingException, IOException {
-        try (JsonParser parser = jsonFactory.createParser(in)) {
-            return new BasicJsonReader(parser).read();
-        }
+        return read(in, jsonFactory);
     }
     
     public static Object read(Reader in) throws JsonProcessingException, IOException {
@@ -68,23 +71,45 @@ public class BasicJsonReader {
         }
     }
 
-    public static Map<String, Object> readObject(InputStream in) throws JsonProcessingException, IOException {
-        Object parsedDocument = read(in);
-
-        if (parsedDocument instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> result = (Map<String, Object>) parsedDocument;
-
-            return result;
-        } else {
-            throw new UnexpectedJsonStructureException(
-                    "Expected a JSON object. Got: " + (parsedDocument instanceof List ? "Array" : String.valueOf(parsedDocument)));
+    public static Object read(BytesReference data, XContentType contentType) throws JsonProcessingException {
+        try {
+            return read(new ByteArrayInputStream(BytesReference.toBytes(data)), getJsonFactory(contentType));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public static Map<String, Object> readObject(String string) throws JsonProcessingException, IOException {
-        Object parsedDocument = read(string);
+    public static Map<String, Object> readObject(InputStream in) throws JsonProcessingException, IOException {
+        return toJsonObject(read(in));
+    }
 
+    public static Map<String, Object> readObject(String string) throws JsonProcessingException, IOException {
+        return toJsonObject(read(string));
+    }
+
+    public static Map<String, Object> readObject(BytesReference data, XContentType contentType) throws JsonProcessingException {
+        return toJsonObject(read(data, contentType));
+    }
+
+    
+    private static Object read(InputStream in, JsonFactory jsonFactory) throws JsonProcessingException, IOException {
+        try (JsonParser parser = jsonFactory.createParser(in)) {
+            return new BasicJsonReader(parser).read();
+        }
+    }
+
+    private static JsonFactory getJsonFactory(XContentType contentType) {
+        switch (contentType) {
+        case JSON:
+            return jsonFactory;
+        case YAML:
+            return yamlFactory;
+        default:
+            throw new IllegalArgumentException("Content-Type " + contentType + " is not supported");
+        }
+    }
+    
+    private static Map<String, Object> toJsonObject(Object parsedDocument) throws UnexpectedJsonStructureException {
         if (parsedDocument instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> result = (Map<String, Object>) parsedDocument;
@@ -97,6 +122,7 @@ public class BasicJsonReader {
     }
 
     private static JsonFactory jsonFactory = new JsonFactory();
+    private static YAMLFactory yamlFactory = new YAMLFactory();
 
     private JsonParser parser;
     private LinkedList<Object> nodeStack = new LinkedList<>();
