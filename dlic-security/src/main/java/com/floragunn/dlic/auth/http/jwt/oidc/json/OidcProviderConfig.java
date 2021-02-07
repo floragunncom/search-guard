@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2021 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -14,6 +14,7 @@
 
 package com.floragunn.dlic.auth.http.jwt.oidc.json;
 
+import java.net.URI;
 import java.util.Collections;
 import java.util.Map;
 
@@ -36,6 +37,26 @@ public class OidcProviderConfig {
 
     public String getTokenEndpoint() {
         return tokenEndpoint;
+    }
+    
+    public URI getAuthorizationEndpoint() {
+        Object rawUri = parsedJson.get("authorization_endpoint");
+        
+        if (rawUri == null) {
+            return null;
+        }
+        
+        return URI.create(String.valueOf(rawUri));
+    }
+    
+    public URI getEndSessionEndpoint() {
+        Object rawUri = parsedJson.get("end_session_endpoint");
+        
+        if (rawUri == null) {
+            return null;
+        }
+        
+        return URI.create(String.valueOf(rawUri));        
     }
 
     public Map<String, Object> getParsedJson() {

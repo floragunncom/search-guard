@@ -34,6 +34,7 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.authtoken.RequestedPrivileges.ExcludedIndexPermissions;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
+import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 
 public class AuthTokenServiceConfig {
 
@@ -251,6 +252,7 @@ public class AuthTokenServiceConfig {
             return jwk;
         }
     };
+
 
     public int getMaxTokensPerUser() {
         return maxTokensPerUser;

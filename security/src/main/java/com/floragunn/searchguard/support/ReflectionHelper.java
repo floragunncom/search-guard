@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
@@ -44,9 +45,11 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
+import com.floragunn.searchguard.auth.AuthenticationFrontend;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -322,7 +325,7 @@ public class ReflectionHelper {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T instantiateAAA(final String clazz, final Settings settings, final Path configPath, final boolean checkEnterprise) {
+    public static <T> T instantiateAAA(final String clazz, final Settings settings, final Path configPath, final boolean checkEnterprise) throws ConfigValidationException {
 
         if (checkEnterprise && enterpriseModulesDisabled()) {
             throw new ElasticsearchException("Can not load '{}' because enterprise modules are disabled", clazz);
@@ -335,7 +338,63 @@ public class ReflectionHelper {
             addLoadedModule(clazz0);
 
             return ret;
+        } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof ConfigValidationException) {
+                throw (ConfigValidationException) e.getCause();
+            } else {
+                log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
+                if (log.isDebugEnabled()) {
+                    log.debug("Stacktrace: ", e);
+                }
+                throw new ElasticsearchException(e);
+            }
+        } catch (final Throwable e) {
+            log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
+            }
+            throw new ElasticsearchException(e);
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    public static <T> T instantiateAAA(String clazz, Map<String, Object> config, AuthenticationFrontend.Context context, boolean checkEnterprise) throws ConfigValidationException, ClassNotFoundException {
 
+        if (checkEnterprise && enterpriseModulesDisabled()) {
+            throw new ElasticsearchException("Can not load '{}' because enterprise modules are disabled", clazz);
+        }
+
+        try {
+            final Class<?> clazz0 = Class.forName(clazz);
+            T ret;
+            
+            try {
+                ret = (T) clazz0.getConstructor(Map.class, AuthenticationFrontend.Context.class).newInstance(config, context);
+            } catch (NoSuchMethodException e) {
+                Settings.Builder settings = Settings.builder().loadFromMap(config);
+                
+                if (context.getEsSettings() != null) {
+                    settings.put(context.getEsSettings());
+                }
+                
+                ret = (T) clazz0.getConstructor(Settings.class, Path.class).newInstance(settings.build(), context.getConfigPath());
+            }
+            
+            addLoadedModule(clazz0);
+
+            return ret;
+        } catch (ClassNotFoundException e) {
+            throw e;
+        } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof ConfigValidationException) {
+                throw (ConfigValidationException) e.getCause();
+            } else {
+                log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
+                if (log.isDebugEnabled()) {
+                    log.debug("Stacktrace: ", e);
+                }
+                throw new ElasticsearchException(e);
+            }
         } catch (final Throwable e) {
             log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
             if (log.isDebugEnabled()) {

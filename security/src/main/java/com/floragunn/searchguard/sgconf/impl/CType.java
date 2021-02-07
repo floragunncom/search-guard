@@ -35,6 +35,7 @@ import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchsupport.util.ImmutableSet;
+import com.floragunn.searchguard.sgconf.impl.v7.FrontendConfig;
 
 public class CType<T> {
 
@@ -54,6 +55,9 @@ public class CType<T> {
 
     public static final CType<ConfigVar> CONFIG_VARS = new CType<ConfigVar>("config_vars", "Config Variable", 7, ConfigVar.class, null,
             Storage.EXTERNAL);
+    
+    public static final CType<FrontendConfig> FRONTEND_CONFIG = new CType<FrontendConfig>("frontend_config", "Frontend Config", 8, FrontendConfig.class, null,
+            Storage.OPTIONAL);
 
     private final String name;
     private final String uiName;

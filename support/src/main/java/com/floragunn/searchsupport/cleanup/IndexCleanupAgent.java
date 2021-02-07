@@ -27,6 +27,7 @@ import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.Lifecycle;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
@@ -105,6 +106,10 @@ public class IndexCleanupAgent {
                             long deleted = response.getDeleted();
 
                             log.debug("Deleted " + deleted + " expired entries from " + index);
+                            
+                            if (log.isTraceEnabled()) {
+                                log.trace(Strings.toString(response));
+                            }
                         }
 
                         @Override

@@ -44,11 +44,13 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
 
 import com.floragunn.codova.config.net.ProxyConfig;
-import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfig;
+import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.enterprise.auth.oidc.KeySetRetriever;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(KeySetRetriever.class);

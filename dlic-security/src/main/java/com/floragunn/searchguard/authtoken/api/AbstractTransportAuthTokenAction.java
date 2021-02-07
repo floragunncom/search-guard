@@ -19,6 +19,7 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.io.stream.Writeable.Reader;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
@@ -36,8 +37,8 @@ abstract class AbstractTransportAuthTokenAction<Request extends ActionRequest, R
         this.allActionName = getAllActionName(actionName);
     }
 
-    protected boolean isAllowedToAccessAll(User user) {
-        return this.privilegesEvaluator.hasClusterPermission(user, this.allActionName);
+    protected boolean isAllowedToAccessAll(User user, TransportAddress callerTransportAddress) {
+        return this.privilegesEvaluator.hasClusterPermission(user, this.allActionName, callerTransportAddress);
     }
 
     protected static String getAllActionName(String actionName) {

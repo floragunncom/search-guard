@@ -24,22 +24,22 @@ import java.util.Objects;
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.support.IPAddressCollection;
 
-public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
+public class AuthenticationDomain<AuthenticatorType extends AuthenticationFrontend> implements Comparable<AuthenticationDomain<AuthenticatorType>> {
 
     private final String id;
     private final AuthenticationBackend backend;
-    private final HTTPAuthenticator httpAuthenticator;
+    private final AuthenticatorType authenticator;
     private final int order;
     private final boolean challenge;
     private final List<String> skippedUsers;
     private final IPAddressCollection enabledOnlyForIps;
 
-    public AuthenticationDomain(String id, final AuthenticationBackend backend, final HTTPAuthenticator httpAuthenticator, boolean challenge,
+    public AuthenticationDomain(String id, final AuthenticationBackend backend, final AuthenticatorType authenticator, boolean challenge,
                                 final int order, List<String> skippedUsers, IPAddressCollection enabledOnlyForIps) {
         super();
         this.id = id;
         this.backend = Objects.requireNonNull(backend);
-        this.httpAuthenticator = httpAuthenticator;
+        this.authenticator = authenticator;
         this.order = order;
         this.challenge = challenge;
         this.skippedUsers = skippedUsers;
@@ -54,8 +54,8 @@ public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
         return backend;
     }
 
-    public HTTPAuthenticator getHttpAuthenticator() {
-        return httpAuthenticator;
+    public AuthenticatorType getHttpAuthenticator() {
+        return authenticator;
     }
 
     public int getOrder() {
@@ -64,12 +64,12 @@ public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
 
     @Override
     public String toString() {
-        return "AuthenticationDomain [backend=" + backend + ", httpAuthenticator=" + httpAuthenticator + ", order=" + order + ", challenge="
+        return "AuthenticationDomain [backend=" + backend + ", httpAuthenticator=" + authenticator + ", order=" + order + ", challenge="
                 + challenge + "]";
     }
 
     @Override
-    public int compareTo(final AuthenticationDomain o) {
+    public int compareTo(final AuthenticationDomain<AuthenticatorType> o) {
         return Integer.compare(this.order, o.order);
     }
 
@@ -84,6 +84,5 @@ public class AuthenticationDomain implements Comparable<AuthenticationDomain> {
     public String getId() {
         return id;
     }
-    
-    
+
 }

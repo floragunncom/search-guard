@@ -17,10 +17,13 @@
 
 package com.floragunn.searchguard.http;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BytesRestResponse;
@@ -28,12 +31,17 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.support.HTTPHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 //TODO FUTURE allow only if protocol==https
-public class HTTPBasicAuthenticator implements HTTPAuthenticator {
+public class HTTPBasicAuthenticator implements HTTPAuthenticator, ApiAuthenticationFrontend {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
 
@@ -72,5 +80,22 @@ public class HTTPBasicAuthenticator implements HTTPAuthenticator {
     @Override
     public String getType() {
         return "basic";
+    }
+
+    @Override
+    public AuthCredentials extractCredentials(Map<String, Object> request) throws ElasticsearchSecurityException, ConfigValidationException {
+        ValidationErrors validationErrors = new ValidationErrors();
+        
+        if (request.get("user") == null) {
+            validationErrors.add(new MissingAttribute("user", (JsonNode) null));
+        }
+        
+        if (request.get("password") == null) {
+            validationErrors.add(new MissingAttribute("password", (JsonNode) null));
+        }
+        
+        validationErrors.throwExceptionForPresentErrors();
+        
+        return AuthCredentials.forUser(String.valueOf(request.get("user"))).password(String.valueOf(request.get("password")).getBytes(StandardCharsets.UTF_8)).complete().build();
     }
 }

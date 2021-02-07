@@ -43,6 +43,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -54,11 +55,13 @@ public class SearchGuardInfoAction extends BaseRestHandler {
     private final Logger log = LogManager.getLogger(this.getClass());
     private final PrivilegesEvaluator evaluator;
     private final ThreadContext threadContext;
-
-    public SearchGuardInfoAction(final Settings settings, final RestController controller, final PrivilegesEvaluator evaluator, final ThreadPool threadPool) {
+    private final BackendRegistry backendRegistry;
+    
+    public SearchGuardInfoAction(final Settings settings, final RestController controller, final PrivilegesEvaluator evaluator, final ThreadPool threadPool, BackendRegistry backendRegistry) {
         super();
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
+        this.backendRegistry = backendRegistry;
     }
 
     @Override
@@ -97,7 +100,7 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     builder.field("sg_tenants", evaluator.mapTenants(user, sgRoles));
                     builder.field("principal", (String)threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL));
                     builder.field("peer_certificates", certs != null && certs.length > 0 ? certs.length + "" : "0");
-                    builder.field("sso_logout_url", (String)threadContext.getTransient(ConfigConstants.SSO_LOGOUT_URL));
+                    builder.field("sso_logout_url", backendRegistry.getSsoLogoutUrl(user));
                     
                     if(user != null && verbose) {
                         try {
