@@ -2,6 +2,7 @@ package com.floragunn.searchguard.sgconf;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
@@ -29,7 +30,7 @@ public class ConfigModelV7Tests {
         ConfigV7 configV7 = new ConfigV7();
         configV7.dynamic = new ConfigV7.Dynamic();
 
-        DynamicConfigModelV7 dynamicConfigModel = new DynamicConfigModelV7(configV7, Settings.EMPTY, null, searchGuardModulesRegistry);
+        DynamicConfigModelV7 dynamicConfigModel = new DynamicConfigModelV7(configV7, null, Settings.EMPTY, null, searchGuardModulesRegistry, Collections.emptyList(), null);
         SgDynamicConfiguration<RoleV7> roles = SgDynamicConfiguration
                 .fromMap(
                         ImmutableMap.of("_sg_meta", ImmutableMap.of("type", "roles", "config_version", 2), "all_access",

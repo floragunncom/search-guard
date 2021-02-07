@@ -120,6 +120,7 @@ import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.AuditLogSslExceptionHandler;
 import com.floragunn.searchguard.auth.AuthInfoService;
 import com.floragunn.searchguard.auth.BackendRegistry;
+import com.floragunn.searchguard.auth.frontend.GetFrontendConfigAction;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -396,7 +397,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
 
         if (enterpriseModulesEnabled) {
-            moduleRegistry.add("com.floragunn.searchguard.authtoken.AuthTokenModule");
+            moduleRegistry.add("com.floragunn.searchguard.authtoken.AuthTokenModule", "com.floragunn.searchguard.session.SessionModule",
+                    "com.floragunn.dlic.auth.LegacySecurityModule");
         }
 
         moduleRegistry.add("com.floragunn.signals.SignalsModule");
@@ -480,8 +482,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     indexNameExpressionResolver, nodesInCluster));
 
             if (!sslOnly) {
-                handlers.add(new SearchGuardInfoAction(settings, restController, Objects.requireNonNull(evaluator),
-                        Objects.requireNonNull(threadPool)));
+                handlers.add(
+                        new SearchGuardInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool), backendRegistry));
                 handlers.add(new KibanaInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
                 handlers.add(new SearchGuardLicenseAction(settings, restController));
                 handlers.add(new SearchGuardHealthAction(settings, restController, Objects.requireNonNull(backendRegistry)));
@@ -498,6 +500,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(BulkConfigApi.REST_API);
                 handlers.add(ConfigVarApi.REST_API);
                 handlers.add(InternalUsersConfigApi.REST_API);
+
+                handlers.add(new GetFrontendConfigAction.RestAction());
 
             }
 
@@ -539,6 +543,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(InternalUsersConfigApi.PutAction.INSTANCE, InternalUsersConfigApi.PutAction.Handler.class));
             actions.add(new ActionHandler<>(InternalUsersConfigApi.PatchAction.INSTANCE, InternalUsersConfigApi.PatchAction.Handler.class));
 
+            actions.add(new ActionHandler<>(GetFrontendConfigAction.INSTANCE, GetFrontendConfigAction.TransportAction.class));
         }
 
         actions.addAll(moduleRegistry.getActions());
@@ -842,13 +847,14 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         // final InternalAuthenticationBackend iab = new InternalAuthenticationBackend(cr);
         final XFFResolver xffResolver = new XFFResolver(threadPool);
-        backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, auditLog, threadPool);
 
         evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih, actionRequestIntrospector,
                 specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry, enterpriseModulesEnabled);
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, staticSgConfig, settings, configPath, localClient, threadPool, cih, moduleRegistry, secretsService);
-
+        
+        backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, auditLog, evaluator, threadPool);
+        
 
         dcf.registerDCFListener(backendRegistry);
         dcf.registerDCFListener(xffResolver);

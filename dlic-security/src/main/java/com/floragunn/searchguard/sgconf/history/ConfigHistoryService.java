@@ -14,7 +14,6 @@
 
 package com.floragunn.searchguard.sgconf.history;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -405,7 +404,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
         try {
             return SgDynamicConfiguration.fromJson(jsonString, configurationVersion.getConfigurationType(), configurationVersion.getVersion(), 0, 0,
                     settings, null);
-        } catch (IOException e) {
+        } catch (Exception e) {
             componentState.addLastException("parseConfig", new ExceptionRecord(e, "Error while parsing config history record"));
             throw new RuntimeException("Error while parsing config history record: " + jsonString + "\n" + singleGetResponse);
         }
