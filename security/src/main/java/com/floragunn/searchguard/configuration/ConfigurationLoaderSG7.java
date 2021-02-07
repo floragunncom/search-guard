@@ -46,6 +46,8 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.codova.validation.ConfigVariableProviders;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -59,14 +61,19 @@ public class ConfigurationLoaderSG7 {
     private final ClusterService cs;
     private final Settings settings;
     private final ComponentState componentState;
-
-    ConfigurationLoaderSG7(final Client client, ThreadPool threadPool, final Settings settings, ClusterService cs, ComponentState componentState) {
+    private final SearchGuardModulesRegistry searchGuardModulesRegistry;
+    private final ConfigVariableProviders configVariableProviders;
+    
+    ConfigurationLoaderSG7(final Client client, ThreadPool threadPool, final Settings settings, ClusterService cs, ComponentState componentState,
+            SearchGuardModulesRegistry searchGuardModulesRegistry, ConfigVariableProviders configVariableProviders) {
         super();
         this.client = client;
         this.settings = settings;
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         this.cs = cs;
         this.componentState = componentState;
+        this.searchGuardModulesRegistry = searchGuardModulesRegistry;
+        this.configVariableProviders = configVariableProviders;
         log.debug("Index is: {}", searchguardIndex);
     }
 
@@ -128,16 +135,17 @@ public class ConfigurationLoaderSG7 {
                         log.debug("Skip blocks since they were added in v7+ ");
                     }
 
-                    if (CType.fromString(id) == CType.TENANTS || CType.fromString(id) == CType.BLOCKS) {
+                    if (CType.fromString(id) == CType.TENANTS) {
                         rs.put(CType.fromString(id), SgDynamicConfiguration.empty());
                         latch.countDown();
                         return;
                     }
                 }
-                if ("blocks".equals(id)) {
-                    log.debug("No data for SG_Block found, creating empty SG_Block.");
-                    rs.put(CType.BLOCKS, SgDynamicConfiguration.empty());
+                
+                if (CType.fromString(id) == CType.BLOCKS || CType.fromString(id) == CType.FRONTEND_CONFIG) {
+                    rs.put(CType.fromString(id), SgDynamicConfiguration.empty());
                     latch.countDown();
+                    return;
                 } else {
                     log.error("No data for {} while retrieving configuration for {}  (index={} and type={})", id, Arrays.toString(events), searchguardIndex, type);
                     latch.countDown();
@@ -264,7 +272,8 @@ public class ConfigurationLoaderSG7 {
 
             parser.nextToken();
 
-            return SgDynamicConfiguration.fromJson(new String(parser.binaryValue()), CType.fromString(id), docVersion, seqNo, primaryTerm, settings);
+            return SgDynamicConfiguration.fromJson(new String(parser.binaryValue()), CType.fromString(id), docVersion, seqNo, primaryTerm, settings,
+                    searchGuardModulesRegistry, configVariableProviders);
         }
     }
 }

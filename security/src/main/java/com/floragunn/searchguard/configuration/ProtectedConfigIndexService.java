@@ -406,7 +406,9 @@ public class ProtectedConfigIndexService {
         }
 
         public ConfigIndex dependsOnIndices(String... indexDependencies) {
-            this.indexDependencies = indexDependencies;
+            if (indexDependencies != null) {
+                this.indexDependencies = indexDependencies;
+            }
             return this;
         }
 

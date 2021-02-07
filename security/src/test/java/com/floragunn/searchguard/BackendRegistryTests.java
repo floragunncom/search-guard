@@ -86,7 +86,7 @@ public class BackendRegistryTests {
 
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-            cluster.updateSgConfig(CType.BLOCKS, "block_" + BLOCK_TEST_USER.getName(),
+            cluster.patchSgConfig(CType.BLOCKS, "block_" + BLOCK_TEST_USER.getName(),
                     ImmutableMap.of("type", "name", "value", Arrays.asList(BLOCK_TEST_USER.getName()), "verdict", "disallow"));
 
             response = restClient.get("_searchguard/authinfo?pretty");
@@ -101,7 +101,7 @@ public class BackendRegistryTests {
 
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-            cluster.updateSgConfig(CType.BLOCKS, "block_" + BLOCK_WILDCARD_TEST_USER.getName(),
+            cluster.patchSgConfig(CType.BLOCKS, "block_" + BLOCK_WILDCARD_TEST_USER.getName(),
                     ImmutableMap.of("type", "name", "value", Arrays.asList("block_wildcard_*"), "verdict", "disallow"));
 
             response = restClient.get("_searchguard/authinfo?pretty");
@@ -117,7 +117,7 @@ public class BackendRegistryTests {
             GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-            cluster.updateSgConfig(CType.BLOCKS, "block_ip",
+            cluster.patchSgConfig(CType.BLOCKS, "block_ip",
                     ImmutableMap.of("type", "ip", "value", Arrays.asList("127.0.0.99"), "verdict", "disallow"));
 
             response = restClient.get("_searchguard/authinfo?pretty");
@@ -133,7 +133,7 @@ public class BackendRegistryTests {
             GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-            cluster.updateSgConfig(CType.BLOCKS, "block_ip",
+            cluster.patchSgConfig(CType.BLOCKS, "block_ip",
                     ImmutableMap.of("type", "net_mask", "value", Arrays.asList("127.0.0.88/29"), "verdict", "disallow"));
 
             response = restClient.get("_searchguard/authinfo?pretty");
@@ -149,7 +149,7 @@ public class BackendRegistryTests {
             GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-            cluster.updateSgConfig(CType.BLOCKS, "block_ip",
+            cluster.patchSgConfig(CType.BLOCKS, "block_ip",
                     ImmutableMap.of("type", "net_mask", "value", Arrays.asList("10.11.12.8/29"), "verdict", "disallow"));
 
             response = restClient.get("_searchguard/authinfo?pretty");

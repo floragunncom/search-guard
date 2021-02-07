@@ -17,6 +17,7 @@ package com.floragunn.searchguard.authtoken.api;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -27,6 +28,7 @@ import com.floragunn.searchguard.authtoken.AuthToken;
 import com.floragunn.searchguard.authtoken.AuthTokenService;
 import com.floragunn.searchguard.authtoken.NoSuchAuthTokenException;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
 public class TransportGetAuthTokenAction extends AbstractTransportAuthTokenAction<GetAuthTokenRequest, GetAuthTokenResponse> {
@@ -52,8 +54,10 @@ public class TransportGetAuthTokenAction extends AbstractTransportAuthTokenActio
         threadPool.generic().submit(() -> {
             try {
                 AuthToken authToken = authTokenService.getByIdFromIndex(request.getAuthTokenId());
+                TransportAddress userRemoteAddress = (TransportAddress) this.threadPool.getThreadContext()
+                        .getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
 
-                if (!isAllowedToAccessAll(user) && !user.getName().equals(authToken.getUserName())) {
+                if (!isAllowedToAccessAll(user, userRemoteAddress) && !user.getName().equals(authToken.getUserName())) {
                     throw new NoSuchAuthTokenException(request.getAuthTokenId());
                 }
 

@@ -37,6 +37,9 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
 import com.jayway.jsonpath.Configuration;
@@ -46,9 +49,13 @@ import com.jayway.jsonpath.Option;
 
 public class UserAttributes {
 
+    public static final String FRONTEND_CONFIG_ID = "__fe_cnf_id";
+    public static final String AUTH_TYPE = "__auth_type";
+    
     private static final Logger log = LogManager.getLogger(UserAttributes.class);
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
-    private static final Configuration JSON_PATH_CONFIG = BasicJsonPathDefaultConfiguration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
+    private static final Configuration JSON_PATH_CONFIG = BasicJsonPathDefaultConfiguration.defaultConfiguration()
+            .setOptions(Option.SUPPRESS_EXCEPTIONS);
 
     public static Map<String, JsonPath> getAttributeMapping(Settings settings) {
         HashMap<String, JsonPath> result = new HashMap<>();
@@ -68,6 +75,28 @@ public class UserAttributes {
         return result;
     }
 
+    public static Map<String, JsonPath> getAttributeMapping(Map<String, Object> config) throws ConfigValidationException {
+        HashMap<String, JsonPath> result = new HashMap<>();
+        ValidationErrors validationErrors = new ValidationErrors();
+
+        if (config == null) {
+            return result;
+        }
+
+        for (String key : config.keySet()) {
+            try {
+                result.put(key, JsonPath.compile(String.valueOf(config.get(key))));
+            } catch (InvalidPathException e) {
+                log.error("Error in configuration: Invalid JSON path supplied for " + key, e);
+                validationErrors.add(new InvalidAttributeValue(key, config.get(key), "A JSON path expression").message(e.getMessage()).cause(e));
+            }
+        }
+
+        validationErrors.throwExceptionForPresentErrors();
+        
+        return result;
+    }
+
     public static Map<String, String> getFlatAttributeMapping(Settings settings) {
         HashMap<String, String> result = new HashMap<>();
 
@@ -80,16 +109,16 @@ public class UserAttributes {
 
         return result;
     }
-    
+
     public static boolean needsAttributeReplacement(String string) {
-        return  string != null && string.indexOf("${") != -1;
+        return string != null && string.indexOf("${") != -1;
     }
 
     public static String replaceAttributes(String string, User user) throws StringInterpolationException {
         if (string == null) {
             return null;
         }
-        
+
         return new StringAttributeInterpolator(string, user).process();
     }
 
@@ -384,7 +413,7 @@ public class UserAttributes {
             } else if (value instanceof Collection) {
                 StringBuilder result = new StringBuilder("(");
                 boolean first = true;
-                
+
                 for (Object element : (Collection<?>) value) {
                     if (element != null) {
                         if (!first) {
@@ -392,13 +421,13 @@ public class UserAttributes {
                         } else {
                             first = false;
                         }
-                        
+
                         result.append(Pattern.quote(element.toString()));
                     }
                 }
 
                 result.append(")");
-                
+
                 return result.toString();
             } else {
                 return "(" + Pattern.quote(value.toString()) + ")";

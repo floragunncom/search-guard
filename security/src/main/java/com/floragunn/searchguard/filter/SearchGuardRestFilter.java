@@ -126,7 +126,7 @@ public class SearchGuardRestFilter {
 
     private boolean isAuthczRequired(RestRequest request) {
         return compatConfig.restAuthEnabled() && request.method() != Method.OPTIONS && !"/_searchguard/license".equals(request.path())
-                && !"/_searchguard/health".equals(request.path());
+                && !"/_searchguard/health".equals(request.path()) && !("/_searchguard/auth/session".equals(request.path()) && request.method() == Method.POST);
     }
 
     private boolean checkRequest(RestHandler restHandler, RestRequest request, RestChannel channel, NodeClient client) throws Exception {

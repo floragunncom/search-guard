@@ -12,17 +12,22 @@ import org.apache.logging.log4j.Logger;
 import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.AuthenticationDomain;
 import com.floragunn.searchguard.auth.AuthorizationDomain;
+import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
+import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.sgconf.impl.v7.FrontendConfig;
 import com.google.common.collect.Multimap;
 
 public abstract class DynamicConfigModel implements ComponentStateProvider {
     
     protected final Logger log = LogManager.getLogger(this.getClass());
-    public abstract SortedSet<AuthenticationDomain> getRestAuthenticationDomains();
+    public abstract SortedSet<AuthenticationDomain<HTTPAuthenticator>> getRestAuthenticationDomains();
     public abstract Set<AuthorizationDomain> getRestAuthorizationDomains();
-    public abstract SortedSet<AuthenticationDomain> getTransportAuthenticationDomains();
+    public abstract SortedSet<AuthenticationDomain<HTTPAuthenticator>> getTransportAuthenticationDomains();
     public abstract Set<AuthorizationDomain> getTransportAuthorizationDomains();
+    public abstract Map<String, List<AuthenticationDomain<ApiAuthenticationFrontend>>> getApiAuthenticationDomainMap();
     public abstract String getTransportUsernameAttribute();
     public abstract boolean isAnonymousAuthenticationEnabled();
     public abstract boolean isXffEnabled();
@@ -47,6 +52,10 @@ public abstract class DynamicConfigModel implements ComponentStateProvider {
     public abstract List<ClientBlockRegistry<InetAddress>> getIpClientBlockRegistries();
     public abstract Multimap<String, ClientBlockRegistry<String>> getAuthBackendClientBlockRegistries();
     public abstract Map<String, Object> getAuthTokenProviderConfig();
-    
+
+    public abstract SgDynamicConfiguration<FrontendConfig> getFrontendConfig();
+    public boolean isAuthDebugEnabled() {
+        return false;
+    }
 
 }

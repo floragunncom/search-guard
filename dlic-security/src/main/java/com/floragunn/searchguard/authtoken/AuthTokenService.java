@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.authtoken;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.Collections;
@@ -117,7 +118,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private final ConfigHistoryService configHistoryService;
     private final ComponentState componentState;
     private final ComponentState configComponentState;
-
+    
     private final Cache<String, AuthToken> idToAuthTokenMap = CacheBuilder.newBuilder().expireAfterWrite(60, TimeUnit.MINUTES).build();
     private JoseJwtProducer jwtProducer;
     private String jwtAudience;
@@ -130,30 +131,48 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private boolean initialized = false;
     private IndexCleanupAgent indexCleanupAgent;
     private long maxTokensPerUser = 100;
+    private AuthTokenActivityTracker activityTracker;
+    private String idPrefix;
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
             ThreadPool threadPool, ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService,
-            AuthTokenServiceConfig config, ComponentState componentState) {
+            AuthTokenServiceConfig config, Duration inactivityTimeout, ComponentState componentState) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
         this.componentState = componentState;
         this.configComponentState = componentState.getOrCreatePart("config", "sg_config");
-
+        
         this.setConfig(config);
 
-        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexName).mapping(AuthToken.INDEX_MAPPING)
-                .dependsOnIndices(configHistoryService.getIndexName()).onIndexReady(this::init)));
+        if (inactivityTimeout != null) {
+            activityTracker = new AuthTokenActivityTracker(inactivityTimeout, this, indexName, privilegedConfigClient, threadPool);
+        }
 
-        this.indexCleanupAgent = new IndexCleanupAgent(indexName, "expires_at", CLEANUP_INTERVAL.get(settings), privilegedConfigClient,
-                clusterService, threadPool);
+        ConfigIndex configIndex = new ConfigIndex(indexName).mapping(AuthToken.INDEX_MAPPING).onIndexReady(this::init);
+
+        if (configHistoryService != null) {
+            configIndex.dependsOnIndices(configHistoryService.getIndexName());
+        }
+
+        componentState.addPart(protectedConfigIndexService.createIndex(configIndex));
+
+        if (activityTracker != null) {
+            this.indexCleanupAgent = new IndexCleanupAgent(indexName,
+                    () -> QueryBuilders.boolQuery().should(QueryBuilders.rangeQuery(AuthToken.DYNAMIC_EXPIRES_AT).lt(System.currentTimeMillis()))
+                            .should(QueryBuilders.rangeQuery(AuthToken.EXPIRES_AT).lt(System.currentTimeMillis())),
+                    CLEANUP_INTERVAL.get(settings), privilegedConfigClient, clusterService, threadPool);
+        } else {
+            this.indexCleanupAgent = new IndexCleanupAgent(indexName, AuthToken.EXPIRES_AT, CLEANUP_INTERVAL.get(settings), privilegedConfigClient,
+                    clusterService, threadPool);
+        }
     }
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
             ThreadPool threadPool, ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService,
             AuthTokenServiceConfig config) {
-        this(privilegedConfigClient, configHistoryService, settings, threadPool, clusterService, protectedConfigIndexService, config,
-                new ComponentState(1000, null, "auth_token_service"));
+        this(privilegedConfigClient, configHistoryService, settings, threadPool, clusterService, protectedConfigIndexService, config, null,
+                 new ComponentState(1000, null, "auth_token_service"));
     }
 
     public AuthToken getById(String id) throws NoSuchAuthTokenException {
@@ -383,11 +402,18 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         OffsetDateTime expiresAt = getExpiryTime(now, request);
 
+        OffsetDateTime dynamicExpiresAt = null;
+
+        if (activityTracker != null) {
+            dynamicExpiresAt = now.plus(activityTracker.getInactivityTimeout());
+        }
+
         RequestedPrivileges requestedPrivilegesWithDefaultExclusions = request.getRequestedPrivileges()
                 .excludeClusterPermissions(config.getExcludeClusterPermissions()).excludeIndexPermissions(config.getExcludeIndexPermissions());
 
         AuthToken authToken = new AuthToken(id, user.getName(), request.getTokenName(), requestedPrivilegesWithDefaultExclusions, base,
-                now.toInstant(), expiresAt != null ? expiresAt.toInstant() : null, null);
+                now.toInstant(), expiresAt != null ? expiresAt.toInstant() : null, dynamicExpiresAt != null ? dynamicExpiresAt.toInstant() : null,
+                null);
 
         try {
             updateAuthToken(authToken, UpdateType.NEW);
@@ -434,6 +460,39 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         }
         return new CreateAuthTokenResponse(authToken, encodedJwt);
     }
+    
+    public CreateAuthTokenResponse createLightweightJwt(User user, CreateAuthTokenRequest request) throws TokenCreationException {
+
+        if (jwtProducer == null) {
+            throw new TokenCreationException("AuthTokenProvider is not configured", RestStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        AuthToken authToken = create(user, request);
+
+        JwtClaims jwtClaims = new JwtClaims();
+        JwtToken jwt = new JwtToken(jwtClaims);
+
+        jwtClaims.setNotBefore(authToken.getCreationTime().getEpochSecond());
+
+        if (authToken.getExpiryTime() != null) {
+            jwtClaims.setExpiryTime(authToken.getExpiryTime().getEpochSecond());
+        }
+
+        jwtClaims.setSubject(user.getName());
+        jwtClaims.setTokenId(authToken.getId());
+        jwtClaims.setAudience(config.getJwtAud());
+      
+        String encodedJwt;
+
+        try {
+            encodedJwt = this.jwtProducer.processJwt(jwt);
+        } catch (Exception e) {
+            log.error("Error while creating JWT. Possibly the key configuration is not valid.", e);
+            throw new TokenCreationException("Error while creating JWT. Possibly the key configuration is not valid.",
+                    RestStatus.INTERNAL_SERVER_ERROR, e);
+        }
+        return new CreateAuthTokenResponse(authToken, encodedJwt);
+    }
 
     public JwtToken getVerifiedJwtToken(String encodedJwt) throws JwtException {
         if (this.jweDecryptionProvider != null) {
@@ -443,12 +502,19 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         JwsJwtCompactConsumer jwtConsumer = new JwsJwtCompactConsumer(encodedJwt);
         JwtToken jwt = jwtConsumer.getJwtToken();
+        
+        if (!validateAudience(jwt.getClaims())) {
+            if (log.isTraceEnabled()) {
+                log.trace("Not checking this token because it has a different audience: " + jwt.getClaims().getAudience());
+            }
+            return null;
+        }
 
         if (this.jwsSignatureVerifier != null) {
             boolean signatureValid = jwtConsumer.verifySignatureWith(jwsSignatureVerifier);
 
             if (!signatureValid) {
-                throw new JwtException("Invalid JWT signature");
+                throw new JwtException("Invalid JWT signature for token " + jwt.getClaims().asMap());
             }
         }
 
@@ -505,20 +571,19 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         JwtUtils.validateJwtExpiry(claims, 0, false);
         JwtUtils.validateJwtNotBefore(claims, 0, false);
-        validateAudience(claims);
 
     }
 
-    private void validateAudience(JwtClaims claims) throws JwtException {
+    private boolean validateAudience(JwtClaims claims) throws JwtException {
 
         if (jwtAudience != null) {
             for (String audience : claims.getAudiences()) {
                 if (jwtAudience.equals(audience)) {
-                    return;
+                    return true;
                 }
             }
         }
-        throw new JwtException("Invalid audience: " + claims.getAudiences() + "\nExpected audience: " + jwtAudience);
+        return false;
     }
 
     private synchronized void initComplete() {
@@ -652,7 +717,13 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         byteBuffer.putLong(uuid.getMostSignificantBits());
         byteBuffer.putLong(uuid.getLeastSignificantBits());
 
-        return BaseEncoding.base64Url().encode(byteBuffer.array()).replace("=", "");
+        String result = BaseEncoding.base64Url().encode(byteBuffer.array()).replace("=", "");
+        
+        if (idPrefix != null) {
+            result = idPrefix + result;
+        }
+        
+        return result;
     }
 
     void initJwtProducer() {
@@ -879,6 +950,22 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     public ComponentState getComponentState() {
         return componentState;
+    }
+    
+    public AuthTokenActivityTracker getActivityTracker() {
+        return activityTracker;
+    }
+
+    public void setActivityTracker(AuthTokenActivityTracker activityTracker) {
+        this.activityTracker = activityTracker;
+    }
+
+    public String getIdPrefix() {
+        return idPrefix;
+    }
+
+    public void setIdPrefix(String idPrefix) {
+        this.idPrefix = idPrefix;
     }
 
 }

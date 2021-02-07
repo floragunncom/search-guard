@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.modules;
 
 import java.nio.file.Path;
@@ -10,6 +27,8 @@ import java.util.function.Function;
 
 import org.elasticsearch.common.settings.Settings;
 
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchguard.auth.AuthenticationFrontend;
 import com.floragunn.searchguard.support.ReflectionHelper;
 
 public class SearchGuardComponentRegistry<ComponentType> {
@@ -116,7 +135,7 @@ public class SearchGuardComponentRegistry<ComponentType> {
         return null;
     }
 
-    public ComponentType getInstance(String clazzOrShortcut, Settings settings, Path configPath) {
+    public ComponentType getInstance(String clazzOrShortcut, Settings settings, Path configPath) throws ConfigValidationException {
         if (this.instanceMap.containsKey(clazzOrShortcut)) {
             ComponentType result = this.instanceMap.get(clazzOrShortcut);
             ReflectionHelper.addLoadedModule(result.getClass());
@@ -133,6 +152,41 @@ public class SearchGuardComponentRegistry<ComponentType> {
             return ReflectionHelper.instantiateAAA(className, settings, configPath, ReflectionHelper.isEnterpriseAAAModule(className));
         } else {
             return ReflectionHelper.instantiateAAA(clazzOrShortcut, settings, configPath, true);
+        }
+    }
+
+    public ComponentType getInstance(String clazzOrShortcut, Map<String, Object> config, AuthenticationFrontend.Context context) throws ConfigValidationException, NoSuchComponentException {
+        if (this.instanceMap.containsKey(clazzOrShortcut)) {
+            ComponentType result = this.instanceMap.get(clazzOrShortcut);
+            ReflectionHelper.addLoadedModule(result.getClass());
+            return result;
+        } else if (this.factoryMap.containsKey(clazzOrShortcut)) {
+            throw new UnsupportedOperationException();
+            //ComponentType result = this.factoryMap.get(clazzOrShortcut).create(settings, configPath);
+            //ReflectionHelper.addLoadedModule(result.getClass());
+            //return result;
+        } else if (this.classMap.containsKey(clazzOrShortcut)) {
+            String className = this.classMap.get(clazzOrShortcut).getName();
+            try {
+                return ReflectionHelper.instantiateAAA(className, config, context, ReflectionHelper.isEnterpriseAAAModule(className));
+            } catch (ClassNotFoundException e) {
+                // This should not happen
+                throw new RuntimeException("Could not find class " + className + " associated with " + clazzOrShortcut + " in " + this, e);
+            }
+        } else if (this.classNameMap.containsKey(clazzOrShortcut)) {
+            String className = this.classNameMap.get(clazzOrShortcut);
+            try {
+                return ReflectionHelper.instantiateAAA(className, config, context, ReflectionHelper.isEnterpriseAAAModule(className));
+            } catch (ClassNotFoundException e) {
+                // This should not happen
+                throw new RuntimeException("Could not find class " + className + " associated with " + clazzOrShortcut + " in " + this, e);
+            }
+        } else {
+            try {
+                return ReflectionHelper.instantiateAAA(clazzOrShortcut, config, context, true);
+            } catch (ClassNotFoundException e) {
+                throw new NoSuchComponentException(clazzOrShortcut, e);
+            }
         }
     }
 
@@ -157,7 +211,7 @@ public class SearchGuardComponentRegistry<ComponentType> {
     }
 
     public interface ComponentFactory<ComponentType> {
-        ComponentType create(Settings settings, Path configPath);
+        ComponentType create(Settings settings, Path configPath) throws ConfigValidationException;
 
         String getClassName();
     }

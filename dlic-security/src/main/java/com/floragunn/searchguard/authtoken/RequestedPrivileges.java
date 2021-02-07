@@ -28,7 +28,9 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -40,6 +42,9 @@ import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 public class RequestedPrivileges implements Writeable, ToXContentObject, Serializable {
     private static final long serialVersionUID = 5862219250642101795L;
     private static final List<String> WILDCARD_LIST = Collections.singletonList("*");
+    
+    public static final RequestedPrivileges ALL = new RequestedPrivileges(WILDCARD_LIST, IndexPermissions.ALL, TenantPermissions.ALL);
+    
     private List<String> clusterPermissions;
     private List<IndexPermissions> indexPermissions;
     private List<TenantPermissions> tenantPermissions;
@@ -54,6 +59,14 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         this.excludedClusterPermissions = in.readStringList();
         this.excludedIndexPermissions = in.readList(ExcludedIndexPermissions::new);
         this.roles = in.readOptionalStringList();
+    }
+    
+    RequestedPrivileges(List<String> clusterPermissions,  List<IndexPermissions> indexPermissions, List<TenantPermissions> tenantPermissions) {
+        this.clusterPermissions = clusterPermissions;
+        this.indexPermissions = indexPermissions;
+        this.tenantPermissions = tenantPermissions;
+        this.excludedClusterPermissions = Collections.emptyList();
+        this.excludedIndexPermissions = Collections.emptyList();
     }
 
     private RequestedPrivileges() {
@@ -221,6 +234,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
 
     public static class IndexPermissions implements Writeable, ToXContentObject, Serializable {
 
+        public static final List<IndexPermissions> ALL = Collections.singletonList(new IndexPermissions(WILDCARD_LIST, WILDCARD_LIST));
+        
         private static final long serialVersionUID = -2567351561923741922L;
         private List<String> indexPatterns;
         private List<String> allowedActions;
@@ -304,6 +319,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     }
 
     public static class TenantPermissions implements Writeable, ToXContentObject, Serializable {
+        public static final List<TenantPermissions> ALL = Collections.singletonList(new TenantPermissions(WILDCARD_LIST, WILDCARD_LIST));
 
         private static final long serialVersionUID = 170036537583928629L;
         private List<String> tenantPatterns;
@@ -416,6 +432,18 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
 
             List<String> indexPatterns = vJsonNode.requiredStringList("index_patterns", 1);
             List<String> actions = vJsonNode.requiredStringList("actions", 1);
+
+            validationErrors.throwExceptionForPresentErrors();
+
+            return new ExcludedIndexPermissions(indexPatterns, actions);
+        }
+        
+        public static ExcludedIndexPermissions parse(DocNode jsonNode) throws ConfigValidationException {
+            ValidationErrors validationErrors = new ValidationErrors();
+            ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
+
+            List<String> indexPatterns = vJsonNode.get("index_patterns").required().asList().minElements(1).ofStrings();
+            List<String> actions = vJsonNode.get("actions").required().asList().minElements(1).ofStrings();
 
             validationErrors.throwExceptionForPresentErrors();
 

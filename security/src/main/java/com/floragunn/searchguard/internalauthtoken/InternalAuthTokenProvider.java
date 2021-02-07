@@ -122,7 +122,7 @@ public class InternalAuthTokenProvider implements DCFListener {
                 throw new JwtException("JWT does not contain claim sg_roles");
             }
 
-            SgDynamicConfiguration<?> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES);
+            SgDynamicConfiguration<?> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null, null);
 
             if (rolesConfig.getVersion() == 1) {
                 throw new Exception("Unsupport version of sgconfig: " + rolesConfig);

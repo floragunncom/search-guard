@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,6 +16,8 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.auth.AuthenticationDomain;
+import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
@@ -33,6 +36,7 @@ import com.floragunn.searchguard.sgconf.impl.v6.RoleV6;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
+import com.floragunn.searchguard.sgconf.impl.v7.FrontendConfig;
 import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
@@ -53,6 +57,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     private final InternalUsersDatabase internalUsersDatabase;
     private final StaticSgConfig staticSgConfig;
     private final ComponentState componentState = new ComponentState(2, null, "dynamic_config", DynamicConfigFactory.class);
+    private final List<Supplier<List<AuthenticationDomain<HTTPAuthenticator>>>> authenticationDomainInjectors = new ArrayList<>();
 
     SgDynamicConfiguration<?> config;
     
@@ -92,6 +97,8 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         SgDynamicConfiguration<?> rolesmapping = cr.getConfiguration(CType.ROLESMAPPING);
         SgDynamicConfiguration<?> tenants = cr.getConfiguration(CType.TENANTS);
         SgDynamicConfiguration<?> blocks = cr.getConfiguration(CType.BLOCKS);
+        @SuppressWarnings("unchecked")
+        SgDynamicConfiguration<FrontendConfig> frontendConfig = (SgDynamicConfiguration<FrontendConfig>) cr.getConfiguration(CType.FRONTEND_CONFIG);
         
         if(log.isDebugEnabled()) {
             String logmsg = "current config (because of "+typeToConfig.keySet()+")\n"+
@@ -113,8 +120,10 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             log.debug("Static configuration loaded (total roles: {}/total action groups: {}/total tenants: {})", roles.getCEntries().size(),
                     actionGroups.getCEntries().size(), tenants.getCEntries().size());
 
+            notifyConfigChangeListeners(config);
+
             //rebuild v7 Models
-            DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), esSettings, configPath, modulesRegistry);
+            DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), frontendConfig, esSettings, configPath, modulesRegistry, authenticationDomainInjectors, null);
             InternalUsersModel ium = new InternalUsersModelV7((SgDynamicConfiguration<InternalUserV7>) internalusers);
             ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<RoleV7>) roles,(SgDynamicConfiguration<RoleMappingsV7>)rolesmapping,
                     (SgDynamicConfiguration<ActionGroupsV7>)actionGroups, (SgDynamicConfiguration<TenantV7>) tenants, (SgDynamicConfiguration<BlocksV7>) blocks, dcm, esSettings);
@@ -130,10 +139,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             		log.trace("Notifying DCFListener '{}' about configuration changes" );	
             	}            	
                 listener.onChanged(cm, dcm, ium);
-            }
-            
-            notifyConfigChangeListeners(config);
-        
+            }                    
         } else {
             //rebuild v6 Models
             @SuppressWarnings("deprecation")
@@ -185,6 +191,10 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     @Override
     public final boolean isInitialized() {
         return initialized.get();
+    }
+    
+    public void addAuthenticationDomainInjector(Supplier<List<AuthenticationDomain<HTTPAuthenticator>>> injector) {
+        this.authenticationDomainInjectors.add(injector);
     }
     
 

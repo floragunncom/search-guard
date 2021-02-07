@@ -24,12 +24,18 @@ import java.io.UnsupportedEncodingException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -39,6 +45,7 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntity;
@@ -47,6 +54,9 @@ import org.apache.http.HttpException;
 import org.apache.http.HttpInetConnection;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.config.ConnectionConfig;
 import org.apache.http.config.MessageConstraints;
 import org.apache.http.entity.ContentLengthStrategy;
@@ -62,13 +72,18 @@ import org.apache.http.io.HttpMessageWriterFactory;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpRequestHandler;
 import org.apache.http.util.EntityUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.Assert;
 
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.google.common.collect.ImmutableMap;
 
-class MockIpdServer implements Closeable {
+public class MockIpdServer implements Closeable {
+    private final static Logger log = LogManager.getLogger(MockIpdServer.class);
+
     final static String CTX_DISCOVER = "/discover";
     final static String CTX_KEYS = "/api/oauth/keys";
     final static String CTX_TOKEN = "/token";
@@ -78,10 +93,14 @@ class MockIpdServer implements Closeable {
     private final String uri;
     private final boolean ssl;
     private final JsonWebKeys jwks;
+    private boolean requireValidCodes = true;
+
+    private Map<String, String> validCodes = new ConcurrentHashMap<>();
+    private Map<String, String> validCodesToRedirectUri = new ConcurrentHashMap<>();
 
     private InetAddress acceptConnectionsOnlyFromInetAddress;
 
-    static MockIpdServer start(JsonWebKeys jwks) throws IOException {
+    public static MockIpdServer start(JsonWebKeys jwks) throws IOException {
 
         int i = 0;
 
@@ -184,8 +203,8 @@ class MockIpdServer implements Closeable {
         return uri;
     }
 
-    public String getDiscoverUri() {
-        return uri + CTX_DISCOVER;
+    public URI getDiscoverUri() {
+        return URI.create(uri + CTX_DISCOVER);
     }
 
     public int getPort() {
@@ -201,7 +220,8 @@ class MockIpdServer implements Closeable {
         response.setStatusCode(200);
         response.setHeader("Cache-Control", "public, max-age=31536000");
         response.setEntity(new StringEntity("{\"jwks_uri\": \"" + uri + CTX_KEYS + "\",\n" + "\"issuer\": \"" + uri
-                + "\", \"unknownPropertyToBeIgnored\": 42, \"token_endpoint\": \"" + uri + CTX_TOKEN + "\"}"));
+                + "\", \"unknownPropertyToBeIgnored\": 42, \"token_endpoint\": \"" + uri + CTX_TOKEN + "\", \"authorization_endpoint\": \"" + uri
+                + "/auth\"}"));
     }
 
     protected void handleKeysRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
@@ -223,13 +243,13 @@ class MockIpdServer implements Closeable {
             response.setEntity(new StringEntity("Not a POST request"));
             return;
         }
-        
+
         if (request.getFirstHeader("Content-Type") == null) {
             response.setStatusCode(400);
             response.setEntity(new StringEntity("Content-Type header is missing"));
             return;
         }
-        
+
         if (!request.getFirstHeader("Content-Type").getValue().toLowerCase().startsWith("application/x-www-form-urlencoded")) {
             response.setStatusCode(400);
             response.setEntity(new StringEntity("Content-Type is not application/x-www-form-urlencoded"));
@@ -239,20 +259,52 @@ class MockIpdServer implements Closeable {
         if (!(request instanceof HttpEntityEnclosingRequest)) {
             response.setStatusCode(400);
             response.setEntity(new StringEntity("Missing entity"));
+            return;
         }
 
         HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
-        String entityAsString = EntityUtils.toString(entity);
+        String entityBody = EntityUtils.toString(entity);
 
-        if (!entityAsString.contains("grant_type=")) {
+        Map<String, String> entityParams = getFormUrlEncodedValues(entityBody);
+
+        log.info("Got entity params: " + entityParams + "; " + entityBody);
+
+        if (!entityParams.containsKey("grant_type")) {
             response.setStatusCode(400);
             response.setEntity(new StringEntity("Missing grant_type"));
+            return;
+        }
+
+        String code = entityParams.get("code");
+        String idToken;
+
+        if (requireValidCodes) {
+            idToken = this.validCodes.remove(code);
+
+            if (idToken == null) {
+                response.setStatusCode(400);
+                response.setEntity(new StringEntity("Invalid code " + code));
+                return;
+            }
+
+            String oldRedirectUri = this.validCodesToRedirectUri.remove(code);
+            String currentRedirectUri = entityParams.get("redirect_uri");
+
+            System.out.println("redirect uri: " + oldRedirectUri + "; " + currentRedirectUri);
+            
+            if (!oldRedirectUri.equals(currentRedirectUri)) {
+                response.setStatusCode(400);
+                response.setEntity(new StringEntity("Invalid redirect_uri " + currentRedirectUri + "; expected: " + oldRedirectUri));
+                return;
+            }
+        } else {
+            idToken = TestJwts.MC_COY_SIGNED_OCT_1;
         }
 
         response.setStatusCode(200);
 
         Map<String, Object> responseBody = ImmutableMap.of("access_token", "totototototo", "token_type", "bearer", "expires_in", 3600, "scope",
-                "profile app:read app:write", "id_token", "kenkenken");
+                "profile app:read app:write", "id_token", idToken);
 
         response.setEntity(new StringEntity(DocWriter.json().writeAsString(responseBody), ContentType.APPLICATION_JSON));
     }
@@ -313,5 +365,57 @@ class MockIpdServer implements Closeable {
         public Certificate[] getPeerCertificates() throws SSLPeerUnverifiedException {
             return ((SSLSocket) getSocket()).getSession().getPeerCertificates();
         }
+    }
+
+    public String handleSsoGetRequestURI(String ssoLocation, String userJwt) throws URISyntaxException, UnsupportedEncodingException {
+        Map<String, String> ssoParams = getUriParams(ssoLocation);
+
+        String scope = ssoParams.get("scope");
+
+        Assert.assertNotNull(ssoLocation, scope);
+        Assert.assertTrue(ssoLocation, scope.contains("openid"));
+
+        String state = ssoParams.get("state");
+        Assert.assertNotNull(ssoLocation, state);
+
+        String redirectUri = ssoParams.get("redirect_uri");
+        Assert.assertNotNull(ssoLocation, redirectUri);
+
+        String code = RandomStringUtils.randomAlphanumeric(8);
+        validCodes.put(code, userJwt);
+        validCodesToRedirectUri.put(code, redirectUri);
+
+        URIBuilder uriBuilder = new URIBuilder(redirectUri);
+        uriBuilder.addParameter("code", code);
+        uriBuilder.addParameter("state", state);
+
+        return uriBuilder.build().toASCIIString();
+    }
+
+    private Map<String, String> getUriParams(String uriString) {
+        URI uri = URI.create(uriString);
+
+        return getFormUrlEncodedValues(uri.getRawQuery());
+    }
+
+    private Map<String, String> getFormUrlEncodedValues(String formUrlencoded) {
+        List<NameValuePair> nameValuePairs = URLEncodedUtils.parse(formUrlencoded, Charset.forName("utf-8"));
+
+        HashMap<String, String> result = new HashMap<>(nameValuePairs.size());
+
+        for (NameValuePair nameValuePair : nameValuePairs) {
+            result.put(nameValuePair.getName(), nameValuePair.getValue());
+        }
+
+        return result;
+
+    }
+
+    public boolean isRequireValidCodes() {
+        return requireValidCodes;
+    }
+
+    public void setRequireValidCodes(boolean requireValidCodes) {
+        this.requireValidCodes = requireValidCodes;
     }
 }
