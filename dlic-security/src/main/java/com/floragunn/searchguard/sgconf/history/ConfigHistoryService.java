@@ -45,6 +45,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 
 import com.fasterxml.jackson.core.Base64Variants;
+import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
@@ -85,6 +86,7 @@ public class ConfigHistoryService {
     private final PrivilegedConfigClient privilegedConfigClient;
     private final Cache<ConfigVersion, SgDynamicConfiguration<?>> configCache;
     private final Cache<ConfigVersionSet, ConfigModel> configModelCache;
+    private final ClusterInfoHolder clusterInfoHolder;
 
     private volatile DynamicConfigModel currentDynamicConfigModel;
     private volatile ConfigModel currentConfigModel;
@@ -93,7 +95,7 @@ public class ConfigHistoryService {
 
     public ConfigHistoryService(ConfigurationRepository configurationRepository, StaticSgConfig staticSgConfig,
             PrivilegedConfigClient privilegedConfigClient, ProtectedConfigIndexService protectedConfigIndexService,
-            DynamicConfigFactory dynamicConfigFactory, Settings settings) {
+            DynamicConfigFactory dynamicConfigFactory, Settings settings, ClusterInfoHolder clusterInfoHolder) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configurationRepository = configurationRepository;
@@ -102,7 +104,8 @@ public class ConfigHistoryService {
         this.configModelCache = CacheBuilder.newBuilder().maximumSize(MODEL_CACHE_MAX_SIZE.get(settings))
                 .expireAfterAccess(MODEL_CACHE_TTL.get(settings), TimeUnit.MINUTES).build();
         this.settings = settings;
-
+        this.clusterInfoHolder = clusterInfoHolder;
+        
         protectedConfigIndexService.createIndex(new ConfigIndex(indexName));
 
         dynamicConfigFactory.registerDCFListener(dcfListener);
@@ -279,7 +282,7 @@ public class ConfigHistoryService {
         staticSgConfig.addTo(actionGroups);
         staticSgConfig.addTo(tenants);
 
-        ConfigModel configModel = new ConfigModelV7(roles, roleMappings, actionGroups, tenants, blocks, currentDynamicConfigModel, settings);
+        ConfigModel configModel = new ConfigModelV7(roles, roleMappings, actionGroups, tenants, blocks, currentDynamicConfigModel, settings, clusterInfoHolder);
 
         configModelCache.put(configSnapshot.getConfigVersions(), configModel);
 

@@ -82,7 +82,7 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
+                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY, null);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
                 clusterService, protectedConfigIndexService, config);
         try {
@@ -124,7 +124,7 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
+                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY, null);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
                 clusterService, protectedConfigIndexService, config);
 
@@ -167,7 +167,7 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
+                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY, null);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
                 clusterService, protectedConfigIndexService, config);
 
@@ -196,7 +196,7 @@ public class AuthTokenServiceTest {
             authTokenService.shutdown();
 
             ConfigHistoryService configHistoryService2 = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                    protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
+                    protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY, null);
 
             AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient, configHistoryService2, Settings.EMPTY, threadPool,
                     clusterService, protectedConfigIndexService, config);
@@ -227,7 +227,7 @@ public class AuthTokenServiceTest {
         Settings authTokenServiceSettings = Settings.builder().put(AuthTokenService.CLEANUP_INTERVAL.getKey(), TimeValue.timeValueSeconds(1)).build();
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
+                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY, null);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, authTokenServiceSettings, threadPool,
                 clusterService, protectedConfigIndexService, config);
         try {
@@ -290,7 +290,7 @@ public class AuthTokenServiceTest {
         config.setExcludeClusterPermissions(Collections.emptyList());
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
+                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY, null);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
                 clusterService, protectedConfigIndexService, config);
         try {
