@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.configuration;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -98,7 +99,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 if(unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) { 
                     //disable reader optimizations
-                    dlsQuery = DlsQueryParser.parse(unparsedDlsQueries, this.indexService.newQueryShardContext(shardId.getId(), null, nowInMillis, null)
+                    dlsQuery = DlsQueryParser.parse(unparsedDlsQueries, this.indexService.newQueryShardContext(shardId.getId(), null, nowInMillis, null, Collections.emptyMap())
                             , this.indexService.xContentRegistry());
                 }
             }

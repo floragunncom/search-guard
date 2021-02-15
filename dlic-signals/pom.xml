@@ -29,6 +29,7 @@
 		<dependency>
 			<groupId>org.codelibs.elasticsearch.module</groupId>
 			<artifactId>lang-painless</artifactId>
+			<version>7.10.2</version>
 			<scope>provided</scope>
 		</dependency>
 
