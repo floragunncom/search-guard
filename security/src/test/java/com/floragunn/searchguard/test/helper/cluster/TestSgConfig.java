@@ -146,6 +146,18 @@ public class TestSgConfig {
         return this;
     }
 
+    public TestSgConfig clone() {
+        TestSgConfig result = new TestSgConfig();
+
+        result.resourceFolder = resourceFolder;
+        result.indexName = indexName;
+        result.overrideRoleSettings = overrideRoleSettings != null ? overrideRoleSettings.clone() : null;
+        result.overrideSgConfigSettings = overrideSgConfigSettings != null ? overrideSgConfigSettings.clone() : null;
+        result.overrideUserSettings = overrideUserSettings != null ? overrideUserSettings.clone() : null;
+
+        return result;
+    }
+
     void initIndex(Client client) {
         client.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
 
@@ -202,7 +214,7 @@ public class TestSgConfig {
 
         return is;
     }
-    
+
     public static NestedValueMap fromYaml(String yamlString) {
         try {
             return NestedValueMap.fromYaml(yamlString);
@@ -252,8 +264,7 @@ public class TestSgConfig {
         public String getPassword() {
             return password;
         }
-        
-        
+
     }
 
     public static class Role {
