@@ -71,7 +71,7 @@ final class DlsQueryParser {
             return null;
         }
         
-        final boolean hasNestedMapping = queryShardContext.getMapperService().hasNested();
+        final boolean hasNestedMapping = queryShardContext.hasNested();
 
         BooleanQuery.Builder dlsQueryBuilder = new BooleanQuery.Builder();
         dlsQueryBuilder.setMinimumNumberShouldMatch(1);
@@ -114,7 +114,7 @@ final class DlsQueryParser {
             return null;
         }
         
-        final boolean hasNestedMapping = queryShardContext.getMapperService().hasNested();
+        final boolean hasNestedMapping = queryShardContext.hasNested();
 
         BooleanQuery.Builder dlsQueryBuilder = new BooleanQuery.Builder();
         dlsQueryBuilder.setMinimumNumberShouldMatch(1);
