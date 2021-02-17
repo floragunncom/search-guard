@@ -6,6 +6,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.ToXContent;
@@ -48,6 +49,10 @@ public class WatchLogIndexWriter implements WatchLogWriter {
                 watchLog.setTenant(tenant);
             }
 
+            if (log.isDebugEnabled()) {
+                log.debug("Going to write WatchLog: " + watchLog);
+            }
+
             // Elevate permissions
             threadContext.putHeader(InternalAuthTokenProvider.TOKEN_HEADER, null);
             threadContext.putHeader(InternalAuthTokenProvider.AUDIENCE_HEADER, null);
@@ -59,7 +64,9 @@ public class WatchLogIndexWriter implements WatchLogWriter {
 
                 @Override
                 public void onResponse(IndexResponse response) {
-
+                    if (log.isDebugEnabled()) {
+                        log.debug("Completed writing WatchLog: " + watchLog + "\n" + Strings.toString(response));
+                    }
                 }
 
                 @Override
@@ -76,5 +83,5 @@ public class WatchLogIndexWriter implements WatchLogWriter {
 
     public static WatchLogIndexWriter forTenant(Client client, String tenantName, SignalsSettings settings, ToXContent.Params toXparams) {
         return new WatchLogIndexWriter(client, tenantName, settings, toXparams);
-    } 
+    }
 }
