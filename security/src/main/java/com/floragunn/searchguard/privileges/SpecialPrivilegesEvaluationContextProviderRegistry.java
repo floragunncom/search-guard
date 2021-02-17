@@ -34,20 +34,27 @@ public class SpecialPrivilegesEvaluationContextProviderRegistry implements Speci
             if (iter.hasNext()) {
                 SpecialPrivilegesEvaluationContextProvider provider = iter.next();
 
-                provider.provide(user, threadContext, (result) -> {
-                    if (result != null) {
-                        onResult.accept(result);
-                    } else {
-                        provide(iter, user, threadContext, onResult, onFailure);
-                    }
-                }, onFailure);
-
+                try {
+                    provider.provide(user, threadContext, (result) -> {
+                        if (result != null) {
+                            onResult.accept(result);
+                        } else {
+                            provide(iter, user, threadContext, onResult, onFailure);
+                        }
+                    }, onFailure);
+                } catch (Exception e) {
+                    log.error("Error in " + provider, e);
+                    onFailure.accept(e);
+                }
             } else {
                 onResult.accept(null);
             }
         } catch (Exception e) {
             log.error(e);
             onFailure.accept(e);
+        } catch (Throwable t) {
+            log.error(t);
+            onFailure.accept(new RuntimeException(t));
         }
     }
 

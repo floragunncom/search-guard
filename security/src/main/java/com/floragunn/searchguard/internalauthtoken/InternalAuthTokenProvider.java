@@ -95,6 +95,7 @@ public class InternalAuthTokenProvider implements DCFListener {
         try {
             onResult.accept(userAuthFromToken(user, threadContext));
         } catch (Exception e) {
+            log.error("Error in userAuthFromToken(" + user + ")", e);
             onFailure.accept(e);
         }
     }
