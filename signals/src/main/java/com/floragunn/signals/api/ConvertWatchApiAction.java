@@ -32,25 +32,22 @@ public class ConvertWatchApiAction extends SignalsBaseRestHandler {
     public List<Route> routes() {
         return ImmutableList.of(new Route(POST, "/_signals/convert/es"));
     }
-    
+
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
-        return channel -> {
-            try {
-                JsonNode input = ValidatingJsonParser.readTree(request.content().utf8ToString());
+        try {
+            JsonNode input = ValidatingJsonParser.readTree(request.content().utf8ToString());
 
-                EsWatcherConverter converter = new EsWatcherConverter(input);
-                ConversionResult<Watch> result = converter.convertToSignals();
+            EsWatcherConverter converter = new EsWatcherConverter(input);
+            ConversionResult<Watch> result = converter.convertToSignals();
 
-                channel.sendResponse(new BytesRestResponse(RestStatus.OK,
-                        convertToJson(channel, new Result(result.getElement(), result.getSourceValidationErrors()), Watch.WITHOUT_AUTH_TOKEN)));
+            return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.OK,
+                    convertToJson(channel, new Result(result.getElement(), result.getSourceValidationErrors()), Watch.WITHOUT_AUTH_TOKEN)));
 
-            } catch (ConfigValidationException e) {
-                errorResponse(channel, RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJson());
-            }
-        };
-
+        } catch (ConfigValidationException e) {
+            return channel -> errorResponse(channel, RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJson());
+        }
     }
 
     @Override

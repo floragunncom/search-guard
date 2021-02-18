@@ -12,6 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -52,44 +53,30 @@ public class AccountApiAction extends SignalsBaseRestHandler {
         String accountType = request.param("type");
 
         if (accountType == null) {
-            return channel -> {
-                errorResponse(channel, RestStatus.BAD_REQUEST, "No type specified");
-            };
+            return channel -> errorResponse(channel, RestStatus.BAD_REQUEST, "No type specified");
         }
 
         String id = request.param("id");
 
         if (Strings.isNullOrEmpty(id)) {
-            return channel -> {
-                errorResponse(channel, RestStatus.BAD_REQUEST, "No id specified");
-            };
+            return channel -> errorResponse(channel, RestStatus.BAD_REQUEST, "No id specified");
         }
-
-        return channel -> {
-            handleApiRequest(accountType, id, channel, request, client);
-        };
-    }
-
-    protected void handleApiRequest(String accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
 
         switch (request.method()) {
         case GET:
-            handleGet(accountType, id, channel, request, client);
-            break;
+            return handleGet(accountType, id, request, client);
         case PUT:
-            handlePut(accountType, id, channel, request, client);
-            break;
+            return handlePut(accountType, id, request, client);
         case DELETE:
-            handleDelete(accountType, id, channel, request, client);
-            break;
+            return handleDelete(accountType, id, request, client);
         default:
             throw new IllegalArgumentException(request.method() + " not supported");
         }
     }
 
-    protected void handleGet(String accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handleGet(String accountType, String id, RestRequest request, Client client) throws IOException {
 
-        client.execute(GetAccountAction.INSTANCE, new GetAccountRequest(accountType, id), new ActionListener<GetAccountResponse>() {
+        return channel -> client.execute(GetAccountAction.INSTANCE, new GetAccountRequest(accountType, id), new ActionListener<GetAccountResponse>() {
 
             @Override
             public void onResponse(GetAccountResponse response) {
@@ -107,35 +94,37 @@ public class AccountApiAction extends SignalsBaseRestHandler {
         });
     }
 
-    protected void handleDelete(String accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handleDelete(String accountType, String id, RestRequest request, Client client) throws IOException {
 
-        client.execute(DeleteAccountAction.INSTANCE, new DeleteAccountRequest(accountType, id), new ActionListener<DeleteAccountResponse>() {
+        return channel -> client.execute(DeleteAccountAction.INSTANCE, new DeleteAccountRequest(accountType, id),
+                new ActionListener<DeleteAccountResponse>() {
 
-            @Override
-            public void onResponse(DeleteAccountResponse response) {
-                if (response.getResult() == DeleteAccountResponse.Result.DELETED) {
-                    channel.sendResponse(new BytesRestResponse(RestStatus.OK, convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
-                } else {
-                    errorResponse(channel, response.getRestStatus(), response.getMessage());
-                }
-            }
+                    @Override
+                    public void onResponse(DeleteAccountResponse response) {
+                        if (response.getResult() == DeleteAccountResponse.Result.DELETED) {
+                            channel.sendResponse(new BytesRestResponse(RestStatus.OK, convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
+                        } else {
+                            errorResponse(channel, response.getRestStatus(), response.getMessage());
+                        }
+                    }
 
-            @Override
-            public void onFailure(Exception e) {
-                errorResponse(channel, e);
-            }
-        });
+                    @Override
+                    public void onFailure(Exception e) {
+                        errorResponse(channel, e);
+                    }
+                });
 
     }
 
-    protected void handlePut(String accountType, String id, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handlePut(String accountType, String id, RestRequest request, Client client) throws IOException {
 
         if (request.getXContentType() != XContentType.JSON) {
-            errorResponse(channel, RestStatus.UNPROCESSABLE_ENTITY, "Accounts must be of content type application/json");
-            return;
+            return channel -> errorResponse(channel, RestStatus.UNPROCESSABLE_ENTITY, "Accounts must be of content type application/json");
         }
 
-        client.execute(PutAccountAction.INSTANCE, new PutAccountRequest(accountType, id, request.content(), XContentType.JSON),
+        BytesReference content = request.content();
+
+        return channel -> client.execute(PutAccountAction.INSTANCE, new PutAccountRequest(accountType, id, content, XContentType.JSON),
                 new ActionListener<PutAccountResponse>() {
 
                     @Override
