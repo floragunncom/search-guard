@@ -350,6 +350,9 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         // consume all parameters first so we can return a correct HTTP status,
         // not 400
         consumeParameters(request);
+        
+        // FIXME dirty hack to avoid "request does not support having a body" error
+        request.content();
 
         // check if SG index has been initialized
         if (!ensureIndexExists()) {

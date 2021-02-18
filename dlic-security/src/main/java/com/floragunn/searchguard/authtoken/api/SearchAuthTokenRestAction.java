@@ -47,25 +47,23 @@ public class SearchAuthTokenRestAction extends BaseRestHandler {
         int from = request.paramAsInt("from", -1);
         int size = request.paramAsInt("size", -1);
 
-        return channel -> {
-            SearchAuthTokensRequest searchWatchRequest = new SearchAuthTokensRequest();
+        SearchAuthTokensRequest searchWatchRequest = new SearchAuthTokensRequest();
 
-            if (scroll != null) {
-                searchWatchRequest.setScroll(new Scroll(parseTimeValue(scroll, null, "scroll")));
-            }
+        if (scroll != null) {
+            searchWatchRequest.setScroll(new Scroll(parseTimeValue(scroll, null, "scroll")));
+        }
 
-            searchWatchRequest.setFrom(from);
-            searchWatchRequest.setSize(size);
+        searchWatchRequest.setFrom(from);
+        searchWatchRequest.setSize(size);
 
-            if (request.hasContent()) {
-                SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(request.contentParser());
+        if (request.hasContent()) {
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(request.contentParser());
 
-                searchWatchRequest.setSearchSourceBuilder(searchSourceBuilder);
-            }
+            searchWatchRequest.setSearchSourceBuilder(searchSourceBuilder);
+        }
 
-            client.execute(SearchAuthTokensAction.INSTANCE, searchWatchRequest, new RestStatusToXContentListener<SearchAuthTokensResponse>(channel));
-        };
-
+        return channel -> client.execute(SearchAuthTokensAction.INSTANCE, searchWatchRequest,
+                new RestStatusToXContentListener<SearchAuthTokensResponse>(channel));
     }
 
     @Override
