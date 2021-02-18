@@ -63,42 +63,34 @@ public class AuthTokenRestAction extends BaseRestHandler {
     }
 
     private RestChannelConsumer handlePost(RestRequest request, NodeClient client) {
+        try {
+            CreateAuthTokenRequest authTokenRequest = CreateAuthTokenRequest.parse(request.requiredContent(), request.getXContentType());
 
-        return (RestChannel channel) -> {
-
-            try {
-                CreateAuthTokenRequest authTokenRequest = CreateAuthTokenRequest.parse(request.requiredContent(), request.getXContentType());
-
-                client.execute(CreateAuthTokenAction.INSTANCE, authTokenRequest, new RestToXContentListener<CreateAuthTokenResponse>(channel));
-            } catch (Exception e) {
-                log.warn("Error while handling request", e);
-                Responses.sendError(channel, e);
-            }
-        };
+            return channel -> client.execute(CreateAuthTokenAction.INSTANCE, authTokenRequest,
+                    new RestToXContentListener<CreateAuthTokenResponse>(channel));
+        } catch (Exception e) {
+            log.warn("Error while handling request", e);
+            return channel -> Responses.sendError(channel, e);
+        }
     }
 
     private RestChannelConsumer handleDelete(String id, NodeClient client) {
-        return (RestChannel channel) -> {
-
-            try {
-                client.execute(RevokeAuthTokenAction.INSTANCE, new RevokeAuthTokenRequest(id),
-                        new RestToXContentListener<RevokeAuthTokenResponse>(channel));
-            } catch (Exception e) {
-                Responses.sendError(channel, e);
-            }
-        };
+        try {
+            return channel -> client.execute(RevokeAuthTokenAction.INSTANCE, new RevokeAuthTokenRequest(id),
+                    new RestToXContentListener<RevokeAuthTokenResponse>(channel));
+        } catch (Exception e) {
+            return channel -> Responses.sendError(channel, e);
+        }
     }
 
     private RestChannelConsumer handleGet(String id, NodeClient client) {
-        return (RestChannel channel) -> {
 
-            try {
-                client.execute(GetAuthTokenAction.INSTANCE, new GetAuthTokenRequest(id),
-                        new RestStatusToXContentListener<GetAuthTokenResponse>(channel));
-            } catch (Exception e) {
-                Responses.sendError(channel, e);
-            }
-        };
+        try {
+            return channel -> client.execute(GetAuthTokenAction.INSTANCE, new GetAuthTokenRequest(id),
+                    new RestStatusToXContentListener<GetAuthTokenResponse>(channel));
+        } catch (Exception e) {
+            return channel -> Responses.sendError(channel, e);
+        }
     }
 
     @Override
