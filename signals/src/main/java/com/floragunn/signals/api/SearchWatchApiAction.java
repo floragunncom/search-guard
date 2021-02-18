@@ -37,24 +37,23 @@ public class SearchWatchApiAction extends BaseRestHandler implements TenantAware
         int from = request.paramAsInt("from", -1);
         int size = request.paramAsInt("size", -1);
 
-        return channel -> {
-            SearchWatchRequest searchWatchRequest = new SearchWatchRequest();
+        SearchWatchRequest searchWatchRequest = new SearchWatchRequest();
 
-            if (scroll != null) {
-                searchWatchRequest.setScroll(new Scroll(parseTimeValue(scroll, null, "scroll")));
-            }
+        if (scroll != null) {
+            searchWatchRequest.setScroll(new Scroll(parseTimeValue(scroll, null, "scroll")));
+        }
 
-            searchWatchRequest.setFrom(from);
-            searchWatchRequest.setSize(size);
+        searchWatchRequest.setFrom(from);
+        searchWatchRequest.setSize(size);
 
-            if (request.hasContent()) {
-                SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(request.contentParser());
+        if (request.hasContent()) {
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(request.contentParser());
 
-                searchWatchRequest.setSearchSourceBuilder(searchSourceBuilder);
-            }
+            searchWatchRequest.setSearchSourceBuilder(searchSourceBuilder);
+        }
 
-            client.execute(SearchWatchAction.INSTANCE, searchWatchRequest, new RestStatusToXContentListener<SearchWatchResponse>(channel));
-        };
+        return channel -> client.execute(SearchWatchAction.INSTANCE, searchWatchRequest,
+                new RestStatusToXContentListener<SearchWatchResponse>(channel));
 
     }
 

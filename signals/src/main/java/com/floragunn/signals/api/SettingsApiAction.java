@@ -46,72 +46,69 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
 
         String key = request.param("key");
 
-        return channel -> {
-            handleApiRequest(key, channel, request, client);
-        };
-    }
-
-    protected void handleApiRequest(String key, RestChannel channel, RestRequest request, Client client) throws IOException {
-
         switch (request.method()) {
         case GET:
-            handleGet(key, channel, request, client);
-            break;
+            return handleGet(key, request, client);
         case PUT:
-            handlePut(key, channel, request, client);
-            break;
+            return handlePut(key, request, client);
         case DELETE:
-            handleDelete(key, channel, request, client);
-            break;
+            return handleDelete(key, request, client);
         default:
             throw new IllegalArgumentException(request.method() + " not supported");
         }
+
     }
 
-    protected void handleGet(String key, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handleGet(String key, RestRequest request, Client client) throws IOException {
 
-        client.execute(GetSettingsAction.INSTANCE, new GetSettingsRequest(key, jsonRequested(request)), new ActionListener<GetSettingsResponse>() {
+        return channel -> client.execute(GetSettingsAction.INSTANCE, new GetSettingsRequest(key, jsonRequested(request)),
+                new ActionListener<GetSettingsResponse>() {
 
-            @Override
-            public void onResponse(GetSettingsResponse response) {
-                if (response.getStatus() == GetSettingsResponse.Status.OK) {
-                    channel.sendResponse(new BytesRestResponse(RestStatus.OK, response.getContentType(), response.getResult()));
-                } else {
-                    errorResponse(channel, RestStatus.NOT_FOUND, "Not found");
-                }
-            }
+                    @Override
+                    public void onResponse(GetSettingsResponse response) {
+                        if (response.getStatus() == GetSettingsResponse.Status.OK) {
+                            channel.sendResponse(new BytesRestResponse(RestStatus.OK, response.getContentType(), response.getResult()));
+                        } else {
+                            errorResponse(channel, RestStatus.NOT_FOUND, "Not found");
+                        }
+                    }
 
-            @Override
-            public void onFailure(Exception e) {
-                errorResponse(channel, e);
-            }
-        });
+                    @Override
+                    public void onFailure(Exception e) {
+                        errorResponse(channel, e);
+                    }
+                });
     }
 
-    protected void handleDelete(String key, RestChannel channel, RestRequest request, Client client) throws IOException {
-        client.execute(PutSettingsAction.INSTANCE, new PutSettingsRequest(key, null, false), new ActionListener<PutSettingsResponse>() {
+    protected RestChannelConsumer handleDelete(String key, RestRequest request, Client client) throws IOException {
+        return channel -> client.execute(PutSettingsAction.INSTANCE, new PutSettingsRequest(key, null, false),
+                new ActionListener<PutSettingsResponse>() {
 
-            @Override
-            public void onResponse(PutSettingsResponse response) {
-                if (response.getResult() == Result.CREATED || response.getResult() == Result.UPDATED || response.getResult() == Result.DELETED) {
+                    @Override
+                    public void onResponse(PutSettingsResponse response) {
+                        if (response.getResult() == Result.CREATED || response.getResult() == Result.UPDATED
+                                || response.getResult() == Result.DELETED) {
 
-                    channel.sendResponse(new BytesRestResponse(response.getRestStatus(), convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
-                } else {
-                    errorResponse(channel, response.getRestStatus(), response.getMessage(), response.getDetailJsonDocument());
-                }
-            }
+                            channel.sendResponse(
+                                    new BytesRestResponse(response.getRestStatus(), convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
+                        } else {
+                            errorResponse(channel, response.getRestStatus(), response.getMessage(), response.getDetailJsonDocument());
+                        }
+                    }
 
-            @Override
-            public void onFailure(Exception e) {
-                errorResponse(channel, e);
-            }
-        });
+                    @Override
+                    public void onFailure(Exception e) {
+                        errorResponse(channel, e);
+                    }
+                });
     }
 
-    protected void handlePut(String key, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handlePut(String key, RestRequest request, Client client) throws IOException {
 
-        client.execute(PutSettingsAction.INSTANCE,
-                new PutSettingsRequest(key, request.content().utf8ToString(), request.getXContentType() == XContentType.JSON),
+        String content = request.content().utf8ToString();
+        boolean contentIsJson = request.getXContentType() == XContentType.JSON;
+
+        return channel -> client.execute(PutSettingsAction.INSTANCE, new PutSettingsRequest(key, content, contentIsJson),
                 new ActionListener<PutSettingsResponse>() {
 
                     @Override

@@ -11,10 +11,10 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
@@ -50,39 +50,24 @@ public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwar
         String id = request.param("id");
 
         if (Strings.isNullOrEmpty(id)) {
-            return channel -> {
-                errorResponse(channel, RestStatus.BAD_REQUEST, "No id specified");
-            };
+            return channel -> errorResponse(channel, RestStatus.BAD_REQUEST, "No id specified");
         }
-
-        return channel -> {
-            handleApiRequest(id, channel, request, client);
-        };
-    }
-
-    protected void handleApiRequest(String id, RestChannel channel, RestRequest request, Client client) throws IOException {
 
         switch (request.method()) {
         case GET:
-            handleGet(id, channel, request, client);
-            break;
+            return handleGet(id, request, client);
         case PUT:
-            handlePut(id, channel, request, client);
-            break;
+            return handlePut(id, request, client);
         case DELETE:
-            handleDelete(id, channel, request, client);
-            break;
-        case POST:
-            handlePost(id, channel, request, client);
-            break;
+            return handleDelete(id, request, client);
         default:
             throw new IllegalArgumentException(request.method() + " not supported");
         }
     }
 
-    protected void handleGet(String id, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handleGet(String id, RestRequest request, Client client) throws IOException {
 
-        client.execute(GetWatchAction.INSTANCE, new GetWatchRequest(id), new ActionListener<GetWatchResponse>() {
+        return channel -> client.execute(GetWatchAction.INSTANCE, new GetWatchRequest(id), new ActionListener<GetWatchResponse>() {
 
             @Override
             public void onResponse(GetWatchResponse response) {
@@ -100,9 +85,9 @@ public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwar
         });
     }
 
-    protected void handleDelete(String id, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handleDelete(String id, RestRequest request, Client client) throws IOException {
 
-        client.execute(DeleteWatchAction.INSTANCE, new DeleteWatchRequest(id), new ActionListener<DeleteWatchResponse>() {
+        return channel -> client.execute(DeleteWatchAction.INSTANCE, new DeleteWatchRequest(id), new ActionListener<DeleteWatchResponse>() {
 
             @Override
             public void onResponse(DeleteWatchResponse response) {
@@ -121,14 +106,15 @@ public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwar
 
     }
 
-    protected void handlePut(String id, RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handlePut(String id, RestRequest request, Client client) throws IOException {
 
         if (request.getXContentType() != XContentType.JSON) {
-            errorResponse(channel, RestStatus.UNSUPPORTED_MEDIA_TYPE, "Watches must be of content type application/json");
-            return;
+            return channel -> errorResponse(channel, RestStatus.UNSUPPORTED_MEDIA_TYPE, "Watches must be of content type application/json");
         }
 
-        client.execute(PutWatchAction.INSTANCE, new PutWatchRequest(id, request.content(), XContentType.JSON),
+        BytesReference content = request.content();
+
+        return channel -> client.execute(PutWatchAction.INSTANCE, new PutWatchRequest(id, content, XContentType.JSON),
                 new ActionListener<PutWatchResponse>() {
 
                     @Override
@@ -148,9 +134,6 @@ public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwar
                     }
                 });
 
-    }
-
-    protected void handlePost(String id, RestChannel channel, RestRequest request, Client client) throws IOException {
     }
 
     @Override

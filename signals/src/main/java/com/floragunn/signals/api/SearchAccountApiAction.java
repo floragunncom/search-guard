@@ -42,24 +42,23 @@ public class SearchAccountApiAction extends BaseRestHandler {
         int from = request.paramAsInt("from", -1);
         int size = request.paramAsInt("size", -1);
 
-        return channel -> {
-            SearchAccountRequest searchDestinationRequest = new SearchAccountRequest();
+        SearchAccountRequest searchDestinationRequest = new SearchAccountRequest();
 
-            if (scroll != null) {
-                searchDestinationRequest.setScroll(new Scroll(parseTimeValue(scroll, null, "scroll")));
-            }
+        if (scroll != null) {
+            searchDestinationRequest.setScroll(new Scroll(parseTimeValue(scroll, null, "scroll")));
+        }
 
-            searchDestinationRequest.setFrom(from);
-            searchDestinationRequest.setSize(size);
+        searchDestinationRequest.setFrom(from);
+        searchDestinationRequest.setSize(size);
 
-            if (request.hasContent()) {
-                SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(request.contentParser());
+        if (request.hasContent()) {
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(request.contentParser());
 
-                searchDestinationRequest.setSearchSourceBuilder(searchSourceBuilder);
-            }
+            searchDestinationRequest.setSearchSourceBuilder(searchSourceBuilder);
+        }
 
-            client.execute(SearchAccountAction.INSTANCE, searchDestinationRequest, new RestStatusToXContentListener<SearchAccountResponse>(channel));
-        };
+        return channel -> client.execute(SearchAccountAction.INSTANCE, searchDestinationRequest,
+                new RestStatusToXContentListener<SearchAccountResponse>(channel));
 
     }
 
