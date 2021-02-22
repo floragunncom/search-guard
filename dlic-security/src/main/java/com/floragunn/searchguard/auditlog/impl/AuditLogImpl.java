@@ -17,18 +17,13 @@ package com.floragunn.searchguard.auditlog.impl;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.Engine.Delete;
 import org.elasticsearch.index.engine.Engine.DeleteResult;
 import org.elasticsearch.index.engine.Engine.Index;
@@ -40,8 +35,6 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
-import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.routing.AuditMessageRouter;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 
@@ -58,33 +51,6 @@ public final class AuditLogImpl extends AbstractAuditLog {
         this.enabled = messageRouter.isEnabled();
 
         log.info("Message routing enabled: {}", this.enabled);
-
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            log.debug("Security Manager present");
-            sm.checkPermission(new SpecialPermission());
-        }
-
-        AccessController.doPrivileged(new PrivilegedAction<Object>() {
-            @Override
-            public Object run() {
-                Runtime.getRuntime().addShutdownHook(new Thread() {
-
-                    @Override
-                    public void run() {
-                        try {
-                            close();
-                        } catch (final IOException e) {
-                            log.warn("Exception while shutting down message router", e);
-                        }
-                    }
-                });
-                log.debug("Shutdown Hook registered");
-                return null;
-            }
-        });
-
     }
 
     @Override
