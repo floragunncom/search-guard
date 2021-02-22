@@ -215,8 +215,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     
     @Override
     public void close() throws IOException {
-        //TODO implement close
-        super.close();
+        if (auditLog != null) {
+            try {
+                auditLog.close();
+            } catch (Exception e) {
+                log.error("Error while closing auditLog", e);
+            }
+        }
     }
 
     private final SslExceptionHandler evaluateSslExceptionHandler() {
