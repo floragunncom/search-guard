@@ -21,7 +21,6 @@ package com.floragunn.searchguard.ssl.util;
 import java.security.GeneralSecurityException;
 import java.security.InvalidParameterException;
 import java.security.KeyStore;
-import java.security.Security;
 import java.security.cert.CRL;
 import java.security.cert.CertPathBuilder;
 import java.security.cert.CertPathBuilderResult;
@@ -78,10 +77,6 @@ public class CertificateValidator
     private int _maxCertPathLength = -1;
     /** CRL Distribution Points (CRLDP) support */
     private boolean _enableCRLDP = false;
-    /** On-Line Certificate Status Protocol (OCSP) support */
-    private boolean _enableOCSP = false;
-    /** Location of OCSP Responder */
-    private String _ocspResponderURL;
     
     private boolean preferCrl = false;
     private boolean checkOnlyEndEntities = true;
@@ -195,11 +190,6 @@ public class CertificateValidator
                 pbParams.addCertStore(CertStore.getInstance("Collection", new CollectionCertStoreParameters(_crls)));
             }
     
-            // Enable On-Line Certificate Status Protocol (OCSP) support
-            if (_enableOCSP)
-            {
-                Security.setProperty("ocsp.enable","true");
-            }
             // Enable Certificate Revocation List Distribution Points (CRLDP) support
             if (_enableCRLDP)
             {
@@ -259,42 +249,6 @@ public class CertificateValidator
     public void setEnableCRLDP(boolean enableCRLDP)
     {
         _enableCRLDP = enableCRLDP;
-    }
-
-    /* ------------------------------------------------------------ */
-    /** 
-     * @return true if On-Line Certificate Status Protocol support is enabled
-     */
-    public boolean isEnableOCSP()
-    {
-        return _enableOCSP;
-    }
-
-    /* ------------------------------------------------------------ */
-    /** Enables On-Line Certificate Status Protocol support
-     * @param enableOCSP true - turn on, false - turn off
-     */
-    public void setEnableOCSP(boolean enableOCSP)
-    {
-        _enableOCSP = enableOCSP;
-    }
-
-    /* ------------------------------------------------------------ */
-    /** 
-     * @return Location of the OCSP Responder
-     */
-    public String getOcspResponderURL()
-    {
-        return _ocspResponderURL;
-    }
-
-    /* ------------------------------------------------------------ */
-    /** Set the location of the OCSP Responder.
-     * @param ocspResponderURL location of the OCSP Responder
-     */
-    public void setOcspResponderURL(String ocspResponderURL)
-    {
-        _ocspResponderURL = ocspResponderURL;
     }
 
     public Date getDate() {
