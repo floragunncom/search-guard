@@ -19,6 +19,7 @@ package com.floragunn.searchguard.ssl;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.security.Security;
 import java.security.cert.CRL;
 import java.security.cert.CertPathBuilderException;
 import java.security.cert.Certificate;
@@ -157,6 +158,8 @@ public class CertificateValidatorTest {
     @Test
     public void testCRLDP() throws Exception {
 
+        Security.setProperty("ocsp.enable","true");
+
         //trust chain incl intermediate certificates (root + intermediates)
         Collection<? extends Certificate> rootCas;
         final File trustedCas = FileHelper.getAbsoluteFilePathFromClassPath("ssl/root-ca.pem").toFile();
@@ -178,7 +181,6 @@ public class CertificateValidatorTest {
         
         CertificateValidator validator = new CertificateValidator(rootCas.toArray(new X509Certificate[0]), Collections.emptyList());
         validator.setEnableCRLDP(true);
-        validator.setEnableOCSP(true);
         validator.setDate(CRL_DATE);
         try {
             validator.validate(certsToValidate.toArray(new X509Certificate[0]));

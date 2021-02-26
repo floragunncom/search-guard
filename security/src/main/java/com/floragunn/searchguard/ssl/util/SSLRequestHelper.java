@@ -235,7 +235,6 @@ public class SSLRequestHelper {
             }
             
             validator.setEnableCRLDP(!settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_DISABLE_CRLDP, false));
-            validator.setEnableOCSP(!settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_DISABLE_OCSP, false));
             validator.setCheckOnlyEndEntities(settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_CHECK_ONLY_END_ENTITIES, true));
             validator.setPreferCrl(settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_PREFER_CRLFILE_OVER_OCSP, false));
             Long dateTimestamp = settings.getAsLong(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_VALIDATION_DATE, null);
