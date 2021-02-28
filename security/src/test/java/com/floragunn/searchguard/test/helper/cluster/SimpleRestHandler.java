@@ -44,6 +44,8 @@ public class SimpleRestHandler<Request extends ActionRequest, Response extends A
         for (String param : request.params().keySet()) {
             request.param(param);
         }
+        
+        request.content();
 
         return channel -> client.execute(actionType, requestFactory.apply(request), new RestToXContentListener<Response>(channel));
     }
