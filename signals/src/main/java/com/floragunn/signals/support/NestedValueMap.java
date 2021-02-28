@@ -15,8 +15,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchsupport.json.BasicJsonWriter;
 import com.google.common.collect.MapMaker;
 
 public class NestedValueMap extends HashMap<String, Object> {
@@ -207,11 +207,7 @@ public class NestedValueMap extends HashMap<String, Object> {
     }
 
     public String toJsonString() {
-        try {
-            return DefaultObjectMapper.objectMapper.writeValueAsString(this);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        return BasicJsonWriter.writeAsString(this);
     }
 
     private Object deepCloneObject(Object object) {
