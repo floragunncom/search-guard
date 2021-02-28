@@ -61,7 +61,6 @@ public class ResourceOwnerServiceTests {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().plugin(MockActionPlugin.class).build();
 
-    @Ignore
     @Test
     public void testAsyncSearch() throws Exception {
 
@@ -87,7 +86,6 @@ public class ResourceOwnerServiceTests {
         }
     }
 
-    @Ignore
     @Test
     public void testAsyncSearchUserMismatch() throws Exception {
 
@@ -108,7 +106,6 @@ public class ResourceOwnerServiceTests {
         }
     }
 
-    @Ignore
     @Test
     public void testAsyncSearchUserMismatchForDelete() throws Exception {
 
