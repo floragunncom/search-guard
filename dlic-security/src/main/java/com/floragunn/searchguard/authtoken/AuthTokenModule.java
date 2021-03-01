@@ -50,13 +50,16 @@ import com.floragunn.searchguard.authtoken.api.TransportSearchAuthTokensAction;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
 import com.floragunn.searchguard.authtoken.update.TransportPushAuthTokenUpdateAction;
 import com.floragunn.searchguard.modules.SearchGuardModule;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 
-public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig> {
+public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig>, ComponentStateProvider {
 
     private AuthTokenService authTokenService;
+    private final ComponentState componentState = new ComponentState(1000, null, "auth_token_service", AuthTokenModule.class);
 
     @Override
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
@@ -83,9 +86,11 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
                 baseDependencies.getStaticSgConfig(), privilegedConfigClient, baseDependencies.getProtectedConfigIndexService(),
                 baseDependencies.getDynamicConfigFactory(), baseDependencies.getSettings());
 
+        componentState.addPart(configHistoryService.getComponentState());
+        
         authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, baseDependencies.getSettings(),
-                baseDependencies.getThreadPool(), baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService(),
-                new AuthTokenServiceConfig());
+                baseDependencies.getThreadPool(), baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService(), null,
+                componentState);
 
         AuthTokenAuthenticationBackend authenticationBackend = new AuthTokenAuthenticationBackend(authTokenService);
 
@@ -107,6 +112,11 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
     public SgConfigMetadata<AuthTokenServiceConfig> getSgConfigMetadata() {
         return new SgConfigMetadata<AuthTokenServiceConfig>(ConfigV7.class, "sg_config", JsonPointer.compile("/dynamic/auth_token_provider"),
                 AuthTokenServiceConfig::parse, authTokenService::setConfig);
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

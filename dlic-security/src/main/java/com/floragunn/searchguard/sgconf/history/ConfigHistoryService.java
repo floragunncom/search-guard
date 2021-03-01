@@ -48,6 +48,9 @@ import com.fasterxml.jackson.core.Base64Variants;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentState.ExceptionRecord;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.ConfigModelV7;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
@@ -66,7 +69,7 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-public class ConfigHistoryService {
+public class ConfigHistoryService implements ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(ConfigHistoryService.class);
 
     public static final Setting<String> INDEX_NAME = Setting.simpleString("searchguard.config_history.index.name", ".searchguard_config_history",
@@ -88,7 +91,8 @@ public class ConfigHistoryService {
 
     private volatile DynamicConfigModel currentDynamicConfigModel;
     private volatile ConfigModel currentConfigModel;
-    
+    private final ComponentState componentState = new ComponentState(1000, null, "config_history_service", ConfigHistoryService.class);
+
     private final Settings settings;
 
     public ConfigHistoryService(ConfigurationRepository configurationRepository, StaticSgConfig staticSgConfig,
@@ -103,7 +107,10 @@ public class ConfigHistoryService {
                 .expireAfterAccess(MODEL_CACHE_TTL.get(settings), TimeUnit.MINUTES).build();
         this.settings = settings;
 
-        protectedConfigIndexService.createIndex(new ConfigIndex(indexName));
+        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexName).onIndexReady((f) -> {
+            f.onSuccess();
+            componentState.setInitialized();
+        })));
 
         dynamicConfigFactory.registerDCFListener(dcfListener);
     }
@@ -133,7 +140,7 @@ public class ConfigHistoryService {
 
             configByType.put(configurationType, configuration);
         }
-        
+
         ConfigVersionSet configVersionSet = ConfigVersionSet.from(configByType);
         ConfigSnapshot existingConfigSnapshots = peekConfigSnapshot(configVersionSet);
 
@@ -156,7 +163,7 @@ public class ConfigHistoryService {
                 onResult.accept(configSnapshot);
             }
         }, onFailure);
-        
+
     }
 
     public void getConfigSnapshots(Set<ConfigVersionSet> configVersionSets, Consumer<Map<ConfigVersionSet, ConfigSnapshot>> onResult,
@@ -397,6 +404,7 @@ public class ConfigHistoryService {
             return SgDynamicConfiguration.fromJson(jsonString, configurationVersion.getConfigurationType(), configurationVersion.getVersion(), 0, 0,
                     settings);
         } catch (IOException e) {
+            componentState.addLastException("parseConfig", new ExceptionRecord(e, "Error while parsing config history record"));
             throw new RuntimeException("Error while parsing config history record: " + jsonString + "\n" + singleGetResponse);
         }
 
@@ -410,8 +418,7 @@ public class ConfigHistoryService {
             configCache.put(missingVersion, config);
             BytesReference uninterpolatedConfigBytes = BytesReference.fromByteBuffer(ByteBuffer.wrap(config.getUninterpolatedJson().getBytes()));
 
-            bulkRequest.add(new IndexRequest(indexName).id(missingVersion.toId()).source("config",
-                    uninterpolatedConfigBytes));
+            bulkRequest.add(new IndexRequest(indexName).id(missingVersion.toId()).source("config", uninterpolatedConfigBytes));
         }
 
         BulkResponse bulkResponse = bulkRequest.get();
@@ -435,5 +442,10 @@ public class ConfigHistoryService {
 
     public ConfigModel getCurrentConfigModel() {
         return currentConfigModel;
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }
