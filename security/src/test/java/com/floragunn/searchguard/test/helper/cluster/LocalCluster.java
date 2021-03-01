@@ -4,13 +4,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -28,6 +31,7 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
@@ -59,6 +63,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
@@ -170,6 +175,17 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
         return tc;
     }
     
+    public GenericRestClient getRestClient(TestSgConfig.User user) {
+        return getRestClient(user.getName(), user.getPassword());
+    }
+    
+    public GenericRestClient getRestClient(String user, String password) {
+        BasicHeader basicAuthHeader =  new BasicHeader("Authorization",
+                "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
+        
+        return new GenericRestClient(clusterInfo, Collections.singletonList(basicAuthHeader), getResourceFolder());
+    }
+
     public RestHighLevelClient getRestHighLevelClient(TestSgConfig.User user) {
         return getRestHighLevelClient(user.getName(), user.getPassword());
     }
