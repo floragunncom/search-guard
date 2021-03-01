@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -80,8 +81,6 @@ import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.HashMultimap;
 
-import io.netty.util.internal.PlatformDependent;
-
 public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
 
     private static final AtomicInteger CONNECTION_COUNTER = new AtomicInteger();
@@ -119,7 +118,7 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
             AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
                 @Override
                 public Void run() throws Exception {
-                    boolean isJava9OrHigher = PlatformDependent.javaVersion() >= 9;
+                    boolean isJava9OrHigher = getJavaVersion() >= 9;
                     ClassLoader originalClassloader = null;
                     if (isJava9OrHigher) {
                         originalClassloader = Thread.currentThread().getContextClassLoader();
@@ -148,7 +147,7 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
             return AccessController.doPrivileged(new PrivilegedExceptionAction<Connection>() {
                 @Override
                 public Connection run() throws Exception {
-                    boolean isJava9OrHigher = PlatformDependent.javaVersion() >= 9;
+                    boolean isJava9OrHigher = getJavaVersion() >= 9;
                     ClassLoader originalClassloader = null;
                     if (isJava9OrHigher) {
                         originalClassloader = Thread.currentThread().getContextClassLoader();
@@ -1110,9 +1109,35 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
         return null;
     }
 
+    private static int getJavaVersion() {
+        String version = System.getProperty("java.version");
+
+        if (version.startsWith("1.")) {
+            int nextDot = version.indexOf('.', 2);
+
+            if (nextDot == -1) {
+                log.error("Invalid java version " + version);
+                return -1;
+            } else {
+                return Integer.parseInt(version.substring(2, nextDot));
+            }
+        } else if (StringUtils.isNumeric(version)) {
+            return Integer.parseInt(version);
+        } else {
+            int nextDot = version.indexOf('.');
+
+            if (nextDot == -1) {
+                log.error("Invalid java version " + version);
+                return -1;
+            } else {
+                return Integer.parseInt(version.substring(0, nextDot));
+            }
+        }
+    }
+    
     @SuppressWarnings("rawtypes")
     private final static Class clazz = ThreadLocalTLSSocketFactory.class;
-
+    
     private final static class Java9CL extends ClassLoader {
 
         public Java9CL() {
