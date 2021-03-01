@@ -79,6 +79,8 @@ import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateRequest.Upd
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateResponse;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentState.ExceptionRecord;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProvider;
 import com.floragunn.searchguard.sgconf.ConfigModel;
@@ -113,6 +115,9 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private final String indexName;
     private final PrivilegedConfigClient privilegedConfigClient;
     private final ConfigHistoryService configHistoryService;
+    private final ComponentState componentState;
+    private final ComponentState configComponentState;
+
     private final Cache<String, AuthToken> idToAuthTokenMap = CacheBuilder.newBuilder().expireAfterWrite(60, TimeUnit.MINUTES).build();
     private JoseJwtProducer jwtProducer;
     private String jwtAudience;
@@ -128,18 +133,27 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
             ThreadPool threadPool, ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService,
-            AuthTokenServiceConfig config) {
+            AuthTokenServiceConfig config, ComponentState componentState) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
+        this.componentState = componentState;
+        this.configComponentState = componentState.getOrCreatePart("config", "sg_config");
 
         this.setConfig(config);
 
-        protectedConfigIndexService.createIndex(new ConfigIndex(indexName).mapping(AuthToken.INDEX_MAPPING)
-                .dependsOnIndices(configHistoryService.getIndexName()).onIndexReady(this::init));
+        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexName).mapping(AuthToken.INDEX_MAPPING)
+                .dependsOnIndices(configHistoryService.getIndexName()).onIndexReady(this::init)));
 
         this.indexCleanupAgent = new IndexCleanupAgent(indexName, "expires_at", CLEANUP_INTERVAL.get(settings), privilegedConfigClient,
                 clusterService, threadPool);
+    }
+
+    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
+            ThreadPool threadPool, ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService,
+            AuthTokenServiceConfig config) {
+        this(privilegedConfigClient, configHistoryService, settings, threadPool, clusterService, protectedConfigIndexService, config,
+                new ComponentState(1000, null, "auth_token_service"));
     }
 
     public AuthToken getById(String id) throws NoSuchAuthTokenException {
@@ -306,7 +320,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         Set<String> baseSearchGuardRoles;
         Map<String, Object> baseAttributes;
         ConfigSnapshot configSnapshot;
-       
+
         if (USER_TYPE.equals(user.getType())) {
             log.debug("User is based on an auth token. Resulting auth token will be based on the original one");
             String authTokenId = (String) user.getSpecialAuthzConfig();
@@ -318,10 +332,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 baseSearchGuardRoles = new HashSet<>(existingAuthToken.getBase().getSearchGuardRoles());
                 baseAttributes = existingAuthToken.getBase().getAttributes();
             } catch (NoSuchAuthTokenException e) {
+                componentState.addLastException("create", e);
                 throw new TokenCreationException("Error while creating auth token: Could not find base token " + authTokenId,
                         RestStatus.INTERNAL_SERVER_ERROR, e);
             }
-        } else {        
+        } else {
             if ((request.isFreezePrivileges() && config.getFreezePrivileges() == FreezePrivileges.USER_CHOOSES)
                     || config.getFreezePrivileges() == FreezePrivileges.ALWAYS) {
                 configSnapshot = configHistoryService.getCurrentConfigSnapshot(CType.ROLES, CType.ROLESMAPPING, CType.ACTIONGROUPS, CType.TENANTS);
@@ -377,6 +392,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         try {
             updateAuthToken(authToken, UpdateType.NEW);
         } catch (Exception e) {
+            componentState.addLastException("create", e);
             throw new TokenCreationException("Error while creating token", RestStatus.INTERNAL_SERVER_ERROR, e);
         }
 
@@ -411,6 +427,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         try {
             encodedJwt = this.jwtProducer.processJwt(jwt);
         } catch (Exception e) {
+            componentState.addLastException("createJwt", new ExceptionRecord(e, "Error while creating JWT. Possibly the key configuration is not valid."));
             log.error("Error while creating JWT. Possibly the key configuration is not valid.", e);
             throw new TokenCreationException("Error while creating JWT. Possibly the key configuration is not valid.",
                     RestStatus.INTERNAL_SERVER_ERROR, e);
@@ -476,6 +493,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     private void init(ProtectedConfigIndexService.FailureListener failureListener) {
         initComplete();
+        failureListener.onSuccess();
     }
 
     private void validateClaims(JwtToken jwt) throws JwtException {
@@ -657,6 +675,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             }
 
         } catch (Exception e) {
+            this.configComponentState.setFailed(e);
             this.jwtProducer = null;
             log.error("Error while initializing JWT producer in AuthTokenProvider", e);
         }
@@ -758,17 +777,17 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 }
 
                 ConfigModel configModelSnapshot;
-                
+
                 if (authToken.getBase().getConfigSnapshot() == null) {
                     configModelSnapshot = configHistoryService.getCurrentConfigModel();
                 } else {
                     if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
                         throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
                     }
-                    
+
                     configModelSnapshot = configHistoryService.getConfigModelForSnapshot(authToken.getBase().getConfigSnapshot());
                 }
-                
+
                 User userWithRoles = user.copy().backendRoles(authToken.getBase().getBackendRoles())
                         .searchGuardRoles(authToken.getBase().getSearchGuardRoles()).build();
                 TransportAddress callerTransportAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
@@ -856,6 +875,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     public boolean isInitialized() {
         return initialized;
+    }
+
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }
