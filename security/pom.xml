@@ -47,7 +47,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-
+		
 		<!-- Guava -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -158,6 +158,17 @@
 			<groupId>org.elasticsearch.client</groupId>
 			<artifactId>elasticsearch-rest-high-level-client</artifactId>
 			<version>${elasticsearch.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+    		<groupId>org.apache.httpcomponents</groupId>
+    		<artifactId>httpcore</artifactId>
+		</dependency>
+			
+		<dependency>
+    		<groupId>org.apache.httpcomponents</groupId>
+    		<artifactId>httpasyncclient</artifactId>
 		</dependency>
 
 		<!-- Only test scoped dependencies hereafter -->

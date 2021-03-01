@@ -213,7 +213,7 @@ public class ReflectionHelper {
             addLoadedModule(clazz);
             return ret;
         } catch (final Throwable e) {
-            log.warn("Unable to enable DLS/FLS Module due to {}", e.toString());
+            log.warn("Unable to enable DLS/FLS Module due to {}", e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
             if (log.isDebugEnabled()) {
                 log.debug("Stacktrace: ", e);
             }
@@ -232,7 +232,7 @@ public class ReflectionHelper {
             final DlsFlsRequestValve ret = (DlsFlsRequestValve) clazz.newInstance();
             return ret;
         } catch (final Throwable e) {
-            log.warn("Unable to enable DLS/FLS Valve Module due to {}", e.toString());
+            log.warn("Unable to enable DLS/FLS Valve Module due to {}", e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
             if (log.isDebugEnabled()) {
                 log.debug("Stacktrace: ", e);
             }
@@ -255,7 +255,7 @@ public class ReflectionHelper {
             addLoadedModule(clazz);
             return impl;
         } catch (final Throwable e) {
-            log.warn("Unable to enable Auditlog Module due to {}", e.toString());
+            log.warn("Unable to enable Auditlog Module due to {}", e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
             if (log.isDebugEnabled()) {
                 log.debug("Stacktrace: ", e);
             }
