@@ -69,23 +69,23 @@ public class RestHelper {
 	public boolean sendHTTPClientCertificate = false;
 	public boolean trustHTTPServerCertificate = true;
 	public String keystore = "node-0-keystore.jks";
-	public final String prefix;
+	public final String resourceFolder;
 	//public String truststore = "truststore.jks";
 	private ClusterInfo clusterInfo;
 	private int nodeIndex = -1;
 	private GenericSSLConfig sslConfig;
 	private  RequestConfig requestConfig;
 	
-	public RestHelper(ClusterInfo clusterInfo, String prefix) {
+	public RestHelper(ClusterInfo clusterInfo, String resourceFolder) {
 		this.clusterInfo = clusterInfo;
-		this.prefix = prefix;
+		this.resourceFolder = resourceFolder;
 	}
 	
-	public RestHelper(ClusterInfo clusterInfo, boolean enableHTTPClientSSL, boolean trustHTTPServerCertificate, String prefix) {
+	public RestHelper(ClusterInfo clusterInfo, boolean enableHTTPClientSSL, boolean trustHTTPServerCertificate, String resourceFolder) {
 		this.clusterInfo = clusterInfo;
 		this.enableHTTPClientSSL = enableHTTPClientSSL;
 		this.trustHTTPServerCertificate = trustHTTPServerCertificate;
-		this.prefix = prefix;
+		this.resourceFolder = resourceFolder;
 	}
 	public String executeSimpleRequest(final String request) throws Exception {
 
@@ -200,8 +200,8 @@ public class RestHelper {
 
             log.debug("Configure HTTP client with SSL");
 
-            if (prefix != null && !keystore.contains("/")) {
-                keystore = prefix + "/" + keystore;
+            if (resourceFolder != null && !keystore.contains("/")) {
+                keystore = resourceFolder + "/" + keystore;
             }
 
             final String keyStorePath = FileHelper.getAbsoluteFilePathFromClassPath(keystore).toFile().getParent();
@@ -247,7 +247,7 @@ public class RestHelper {
 	}
 
 	
-	public class HttpResponse {
+	public static class HttpResponse {
 		private final CloseableHttpResponse inner;
 		private final String body;
 		private final Header[] header;
