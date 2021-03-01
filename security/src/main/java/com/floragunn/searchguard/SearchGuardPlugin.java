@@ -143,6 +143,8 @@ import com.floragunn.searchguard.http.XFFResolver;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.modules.SearchGuardModule.BaseDependencies;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.modules.api.ComponentStateRestAction;
+import com.floragunn.searchguard.modules.api.GetComponentStateAction;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
@@ -491,6 +493,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         threadPool, Objects.requireNonNull(auditLog)));
 
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
+                handlers.add(new ComponentStateRestAction());
             }
 
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
@@ -517,6 +520,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(ConfigUpdateAction.INSTANCE, TransportConfigUpdateAction.class));
             actions.add(new ActionHandler<>(LicenseInfoAction.INSTANCE, TransportLicenseInfoAction.class));
             actions.add(new ActionHandler<>(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));
+            actions.add(new ActionHandler<>(GetComponentStateAction.INSTANCE, GetComponentStateAction.TransportAction.class));
         }
 
         actions.addAll(moduleRegistry.getActions());
@@ -817,6 +821,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 complianceConfig);
 
         cr.subscribeOnLicenseChange(complianceConfig);
+        moduleRegistry.addComponentStateProvider(cr);
 
         // final InternalAuthenticationBackend iab = new InternalAuthenticationBackend(cr);
         final XFFResolver xffResolver = new XFFResolver(threadPool);
@@ -837,6 +842,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
 
         cr.setDynamicConfigFactory(dcf);
+        moduleRegistry.addComponentStateProvider(dcf);
 
         InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(dcf);
         specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);

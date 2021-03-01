@@ -20,6 +20,8 @@ import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v6.ActionGroupsV6;
@@ -37,7 +39,7 @@ import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.sgconf.internal_users_db.InternalUsersDatabase;
 
 
-public class DynamicConfigFactory implements Initializable, ConfigurationChangeListener {
+public class DynamicConfigFactory implements Initializable, ConfigurationChangeListener, ComponentStateProvider {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final ConfigurationRepository cr;
@@ -49,6 +51,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     private final SearchGuardModulesRegistry modulesRegistry;
     private final InternalUsersDatabase internalUsersDatabase;
     private final StaticSgConfig staticSgConfig;
+    private final ComponentState componentState = new ComponentState(2, null, "dynamic_config", DynamicConfigFactory.class);
 
     SgDynamicConfiguration<?> config;
     
@@ -109,6 +112,10 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<RoleV7>) roles,(SgDynamicConfiguration<RoleMappingsV7>)rolesmapping,
                     (SgDynamicConfiguration<ActionGroupsV7>)actionGroups, (SgDynamicConfiguration<TenantV7>) tenants, (SgDynamicConfiguration<BlocksV7>) blocks, dcm, esSettings);
 
+            
+            componentState.replacePart(dcm.getComponentState());
+            dcm.getComponentState().setConfigVersion(config.getDocVersion());
+            
             //notify listeners
             
             for(DCFListener listener: listeners) {
@@ -127,6 +134,8 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             InternalUsersModel iumv6 = new InternalUsersModelV6((SgDynamicConfiguration<InternalUserV6>) internalusers);
             ConfigModel cmv6 = new ConfigModelV6((SgDynamicConfiguration<RoleV6>) roles, (SgDynamicConfiguration<ActionGroupsV6>)actionGroups, (SgDynamicConfiguration<RoleMappingsV6>)rolesmapping, dcmv6, esSettings);
             
+            componentState.replacePart(dcmv6.getComponentState());
+
             //notify listeners
             
             for(DCFListener listener: listeners) {
@@ -287,6 +296,11 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         public List<String> getSearchGuardRoles(String user) {
             return Collections.emptyList();
         }
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
    
 }

@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.configuration;
 
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -45,6 +46,7 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -56,20 +58,27 @@ public class ConfigurationLoaderSG7 {
     private final String searchguardIndex;
     private final ClusterService cs;
     private final Settings settings;
+    private final ComponentState componentState;
 
-    ConfigurationLoaderSG7(final Client client, ThreadPool threadPool, final Settings settings, ClusterService cs) {
+    ConfigurationLoaderSG7(final Client client, ThreadPool threadPool, final Settings settings, ClusterService cs, ComponentState componentState) {
         super();
         this.client = client;
         this.settings = settings;
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         this.cs = cs;
+        this.componentState = componentState;
         log.debug("Index is: {}", searchguardIndex);
     }
 
     Map<CType, SgDynamicConfiguration<?>> load(final CType[] events, long timeout, TimeUnit timeUnit) throws InterruptedException, TimeoutException {
         final CountDownLatch latch = new CountDownLatch(events.length);
         final Map<CType, SgDynamicConfiguration<?>> rs = new HashMap<>(events.length);
-
+        Map<CType, ComponentState> typeToStateMap = new EnumMap<>(CType.class);
+        
+        for (CType ctype : events) {
+            typeToStateMap.put(ctype, componentState.getOrCreatePart("config", ctype.toLCString()));
+        }
+        
         loadAsync(events, new ConfigCallback() {
 
             @Override
@@ -85,12 +94,19 @@ public class ConfigurationLoaderSG7 {
                     log.debug("Received config for {} (of {}) with current latch value={}", dConf.getCType().toLCString(), Arrays.toString(events),
                             latch.getCount());
                 }
+                
+                ComponentState configState = typeToStateMap.get(dConf.getCType());
+                configState.setInitialized();
+                configState.setConfigVersion(dConf.getDocVersion());
             }
 
             @Override
             public void singleFailure(Failure failure) {
                 log.error("Failure {} retrieving configuration for {} (index={})", failure == null ? null : failure.getMessage(),
                         Arrays.toString(events), searchguardIndex);
+                
+                typeToStateMap.get(CType.fromString(failure.getId())).setFailed(failure.getMessage());
+                typeToStateMap.get(CType.fromString(failure.getId())).setDetailJson(Strings.toString(failure));
             }
 
             @Override
@@ -125,6 +141,7 @@ public class ConfigurationLoaderSG7 {
                 } else {
                     log.error("No data for {} while retrieving configuration for {}  (index={} and type={})", id, Arrays.toString(events), searchguardIndex, type);
                     latch.countDown();
+                    typeToStateMap.get(CType.fromString(id)).setFailed("Document not found");
                 }
             }
 
@@ -132,6 +149,19 @@ public class ConfigurationLoaderSG7 {
             public void failure(Throwable t) {
                 log.error("Exception {} while retrieving configuration for {}  (index={})", t, t.toString(), Arrays.toString(events),
                         searchguardIndex);
+                componentState.setFailed(t instanceof Exception ? (Exception) t : new Exception(t));
+                
+                for (ComponentState subState : typeToStateMap.values()) {
+                    subState.setFailed(t instanceof Exception ? (Exception) t : new Exception(t));
+                }
+            }
+
+            @Override
+            public void failure(Throwable t, CType ctype) {
+                log.error("Exception {} while retrieving configuration for {}  (index={})", t, t.toString(), Arrays.toString(events),
+                        searchguardIndex);
+                typeToStateMap.get(ctype).setFailed(t instanceof Exception ? (Exception) t : new Exception(t));
+
             }
         });
 
@@ -144,7 +174,7 @@ public class ConfigurationLoaderSG7 {
         return rs;
     }
 
-    void loadAsync(final CType[] events, final ConfigCallback callback) {
+    private void loadAsync(final CType[] events, final ConfigCallback callback) {
         if (events == null || events.length == 0) {
             log.warn("No config events requested to load");
             return;
@@ -182,11 +212,11 @@ public class ConfigurationLoaderSG7 {
                                 if (dConf != null) {
                                     callback.success(dConf.deepClone());
                                 } else {
-                                    callback.failure(new Exception("Cannot parse settings for " + singleGetResponse.getId()));
+                                    callback.failure(new Exception("Cannot parse settings for " + singleGetResponse.getId()), CType.fromString(singleGetResponse.getId()));
                                 }
                             } catch (Exception e) {
                                 log.error(e.toString(), e);
-                                callback.failure(e);
+                                callback.failure(e, CType.fromString(singleGetResponse.getId()));
                             }
                         } else {
                             //does not exist or empty source

@@ -28,6 +28,8 @@ import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.FailureListener;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
@@ -46,6 +48,7 @@ import com.google.common.io.BaseEncoding;
 public class Signals extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(Signals.class);
 
+    private final ComponentState componentState;
     private final SignalsSettings signalsSettings;
     private final Map<String, SignalsTenant> tenants = new ConcurrentHashMap<>();
     private Set<String> configuredTenants;
@@ -61,7 +64,8 @@ public class Signals extends AbstractLifecycleComponent {
     private String nodeId;
     private Map<String, Exception> tenantInitErrors = new ConcurrentHashMap<>();
 
-    public Signals(Settings settings) {
+    public Signals(Settings settings, ComponentState componentState) {
+        this.componentState = componentState;
         this.settings = settings;
         this.signalsSettings = new SignalsSettings(settings);
         this.signalsSettings.addChangeListener(this.settingsChangeListener);
@@ -144,12 +148,13 @@ public class Signals extends AbstractLifecycleComponent {
         String[] allIndexes = new String[] { indexNames.getWatches(), indexNames.getWatchesState(), indexNames.getWatchesTriggerState(),
                 indexNames.getAccounts(), indexNames.getSettings() };
 
-        protectedConfigIndexService.createIndex(
-                new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping()).dependsOnIndices(allIndexes).onIndexReady(this::init));
-        protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesState()).mapping(WatchState.getIndexMapping()));
-        protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesTriggerState()));
-        protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getAccounts()));
-        protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getSettings()));
+        componentState.addPart(protectedConfigIndexService.createIndex(
+                new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping()).dependsOnIndices(allIndexes).onIndexReady(this::init)));
+        componentState.addPart(
+                protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesState()).mapping(WatchState.getIndexMapping())));
+        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesTriggerState())));
+        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getAccounts())));
+        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getSettings())));
     }
 
     private void checkInitState() throws SignalsUnavailableException {
@@ -172,20 +177,26 @@ public class Signals extends AbstractLifecycleComponent {
         }
     }
 
-    private void createTenant(String name) throws SignalsInitializationException {
+    private void createTenant(String name) {
+        if ("SGS_GLOBAL_TENANT".equals(name)) {
+            name = "_main";
+        }
+
+        ComponentState tenantState = componentState.getOrCreatePart("tenant", name);
+        tenantState.setMandatory(false);
+
         try {
-            if ("SGS_GLOBAL_TENANT".equals(name)) {
-                name = "_main";
-            }
 
             SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, scriptService, xContentRegistry,
-                    internalAuthTokenProvider, signalsSettings, accountRegistry);
+                    internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState);
 
             tenants.put(name, signalsTenant);
 
             log.debug("Tenant {} created", name);
         } catch (Exception e) {
-            throw new SignalsInitializationException("Error while creating tenant " + name, e);
+            log.error("Error while creating tenant " + name, e);
+            tenantInitErrors.put(name, e);
+            tenantState.setFailed(e);
         }
     }
 
@@ -208,10 +219,13 @@ public class Signals extends AbstractLifecycleComponent {
         try {
             log.info("Initializing Signals");
 
+            componentState.setState(State.INITIALIZING, "reading_settings");
             signalsSettings.refresh(client);
 
+            componentState.setState(State.INITIALIZING, "reading_accounts");
             accountRegistry.init(client);
 
+            componentState.setState(State.INITIALIZING, "initializing_keys");
             if (signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey() != null) {
                 internalAuthTokenProvider.setSigningKey(signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey());
             }
@@ -245,23 +259,25 @@ public class Signals extends AbstractLifecycleComponent {
                 }
             }
 
+            componentState.setState(State.INITIALIZING, "creating_tenants");
+
             if (configuredTenants != null) {
                 log.debug("Initializing tenant schedulers");
 
                 for (String tenant : configuredTenants) {
-                    try {
-                        createTenant(tenant);
-                    } catch (Exception e) {
-                        tenantInitErrors.put(tenant, e);
-                    }
+                    createTenant(tenant);
                 }
             }
 
+            failureListener.onSuccess();
+
             initState = InitializationState.INITIALIZED;
+            componentState.setInitialized();
         } catch (SignalsInitializationException e) {
             failureListener.onFailure(e);
             initState = InitializationState.FAILED;
             initException = e;
+            componentState.setFailed(e);
         }
     }
 
@@ -286,12 +302,7 @@ public class Signals extends AbstractLifecycleComponent {
             }
 
             for (String tenantToBeCreated : Sets.difference(configuredTenants, currentTenants)) {
-                try {
-                    createTenant(tenantToBeCreated);
-                } catch (Exception e) {
-                    log.error("Error while creating tenant", e);
-                    tenantInitErrors.put(tenantToBeCreated, e);
-                }
+                createTenant(tenantToBeCreated);
             }
         } else {
             this.configuredTenants = configuredTenants;

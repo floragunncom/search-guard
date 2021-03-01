@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
+ * Copyright 2021 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,20 +15,9 @@
  * 
  */
 
-package com.floragunn.searchguard.configuration;
+package com.floragunn.searchguard.modules.state;
 
-import org.elasticsearch.action.get.MultiGetResponse.Failure;
-
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-
-public interface ConfigCallback {
-    
-    void success(SgDynamicConfiguration<?> dConf);
-    void noData(String id, String type);
-    void singleFailure(Failure failure);
-    void failure(Throwable t);
-    void failure(Throwable t, CType ctype);
-
-
+@FunctionalInterface
+public interface ComponentStateProvider {
+    ComponentState getComponentState();
 }

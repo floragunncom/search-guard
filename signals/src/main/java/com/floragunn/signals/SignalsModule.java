@@ -22,6 +22,8 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 
 import com.floragunn.searchguard.modules.SearchGuardModule;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerAction;
 import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.searchsupport.jobs.actions.TransportCheckForExecutingTriggerAction;
@@ -83,12 +85,17 @@ import com.floragunn.signals.watch.checks.Condition;
 import com.floragunn.signals.watch.checks.Transform;
 import com.floragunn.signals.watch.severity.SeverityMapping;
 
-public class SignalsModule implements SearchGuardModule<Void> {
+public class SignalsModule implements SearchGuardModule<Void>, ComponentStateProvider {
 
     private final boolean enabled;
+    private final ComponentState moduleState = new ComponentState(100, null, "signals", SignalsModule.class);
 
     public SignalsModule(Settings settings) {
         enabled = settings.getAsBoolean("signals.enabled", true);
+        
+        if (!enabled) {
+            moduleState.setState(ComponentState.State.DISABLED);
+        }
     }
     
     public SignalsModule() {
@@ -157,7 +164,7 @@ public class SignalsModule implements SearchGuardModule<Void> {
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         if (enabled) {
-            return new Signals(baseDependencies.getSettings()).createComponents(baseDependencies.getLocalClient(),
+            return new Signals(baseDependencies.getSettings(), moduleState).createComponents(baseDependencies.getLocalClient(),
                     baseDependencies.getClusterService(), baseDependencies.getThreadPool(), baseDependencies.getResourceWatcherService(),
                     baseDependencies.getScriptService(), baseDependencies.getxContentRegistry(), baseDependencies.getEnvironment(),
                     baseDependencies.getNodeEnvironment(), baseDependencies.getInternalAuthTokenProvider(),
@@ -174,6 +181,11 @@ public class SignalsModule implements SearchGuardModule<Void> {
 
     @Override
     public void onNodeStarted() {
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return moduleState;
     }
 
 }

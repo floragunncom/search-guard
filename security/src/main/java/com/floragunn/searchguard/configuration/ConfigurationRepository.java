@@ -36,6 +36,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -59,6 +60,9 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentState.State;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -70,7 +74,7 @@ import com.floragunn.searchguard.support.SgUtils;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-public class ConfigurationRepository {
+public class ConfigurationRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(ConfigurationRepository.class);
 
     private final String searchguardIndex;
@@ -89,6 +93,7 @@ public class ConfigurationRepository {
     private final int configVersion = 2;
     private final Thread bgThread;
     private final AtomicBoolean installDefaultConfig = new AtomicBoolean();
+    private final ComponentState componentState = new ComponentState(1, null, "config_repository", ConfigurationRepository.class);
 
     private ConfigurationRepository(Settings settings, final Path configPath, ThreadPool threadPool, 
             Client client, ClusterService clusterService, AuditLog auditLog, ComplianceConfig complianceConfig) {
@@ -101,7 +106,8 @@ public class ConfigurationRepository {
         this.complianceConfig = complianceConfig;
         this.configurationChangedListener = new ArrayList<>();
         this.licenseChangeListener = new ArrayList<LicenseChangeListener>();
-        cl = new ConfigurationLoaderSG7(client, threadPool, settings, clusterService);
+        this.componentState.setMandatory(true);
+        cl = new ConfigurationLoaderSG7(client, threadPool, settings, clusterService, componentState);
         
         configCache = CacheBuilder
                       .newBuilder()
@@ -116,6 +122,7 @@ public class ConfigurationRepository {
 
 
                     if(installDefaultConfig.get()) {
+                        componentState.setState(State.INITIALIZING, "install_default_config");
 
                         try {
                             String lookupDir = System.getProperty("sg.default_init.dir");
@@ -149,17 +156,27 @@ public class ConfigurationRepository {
                                         LOGGER.info("Default config applied");
                                     } else {
                                         LOGGER.error("Can not create {} index", searchguardIndex);
+                                        componentState.setFailed("Index creation was not acknowledged");
                                     }
                                 }
                             } else {
                                 LOGGER.error("{} does not exist", confFile.getAbsolutePath());
+                                componentState.setFailed(confFile.getAbsolutePath() + " does not exist");
+
                             }
-                        } catch (Exception e) {
+                        } catch (ResourceAlreadyExistsException e) {
                             LOGGER.debug("Cannot apply default config (this is maybe not an error!) due to {}", e.getMessage());
+                        } catch (Exception e) {
+                            LOGGER.error("Cannot apply default config (this is maybe not an error!) due to {}", e.getMessage());
+                            // TODO find out when this is not an error o.O
+                            componentState.setFailed(e);
                         }
                     }
 
                     LOGGER.debug("Node started, try to initialize it. Wait for at least yellow cluster state....");
+
+                    componentState.setState(State.INITIALIZING, "waiting_for_yellow_index");
+
                     ClusterHealthResponse response = null;
                     try {
                         response = client.admin().cluster().health(new ClusterHealthRequest(searchguardIndex)
@@ -177,6 +194,7 @@ public class ConfigurationRepository {
                             //ignore
                             Thread.currentThread().interrupt();
                         }
+                        componentState.startNextTry();
                         try {
                             response = client.admin().cluster().health(new ClusterHealthRequest(searchguardIndex).waitForYellowStatus()).actionGet();
                         } catch (Exception e1) {
@@ -185,7 +203,10 @@ public class ConfigurationRepository {
                         continue;
                     }
 
+                    componentState.setState(State.INITIALIZING, "loading");
+                    
                     while(!dynamicConfigFactory.isInitialized()) {
+                        componentState.startNextTry();
                         try {
                             LOGGER.debug("Try to load config ...");
                             reloadConfiguration(Arrays.asList(CType.values()));
@@ -204,8 +225,11 @@ public class ConfigurationRepository {
 
                     LOGGER.info("Node '{}' initialized", clusterService.localNode().getName());
 
+                    componentState.setInitialized();
+                    
                 } catch (Exception e) {
                     LOGGER.error("Unexpected exception while initializing node "+e, e);
+                    componentState.setFailed(e);
                 }
             }
         });
@@ -239,6 +263,7 @@ public class ConfigurationRepository {
         } catch (Throwable e2) {
             LOGGER.error("Error during node initialization: {}", e2, e2);
             bgThread.start();
+            componentState.addLastException("initOnNodeStart", e2);
         }
     }
 
@@ -481,5 +506,10 @@ public class ConfigurationRepository {
         }
 
         return SearchGuardLicense.createTrialLicense(formatDate(created), clusterService, msg);
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }
