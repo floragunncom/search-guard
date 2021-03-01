@@ -70,5 +70,31 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!--  only for LocalCluster. We should clean up the source code to have only one LocalCluster -->
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>transport-netty4-client</artifactId>
+			<version>${elasticsearch.version}</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>jna</artifactId>
+					<groupId>org.elasticsearch</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>jts</artifactId>
+					<groupId>com.vividsolutions</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>log4j-api</artifactId>
+					<groupId>org.apache.logging.log4j</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>spatial4j</artifactId>
+					<groupId>org.locationtech.spatial4j</groupId>
+				</exclusion>
+			</exclusions>
+			<scope>test</scope>			
+		</dependency>
+
 	</dependencies>
 </project>
