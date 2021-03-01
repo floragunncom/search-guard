@@ -25,6 +25,8 @@ import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.auth.api.AuthorizationBackend;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.Authc;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7.AuthcDomain;
@@ -36,7 +38,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
-public class DynamicConfigModelV7 extends DynamicConfigModel {
+public class DynamicConfigModelV7 extends DynamicConfigModel implements ComponentStateProvider {
     private final ConfigV7 config;
     private final Settings esSettings;
     private final Path configPath;
@@ -51,8 +53,8 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
     private Multimap<String, AuthFailureListener> authBackendFailureListeners;
     private List<ClientBlockRegistry<InetAddress>> ipClientBlockRegistries;
     private Multimap<String, ClientBlockRegistry<String>> authBackendClientBlockRegistries;
-   
-    
+    private final ComponentState componentState = new ComponentState(2, null, "sg_config", DynamicConfigModelV7.class);
+
     public DynamicConfigModelV7(ConfigV7 config, Settings esSettings, Path configPath, SearchGuardModulesRegistry modulesRegistry) {
         super();
         this.config = config;
@@ -200,6 +202,8 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
 
 
             if (httpEnabled || transportEnabled) {
+                ComponentState domainState = componentState.getOrCreatePart("authz_domain", ad.getKey());
+                
                 try {
 
                     String authzBackendClazz = ad.getValue().authorization_backend.type;
@@ -225,8 +229,11 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
                         // XXX this is dangerous for components which were not constructed here 
                         destroyableComponents0.add((Destroyable) authorizationBackend);
                     }
+                    
+                    domainState.setInitialized();
                 } catch (final Exception e) {
                     log.error("Unable to initialize AuthorizationBackend {} due to {}", ad, e.toString(),e);
+                    domainState.setFailed(e);
                 }
             }
         }
@@ -238,6 +245,8 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
             final boolean transportEnabled = ad.getValue().transport_enabled;
 
             if (httpEnabled || transportEnabled) {
+                ComponentState domainState = componentState.getOrCreatePart("authc_domain", ad.getKey());
+
                 try {
                     String authBackendClazz = ad.getValue().authentication_backend.type;
                     Settings authenticationBackendSettings = Settings.builder()
@@ -286,8 +295,11 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
                         destroyableComponents0.add((Destroyable) authenticationBackend);
                     }
                     
+                    domainState.setInitialized();
+                    
                 } catch (final Exception e) {
                     log.error("Unable to initialize auth domain {} due to {}", ad, e.toString(), e);
+                    domainState.setFailed(e);
                 }
 
             }
@@ -383,5 +395,8 @@ public class DynamicConfigModelV7 extends DynamicConfigModel {
     @Override
     public Map<String, Object> getAuthTokenProviderConfig() {
         return config.dynamic.auth_token_provider;
+    }
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

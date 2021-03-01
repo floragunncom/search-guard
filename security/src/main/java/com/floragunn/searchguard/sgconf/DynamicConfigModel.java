@@ -13,9 +13,10 @@ import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.AuthenticationDomain;
 import com.floragunn.searchguard.auth.AuthorizationDomain;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.google.common.collect.Multimap;
 
-public abstract class DynamicConfigModel {
+public abstract class DynamicConfigModel implements ComponentStateProvider {
     
     protected final Logger log = LogManager.getLogger(this.getClass());
     public abstract SortedSet<AuthenticationDomain> getRestAuthenticationDomains();

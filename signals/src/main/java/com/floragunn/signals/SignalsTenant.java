@@ -40,6 +40,8 @@ import org.quartz.spi.TriggerFiredBundle;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
@@ -70,9 +72,9 @@ public class SignalsTenant implements Closeable {
 
     public static SignalsTenant create(String name, Client client, ClusterService clusterService, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
-            AccountRegistry accountRegistry) throws SchedulerException {
+            AccountRegistry accountRegistry, ComponentState tenantState) throws SchedulerException {
         SignalsTenant instance = new SignalsTenant(name, client, clusterService, scriptService, xContentRegistry, internalAuthTokenProvider, settings,
-                accountRegistry);
+                accountRegistry, tenantState);
 
         instance.init();
 
@@ -96,13 +98,14 @@ public class SignalsTenant implements Closeable {
     private final InternalAuthTokenProvider internalAuthTokenProvider;
     private final AccountRegistry accountRegistry;
     private final String nodeName;
+    private final ComponentState tenantState;
     private SignalsSettings.Tenant tenantSettings;
 
     private Scheduler scheduler;
 
     public SignalsTenant(String name, Client client, ClusterService clusterService, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
-            AccountRegistry accountRegistry) {
+            AccountRegistry accountRegistry, ComponentState tenantState) {
         this.name = name;
         this.settings = settings;
         this.scopedName = "signals/" + name;
@@ -123,18 +126,28 @@ public class SignalsTenant implements Closeable {
         this.internalAuthTokenProvider = internalAuthTokenProvider;
         this.accountRegistry = accountRegistry;
         this.nodeName = clusterService.getNodeName();
+        this.tenantState = tenantState;
 
         settings.addChangeListener(this.settingsChangeListener);
+    }
+    
+    public SignalsTenant(String name, Client client, ClusterService clusterService, ScriptService scriptService,
+            NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
+            AccountRegistry accountRegistry) {
+        this(name, client, clusterService, scriptService, xContentRegistry, internalAuthTokenProvider, settings, accountRegistry, new ComponentState(0, null, "tenant"));
     }
 
     public void init() throws SchedulerException {
         if (this.tenantSettings.isActive()) {
             doInit();
+        } else {
+            this.tenantState.setState(State.SUSPENDED);
         }
     }
 
     private void doInit() throws SchedulerException {
         log.info("Initializing alerting tenant " + name + "\nnodeFilter: " + nodeFilter);
+        tenantState.setState(ComponentState.State.INITIALIZING);
 
         this.scheduler = new SchedulerBuilder<Watch>()//
                 .client(privilegedConfigClient)//
@@ -151,7 +164,6 @@ public class SignalsTenant implements Closeable {
                 .threadKeepAlive(settings.getStaticSettings().getThreadKeepAlive())//
                 .threadPriority(settings.getStaticSettings().getThreadPrio())//
                 .build();
-
         this.scheduler.start();
     }
 
@@ -159,6 +171,7 @@ public class SignalsTenant implements Closeable {
         log.info("Suspending scheduler of " + this);
 
         if (this.scheduler != null) {
+            this.tenantState.setState(State.SUSPENDED);
             this.scheduler.standby();
         }
     }
@@ -168,7 +181,7 @@ public class SignalsTenant implements Closeable {
             doInit();
         } else if (!this.scheduler.isStarted() || this.scheduler.isInStandbyMode()) {
             log.info("Resuming scheduler of " + this);
-
+            this.tenantState.setState(State.INITIALIZED);
             this.scheduler.start();
         } else {
             log.info("Scheduler is already active " + this);
@@ -183,6 +196,7 @@ public class SignalsTenant implements Closeable {
         try {
             if (this.scheduler != null) {
                 this.scheduler.shutdown(true);
+                tenantState.setState(ComponentState.State.DISABLED);
             }
         } catch (SchedulerException e) {
             log.error("Error wile shutting down " + this, e);
@@ -430,11 +444,18 @@ public class SignalsTenant implements Closeable {
         @Override
         public void onInit(Set<Watch> watches) {
             Set<String> watchIds = watches.stream().map((watch) -> watch.getId()).collect(Collectors.toSet());
+
+            tenantState.setState(State.INITIALIZING, "reading_states");
+
             Map<String, WatchState> dirtyStates = watchStateManager.reset(watchStateReader.get(watchIds));
 
             if (!dirtyStates.isEmpty()) {
+                tenantState.setState(State.INITIALIZING, "writing_states");
+
                 watchStateWriter.putAll(dirtyStates);
             }
+
+            tenantState.setState(State.INITIALIZED);
         }
 
     };

@@ -25,6 +25,7 @@ import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.auth.api.AuthorizationBackend;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6;
 import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6.Authc;
 import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6.AuthcDomain;
@@ -52,7 +53,8 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
     private Multimap<String, AuthFailureListener> authBackendFailureListeners;
     private List<ClientBlockRegistry<InetAddress>> ipClientBlockRegistries;
     private Multimap<String, ClientBlockRegistry<String>> authBackendClientBlockRegistries;
-    
+    private final ComponentState componentState = new ComponentState(2, null, "sg_config", DynamicConfigModelV7.class);
+
     public DynamicConfigModelV6(ConfigV6 config, Settings esSettings, Path configPath, SearchGuardModulesRegistry modulesRegistry) {
         super();
         this.config = config;
@@ -315,6 +317,8 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
         ipClientBlockRegistries = Collections.unmodifiableList(ipClientBlockRegistries0);
         authBackendClientBlockRegistries = Multimaps.unmodifiableMultimap(authBackendClientBlockRegistries0);
         authBackendFailureListeners = Multimaps.unmodifiableMultimap(authBackendFailureListeners0);
+        
+        componentState.setInitialized();
     }
     
     private void destroyDestroyables(List<Destroyable> destroyableComponents) {
@@ -380,5 +384,10 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
             }
         }
 
+    }
+    
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

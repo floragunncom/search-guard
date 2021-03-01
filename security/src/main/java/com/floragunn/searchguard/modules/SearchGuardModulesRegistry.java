@@ -37,6 +37,8 @@ import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.auth.api.AuthorizationBackend;
 import com.floragunn.searchguard.modules.SearchGuardModule.BaseDependencies;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
@@ -49,7 +51,8 @@ public class SearchGuardModulesRegistry {
 
     private static final Logger log = LogManager.getLogger(SearchGuardModulesRegistry.class);
 
-    private List<SearchGuardModule<?>> subModules = new ArrayList<>();
+    private List<SearchGuardModule<?>> modules = new ArrayList<>();
+    private List<ComponentStateProvider> componentStateProviders = new ArrayList<>();
     private Set<String> moduleNames = new HashSet<>();
     private final Set<String> disabledModules;
     private final Settings settings;
@@ -62,7 +65,7 @@ public class SearchGuardModulesRegistry {
 
     private SearchGuardComponentRegistry<HTTPAuthenticator> httpAuthenticators = new SearchGuardComponentRegistry<HTTPAuthenticator>(
             HTTPAuthenticator.class, (o) -> o.getType()).add(StandardComponents.httpAuthenticators);
-    
+
     private SearchGuardComponentRegistry<AuthFailureListener> authFailureListeners = new SearchGuardComponentRegistry<AuthFailureListener>(
             AuthFailureListener.class, (o) -> o.getType()).add(StandardComponents.authFailureListeners);
 
@@ -88,9 +91,13 @@ public class SearchGuardModulesRegistry {
                 Object object = createModule(clazz);
 
                 if (object instanceof SearchGuardModule) {
-                    subModules.add((SearchGuardModule<?>) object);
+                    modules.add((SearchGuardModule<?>) object);
                 } else {
                     log.error(object + " does not implement SearchGuardSubModule");
+                }
+
+                if (object instanceof ComponentStateProvider) {
+                    componentStateProviders.add((ComponentStateProvider) object);
                 }
             } catch (ClassNotFoundException e) {
                 log.warn("Module class does not exist " + clazz);
@@ -101,12 +108,16 @@ public class SearchGuardModulesRegistry {
         }
     }
 
+    public void addComponentStateProvider(ComponentStateProvider componentStateProvider) {
+        componentStateProviders.add(componentStateProvider);
+    }
+
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
         List<RestHandler> result = new ArrayList<>();
 
-        for (SearchGuardModule<?> module : subModules) {
+        for (SearchGuardModule<?> module : modules) {
             result.addAll(module.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
                     indexNameExpressionResolver, scriptService, nodesInCluster));
         }
@@ -117,7 +128,7 @@ public class SearchGuardModulesRegistry {
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> result = new ArrayList<>();
 
-        for (SearchGuardModule<?> module : subModules) {
+        for (SearchGuardModule<?> module : modules) {
             result.addAll(module.getActions());
         }
 
@@ -127,17 +138,17 @@ public class SearchGuardModulesRegistry {
     public List<ScriptContext<?>> getContexts() {
         List<ScriptContext<?>> result = new ArrayList<>();
 
-        for (SearchGuardModule<?> module : subModules) {
+        for (SearchGuardModule<?> module : modules) {
             result.addAll(module.getContexts());
         }
-        
+
         return result;
     }
 
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         List<Object> result = new ArrayList<>();
 
-        for (SearchGuardModule<?> module : subModules) {
+        for (SearchGuardModule<?> module : modules) {
             result.addAll(module.createComponents(baseDependencies));
 
             registerConfigChangeListener(module, baseDependencies.getDynamicConfigFactory());
@@ -153,7 +164,7 @@ public class SearchGuardModulesRegistry {
     public List<Setting<?>> getSettings() {
         List<Setting<?>> result = new ArrayList<>();
 
-        for (SearchGuardModule<?> module : subModules) {
+        for (SearchGuardModule<?> module : modules) {
             result.addAll(module.getSettings());
         }
 
@@ -161,9 +172,42 @@ public class SearchGuardModulesRegistry {
     }
 
     public void onNodeStarted() {
-        for (SearchGuardModule<?> module : subModules) {
+        for (SearchGuardModule<?> module : modules) {
             module.onNodeStarted();
         }
+    }
+
+    public List<ComponentState> getComponentStates() {
+        List<ComponentState> result = new ArrayList<>(componentStateProviders.size());
+
+        for (ComponentStateProvider provider : componentStateProviders) {
+            try {
+                ComponentState componentState = provider.getComponentState();
+
+                if (componentState != null) {
+                    componentState.updateStateFromParts();
+                    result.add(componentState);
+                }
+            } catch (Exception e) {
+                log.error("Error while retrieving component state from " + provider);
+            }
+        }
+
+        return result;
+    }
+
+    public ComponentState getComponentState(String moduleName) {
+        for (ComponentStateProvider provider : componentStateProviders) {
+            ComponentState componentState = provider.getComponentState();
+
+            if (componentState != null && componentState.getName().equals(moduleName)) {
+                componentState.updateStateFromParts();
+                return componentState;
+            }
+
+        }
+
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -175,20 +219,50 @@ public class SearchGuardModulesRegistry {
         }
 
         dynamicConfigFactory.addConfigChangeListener(configMetadata.getSgConfigType(), (config) -> {
-            Object convertedConfig = convert(configMetadata, config);
-
-            if (log.isDebugEnabled()) {
-                log.debug("New configuration for " + module + ": " + convertedConfig);
-            }
-
             @SuppressWarnings("rawtypes")
             Consumer consumer = configMetadata.getConfigConsumer();
 
-            consumer.accept(convertedConfig);
+            try {
+                Object convertedConfig = convert(configMetadata, config);
+
+                if (log.isDebugEnabled()) {
+                    log.debug("New configuration for " + module + ": " + convertedConfig);
+                }
+                consumer.accept(convertedConfig);
+
+                if (module instanceof ComponentStateProvider) {
+                    ComponentState configComponentState = ((ComponentStateProvider) module).getComponentState().getOrCreatePart("config",
+                            "sg_config");
+
+                    configComponentState.setInitialized();
+                }
+
+            } catch (ConfigValidationException e) {
+                log.error("Error while parsing configuration for " + module + "\n" + e.getValidationErrors(), e);
+
+                if (module instanceof ComponentStateProvider) {
+                    ComponentState configComponentState = ((ComponentStateProvider) module).getComponentState().getOrCreatePart("config",
+                            "sg_config");
+
+                    configComponentState.setFailed(e.getMessage());
+                    configComponentState.setDetailJson(e.getValidationErrors().toJson());
+                }
+
+                consumer.accept(null);
+            } catch (Exception e) {
+                log.error("Error while parsing configuration for " + module, e);
+
+                if (module instanceof ComponentStateProvider) {
+                    ComponentState configComponentState = ((ComponentStateProvider) module).getComponentState().getOrCreatePart("config",
+                            "sg_config");
+
+                    configComponentState.setFailed(e);
+                }
+            }
         });
     }
 
-    private <T> T convert(SearchGuardModule.SgConfigMetadata<T> configMetadata, SgDynamicConfiguration<?> value) {
+    private <T> T convert(SearchGuardModule.SgConfigMetadata<T> configMetadata, SgDynamicConfiguration<?> value) throws ConfigValidationException {
         if (value == null) {
             return null;
         }
@@ -211,12 +285,8 @@ public class SearchGuardModulesRegistry {
             return null;
         }
 
-        try {
-            return configMetadata.getConfigParser().parse(subNode);
-        } catch (ConfigValidationException e) {
-            log.error("Error while parsing configuration in " + this + "\n" + e.getValidationErrors(), e);
-            return null;
-        }
+        return configMetadata.getConfigParser().parse(subNode);
+
     }
 
     public SearchGuardComponentRegistry<AuthenticationBackend> getAuthenticationBackends() {
@@ -249,6 +319,5 @@ public class SearchGuardModulesRegistry {
 
         return Class.forName(className).getDeclaredConstructor().newInstance();
     }
-
 
 }

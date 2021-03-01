@@ -26,8 +26,9 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
+import com.floragunn.searchguard.modules.state.ComponentState;
 
-public class ProtectedConfigIndexService {
+public class ProtectedConfigIndexService  {
     private final static Logger log = LogManager.getLogger(ProtectedConfigIndexService.class);
 
     private final Client client;
@@ -49,7 +50,7 @@ public class ProtectedConfigIndexService {
         clusterService.addListener(clusterStateListener);
     }
 
-    public void createIndex(ConfigIndex configIndex) {
+    public ComponentState createIndex(ConfigIndex configIndex) {
         ConfigIndexState configIndexState = new ConfigIndexState(configIndex);
 
         protectedIndices.add(configIndex.getName());
@@ -59,13 +60,15 @@ public class ProtectedConfigIndexService {
         } else {
             createIndexNow(configIndexState, clusterService.state());
         }
+        
+        return configIndexState.moduleState;
     }
 
     public void flushPendingIndices(ClusterState clusterState) {
         if (this.pendingIndices.isEmpty()) {
             return;
         }
-        
+
         Set<ConfigIndexState> pendingIndices = new HashSet<>(this.pendingIndices);
 
         this.pendingIndices.removeAll(pendingIndices);
@@ -88,7 +91,11 @@ public class ProtectedConfigIndexService {
 
         if (clusterState.nodes().isLocalNodeElectedMaster() || clusterState.nodes().getMasterNode() != null) {
             flushPendingIndices(clusterState);
-        } 
+        }
+
+        if (!this.pendingIndices.isEmpty()) {
+            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(30), ThreadPool.Names.GENERIC, () -> checkClusterState(clusterState));
+        }
     }
 
     private void createIndexNow(ConfigIndexState configIndex, ClusterState clusterState) {
@@ -96,7 +103,7 @@ public class ProtectedConfigIndexService {
         if (log.isTraceEnabled()) {
             log.trace("createIndexNow(" + configIndex + ")");
         }
-        
+
         if (completedIndices.contains(configIndex)) {
             if (log.isTraceEnabled()) {
                 log.trace(configIndex + " is already completed");
@@ -108,12 +115,14 @@ public class ProtectedConfigIndexService {
             if (log.isTraceEnabled()) {
                 log.trace(configIndex + " does already exist.");
             }
-            
+
             completedIndices.add(configIndex);
             configIndex.setCreated(true);
 
             if (configIndex.getListener() != null) {
                 configIndex.waitForYellowStatus();
+            } else {
+                configIndex.moduleState.setInitialized();
             }
 
             return;
@@ -121,6 +130,7 @@ public class ProtectedConfigIndexService {
 
         if (!clusterState.nodes().isLocalNodeElectedMaster()) {
             pendingIndices.add(configIndex);
+            configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "waiting_for_master");
             return;
         }
 
@@ -137,6 +147,7 @@ public class ProtectedConfigIndexService {
         }
 
         completedIndices.add(configIndex);
+        configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "creating");
 
         client.admin().indices().create(request, new ActionListener<CreateIndexResponse>() {
 
@@ -150,6 +161,8 @@ public class ProtectedConfigIndexService {
 
                 if (configIndex.getListener() != null) {
                     configIndex.waitForYellowStatus();
+                } else {
+                    configIndex.moduleState.setInitialized();
                 }
             }
 
@@ -160,6 +173,8 @@ public class ProtectedConfigIndexService {
 
                     if (configIndex.getListener() != null) {
                         configIndex.waitForYellowStatus();
+                    } else {
+                        configIndex.moduleState.setInitialized();
                     }
                 } else {
                     log.error("Error while creating index " + configIndex, e);
@@ -183,14 +198,15 @@ public class ProtectedConfigIndexService {
         private final Map<String, Object> mapping;
         private final IndexReadyListener listener;
         private final String[] allIndices;
-        private volatile Exception failed;
         private volatile boolean created;
+        private final ComponentState moduleState;
         private volatile long createdAt;
 
         ConfigIndexState(ConfigIndex configIndex) {
             this.name = configIndex.name;
             this.mapping = configIndex.mapping;
             this.listener = configIndex.listener;
+            this.moduleState = new ComponentState(5, "index", configIndex.name);
 
             if (configIndex.indexDependencies == null || configIndex.indexDependencies.length == 0) {
                 allIndices = new String[] { name };
@@ -215,13 +231,14 @@ public class ProtectedConfigIndexService {
         }
 
         public void setFailed(Exception failed) {
-            this.failed = failed;
+            this.moduleState.setFailed(failed);
         }
 
         public void setCreated(boolean created) {
             this.created = created;
 
             if (created) {
+                this.moduleState.setInitialized();
                 this.createdAt = System.currentTimeMillis();
             }
         }
@@ -234,7 +251,10 @@ public class ProtectedConfigIndexService {
             if (log.isTraceEnabled()) {
                 log.trace("waitForYellowStatus(" + this + ")");
             }
-            
+
+            this.moduleState.setState(ComponentState.State.INITIALIZING, "waiting_for_yellow_status");
+            this.moduleState.startNextTry();
+
             client.admin().cluster().health(new ClusterHealthRequest(allIndices).waitForYellowStatus(), new ActionListener<ClusterHealthResponse>() {
 
                 @Override
@@ -288,13 +308,17 @@ public class ProtectedConfigIndexService {
                 if (log.isTraceEnabled()) {
                     log.trace("tryOnIndexReady(" + this + ")");
                 }
-                
+
+                this.moduleState.setState(ComponentState.State.INITIALIZING, "final_probe");
+                this.moduleState.startNextTry();
+
                 listener.onIndexReady(new FailureListener() {
 
                     @Override
                     public void onFailure(Exception e) {
                         if (isTimedOut()) {
                             log.error("Initialization for " + name + " failed. Giving up.", e);
+                            moduleState.setFailed(e);
                             return;
                         }
 
@@ -306,6 +330,11 @@ public class ProtectedConfigIndexService {
 
                         threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), ThreadPool.Names.GENERIC, () -> tryOnIndexReady());
 
+                    }
+
+                    @Override
+                    public void onSuccess() {
+                        moduleState.setInitialized();
                     }
 
                 });
@@ -365,9 +394,12 @@ public class ProtectedConfigIndexService {
         void onIndexReady(FailureListener failureListener);
     }
 
-    @FunctionalInterface
     public static interface FailureListener {
+        void onSuccess();
+
         void onFailure(Exception e);
     }
+
+    
 
 }
