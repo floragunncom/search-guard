@@ -551,9 +551,10 @@ public class PrivilegesEvaluator implements DCFListener {
 
     private static boolean isClusterPerm(String action0) {
         return !isTenantPerm(action0) && (action0.startsWith("searchguard:cluster:") || action0.startsWith("cluster:")
-                || action0.startsWith("indices:admin/template/") || action0.startsWith(SearchScrollAction.NAME) || (action0.equals(BulkAction.NAME))
-                || (action0.equals(MultiGetAction.NAME)) || (action0.equals(MultiSearchAction.NAME)) || (action0.equals(MultiTermVectorsAction.NAME))
-                || action0.equals(ReindexAction.NAME) || ActionConfigRegistry.INSTANCE.isClusterAction(action0));
+                || action0.startsWith("indices:admin/template/") || action0.startsWith("indices:admin/index_template/")
+                || action0.startsWith(SearchScrollAction.NAME) || (action0.equals(BulkAction.NAME)) || (action0.equals(MultiGetAction.NAME))
+                || (action0.equals(MultiSearchAction.NAME)) || (action0.equals(MultiTermVectorsAction.NAME)) || action0.equals(ReindexAction.NAME)
+                || ActionConfigRegistry.INSTANCE.isClusterAction(action0));
 
     }
 

@@ -239,6 +239,8 @@ SGS_CLUSTER_MANAGE_INDEX_TEMPLATES:
   static: true
   allowed_actions:
   - "indices:admin/template/*"
+  - "indices:admin/index_template/*"
+  - "cluster:admin/component_template/*"
   type: "cluster"
   description: "Manage index templates"
 SGS_CLUSTER_MANAGE_PIPELINES:
