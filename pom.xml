@@ -47,6 +47,10 @@
 		<!-- Test only -->
 		<mockito.version>2.23.0</mockito.version>
 		<powermock.version>2.0.2</powermock.version>
+		
+		<!-- For mvn license:aggregate-add-third-party --> 
+		<license.excludedArtifacts>.*search-guard.*</license.excludedArtifacts>
+		<license.excludedScopes>test,provided</license.excludedScopes>
 	</properties>
 
 	<modules>
@@ -437,7 +441,11 @@
 				</executions>
 			  </plugin>
 
-
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>license-maven-plugin</artifactId>
+            <version>1.13</version>           
+          </plugin>  
 		</plugins>
 		<pluginManagement>
 			<plugins>
