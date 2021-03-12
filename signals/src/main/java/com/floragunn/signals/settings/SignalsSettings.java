@@ -20,6 +20,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
@@ -469,6 +470,10 @@ public class SignalsSettings {
     public static class StaticSettings {
         public static Setting<Boolean> ENABLED = Setting.boolSetting("signals.enabled", true, Property.NodeScope);
         public static Setting<Boolean> ENTERPRISE_ENABLED = Setting.boolSetting("signals.enterprise.enabled", true, Property.NodeScope);
+        public static Setting<Integer> MAX_THREADS = Setting.intSetting("signals.worker_threads.pool.max_size", 3, Property.NodeScope);
+        public static Setting<TimeValue> THREAD_KEEP_ALIVE = Setting.timeSetting("signals.worker_threads.pool.keep_alive",
+                TimeValue.timeValueMinutes(100), Property.NodeScope);
+        public static Setting<Integer> THREAD_PRIO = Setting.intSetting("signals.worker_threads.prio", Thread.NORM_PRIORITY, Property.NodeScope);
 
         public static class IndexNames {
             public static Setting<String> WATCHES = Setting.simpleString("signals.index_names.watches", ".signals_watches", Property.NodeScope);
@@ -512,8 +517,8 @@ public class SignalsSettings {
         }
 
         public static List<Setting<?>> getAvailableSettings() {
-            return Arrays.asList(ENABLED, ENTERPRISE_ENABLED, IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE,
-                    IndexNames.ACCOUNTS, IndexNames.LOG);
+            return Arrays.asList(ENABLED, ENTERPRISE_ENABLED, MAX_THREADS, THREAD_KEEP_ALIVE, THREAD_PRIO, IndexNames.WATCHES,
+                    IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE, IndexNames.ACCOUNTS, IndexNames.LOG);
         }
 
         private final Settings settings;
@@ -526,6 +531,18 @@ public class SignalsSettings {
 
         public boolean isEnabled() {
             return ENABLED.get(settings);
+        }
+
+        public int getMaxThreads() {
+            return MAX_THREADS.get(settings);
+        }
+
+        public Duration getThreadKeepAlive() {
+            return Duration.ofMillis(THREAD_KEEP_ALIVE.get(settings).millis());
+        }
+
+        public int getThreadPrio() {
+            return THREAD_PRIO.get(settings);
         }
 
         public boolean isEnterpriseEnabled() {

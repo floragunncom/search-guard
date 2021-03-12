@@ -130,11 +130,21 @@ public class SignalsTenant implements Closeable {
     public void init() throws SchedulerException {
         log.info("Initializing alerting tenant " + name + "\nnodeFilter: " + nodeFilter);
 
-        this.scheduler = new SchedulerBuilder<Watch>().client(privilegedConfigClient).name(scopedName)
-                .configIndex(configIndexName, getActiveConfigQuery(name))
-                .stateIndex(settings.getStaticSettings().getIndexNames().getWatchesTriggerState()).stateIndexIdPrefix(watchIdPrefix)
-                .jobConfigFactory(new Watch.JobConfigFactory(name, watchIdPrefix, new WatchInitializationService(accountRegistry, scriptService)))
-                .distributed(clusterService).jobFactory(jobFactory).nodeFilter(nodeFilter).jobConfigListener(jobConfigListener).build();
+        this.scheduler = new SchedulerBuilder<Watch>()//
+                .client(privilegedConfigClient)//
+                .name(scopedName)//
+                .configIndex(configIndexName, getActiveConfigQuery(name))//
+                .stateIndex(settings.getStaticSettings().getIndexNames().getWatchesTriggerState())//
+                .stateIndexIdPrefix(watchIdPrefix)//
+                .jobConfigFactory(new Watch.JobConfigFactory(name, watchIdPrefix, new WatchInitializationService(accountRegistry, scriptService)))//
+                .distributed(clusterService)//
+                .jobFactory(jobFactory)//
+                .nodeFilter(nodeFilter)//
+                .jobConfigListener(jobConfigListener)//
+                .maxThreads(settings.getStaticSettings().getMaxThreads())//
+                .threadKeepAlive(settings.getStaticSettings().getThreadKeepAlive())//
+                .threadPriority(settings.getStaticSettings().getThreadPrio())//
+                .build();
 
         if (this.tenantSettings.isActive()) {
             this.scheduler.start();
