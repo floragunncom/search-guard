@@ -25,8 +25,8 @@ before_script:
 
 build_and_deploy:
   script:
-  - ./smoketest.sh
-  - echo "Smoketest done"
+  #- ./smoketest.sh
+  #- echo "Smoketest done"
   - export esversion=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
   #- mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml clean verify #run tests incl enterprise modules ?
   - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT -s settings.xml -P!enterprise clean verify #run tests, no enterprise
