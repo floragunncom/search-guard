@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
+
 package com.floragunn.searchguard.configuration;
 
 import java.util.Collections;
@@ -28,7 +45,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.modules.state.ComponentState;
 
-public class ProtectedConfigIndexService  {
+public class ProtectedConfigIndexService {
     private final static Logger log = LogManager.getLogger(ProtectedConfigIndexService.class);
 
     private final Client client;
@@ -60,21 +77,25 @@ public class ProtectedConfigIndexService  {
         } else {
             createIndexNow(configIndexState, clusterService.state());
         }
-        
+
         return configIndexState.moduleState;
     }
 
     public void flushPendingIndices(ClusterState clusterState) {
-        if (this.pendingIndices.isEmpty()) {
-            return;
-        }
+        try {
+            if (this.pendingIndices.isEmpty()) {
+                return;
+            }
 
-        Set<ConfigIndexState> pendingIndices = new HashSet<>(this.pendingIndices);
+            Set<ConfigIndexState> pendingIndices = new HashSet<>(this.pendingIndices);
 
-        this.pendingIndices.removeAll(pendingIndices);
+            this.pendingIndices.removeAll(pendingIndices);
 
-        for (ConfigIndexState configIndex : pendingIndices) {
-            createIndexNow(configIndex, clusterState);
+            for (ConfigIndexState configIndex : pendingIndices) {
+                createIndexNow(configIndex, clusterState);
+            }
+        } catch (Exception e) {
+            log.error("Error in flushPendingIndices()", e);
         }
     }
 
@@ -89,12 +110,17 @@ public class ProtectedConfigIndexService  {
             return;
         }
 
+        if (log.isTraceEnabled()) {
+            log.trace("checkClusterState()\npendingIndices: " + pendingIndices);
+        }
+
         if (clusterState.nodes().isLocalNodeElectedMaster() || clusterState.nodes().getMasterNode() != null) {
             flushPendingIndices(clusterState);
         }
 
         if (!this.pendingIndices.isEmpty()) {
-            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(30), ThreadPool.Names.GENERIC, () -> checkClusterState(clusterState));
+            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(30), ThreadPool.Names.GENERIC,
+                    () -> checkClusterState(clusterService.state()));
         }
     }
 
@@ -198,7 +224,6 @@ public class ProtectedConfigIndexService  {
         private final Map<String, Object> mapping;
         private final IndexReadyListener listener;
         private final String[] allIndices;
-        private volatile boolean created;
         private final ComponentState moduleState;
         private volatile long createdAt;
 
@@ -235,8 +260,6 @@ public class ProtectedConfigIndexService  {
         }
 
         public void setCreated(boolean created) {
-            this.created = created;
-
             if (created) {
                 this.moduleState.setInitialized();
                 this.createdAt = System.currentTimeMillis();
@@ -255,52 +278,60 @@ public class ProtectedConfigIndexService  {
             this.moduleState.setState(ComponentState.State.INITIALIZING, "waiting_for_yellow_status");
             this.moduleState.startNextTry();
 
-            client.admin().cluster().health(new ClusterHealthRequest(allIndices).waitForYellowStatus(), new ActionListener<ClusterHealthResponse>() {
+            client.admin().cluster().health(new ClusterHealthRequest(allIndices).waitForYellowStatus().timeout(TimeValue.timeValueMinutes(5)),
+                    new ActionListener<ClusterHealthResponse>() {
 
-                @Override
-                public void onResponse(ClusterHealthResponse clusterHealthResponse) {
-                    if (clusterHealthResponse.getStatus() == ClusterHealthStatus.YELLOW
-                            || clusterHealthResponse.getStatus() == ClusterHealthStatus.GREEN) {
+                        @Override
+                        public void onResponse(ClusterHealthResponse clusterHealthResponse) {
+                            if (clusterHealthResponse.getStatus() == ClusterHealthStatus.YELLOW
+                                    || clusterHealthResponse.getStatus() == ClusterHealthStatus.GREEN) {
 
-                        if (log.isDebugEnabled()) {
-                            log.debug(ConfigIndexState.this + " reached status " + Strings.toString(clusterHealthResponse));
+                                if (log.isDebugEnabled()) {
+                                    log.debug(ConfigIndexState.this + " reached status " + Strings.toString(clusterHealthResponse));
+                                }
+
+                                threadPool.generic().submit(() -> tryOnIndexReady());
+
+                                return;
+                            }
+
+                            if (isTimedOut()) {
+                                moduleState.setFailed("Index " + name + " is has not become ready. Giving up");
+                                moduleState.setDetailJson(Strings.toString(clusterHealthResponse));
+                                log.error("Index " + name + " is has not become ready:\n" + clusterHealthResponse + "\nGiving up.");
+                                return;
+                            }
+
+                            if (isLate()) {
+                                log.error("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
+                                moduleState.setDetailJson(Strings.toString(clusterHealthResponse));
+                            } else if (log.isTraceEnabled()) {
+                                log.trace("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
+                            }
+
+                            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), ThreadPool.Names.GENERIC,
+                                    () -> waitForYellowStatus());
                         }
 
-                        threadPool.generic().submit(() -> tryOnIndexReady());
+                        @Override
+                        public void onFailure(Exception e) {
+                            if (isTimedOut()) {
+                                log.error("Index " + name + " is has not become ready. Giving up.", e);
+                                moduleState.setFailed(e);
+                                return;
+                            }
 
-                        return;
-                    }
+                            if (isLate()) {
+                                log.warn("Index " + name + " is not yet ready. Retrying.", e);
+                                moduleState.addLastException("waiting_for_yellow_status", e);
+                            } else if (log.isTraceEnabled()) {
+                                log.trace("Index " + name + " is not yet ready. Retrying.", e);
+                            }
 
-                    if (isTimedOut()) {
-                        log.error("Index " + name + " is has not become ready:\n" + clusterHealthResponse + "\nGiving up.");
-                        return;
-                    }
-
-                    if (isLate()) {
-                        log.error("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
-                    } else if (log.isTraceEnabled()) {
-                        log.trace("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
-                    }
-
-                    threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), ThreadPool.Names.GENERIC, () -> waitForYellowStatus());
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    if (isTimedOut()) {
-                        log.error("Index " + name + " is has not become ready. Giving up.", e);
-                        return;
-                    }
-
-                    if (isLate()) {
-                        log.warn("Index " + name + " is not yet ready. Retrying.", e);
-                    } else if (log.isTraceEnabled()) {
-                        log.trace("Index " + name + " is not yet ready. Retrying.", e);
-                    }
-
-                    threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), ThreadPool.Names.GENERIC, () -> waitForYellowStatus());
-                }
-            });
+                            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), ThreadPool.Names.GENERIC,
+                                    () -> waitForYellowStatus());
+                        }
+                    });
         }
 
         private void tryOnIndexReady() {
@@ -345,7 +376,7 @@ public class ProtectedConfigIndexService  {
         }
 
         private boolean isTimedOut() {
-            return System.currentTimeMillis() > (createdAt + 60 * 60 * 1000);
+            return System.currentTimeMillis() > (createdAt + 24 * 60 * 60 * 1000);
         }
 
         private boolean isLate() {
@@ -399,7 +430,5 @@ public class ProtectedConfigIndexService  {
 
         void onFailure(Exception e);
     }
-
-    
 
 }
