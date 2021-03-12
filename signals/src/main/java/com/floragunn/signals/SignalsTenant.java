@@ -128,6 +128,12 @@ public class SignalsTenant implements Closeable {
     }
 
     public void init() throws SchedulerException {
+        if (this.tenantSettings.isActive()) {
+            doInit();
+        }
+    }
+
+    private void doInit() throws SchedulerException {
         log.info("Initializing alerting tenant " + name + "\nnodeFilter: " + nodeFilter);
 
         this.scheduler = new SchedulerBuilder<Watch>()//
@@ -146,23 +152,21 @@ public class SignalsTenant implements Closeable {
                 .threadPriority(settings.getStaticSettings().getThreadPrio())//
                 .build();
 
-        if (this.tenantSettings.isActive()) {
-            this.scheduler.start();
-        }
+        this.scheduler.start();
     }
 
     public void pause() throws SchedulerException {
         log.info("Suspending scheduler of " + this);
 
-        this.scheduler.standby();
+        if (this.scheduler != null) {
+            this.scheduler.standby();
+        }
     }
 
     public void resume() throws SchedulerException {
-        if (this.scheduler.isShutdown()) {
-            throw new IllegalStateException("Cannot resume scheduler which is shutdown: " + this.scheduler);
-        }
-
-        if (!this.scheduler.isStarted() || this.scheduler.isInStandbyMode()) {
+        if (this.scheduler == null || this.scheduler.isShutdown()) {
+            doInit();
+        } else if (!this.scheduler.isStarted() || this.scheduler.isInStandbyMode()) {
             log.info("Resuming scheduler of " + this);
 
             this.scheduler.start();
@@ -177,7 +181,9 @@ public class SignalsTenant implements Closeable {
 
     public void shutdown() {
         try {
-            this.scheduler.shutdown(true);
+            if (this.scheduler != null) {
+                this.scheduler.shutdown(true);
+            }
         } catch (SchedulerException e) {
             log.error("Error wile shutting down " + this, e);
         }
@@ -202,7 +208,7 @@ public class SignalsTenant implements Closeable {
 
     public boolean runsWatchLocally(String watchId) {
         try {
-            return this.scheduler.getJobDetail(Watch.createJobKey(watchId)) != null;
+            return this.scheduler != null && this.scheduler.getJobDetail(Watch.createJobKey(watchId)) != null;
         } catch (SchedulerException e) {
             throw new RuntimeException(e);
         }
@@ -210,6 +216,10 @@ public class SignalsTenant implements Closeable {
 
     public int getLocalWatchCount() {
         try {
+            if (this.scheduler == null) {
+                return 0;
+            }
+
             // Note: The following call is synchronized on the job store, so use this call with care
             return this.scheduler.getJobKeys(GroupMatcher.anyJobGroup()).size();
         } catch (SchedulerException e) {
@@ -462,11 +472,6 @@ public class SignalsTenant implements Closeable {
 
         @Override
         public void onChange() {
-
-            if (scheduler == null) {
-                // We have not been initialized yet. Do nothing.
-                return;
-            }
 
             try {
                 tenantSettings = settings.getTenant(name);
