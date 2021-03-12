@@ -3,6 +3,7 @@ package com.floragunn.searchsupport.jobs;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -45,7 +46,6 @@ import org.quartz.impl.StdScheduler;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.simpl.CascadingClassLoadHelper;
 import org.quartz.simpl.PropertySettingJobFactory;
-import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.JobFactory;
 import org.quartz.spi.JobStore;
@@ -59,6 +59,7 @@ import com.floragunn.searchsupport.jobs.cluster.NodeIdComparator;
 import com.floragunn.searchsupport.jobs.config.IndexJobConfigSource;
 import com.floragunn.searchsupport.jobs.config.JobConfig;
 import com.floragunn.searchsupport.jobs.config.JobConfigFactory;
+import com.floragunn.searchsupport.jobs.core.DynamicQuartzThreadPool;
 import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
 import com.floragunn.searchsupport.jobs.execution.AuthorizingJobDecorator;
 
@@ -92,6 +93,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
     private JobFactory jobFactory;
     private NodeEnvironment nodeEnvironment;
     private List<JobConfigListener<JobType>> jobConfigListeners = new ArrayList<>();
+    private Duration threadKeepAlive = Duration.ofHours(1);
 
     public SchedulerBuilder<JobType> name(String name) {
         this.name = name;
@@ -141,6 +143,11 @@ public class SchedulerBuilder<JobType extends JobConfig> {
 
     public SchedulerBuilder<JobType> threadPriority(int threadPriority) {
         this.threadPriority = threadPriority;
+        return this;
+    }
+    
+    public SchedulerBuilder<JobType> threadKeepAlive(Duration threadKeepAlive) {
+        this.threadKeepAlive = threadKeepAlive;
         return this;
     }
 
@@ -224,7 +231,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         }
 
         if (this.threadPool == null) {
-            this.threadPool = new SimpleThreadPool(maxThreads, threadPriority);
+            this.threadPool = new DynamicQuartzThreadPool(name, maxThreads, threadPriority, threadKeepAlive);
         }
 
         schedulerPluginMap.put(CleanupSchedulerPlugin.class.getName(), new CleanupSchedulerPlugin(clusterService, jobDistributor, jobStore));
