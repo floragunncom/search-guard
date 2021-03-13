@@ -8,12 +8,6 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.Objects;
-
-import org.apache.http.Header;
-import org.apache.http.message.BasicHeader;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -33,8 +27,8 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 
 public class PrivilegesEvaluatorTest {
 
@@ -98,7 +92,7 @@ public class PrivilegesEvaluatorTest {
     @BeforeClass
     public static void setupTestData() {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getAdminCertClient()) {
             client.index(new IndexRequest("resolve_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "resolve_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("resolve_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
@@ -128,7 +122,7 @@ public class PrivilegesEvaluatorTest {
                     "exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
         }
 
-        try (Client client = clusterFof.getInternalClient()) {
+        try (Client client = clusterFof.getAdminCertClient()) {
             client.index(new IndexRequest("exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "exclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
@@ -139,7 +133,7 @@ public class PrivilegesEvaluatorTest {
                     "exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
         }
 
-        try (Client client = anotherCluster.getInternalClient()) {
+        try (Client client = anotherCluster.getAdminCertClient()) {
             client.index(new IndexRequest("resolve_test_allow_remote_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x",
                     "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("resolve_test_allow_remote_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a",
@@ -153,91 +147,92 @@ public class PrivilegesEvaluatorTest {
 
     @Test
     public void resolveTestLocal() throws Exception {
-        RestHelper rh = cluster.restHelper();
 
-        Header auth = basicAuth("resolve_test_user", "secret");
+        try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
+            HttpResponse httpResponse = restClient.get("/_resolve/index/resolve_test_*");
 
-        HttpResponse httpResponse = rh.executeGetRequest("/_resolve/index/resolve_test_*", auth);
-
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2"))));
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2"))));
+        }
     }
 
     @Test
     public void resolveTestRemote() throws Exception {
-        RestHelper rh = cluster.restHelper();
-        Header auth = basicAuth("resolve_test_user", "secret");
+        try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
 
-        HttpResponse httpResponse = rh.executeGetRequest("/_resolve/index/my_remote:resolve_test_*", auth);
+            HttpResponse httpResponse = restClient.get("/_resolve/index/my_remote:resolve_test_*");
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse,
-                json(nodeAt("indices[*].name", contains("my_remote:resolve_test_allow_remote_1", "my_remote:resolve_test_allow_remote_2"))));
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse,
+                    json(nodeAt("indices[*].name", contains("my_remote:resolve_test_allow_remote_1", "my_remote:resolve_test_allow_remote_2"))));
+        }
     }
 
     @Test
     public void resolveTestLocalRemoteMixed() throws Exception {
-        RestHelper rh = cluster.restHelper();
-        Header auth = basicAuth("resolve_test_user", "secret");
+        try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
 
-        HttpResponse httpResponse = rh.executeGetRequest("/_resolve/index/resolve_test_*,my_remote:resolve_test_*_remote_*", auth);
+            HttpResponse httpResponse = restClient.get("/_resolve/index/resolve_test_*,my_remote:resolve_test_*_remote_*");
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2",
-                "my_remote:resolve_test_allow_remote_1", "my_remote:resolve_test_allow_remote_2"))));
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2",
+                    "my_remote:resolve_test_allow_remote_1", "my_remote:resolve_test_allow_remote_2"))));
+        }
     }
 
     @Test
     public void resolveTestAliasAndIndexMixed() throws Exception {
-        RestHelper rh = cluster.restHelper();
-        Header auth = basicAuth("resolve_test_user", "secret");
+        try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
 
-        HttpResponse httpResponse = rh.executeGetRequest("/_resolve/index/alias_resolve_test_*", auth);
+            HttpResponse httpResponse = restClient.get("/_resolve/index/alias_resolve_test_*");
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse, json(nodeAt("indices[*].name", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
-                "alias_resolve_test_index_allow_aliased_2", "alias_resolve_test_index_allow_1"))));
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("indices[*].name", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
+                    "alias_resolve_test_index_allow_aliased_2", "alias_resolve_test_index_allow_1"))));
+        }
     }
 
     @Test
     public void readAliasAndIndexMixed() throws Exception {
-        RestHelper rh = cluster.restHelper();
-        Header auth = basicAuth("resolve_test_user", "secret");
+        try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
 
-        HttpResponse httpResponse = rh.executeGetRequest("/alias_resolve_test_*/_search", auth);
+            HttpResponse httpResponse = restClient.get("/alias_resolve_test_*/_search");
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
-                "alias_resolve_test_index_allow_aliased_2", "alias_resolve_test_index_allow_1"))));
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
+                    "alias_resolve_test_index_allow_aliased_2", "alias_resolve_test_index_allow_1"))));
+        }
     }
 
     @Test
     public void excludeBasic() throws Exception {
-        RestHelper rh = cluster.restHelper();
-        Header auth = basicAuth("exclusion_test_user_basic", "secret");
 
-        HttpResponse httpResponse = rh.executeGetRequest("/exclude_test_*/_search", auth);
+        try (GenericRestClient restClient = cluster.getRestClient("exclusion_test_user_basic", "secret")) {
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse,
-                json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
+            HttpResponse httpResponse = restClient.get("/exclude_test_*/_search");
+
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse,
+                    json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
+        }
     }
 
     @Test
     public void excludeBasicNoPattern() throws Exception {
-        RestHelper rh = cluster.restHelper();
-        Header auth = basicAuth("exclusion_test_user_basic_no_pattern", "secret");
 
-        HttpResponse httpResponse = rh.executeGetRequest("/exclude_test_*/_search", auth);
+        try (GenericRestClient restClient = cluster.getRestClient("exclusion_test_user_basic_no_pattern", "secret")) {
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse, json(
-                nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2", "exclude_test_disallow_1"))));
+            HttpResponse httpResponse = restClient.get("/exclude_test_*/_search");
+
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index",
+                    containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2", "exclude_test_disallow_1"))));
+        }
     }
 
     @Test
     public void excludeWrite() throws Exception {
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getAdminCertClient()) {
             client.index(new IndexRequest("write_exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "write_exclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("write_exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
@@ -247,17 +242,15 @@ public class PrivilegesEvaluatorTest {
             client.index(new IndexRequest("write_exclude_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
                     "index", "write_exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
         }
+        try (GenericRestClient restClient = cluster.getRestClient("exclusion_test_user_write", "secret");
+                RestHighLevelClient client = cluster.getRestHighLevelClient("exclusion_test_user_write", "secret")) {
 
-        Header auth = basicAuth("exclusion_test_user_write", "secret");
-        RestHelper rh = cluster.restHelper();
+            HttpResponse httpResponse = restClient.get("/write_exclude_test_*/_search");
 
-        HttpResponse httpResponse = rh.executeGetRequest("/write_exclude_test_*/_search", auth);
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("write_exclude_test_allow_1",
+                    "write_exclude_test_allow_2", "write_exclude_test_disallow_1", "write_exclude_test_disallow_2"))));
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("write_exclude_test_allow_1",
-                "write_exclude_test_allow_2", "write_exclude_test_disallow_1", "write_exclude_test_disallow_2"))));
-
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient("exclusion_test_user_write", "secret")) {
             IndexResponse indexResponse = client.index(new IndexRequest("write_exclude_test_allow_1").source("a", "b"), RequestOptions.DEFAULT);
 
             Assert.assertEquals(DocWriteResponse.Result.CREATED, indexResponse.getResult());
@@ -270,51 +263,54 @@ public class PrivilegesEvaluatorTest {
                 Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/write/index]"));
             }
+
         }
     }
 
     @Test
     public void excludeBasicFof() throws Exception {
-        RestHelper rh = clusterFof.restHelper();
-        Header auth = basicAuth("exclusion_test_user_basic", "secret");
 
-        HttpResponse httpResponse = rh.executeGetRequest("/exclude_test_*/_search", auth);
-        Assert.assertThat(httpResponse, isForbidden());
+        try (GenericRestClient restClient = clusterFof.getRestClient("exclusion_test_user_basic", "secret")) {
 
-        httpResponse = rh.executeGetRequest("/exclude_test_allow_*/_search", auth);
-        Assert.assertThat(httpResponse, isOk());
+            HttpResponse httpResponse = restClient.get("/exclude_test_*/_search");
+            Assert.assertThat(httpResponse, isForbidden());
 
-        Assert.assertThat(httpResponse,
-                json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
+            httpResponse = restClient.get("/exclude_test_allow_*/_search");
+            Assert.assertThat(httpResponse, isOk());
 
-        httpResponse = rh.executeGetRequest("/exclude_test_disallow_1/_search", auth);
-        Assert.assertThat(httpResponse, isForbidden());
+            Assert.assertThat(httpResponse,
+                    json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
+
+            httpResponse = restClient.get("/exclude_test_disallow_1/_search");
+            Assert.assertThat(httpResponse, isForbidden());
+        }
     }
 
     @Test
     public void excludeBasicFofNoPattern() throws Exception {
-        RestHelper rh = clusterFof.restHelper();
-        Header auth = basicAuth("exclusion_test_user_basic_no_pattern", "secret");
 
-        HttpResponse httpResponse = rh.executeGetRequest("/exclude_test_*/_search", auth);
-        Assert.assertThat(httpResponse, isForbidden());
+        try (GenericRestClient restClient = clusterFof.getRestClient("exclusion_test_user_basic_no_pattern", "secret")) {
 
-        httpResponse = rh.executeGetRequest("/exclude_test_allow_*/_search", auth);
-        Assert.assertThat(httpResponse, isOk());
+            HttpResponse httpResponse = restClient.get("/exclude_test_*/_search");
+            Assert.assertThat(httpResponse, isForbidden());
 
-        Assert.assertThat(httpResponse,
-                json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
+            httpResponse = restClient.get("/exclude_test_allow_*/_search");
+            Assert.assertThat(httpResponse, isOk());
 
-        httpResponse = rh.executeGetRequest("/exclude_test_disallow_1/_search", auth);
-        Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse,
+                    json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
-        httpResponse = rh.executeGetRequest("/exclude_test_disallow_2/_search", auth);
-        Assert.assertThat(httpResponse, isForbidden());
+            httpResponse = restClient.get("/exclude_test_disallow_1/_search");
+            Assert.assertThat(httpResponse, isOk());
+
+            httpResponse = restClient.get("/exclude_test_disallow_2/_search");
+            Assert.assertThat(httpResponse, isForbidden());
+        }
     }
 
     @Test
     public void excludeWriteFof() throws Exception {
-        try (Client client = clusterFof.getInternalClient()) {
+        try (Client client = clusterFof.getAdminCertClient()) {
             client.index(new IndexRequest("write_exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "write_exclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("write_exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
@@ -325,16 +321,15 @@ public class PrivilegesEvaluatorTest {
                     "index", "write_exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
         }
 
-        Header auth = basicAuth("exclusion_test_user_write", "secret");
-        RestHelper rh = clusterFof.restHelper();
+        try (GenericRestClient restClient = cluster.getRestClient("exclusion_test_user_write", "secret");
+                RestHighLevelClient client = clusterFof.getRestHighLevelClient("exclusion_test_user_write", "secret")) {
 
-        HttpResponse httpResponse = rh.executeGetRequest("/write_exclude_test_*/_search", auth);
+            HttpResponse httpResponse = restClient.get("/write_exclude_test_*/_search");
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("write_exclude_test_allow_1",
-                "write_exclude_test_allow_2", "write_exclude_test_disallow_1", "write_exclude_test_disallow_2"))));
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("write_exclude_test_allow_1",
+                    "write_exclude_test_allow_2", "write_exclude_test_disallow_1", "write_exclude_test_disallow_2"))));
 
-        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient("exclusion_test_user_write", "secret")) {
             IndexResponse indexResponse = client.index(new IndexRequest("write_exclude_test_allow_1").source("a", "b"), RequestOptions.DEFAULT);
 
             Assert.assertEquals(DocWriteResponse.Result.CREATED, indexResponse.getResult());
@@ -352,58 +347,49 @@ public class PrivilegesEvaluatorTest {
 
     @Test
     public void excludeClusterPermission() throws Exception {
-        RestHelper rh = cluster.restHelper();
+        try (GenericRestClient basicCestClient = cluster.getRestClient("exclusion_test_user_basic", "secret");
+                GenericRestClient clusterPermissionCestClient = cluster.getRestClient("exclusion_test_user_cluster_permission", "secret")) {
 
-        HttpResponse httpResponse = rh.executeGetRequest("/exclude_test_*/_search", basicAuth("exclusion_test_user_basic", "secret"));
+            HttpResponse httpResponse = basicCestClient.get("/exclude_test_*/_search");
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse,
-                json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse,
+                    json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
-        httpResponse = rh.executeGetRequest("/exclude_test_*/_search", basicAuth("exclusion_test_user_cluster_permission", "secret"));
+            httpResponse = clusterPermissionCestClient.get("/exclude_test_*/_search");
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse,
-                json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse,
+                    json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
-        httpResponse = rh.executePostRequest("/exclude_test_*/_msearch", "{}\n{\"query\": {\"match_all\": {}}}\n",
-                basicAuth("exclusion_test_user_basic", "secret"));
-        Assert.assertThat(httpResponse, isOk());
+            httpResponse = basicCestClient.postJson("/exclude_test_*/_msearch", "{}\n{\"query\": {\"match_all\": {}}}\n");
+            Assert.assertThat(httpResponse, isOk());
 
-        Assert.assertThat(httpResponse,
-                json(nodeAt("responses[0].hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
+            Assert.assertThat(httpResponse,
+                    json(nodeAt("responses[0].hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
-        httpResponse = rh.executePostRequest("/exclude_test_*/_msearch", "{}\n{\"query\": {\"match_all\": {}}}\n",
-                basicAuth("exclusion_test_user_cluster_permission", "secret"));
-        Assert.assertThat(httpResponse, isForbidden());
+            httpResponse = clusterPermissionCestClient.postJson("/exclude_test_*/_msearch", "{}\n{\"query\": {\"match_all\": {}}}\n");
+            Assert.assertThat(httpResponse, isForbidden());
+        }
     }
 
     @Test
     public void evaluateClusterAndTenantPrivileges() throws Exception {
-        RestHelper rh = cluster.restHelper();
+        try (GenericRestClient adminRestClient = cluster.getRestClient("admin", "admin");
+                GenericRestClient permissionRestClient = cluster.getRestClient("permssion_rest_api_user", "secret")) {
+            HttpResponse httpResponse = adminRestClient.get("/_searchguard/permission?permissions=indices:data/read/mtv,indices:data/read/viva");
 
-        HttpResponse httpResponse = rh.executeGetRequest("/_searchguard/permission?permissions=indices:data/read/mtv,indices:data/read/viva",
-                basicAuth("admin", "admin"));
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/mtv']", equalTo(true))));
+            Assert.assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/viva']", equalTo(true))));
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse,
-                json(nodeAt("permissions['indices:data/read/mtv']", equalTo(true))));
-        Assert.assertThat(httpResponse,
-                json(nodeAt("permissions['indices:data/read/viva']", equalTo(true))));
+            httpResponse = permissionRestClient.get("/_searchguard/permission?permissions=indices:data/read/mtv,indices:data/read/viva");
 
-        httpResponse = rh.executeGetRequest("/_searchguard/permission?permissions=indices:data/read/mtv,indices:data/read/viva",
-                basicAuth("permssion_rest_api_user", "secret"));
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/mtv']", equalTo(true))));
+            Assert.assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/viva']", equalTo(false))));
+        }
 
-        Assert.assertThat(httpResponse, isOk());
-        Assert.assertThat(httpResponse,
-                json(nodeAt("permissions['indices:data/read/mtv']", equalTo(true))));
-        Assert.assertThat(httpResponse,
-                json(nodeAt("permissions['indices:data/read/viva']", equalTo(false))));
-        
     }
 
-    private static Header basicAuth(String username, String password) {
-        return new BasicHeader("Authorization",
-                "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-    }
 }

@@ -1,14 +1,34 @@
+/*
+ * Copyright 2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.test.helper.rest;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.net.ssl.SSLContext;
 
@@ -37,38 +57,43 @@ import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.xcontent.ToXContentObject;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
-import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.google.common.collect.Lists;
 
 public class GenericRestClient implements AutoCloseable {
     private static final Logger log = LogManager.getLogger(RestHelper.class);
 
     public boolean enableHTTPClientSSL = true;
     public boolean enableHTTPClientSSLv3Only = false;
-    public boolean sendHTTPClientCertificate = false;
+    private boolean sendHTTPClientCertificate = false;
     public boolean trustHTTPServerCertificate = true;
-    public String keystore = "node-0-keystore.jks";
+    private String keystore = "node-0-keystore.jks";
     public final String prefix;
-    private ClusterInfo clusterInfo;
-    private int nodeIndex = -1;
+    private InetSocketAddress nodeHttpAddress;
     private GenericSSLConfig sslConfig;
     private RequestConfig requestConfig;
     private List<Header> headers = new ArrayList<>();
     private Header CONTENT_TYPE_JSON = new BasicHeader("Content-Type", "application/json");
+    private boolean trackResources = false;
 
-    public GenericRestClient(ClusterInfo clusterInfo, List<Header> headers, String prefix) {
-        this.clusterInfo = clusterInfo;
+    private Set<String> puttedResourcesSet = new HashSet<>();
+    private List<String> puttedResourcesList = new ArrayList<>();
+
+    public GenericRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers, String prefix) {
+        this.nodeHttpAddress = nodeHttpAddress;
         this.headers.addAll(headers);
         this.prefix = prefix;
     }
 
-    public GenericRestClient(ClusterInfo clusterInfo, boolean enableHTTPClientSSL, boolean trustHTTPServerCertificate, String prefix) {
-        this.clusterInfo = clusterInfo;
+    public GenericRestClient(InetSocketAddress nodeHttpAddress, boolean enableHTTPClientSSL, boolean trustHTTPServerCertificate, String prefix) {
+        this.nodeHttpAddress = nodeHttpAddress;
         this.enableHTTPClientSSL = enableHTTPClientSSL;
         this.trustHTTPServerCertificate = trustHTTPServerCertificate;
         this.prefix = prefix;
@@ -89,7 +114,30 @@ public class GenericRestClient implements AutoCloseable {
     public HttpResponse putJson(String path, String body) throws Exception {
         HttpPut uriRequest = new HttpPut(getHttpServerUri() + "/" + path);
         uriRequest.setEntity(new StringEntity(body));
-        return executeRequest(uriRequest, CONTENT_TYPE_JSON);
+        HttpResponse response = executeRequest(uriRequest, CONTENT_TYPE_JSON);
+
+        if (response.getStatusCode() < 400 && trackResources && !puttedResourcesSet.contains(path)) {
+            puttedResourcesSet.add(path);
+            puttedResourcesList.add(path);
+        }
+
+        return response;
+    }
+
+    public HttpResponse putJson(String path, ToXContentObject body) throws Exception {
+        return putJson(path, Strings.toString(body));
+    }
+
+    public HttpResponse put(String path) throws Exception {
+        HttpPut uriRequest = new HttpPut(getHttpServerUri() + "/" + path);
+        HttpResponse response = executeRequest(uriRequest);
+
+        if (response.getStatusCode() < 400 && trackResources && !puttedResourcesSet.contains(path)) {
+            puttedResourcesSet.add(path);
+            puttedResourcesList.add(path);
+        }
+
+        return response;
     }
 
     public HttpResponse delete(String path, Header... headers) throws Exception {
@@ -99,8 +147,16 @@ public class GenericRestClient implements AutoCloseable {
     public HttpResponse postJson(String path, String body) throws Exception {
         HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
         uriRequest.setEntity(new StringEntity(body));
-
         return executeRequest(uriRequest, CONTENT_TYPE_JSON);
+    }
+
+    public HttpResponse postJson(String path, ToXContentObject body) throws Exception {
+        return postJson(path, Strings.toString(body));
+    }
+
+    public HttpResponse post(String path) throws Exception {
+        HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
+        return executeRequest(uriRequest);
     }
 
     public HttpResponse patch(String path, String body) throws Exception {
@@ -138,13 +194,27 @@ public class GenericRestClient implements AutoCloseable {
         }
     }
 
-    protected final String getHttpServerUri() {
-        if (nodeIndex == -1) {
-            return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + clusterInfo.httpHost + ":" + clusterInfo.httpPort;
-        } else {
-            return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + clusterInfo.httpAdresses.get(nodeIndex).getAddress() + ":"
-                    + clusterInfo.httpAdresses.get(nodeIndex).getPort();
+    public GenericRestClient trackResources() {
+        trackResources = true;
+        return this;
+    }
+
+    private void cleanupResources() {
+        if (puttedResourcesList.size() > 0) {
+            log.info("Cleaning up " + puttedResourcesList);
+
+            for (String resource : Lists.reverse(puttedResourcesList)) {
+                try {
+                    delete(resource);
+                } catch (Exception e) {
+                    log.error("Error cleaning up created resources " + resource, e);
+                }
+            }
         }
+    }
+
+    protected final String getHttpServerUri() {
+        return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + nodeHttpAddress.getHostString() + ":" + nodeHttpAddress.getPort();
     }
 
     protected final CloseableHttpClient getHTTPClient() throws Exception {
@@ -277,14 +347,6 @@ public class GenericRestClient implements AutoCloseable {
 
     }
 
-    public int getNodeIndex() {
-        return nodeIndex;
-    }
-
-    public void setNodeIndex(int nodeIndex) {
-        this.nodeIndex = nodeIndex;
-    }
-
     public GenericSSLConfig getSslConfig() {
         return sslConfig;
     }
@@ -295,7 +357,7 @@ public class GenericRestClient implements AutoCloseable {
 
     @Override
     public String toString() {
-        return "RestHelper [server=" + getHttpServerUri() + ", nodeIndex=" + nodeIndex + ", sslConfig=" + sslConfig + "]";
+        return "RestHelper [server=" + getHttpServerUri() + ", node=" + nodeHttpAddress + ", sslConfig=" + sslConfig + "]";
     }
 
     public RequestConfig getRequestConfig() {
@@ -316,7 +378,22 @@ public class GenericRestClient implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
-        // TODO Auto-generated method stub
-        
+        cleanupResources();
+    }
+
+    public boolean isSendHTTPClientCertificate() {
+        return sendHTTPClientCertificate;
+    }
+
+    public void setSendHTTPClientCertificate(boolean sendHTTPClientCertificate) {
+        this.sendHTTPClientCertificate = sendHTTPClientCertificate;
+    }
+
+    public String getKeystore() {
+        return keystore;
+    }
+
+    public void setKeystore(String keystore) {
+        this.keystore = keystore;
     }
 }

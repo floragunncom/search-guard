@@ -26,6 +26,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
@@ -70,7 +71,8 @@ public class SignalsTenantTest {
         internalAuthTokenProvider = node.injector().getInstance(InternalAuthTokenProvider.class);
         nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
 
-        try (Client client = cluster.getInternalClient(); Client privilegedConfigClient = cluster.getPrivilegedConfigNodeClient()) {
+        try (Client client = cluster.getAdminCertClient();
+                Client privilegedConfigClient = PrivilegedConfigClient.adapt(cluster.getInternalNodeClient())) {
             Watch watch = new WatchBuilder("test").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").throttledFor("5s").build();
 
@@ -98,7 +100,7 @@ public class SignalsTenantTest {
     @Test
     public void initializationTest() throws Exception {
 
-        try (Client client = cluster.getNodeClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             Settings settings = Settings.builder().build();
 
@@ -115,7 +117,7 @@ public class SignalsTenantTest {
     @Test
     public void nodeFilterTest() throws Exception {
 
-        try (Client client = cluster.getNodeClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             SignalsSettings settings = Mockito.mock(SignalsSettings.class, Mockito.RETURNS_DEEP_STUBS);
             Mockito.when(settings.getTenant("test").getNodeFilter()).thenReturn("unknown_attr:true");
@@ -134,7 +136,7 @@ public class SignalsTenantTest {
     public void failoverTest() throws Exception {
         Ack ackedTime1;
 
-        try (Client client = cluster.getNodeClientWithMockUser(UHURA)) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             Settings settings = Settings.builder().build();
 
@@ -198,7 +200,7 @@ public class SignalsTenantTest {
     @Test
     public void failoverWhileRunningTest() throws Exception {
 
-        try (Client client = cluster.getNodeClientWithMockUser(UHURA)) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             Settings settings = Settings.builder().build();
 
@@ -224,18 +226,18 @@ public class SignalsTenantTest {
                 Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
 
                 Thread.sleep(500);
-                
+
                 tenant.shutdownHard();
             }
 
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-            
+
             Thread.sleep(1000);
 
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-            
-            try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                    internalAuthTokenProvider, new SignalsSettings(settings), null)) {
+
+            try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
+                    xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null)) {
                 tenant.init();
 
                 for (int i = 0; i < 20; i++) {

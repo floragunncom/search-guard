@@ -17,14 +17,9 @@
 
 package com.floragunn.signals;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.http.Header;
 import org.apache.http.HttpStatus;
-import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -43,8 +38,8 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;
@@ -58,7 +53,6 @@ import net.jcip.annotations.NotThreadSafe;
 public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     private static final Logger log = LogManager.getLogger(SignalsIntegrationTestTenantActiveByDefaultFalse.class);
 
-    private static RestHelper rh = null;
     private static ScriptService scriptService;
 
     @ClassRule
@@ -69,7 +63,7 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     @BeforeClass
     public static void setupTestData() {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest("testsource").source(XContentType.JSON, "key1", "val1", "key2", "val2")).actionGet();
 
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
@@ -82,27 +76,25 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     @BeforeClass
     public static void setupDependencies() {
         scriptService = cluster.getInjectable(ScriptService.class);
-
-        rh = cluster.restHelper();
     }
 
     @Test
     public void testPutWatch() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "put_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -112,12 +104,12 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
 
             Assert.assertEquals(0, getCountOfDocuments(client, "testsink_put_watch"));
 
-            response = rh.executePutRequest("/_signals/tenant/" + tenant + "/_active", "", auth);
+            response = restClient.putJson("/_signals/tenant/" + tenant + "/_active", "");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
 
-            response = rh.executeDeleteRequest("/_signals/tenant/" + tenant + "/_active", auth);
+            response = restClient.delete("/_signals/tenant/" + tenant + "/_active");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Thread.sleep(500);
@@ -125,8 +117,6 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
             Thread.sleep(1000);
             Assert.assertEquals(countNow, getCountOfDocuments(client, "testsink_put_watch"));
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
@@ -160,8 +150,4 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
         return 0;
     }
 
-    private static Header basicAuth(String username, String password) {
-        return new BasicHeader("Authorization",
-                "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-    }
 }

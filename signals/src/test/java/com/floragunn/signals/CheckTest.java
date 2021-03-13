@@ -1,20 +1,15 @@
 package com.floragunn.signals;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
-import org.apache.http.Header;
 import org.apache.http.HttpStatus;
-import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
@@ -38,8 +33,8 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.floragunn.signals.execution.CheckExecutionException;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -67,7 +62,6 @@ public class CheckTest {
 
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
-    private static RestHelper rh = null;
 
     @ClassRule
     public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
@@ -80,14 +74,14 @@ public class CheckTest {
     @BeforeClass
     public static void setupTestData() {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y",
                     "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy",
                     "date", getYesterday())).actionGet();
         }
 
-        try (Client client = anotherCluster.getInternalClient()) {
+        try (Client client = anotherCluster.getInternalNodeClient()) {
             client.index(new IndexRequest("ccs_testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y",
                     "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("ccs_testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy",
@@ -99,13 +93,12 @@ public class CheckTest {
     public static void setupDependencies() {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
-        rh = cluster.restHelper();
     }
 
     @Test
     public void searchTest() throws Exception {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             SearchInput searchInput = new SearchInput("test", "test", "testsource", "{\"query\": {\"term\" : {\"a\": \"x\"} }}");
             searchInput.compileScripts(new WatchInitializationService(null, scriptService));
@@ -130,7 +123,7 @@ public class CheckTest {
     @Test
     public void searchWithTemplateTest() throws Exception {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             SearchInput searchInput = new SearchInput("test", "test", "testsource", "{\"query\": {\"term\" : {\"a\": \"{{data.match}}\"} }}");
             searchInput.compileScripts(new WatchInitializationService(null, scriptService));
@@ -156,7 +149,7 @@ public class CheckTest {
     @Ignore
     public void searchWithScheduleDateTest() throws Exception {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             SearchInput searchInput = new SearchInput("test", "test", "testsource",
                     "{\"query\": {\"range\" : {\"date\": {\"gte\": \"{{trigger.scheduled_time}}||-1M\", \"lt\": \"{{trigger.scheduled_time}}\", \"format\": \"strict_date_time\"} } }}");
@@ -182,73 +175,76 @@ public class CheckTest {
 
     @Test
     public void searchWithTemplateMappingTest() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId1 = "search_with_template_mapping_1";
         String watchPath1 = "/_signals/watch/" + tenant + "/" + watchId1;
         String watchId2 = "search_with_template_mapping_2";
         String watchPath2 = "/_signals/watch/" + tenant + "/" + watchId2;
 
-        try (Client client = cluster.getInternalClient()) {
-            Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").attr("size", 1)
-                    .as("testsearch").then().index("testsink_" + watchId1).name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath1, watch.toJson(), auth);
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+            try {
+                Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .attr("size", 1).as("testsearch").then().index("testsink_" + watchId1).name("testsink").build();
+                HttpResponse response = restClient.putJson(watchPath1, watch);
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath1, auth);
+                response = restClient.get(watchPath1);
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").put("{\"size\": 1}").as("constants").search("testsource")
-                    .query("{\"match_all\" : {} }").attr("size", "{{data.constants.size}}").as("testsearch").then().index("testsink_" + watchId2)
-                    .name("testsink").build();
-            response = rh.executePutRequest(watchPath2, watch.toJson(), auth);
+                watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").put("{\"size\": 1}").as("constants").search("testsource")
+                        .query("{\"match_all\" : {} }").attr("size", "{{data.constants.size}}").as("testsearch").then().index("testsink_" + watchId2)
+                        .name("testsink").build();
+                response = restClient.putJson(watchPath2, watch);
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath2, auth);
+                response = restClient.get(watchPath2);
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-        } finally {
-            rh.executeDeleteRequest(watchPath1, auth);
-            rh.executeDeleteRequest(watchPath2, auth);
+            } finally {
+                restClient.delete(watchPath1);
+                restClient.delete(watchPath2);
+            }
         }
     }
 
     @Test
     public void searchScheduledTest() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "search_scheduled_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
-            Watch watch = new WatchBuilder(watchId).atMsInterval(300).unthrottled().search("my_remote:ccs_testsource").query("{\"match_all\" : {} }")
-                    .as("testsearch").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+            try {
+                Watch watch = new WatchBuilder(watchId).atMsInterval(300).unthrottled().search("my_remote:ccs_testsource")
+                        .query("{\"match_all\" : {} }").as("testsearch").build();
+                HttpResponse response = restClient.putJson(watchPath, watch);
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+                response = restClient.get(watchPath);
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+                watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(),
+                        -1);
 
-            WatchLog watchLog = awaitWatchLog(client, tenant, watchId);
+                WatchLog watchLog = awaitWatchLog(client, tenant, watchId);
 
-            Assert.assertEquals(watchLog.toString(), Status.Code.NO_ACTION, watchLog.getStatus().getCode());
+                Assert.assertEquals(watchLog.toString(), Status.Code.NO_ACTION, watchLog.getStatus().getCode());
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
+            } finally {
+                restClient.delete(watchPath);
+            }
         }
     }
 
     @Test
     public void httpInputTest() throws Exception {
-        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
 
             webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
             webserviceProvider.setResponseContentType("text/json");
@@ -276,7 +272,7 @@ public class CheckTest {
 
     @Test
     public void httpInputTestContentTypeHasCharset() throws Exception {
-        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
 
             webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
             webserviceProvider.setResponseContentType("text/json; charset=utf-8");
@@ -304,7 +300,7 @@ public class CheckTest {
 
     @Test
     public void httpInputTextTest() throws Exception {
-        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
 
             String text = "{\"foo\": \"bar\", \"x\": 55}";
 
@@ -331,7 +327,7 @@ public class CheckTest {
 
     @Test(expected = CheckExecutionException.class)
     public void httpWrongContentTypeTest() throws Exception {
-        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
 
             String text = "{\"foo\": \"bar\", \"x\": 55}";
 
@@ -356,7 +352,7 @@ public class CheckTest {
 
     @Test
     public void httpInputTimeoutTest() throws Exception {
-        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
 
             webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
             webserviceProvider.setResponseContentType("text/json");
@@ -383,7 +379,7 @@ public class CheckTest {
     @Test
     public void testConditionTrue() throws Exception {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             Condition scriptCondition = new Condition(null, "data.x.hits.total > 5", "painless", Collections.emptyMap());
             scriptCondition.compileScripts(new WatchInitializationService(null, scriptService));
@@ -402,7 +398,7 @@ public class CheckTest {
     @Test
     public void testConditionFalse() throws Exception {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             Condition scriptCondition = new Condition(null, "data.x.hits.total > 510", "painless", Collections.emptyMap());
             scriptCondition.compileScripts(new WatchInitializationService(null, scriptService));
@@ -421,7 +417,7 @@ public class CheckTest {
     @Test(expected = CheckExecutionException.class)
     public void testInvalidCondition() throws Exception {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             Condition scriptCondition = new Condition(null, "data.x.hits.hits.length > data.constants.threshold", "painless", Collections.emptyMap());
             scriptCondition.compileScripts(new WatchInitializationService(null, scriptService));
@@ -442,7 +438,7 @@ public class CheckTest {
     @Test
     public void testCalc() throws Exception {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             Calc calc = new Calc(null, "data.x.y = 5", "painless", Collections.emptyMap());
             calc.compileScripts(new WatchInitializationService(null, scriptService));
@@ -460,10 +456,6 @@ public class CheckTest {
         }
     }
 
-    private static Header basicAuth(String username, String password) {
-        return new BasicHeader("Authorization",
-                "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-    }
 
     private static String getYesterday() {
         LocalDate now = LocalDate.now().minus(1, ChronoUnit.DAYS);

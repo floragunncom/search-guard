@@ -42,8 +42,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.floragunn.signals.support.JsonBuilder;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
@@ -68,7 +68,6 @@ import net.jcip.annotations.NotThreadSafe;
 public class RestApiTest {
     private static final Logger log = LogManager.getLogger(RestApiTest.class);
 
-    private static RestHelper rh = null;
     private static ScriptService scriptService;
 
     @ClassRule
@@ -78,7 +77,7 @@ public class RestApiTest {
     @BeforeClass
     public static void setupTestData() {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest("testsource").source(XContentType.JSON, "key1", "val1", "key2", "val2")).actionGet();
 
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
@@ -92,20 +91,17 @@ public class RestApiTest {
     public static void setupDependencies() {
         scriptService = cluster.getInjectable(ScriptService.class);
 
-        rh = cluster.restHelper();
     }
 
     @Test
     public void testGetWatchUnauthorized() throws Exception {
-
-        Header auth = basicAuth("noshirt", "redshirt");
         String tenant = "_main";
         String watchId = "get_watch_unauth";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("noshirt", "redshirt")) {
 
-            HttpResponse response = rh.executeGetRequest(watchPath, auth);
+            HttpResponse response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
@@ -114,21 +110,21 @@ public class RestApiTest {
 
     @Test
     public void testPutWatch() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "put_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -136,44 +132,38 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testWatchStateAfterPutWatch() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "put_state_after_put_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             Watch watch = new WatchBuilder(watchId).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = awaitRestGet(watchPath + "/_state", auth);
+            response = awaitRestGet(watchPath + "/_state", restClient);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            response = rh.executePostRequest("/_signals/watch/" + tenant + "/_search/_state",
-                    "{ \"query\": {\"match\": {\"_id\": \"_main/put_state_after_put_test\"}}}", auth);
+            response = restClient.postJson("/_signals/watch/" + tenant + "/_search/_state",
+                    "{ \"query\": {\"match\": {\"_id\": \"_main/put_state_after_put_test\"}}}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"hits\":{\"total\":{\"value\":1,\"relation\":\"eq\"}"));
-
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testPutWatchWithSeverity() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "put_test_severity";
         String testSink = "testsink_" + watchId;
@@ -181,7 +171,8 @@ public class RestApiTest {
         String testSource = "testsource_" + watchId;
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.index(new IndexRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1").source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
 
@@ -193,11 +184,11 @@ public class RestApiTest {
                     .as(SeverityLevel.ERROR).when(SeverityLevel.ERROR).index(testSink).name("a1").and().whenResolved(SeverityLevel.ERROR)
                     .index(testSinkResolve).name("r1").build();
 
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -215,14 +206,11 @@ public class RestApiTest {
 
             Assert.assertEquals(1, getCountOfDocuments(client, testSinkResolve));
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testPutWatchWithSeverityValidation() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "put_test_severity_validation";
         String testSink = "testsink_" + watchId;
@@ -230,7 +218,8 @@ public class RestApiTest {
         String testSource = "testsource_" + watchId;
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.index(new IndexRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1").source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
 
@@ -242,19 +231,15 @@ public class RestApiTest {
                     .as(SeverityLevel.ERROR).when(SeverityLevel.INFO).index(testSink).name("a1").and().whenResolved(SeverityLevel.ERROR)
                     .index(testSinkResolve).name("r1").build();
 
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
             Assert.assertTrue(response.getBody(), response.getBody().contains("Uses a severity which is not defined by severity mapping: [info]"));
-
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testPutWatchWithSeverity2() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "put_test_severity2";
         String testSink = "testsink_" + watchId;
@@ -263,7 +248,8 @@ public class RestApiTest {
         String testSource = "testsource_" + watchId;
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.index(new IndexRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1").source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
 
@@ -277,11 +263,11 @@ public class RestApiTest {
                     .whenResolved(SeverityLevel.ERROR).index(testSinkResolve1).name("r1").and().whenResolved(SeverityLevel.CRITICAL)
                     .index(testSinkResolve2).name("r2").build();
 
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -324,28 +310,27 @@ public class RestApiTest {
             Assert.assertEquals(1, getCountOfDocuments(client, testSinkResolve1));
             Assert.assertEquals(1, getCountOfDocuments(client, testSinkResolve2));
             Assert.assertEquals(2, getCountOfDocuments(client, testSink));
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
+
         }
     }
 
     @Test
     public void testPutWatchWithDash() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "dash-tenant";
         String watchId = "dash-watch";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_dash")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch_with_dash").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -353,81 +338,72 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, "testsink_put_watch_with_dash", 1);
 
-            rh.executeDeleteRequest(watchPath, auth);
+            restClient.delete(watchPath);
 
             Thread.sleep(500);
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testPutWatchWithoutSchedule() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "without_schedule";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             Watch watch = new WatchBuilder(watchId).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch_with_dash").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
 
             Assert.assertTrue(response.getBody(), watch.getSchedule().getTriggers().isEmpty());
-
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testAuthTokenFilter() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "filter";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             Assert.assertFalse(response.getBody(), response.getBody().contains("auth_token"));
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", watchId, response.getBody(), -1);
 
             Assert.assertNull(response.getBody(), watch.getAuthToken());
-
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testPutInvalidWatch() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "put_invalid_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
             String watchJson = "{\"trigger\":{\"schedule\":{\"timezone\":\"Europe/Berlino\",\"cron\":[\"* * argh * * ?\"],\"x\": 2}}," //
                     + "\"checks\":["
                     + "{\"type\":\"searchx\",\"name\":\"testsearch\",\"target\":\"testsearch\",\"request\":{\"indices\":[\"testsource\"],\"body\":{\"query\":{\"match_all\":{}}}}},"
@@ -437,7 +413,7 @@ public class RestApiTest {
                     + "]," //
                     + "\"actions\":[{\"type\":\"index\",\"index\":\"testsink_put_watch\"}],\"horst\": true}";
 
-            HttpResponse response = rh.executePutRequest(watchPath, watchJson, auth);
+            HttpResponse response = restClient.putJson(watchPath, watchJson);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 
@@ -465,15 +441,14 @@ public class RestApiTest {
 
     @Test
     public void testPutInvalidWatchJsonSyntaxError() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "put_invalid_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
             String watchJson = "{\"trigger\":{";
 
-            HttpResponse response = rh.executePutRequest(watchPath, watchJson, auth);
+            HttpResponse response = restClient.putJson(watchPath, watchJson);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 
@@ -488,37 +463,35 @@ public class RestApiTest {
     @Test
     public void testPutWatchUnauthorized() throws Exception {
 
-        Header auth = basicAuth("redshirt3", "redshirt");
         String tenant = "_main";
         String watchId = "put_watch_unauth";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("redshirt3", "redshirt").trackResources()) {
+
             Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
-
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testPutWatchWithUnauthorizedCheck() throws Exception {
 
-        Header auth = basicAuth("redshirt2", "redshirt");
         String tenant = "_main";
         String watchId = "put_watch_with_unauth_check";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("redshirt2", "redshirt").trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_unauth_check")).actionGet();
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch_with_unauth_action").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
@@ -527,84 +500,87 @@ public class RestApiTest {
             Assert.assertEquals(watchLog.toString(), Status.Code.EXECUTION_FAILED, watchLog.getStatus().getCode());
             Assert.assertTrue(watchLog.toString(), watchLog.getStatus().getDetail().contains("Error while executing SearchInput testsearch"));
             Assert.assertTrue(watchLog.toString(), watchLog.getStatus().getDetail().contains("no permissions for [indices:data/read/search]"));
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
-
     }
 
     @Test
     public void testHttpWhitelist() throws Exception {
 
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "http_whitelist";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
-            client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_credentials")).actionGet();
+        try (Client client = cluster.getInternalNodeClient();
+                MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+            try {
+                client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_credentials")).actionGet();
 
-            Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).throttledFor("0").name("testhook")
-                    .build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+                Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).throttledFor("0")
+                        .name("testhook").build();
+                HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            Thread.sleep(600);
+                Thread.sleep(600);
 
-            Assert.assertTrue(webhookProvider.getRequestCount() > 0);
+                Assert.assertTrue(webhookProvider.getRequestCount() > 0);
 
-            response = rh.executePutRequest("/_signals/settings/http.allowed_endpoints", "[\"https://unkown*\",\"https://whatever*\"]", auth);
+                response = restClient.putJson("/_signals/settings/http.allowed_endpoints", "[\"https://unkown*\",\"https://whatever*\"]");
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            response = rh.executeGetRequest("/_signals/settings/http.allowed_endpoints", auth);
+                response = restClient.get("/_signals/settings/http.allowed_endpoints");
 
-            Thread.sleep(300);
+                Thread.sleep(300);
 
-            long requestCount = webhookProvider.getRequestCount();
+                long requestCount = webhookProvider.getRequestCount();
 
-            Thread.sleep(600);
-            Assert.assertEquals(requestCount, webhookProvider.getRequestCount());
+                Thread.sleep(600);
+                Assert.assertEquals(requestCount, webhookProvider.getRequestCount());
 
-        } finally {
-            rh.executePutRequest("/_signals/settings/http.allowed_endpoints", "[\"*\"]", auth);
-            rh.executeDeleteRequest(watchPath, auth);
+            } finally {
+                restClient.putJson("/_signals/settings/http.allowed_endpoints", "[\"*\"]");
+                restClient.delete(watchPath);
+            }
         }
-
     }
 
     @Ignore
     @Test
     public void testPutWatchWithCredentials() throws Exception {
 
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "put_watch_with_credentials";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
-            client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_credentials")).actionGet();
+        try (Client client = cluster.getInternalNodeClient();
+                MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
 
-            Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).basicAuth("admin", "secret")
-                    .name("testhook").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            try {
+                client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_credentials")).actionGet();
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri())
+                        .basicAuth("admin", "secret").name("testhook").build();
+                HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
-            response = rh.executeGetRequest(watchPath + "?pretty", auth);
-            //this seems failing because in "get watch action" there is no real deserialization of a watch object
-            //and so the tox params are not effective
-            Assert.assertFalse(response.getBody(), response.getBody().contains("secret"));
-            Assert.assertTrue(response.getBody(), response.getBody().contains("password__protected"));
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            Thread.sleep(3000);
-            Assert.assertEquals(1, webhookProvider.getRequestCount());
+                response = restClient.get(watchPath + "?pretty");
+                //this seems failing because in "get watch action" there is no real deserialization of a watch object
+                //and so the tox params are not effective
+                Assert.assertFalse(response.getBody(), response.getBody().contains("secret"));
+                Assert.assertTrue(response.getBody(), response.getBody().contains("password__protected"));
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
+                Thread.sleep(3000);
+                Assert.assertEquals(1, webhookProvider.getRequestCount());
+
+            } finally {
+                restClient.delete(watchPath);
+            }
         }
 
     }
@@ -612,17 +588,17 @@ public class RestApiTest {
     @Test
     public void testPutWatchWithUnauthorizedAction() throws Exception {
 
-        Header auth = basicAuth("redshirt1", "redshirt");
         String tenant = "_main";
         String watchId = "put_watch_with_unauth_action";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("redshirt1", "redshirt").trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_unauth_action")).actionGet();
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch_with_unauth_action").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
@@ -635,124 +611,114 @@ public class RestApiTest {
             Assert.assertEquals(actionLog.toString(), Status.Code.ACTION_FAILED, actionLog.getStatus().getCode());
             Assert.assertTrue(actionLog.toString(), actionLog.getStatus().getDetail().contains("no permissions for [indices:data/write/index]"));
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
-
     }
 
     @Test
     public void testPutWatchWithTenant() throws Exception {
 
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "test1";
         String watchId = "put_watch_with_tenant";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         String watchPathWithWrongTenant = "/_signals/watch/_main/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_tenant")).actionGet();
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch_with_tenant").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
 
-            response = rh.executeGetRequest(watchPathWithWrongTenant, auth);
+            response = restClient.get(watchPathWithWrongTenant);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testPutWatchWithTenant2() throws Exception {
 
-        Header auth = basicAuth("redshirt3", "redshirt");
         String tenant = "redshirt_club";
         String watchId = "put_watch_with_tenant2";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         String watchPathWithWrongTenant = "/_signals/watch/_main/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("redshirt3", "redshirt").trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_tenant2")).actionGet();
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch_with_tenant2").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
 
-            response = rh.executeGetRequest(watchPathWithWrongTenant, auth);
+            response = restClient.get(watchPathWithWrongTenant);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testPutWatchWithUnauthorizedTenant() throws Exception {
 
-        Header auth = basicAuth("redshirt1", "redshirt");
         String tenant = "test1";
         String watchId = "put_watch_with_unauthorized_tenant";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("redshirt1", "redshirt").trackResources()) {
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch_with_tenant").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testDeleteWatch() throws Exception {
 
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "delete_watch";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
             client.admin().indices().create(new CreateIndexRequest("testsink_delete_watch")).actionGet();
 
             Watch watch = new WatchBuilder("put_test").atMsInterval(10).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_delete_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, "testsink_delete_watch", 1);
 
-            rh.executeDeleteRequest(watchPath, auth);
+            restClient.delete(watchPath);
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
 
             Thread.sleep(1500);
@@ -771,13 +737,12 @@ public class RestApiTest {
     @Test
     public void testExecuteAnonymousWatch() throws Exception {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").build();
 
-            HttpResponse response = rh.executePostRequest("/_signals/watch/_main/_execute", "{\"watch\": " + watch.toJson() + "}",
-                    basicAuth("uhura", "uhura"));
+            HttpResponse response = restClient.postJson("/_signals/watch/_main/_execute", "{\"watch\": " + watch.toJson() + "}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -786,24 +751,22 @@ public class RestApiTest {
 
     @Test
     public void testExecuteWatchById() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "execution_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
 
             Watch watch = new WatchBuilder(watchId).cronTrigger("0 0 */1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executePostRequest(watchPath + "/_execute", "{}", auth);
+            response = restClient.postJson(watchPath + "/_execute", "{}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
@@ -812,14 +775,14 @@ public class RestApiTest {
 
         String testSink = "testsink_anon_watch_with_goto";
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}, \"x\": \"1\"}").as("teststatic").then().index(testSink).docId("1")
                     .refreshPolicy(RefreshPolicy.IMMEDIATE).name("testsink").build();
 
-            HttpResponse response = rh.executePostRequest("/_signals/watch/_main/_execute",
-                    "{\"watch\": " + watch.toJson() + ", \"goto\": \"teststatic\"}", basicAuth("uhura", "uhura"));
+            HttpResponse response = restClient.postJson("/_signals/watch/_main/_execute",
+                    "{\"watch\": " + watch.toJson() + ", \"goto\": \"teststatic\"}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -836,14 +799,14 @@ public class RestApiTest {
 
         String testSink = "testsink_anon_watch_with_input";
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}, \"x\": \"1\"}").as("teststatic").then().index(testSink).docId("1")
                     .refreshPolicy(RefreshPolicy.IMMEDIATE).name("testsink").build();
 
-            HttpResponse response = rh.executePostRequest("/_signals/watch/_main/_execute",
-                    "{\"watch\": " + watch.toJson() + ", \"goto\": \"_actions\", \"input\": { \"ext_input\": \"a\"}}", basicAuth("uhura", "uhura"));
+            HttpResponse response = restClient.postJson("/_signals/watch/_main/_execute",
+                    "{\"watch\": " + watch.toJson() + ", \"goto\": \"_actions\", \"input\": { \"ext_input\": \"a\"}}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -859,99 +822,95 @@ public class RestApiTest {
     @Test
     public void testExecuteAnonymousWatchWithShowAllRuntimeAttributes() throws Exception {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").consider("data.testsearch.hits.total.value").greaterOrEqual(1)
                     .as(SeverityLevel.ERROR).when(SeverityLevel.ERROR).index("testsink").name("testsink").build();
 
-            HttpResponse response = rh.executePostRequest("/_signals/watch/_main/_execute",
-                    "{\"watch\": " + watch.toJson() + ", \"show_all_runtime_attributes\": true}", basicAuth("uhura", "uhura"));
+            HttpResponse response = restClient.postJson("/_signals/watch/_main/_execute",
+                    "{\"watch\": " + watch.toJson() + ", \"show_all_runtime_attributes\": true}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            
+
             JsonNode responseJson = DefaultObjectMapper.readTree(response.getBody());
-            
+
             Assert.assertEquals(response.getBody(), "error", responseJson.at("/runtime_attributes/severity/level").asText());
             Assert.assertFalse(response.getBody(), responseJson.at("/runtime_attributes/trigger").isNull());
             Assert.assertTrue(response.getBody(), responseJson.at("/runtime_attributes/trigger/triggered_time").isNull());
             Assert.assertEquals(response.getBody(), "42", responseJson.at("/runtime_attributes/data/teststatic/bla/blub").asText());
 
-            
         }
     }
 
     @Test
     public void testActivateWatchAuth() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "activate_auth_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
 
             Watch watch = new WatchBuilder("deactivate_test").inactive().atMsInterval(100).search("testsource").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executePutRequest(watchPath + "/_active", "", auth);
+            response = restClient.putJson(watchPath + "/_active", "");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = getWatchByRest(tenant, watchId, auth);
+            watch = getWatchByRest(tenant, watchId, restClient);
 
             Assert.assertEquals(true, watch.isActive());
 
-            response = rh.executeDeleteRequest(watchPath + "/_active", auth);
+            response = restClient.delete(watchPath + "/_active");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = getWatchByRest(tenant, watchId, auth);
+            watch = getWatchByRest(tenant, watchId, restClient);
             Assert.assertFalse(watch.isActive());
 
-            response = rh.executeDeleteRequest(watchPath + "/_active", auth);
+            response = restClient.delete(watchPath + "/_active");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = getWatchByRest(tenant, watchId, auth);
+            watch = getWatchByRest(tenant, watchId, restClient);
             Assert.assertFalse(watch.isActive());
 
-            response = rh.executePutRequest(watchPath + "/_active", "", auth);
+            response = restClient.putJson(watchPath + "/_active", "");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = getWatchByRest(tenant, watchId, auth);
+            watch = getWatchByRest(tenant, watchId, restClient);
             Assert.assertTrue(watch.isActive());
-
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testDeactivateWatch() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "deactivate_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
 
             client.admin().indices().create(new CreateIndexRequest("testsink_deactivate_watch")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_deactivate_watch").throttledFor("0").name("testsink")
                     .build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, "testsink_deactivate_watch", 1);
 
-            response = rh.executeDeleteRequest(watchPath + "/_active", auth);
+            response = restClient.delete(watchPath + "/_active");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            Watch updatedWatch = getWatchByRest(tenant, watchId, auth);
+            Watch updatedWatch = getWatchByRest(tenant, watchId, restClient);
 
             Assert.assertFalse(updatedWatch.isActive());
 
@@ -965,37 +924,34 @@ public class RestApiTest {
 
             Assert.assertEquals(executionCountWhenDeactivated, lastExecutionCount);
 
-            response = rh.executePutRequest(watchPath + "/_active", "", auth);
+            response = restClient.putJson(watchPath + "/_active", "");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, "testsink_deactivate_watch", lastExecutionCount + 1);
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testDeactivateTenant() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "deactivate_tenant_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         String testSink = "testsink_" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
             client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink).throttledFor("0").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, testSink, 1);
 
-            response = rh.executeDeleteRequest("/_signals/tenant/" + tenant + "/_active", auth);
+            response = restClient.delete("/_signals/tenant/" + tenant + "/_active");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -1009,37 +965,39 @@ public class RestApiTest {
 
             Assert.assertEquals(executionCountWhenDeactivated, lastExecutionCount);
 
-            response = rh.executePutRequest("/_signals/tenant/" + tenant + "/_active", "", auth);
+            response = restClient.put("/_signals/tenant/" + tenant + "/_active");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, testSink, lastExecutionCount + 1);
 
         } finally {
-            rh.executeDeleteRequest(watchPath, auth);
+            try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+                restClient.put("/_signals/tenant/" + tenant + "/_active");
+                restClient.delete(watchPath);
+            }
         }
     }
 
     @Test
     public void testDeactivateGlobally() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "deactivate_globally_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         String testSink = "testsink_" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
             client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink).throttledFor("0").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, testSink, 1);
 
-            response = rh.executeDeleteRequest("/_signals/admin/_active", auth);
+            response = restClient.delete("/_signals/admin/_active");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -1053,38 +1011,40 @@ public class RestApiTest {
 
             Assert.assertEquals(executionCountWhenDeactivated, lastExecutionCount);
 
-            response = rh.executePutRequest("/_signals/admin/_active", "", auth);
+            response = restClient.put("/_signals/admin/_active");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             awaitMinCountOfDocuments(client, testSink, lastExecutionCount + 1);
-
         } finally {
-            rh.executeDeleteRequest(watchPath, auth);
+            try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+                restClient.put("/_signals/admin/_active");
+                restClient.delete(watchPath);
+            }
         }
     }
 
     @Test
     //FLAKY
     public void testAckWatch() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "ack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsource_ack_watch")).actionGet();
             client.admin().indices().create(new CreateIndexRequest("testsink_ack_watch")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource_ack_watch").query("{\"match_all\" : {} }").as("testsearch")
                     .checkCondition("data.testsearch.hits.hits.length > 0").then().index("testsink_ack_watch").refreshPolicy(RefreshPolicy.IMMEDIATE)
                     .throttledFor("0").name("testaction").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             Thread.sleep(220);
 
-            response = rh.executePutRequest(watchPath + "/_ack/testaction", "", auth);
+            response = restClient.put(watchPath + "/_ack/testaction");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_PRECONDITION_FAILED, response.getStatusCode());
 
@@ -1093,13 +1053,13 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, "testsink_ack_watch", 1);
 
-            response = rh.executePutRequest(watchPath + "/_ack/testaction", "", auth);
+            response = restClient.put(watchPath + "/_ack/testaction");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Thread.sleep(500);
 
-            response = rh.executeGetRequest(watchPath + "/_state", auth);
+            response = restClient.get(watchPath + "/_state");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
@@ -1125,7 +1085,7 @@ public class RestApiTest {
 
             Assert.assertEquals(executionCountAfterAck, currentExecutionCount);
 
-            response = rh.executeGetRequest(watchPath + "/_state", auth);
+            response = restClient.get(watchPath + "/_state");
 
             statusDoc = DefaultObjectMapper.readTree(response.getBody());
             Assert.assertFalse(response.getBody(), statusDoc.get("actions").get("testaction").hasNonNull("acked"));
@@ -1142,131 +1102,119 @@ public class RestApiTest {
 
             Assert.assertNotEquals(executionCountAfterAck, currentExecutionCount);
 
-            response = rh.executeDeleteRequest(watchPath + "/_active", auth);
+            response = restClient.delete(watchPath + "/_active");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testSearchWatch() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "search_watch";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .then().index("testsink_search_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath + "1", watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath + "1", watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("findme").then()
                     .index("testsink_search_watch").name("testsink").build();
-            response = rh.executePutRequest(watchPath + "2", watch.toJson(), auth);
+            response = restClient.putJson(watchPath + "2", watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("findme").then()
                     .index("testsink_search_watch").name("testsink").build();
-            response = rh.executePutRequest(watchPath + "3", watch.toJson(), auth);
+            response = restClient.putJson(watchPath + "3", watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executePostRequest("/_signals/watch/" + tenant + "/_search", "{ \"query\": {\"match\": {\"checks.name\": \"findme\"}}}",
-                    auth);
+            response = restClient.postJson("/_signals/watch/" + tenant + "/_search", "{ \"query\": {\"match\": {\"checks.name\": \"findme\"}}}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"hits\":{\"total\":{\"value\":2,\"relation\":\"eq\"}"));
 
-            response = rh.executePostRequest("/_signals/watch/" + tenant + "/_search", "{ \"query\": {\"match\": {\"_name\": \"search_watch3\"}}}",
-                    auth);
+            response = restClient.postJson("/_signals/watch/" + tenant + "/_search", "{ \"query\": {\"match\": {\"_name\": \"search_watch3\"}}}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"hits\":{\"total\":{\"value\":1,\"relation\":\"eq\"}"));
 
-        } finally {
-            rh.executeDeleteRequest(watchPath + "1", auth);
-            rh.executeDeleteRequest(watchPath + "2", auth);
-            rh.executeDeleteRequest(watchPath + "3", auth);
         }
     }
 
     @Test
     public void testSearchWatchWithoutBody() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "unit_test_search_watch_without_body";
         String watchId = "search_watch_without_body";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .then().index("testsink_search_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath + "1", watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath + "1", watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("findme").then()
                     .index("testsink_search_watch").name("testsink").build();
-            response = rh.executePutRequest(watchPath + "2", watch.toJson(), auth);
+            response = restClient.putJson(watchPath + "2", watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("findme").then()
                     .index("testsink_search_watch").name("testsink").build();
-            response = rh.executePutRequest(watchPath + "3", watch.toJson(), auth);
+            response = restClient.putJson(watchPath + "3", watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest("/_signals/watch/" + tenant + "/_search", auth);
+            response = restClient.get("/_signals/watch/" + tenant + "/_search");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"hits\":{\"total\":{\"value\":3,\"relation\":\"eq\"}"));
 
-        } finally {
-            rh.executeDeleteRequest(watchPath + "1", auth);
-            rh.executeDeleteRequest(watchPath + "2", auth);
-            rh.executeDeleteRequest(watchPath + "3", auth);
         }
     }
 
     @Test
     public void testSearchWatchScroll() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "search_watch_scroll";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .then().index("testsink_search_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath + "1", watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath + "1", watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("findme").then()
                     .index("testsink_search_watch").name("testsink").build();
-            response = rh.executePutRequest(watchPath + "2", watch.toJson(), auth);
+            response = restClient.putJson(watchPath + "2", watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("findme").then()
                     .index("testsink_search_watch").name("testsink").build();
-            response = rh.executePutRequest(watchPath + "3", watch.toJson(), auth);
+            response = restClient.putJson(watchPath + "3", watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executePostRequest("/_signals/watch/" + tenant + "/_search?scroll=60s&size=1",
-                    "{ \"sort\": [{\"_meta.last_edit.date\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"checks.name\": \"findme\"}}}", auth);
+            response = restClient.postJson("/_signals/watch/" + tenant + "/_search?scroll=60s&size=1",
+                    "{ \"sort\": [{\"_meta.last_edit.date\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"checks.name\": \"findme\"}}}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -1278,22 +1226,17 @@ public class RestApiTest {
 
             Assert.assertNotNull(scrollId);
 
-            response = rh.executePostRequest("/_search/scroll", "{ \"scroll\": \"60s\", \"scroll_id\": \"" + scrollId + "\"}", auth);
+            response = restClient.postJson("/_search/scroll", "{ \"scroll\": \"60s\", \"scroll_id\": \"" + scrollId + "\"}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"_id\":\"_main/search_watch_scroll3\""));
 
-        } finally {
-            rh.executeDeleteRequest(watchPath + "1", auth);
-            rh.executeDeleteRequest(watchPath + "2", auth);
-            rh.executeDeleteRequest(watchPath + "3", auth);
         }
     }
 
     @Test
     public void testEmailDestination() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "smtp_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
@@ -1303,85 +1246,9 @@ public class RestApiTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try {
-            EmailAccount destination = new EmailAccount();
-            destination.setHost("localhost");
-            destination.setPort(smtpPort);
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
-            Assert.assertTrue(destination.toJson().contains("\"type\":\"email\""));
-            Assert.assertFalse(destination.toJson().contains("session_timeout"));
-
-            Attachment attachment = new EmailAction.Attachment();
-            attachment.setType(Attachment.AttachmentType.RUNTIME);
-
-            //Add smtp destination
-            HttpResponse response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
-
-            //Update test
-            response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
-            //Delete non existing destination
-            response = rh.executeDeleteRequest("/_signals/account/email/aaa", auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
-
-            //Get non existing destination
-            response = rh.executeGetRequest("/_signals/account/email/aaabbb", auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
-
-            //Get existing destination
-            response = rh.executeGetRequest("/_signals/account/email/default", auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
-            //Define a watch with an smtp action
-            Watch watch = new WatchBuilder("smtp_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
-                    .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx").account("default")
-                    .body("We searched {{data.testsearch._shards.total}} shards").attach("attachment.txt", attachment).name("testsmtpsink").build();
-
-            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
-
-            //we expect one email to be sent (rest is throttled)
-            if (!greenMail.waitForIncomingEmail(20000, 1)) {
-                Assert.fail("Timeout waiting for mails");
-            }
-
-            String message = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
-
-            //Check mail to contain resolved subject line
-            Assert.assertTrue(message, message.contains("We searched 5 shards"));
-            Assert.assertTrue(message, message.contains("Test Mail Subject"));
-
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
-            rh.executeDeleteRequest("/_signals/account/email/default", auth);
-            greenMail.stop();
-        }
-
-    }
-
-    @Test
-    public void testEmailDestinationWithRuntimeDataAndBasicText() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
-        String tenant = "_main";
-        String watchId = "smtp_test";
-        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
-
-        final int smtpPort = SocketUtils.findAvailableTcpPort();
-
-        GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
-        greenMail.start();
-
-        try {
-
-            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
-
-                HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                        "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null);
-
-                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
-
+            try {
                 EmailAccount destination = new EmailAccount();
                 destination.setHost("localhost");
                 destination.setPort(smtpPort);
@@ -1392,48 +1259,33 @@ public class RestApiTest {
                 Attachment attachment = new EmailAction.Attachment();
                 attachment.setType(Attachment.AttachmentType.RUNTIME);
 
-                Attachment attachment2 = new EmailAction.Attachment();
-                attachment2.setType(Attachment.AttachmentType.REQUEST);
-                attachment2.setRequestConfig(httpRequestConfig);
-
                 //Add smtp destination
-                HttpResponse response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
+                HttpResponse response = restClient.putJson("/_signals/account/email/default", destination.toJson());
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
                 //Update test
-                response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
+                response = restClient.putJson("/_signals/account/email/default", destination.toJson());
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
                 //Delete non existing destination
-                response = rh.executeDeleteRequest("/_signals/account/email/aaa", auth);
+                response = restClient.delete("/_signals/account/email/aaa");
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
 
                 //Get non existing destination
-                response = rh.executeGetRequest("/_signals/account/email/aaabbb", auth);
+                response = restClient.get("/_signals/account/email/aaabbb");
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
 
                 //Get existing destination
-                response = rh.executeGetRequest("/_signals/account/email/default", auth);
+                response = restClient.get("/_signals/account/email/default");
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
                 //Define a watch with an smtp action
-                Watch watch = new WatchBuilder("smtp_test")
-                            .put("{\n" +
-                                    "   \"path\":\"hook\",\n" +
-                                    "   \"body\":\"stuff\",\n" +
-                                    "   \"x\":\"y\"\n" +
-                                    "}").as("teststatic")
-                            .cronTrigger("* * * * * ?")
-                            .search("testsource")
-                                .query("{\"match_all\" : {} }")
-                                .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx").account("default")
-                                .body("We searched {{data.testsearch._shards.total}} shards")
-                                .attach("runtime.txt", attachment)
-                                .attach("some_response.txt", attachment2)
-                                .name("testsmtpsink")
-                            .build();
+                Watch watch = new WatchBuilder("smtp_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx").account("default")
+                        .body("We searched {{data.testsearch._shards.total}} shards").attach("attachment.txt", attachment).name("testsmtpsink")
+                        .build();
 
-                response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+                response = restClient.putJson(watchPath, watch.toJson());
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
                 //we expect one email to be sent (rest is throttled)
@@ -1445,23 +1297,18 @@ public class RestApiTest {
 
                 //Check mail to contain resolved subject line
                 Assert.assertTrue(message, message.contains("We searched 5 shards"));
-                Assert.assertTrue(message, message.contains("Content-Type: application/json; filename=runtime.txt; name=runtime"));
-                Assert.assertTrue(message, message.contains("Content-Type: text/plain; filename=some_response.txt; name=some_response"));
-                Assert.assertTrue(message, message.contains("Mockery"));
                 Assert.assertTrue(message, message.contains("Test Mail Subject"));
+
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/account/email/default");
+                greenMail.stop();
             }
-
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
-            rh.executeDeleteRequest("/_signals/account/email/default", auth);
-            greenMail.stop();
         }
-
     }
 
     @Test
-    public void testEmailDestinationWithHtmlBody() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
+    public void testEmailDestinationWithRuntimeDataAndBasicText() throws Exception {
         String tenant = "_main";
         String watchId = "smtp_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
@@ -1471,490 +1318,562 @@ public class RestApiTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try {
-            EmailAccount destination = new EmailAccount();
-            destination.setHost("localhost");
-            destination.setPort(smtpPort);
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
-            Assert.assertTrue(destination.toJson().contains("\"type\":\"email\""));
-            Assert.assertFalse(destination.toJson().contains("session_timeout"));
+            try {
 
-            Attachment attachment = new EmailAction.Attachment();
-            attachment.setType(Attachment.AttachmentType.RUNTIME);
+                try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
-            //Add smtp destination
-            HttpResponse response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                    HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                            "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null);
 
-            //Update test
-            response = rh.executePutRequest("/_signals/account/email/default", destination.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                    httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
 
-            //Delete non existing destination
-            response = rh.executeDeleteRequest("/_signals/account/email/aaa", auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+                    EmailAccount destination = new EmailAccount();
+                    destination.setHost("localhost");
+                    destination.setPort(smtpPort);
 
-            //Get non existing destination
-            response = rh.executeGetRequest("/_signals/account/email/aaabbb", auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+                    Assert.assertTrue(destination.toJson().contains("\"type\":\"email\""));
+                    Assert.assertFalse(destination.toJson().contains("session_timeout"));
 
-            //Get existing destination
-            response = rh.executeGetRequest("/_signals/account/email/default", auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                    Attachment attachment = new EmailAction.Attachment();
+                    attachment.setType(Attachment.AttachmentType.RUNTIME);
 
-            //Define a watch with an smtp action
-            Watch watch = new WatchBuilder("smtp_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
-                    .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx").account("default").body("a body")
-                    .htmlBody("<p>We searched {{data.x}} shards<p/>").attach("attachment.txt", attachment).name("testsmtpsink").build();
+                    Attachment attachment2 = new EmailAction.Attachment();
+                    attachment2.setType(Attachment.AttachmentType.REQUEST);
+                    attachment2.setRequestConfig(httpRequestConfig);
 
-            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                    //Add smtp destination
+                    HttpResponse response = restClient.putJson("/_signals/account/email/default", destination.toJson());
+                    Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            //we expect one email to be sent (rest is throttled)
-            if (!greenMail.waitForIncomingEmail(20000, 1)) {
-                Assert.fail("Timeout waiting for mails");
+                    //Update test
+                    response = restClient.putJson("/_signals/account/email/default", destination.toJson());
+                    Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+                    //Delete non existing destination
+                    response = restClient.delete("/_signals/account/email/aaa");
+                    Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+                    //Get non existing destination
+                    response = restClient.get("/_signals/account/email/aaabbb");
+                    Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+                    //Get existing destination
+                    response = restClient.get("/_signals/account/email/default");
+                    Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+                    //Define a watch with an smtp action
+                    Watch watch = new WatchBuilder("smtp_test")
+                            .put("{\n" + "   \"path\":\"hook\",\n" + "   \"body\":\"stuff\",\n" + "   \"x\":\"y\"\n" + "}").as("teststatic")
+                            .cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch").then()
+                            .email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx").account("default")
+                            .body("We searched {{data.testsearch._shards.total}} shards").attach("runtime.txt", attachment)
+                            .attach("some_response.txt", attachment2).name("testsmtpsink").build();
+
+                    response = restClient.putJson(watchPath, watch.toJson());
+                    Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                    //we expect one email to be sent (rest is throttled)
+                    if (!greenMail.waitForIncomingEmail(20000, 1)) {
+                        Assert.fail("Timeout waiting for mails");
+                    }
+
+                    String message = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
+
+                    //Check mail to contain resolved subject line
+                    Assert.assertTrue(message, message.contains("We searched 5 shards"));
+                    Assert.assertTrue(message, message.contains("Content-Type: application/json; filename=runtime.txt; name=runtime"));
+                    Assert.assertTrue(message, message.contains("Content-Type: text/plain; filename=some_response.txt; name=some_response"));
+                    Assert.assertTrue(message, message.contains("Mockery"));
+                    Assert.assertTrue(message, message.contains("Test Mail Subject"));
+                }
+
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/account/email/default");
+                greenMail.stop();
             }
-
-            String message = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
-
-            //Check mail to contain resolved subject line
-            Assert.assertTrue(message, message.contains("<p>We searched  shards<p/>"));
-            Assert.assertTrue(message, message.contains("a body"));
-            Assert.assertTrue(message, message.contains("Test Mail Subject"));
-
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
-            rh.executeDeleteRequest("/_signals/account/email/default", auth);
-            greenMail.stop();
         }
-
     }
 
+    @Test
+    public void testEmailDestinationWithHtmlBody() throws Exception {
+        String tenant = "_main";
+        String watchId = "smtp_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        final int smtpPort = SocketUtils.findAvailableTcpPort();
+
+        GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
+        greenMail.start();
+
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+
+            try {
+                EmailAccount destination = new EmailAccount();
+                destination.setHost("localhost");
+                destination.setPort(smtpPort);
+
+                Assert.assertTrue(destination.toJson().contains("\"type\":\"email\""));
+                Assert.assertFalse(destination.toJson().contains("session_timeout"));
+
+                Attachment attachment = new EmailAction.Attachment();
+                attachment.setType(Attachment.AttachmentType.RUNTIME);
+
+                //Add smtp destination
+                HttpResponse response = restClient.putJson("/_signals/account/email/default", destination.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                //Update test
+                response = restClient.putJson("/_signals/account/email/default", destination.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+                //Delete non existing destination
+                response = restClient.delete("/_signals/account/email/aaa");
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+                //Get non existing destination
+                response = restClient.get("/_signals/account/email/aaabbb");
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+                //Get existing destination
+                response = restClient.get("/_signals/account/email/default");
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+                //Define a watch with an smtp action
+                Watch watch = new WatchBuilder("smtp_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx").account("default")
+                        .body("a body").htmlBody("<p>We searched {{data.x}} shards<p/>").attach("attachment.txt", attachment).name("testsmtpsink")
+                        .build();
+
+                response = restClient.putJson(watchPath, watch.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                //we expect one email to be sent (rest is throttled)
+                if (!greenMail.waitForIncomingEmail(20000, 1)) {
+                    Assert.fail("Timeout waiting for mails");
+                }
+
+                String message = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
+
+                //Check mail to contain resolved subject line
+                Assert.assertTrue(message, message.contains("<p>We searched  shards<p/>"));
+                Assert.assertTrue(message, message.contains("a body"));
+                Assert.assertTrue(message, message.contains("Test Mail Subject"));
+
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/account/email/default");
+                greenMail.stop();
+            }
+        }
+    }
 
     @Test
     public void testNonExistingEmailAccount() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "smtp_test_non_existing_account";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        rh.executeDeleteRequest("/_signals/account/email/default", auth);
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
-        try {
+            restClient.delete("/_signals/account/email/default");
 
-            Watch watch = new WatchBuilder("smtp_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
-                    .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx")
-                    .body("We searched {{data.testsearch._shards.total}} shards").name("testsmtpsink").build();
+            try {
 
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            Assert.assertTrue(response.getBody(), response.getBody().contains("Account does not exist: email/default"));
+                Watch watch = new WatchBuilder("smtp_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .as("testsearch").then().email("Test Mail Subject").to("mustache@cc.xx").from("mustache@df.xx")
+                        .body("We searched {{data.testsearch._shards.total}} shards").name("testsmtpsink").build();
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
-            rh.executeDeleteRequest("/_signals/account/email/default", auth);
+                HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+                Assert.assertTrue(response.getBody(), response.getBody().contains("Account does not exist: email/default"));
+
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/account/email/default");
+            }
         }
-
     }
 
     @Test
     public void testSlackDestination() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try {
-            SlackAccount destination = new SlackAccount();
-            destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
-            Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
+            try {
+                SlackAccount destination = new SlackAccount();
+                destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
 
-            SlackActionConf slackActionConf = new SlackActionConf();
-            slackActionConf.setText("Test from slack action");
-            slackActionConf.setChannel("some channel");
-            slackActionConf.setFrom("xyz");
-            slackActionConf.setIconEmoji(":got:");
-            slackActionConf.setAccount("default");
+                Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
 
-            //Add destination
-            HttpResponse response = rh.executePutRequest("/_signals/account/slack/default", destination.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                SlackActionConf slackActionConf = new SlackActionConf();
+                slackActionConf.setText("Test from slack action");
+                slackActionConf.setChannel("some channel");
+                slackActionConf.setFrom("xyz");
+                slackActionConf.setIconEmoji(":got:");
+                slackActionConf.setAccount("default");
 
-            //Define a watch with an smtp action
-            Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
-                    .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
+                //Add destination
+                HttpResponse response = restClient.putJson("/_signals/account/slack/default", destination.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                //Define a watch with an smtp action
+                Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, basicAuth("uhura", "uhura"));
-            rh.executeDeleteRequest("/_signals/account/slack/default", basicAuth("uhura", "uhura"));
+                response = restClient.putJson(watchPath, watch.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            } finally {
+                restClient.delete(watchPath, basicAuth("uhura", "uhura"));
+                restClient.delete("/_signals/account/slack/default", basicAuth("uhura", "uhura"));
+            }
         }
-
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Test
     public void testSlackDestinationWithBlocksAndText() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
-        try {
-            SlackAccount destination = new SlackAccount();
-            destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
+            try {
+                SlackAccount destination = new SlackAccount();
+                destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
 
-            Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
+                Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
 
-            String blocksRawJson = "[\n" +
-                    "\t\t{\n" +
-                    "\t\t\t\"type\": \"section\",\n" +
-                    "\t\t\t\"text\": {\n" +
-                    "\t\t\t\t\"type\": \"mrkdwn\",\n" +
-                    "\t\t\t\t\"text\": \"A message *with some bold text*}.\"\n" +
-                    "\t\t\t}\n" +
-                    "\t\t}\n" +
-                    "\t]";
+                String blocksRawJson = "[\n" + "\t\t{\n" + "\t\t\t\"type\": \"section\",\n" + "\t\t\t\"text\": {\n"
+                        + "\t\t\t\t\"type\": \"mrkdwn\",\n" + "\t\t\t\t\"text\": \"A message *with some bold text*}.\"\n" + "\t\t\t}\n" + "\t\t}\n"
+                        + "\t]";
 
-            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
+                List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
 
-            SlackActionConf slackActionConf = new SlackActionConf();
-            slackActionConf.setText("Test from slack action");
-            slackActionConf.setBlocks(blocks);
-            slackActionConf.setChannel("some channel");
-            slackActionConf.setFrom("xyz");
-            slackActionConf.setIconEmoji(":got:");
-            slackActionConf.setAccount("default");
+                SlackActionConf slackActionConf = new SlackActionConf();
+                slackActionConf.setText("Test from slack action");
+                slackActionConf.setBlocks(blocks);
+                slackActionConf.setChannel("some channel");
+                slackActionConf.setFrom("xyz");
+                slackActionConf.setIconEmoji(":got:");
+                slackActionConf.setAccount("default");
 
-            //Add destination
-            HttpResponse response = rh.executePutRequest("/_signals/account/slack/default", destination.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                //Add destination
+                HttpResponse response = restClient.putJson("/_signals/account/slack/default", destination.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            //Define a watch with an smtp action
-            Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
-                    .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
+                //Define a watch with an smtp action
+                Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
 
-            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                response = restClient.putJson(watchPath, watch.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, basicAuth("uhura", "uhura"));
-            rh.executeDeleteRequest("/_signals/account/slack/default", basicAuth("uhura", "uhura"));
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/account/slack/default");
+            }
         }
 
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Test
     public void testSlackDestinationWithAttachmentAndText() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try {
-            SlackAccount destination = new SlackAccount();
-            destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
-            Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
+            try {
+                SlackAccount destination = new SlackAccount();
+                destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
 
-            String attachmentRawJson = "[\n" +
-                    "      {\n" +
-                    "          \"fallback\": \"Plain-text summary of the attachment.\",\n" +
-                    "          \"color\": \"#2eb886\",\n" +
-                    "          \"pretext\": \"Optional text that appears above the attachment block\",\n" +
-                    "          \"author_name\": \"Bobby Tables\",\n" +
-                    "          \"author_link\": \"http://flickr.com/bobby/\",\n" +
-                    "          \"author_icon\": \"http://flickr.com/icons/bobby.jpg\",\n" +
-                    "          \"title\": \"Slack API Documentation\",\n" +
-                    "          \"title_link\": \"https://api.slack.com/\",\n" +
-                    "          \"text\": \"Optional text that appears within the attachment\",\n" +
-                    "          \"fields\": [\n" +
-                    "              {\n" +
-                    "                  \"title\": \"Priority\",\n" +
-                    "                  \"value\": \"High\",\n" +
-                    "                  \"short\": false\n" +
-                    "              }\n" +
-                    "          ],\n" +
-                    "          \"image_url\": \"http://my-website.com/path/to/image.jpg\",\n" +
-                    "          \"thumb_url\": \"http://example.com/path/to/thumb.png\",\n" +
-                    "          \"footer\": \"Slack API\",\n" +
-                    "          \"footer_icon\": \"https://platform.slack-edge.com/img/default_application_icon.png\",\n" +
-                    "          \"ts\": 123456789\n" +
-                    "      }\n" +
-                    "  ]";
+                Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
 
-            List attachments = DefaultObjectMapper.readValue(attachmentRawJson, List.class);
+                String attachmentRawJson = "[\n" + "      {\n" + "          \"fallback\": \"Plain-text summary of the attachment.\",\n"
+                        + "          \"color\": \"#2eb886\",\n"
+                        + "          \"pretext\": \"Optional text that appears above the attachment block\",\n"
+                        + "          \"author_name\": \"Bobby Tables\",\n" + "          \"author_link\": \"http://flickr.com/bobby/\",\n"
+                        + "          \"author_icon\": \"http://flickr.com/icons/bobby.jpg\",\n"
+                        + "          \"title\": \"Slack API Documentation\",\n" + "          \"title_link\": \"https://api.slack.com/\",\n"
+                        + "          \"text\": \"Optional text that appears within the attachment\",\n" + "          \"fields\": [\n"
+                        + "              {\n" + "                  \"title\": \"Priority\",\n" + "                  \"value\": \"High\",\n"
+                        + "                  \"short\": false\n" + "              }\n" + "          ],\n"
+                        + "          \"image_url\": \"http://my-website.com/path/to/image.jpg\",\n"
+                        + "          \"thumb_url\": \"http://example.com/path/to/thumb.png\",\n" + "          \"footer\": \"Slack API\",\n"
+                        + "          \"footer_icon\": \"https://platform.slack-edge.com/img/default_application_icon.png\",\n"
+                        + "          \"ts\": 123456789\n" + "      }\n" + "  ]";
 
-            SlackActionConf slackActionConf = new SlackActionConf();
-            slackActionConf.setText("Test from slack action");
-            slackActionConf.setAttachments(attachments);
-            slackActionConf.setChannel("some channel");
-            slackActionConf.setFrom("xyz");
-            slackActionConf.setIconEmoji(":got:");
-            slackActionConf.setAccount("default");
+                List attachments = DefaultObjectMapper.readValue(attachmentRawJson, List.class);
 
-            //Add destination
-            HttpResponse response = rh.executePutRequest("/_signals/account/slack/default", destination.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                SlackActionConf slackActionConf = new SlackActionConf();
+                slackActionConf.setText("Test from slack action");
+                slackActionConf.setAttachments(attachments);
+                slackActionConf.setChannel("some channel");
+                slackActionConf.setFrom("xyz");
+                slackActionConf.setIconEmoji(":got:");
+                slackActionConf.setAccount("default");
 
-            //Define a watch with an smtp action
-            Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
-                    .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
+                //Add destination
+                HttpResponse response = restClient.putJson("/_signals/account/slack/default", destination.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                //Define a watch with an smtp action
+                Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, basicAuth("uhura", "uhura"));
-            rh.executeDeleteRequest("/_signals/account/slack/default", basicAuth("uhura", "uhura"));
+                response = restClient.putJson(watchPath, watch.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/account/slack/default");
+            }
         }
-
     }
-
 
     @Test
     public void testSlackDestinationWithMissingTextAndBlocks() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
-        try {
-            SlackAccount destination = new SlackAccount();
-            destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
+            try {
+                SlackAccount destination = new SlackAccount();
+                destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
 
-            Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
+                Assert.assertTrue(destination.toJson().contains("\"type\":\"slack\""));
 
-            SlackActionConf slackActionConf = new SlackActionConf();
-            slackActionConf.setChannel("some channel");
-            slackActionConf.setFrom("xyz");
-            slackActionConf.setIconEmoji(":got:");
-            slackActionConf.setAccount("default");
+                SlackActionConf slackActionConf = new SlackActionConf();
+                slackActionConf.setChannel("some channel");
+                slackActionConf.setFrom("xyz");
+                slackActionConf.setIconEmoji(":got:");
+                slackActionConf.setAccount("default");
 
-            //Add destination
-            HttpResponse response = rh.executePutRequest("/_signals/account/slack/default", destination.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                //Add destination
+                HttpResponse response = restClient.putJson("/_signals/account/slack/default", destination.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            //Define a watch with an smtp action
-            Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
-                    .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
+                //Define a watch with an smtp action
+                Watch watch = new WatchBuilder("slack_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
 
-            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            Assert.assertTrue(response.getBody().contains("Watch is invalid: 'actions[testslacksink].text': Required attribute is missing\","));
+                response = restClient.putJson(watchPath, watch.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+                Assert.assertTrue(response.getBody().contains("Watch is invalid: 'actions[testslacksink].text': Required attribute is missing\","));
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, basicAuth("uhura", "uhura"));
-            rh.executeDeleteRequest("/_signals/account/slack/default", basicAuth("uhura", "uhura"));
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/account/slack/default");
+            }
         }
-
     }
 
     @Test
     public void testDeleteAccountInUse() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
-        try {
-            SlackAccount destination = new SlackAccount();
-            destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
+            try {
+                SlackAccount destination = new SlackAccount();
+                destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
 
-            SlackActionConf slackActionConf = new SlackActionConf();
-            slackActionConf.setText("Test from slack action");
-            slackActionConf.setAccount("test");
-            slackActionConf.setFrom("some user");
-            slackActionConf.setChannel("channel 1");
+                SlackActionConf slackActionConf = new SlackActionConf();
+                slackActionConf.setText("Test from slack action");
+                slackActionConf.setAccount("test");
+                slackActionConf.setFrom("some user");
+                slackActionConf.setChannel("channel 1");
 
-            HttpResponse response = rh.executePutRequest("/_signals/account/slack/test", destination.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                HttpResponse response = restClient.putJson("/_signals/account/slack/test", destination.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                    .then().slack(slackActionConf).name("testslacksink").build();
+                Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
 
-            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                response = restClient.putJson(watchPath, watch.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeDeleteRequest("/_signals/account/slack/test", auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CONFLICT, response.getStatusCode());
+                response = restClient.delete("/_signals/account/slack/test");
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CONFLICT, response.getStatusCode());
 
-            response = rh.executeDeleteRequest(watchPath, auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                response = restClient.delete(watchPath);
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            response = rh.executeDeleteRequest("/_signals/account/slack/test", auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
-            rh.executeDeleteRequest("/_signals/account/slack/test", auth);
+                response = restClient.delete("/_signals/account/slack/test");
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/account/slack/test");
+            }
         }
 
     }
 
     @Test
     public void testDeleteAccountInUseFromNonDefaultTenant() throws Exception {
-        Header accountAuth = basicAuth("uhura", "uhura");
 
-        Header auth = basicAuth("redshirt3", "redshirt");
         String tenant = "redshirt_club";
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura");
+                GenericRestClient redshirtRestClient = cluster.getRestClient("redshirt3", "redshirt")) {
 
-        try {
-            SlackAccount destination = new SlackAccount();
-            destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
+            try {
+                SlackAccount destination = new SlackAccount();
+                destination.setUrl(new URI("https://hooks.slack.com/services/SECRET"));
 
-            SlackActionConf slackActionConf = new SlackActionConf();
-            slackActionConf.setText("Test from slack action");
-            slackActionConf.setAccount("test");
-            slackActionConf.setFrom("some user");
-            slackActionConf.setChannel("channel 1");
+                SlackActionConf slackActionConf = new SlackActionConf();
+                slackActionConf.setText("Test from slack action");
+                slackActionConf.setAccount("test");
+                slackActionConf.setFrom("some user");
+                slackActionConf.setChannel("channel 1");
 
-            HttpResponse response = rh.executePutRequest("/_signals/account/slack/test", destination.toJson(), accountAuth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                HttpResponse response = restClient.putJson("/_signals/account/slack/test", destination.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                    .then().slack(slackActionConf).name("testslacksink").build();
+                Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                        .as("testsearch").then().slack(slackActionConf).name("testslacksink").build();
 
-            response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                response = redshirtRestClient.putJson(watchPath, watch.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeDeleteRequest("/_signals/account/slack/test", accountAuth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CONFLICT, response.getStatusCode());
+                response = restClient.delete("/_signals/account/slack/test");
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CONFLICT, response.getStatusCode());
 
-            response = rh.executeDeleteRequest(watchPath, auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                response = restClient.delete(watchPath);
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            response = rh.executeDeleteRequest("/_signals/account/slack/test", accountAuth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
-            rh.executeDeleteRequest("/_signals/account/slack/test", accountAuth);
+                response = restClient.delete("/_signals/account/slack/test");
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/account/slack/test");
+            }
         }
-
     }
 
     @Test
     public void testPutWeeklySchedule() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "test_weekly_schedule";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
 
-        try (Client client = cluster.getInternalClient()) {
+            try (Client client = cluster.getInternalNodeClient()) {
 
-            Watch watch = new WatchBuilder("test").weekly(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, new TimeOfDay(12, 0), new TimeOfDay(18, 0))
-                    .search("testsource").query("{\"match_all\" : {} }").as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
-                    .index("testsink").name("testsink").build();
+                Watch watch = new WatchBuilder("test").weekly(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, new TimeOfDay(12, 0), new TimeOfDay(18, 0))
+                        .search("testsource").query("{\"match_all\" : {} }").as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                        .index("testsink").name("testsink").build();
 
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
-            // TODO
+                response = restClient.get(watchPath);
+                // TODO
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
+            }
         }
     }
 
     @Test
     public void testPutExponentialThrottling() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "test_exponential_throttling";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
 
-            Watch watch = new WatchBuilder("test").atMsInterval(1000).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").throttledFor("1s**1.5|20s").name("testsink").build();
+            try (Client client = cluster.getInternalNodeClient()) {
 
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+                Watch watch = new WatchBuilder("test").atMsInterval(1000).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").throttledFor("1s**1.5|20s").name("testsink")
+                        .build();
 
-            response = rh.executeGetRequest(watchPath, auth);
-            // TODO
+                HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
+                response = restClient.get(watchPath);
+                // TODO
+
+            }
         }
     }
 
     @Test
     public void testSearchAccount() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String accountId = "search_account";
         String accountPath = "/_signals/account/slack/" + accountId;
 
-        try (Client client = cluster.getInternalClient()) {
-
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI("https://xyz.test.com"));
 
-            HttpResponse response = rh.executePutRequest(accountPath + "1", slackDestination.toJson(), auth);
+            HttpResponse response = restClient.putJson(accountPath + "1", slackDestination.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             slackDestination.setUrl(new URI("https://abc.test.com"));
-            response = rh.executePutRequest(accountPath + "2", slackDestination.toJson(), auth);
+            response = restClient.putJson(accountPath + "2", slackDestination.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI("https://abcdef.test.com"));
 
-            response = rh.executePutRequest(accountPath + "3", slackDestination.toJson(), auth);
+            response = restClient.putJson(accountPath + "3", slackDestination.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executePostRequest("/_signals/account/_search",
-                    "{ \"sort\": [{\"type.keyword\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"_name\": \"" + accountId + "1\"}}}", auth);
+            response = restClient.postJson("/_signals/account/_search",
+                    "{ \"sort\": [{\"type.keyword\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"_name\": \"" + accountId + "1\"}}}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("https://xyz.test.com"));
-
-        } finally {
-            rh.executeDeleteRequest(accountPath + "1", auth);
-            rh.executeDeleteRequest(accountPath + "2", auth);
-            rh.executeDeleteRequest(accountPath + "3", auth);
         }
     }
 
     @Test
     public void testSearchAccountScroll() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String accountId = "search_destination_scroll";
         String accountPath = "/_signals/account/slack/" + accountId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI("https://xyz.test.com"));
 
-            HttpResponse response = rh.executePutRequest(accountPath + "1", slackDestination.toJson(), auth);
+            HttpResponse response = restClient.putJson(accountPath + "1", slackDestination.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             slackDestination.setUrl(new URI("https://abc.test.com"));
-            response = rh.executePutRequest(accountPath + "2", slackDestination.toJson(), auth);
+            response = restClient.putJson(accountPath + "2", slackDestination.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI("https://abcdef.test.com"));
 
-            response = rh.executePutRequest(accountPath + "3", slackDestination.toJson(), auth);
+            response = restClient.putJson(accountPath + "3", slackDestination.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executePostRequest("/_signals/destination/_search?scroll=60s&size=1",
-                    "{ \"sort\": [{\"type.keyword\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"type\": \"SLACK\"}}}", auth);
+            response = restClient.postJson("/_signals/destination/_search?scroll=60s&size=1",
+                    "{ \"sort\": [{\"type.keyword\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"type\": \"SLACK\"}}}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -1966,82 +1885,75 @@ public class RestApiTest {
 
             Assert.assertNotNull(scrollId);
 
-            response = rh.executePostRequest("/_search/scroll", "{ \"scroll\": \"60s\", \"scroll_id\": \"" + scrollId + "\"}", auth);
+            response = restClient.postJson("/_search/scroll", "{ \"scroll\": \"60s\", \"scroll_id\": \"" + scrollId + "\"}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("slack"));
-
-        } finally {
-            rh.executeDeleteRequest(accountPath + "1", auth);
-            rh.executeDeleteRequest(accountPath + "2", auth);
-            rh.executeDeleteRequest(accountPath + "3", auth);
         }
     }
 
     @Test
     public void testConvEs() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
-
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
             String input = new JsonBuilder.Object()
                     .attr("trigger",
                             new JsonBuilder.Object().attr("schedule",
                                     new JsonBuilder.Object().attr("daily", new JsonBuilder.Object().attr("at", "noon"))))
                     .attr("input", new JsonBuilder.Object().attr("simple", new JsonBuilder.Object().attr("x", "y")))
-                    .attr("actions",
-                            new JsonBuilder.Object()
-                                    .attr("email_action",
-                                            new JsonBuilder.Object().attr("email",
-                                                    new JsonBuilder.Object().attr("to", "horst@horst").attr("subject", "Hello World")
-                                                            .attr("body", "Hallo {{ctx.payload.x}}").attr("attachments", "foo")))
+                    .attr("actions", new JsonBuilder.Object()
+                            .attr("email_action",
+                                    new JsonBuilder.Object().attr("email",
+                                            new JsonBuilder.Object().attr("to", "horst@horst").attr("subject", "Hello World")
+                                                    .attr("body", "Hallo {{ctx.payload.x}}").attr("attachments", "foo")))
 
-                                    .attr("email_action_with_http",
-                                            new JsonBuilder.Object().attr("email",
-                                                    new JsonBuilder.Object().attr("to", "horst@horst").attr("subject", "Hello World")
-                                                            .attr("body", "Hallo {{ctx.payload.x}}").attr("attachments",
-                                                            new JsonBuilder.Object().attr("my_image.png", new JsonBuilder.Object().attr("http",
-                                                                    new JsonBuilder.Object().attr("request", new JsonBuilder.Object().attr("url", "http://example.org/foo/my-image.png")))))))
+                            .attr("email_action_with_http",
+                                    new JsonBuilder.Object().attr("email", new JsonBuilder.Object().attr("to", "horst@horst")
+                                            .attr("subject", "Hello World").attr("body", "Hallo {{ctx.payload.x}}").attr("attachments",
+                                                    new JsonBuilder.Object().attr("my_image.png", new JsonBuilder.Object().attr("http",
+                                                            new JsonBuilder.Object().attr("request",
+                                                                    new JsonBuilder.Object().attr("url", "http://example.org/foo/my-image.png")))))))
 
-                                    .attr("email_action_with_reporting",
-                                            new JsonBuilder.Object().attr("email",
-                                                    new JsonBuilder.Object().attr("to", "horst@horst").attr("subject", "Hello World")
-                                                            .attr("body", "Hallo {{ctx.payload.x}}").attr("attachments",
-                                                            new JsonBuilder.Object().attr("dashboard.pdf", new JsonBuilder.Object().attr("reporting",
-                                                                    new JsonBuilder.Object().attr("url", "http://example.org:5601/api/reporting/generate/dashboard/Error-Monitoring"))))))
+                            .attr("email_action_with_reporting",
+                                    new JsonBuilder.Object().attr("email",
+                                            new JsonBuilder.Object().attr("to", "horst@horst").attr("subject", "Hello World")
+                                                    .attr("body", "Hallo {{ctx.payload.x}}")
+                                                    .attr("attachments", new JsonBuilder.Object().attr("dashboard.pdf",
+                                                            new JsonBuilder.Object().attr("reporting", new JsonBuilder.Object().attr("url",
+                                                                    "http://example.org:5601/api/reporting/generate/dashboard/Error-Monitoring"))))))
 
-                                    .attr("another_action",
-                                            new JsonBuilder.Object().attr("index",
-                                                    new JsonBuilder.Object().attr("index", "foo").attr("execution_time_field", "holla"))))
+                            .attr("another_action", new JsonBuilder.Object().attr("index",
+                                    new JsonBuilder.Object().attr("index", "foo").attr("execution_time_field", "holla"))))
                     .toJsonString();
 
-            HttpResponse response = rh.executePostRequest("/_signals/convert/es", input, auth);
+            HttpResponse response = restClient.postJson("/_signals/convert/es", input);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
+        }
     }
 
     @Test
     public void testPutAllowedEndpointsSetting() throws Exception {
 
-        Header auth = basicAuth("uhura", "uhura");
-        String endpointJson = "[\"x\",\"y\"]";
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+            String endpointJson = "[\"x\",\"y\"]";
 
-        try {
-            HttpResponse response = rh.executePutRequest("/_signals/settings/http.allowed_endpoints", endpointJson, auth);
+            try {
+                HttpResponse response = restClient.putJson("/_signals/settings/http.allowed_endpoints", endpointJson);
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            Thread.sleep(1000l);
+                Thread.sleep(1000l);
 
-            response = rh.executeGetRequest("/_signals/settings/http.allowed_endpoints", auth);
+                response = restClient.get("/_signals/settings/http.allowed_endpoints");
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            Assert.assertEquals(endpointJson, response.getBody());
+                Assert.assertEquals(endpointJson, response.getBody());
 
-        } finally {
-            rh.executePutRequest("/_signals/settings/http.allowed_endpoints", "\"*\"", auth);
+            } finally {
+                restClient.putJson("/_signals/settings/http.allowed_endpoints", "\"*\"");
+            }
         }
-
     }
 
     private long getCountOfDocuments(Client client, String index) throws InterruptedException, ExecutionException {
@@ -2058,7 +1970,7 @@ public class RestApiTest {
     private long awaitMinCountOfDocuments(Client client, String index, long minCount) throws Exception {
         long start = System.currentTimeMillis();
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 2000; i++) {
             Thread.sleep(10);
             long count = getCountOfDocuments(client, index);
 
@@ -2140,21 +2052,20 @@ public class RestApiTest {
         }
     }
 
-    private Watch getWatchByRest(String tenant, String id, Header... header) throws Exception {
-
-        HttpResponse response = rh.executeGetRequest("/_signals/watch/" + tenant + "/" + id, header);
+    private Watch getWatchByRest(String tenant, String id, GenericRestClient restClient) throws Exception {
+        HttpResponse response = restClient.get("/_signals/watch/" + tenant + "/" + id);
 
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
         return Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", id, response.getBody(), -1);
     }
 
-    private HttpResponse awaitRestGet(String request, Header... header) throws Exception {
+    private HttpResponse awaitRestGet(String request, GenericRestClient restClient) throws Exception {
         HttpResponse response = null;
         long start = System.currentTimeMillis();
 
         for (int i = 0; i < 100; i++) {
-            response = rh.executeGetRequest(request, header);
+            response = restClient.get(request);
 
             if (response.getStatusCode() != HttpStatus.SC_NOT_FOUND) {
                 log.info(request + " returned " + response.getStatusCode() + " after " + (System.currentTimeMillis() - start) + "ms (" + i
@@ -2167,6 +2078,7 @@ public class RestApiTest {
         }
 
         return response;
+
     }
 
     private static Header basicAuth(String username, String password) {
