@@ -37,8 +37,8 @@ import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.user.User;
 
 import io.jsonwebtoken.Claims;
@@ -276,72 +276,70 @@ public class AuthTokenServiceTest {
 
     @Test
     public void authTokenBasedOnAuthTokenTest() throws Exception {
-        RestHelper rh = cluster.restHelper();
-        rh.keystore = "restapi/kirk-keystore.jks";
-        rh.sendHTTPClientCertificate = true;
+        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
 
-        User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
-        AuthTokenServiceConfig config = new AuthTokenServiceConfig();
+            User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
+            AuthTokenServiceConfig config = new AuthTokenServiceConfig();
 
-        config.setEnabled(true);
-        config.setJwtSigningKey(TestJwk.OCT_1);
-        config.setJwtAud("_test_aud");
-        config.setMaxTokensPerUser(100);
-        config.setExcludeClusterPermissions(Collections.emptyList());
+            config.setEnabled(true);
+            config.setJwtSigningKey(TestJwk.OCT_1);
+            config.setJwtAud("_test_aud");
+            config.setMaxTokensPerUser(100);
+            config.setExcludeClusterPermissions(Collections.emptyList());
 
-        ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
-                clusterService, protectedConfigIndexService, config);
-        try {
-            authTokenService.setSendTokenUpdates(false);
-            authTokenService.waitForInitComplete(10000);
+            ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
+                    protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
+            AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
+                    clusterService, protectedConfigIndexService, config);
+            try {
+                authTokenService.setSendTokenUpdates(false);
+                authTokenService.waitForInitComplete(10000);
 
-            RequestedPrivileges requestedPrivileges = RequestedPrivileges.parseYaml("cluster_permissions:\n- cluster:test");
-            CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
+                RequestedPrivileges requestedPrivileges = RequestedPrivileges.parseYaml("cluster_permissions:\n- cluster:test");
+                CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
 
-            CreateAuthTokenResponse createAuthTokenResponse = authTokenService.createJwt(testUser, request);
+                CreateAuthTokenResponse createAuthTokenResponse = authTokenService.createJwt(testUser, request);
 
-            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
+                JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
 
-            Claims claims = jwtParser.parseClaimsJws(createAuthTokenResponse.getJwt()).getBody();
+                Claims claims = jwtParser.parseClaimsJws(createAuthTokenResponse.getJwt()).getBody();
 
-            Assert.assertEquals(testUser.getName(), claims.getSubject());
-            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
+                Assert.assertEquals(testUser.getName(), claims.getSubject());
+                Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
 
-            AuthToken baseAuthToken = authTokenService.getByClaims(claims);
+                AuthToken baseAuthToken = authTokenService.getByClaims(claims);
 
-            Assert.assertEquals(testUser.getName(), baseAuthToken.getUserName());
-            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), baseAuthToken.getRequestedPrivileges().getClusterPermissions());
+                Assert.assertEquals(testUser.getName(), baseAuthToken.getUserName());
+                Assert.assertEquals(requestedPrivileges.getClusterPermissions(), baseAuthToken.getRequestedPrivileges().getClusterPermissions());
 
-            HttpResponse roleUpdateResponse = rh.executePutRequest("/_searchguard/api/roles/new_test_role", "{\"cluster_permissions\": [\"*\"]}");
-            Assert.assertEquals(201, roleUpdateResponse.getStatusCode());
+                HttpResponse roleUpdateResponse = restClient.putJson("/_searchguard/api/roles/new_test_role", "{\"cluster_permissions\": [\"*\"]}");
+                Assert.assertEquals(201, roleUpdateResponse.getStatusCode());
 
-            Thread.sleep(500);
+                Thread.sleep(500);
 
-            User authTokenTestUser = User.forUser(testUser.getName()).backendRoles("r1", "r2", "r3").type(AuthTokenService.USER_TYPE)
-                    .specialAuthzConfig(baseAuthToken.getId()).build();
+                User authTokenTestUser = User.forUser(testUser.getName()).backendRoles("r1", "r2", "r3").type(AuthTokenService.USER_TYPE)
+                        .specialAuthzConfig(baseAuthToken.getId()).build();
 
-            request.setTokenName("auth_token_based_on_auth_token");
+                request.setTokenName("auth_token_based_on_auth_token");
 
-            createAuthTokenResponse = authTokenService.createJwt(authTokenTestUser, request);
+                createAuthTokenResponse = authTokenService.createJwt(authTokenTestUser, request);
 
-            claims = jwtParser.parseClaimsJws(createAuthTokenResponse.getJwt()).getBody();
+                claims = jwtParser.parseClaimsJws(createAuthTokenResponse.getJwt()).getBody();
 
-            AuthToken authTokenBasedOnAuthToken = authTokenService.getByClaims(claims);
-            Assert.assertEquals(baseAuthToken.getBase(), authTokenBasedOnAuthToken.getBase());
+                AuthToken authTokenBasedOnAuthToken = authTokenService.getByClaims(claims);
+                Assert.assertEquals(baseAuthToken.getBase(), authTokenBasedOnAuthToken.getBase());
 
-            request.setTokenName("auth_token_with_fresh_base");
-            createAuthTokenResponse = authTokenService.createJwt(testUser, request);
-            claims = jwtParser.parseClaimsJws(createAuthTokenResponse.getJwt()).getBody();
+                request.setTokenName("auth_token_with_fresh_base");
+                createAuthTokenResponse = authTokenService.createJwt(testUser, request);
+                claims = jwtParser.parseClaimsJws(createAuthTokenResponse.getJwt()).getBody();
 
-            AuthToken authTokenWithFreshBase = authTokenService.getByClaims(claims);
-            Assert.assertNotEquals(baseAuthToken.getBase(), authTokenWithFreshBase.getBase());
+                AuthToken authTokenWithFreshBase = authTokenService.getByClaims(claims);
+                Assert.assertNotEquals(baseAuthToken.getBase(), authTokenWithFreshBase.getBase());
 
-        } finally {
-            authTokenService.shutdown();
+            } finally {
+                authTokenService.shutdown();
+            }
         }
-
     }
 
 }
