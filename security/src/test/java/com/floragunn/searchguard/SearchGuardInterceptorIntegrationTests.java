@@ -52,8 +52,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 
 public class SearchGuardInterceptorIntegrationTests {
 
@@ -61,11 +60,10 @@ public class SearchGuardInterceptorIntegrationTests {
     public void testAllowCustomHeaders() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().nodeSettings(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, ".*").singleNode()
                 .sslEnabled().plugin(MockActionPlugin.class)
-                .user("header_test_user", "secret", new Role("header_test_user_role").indexPermissions("*").on("*").clusterPermissions("*"))
-                .build()) {
-            Header auth = basicAuth("header_test_user", "secret");
-            RestHelper rh = cluster.restHelper();
-            HttpResponse httpResponse = rh.executeGetRequest("/_header_test", auth, new BasicHeader("test_header_name", "test_header_value"));
+                .user("header_test_user", "secret", new Role("header_test_user_role").indexPermissions("*").on("*").clusterPermissions("*")).build();
+                GenericRestClient restClient = cluster.getRestClient("header_test_user", "secret")) {
+
+            GenericRestClient.HttpResponse httpResponse = restClient.get("/_header_test", new BasicHeader("test_header_name", "test_header_value"));
             JsonNode headers = httpResponse.toJsonNode().get("headers");
 
             Assert.assertEquals("test_header_value", headers.get("test_header_name").textValue());
@@ -176,8 +174,4 @@ public class SearchGuardInterceptorIntegrationTests {
 
     }
 
-    private static Header basicAuth(String username, String password) {
-        return new BasicHeader("Authorization",
-                "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-    }
 }

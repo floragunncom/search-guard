@@ -1,13 +1,8 @@
 package com.floragunn.signals;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.http.Header;
 import org.apache.http.HttpStatus;
-import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -26,8 +21,8 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;
@@ -38,7 +33,6 @@ import net.jcip.annotations.NotThreadSafe;
 public class RestApiTestMultiTenancyOff {
     private static final Logger log = LogManager.getLogger(RestApiTestMultiTenancyOff.class);
 
-    private static RestHelper rh = null;
     private static ScriptService scriptService;
 
     @ClassRule
@@ -48,7 +42,7 @@ public class RestApiTestMultiTenancyOff {
     @BeforeClass
     public static void setupTestData() {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest("testsource").source(XContentType.JSON, "key1", "val1", "key2", "val2")).actionGet();
 
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
@@ -61,21 +55,18 @@ public class RestApiTestMultiTenancyOff {
     @BeforeClass
     public static void setupDependencies() {
         scriptService = cluster.getInjectable(ScriptService.class);
-
-        rh = cluster.restHelper();
     }
 
     @Test
     public void testGetWatchInNotExistingTenantUnauthorized() throws Exception {
 
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "schnickschnack";
         String watchId = "get_watch_unauth";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
-            HttpResponse response = rh.executeGetRequest(watchPath, auth);
+            HttpResponse response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
@@ -85,14 +76,13 @@ public class RestApiTestMultiTenancyOff {
     @Test
     public void testGetWatchInNonDefaultTenantUnauthorized() throws Exception {
 
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "redshirt_club";
         String watchId = "get_watch_unauth";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
 
-            HttpResponse response = rh.executeGetRequest(watchPath, auth);
+            HttpResponse response = restClient.get(watchPath);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
@@ -101,21 +91,21 @@ public class RestApiTestMultiTenancyOff {
 
     @Test
     public void testPutWatch() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "_main";
         String watchId = "put_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = rh.executeGetRequest(watchPath, auth);
+            response = restClient.get(watchPath);
 
             System.out.print(response.getBody());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
@@ -124,27 +114,22 @@ public class RestApiTestMultiTenancyOff {
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
     @Test
     public void testPutWatchInNonExistingTenant() throws Exception {
-        Header auth = basicAuth("uhura", "uhura");
         String tenant = "schnickschnack";
         String watchId = "put_test_non_existing_tenant";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalClient()) {
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
-            HttpResponse response = rh.executePutRequest(watchPath, watch.toJson(), auth);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
-        } finally {
-            rh.executeDeleteRequest(watchPath, auth);
         }
     }
 
@@ -178,8 +163,4 @@ public class RestApiTestMultiTenancyOff {
         return 0;
     }
 
-    private static Header basicAuth(String username, String password) {
-        return new BasicHeader("Authorization",
-                "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-    }
 }

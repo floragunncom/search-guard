@@ -1,105 +1,80 @@
+/*
+ * Copyright 2015-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.security.KeyStore;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import javax.net.ssl.SSLContext;
-
-import org.apache.http.Header;
-import org.apache.http.HttpException;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpRequestInterceptor;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.painless.PainlessPlugin;
 import org.elasticsearch.painless.spi.PainlessExtension;
 import org.elasticsearch.plugins.ExtensiblePlugin.ExtensionLoader;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.modules.SearchGuardModule;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
-import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
 
-public class LocalCluster extends ExternalResource implements AutoCloseable {
+public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
 
-    private static final ResourceConfig<CType> DEFAULT_RESOURCE_CONFIG_SG_CONFIG = new ResourceConfig<CType>()
-            .setYamlDoc(CType.CONFIG, new File("sg_config.yml"))//
-            .setYamlDoc(CType.ROLES, new File("sg_roles.yml"))//
-            .setYamlDoc(CType.ROLESMAPPING, new File("sg_roles_mapping.yml"))//
-            .setYamlDoc(CType.ACTIONGROUPS, new File("sg_action_groups.yml"))//
-            .setYamlDoc(CType.TENANTS, new File("sg_roles_tenants.yml"))//
-            .setYamlDoc(CType.INTERNALUSERS, new File("sg_internal_users.yml"))//
-            .setYamlDoc(CType.BLOCKS, new File("sg_blocks.yml"));
+    static {
+        System.setProperty("sg.default_init.dir", new File("./sgconfig").getAbsolutePath());
+    }
 
     protected static final AtomicLong num = new AtomicLong();
-    protected ClusterHelper clusterHelper = new ClusterHelper(
-            "lc_utest_n" + num.incrementAndGet() + "_f" + System.getProperty("forkno") + "_t" + System.nanoTime());
-    protected ClusterInfo clusterInfo;
+
     protected final String resourceFolder;
-    private List<Class<? extends Plugin>> plugins;
+    private final String clusterName;
+    private LocalEsCluster localCluster;
 
     public LocalCluster(String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride, ClusterConfiguration clusterConfiguration,
             List<Class<? extends Plugin>> plugins) {
         this.resourceFolder = resourceFolder;
-        this.plugins = plugins;
+        this.clusterName = "lc_utest_n" + num.incrementAndGet() + "_f" + System.getProperty("forkno") + "_t" + System.nanoTime();
+        this.localCluster = new LocalEsCluster(clusterName, clusterConfiguration, minimumSearchGuardSettings(ccs(nodeOverride)), resourceFolder,
+                plugins);
 
         setup(Settings.EMPTY, testSgConfig, nodeOverride, true, clusterConfiguration);
     }
 
     @Override
     protected void after() {
-        if (clusterInfo != null) {
+        if (localCluster.isStarted()) {
             try {
                 Thread.sleep(1234);
-                clusterHelper.stopCluster();
+                localCluster.destroy();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -108,151 +83,30 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        if (clusterInfo != null) {
+        if (localCluster.isStarted()) {
             try {
                 Thread.sleep(100);
-                clusterHelper.stopCluster();
+                localCluster.destroy();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
     }
 
-    public RestHelper restHelper() {
-        return new RestHelper(clusterInfo, getResourceFolder());
-    }
-
-    public RestHelper restHelper(String keyStore) {
-        RestHelper result = restHelper();
-
-        result.keystore = keyStore;
-        result.sendHTTPClientCertificate = true;
-
-        return result;
-    }
-
-    public RestHelper nonSslRestHelper() {
-        return new RestHelper(clusterInfo, false, false, getResourceFolder());
-    }
-
     public <X> X getInjectable(Class<X> clazz) {
-        return this.clusterHelper.node().injector().getInstance(clazz);
+        return this.localCluster.masterNode().getInjectable(clazz);
     }
 
     public PluginAwareNode node() {
-        return this.clusterHelper.node();
+        return this.localCluster.masterNode().esNode();
     }
 
-    public List<PluginAwareNode> allNodes() {
-        return this.clusterHelper.allNodes();
+    public List<LocalEsCluster.Node> nodes() {
+        return this.localCluster.allNodes();
     }
 
-    public Client getInternalClient() {
-        final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-        Settings tcSettings = Settings.builder().put("cluster.name", clusterInfo.clustername)
-                .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
-                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "kirk-keystore.jks"))
-                .build();
-
-        TransportClient tc = new TransportClientImpl(tcSettings, Arrays.asList(Netty4Plugin.class, SearchGuardPlugin.class));
-        tc.addTransportAddress(new TransportAddress(new InetSocketAddress(clusterInfo.nodeHost, clusterInfo.nodePort)));
-        return tc;
-    }
-
-    public Client getNodeClient() {
-        final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-        Settings tcSettings = Settings.builder().put("cluster.name", clusterInfo.clustername)
-                .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
-                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
-                .build();
-
-        TransportClient tc = new TransportClientImpl(tcSettings, Arrays.asList(Netty4Plugin.class, SearchGuardPlugin.class));
-        tc.addTransportAddress(new TransportAddress(new InetSocketAddress(clusterInfo.nodeHost, clusterInfo.nodePort)));
-        return tc;
-    }
-    
-    public GenericRestClient getRestClient(TestSgConfig.User user) {
-        return getRestClient(user.getName(), user.getPassword());
-    }
-    
-    public GenericRestClient getRestClient(String user, String password) {
-        BasicHeader basicAuthHeader =  new BasicHeader("Authorization",
-                "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-        
-        return new GenericRestClient(clusterInfo, Collections.singletonList(basicAuthHeader), getResourceFolder());
-    }
-
-    public RestHighLevelClient getRestHighLevelClient(TestSgConfig.User user) {
-        return getRestHighLevelClient(user.getName(), user.getPassword());
-    }
-
-    public RestHighLevelClient getRestHighLevelClient(String user, String password) {
-        CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
-
-        RestClientBuilder builder = RestClient.builder(new HttpHost(clusterInfo.httpHost, clusterInfo.httpPort, "https")).setHttpClientConfigCallback(
-                httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider).setSSLStrategy(getSSLIOSessionStrategy()));
-
-        return new RestHighLevelClient(builder);
-    }
-
-    public RestHighLevelClient getRestHighLevelClient(String user, String password, String tenant) {
-        CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
-
-        RestClientBuilder builder = RestClient.builder(new HttpHost(clusterInfo.httpHost, clusterInfo.httpPort, "https"))
-                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider)
-                        .setSSLStrategy(getSSLIOSessionStrategy()).addInterceptorLast(new HttpRequestInterceptor() {
-
-                            @Override
-                            public void process(HttpRequest request, HttpContext context) throws HttpException, IOException {
-                                request.setHeader("sgtenant", tenant);
-
-                            }
-
-                        }));
-
-        return new RestHighLevelClient(builder);
-    }
-
-    public RestHighLevelClient getRestHighLevelClient(Header... headers) {
-
-        RestClientBuilder builder = RestClient.builder(new HttpHost(clusterInfo.httpHost, clusterInfo.httpPort, "https")).setDefaultHeaders(headers)
-                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(getSSLIOSessionStrategy()));
-
-        return new RestHighLevelClient(builder);
-    }
-
-    public RestHighLevelClient getRestHighLevelClientForNode(int node, Header... headers) {
-
-        RestClientBuilder builder = RestClient
-                .builder(new HttpHost(clusterInfo.httpAdresses.get(node).getAddress(), clusterInfo.httpAdresses.get(node).getPort(), "https"))
-                .setDefaultHeaders(headers)
-                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(getSSLIOSessionStrategy()));
-
-        return new RestHighLevelClient(builder);
-    }
-
-    public Client getNodeClientWithMockUser(User user) {
-        Client client = getNodeClient();
-
-        if (user != null) {
-            client = new ContextHeaderDecoratorClient(client, ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(user));
-        }
-
-        return client;
-    }
-
-    public Client getNodeClientWithMockUser(String userName, String... roles) {
-        return getNodeClientWithMockUser(User.forUser(userName).backendRoles(roles).build());
-    }
-
-    public Client getPrivilegedConfigNodeClient() {
-        return new ContextHeaderDecoratorClient(getNodeClient(), ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+    public LocalEsCluster.Node getNodeByName(String name) {
+        return this.localCluster.getNodeByName(name);
     }
 
     private void setup(Settings initTransportClientSettings, TestSgConfig testSgConfig, Settings nodeOverride, boolean initSearchGuardIndex,
@@ -260,7 +114,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
         painlessWhitelistKludge();
 
         try {
-            clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration, plugins, 10, null);
+
+            localCluster.start();
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -304,7 +159,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
 
     protected void initialize(TestSgConfig testSgConfig) {
 
-        try (Client client = getInternalClient()) {
+        try (Client client = getAdminCertClient()) {
 
             testSgConfig.initIndex(client);
 
@@ -318,34 +173,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
         }
     }
 
-    private Settings ccs(Settings nodeOverride) throws Exception {
+    private Settings ccs(Settings nodeOverride) {
 
         return nodeOverride;
-    }
-
-    private SSLContext getSSLContext() {
-        try {
-            String truststoreType = "JKS";
-            String truststorePassword = "changeit";
-            String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-            KeyStore trustStore = KeyStore.getInstance(truststoreType);
-            try (InputStream in = Files.newInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))) {
-                trustStore.load(in, (truststorePassword == null || truststorePassword.length() == 0) ? null : truststorePassword.toCharArray());
-            }
-
-            SSLContextBuilder sslContextBuilder = SSLContexts.custom().loadTrustMaterial(trustStore, null);
-            return sslContextBuilder.build();
-
-            //return new OverlyTrustfulSSLContextBuilder().build();
-        } catch (Exception e) {
-            throw new RuntimeException("Error while building SSLContext", e);
-        }
-    }
-
-    private SSLIOSessionStrategy getSSLIOSessionStrategy() {
-
-        return new SSLIOSessionStrategy(getSSLContext(), null, null, NoopHostnameVerifier.INSTANCE);
     }
 
     protected Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly) {
@@ -390,17 +220,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
 
     public String getResourceFolder() {
         return resourceFolder;
-    }
-
-    protected static class TransportClientImpl extends TransportClient {
-
-        public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, plugins);
-        }
-
-        public TransportClientImpl(Settings settings, Settings defaultSettings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, defaultSettings, plugins, null);
-        }
     }
 
     public static class Builder {
@@ -470,12 +289,14 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
         }
 
         public Builder remote(String name, LocalCluster anotherCluster) {
+            InetSocketAddress transportAddress = anotherCluster.localCluster.masterNode().getTransportAddress();
+
             nodeOverrideSettingsBuilder.putList("cluster.remote." + name + ".seeds",
-                    anotherCluster.clusterInfo.nodeHost + ":" + anotherCluster.clusterInfo.nodePort);
+                    transportAddress.getHostString() + ":" + transportAddress.getPort());
 
             return this;
         }
-        
+
         public Builder users(TestSgConfig.User... users) {
             for (TestSgConfig.User user : users) {
                 testSgConfig.user(user);
@@ -483,12 +304,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
             return this;
         }
 
-        
         public Builder user(TestSgConfig.User user) {
             testSgConfig.user(user);
             return this;
         }
-
 
         public Builder user(String name, String password, String... sgRoles) {
             testSgConfig.user(name, password, sgRoles);
@@ -527,6 +346,31 @@ public class LocalCluster extends ExternalResource implements AutoCloseable {
             }
 
         }
+    }
+
+    @Override
+    public InetSocketAddress getHttpAddress() {
+        return localCluster.clientNode().getHttpAddress();
+    }
+
+    @Override
+    public InetSocketAddress getTransportAddress() {
+        return localCluster.clientNode().getTransportAddress();
+    }
+
+    @Override
+    public String getClusterName() {
+        return localCluster.getClusterName();
+    }
+
+    @Override
+    public SSLIOSessionStrategy getSSLIOSessionStrategy() {
+        return localCluster.getSSLIOSessionStrategy();
+    }
+
+    @Override
+    public Client getInternalNodeClient() {
+        return localCluster.clientNode().getInternalNodeClient();
     }
 
 }

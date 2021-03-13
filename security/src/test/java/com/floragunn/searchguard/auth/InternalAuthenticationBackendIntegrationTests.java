@@ -26,7 +26,7 @@ public class InternalAuthenticationBackendIntegrationTests {
 
     @BeforeClass
     public static void initTestData() {
-        try (Client tc = cluster.getInternalClient()) {
+        try (Client tc = cluster.getAdminCertClient()) {
 
             tc.index(new IndexRequest("attr_test_a").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"a\", \"amount\": 1010}",
                     XContentType.JSON)).actionGet();
