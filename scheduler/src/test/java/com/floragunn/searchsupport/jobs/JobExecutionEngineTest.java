@@ -14,6 +14,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.node.PluginAwareNode;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -55,9 +56,10 @@ public class JobExecutionEngineTest {
             PluginAwareNode node = cluster.node();
 
             ClusterService clusterService = node.injector().getInstance(ClusterService.class);
+            NodeEnvironment nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
 
             scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test_" + test).nodeFilter("node_group_1:xxx")
-                    .configIndex(jobConfigIndex).jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService)
+                    .configIndex(jobConfigIndex).jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService, nodeEnvironment)
                     .nodeComparator(new NodeNameComparator(clusterService)).build();
 
             scheduler.start();
@@ -94,9 +96,10 @@ public class JobExecutionEngineTest {
             PluginAwareNode node = cluster.node();
 
             ClusterService clusterService = node.injector().getInstance(ClusterService.class);
+            NodeEnvironment nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
 
             scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test_" + test).configIndex(jobConfigIndex)
-                    .jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService)
+                    .jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService, nodeEnvironment)
                     .nodeComparator(new NodeNameComparator(clusterService)).build();
 
             scheduler.start();
@@ -133,9 +136,10 @@ public class JobExecutionEngineTest {
             PluginAwareNode node = cluster.node();
 
             ClusterService clusterService = node.injector().getInstance(ClusterService.class);
+            NodeEnvironment nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
 
             Scheduler scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test").configIndex("testjobconfig")
-                    .nodeFilter("node_index:1").jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService)
+                    .nodeFilter("node_index:1").jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService, nodeEnvironment)
                     .nodeComparator(new NodeNameComparator(clusterService)).build();
 
             scheduler.start();

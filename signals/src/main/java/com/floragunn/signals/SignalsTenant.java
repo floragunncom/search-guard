@@ -25,6 +25,7 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.ScriptService;
@@ -70,11 +71,11 @@ import com.floragunn.signals.watch.state.WatchStateWriter;
 public class SignalsTenant implements Closeable {
     private static final Logger log = LogManager.getLogger(SignalsTenant.class);
 
-    public static SignalsTenant create(String name, Client client, ClusterService clusterService, ScriptService scriptService,
-            NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
-            AccountRegistry accountRegistry, ComponentState tenantState) throws SchedulerException {
-        SignalsTenant instance = new SignalsTenant(name, client, clusterService, scriptService, xContentRegistry, internalAuthTokenProvider, settings,
-                accountRegistry, tenantState);
+    public static SignalsTenant create(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment,
+            ScriptService scriptService, NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider,
+            SignalsSettings settings, AccountRegistry accountRegistry, ComponentState tenantState) throws SchedulerException {
+        SignalsTenant instance = new SignalsTenant(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
+                internalAuthTokenProvider, settings, accountRegistry, tenantState);
 
         instance.init();
 
@@ -89,6 +90,7 @@ public class SignalsTenant implements Closeable {
     private final Client privilegedConfigClient;
     private final Client client;
     private final ClusterService clusterService;
+    private final NodeEnvironment nodeEnvironment;
     private String nodeFilter;
     private final NamedXContentRegistry xContentRegistry;
     private final ScriptService scriptService;
@@ -103,7 +105,7 @@ public class SignalsTenant implements Closeable {
 
     private Scheduler scheduler;
 
-    public SignalsTenant(String name, Client client, ClusterService clusterService, ScriptService scriptService,
+    public SignalsTenant(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
             AccountRegistry accountRegistry, ComponentState tenantState) {
         this.name = name;
@@ -114,6 +116,7 @@ public class SignalsTenant implements Closeable {
         this.client = client;
         this.privilegedConfigClient = new PrivilegedConfigClient(client);
         this.clusterService = clusterService;
+        this.nodeEnvironment = nodeEnvironment;
         this.scriptService = scriptService;
         this.xContentRegistry = xContentRegistry;
         this.tenantSettings = settings.getTenant(name);
@@ -130,11 +133,12 @@ public class SignalsTenant implements Closeable {
 
         settings.addChangeListener(this.settingsChangeListener);
     }
-    
-    public SignalsTenant(String name, Client client, ClusterService clusterService, ScriptService scriptService,
+
+    public SignalsTenant(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
             AccountRegistry accountRegistry) {
-        this(name, client, clusterService, scriptService, xContentRegistry, internalAuthTokenProvider, settings, accountRegistry, new ComponentState(0, null, "tenant"));
+        this(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry, internalAuthTokenProvider, settings, accountRegistry,
+                new ComponentState(0, null, "tenant"));
     }
 
     public void init() throws SchedulerException {
@@ -156,7 +160,7 @@ public class SignalsTenant implements Closeable {
                 .stateIndex(settings.getStaticSettings().getIndexNames().getWatchesTriggerState())//
                 .stateIndexIdPrefix(watchIdPrefix)//
                 .jobConfigFactory(new Watch.JobConfigFactory(name, watchIdPrefix, new WatchInitializationService(accountRegistry, scriptService)))//
-                .distributed(clusterService)//
+                .distributed(clusterService, nodeEnvironment)//
                 .jobFactory(jobFactory)//
                 .nodeFilter(nodeFilter)//
                 .jobConfigListener(jobConfigListener)//
@@ -195,8 +199,28 @@ public class SignalsTenant implements Closeable {
     public void shutdown() {
         try {
             if (this.scheduler != null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Going to shutdown " + this.scheduler);
+                }
+                
                 this.scheduler.shutdown(true);
                 tenantState.setState(ComponentState.State.DISABLED);
+            }
+        } catch (SchedulerException e) {
+            log.error("Error wile shutting down " + this, e);
+        }
+    }
+    
+    public void shutdownHard() {
+        try {
+            if (this.scheduler != null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Going to shutdown " + this.scheduler);
+                }
+                
+                this.scheduler.shutdown(false);
+                tenantState.setState(ComponentState.State.DISABLED);
+                this.scheduler = null;
             }
         } catch (SchedulerException e) {
             log.error("Error wile shutting down " + this, e);
@@ -450,7 +474,7 @@ public class SignalsTenant implements Closeable {
             Map<String, WatchState> dirtyStates = watchStateManager.reset(watchStateReader.get(watchIds));
 
             if (!dirtyStates.isEmpty()) {
-                tenantState.setState(State.INITIALIZING, "writing_states");
+                tenantState.setState(State.INITIALIZING, "wr)iting_states");
 
                 watchStateWriter.putAll(dirtyStates);
             }

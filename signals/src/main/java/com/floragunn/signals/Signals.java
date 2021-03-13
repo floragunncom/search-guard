@@ -50,6 +50,8 @@ public class Signals extends AbstractLifecycleComponent {
 
     private final ComponentState componentState;
     private final SignalsSettings signalsSettings;
+    private NodeEnvironment nodeEnvironment;
+
     private final Map<String, SignalsTenant> tenants = new ConcurrentHashMap<>();
     private Set<String> configuredTenants;
     private Client client;
@@ -86,6 +88,7 @@ public class Signals extends AbstractLifecycleComponent {
 
             this.client = client;
             this.clusterService = clusterService;
+            this.nodeEnvironment = nodeEnvironment;
             this.xContentRegistry = xContentRegistry;
             this.scriptService = scriptService;
             this.internalAuthTokenProvider = internalAuthTokenProvider;
@@ -187,7 +190,7 @@ public class Signals extends AbstractLifecycleComponent {
 
         try {
 
-            SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, scriptService, xContentRegistry,
+            SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                     internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState);
 
             tenants.put(name, signalsTenant);

@@ -122,8 +122,9 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         return this;
     }
 
-    public SchedulerBuilder<JobType> distributed(ClusterService clusterService) {
+    public SchedulerBuilder<JobType> distributed(ClusterService clusterService, NodeEnvironment nodeEnvironment) {
         this.clusterService = clusterService;
+        this.nodeEnvironment = nodeEnvironment;
         return this;
     }
 
@@ -179,11 +180,6 @@ public class SchedulerBuilder<JobType extends JobConfig> {
 
     public SchedulerBuilder<JobType> nodeComparator(NodeComparator<?> nodeComparator) {
         this.nodeComparator = nodeComparator;
-        return this;
-    }
-
-    public SchedulerBuilder<JobType> nodeEnvironment(NodeEnvironment nodeEnvironment) {
-        this.nodeEnvironment = nodeEnvironment;
         return this;
     }
 
