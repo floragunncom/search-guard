@@ -75,7 +75,7 @@ public class DynamicQuartzThreadPool implements ThreadPool {
 
     private boolean isShutdown = false;
 
-    private ThreadGroup threadGroup;
+    private final ThreadGroup threadGroup;
 
     private long pollingIntervalMs = 1000;
 
@@ -93,7 +93,8 @@ public class DynamicQuartzThreadPool implements ThreadPool {
      * 
      * @see java.lang.Thread
      */
-    public DynamicQuartzThreadPool(String threadPoolName, int maxThreadCount, int threadPriority, Duration threadKeepAlive) {
+    public DynamicQuartzThreadPool(ThreadGroup threadGroup, String threadPoolName, int maxThreadCount, int threadPriority, Duration threadKeepAlive) {
+        this.threadGroup = threadGroup;
         this.threadPoolName = threadPoolName;
         this.maxThreadCount = maxThreadCount;
         this.threadPriority = threadPriority;
@@ -172,6 +173,12 @@ public class DynamicQuartzThreadPool implements ThreadPool {
     @Override
     public void initialize() throws SchedulerConfigException {
 
+    }
+
+    public void startAllWorkersNow() {
+        for (int i = 0; i < maxThreadCount; i++) {
+            createNewWorker(null);
+        }
     }
 
     @Override
@@ -301,6 +308,8 @@ public class DynamicQuartzThreadPool implements ThreadPool {
 
             if (runnable != null) {
                 busyWorkers.add(result);
+            } else {
+                availableWorkers.add(result);
             }
 
             return result;
