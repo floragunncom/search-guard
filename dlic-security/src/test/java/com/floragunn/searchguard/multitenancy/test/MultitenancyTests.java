@@ -397,7 +397,7 @@ public class MultitenancyTests extends SingleClusterTest {
         String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
 
         try (LocalCluster cluster = new LocalCluster.Builder().resources("multitenancy").sslEnabled().build();
-                Client client = cluster.getInternalClient();
+                Client client = cluster.getInternalNodeClient();
                 RestHighLevelClient restClient = cluster.getRestHighLevelClient("hr_employee", "hr_employee", "human_resources")) {
             Map<String, Object> indexSettings = new HashMap<>();
             indexSettings.put("number_of_shards", 3);

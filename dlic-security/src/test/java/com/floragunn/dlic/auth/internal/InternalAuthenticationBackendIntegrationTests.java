@@ -23,7 +23,7 @@ public class InternalAuthenticationBackendIntegrationTests {
     @Test
     public void dlsIntegrationTest() throws Exception {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             client.index(new IndexRequest("dls_test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"a\", \"amount\": 1010}",
                     XContentType.JSON)).actionGet();

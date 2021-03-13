@@ -50,7 +50,7 @@ public class ActionTest {
     @BeforeClass
     public static void setupTestData() {
 
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
@@ -67,7 +67,7 @@ public class ActionTest {
     @Test
     public void testPagerDutyAction() throws Exception {
 
-        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty")) {
 
             PagerDutyAccount account = new PagerDutyAccount("bla");
             account.setUri(webhookProvider.getUri());
@@ -108,7 +108,7 @@ public class ActionTest {
     @Test
     public void testJiraAction() throws Exception {
 
-        try (Client client = cluster.getInternalClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
 
             JiraAccount account = new JiraAccount(new URI(webhookProvider.getUri()), "x", "y");
 
