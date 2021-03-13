@@ -176,28 +176,32 @@ public class DynamicQuartzThreadPool implements ThreadPool {
 
     @Override
     public void shutdown(boolean waitForJobsToComplete) {
-
-        lock.lock();
         try {
-            log.debug("Shutting down " + this);
 
-            isShutdown = true;
+            lock.lock();
+            try {
+                log.debug("Shutting down " + this);
 
-            for (WorkerThread availableWorkerThread : availableWorkers) {
-                availableWorkerThread.shutdown();
-                allWorkers.remove(availableWorkerThread);
+                isShutdown = true;
+
+                for (WorkerThread availableWorkerThread : availableWorkers) {
+                    availableWorkerThread.shutdown();
+                    allWorkers.remove(availableWorkerThread);
+                }
+
+                availableWorkers.clear();
+
+                for (WorkerThread workerThread : allWorkers) {
+                    workerThread.shutdown();
+                }
+
+                // Give waiting (wait(1000)) worker threads a chance to shut down.
+                // Active worker threads will shut down after finishing their
+                // current job.
+                workerAvailable.signalAll();
+            } finally {
+                lock.unlock();
             }
-
-            availableWorkers.clear();
-
-            for (WorkerThread workerThread : allWorkers) {
-                workerThread.shutdown();
-            }
-
-            // Give waiting (wait(1000)) worker threads a chance to shut down.
-            // Active worker threads will shut down after finishing their
-            // current job.
-            workerAvailable.signalAll();
 
             if (waitForJobsToComplete) {
 
@@ -205,21 +209,35 @@ public class DynamicQuartzThreadPool implements ThreadPool {
                 try {
 
                     // Wait until all worker threads are shut down
-                    while (busyWorkers.size() > 0) {
-                        try {
-                            log.debug("Waiting for threads " + busyWorkers + " to shut down");
+                    lock.lock();
 
-                            // note: with waiting infinite time the
-                            // application may appear to 'hang'.
-                            workerAvailable.await(1, TimeUnit.SECONDS);
-                        } catch (InterruptedException e) {
-                            interrupted = true;
+                    try {
+                        while (busyWorkers.size() > 0) {
+                            try {
+                                log.debug("Waiting for threads " + busyWorkers + " to shut down");
+
+                                // note: with waiting infinite time the
+                                // application may appear to 'hang'.
+                                workerAvailable.await(1, TimeUnit.SECONDS);
+                            } catch (InterruptedException e) {
+                                interrupted = true;
+                            }
                         }
+                    } finally {
+                        lock.unlock();
                     }
+
+                    log.debug("All busy workers finished. Waiting for worker threads to terminate: " + allWorkers);
 
                     for (WorkerThread workerThread : allWorkers) {
                         try {
-                            workerThread.join();
+                            workerThread.join(5000);
+
+                            if (workerThread.isAlive()) {
+                                Throwable stackTraceHolder = new Exception();
+                                stackTraceHolder.setStackTrace(workerThread.getStackTrace());
+                                log.warn("Worker thread did not properly terminate: " + workerThread, stackTraceHolder);
+                            }
                         } catch (InterruptedException e) {
                             interrupted = true;
                         }
@@ -234,11 +252,16 @@ public class DynamicQuartzThreadPool implements ThreadPool {
                 log.debug("No executing jobs remaining, all threads stopped.");
             }
 
-            allWorkers.clear();
+            lock.lock();
+            try {
+                allWorkers.clear();
+            } finally {
+                lock.unlock();
+            }
 
             log.debug("Shutdown of threadpool complete.");
-        } finally {
-            lock.unlock();
+        } catch (Exception e) {
+            log.error("Encountered error while shutting down", e);
         }
     }
 
@@ -253,7 +276,7 @@ public class DynamicQuartzThreadPool implements ThreadPool {
     public synchronized int getCurrentBusyWorkerCount() {
         return this.busyWorkers.size();
     }
-    
+
     @Override
     public void setInstanceId(String schedulerInstanceId) {
     }
