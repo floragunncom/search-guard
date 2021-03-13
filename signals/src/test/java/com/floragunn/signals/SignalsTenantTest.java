@@ -1,5 +1,7 @@
 package com.floragunn.signals;
 
+import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -13,6 +15,7 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.script.ScriptService;
 import org.junit.Assert;
@@ -23,13 +26,21 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.util.temporal.DurationFormat;
+import com.floragunn.signals.execution.ActionExecutionException;
+import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
+import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;
+import com.floragunn.signals.watch.action.handlers.ActionHandler;
 import com.floragunn.signals.watch.common.Ack;
+import com.floragunn.signals.watch.init.WatchInitializationService;
 
 import net.jcip.annotations.NotThreadSafe;
 
@@ -42,6 +53,7 @@ public class SignalsTenantTest {
             .build();
 
     private static ClusterService clusterService;
+    private static NodeEnvironment nodeEnvironment;
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
     private static InternalAuthTokenProvider internalAuthTokenProvider;
@@ -56,6 +68,7 @@ public class SignalsTenantTest {
         xContentRegistry = node.injector().getInstance(NamedXContentRegistry.class);
         scriptService = node.injector().getInstance(ScriptService.class);
         internalAuthTokenProvider = node.injector().getInstance(InternalAuthTokenProvider.class);
+        nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
 
         try (Client client = cluster.getInternalClient(); Client privilegedConfigClient = cluster.getPrivilegedConfigNodeClient()) {
             Watch watch = new WatchBuilder("test").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -89,8 +102,8 @@ public class SignalsTenantTest {
 
             Settings settings = Settings.builder().build();
 
-            try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, scriptService, xContentRegistry, internalAuthTokenProvider,
-                    new SignalsSettings(settings), null)) {
+            try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
+                    internalAuthTokenProvider, new SignalsSettings(settings), null)) {
                 tenant.init();
 
                 Assert.assertEquals(1, tenant.getLocalWatchCount());
@@ -107,8 +120,8 @@ public class SignalsTenantTest {
             SignalsSettings settings = Mockito.mock(SignalsSettings.class, Mockito.RETURNS_DEEP_STUBS);
             Mockito.when(settings.getTenant("test").getNodeFilter()).thenReturn("unknown_attr:true");
 
-            try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, scriptService, xContentRegistry, internalAuthTokenProvider,
-                    settings, null)) {
+            try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
+                    internalAuthTokenProvider, settings, null)) {
                 tenant.init();
 
                 Assert.assertEquals(0, tenant.getLocalWatchCount());
@@ -125,7 +138,7 @@ public class SignalsTenantTest {
 
             Settings settings = Settings.builder().build();
 
-            try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, scriptService, xContentRegistry,
+            try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                     internalAuthTokenProvider, new SignalsSettings(settings), null)) {
                 tenant.init();
 
@@ -159,7 +172,7 @@ public class SignalsTenantTest {
 
             Thread.sleep(1000);
 
-            try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, scriptService, xContentRegistry,
+            try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                     internalAuthTokenProvider, new SignalsSettings(settings), null)) {
                 tenant.init();
 
@@ -180,5 +193,110 @@ public class SignalsTenantTest {
             }
         }
 
+    }
+
+    @Test
+    public void failoverWhileRunningTest() throws Exception {
+
+        try (Client client = cluster.getNodeClientWithMockUser(UHURA)) {
+
+            Settings settings = Settings.builder().build();
+
+            try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
+                    xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null)) {
+                tenant.init();
+
+                Watch watch = new WatchBuilder("test_watch").atInterval("100ms").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().act(new SleepAction(Duration.ofSeconds(4))).name("sleep").and()
+                        .index("failover_while_running_testsink").name("testsink").build();
+
+                tenant.addWatch(watch, UHURA);
+
+                for (int i = 0; i < 20; i++) {
+                    Thread.sleep(100);
+
+                    if (tenant.getLocalWatchCount() != 0) {
+                        break;
+                    }
+                }
+
+                Assert.assertEquals(1, tenant.getLocalWatchCount());
+                Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+
+                Thread.sleep(500);
+                
+                tenant.shutdownHard();
+            }
+
+            System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            
+            Thread.sleep(1000);
+
+            System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            
+            try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
+                    internalAuthTokenProvider, new SignalsSettings(settings), null)) {
+                tenant.init();
+
+                for (int i = 0; i < 20; i++) {
+                    Thread.sleep(100);
+
+                    if (tenant.getLocalWatchCount() != 0) {
+                        break;
+                    }
+                }
+
+                Assert.assertEquals(1, tenant.getLocalWatchCount());
+                Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+            }
+        }
+
+    }
+
+    static {
+        ActionHandler.factoryRegistry.add(new SleepAction.Factory());
+    }
+
+    static class SleepAction extends ActionHandler {
+
+        private Duration duration;
+
+        SleepAction(Duration duration) {
+            this.duration = duration;
+        }
+
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.field("duration", DurationFormat.INSTANCE.format(duration));
+            return builder;
+        }
+
+        @Override
+        public ActionExecutionResult execute(WatchExecutionContext ctx) throws ActionExecutionException {
+            try {
+                Thread.sleep(duration.toMillis());
+            } catch (InterruptedException e) {
+            }
+
+            return new ActionExecutionResult("zzz");
+        }
+
+        @Override
+        public String getType() {
+            return "sleep";
+        }
+
+        public static class Factory extends ActionHandler.Factory<SleepAction> {
+            public Factory() {
+                super("sleep");
+            }
+
+            @Override
+            protected SleepAction create(WatchInitializationService watchInitService, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors)
+                    throws ConfigValidationException {
+
+                return new SleepAction(vJsonNode.duration("duration"));
+            }
+        }
     }
 }
