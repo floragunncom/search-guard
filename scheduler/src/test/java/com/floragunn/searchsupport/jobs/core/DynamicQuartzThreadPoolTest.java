@@ -15,7 +15,7 @@ public class DynamicQuartzThreadPoolTest {
 
     @Test
     public void basicTest() {
-        DynamicQuartzThreadPool threadPool = new DynamicQuartzThreadPool("Test", 3, Thread.NORM_PRIORITY, Duration.ofSeconds(4));
+        DynamicQuartzThreadPool threadPool = new DynamicQuartzThreadPool(null, "Test", 3, Thread.NORM_PRIORITY, Duration.ofSeconds(4));
         Set<String> completedTasks = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
         threadPool.setPollingIntervalMs(50);

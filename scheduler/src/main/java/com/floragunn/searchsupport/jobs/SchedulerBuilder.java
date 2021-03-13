@@ -61,6 +61,7 @@ import com.floragunn.searchsupport.jobs.config.JobConfig;
 import com.floragunn.searchsupport.jobs.config.JobConfigFactory;
 import com.floragunn.searchsupport.jobs.core.DynamicQuartzThreadPool;
 import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
+import com.floragunn.searchsupport.jobs.core.QuartzSchedulerWithCustomizableThreadGroup;
 import com.floragunn.searchsupport.jobs.execution.AuthorizingJobDecorator;
 
 public class SchedulerBuilder<JobType extends JobConfig> {
@@ -231,7 +232,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         }
 
         if (this.threadPool == null) {
-            this.threadPool = new DynamicQuartzThreadPool(name, maxThreads, threadPriority, threadKeepAlive);
+            this.threadPool = new DynamicQuartzThreadPool(Thread.currentThread().getThreadGroup(), name, maxThreads, threadPriority, threadKeepAlive);
         }
 
         schedulerPluginMap.put(CleanupSchedulerPlugin.class.getName(), new CleanupSchedulerPlugin(clusterService, jobDistributor, jobStore));
@@ -255,12 +256,14 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         qrs.setJobStore(jobStore);
         qrs.setMaxBatchSize(maxBatchSize);
         qrs.setBatchTimeWindow(batchTimeWindow);
+        qrs.setMakeSchedulerThreadDaemon(true);
 
         for (SchedulerPlugin plugin : schedulerPluginMap.values()) {
             qrs.addSchedulerPlugin(plugin);
         }
 
-        QuartzScheduler quartzScheduler = new QuartzScheduler(qrs, idleWaitTime, dbFailureRetryInterval);
+        QuartzScheduler quartzScheduler = new QuartzSchedulerWithCustomizableThreadGroup(qrs, Thread.currentThread().getThreadGroup(), idleWaitTime,
+                dbFailureRetryInterval);
         ClassLoadHelper classLoadHelper = initClassLoadHelper();
         
         jobStore.initialize(classLoadHelper, quartzScheduler.getSchedulerSignaler());
