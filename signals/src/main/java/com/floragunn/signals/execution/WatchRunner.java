@@ -19,6 +19,7 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.searchsupport.util.temporal.DurationExpression;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
@@ -63,6 +64,7 @@ public class WatchRunner implements Job {
     private final WatchLog watchLog = new WatchLog();
     private final SimulationMode simulationMode;
     private final GotoCheckSelector checkSelector;
+    private final DiagnosticContext diagnosticContext;
 
     private SeverityLevel lastSeverityLevel;
     private SeverityLevel newSeverityLevel;
@@ -77,15 +79,16 @@ public class WatchRunner implements Job {
     private int failedResolveActions = 0;
 
     public WatchRunner(Watch watch, Client client, AccountRegistry accountRegistry, ScriptService scriptService, WatchLogWriter watchLogWriter,
-            WatchStateWriter<?> watchStateWriter, WatchState watchState, ExecutionEnvironment executionEnvironment, SimulationMode simulationMode,
-            NamedXContentRegistry xContentRegistry, SignalsSettings signalsSettings, String nodeName, GotoCheckSelector checkSelector,
-            NestedValueMap input) {
+            WatchStateWriter<?> watchStateWriter, DiagnosticContext diagnosticContext, WatchState watchState,
+            ExecutionEnvironment executionEnvironment, SimulationMode simulationMode, NamedXContentRegistry xContentRegistry,
+            SignalsSettings signalsSettings, String nodeName, GotoCheckSelector checkSelector, NestedValueMap input) {
         this.watch = watch;
         this.client = client;
         this.scriptService = scriptService;
         this.watchLogWriter = watchLogWriter;
         this.watchStateWriter = watchStateWriter;
         this.watchState = watchState;
+        this.diagnosticContext = diagnosticContext;
         this.lastSeverityLevel = watchState != null ? watchState.getLastSeverityLevel() : null;
         this.contextData = new WatchExecutionContextData(new WatchExecutionContextData.WatchInfo(watch.getId(), watch.getTenant()));
         this.ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment,
@@ -131,76 +134,79 @@ public class WatchRunner implements Job {
     }
 
     public WatchLog execute() throws WatchExecutionException {
-        if (log.isInfoEnabled()) {
-            log.info("Running " + watch);
-        }
-
-        boolean error = false;
-
-        try {
-            Instant executionStart = Instant.now();
-            contextData.setExecutionTime(new JodaCompatibleZonedDateTime(executionStart, ZoneOffset.UTC));
-            this.watchLog.setExecutionStart(Date.from(executionStart));
-            this.watchLog.setActions(new ArrayList<ActionLog>(this.watch.getActions().size()));
-            this.watchLog.setResolveActions(new ArrayList<ActionLog>(this.watch.getResolveActions().size()));
-            this.watchLog.setTenant(watch.getTenant());
-
-            if (this.signalsSettings.isIncludeNodeInWatchLogEnabled()) {
-                this.watchLog.setNode(nodeName);
-            }
-
-            if (!executeChecks()) {
-                return this.watchLog;
-            }
-
-            if (!executeSeverityMapping()) {
-                return this.watchLog;
-            }
-
-            executeActions();
-
-            executeResolveActions();
-
-            setWatchLogStatus();
-
-            return watchLog;
-        } catch (Exception e) {
-            error = true;
-
-            if (this.watchLog.getStatus() == null) {
-                this.watchLog.setStatus(new Status(Status.Code.EXECUTION_FAILED, e.toString()));
-            }
-
-            if (e instanceof WatchExecutionException) {
-                throw (WatchExecutionException) e;
-            } else {
-                throw new WatchExecutionException("Error while executing " + watch, e, this.watchLog);
-            }
-        } finally {
-
-            if (this.watchState != null) {
-                if (!error) {
-                    this.watchState.setLastExecutionContextData(this.contextData);
-                }
-
-                this.watchState.setLastStatus(this.watchLog.getStatus());
-            }
-
-            if (this.watchStateWriter != null && this.watchState != null) {
-                this.watchStateWriter.put(watch.getId(), this.watchState);
-            }
-
-            this.watchLog.setExecutionFinished(new Date());
-            
-            this.watchLog.setData(contextData.getData().clone());
-            this.watchLog.setRuntimeAttributes(contextData.clone());
-
-            if (this.watchLogWriter != null) {
-                this.watchLogWriter.put(this.watchLog);
-            }
+        try (DiagnosticContext.Handle h = diagnosticContext.pushActionStack("signals_watch:" + watch.getTenant() + "/" + watch.getId())) {
 
             if (log.isInfoEnabled()) {
-                log.info("Finished " + watch + ": " + this.watchLog.getStatus());
+                log.info("Running " + watch);
+            }
+
+            boolean error = false;
+
+            try {
+                Instant executionStart = Instant.now();
+                contextData.setExecutionTime(new JodaCompatibleZonedDateTime(executionStart, ZoneOffset.UTC));
+                this.watchLog.setExecutionStart(Date.from(executionStart));
+                this.watchLog.setActions(new ArrayList<ActionLog>(this.watch.getActions().size()));
+                this.watchLog.setResolveActions(new ArrayList<ActionLog>(this.watch.getResolveActions().size()));
+                this.watchLog.setTenant(watch.getTenant());
+
+                if (this.signalsSettings.isIncludeNodeInWatchLogEnabled()) {
+                    this.watchLog.setNode(nodeName);
+                }
+
+                if (!executeChecks()) {
+                    return this.watchLog;
+                }
+
+                if (!executeSeverityMapping()) {
+                    return this.watchLog;
+                }
+
+                executeActions();
+
+                executeResolveActions();
+
+                setWatchLogStatus();
+
+                return watchLog;
+            } catch (Exception e) {
+                error = true;
+
+                if (this.watchLog.getStatus() == null) {
+                    this.watchLog.setStatus(new Status(Status.Code.EXECUTION_FAILED, e.toString()));
+                }
+
+                if (e instanceof WatchExecutionException) {
+                    throw (WatchExecutionException) e;
+                } else {
+                    throw new WatchExecutionException("Error while executing " + watch, e, this.watchLog);
+                }
+            } finally {
+
+                if (this.watchState != null) {
+                    if (!error) {
+                        this.watchState.setLastExecutionContextData(this.contextData);
+                    }
+
+                    this.watchState.setLastStatus(this.watchLog.getStatus());
+                }
+
+                if (this.watchStateWriter != null && this.watchState != null) {
+                    this.watchStateWriter.put(watch.getId(), this.watchState);
+                }
+
+                this.watchLog.setExecutionFinished(new Date());
+
+                this.watchLog.setData(contextData.getData().clone());
+                this.watchLog.setRuntimeAttributes(contextData.clone());
+
+                if (this.watchLogWriter != null) {
+                    this.watchLogWriter.put(this.watchLog);
+                }
+
+                if (log.isInfoEnabled()) {
+                    log.info("Finished " + watch + ": " + this.watchLog.getStatus());
+                }
             }
         }
     }

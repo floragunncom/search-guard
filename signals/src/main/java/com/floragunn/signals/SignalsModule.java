@@ -168,7 +168,7 @@ public class SignalsModule implements SearchGuardModule<Void>, ComponentStatePro
                     baseDependencies.getClusterService(), baseDependencies.getThreadPool(), baseDependencies.getResourceWatcherService(),
                     baseDependencies.getScriptService(), baseDependencies.getxContentRegistry(), baseDependencies.getEnvironment(),
                     baseDependencies.getNodeEnvironment(), baseDependencies.getInternalAuthTokenProvider(),
-                    baseDependencies.getProtectedConfigIndexService(), baseDependencies.getDynamicConfigFactory());
+                    baseDependencies.getProtectedConfigIndexService(), baseDependencies.getDynamicConfigFactory(), baseDependencies.getDiagnosticContext());
         } else {
             return Collections.emptyList();
         }

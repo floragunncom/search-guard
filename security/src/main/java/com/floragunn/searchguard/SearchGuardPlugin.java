@@ -176,6 +176,7 @@ import com.floragunn.searchguard.transport.DefaultInterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.SearchGuardInterceptor;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
@@ -214,6 +215,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private SearchGuardModulesRegistry moduleRegistry;
     private StaticSgConfig staticSgConfig;
     private AuthInfoService authInfoService;
+    private DiagnosticContext diagnosticContext;
     
     @Override
     public void close() throws IOException {
@@ -680,6 +682,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         List<ActionFilter> filters = new ArrayList<>(1);
         if (!client && !disabled && !sslOnly) {
             filters.add(Objects.requireNonNull(sgf));
+            
+            ActionFilter actionTraceFilter = diagnosticContext.getActionTraceFilter();
+            
+            if (actionTraceFilter != null) {
+                filters.add(actionTraceFilter);
+            }
         }
         return filters;
     }
@@ -850,8 +858,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         
         ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, settings);
         ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
-
-        sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, complianceConfig, compatConfig,
+        diagnosticContext = new DiagnosticContext(settings, threadPool.getThreadContext());
+        sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, diagnosticContext, complianceConfig, compatConfig,
                 specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService);
 
         final String principalExtractorClass = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, null);
@@ -863,7 +871,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
 
         sgi = new SearchGuardInterceptor(settings, threadPool, backendRegistry, auditLog, principalExtractor, interClusterRequestEvaluator, cs,
-                Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih));
+                Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), diagnosticContext);
         components.add(principalExtractor);
         
         protectedConfigIndexService = new ProtectedConfigIndexService(localClient, clusterService, threadPool, protectedIndices);
@@ -880,16 +888,17 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(protectedConfigIndexService);
         components.add(staticSgConfig);
         components.add(authInfoService);
+        components.add(diagnosticContext);
         
         BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
                 scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, dcf, staticSgConfig, cr,
-                protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry);
+                protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, diagnosticContext);
 
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
                 
         components.addAll(moduleComponents);
 
-        sgRestHandler = new SearchGuardRestFilter(backendRegistry, auditLog, threadPool, principalExtractor, settings, configPath, compatConfig);
+        sgRestHandler = new SearchGuardRestFilter(backendRegistry, auditLog, threadPool, principalExtractor, settings, configPath, compatConfig, diagnosticContext);
 
         return components;
 
@@ -1139,6 +1148,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             
             settings.add(SearchGuardModulesRegistry.DISABLED_MODULES);
             settings.addAll(moduleRegistry.getSettings());
+            settings.addAll(DiagnosticContext.SETTINGS);
         }
 
         return settings;

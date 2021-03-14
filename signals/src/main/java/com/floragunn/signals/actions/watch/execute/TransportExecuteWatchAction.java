@@ -27,6 +27,7 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
@@ -56,10 +57,12 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
     private final NamedXContentRegistry xContentRegistry;
     private final Settings settings;
     private final ClusterService clusterService;
+    private final DiagnosticContext diagnosticContext;
 
     @Inject
     public TransportExecuteWatchAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
-            ScriptService scriptService, NamedXContentRegistry xContentRegistry, Client client, Settings settings, ClusterService clusterService) {
+            ScriptService scriptService, NamedXContentRegistry xContentRegistry, Client client, Settings settings, ClusterService clusterService,
+            DiagnosticContext diagnosticContext) {
         super(ExecuteWatchAction.NAME, transportService, actionFilters, ExecuteWatchRequest::new);
 
         this.signals = signals;
@@ -69,6 +72,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         this.xContentRegistry = xContentRegistry;
         this.settings = settings;
         this.clusterService = clusterService;
+        this.diagnosticContext = diagnosticContext;
     }
 
     @Override
@@ -86,8 +90,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                 fetchAndExecuteWatch(user, signalsTenant, task, request, listener);
             }
         } catch (NoSuchTenantException e) {
-            listener.onResponse(new ExecuteWatchResponse(e.getTenant(), request.getWatchId(),
-                    ExecuteWatchResponse.Status.TENANT_NOT_FOUND, null));
+            listener.onResponse(new ExecuteWatchResponse(e.getTenant(), request.getWatchId(), ExecuteWatchResponse.Status.TENANT_NOT_FOUND, null));
         } catch (SignalsUnavailableException e) {
             listener.onFailure(e.toElasticsearchException());
         } catch (Exception e) {
@@ -160,9 +163,9 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
             Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService), signalsTenant.getName(),
                     "__inline_watch", request.getWatchJson(), -1);
 
-            threadPool.generic().submit(() -> {
+            threadPool.generic().submit(threadPool.getThreadContext().preserveContext(() -> {
                 listener.onResponse(executeWatch(watch, request, signalsTenant));
-            });
+            }));
 
         } catch (ConfigValidationException e) {
             listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
@@ -204,9 +207,9 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
             }
         }
 
-        WatchRunner watchRunner = new WatchRunner(watch, client, signals.getAccountRegistry(), scriptService, watchLogWriter, null, null,
-                ExecutionEnvironment.TEST, request.getSimulationMode(), xContentRegistry, signals.getSignalsSettings(), clusterService.getNodeName(),
-                checkSelector, input);
+        WatchRunner watchRunner = new WatchRunner(watch, client, signals.getAccountRegistry(), scriptService, watchLogWriter, null, diagnosticContext,
+                null, ExecutionEnvironment.TEST, request.getSimulationMode(), xContentRegistry, signals.getSignalsSettings(),
+                clusterService.getNodeName(), checkSelector, input);
 
         try {
             WatchLog watchLog = watchRunner.execute();

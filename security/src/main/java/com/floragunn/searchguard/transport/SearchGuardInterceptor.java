@@ -62,6 +62,7 @@ import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.collect.Maps;
 
 public class SearchGuardInterceptor {
@@ -77,6 +78,7 @@ public class SearchGuardInterceptor {
     private final SslExceptionHandler sslExceptionHandler;
     private final ClusterInfoHolder clusterInfoHolder;
     private final List<Pattern> customAllowedHeaderPatterns;
+    private final DiagnosticContext diagnosticContext;
 
     public SearchGuardInterceptor(final Settings settings,
             final ThreadPool threadPool, final BackendRegistry backendRegistry,
@@ -84,7 +86,7 @@ public class SearchGuardInterceptor {
             final InterClusterRequestEvaluator requestEvalProvider,
             final ClusterService cs,
             final SslExceptionHandler sslExceptionHandler,
-            final ClusterInfoHolder clusterInfoHolder) {
+            final ClusterInfoHolder clusterInfoHolder, DiagnosticContext diagnosticContext) {
         this.backendRegistry = backendRegistry;
         this.auditLog = auditLog;
         this.threadPool = threadPool;
@@ -94,6 +96,7 @@ public class SearchGuardInterceptor {
         this.sslExceptionHandler = sslExceptionHandler;
         this.clusterInfoHolder = clusterInfoHolder;
         this.customAllowedHeaderPatterns = getCustomAllowedHeaderPatterns(settings);
+        this.diagnosticContext = diagnosticContext;
     }
 
     public <T extends TransportRequest> SearchGuardRequestHandler<T> getHandler(String action,
@@ -112,6 +115,9 @@ public class SearchGuardInterceptor {
         final String origCCSTransientDls = getThreadContext().getTransient(ConfigConstants.SG_DLS_QUERY_CCS);
         final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
         final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
+        String actionStack = diagnosticContext.getActionStack();
+        
+        
         
         //stash headers and transient objects
         try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) {
@@ -168,6 +174,10 @@ public class SearchGuardInterceptor {
                 }
             }
 
+            if (actionStack != null) {
+                getThreadContext().putHeader(DiagnosticContext.ACTION_STACK_HEADER, actionStack);
+            }
+            
             getThreadContext().putHeader(headerMap);
 
             ensureCorrectHeaders(remoteAdress0, user0, origin0);

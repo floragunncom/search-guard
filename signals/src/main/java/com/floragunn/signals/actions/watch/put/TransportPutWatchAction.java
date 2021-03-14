@@ -18,6 +18,7 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
@@ -52,9 +53,11 @@ public class TransportPutWatchAction extends HandledTransportAction<PutWatchRequ
             }
 
             SignalsTenant signalsTenant = signals.getTenant(user);
-
-            threadPool.generic().submit(() -> {
+                        
+            threadPool.generic().submit(threadPool.getThreadContext().preserveContext(() -> {
                 try {
+                    DiagnosticContext.fixupLoggingContext(threadContext);
+                    
                     IndexResponse response = signalsTenant.addWatch(request.getWatchId(), request.getBody().utf8ToString(), user);
 
                     listener.onResponse(
@@ -67,11 +70,11 @@ public class TransportPutWatchAction extends HandledTransportAction<PutWatchRequ
                     log.error("Error while saving watch: ", e);
                     listener.onFailure(e);
                 }
-            });
+            }));
         } catch (NoSuchTenantException e) {
             listener.onResponse(new PutWatchResponse(request.getWatchId(), -1, Result.NOT_FOUND, RestStatus.NOT_FOUND, e.getMessage(), null));
         } catch (SignalsUnavailableException e) {
-            listener.onFailure(e.toElasticsearchException());            
+            listener.onFailure(e.toElasticsearchException());
         } catch (Exception e) {
             listener.onFailure(e);
         }

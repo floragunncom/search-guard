@@ -47,6 +47,7 @@ import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HTTPHelper;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 
 public class SearchGuardRestFilter {
 
@@ -58,9 +59,10 @@ public class SearchGuardRestFilter {
     private final Settings settings;
     private final Path configPath;
     private final CompatConfig compatConfig;
+    private final DiagnosticContext diagnosticContext;
 
     public SearchGuardRestFilter(final BackendRegistry registry, final AuditLog auditLog, final ThreadPool threadPool,
-            final PrincipalExtractor principalExtractor, final Settings settings, final Path configPath, final CompatConfig compatConfig) {
+            final PrincipalExtractor principalExtractor, final Settings settings, final Path configPath, final CompatConfig compatConfig, DiagnosticContext diagnosticContext) {
         super();
         this.registry = registry;
         this.auditLog = auditLog;
@@ -69,6 +71,7 @@ public class SearchGuardRestFilter {
         this.settings = settings;
         this.configPath = configPath;
         this.compatConfig = compatConfig;
+        this.diagnosticContext = diagnosticContext;
     }
 
     public RestHandler wrap(RestHandler original) {
@@ -77,6 +80,7 @@ public class SearchGuardRestFilter {
             @Override
             public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
                 org.apache.logging.log4j.ThreadContext.clearAll();
+                diagnosticContext.traceActionStack(request.getHttpRequest().method() + " " + request.getHttpRequest().uri());
 
                 if (!checkRequest(original, request, channel, client)) {
                     return;

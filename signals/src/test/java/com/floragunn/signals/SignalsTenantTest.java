@@ -32,6 +32,7 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.searchsupport.util.temporal.DurationFormat;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -58,6 +59,7 @@ public class SignalsTenantTest {
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
     private static InternalAuthTokenProvider internalAuthTokenProvider;
+    private static DiagnosticContext diagnosticContext;
     private static final User UHURA = User.forUser("uhura").backendRoles("signals_admin", "all_access").build();
 
     @BeforeClass
@@ -70,6 +72,7 @@ public class SignalsTenantTest {
         scriptService = node.injector().getInstance(ScriptService.class);
         internalAuthTokenProvider = node.injector().getInstance(InternalAuthTokenProvider.class);
         nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
+        diagnosticContext = node.injector().getInstance(DiagnosticContext.class);
 
         try (Client client = cluster.getAdminCertClient();
                 Client privilegedConfigClient = PrivilegedConfigClient.adapt(cluster.getInternalNodeClient())) {
@@ -105,7 +108,7 @@ public class SignalsTenantTest {
             Settings settings = Settings.builder().build();
 
             try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                    internalAuthTokenProvider, new SignalsSettings(settings), null)) {
+                    internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext)) {
                 tenant.init();
 
                 Assert.assertEquals(1, tenant.getLocalWatchCount());
@@ -123,7 +126,7 @@ public class SignalsTenantTest {
             Mockito.when(settings.getTenant("test").getNodeFilter()).thenReturn("unknown_attr:true");
 
             try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                    internalAuthTokenProvider, settings, null)) {
+                    internalAuthTokenProvider, settings, null, diagnosticContext)) {
                 tenant.init();
 
                 Assert.assertEquals(0, tenant.getLocalWatchCount());
@@ -141,7 +144,7 @@ public class SignalsTenantTest {
             Settings settings = Settings.builder().build();
 
             try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                    internalAuthTokenProvider, new SignalsSettings(settings), null)) {
+                    internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext)) {
                 tenant.init();
 
                 Watch watch = new WatchBuilder("test_watch").atInterval("100ms").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -175,7 +178,7 @@ public class SignalsTenantTest {
             Thread.sleep(1000);
 
             try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                    internalAuthTokenProvider, new SignalsSettings(settings), null)) {
+                    internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext)) {
                 tenant.init();
 
                 for (int i = 0; i < 20; i++) {
@@ -205,7 +208,7 @@ public class SignalsTenantTest {
             Settings settings = Settings.builder().build();
 
             try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
-                    xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null)) {
+                    xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext)) {
                 tenant.init();
 
                 Watch watch = new WatchBuilder("test_watch").atInterval("100ms").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -237,7 +240,7 @@ public class SignalsTenantTest {
             System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
             try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
-                    xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null)) {
+                    xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext)) {
                 tenant.init();
 
                 for (int i = 0; i < 20; i++) {

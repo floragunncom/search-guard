@@ -52,6 +52,7 @@ import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.base.Strings;
 
 public class SearchGuardRequestHandler<T extends TransportRequest> extends SearchGuardSSLRequestHandler<T> {
@@ -104,6 +105,8 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
             getThreadContext().putTransient(ConfigConstants.SG_ORIGIN, originHeader);
         }
 
+        DiagnosticContext.fixupLoggingContext(getThreadContext());        
+        
         try {
 
            if(transportChannel.getChannelType() == null) {
