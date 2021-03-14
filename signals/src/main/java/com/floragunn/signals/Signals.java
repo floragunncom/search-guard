@@ -38,6 +38,7 @@ import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.settings.SignalsSettings.StaticSettings.IndexNames;
@@ -65,6 +66,7 @@ public class Signals extends AbstractLifecycleComponent {
     private Settings settings;
     private String nodeId;
     private Map<String, Exception> tenantInitErrors = new ConcurrentHashMap<>();
+    private  DiagnosticContext diagnosticContext;
 
     public Signals(Settings settings, ComponentState componentState) {
         this.componentState = componentState;
@@ -76,7 +78,7 @@ public class Signals extends AbstractLifecycleComponent {
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, InternalAuthTokenProvider internalAuthTokenProvider,
-            ProtectedConfigIndexService protectedConfigIndexService, DynamicConfigFactory dynamicConfigFactory) {
+            ProtectedConfigIndexService protectedConfigIndexService, DynamicConfigFactory dynamicConfigFactory, DiagnosticContext diagnosticContext) {
 
         try {
             nodeId = nodeEnvironment.nodeId();
@@ -92,6 +94,7 @@ public class Signals extends AbstractLifecycleComponent {
             this.xContentRegistry = xContentRegistry;
             this.scriptService = scriptService;
             this.internalAuthTokenProvider = internalAuthTokenProvider;
+            this.diagnosticContext = diagnosticContext;
 
             createIndexes(protectedConfigIndexService);
 
@@ -191,7 +194,7 @@ public class Signals extends AbstractLifecycleComponent {
         try {
 
             SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                    internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState);
+                    internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState, diagnosticContext);
 
             tenants.put(name, signalsTenant);
 

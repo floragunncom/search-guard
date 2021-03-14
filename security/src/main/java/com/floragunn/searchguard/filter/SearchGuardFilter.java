@@ -75,8 +75,10 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SourceFieldsContext;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 
 public class SearchGuardFilter implements ActionFilter {
+    
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
@@ -90,9 +92,10 @@ public class SearchGuardFilter implements ActionFilter {
     private final CompatConfig compatConfig;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
     private final ExtendedActionHandlingService extendedActionHandlingService;
+    private final DiagnosticContext diagnosticContext;
 
     public SearchGuardFilter(final PrivilegesEvaluator evalp, final AdminDNs adminDns, DlsFlsRequestValve dlsFlsValve, AuditLog auditLog,
-            ThreadPool threadPool, ClusterService cs, ComplianceConfig complianceConfig, final CompatConfig compatConfig,
+            ThreadPool threadPool, ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, final CompatConfig compatConfig,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ExtendedActionHandlingService extendedActionHandlingService) {
         this.evalp = evalp;
         this.adminDns = adminDns;
@@ -104,6 +107,7 @@ public class SearchGuardFilter implements ActionFilter {
         this.compatConfig = compatConfig;
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         this.extendedActionHandlingService = extendedActionHandlingService;
+        this.diagnosticContext = diagnosticContext;
     }
 
     @Override
@@ -114,11 +118,10 @@ public class SearchGuardFilter implements ActionFilter {
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, final String action, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
-
+        
         specialPrivilegesEvaluationContextProviderRegistry.provide(threadContext.getTransient(ConfigConstants.SG_USER), threadContext,
-                (specialPrivilegesEvaluationContext) -> {
+                (specialPrivilegesEvaluationContext) -> {                    
                     try (StoredContext ctx = threadContext.newStoredContext(true)) {
-                        org.apache.logging.log4j.ThreadContext.clearAll();
                         apply0(task, action, request, listener, chain, specialPrivilegesEvaluationContext);
                     } catch (Exception e) {
                         log.error(e);
@@ -138,11 +141,12 @@ public class SearchGuardFilter implements ActionFilter {
             if (threadContext.getTransient(ConfigConstants.SG_ORIGIN) == null) {
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.LOCAL.toString());
             }
-
+            
             if (complianceConfig != null && complianceConfig.isEnabled()) {
                 attachSourceFieldContext(request);
             }
 
+            
             User user = threadContext.getTransient(ConfigConstants.SG_USER);
             final boolean userIsAdmin = isUserAdmin(user, adminDns);
             final boolean interClusterRequest = HeaderHelper.isInterClusterRequest(threadContext);
@@ -153,6 +157,8 @@ public class SearchGuardFilter implements ActionFilter {
 
             final boolean internalRequest = (interClusterRequest || HeaderHelper.isDirectRequest(threadContext)) && action.startsWith("internal:")
                     && !action.startsWith("internal:transport/proxy");
+            
+            diagnosticContext.addHeadersToLogContext(threadContext);
 
             if (specialPrivilegesEvaluationContext != null) {
                 if (log.isDebugEnabled()) {
@@ -169,9 +175,7 @@ public class SearchGuardFilter implements ActionFilter {
                 }
             }
 
-            if (user != null) {
-                org.apache.logging.log4j.ThreadContext.put("user", user.getName());
-            }
+             org.apache.logging.log4j.ThreadContext.put("user", user != null ? user.getName() : "n/a");
 
             if (actionTrace.isTraceEnabled()) {
 
@@ -424,5 +428,6 @@ public class SearchGuardFilter implements ActionFilter {
 
         return null;
     }
+    
 
 }

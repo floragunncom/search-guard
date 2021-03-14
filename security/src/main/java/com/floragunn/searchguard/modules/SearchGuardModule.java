@@ -36,6 +36,7 @@ import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextPr
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchsupport.config.validation.JsonNodeParser;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 
 public interface SearchGuardModule<T> {
     default List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
@@ -125,13 +126,14 @@ public interface SearchGuardModule<T> {
         private final NodeEnvironment nodeEnvironment;
         private final InternalAuthTokenProvider internalAuthTokenProvider;
         private final StaticSgConfig staticSgConfig;
+        private final DiagnosticContext diagnosticContext;
 
         public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
                 ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
                 Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
                 DynamicConfigFactory dynamicConfigFactory, StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository,
                 ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
-                SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry) {
+                SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, DiagnosticContext diagnosticContext) {
             super();
             this.settings = settings;
             this.localClient = localClient;
@@ -149,6 +151,7 @@ public interface SearchGuardModule<T> {
             this.protectedConfigIndexService = protectedConfigIndexService;
             this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
             this.internalAuthTokenProvider = internalAuthTokenProvider;
+            this.diagnosticContext = diagnosticContext;
         }
 
         public Settings getSettings() {
@@ -213,6 +216,10 @@ public interface SearchGuardModule<T> {
         
         public StaticSgConfig getStaticSgConfig() {
             return staticSgConfig;
+        }
+
+        public DiagnosticContext getDiagnosticContext() {
+            return diagnosticContext;
         }
 
     }

@@ -14,6 +14,9 @@ import org.elasticsearch.client.FilterClient;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 
+import com.floragunn.searchsupport.diag.DiagnosticContext;
+import com.floragunn.searchsupport.diag.LogContextPreservingActionListener;
+
 public class ContextHeaderDecoratorClient extends FilterClient {
 
     private Map<String, String> headers;
@@ -32,9 +35,17 @@ public class ContextHeaderDecoratorClient extends FilterClient {
             ActionListener<Response> listener) {
 
         ThreadContext threadContext = threadPool().getThreadContext();
-        ContextPreservingActionListener<Response> wrappedListener = ContextPreservingActionListener.wrapPreservingContext(listener, threadContext);
+        LogContextPreservingActionListener<Response> wrappedListener = LogContextPreservingActionListener.wrapPreservingContext(listener, threadContext);
+        String actionStack = DiagnosticContext.getActionStack(threadContext);
+        
         try (StoredContext ctx = threadContext.stashContext()) {
             threadContext.putHeader(this.headers);
+            
+            if (actionStack != null) {
+                threadContext.putHeader(DiagnosticContext.ACTION_STACK_HEADER, actionStack);
+                DiagnosticContext.fixupLoggingContext(threadContext);
+            }
+            
 
             super.doExecute(action, request, wrappedListener);
         }
