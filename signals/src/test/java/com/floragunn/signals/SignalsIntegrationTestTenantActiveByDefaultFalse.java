@@ -47,7 +47,7 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 import net.jcip.annotations.NotThreadSafe;
 
 /**
- * Integration tests for signals.all_tenants_active_by_default: true
+ * Integration tests for signals.all_tenants_active_by_default: false
  */
 @NotThreadSafe
 public class SignalsIntegrationTestTenantActiveByDefaultFalse {
@@ -100,7 +100,7 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
 
-            Thread.sleep(1000);
+            Thread.sleep(2000);
 
             Assert.assertEquals(0, getCountOfDocuments(client, "testsink_put_watch"));
 

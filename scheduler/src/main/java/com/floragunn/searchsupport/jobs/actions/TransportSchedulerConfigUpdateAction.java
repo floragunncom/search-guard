@@ -64,9 +64,10 @@ public class TransportSchedulerConfigUpdateAction extends
         DiscoveryNode localNode = clusterService.localNode();
 
         try {
-            IndexJobStateStore<?> jobStore = IndexJobStateStore.getInstanceBySchedulerName(request.request.getSchedulerName());
+            IndexJobStateStore<?> jobStore = IndexJobStateStore.getInstanceBySchedulerName(localNode.getId(), request.request.getSchedulerName());
 
             if (jobStore == null) {
+                log.warn("A job store for scheduler name " + request.request.getSchedulerName() + " does not exist (" + localNode.getId() + ")");
                 return new NodeResponse(localNode, NodeResponse.Status.NO_SUCH_JOB_STORE,
                         "A job store for scheduler name " + request.request.getSchedulerName() + " does not exist");
             }
@@ -75,6 +76,8 @@ public class TransportSchedulerConfigUpdateAction extends
 
             if (nodeId != null && !localNode.getId().equals(nodeId)) {
                 // This may happen if there are several nodes per JVM (e.g., unit tests)
+                log.error("The scheduler with the name " + request.request.getSchedulerName() + " is not configured for this node: "
+                        + localNode.getId() + " vs " + jobStore.getNodeId());
 
                 return new NodeResponse(localNode, NodeResponse.Status.NO_SUCH_JOB_STORE,
                         "The scheduler with the name " + request.request.getSchedulerName() + " is not configured for this node: " + localNode.getId()

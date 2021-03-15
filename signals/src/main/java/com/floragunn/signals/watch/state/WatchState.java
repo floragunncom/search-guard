@@ -36,6 +36,11 @@ public class WatchState implements ToXContentObject {
     public WatchState(String tenant) {
         this.tenant = tenant;
     }
+    
+    public WatchState(String tenant, String node) {
+        this.tenant = tenant;
+        this.node = node;
+    }
 
     public ActionState getActionState(String actionId) {
 

@@ -2,6 +2,7 @@ package com.floragunn.signals.watch.state;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class WatchStateManager {
@@ -14,11 +15,17 @@ public class WatchStateManager {
         this.node = node;
     }
 
-    public Map<String, WatchState> reset(Map<String, WatchState> watchIdToStateMap) {
+    public Map<String, WatchState> reset(Map<String, WatchState> watchIdToStateMap, Set<String> additionalWatchIds) {
         this.watchIdToStateMap.putAll(watchIdToStateMap);
-        this.watchIdToStateMap.keySet().retainAll(this.watchIdToStateMap.keySet());
+        this.watchIdToStateMap.keySet().retainAll(watchIdToStateMap.keySet());
 
-        return checkNodeChanges(watchIdToStateMap);
+        return checkNodeChanges(watchIdToStateMap, additionalWatchIds);
+    }
+
+    public Map<String, WatchState> add(Map<String, WatchState> watchIdToStateMap, Set<String> additionalWatchIds) {
+        this.watchIdToStateMap.putAll(watchIdToStateMap);
+
+        return checkNodeChanges(watchIdToStateMap, additionalWatchIds);
     }
 
     public WatchState getWatchState(String watchId) {
@@ -27,7 +34,7 @@ public class WatchStateManager {
             throw new IllegalArgumentException("watchId is null");
         }
 
-        WatchState watchState = this.watchIdToStateMap.computeIfAbsent(watchId, (String key) -> new WatchState(tenant));
+        WatchState watchState = this.watchIdToStateMap.computeIfAbsent(watchId, (String key) -> new WatchState(tenant, node));
 
         return watchState;
     }
@@ -36,7 +43,7 @@ public class WatchStateManager {
         watchIdToStateMap.remove(watchId);
     }
 
-    private Map<String, WatchState> checkNodeChanges(Map<String, WatchState> watchIdToStateMap) {
+    private Map<String, WatchState> checkNodeChanges(Map<String, WatchState> watchIdToStateMap, Set<String> additionalWatchIds) {
         HashMap<String, WatchState> dirtyStates = new HashMap<>();
 
         for (Map.Entry<String, WatchState> entry : watchIdToStateMap.entrySet()) {
@@ -50,6 +57,23 @@ public class WatchStateManager {
                 state.setNode(node);
                 state.setRefreshBeforeExecuting(true);
                 dirtyStates.put(id, state);
+            }
+        }
+        
+        for (String additionalWatchId : additionalWatchIds) {
+            if (watchIdToStateMap.containsKey(additionalWatchId)) {
+                continue;
+            }
+            
+            WatchState state = this.watchIdToStateMap.computeIfAbsent(additionalWatchId, (String key) -> new WatchState(tenant));
+            
+            if (state.getNode() == null) {
+                state.setNode(node);
+                dirtyStates.put(additionalWatchId, state);
+            } else if (!node.equals(state.getNode())) {
+                state.setNode(node);
+                state.setRefreshBeforeExecuting(true);
+                dirtyStates.put(additionalWatchId, state);
             }
         }
 

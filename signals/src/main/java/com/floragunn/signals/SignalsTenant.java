@@ -470,6 +470,32 @@ public class SignalsTenant implements Closeable {
             for (Watch deletedWatch : deletedJobs) {
                 watchStateManager.delete(deletedWatch.getId());
             }
+            
+            if (newJobs != null && newJobs.size() > 0) {
+                Set<String> watchIds = newJobs.stream().map((watch) -> watch.getId()).collect(Collectors.toSet());
+
+                tenantState.setState(State.INITIALIZING, "reading_states");
+                
+                if (log.isDebugEnabled()) {
+                    log.debug("Reading states of newly arrived watches from index: " + watchIds);
+                }
+                
+                Map<String, WatchState> statesFromIndex = watchStateReader.get(watchIds);
+
+                Map<String, WatchState> dirtyStates = watchStateManager.add(statesFromIndex, watchIds);
+
+                if (!dirtyStates.isEmpty()) {
+                    tenantState.setState(State.INITIALIZING, "writing_states");
+                    
+                    if (log.isDebugEnabled()) {
+                        log.debug("Updating dirty states: " + dirtyStates);
+                    }
+
+                    watchStateWriter.putAll(dirtyStates);
+                }
+
+                tenantState.setState(State.INITIALIZED);
+            }
         }
 
         @Override
@@ -478,10 +504,10 @@ public class SignalsTenant implements Closeable {
 
             tenantState.setState(State.INITIALIZING, "reading_states");
 
-            Map<String, WatchState> dirtyStates = watchStateManager.reset(watchStateReader.get(watchIds));
+            Map<String, WatchState> dirtyStates = watchStateManager.reset(watchStateReader.get(watchIds), watchIds);
 
             if (!dirtyStates.isEmpty()) {
-                tenantState.setState(State.INITIALIZING, "wr)iting_states");
+                tenantState.setState(State.INITIALIZING, "writing_states");
 
                 watchStateWriter.putAll(dirtyStates);
             }
