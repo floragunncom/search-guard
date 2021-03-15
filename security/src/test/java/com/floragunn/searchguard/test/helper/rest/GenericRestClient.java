@@ -111,10 +111,11 @@ public class GenericRestClient implements AutoCloseable {
         return executeRequest(new HttpOptions(getHttpServerUri() + "/" + path), headers);
     }
 
-    public HttpResponse putJson(String path, String body) throws Exception {
+    public HttpResponse putJson(String path, String body, Header... headers) throws Exception {
         HttpPut uriRequest = new HttpPut(getHttpServerUri() + "/" + path);
         uriRequest.setEntity(new StringEntity(body));
-        HttpResponse response = executeRequest(uriRequest, CONTENT_TYPE_JSON);
+
+        HttpResponse response = executeRequest(uriRequest, mergeHeaders(CONTENT_TYPE_JSON, headers));
 
         if (response.getStatusCode() < 400 && trackResources && !puttedResourcesSet.contains(path)) {
             puttedResourcesSet.add(path);
@@ -271,6 +272,18 @@ public class GenericRestClient implements AutoCloseable {
         }
 
         return hcb.build();
+    }
+
+    private Header[] mergeHeaders(Header header, Header... headers) {
+
+        if (headers == null || headers.length == 0) {
+            return new Header[] { header };
+        } else {
+            Header[] result = new Header[headers.length + 1];
+            result[0] = header;
+            System.arraycopy(headers, 0, result, 1, headers.length);
+            return result;
+        }
     }
 
     public static class HttpResponse {
