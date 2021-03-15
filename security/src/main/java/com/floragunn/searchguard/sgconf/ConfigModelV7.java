@@ -707,8 +707,13 @@ public class ConfigModelV7 extends ConfigModel {
             
             for (SgRole role : roles.values()) {
                 for (Tenant tenant : role.getTenants()) {
-                    if (WildcardMatcher.match(tenant.getTenantPattern(), requestedTenant)) {
-                        permissions.addAll(tenant.getPermissions());
+                    try {
+                        if (WildcardMatcher.match(tenant.getEvaluatedTenantPattern(user), requestedTenant)) {
+                            permissions.addAll(tenant.getPermissions());
+                        }
+                    } catch (StringInterpolationException e) {
+                        log.error("Error while evaluating tenant pattern '" + tenant.getTenantPattern() + "' of role '" + role.getName()
+                                + "' for user " + user.getName() + "\nSkipping tenant pattern.", e);
                     }
                 }
             }
@@ -747,17 +752,22 @@ public class ConfigModelV7 extends ConfigModel {
 
             for (SgRole role : roles.values()) {
                 for (Tenant tenant : role.getTenants()) {
-                    String tenantPattern = tenant.getTenantPattern();
-                    boolean rw = tenant.isReadWrite();
+                    try {
+                        String tenantPattern = tenant.getEvaluatedTenantPattern(user);
+                        boolean rw = tenant.isReadWrite();
 
-                    for (String tenantName : allTenantNames) {
+                        for (String tenantName : allTenantNames) {
 
-                        if (WildcardMatcher.match(tenantPattern, tenantName)) {
+                            if (WildcardMatcher.match(tenantPattern, tenantName)) {
 
-                            if (rw || !result.containsKey(tenantName)) { //RW outperforms RO
-                                result.put(tenantName, rw);
+                                if (rw || !result.containsKey(tenantName)) { //RW outperforms RO
+                                    result.put(tenantName, rw);
+                                }
                             }
                         }
+                    } catch (StringInterpolationException e) {
+                        log.error("Error while evaluating tenant pattern '" + tenant.getTenantPattern() + "' of role '" + role.getName()
+                                + "' for user " + user.getName() + "\nSkipping tenant pattern.", e);
                     }
                 }
             }
@@ -1524,12 +1534,14 @@ public class ConfigModelV7 extends ConfigModel {
 
     public static class Tenant  implements ToXContentObject  {
         private final String tenantPattern;
+        private final boolean tenantPatternNeedsAttributeReplacement;
         private final boolean readWrite;
         private final Set<String> permissions;
-
+        
         private Tenant(String tenant, Set<String> permissions) {
             super();
             this.tenantPattern = tenant;
+            this.tenantPatternNeedsAttributeReplacement = UserAttributes.needsAttributeReplacement(tenant);
             this.permissions = Collections.unmodifiableSet(permissions);
             this.readWrite = containsKibanaWritePermission(permissions);
         }
@@ -1538,6 +1550,14 @@ public class ConfigModelV7 extends ConfigModel {
             return tenantPattern;
         }
 
+        public String getEvaluatedTenantPattern(User user) throws StringInterpolationException {
+            if (tenantPatternNeedsAttributeReplacement) {
+                return UserAttributes.replaceAttributes(tenantPattern, user);
+            } else {
+                return tenantPattern;
+            }
+        }
+        
         public boolean isReadWrite() {
             return readWrite;
         }
