@@ -483,3 +483,24 @@ sg_role_starfleet_captains:
     - "command_tenant"
     allowed_actions:
     - "SGS_KIBANA_ALL_WRITE"
+sg_tenant_user_attrs:
+  cluster_permissions:
+  - "CLUSTER_COMPOSITE_OPS"
+  index_permissions:
+  - index_patterns:
+    - "humanresources"
+    allowed_actions:
+    - "*"
+  - index_patterns:
+    - "?kibana"
+    allowed_actions:
+    - "ALL"
+  tenant_permissions:
+  - tenant_patterns:
+    - "dept_${user.attrs.dept_no}"
+    allowed_actions:
+    - "SGS_KIBANA_ALL_WRITE"
+  - tenant_patterns:
+    - "business_intelligence"
+    allowed_actions:
+    - "SGS_KIBANA_ALL_READ"    
