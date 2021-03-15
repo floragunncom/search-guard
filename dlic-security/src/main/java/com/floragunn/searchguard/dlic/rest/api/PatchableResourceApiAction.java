@@ -136,7 +136,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
         try {
             patchedResourceAsJsonNode = applyPatch(jsonPatch, existingResourceAsJsonNode);
-        } catch (JsonPatchApplicationException e) {
+        } catch (JsonPatchApplicationException | IllegalArgumentException e) {
             log.debug("Error while applying JSON patch", e);
             badRequestResponse(channel, e.getMessage());
             return;
