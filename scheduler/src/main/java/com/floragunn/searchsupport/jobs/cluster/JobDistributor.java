@@ -23,6 +23,7 @@ public class JobDistributor implements AutoCloseable {
     private DistributedJobStore distributedJobStore;
     private int availableNodes = 0;
     private int currentNodeIndex = -1;
+    private Object[] currentAvailableNodeIds;
 
     public JobDistributor(String name, String nodeFilter, ClusterService clusterService, DistributedJobStore distributedJobStore) {
         this(name, nodeFilter, clusterService, distributedJobStore, new NodeIdComparator(clusterService));
@@ -51,6 +52,11 @@ public class JobDistributor implements AutoCloseable {
 
         int jobNodeIndex = Math.abs(jobConfig.hashCode()) % this.availableNodes;
 
+        if (log.isTraceEnabled()) {
+            log.trace("isJobSelected(  " + jobConfig + ", " + nodeIndex + ")\navailableNodes: " + this.availableNodes + "\njobNodeIndex: "
+                    + jobNodeIndex);
+        }
+
         if (jobNodeIndex == nodeIndex) {
             return true;
         } else {
@@ -78,11 +84,20 @@ public class JobDistributor implements AutoCloseable {
         int oldCurrentNodeIndex = this.currentNodeIndex;
         Object[] availableNodeIds = getAvailableNodeIds(clusterState);
 
+        /*if (currentAvailableNodeIds != null && Arrays.equals(availableNodeIds, currentAvailableNodeIds)) {
+            if (log.isTraceEnabled()) {
+                log.trace("Got cluster change event on " + clusterState.nodes().getLocalNodeId() + ", but nodes did not change");
+            }
+        
+            return false;
+        }*/
+
         if (log.isDebugEnabled()) {
             log.debug("Update of " + this + " on " + clusterState.nodes().getLocalNodeId() + ": " + Arrays.asList(availableNodeIds));
         }
 
         this.availableNodes = availableNodeIds.length;
+        this.currentAvailableNodeIds = availableNodeIds;
 
         if (this.availableNodes == 0) {
             log.error("No nodes available for " + this + "\nnodeFilter: " + nodeFilter);
@@ -93,7 +108,8 @@ public class JobDistributor implements AutoCloseable {
         }
 
         if (oldAvailableNodes == this.availableNodes && oldCurrentNodeIndex == this.currentNodeIndex) {
-            log.debug("Cluster state change does not require rescheduling of jobs");
+            log.debug("Cluster state change does not require rescheduling of jobs. This node remains at index: " + oldCurrentNodeIndex
+                    + "; available nodes remains at: " + this.availableNodes);
             return false;
         }
 
@@ -126,6 +142,17 @@ public class JobDistributor implements AutoCloseable {
             if (event.state().blocks().hasGlobalBlockWithLevel(ClusterBlockLevel.READ)) {
                 log.debug("Cluster is not ready right now:\n" + event.state());
                 return;
+            }
+
+            if (log.isDebugEnabled()) {
+                log.debug("ClusterChangedEvent:\nblocksChanged: " + event.blocksChanged() + "\nmetadata: " + event.changedCustomMetadataSet()
+                        + "\nindices created: " + event.indicesCreated() + "\nindices deleted: " + event.indicesDeleted() + "\nnew cluster: "
+                        + event.isNewCluster() + "\nlocalNodeMaster: " + event.localNodeMaster() + "\nmetadataChanged: " + event.metadataChanged()
+                        + "\nnodesAdded: " + event.nodesAdded() + "\nnodesChanged: " + event.nodesChanged() + "\nnodesRemoved: "
+                        + event.nodesRemoved() + "\nroutingTableChanged: " + event.routingTableChanged() + "\nsource: " + event.source()
+                        + "\ncurrent master: " + event.state().nodes().getMasterNodeId() + " "
+                        + (event.state().nodes().getMasterNode() != null ? event.state().nodes().getMasterNode().getName() : "-") + "\nall masters: "
+                        + event.state().nodes().getMasterNodes());
             }
 
             boolean distributionChanged = update(event.state());

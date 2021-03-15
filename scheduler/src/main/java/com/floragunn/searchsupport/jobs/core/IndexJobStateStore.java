@@ -88,13 +88,22 @@ import com.google.common.collect.Table;
 
 public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs.config.JobConfig> implements DistributedJobStore {
 
+    /**
+     * For unit testing in environments where several nodes run in one JVM.
+     */
+    public static boolean includeNodeIdInSchedulerToJobStoreMapKeys = false;
+
     // TODO maybe separate loggers for each scheduler instance?
     private static final Logger log = LogManager.getLogger(IndexJobStateStore.class);
 
     private final static Map<String, IndexJobStateStore<?>> schedulerToJobStoreMap = new MapMaker().concurrencyLevel(4).weakValues().makeMap();
 
-    public static IndexJobStateStore<?> getInstanceBySchedulerName(String schedulerName) {
-        return schedulerToJobStoreMap.get(schedulerName);
+    public static IndexJobStateStore<?> getInstanceBySchedulerName(String nodeId, String schedulerName) {
+        if (includeNodeIdInSchedulerToJobStoreMapKeys) {
+            return schedulerToJobStoreMap.get(nodeId + "::" + schedulerName);
+        } else {
+            return schedulerToJobStoreMap.get(schedulerName);
+        }
     }
 
     private final String schedulerName;
@@ -152,7 +161,12 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     @Override
     public void initialize(ClassLoadHelper loadHelper, SchedulerSignaler signaler) throws SchedulerConfigException {
         this.signaler = signaler;
-        schedulerToJobStoreMap.put(schedulerName, this);
+
+        if (includeNodeIdInSchedulerToJobStoreMapKeys) {
+            schedulerToJobStoreMap.put(nodeId + "::" + schedulerName, this);
+        } else {
+            schedulerToJobStoreMap.put(schedulerName, this);
+        }
 
         try {
             this.initJobs();
@@ -1236,6 +1250,10 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         long start = System.currentTimeMillis();
 
         try {
+            if (log.isTraceEnabled()) {
+                log.trace("Going to load jobs; ");
+            }
+            
             Set<JobType> jobConfigSet = this.loadJobConfigAfterReachingYellowStatus();
 
             notifyJobConfigInitListeners(jobConfigSet);
@@ -1344,11 +1362,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
 
             notifyJobConfigUpdateListeners(newJobTypes, updatedJobTypes, deletedJobTypes);
 
-            return "New: " + newJobs.values().size() + "\nUpdated: " + updatedJobs.size() + "\nDeleted Jobs: " + deletedJobs.size();
+            return "new: " + newJobs.values().size() + "; upd: " + updatedJobs.size() + "; del: " + deletedJobs.size();
         } else {
             log.info("Job update finished. Nothing changed.");
 
-            return "No changes";
+            return "no changes";
         }
 
     }
@@ -1744,8 +1762,9 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
 
     private Set<JobType> loadJobConfigAfterReachingYellowStatus() {
         try {
+            // TODO XXX
             ClusterHealthResponse clusterHealthResponse = client.admin().cluster().prepareHealth().setWaitForYellowStatus()
-                    .setWaitForNoInitializingShards(true).setTimeout(TimeValue.timeValueSeconds(30)).execute().actionGet();
+                    .setWaitForNoInitializingShards(true).setTimeout(TimeValue.timeValueSeconds(1)).execute().actionGet();
 
             if (log.isDebugEnabled()) {
                 log.debug("Cluster health before loading job config: " + clusterHealthResponse);

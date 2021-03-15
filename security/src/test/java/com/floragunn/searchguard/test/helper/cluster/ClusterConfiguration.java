@@ -49,6 +49,8 @@ public enum ClusterConfiguration {
     //4 node (1m, 2d, 1c)
     CLIENTNODE(new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true), new NodeSettings(false, false)),
 
+    THREE_MASTERS(new NodeSettings(true, false), new NodeSettings(true, false), new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true)),
+    
     //3 nodes (1m, 2d) plus additional UserInjectorPlugin
     USERINJECTOR(new NodeSettings(true, false, Lists.newArrayList(UserInjectorPlugin.class)),
             new NodeSettings(false, true, Lists.newArrayList(UserInjectorPlugin.class)),
