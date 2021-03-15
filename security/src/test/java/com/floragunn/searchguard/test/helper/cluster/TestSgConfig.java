@@ -6,7 +6,9 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -50,10 +52,17 @@ public class TestSgConfig {
     }
 
     public TestSgConfig user(User user) {
-        return this.user(user.name, user.password, user.roles);
+        if (user.roleNames != null) {
+            return this.user(user.name, user.password, user.attributes, user.roleNames);            
+        } else {
+            return this.user(user.name, user.password, user.attributes, user.roles);            
+        }
     }
-
     public TestSgConfig user(String name, String password, String... sgRoles) {
+        return user(name, password, null, sgRoles);
+    }
+    
+    public TestSgConfig user(String name, String password,  Map<String, Object> attributes,  String... sgRoles) {
         if (overrideUserSettings == null) {
             overrideUserSettings = new NestedValueMap();
         }
@@ -63,11 +72,21 @@ public class TestSgConfig {
         if (sgRoles != null && sgRoles.length > 0) {
             overrideUserSettings.put(new NestedValueMap.Path(name, "search_guard_roles"), sgRoles);
         }
+        
+        if (attributes != null && attributes.size() != 0) {
+            for (Map.Entry<String, Object> attr : attributes.entrySet()) {
+                overrideUserSettings.put(new NestedValueMap.Path(name, "attributes", attr.getKey()), attr.getValue());
+            }
+        }
 
         return this;
     }
-
+    
     public TestSgConfig user(String name, String password, Role... sgRoles) {
+        return user(name, password, null, sgRoles);
+    }
+
+    public TestSgConfig user(String name, String password, Map<String, Object> attributes, Role... sgRoles) {
         if (overrideUserSettings == null) {
             overrideUserSettings = new NestedValueMap();
         }
@@ -82,9 +101,16 @@ public class TestSgConfig {
             roles(roleNamePrefix, sgRoles);
         }
 
+        if (attributes != null && attributes.size() != 0) {
+            for (Map.Entry<String, Object> attr : attributes.entrySet()) {
+                overrideUserSettings.put(new NestedValueMap.Path(name, "attributes", attr.getKey()), attr.getValue());
+            }
+        }
+        
         return this;
     }
 
+       
     public TestSgConfig roles(Role... roles) {
         return roles("", roles);
     }
@@ -138,7 +164,7 @@ public class TestSgConfig {
             throw new RuntimeException("ConfigUpdateResponse produced failures: " + configUpdateResponse.failures());
         }
     }
-
+    
     private void writeConfigToIndex(Client client, CType configType, String file, NestedValueMap overrides) {
         try {
             NestedValueMap config = NestedValueMap.fromYaml(openFile(file));
@@ -189,6 +215,9 @@ public class TestSgConfig {
         private String name;
         private String password;
         private Role[] roles;
+        private String [] roleNames;
+        private Map<String, Object> attributes = new HashMap<>();
+        
 
         public User(String name) {
             this.name = name;
@@ -204,7 +233,18 @@ public class TestSgConfig {
             this.roles = roles;
             return this;
         }
+        
+        public User roles(String ...roles) {
+            this.roleNames = roles;
+            return this;
+        }
 
+        public User attr(String key, Object value) {
+            this.attributes.put(key, value);
+            return this;
+        }
+
+        
         public String getName() {
             return name;
         }
