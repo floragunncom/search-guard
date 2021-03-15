@@ -43,6 +43,8 @@ import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.SingleClusterTest;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
@@ -421,4 +423,51 @@ public class MultitenancyTests extends SingleClusterTest {
             }
         }
     } 
+    
+    private final static TestSgConfig.User USER_DEPT_01 = new TestSgConfig.User("user_dept_01").attr("dept_no", "01").roles("sg_tenant_user_attrs");
+    private final static TestSgConfig.User USER_DEPT_02 = new TestSgConfig.User("user_dept_02").attr("dept_no", "02").roles("sg_tenant_user_attrs");
+
+    @Test
+    public void testUserAttributesInTenantPattern() throws Exception {
+
+        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().resources("multitenancy").users(USER_DEPT_01, USER_DEPT_02).sslEnabled()
+                .build()) {
+
+            try (GenericRestClient restClient = cluster.getRestClient(USER_DEPT_01)) {
+                GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo");
+
+                Assert.assertEquals("true", response.toJsonNode().path("sg_tenants").path("dept_01").asText());
+                Assert.assertEquals("", response.toJsonNode().path("sg_tenants").path("dept_02").asText());
+
+                response = restClient.putJson(".kibana/config/5.6.0?pretty",
+                        "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}",
+                        new BasicHeader("sgtenant", "dept_01"));
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                response = restClient.putJson(".kibana/config/5.6.0?pretty",
+                        "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}",
+                        new BasicHeader("sgtenant", "dept_02"));
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+            }
+
+            try (GenericRestClient restClient = cluster.getRestClient(USER_DEPT_02)) {
+                GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo");
+
+                Assert.assertEquals("", response.toJsonNode().path("sg_tenants").path("dept_01").asText());
+                Assert.assertEquals("true", response.toJsonNode().path("sg_tenants").path("dept_02").asText());
+
+                response = restClient.putJson(".kibana/config/5.6.0?pretty",
+                        "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}",
+                        new BasicHeader("sgtenant", "dept_01"));
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+
+                response = restClient.putJson(".kibana/config/5.6.0?pretty",
+                        "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}",
+                        new BasicHeader("sgtenant", "dept_02"));
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            }
+
+        }
+    }
 }

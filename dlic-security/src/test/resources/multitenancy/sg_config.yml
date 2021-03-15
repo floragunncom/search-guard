@@ -70,7 +70,9 @@ sg_config:
           config: {}
         authentication_backend:
           type: "intern"
-          config: {}
+          config:
+            map_db_attrs_to_user_attrs:
+              dept_no: dept_no      
         description: "Migrated from v6"
       proxy_auth_domain:
         http_enabled: false
