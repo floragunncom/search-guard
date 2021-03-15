@@ -54,3 +54,18 @@ human_resources:
   reserved: false
   hidden: false
   description: "Migrated from v6"
+dept_01:
+  reserved: false
+  hidden: false
+dept_02:
+  reserved: false
+  hidden: false   
+dept_03:
+  reserved: false
+  hidden: false     
+dept_04:
+  reserved: false
+  hidden: false     
+dept_05:
+  reserved: false
+  hidden: false 
