@@ -1,5 +1,7 @@
 package com.floragunn.searchguard.auth;
 
+import java.io.IOException;
+
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -16,6 +18,8 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 
 public class InternalAuthenticationBackendIntegrationTests {
     @ClassRule
@@ -81,6 +85,14 @@ public class InternalAuthenticationBackendIntegrationTests {
             Assert.assertEquals(3, searchResponse.getHits().getTotalHits().value);
         }
 
+    }
+    
+    @Test
+    public void testAuthDomainInfo() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient("all_access", "secret")) {
+            HttpResponse response = restClient.get("/_searchguard/authinfo");
+            Assert.assertTrue(response.getBody(), response.toJsonNode().path("user").asText().startsWith("User all_access <basic/internal>"));
+        }
     }
 
 }

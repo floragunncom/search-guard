@@ -119,9 +119,9 @@ public class InternalAuthenticationBackend implements SyncAuthenticationBackend,
                 
                 final List<String> searchGuardRoles = internalUsersModel.getSearchGuardRoles(credentials.getUsername());
 
-                User user = User.forUser(credentials.getUsername()).backendRoles(backendRoles).searchGuardRoles(searchGuardRoles)
-                        .attributes(credentials.getStructuredAttributes()).attributesByJsonPath(attributeMapping, customAttributes)
-                        .oldAttributes(credentials.getAttributes()).build();
+                User user = User.forUser(credentials.getUsername()).authDomainInfo(credentials.getAuthDomainInfo().authBackendType(getType()))
+                        .backendRoles(backendRoles).searchGuardRoles(searchGuardRoles).attributes(credentials.getStructuredAttributes())
+                        .attributesByJsonPath(attributeMapping, customAttributes).oldAttributes(credentials.getAttributes()).build();
          
                 return user;
             } else {

@@ -29,7 +29,7 @@ import com.floragunn.searchguard.user.AuthCredentials;
 
 public class HTTPHelper {
 
-    public static AuthCredentials extractCredentials(String authorizationHeader, Logger log) {
+    public static AuthCredentials.Builder extractCredentials(String authorizationHeader, Logger log) {
 
         if (authorizationHeader != null) {
             if (!authorizationHeader.trim().toLowerCase().startsWith("basic ")) {
@@ -67,7 +67,7 @@ public class HTTPHelper {
                     log.warn("Invalid 'Authorization' header, send 401 and 'WWW-Authenticate Basic'");
                     return null;
                 } else {
-                    return AuthCredentials.forUser(username).password(password.getBytes(StandardCharsets.UTF_8)).complete().build();
+                    return AuthCredentials.forUser(username).password(password.getBytes(StandardCharsets.UTF_8)).complete();
                 }
             }
         } else {

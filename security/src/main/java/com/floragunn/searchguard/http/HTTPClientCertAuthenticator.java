@@ -76,7 +76,7 @@ public class HTTPClientCertAuthenticator implements HTTPAuthenticator {
                     }
                 }
                 
-                return AuthCredentials.forUser(username).backendRoles(backendRoles).complete().build();
+                return AuthCredentials.forUser(username).backendRoles(backendRoles).authenticatorType(getType()).complete().build();
             } catch (InvalidNameException e) {
                 log.error("Client cert had no properly formed DN (was: {})", principal);
                 return null;

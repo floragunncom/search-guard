@@ -126,7 +126,8 @@ public class HTTPProxyAuthenticator2 implements HTTPAuthenticator {
             backendRoles = restRequest.header(rolesHeader).split(rolesSeparator);
         }
         
-        AuthCredentials.Builder authCredentialsBuilder = AuthCredentials.forUser(restRequest.header(userHeader)).backendRoles(backendRoles).complete();
+        AuthCredentials.Builder authCredentialsBuilder = AuthCredentials.forUser(restRequest.header(userHeader)).authenticatorType(getType())
+                .backendRoles(backendRoles).complete();
 
         addAdditionalAttributes(authCredentialsBuilder, restRequest);
         addAdditionalOldAttributes(authCredentialsBuilder, restRequest);

@@ -42,6 +42,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.user.UserInformation;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.collect.Multimap;
@@ -127,7 +128,7 @@ public class RestAuthenticationProcessor {
 
         if (authCredenetials == null && anonymousAuthEnabled) {
             threadContext.putTransient(ConfigConstants.SG_USER, User.ANONYMOUS);
-            auditLog.logSucceededLogin(User.ANONYMOUS.getName(), false, null, restRequest);
+            auditLog.logSucceededLogin(User.ANONYMOUS, false, null, restRequest);
             if (log.isDebugEnabled()) {
                 log.debug("Anonymous User is authenticated");
             }
@@ -189,7 +190,7 @@ public class RestAuthenticationProcessor {
                 if (log.isDebugEnabled()) {
                     log.debug("Rejecting REST request because of blocked user: " + ac.getUsername() + "; authDomain: " + authenticationDomain);
                 }
-                auditLog.logBlockedUser(ac.getUsername(), false, ac.getUsername(), restRequest);
+                auditLog.logBlockedUser(ac, false, ac, restRequest);
                 return AuthDomainState.SKIP;
             }
 
@@ -202,7 +203,7 @@ public class RestAuthenticationProcessor {
                 }
 
                 if (authenticationDomain.isChallenge() && httpAuthenticator.reRequestAuthentication(restChannel, null)) {
-                    auditLog.logFailedLogin("<NONE>", false, null, restRequest);
+                    auditLog.logFailedLogin(UserInformation.NONE, false, null, restRequest);
                     log.trace("No 'Authorization' header, send 401 and 'WWW-Authenticate Basic'");
                     return AuthDomainState.STOP;
                 } else {
@@ -245,7 +246,7 @@ public class RestAuthenticationProcessor {
                     if (authenticatedUser != null) {
                         if (adminDns.isAdmin(authenticatedUser)) {
                             log.error("Cannot authenticate rest user because admin user is not permitted to login via HTTP");
-                            auditLog.logFailedLogin(authenticatedUser.getName(), true, null, restRequest);
+                            auditLog.logFailedLogin(authenticatedUser, true, null, restRequest);
                             onResult.accept(AuthczResult.stop(RestStatus.FORBIDDEN,
                                     "Cannot authenticate user because admin user is not permitted to login via HTTP"));
                             return;
@@ -262,7 +263,7 @@ public class RestAuthenticationProcessor {
                                     authorizationDomains, adminDns, impersonationCache).impersonate((result) -> {
                                         if (result.getUser() != null) {
                                             threadContext.putTransient(ConfigConstants.SG_USER, result.getUser());
-                                            auditLog.logSucceededLogin(result.getUser().getName(), false, authenticatedUser.getName(), restRequest);
+                                            auditLog.logSucceededLogin(result.getUser(), false, authenticatedUser, restRequest);
                                         }
                                         onResult.accept(result);
                                     }, onFailure);
@@ -270,7 +271,7 @@ public class RestAuthenticationProcessor {
                             // This is the happy case :-)
 
                             threadContext.putTransient(ConfigConstants.SG_USER, authenticatedUser);
-                            auditLog.logSucceededLogin(authenticatedUser.getName(), false, authenticatedUser.getName(), restRequest);
+                            auditLog.logSucceededLogin(authenticatedUser, false, authenticatedUser, restRequest);
                             onResult.accept(AuthczResult.pass(authenticatedUser));
                         }
 
@@ -412,7 +413,7 @@ public class RestAuthenticationProcessor {
 
                     log.warn("Authentication finally failed for {} from {}", authCredenetials == null ? null : authCredenetials.getUsername(),
                             remoteIpAddress);
-                    auditLog.logFailedLogin(authCredenetials == null ? null : authCredenetials.getUsername(), false, null, restRequest);
+                    auditLog.logFailedLogin(authCredenetials, false, null, restRequest);
 
                     notifyIpAuthFailureListeners(authCredenetials);
 
@@ -420,7 +421,7 @@ public class RestAuthenticationProcessor {
                 }
             }
 
-            auditLog.logFailedLogin(authCredenetials == null ? null : authCredenetials.getUsername(), false, null, restRequest);
+            auditLog.logFailedLogin(authCredenetials, false, null, restRequest);
             notifyIpAuthFailureListeners(authCredenetials);
             return AuthczResult.stop(RestStatus.UNAUTHORIZED, "Authentication finally failed");
         } catch (Exception e) {

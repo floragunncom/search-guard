@@ -272,7 +272,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				gr = tc.prepareGet("searchguard", getType(), "config").setRealtime(Boolean.TRUE).get();
 				Assert.fail();
 			} catch (Exception e) {
-				Assert.assertTrue(e.getMessage().contains("no permissions for [indices:data/read/get] and User [name=worf"));
+				Assert.assertTrue(e.getMessage().contains("no permissions for [indices:data/read/get] and User worf"));
 			}
 			finally {
 				ctx.close();
@@ -631,7 +631,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				gr = tc.prepareGet("searchguard", getType(), "config").setRealtime(Boolean.TRUE).get();
 				Assert.fail();
 			} catch (Exception e) {
-				Assert.assertTrue(e.getMessage().contains("no permissions for [indices:data/read/get] and User [name=worf"));
+				Assert.assertTrue(e.getMessage().contains("no permissions for [indices:data/read/get] and User worf"));
 			}
 			finally {
 				ctx.close();

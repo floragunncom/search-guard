@@ -35,23 +35,24 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.compliance.ComplianceConfig;
+import com.floragunn.searchguard.user.UserInformation;
 
 public interface AuditLog extends Closeable {
 
     //login
-    void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, Task task);
-    void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request);
-    void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, String action, Task task);
-    void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request);
+    void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task);
+    void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request);
+    void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, String action, Task task);
+    void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request);
 
     // blocks
     void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task);
     void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress);
-    void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, Task task);
-    void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request);
+    void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task);
+    void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request);
 
     //privs
-    void logMissingPrivileges(String privilege, String effectiveUser, RestRequest request);
+    void logMissingPrivileges(String privilege, UserInformation effectiveUser, RestRequest request);
     void logMissingPrivileges(String privilege, TransportRequest request, Task task);
     void logGrantedPrivileges(String privilege, TransportRequest request, Task task);
 

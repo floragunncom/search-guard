@@ -151,7 +151,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
             log.debug(res.getBody());
             Assert.assertTrue(res.getBody().contains("sg_role_host1"));
             Assert.assertTrue(res.getBody().contains("sg_anonymous"));
-            Assert.assertTrue(res.getBody().contains("name=sg_anonymous"));
+            Assert.assertTrue(res.getBody().contains("User sg_anonymous"));
             Assert.assertTrue(res.getBody().contains("roles=[sg_anonymous_backendrole]"));
             Assert.assertEquals(200, res.getStatusCode());
         }

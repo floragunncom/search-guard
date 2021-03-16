@@ -63,6 +63,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HTTPHelper;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
@@ -226,10 +227,10 @@ public class BackendRegistry implements DCFListener {
             log.debug("Transport authentication request from {}", request.remoteAddress());
         }
 
-        User origPKIUser = new User(sslPrincipal);
+        User origPKIUser = new User(sslPrincipal, AuthDomainInfo.TLS_CERT);
 
         if (adminDns.isAdmin(origPKIUser)) {
-            auditLog.logSucceededLogin(origPKIUser.getName(), true, null, request, action, task);
+            auditLog.logSucceededLogin(origPKIUser, true, null, request, action, task);
             return origPKIUser;
         }
 
@@ -255,8 +256,9 @@ public class BackendRegistry implements DCFListener {
         final String authorizationHeader = threadPool.getThreadContext().getHeader("Authorization");
         //Use either impersonation OR credentials authentication
         //if both is supplied credentials authentication win
-        final AuthCredentials creds = HTTPHelper.extractCredentials(authorizationHeader, log);
-
+        AuthCredentials.Builder credentialBuilder = HTTPHelper.extractCredentials(authorizationHeader, log);
+        AuthCredentials creds = credentialBuilder != null ? credentialBuilder.authenticatorType("transport_basic").build() : null;
+        
         User impersonatedTransportUser = null;
 
         if (creds != null) {
@@ -307,7 +309,7 @@ public class BackendRegistry implements DCFListener {
 
             if (adminDns.isAdmin(authenticatedUser)) {
                 log.error("Cannot authenticate transport user because admin user is not permitted to login");
-                auditLog.logFailedLogin(authenticatedUser.getName(), true, null, request, task);
+                auditLog.logFailedLogin(authenticatedUser, true, null, request, task);
                 return null;
             }
 
@@ -316,7 +318,7 @@ public class BackendRegistry implements DCFListener {
                     log.debug("Rejecting TRANSPORT request because of blocked user: " + authenticatedUser.getName() + "; authDomain: "
                             + authenticationDomain);
                 }
-                auditLog.logBlockedUser(authenticatedUser.getName(), false, origPKIUser.getName(), request, task);
+                auditLog.logBlockedUser(authenticatedUser, false, origPKIUser, request, task);
                 continue;
             }
 
@@ -324,7 +326,7 @@ public class BackendRegistry implements DCFListener {
                 log.debug("Transport user '{}' is authenticated", authenticatedUser);
             }
 
-            auditLog.logSucceededLogin(authenticatedUser.getName(), false, impersonatedTransportUser == null ? null : origPKIUser.getName(), request,
+            auditLog.logSucceededLogin(authenticatedUser, false, impersonatedTransportUser == null ? null : origPKIUser, request,
                     action, task);
 
             return authenticatedUser;
@@ -332,10 +334,10 @@ public class BackendRegistry implements DCFListener {
 
         //auditlog
         if (creds == null) {
-            auditLog.logFailedLogin(impersonatedTransportUser == null ? origPKIUser.getName() : impersonatedTransportUser.getName(), false,
-                    impersonatedTransportUser == null ? null : origPKIUser.getName(), request, task);
+            auditLog.logFailedLogin(impersonatedTransportUser == null ? origPKIUser : impersonatedTransportUser, false,
+                    impersonatedTransportUser == null ? null : origPKIUser, request, task);
         } else {
-            auditLog.logFailedLogin(creds.getUsername(), false, null, request, task);
+            auditLog.logFailedLogin(creds, false, null, request, task);
         }
 
         log.warn("Transport authentication finally failed for {} from {}",
@@ -353,9 +355,9 @@ public class BackendRegistry implements DCFListener {
 
         if (adminDns.isAdminDN(sslPrincipal)) {
             //PKI authenticated REST call
-            User user = new User(sslPrincipal);
+            User user = new User(sslPrincipal, AuthDomainInfo.TLS_CERT);
             threadPool.getThreadContext().putTransient(ConfigConstants.SG_USER, user);
-            auditLog.logSucceededLogin(sslPrincipal, true, null, request);
+            auditLog.logSucceededLogin(user, true, null, request);
             onResult.accept(new AuthczResult(user, AuthczResult.Status.PASS));
             return;
         }
@@ -563,8 +565,8 @@ public class BackendRegistry implements DCFListener {
             } else {
                 for (final AuthenticationDomain authenticationDomain : transportAuthenticationDomains) {
                     final AuthenticationBackend authenticationBackend = authenticationDomain.getBackend();
-                    final User impersonatedUserObject = checkExistsAndAuthz(transportImpersonationCache, new User(impersonatedUser),
-                            authenticationBackend, transportAuthorizationDomains);
+                    final User impersonatedUserObject = checkExistsAndAuthz(transportImpersonationCache,
+                            new User(impersonatedUser, AuthDomainInfo.IMPERSONATION_TLS), authenticationBackend, transportAuthorizationDomains);
 
                     if (impersonatedUserObject == null) {
                         log.debug(
@@ -595,7 +597,7 @@ public class BackendRegistry implements DCFListener {
                 final LdapName sslPrincipalAsLdapName = new LdapName(pkiUser.getName());
                 for (final Rdn rdn : sslPrincipalAsLdapName.getRdns()) {
                     if (rdn.getType().equals(transportUsernameAttribute)) {
-                        return new User((String) rdn.getValue());
+                        return new User((String) rdn.getValue(), AuthDomainInfo.from(pkiUser));
                     }
                 }
             } catch (InvalidNameException e) {

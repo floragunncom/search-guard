@@ -281,7 +281,7 @@ public class IntegrationTests extends SingleClusterTest {
     
         resp = rh.executeGetRequest("/_searchguard/authinfo", new BasicHeader("sg_impersonate_as", "knuddel"), encodeBasicHeader("spock", "spock"));
         Assert.assertEquals(HttpStatus.SC_OK, resp.getStatusCode());
-        Assert.assertTrue(resp.getBody().contains("name=knuddel"));
+        Assert.assertTrue(resp.getBody(), resp.getBody().contains("User knuddel"));
         Assert.assertFalse(resp.getBody().contains("spock"));
         
         resp = rh.executeGetRequest("/_searchguard/authinfo", new BasicHeader("sg_impersonate_as", "userwhonotexists"), encodeBasicHeader("spock", "spock"));
