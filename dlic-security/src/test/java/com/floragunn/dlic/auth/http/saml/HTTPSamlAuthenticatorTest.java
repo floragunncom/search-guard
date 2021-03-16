@@ -447,7 +447,7 @@ public class HTTPSamlAuthenticatorTest {
     @Test
     public void initialConnectionFailureTest() throws Exception {
         try (MockSamlIdpServer mockSamlIdpServer = new MockSamlIdpServer()) {
-            
+                        
             Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
                     .put("idp.min_refresh_delay", 100)
                     .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
