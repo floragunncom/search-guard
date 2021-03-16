@@ -56,39 +56,56 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     protected static final AtomicLong num = new AtomicLong();
 
     protected final String resourceFolder;
-    private final String clusterName;
+    private final List<Class<? extends Plugin>> plugins;
+    private final ClusterConfiguration clusterConfiguration;
+    private final TestSgConfig testSgConfig;
+    private final Settings nodeOverride;
     private LocalEsCluster localCluster;
 
     public LocalCluster(String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride, ClusterConfiguration clusterConfiguration,
             List<Class<? extends Plugin>> plugins) {
         this.resourceFolder = resourceFolder;
-        this.clusterName = "lc_utest_n" + num.incrementAndGet() + "_f" + System.getProperty("forkno") + "_t" + System.nanoTime();
-        this.localCluster = new LocalEsCluster(clusterName, clusterConfiguration, minimumSearchGuardSettings(ccs(nodeOverride)), resourceFolder,
-                plugins);
+        this.plugins = plugins;
+        this.clusterConfiguration = clusterConfiguration;
+        this.testSgConfig = testSgConfig;
+        this.nodeOverride = nodeOverride;
 
-        setup(Settings.EMPTY, testSgConfig, nodeOverride, true, clusterConfiguration);
+        painlessWhitelistKludge();
+
+        start();
+    }
+
+    @Override
+    protected void before() throws Throwable {
+        if (localCluster == null) {
+            start();
+        }
     }
 
     @Override
     protected void after() {
-        if (localCluster.isStarted()) {
+        if (localCluster != null && localCluster.isStarted()) {
             try {
                 Thread.sleep(1234);
                 localCluster.destroy();
             } catch (Exception e) {
                 throw new RuntimeException(e);
+            } finally {
+                localCluster = null;
             }
         }
     }
 
     @Override
     public void close() throws Exception {
-        if (localCluster.isStarted()) {
+        if (localCluster != null && localCluster.isStarted()) {
             try {
                 Thread.sleep(100);
                 localCluster.destroy();
             } catch (Exception e) {
                 throw new RuntimeException(e);
+            } finally {
+                localCluster = null;
             }
         }
     }
@@ -109,12 +126,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         return this.localCluster.getNodeByName(name);
     }
 
-    private void setup(Settings initTransportClientSettings, TestSgConfig testSgConfig, Settings nodeOverride, boolean initSearchGuardIndex,
-            ClusterConfiguration clusterConfiguration) {
-        painlessWhitelistKludge();
+    private void start() {
 
         try {
+            String clusterName = "lc_utest_n" + num.incrementAndGet() + "_f" + System.getProperty("forkno") + "_t" + System.nanoTime();
 
+            this.localCluster = new LocalEsCluster(clusterName, clusterConfiguration, minimumSearchGuardSettings(ccs(nodeOverride)), resourceFolder,
+                    plugins);
             localCluster.start();
         } catch (RuntimeException e) {
             throw e;
@@ -122,8 +140,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             throw new RuntimeException(e);
         }
 
-        if (initSearchGuardIndex && testSgConfig != null) {
-            initialize(testSgConfig);
+        if (testSgConfig != null) {
+            initSearchGuardIndex(testSgConfig);
         }
     }
 
@@ -157,7 +175,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
     }
 
-    protected void initialize(TestSgConfig testSgConfig) {
+    protected void initSearchGuardIndex(TestSgConfig testSgConfig) {
 
         try (Client client = getAdminCertClient()) {
 

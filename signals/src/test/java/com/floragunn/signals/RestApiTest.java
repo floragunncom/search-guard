@@ -35,6 +35,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.quartz.TimeOfDay;
 
@@ -44,6 +45,7 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
+import com.floragunn.searchsupport.junit.LoggingTestWatcher;
 import com.floragunn.signals.support.JsonBuilder;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
@@ -70,9 +72,14 @@ public class RestApiTest {
 
     private static ScriptService scriptService;
 
+    @Rule
+    public LoggingTestWatcher loggingTestWatcher = new LoggingTestWatcher();
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
-            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "signals.enterprise.enabled", false).build();
+            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "signals.enterprise.enabled", false,
+                    "searchguard.diagnosis.action_stack.enabled", true)
+            .build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -252,6 +259,7 @@ public class RestApiTest {
                 GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.index(new IndexRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1").source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
+            awaitMinCountOfDocuments(client, testSource, 1);
 
             client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
             client.admin().indices().create(new CreateIndexRequest(testSinkResolve1)).actionGet();
@@ -273,6 +281,8 @@ public class RestApiTest {
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
 
+            log.info("Created watch; as it should find one doc in " +  testSource + ", it should go to severity ERROR and write exactly one doc to " + testSink);
+            
             awaitMinCountOfDocuments(client, testSink, 1);
 
             Thread.sleep(500);
@@ -280,6 +290,8 @@ public class RestApiTest {
             Assert.assertEquals(0, getCountOfDocuments(client, testSinkResolve1));
             Assert.assertEquals(0, getCountOfDocuments(client, testSinkResolve2));
             Assert.assertEquals(1, getCountOfDocuments(client, testSink));
+            
+            log.info("Adding one doc to " + testSource + "; this should raise severity from ERROR to CRITICAL and write exactly one doc to " + testSink);
 
             client.index(new IndexRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("2").source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
