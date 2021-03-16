@@ -1,6 +1,7 @@
 package com.floragunn.signals.watch.state;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -32,6 +33,7 @@ public class WatchState implements ToXContentObject {
     private boolean active = true;
     private String node;
     private boolean refreshBeforeExecuting;
+    private transient final Instant creationTime = Instant.now();
 
     public WatchState(String tenant) {
         this.tenant = tenant;
@@ -219,5 +221,9 @@ public class WatchState implements ToXContentObject {
 
     public String toString() {
         return Strings.toString(this);
+    }
+
+    public Instant getCreationTime() {
+        return creationTime;
     }
 }

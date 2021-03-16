@@ -11,6 +11,7 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.script.JodaCompatibleZonedDateTime;
 import org.elasticsearch.script.ScriptService;
@@ -138,6 +139,11 @@ public class WatchRunner implements Job {
 
             if (log.isInfoEnabled()) {
                 log.info("Running " + watch);
+            }
+
+            if (log.isDebugEnabled()) {
+                log.debug("Current watch state: " + (watchState != null ? watchState.getCreationTime() : "-") + "\n"
+                        + (watchState != null ? Strings.toString(watchState) : null));
             }
 
             boolean error = false;
@@ -279,7 +285,7 @@ public class WatchRunner implements Job {
                 // TODO improve message
 
                 afterNegativeTriageForAllActions();
-                this.watchLog.setStatus(new Status(Status.Code.NO_ACTION, "No action needed because severity value "
+                this.watchLog.setStatus(new Status(Status.Code.NO_ACTION, SeverityLevel.NONE, "No action needed because severity value "
                         + severityLevelEvaluationResult.getThreshold() + " is under threshold " + severityMapping.getFirstThreshold()));
 
                 return false;
@@ -645,15 +651,15 @@ public class WatchRunner implements Job {
         String statusMessage = getStatusMessage();
 
         if (executedActions + executedResolveActions > 0) {
-            watchLog.setStatus(new Status(Status.Code.ACTION_EXECUTED, statusMessage));
+            watchLog.setStatus(new Status(Status.Code.ACTION_EXECUTED, newSeverityLevel, statusMessage));
         } else if (failedActions + executedResolveActions > 0) {
-            watchLog.setStatus(new Status(Status.Code.ACTION_FAILED, statusMessage));
+            watchLog.setStatus(new Status(Status.Code.ACTION_FAILED, newSeverityLevel, statusMessage));
         } else if (throttledActions > 0) {
-            watchLog.setStatus(new Status(Status.Code.ACTION_THROTTLED, statusMessage));
+            watchLog.setStatus(new Status(Status.Code.ACTION_THROTTLED, newSeverityLevel, statusMessage));
         } else if (ackedActions > 0) {
-            watchLog.setStatus(new Status(Status.Code.ACKED, statusMessage));
+            watchLog.setStatus(new Status(Status.Code.ACKED, newSeverityLevel, statusMessage));
         } else {
-            watchLog.setStatus(new Status(Status.Code.NO_ACTION, statusMessage));
+            watchLog.setStatus(new Status(Status.Code.NO_ACTION, newSeverityLevel, statusMessage));
         }
     }
 
@@ -681,7 +687,7 @@ public class WatchRunner implements Job {
             return "All actions have been executed";
         }
 
-        if (failedActions == attemptedActions && failedResolveActions == attemptedResolveActions) {
+        if (failedActions + failedResolveActions != 0 && failedActions == attemptedActions && failedResolveActions == attemptedResolveActions) {
             return "All actions failed";
         }
 

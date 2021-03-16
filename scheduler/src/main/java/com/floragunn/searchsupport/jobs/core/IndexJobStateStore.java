@@ -1290,12 +1290,31 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         Set<JobType> deletedJobTypes = new HashSet<>();
         Set<JobKey> newJobKeys = new HashSet<>(newJobConfig.size());
 
+        Map<JobKey, JobType> loadedJobConfig = this.getLoadedJobConfig();
+
+        
         if (log.isInfoEnabled()) {
             log.info("Updating jobs:\n " + newJobConfig + "\n");
         }
+        
+        // First pass: Collect new jobs so that we can load the states
+        
+        for (JobType newJob : newJobConfig) {
+            JobKey jobKey = newJob.getJobKey();
+            JobType existingJob = loadedJobConfig.get(jobKey);
 
+            if (existingJob == null) {
+                newJobTypes.add(newJob);
+            }
+        }
+        
+        notifyJobConfigListenersBeforeChange(newJobTypes);
+
+        // Second pass: do the actual update; inside a critical block
+        
         synchronized (this) {
-            Map<JobKey, JobType> loadedJobConfig = this.getLoadedJobConfig();
+            loadedJobConfig = this.getLoadedJobConfig();
+            newJobTypes.clear();
 
             if (log.isDebugEnabled()) {
                 log.debug("Loaded job config:\n" + loadedJobConfig + "\n");
@@ -1360,7 +1379,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             log.info("Job update finished.\nNew Jobs: " + newJobs.values() + "\nUpdated Jobs: " + updatedJobs.values() + "\nDeleted Jobs: "
                     + deletedJobs.values());
 
-            notifyJobConfigUpdateListeners(newJobTypes, updatedJobTypes, deletedJobTypes);
+            notifyJobConfigListenersAfterChange(newJobTypes, updatedJobTypes, deletedJobTypes);
 
             return "new: " + newJobs.values().size() + "; upd: " + updatedJobs.size() + "; del: " + deletedJobs.size();
         } else {
@@ -1385,14 +1404,25 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             }
         }
     }
-
-    private void notifyJobConfigUpdateListeners(Set<JobType> newJobs, Map<JobType, JobType> updatedJobs, Set<JobType> deletedJobs) {
+    
+    private void notifyJobConfigListenersBeforeChange(Set<JobType> newJobs) {
 
         for (JobConfigListener<JobType> listener : this.jobConfigListeners) {
             try {
-                listener.onChange(newJobs, updatedJobs, deletedJobs);
+                listener.beforeChange(newJobs);
             } catch (Exception e) {
-                log.error("Exception in JobConfigListener.onChange()", e);
+                log.error("Exception in JobConfigListener.beforeChange()", e);
+            }
+        }
+    }
+
+    private void notifyJobConfigListenersAfterChange(Set<JobType> newJobs, Map<JobType, JobType> updatedJobs, Set<JobType> deletedJobs) {
+
+        for (JobConfigListener<JobType> listener : this.jobConfigListeners) {
+            try {
+                listener.afterChange(newJobs, updatedJobs, deletedJobs);
+            } catch (Exception e) {
+                log.error("Exception in JobConfigListener.afterChange()", e);
             }
         }
     }

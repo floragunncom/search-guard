@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
@@ -20,6 +21,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -67,14 +69,14 @@ import com.floragunn.signals.watch.state.WatchState;
 import com.floragunn.signals.watch.state.WatchStateIndexReader;
 import com.floragunn.signals.watch.state.WatchStateIndexWriter;
 import com.floragunn.signals.watch.state.WatchStateManager;
-import com.floragunn.signals.watch.state.WatchStateWriter;
 
 public class SignalsTenant implements Closeable {
     private static final Logger log = LogManager.getLogger(SignalsTenant.class);
 
     public static SignalsTenant create(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment,
             ScriptService scriptService, NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider,
-            SignalsSettings settings, AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext) throws SchedulerException {
+            SignalsSettings settings, AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext)
+            throws SchedulerException {
         SignalsTenant instance = new SignalsTenant(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                 internalAuthTokenProvider, settings, accountRegistry, tenantState, diagnosticContext);
 
@@ -96,7 +98,7 @@ public class SignalsTenant implements Closeable {
     private final NamedXContentRegistry xContentRegistry;
     private final ScriptService scriptService;
     private final WatchStateManager watchStateManager;
-    private final WatchStateWriter<?> watchStateWriter;
+    private final WatchStateIndexWriter watchStateWriter;
     private final WatchStateIndexReader watchStateReader;
     private final InternalAuthTokenProvider internalAuthTokenProvider;
     private final AccountRegistry accountRegistry;
@@ -140,7 +142,7 @@ public class SignalsTenant implements Closeable {
     public SignalsTenant(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
             AccountRegistry accountRegistry, DiagnosticContext diagnosticContext) {
-        this(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry, internalAuthTokenProvider, settings, accountRegistry, 
+        this(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry, internalAuthTokenProvider, settings, accountRegistry,
                 new ComponentState(0, null, "tenant"), diagnosticContext);
     }
 
@@ -205,7 +207,7 @@ public class SignalsTenant implements Closeable {
                 if (log.isDebugEnabled()) {
                     log.debug("Going to shutdown " + this.scheduler);
                 }
-                
+
                 this.scheduler.shutdown(true);
                 tenantState.setState(ComponentState.State.DISABLED);
             }
@@ -213,14 +215,14 @@ public class SignalsTenant implements Closeable {
             log.error("Error wile shutting down " + this, e);
         }
     }
-    
+
     public void shutdownHard() {
         try {
             if (this.scheduler != null) {
                 if (log.isDebugEnabled()) {
                     log.debug("Going to shutdown " + this.scheduler);
                 }
-                
+
                 this.scheduler.shutdown(false);
                 tenantState.setState(ComponentState.State.DISABLED);
                 this.scheduler = null;
@@ -291,10 +293,21 @@ public class SignalsTenant implements Closeable {
                     .setSource(watchContentBuilder).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute().actionGet();
 
             if (indexResponse.getResult() == Result.CREATED) {
-                watchStateWriter.put(watch.getId(), new WatchState(name));
-            }
+                watchStateWriter.put(watch.getId(), new WatchState(name), new ActionListener<IndexResponse>() {
 
-            if (indexResponse.getResult() == Result.CREATED || indexResponse.getResult() == Result.UPDATED) {
+                    @Override
+                    public void onResponse(IndexResponse response) {
+                        SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        log.warn("Error while writing initial state for " + watch + ". Ignoring", e);
+                        SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
+                    }
+
+                });
+            } else if (indexResponse.getResult() == Result.UPDATED) {
                 SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
             }
 
@@ -307,7 +320,7 @@ public class SignalsTenant implements Closeable {
         if (log.isInfoEnabled()) {
             log.info("addWatch(" + watchId + ") on " + this);
         }
-        
+
         ObjectNode watchJson = ValidatingJsonParser.readObject(watchJsonString);
 
         Watch watch = Watch.parse(new WatchInitializationService(accountRegistry, scriptService), getName(), watchId, watchJson, -1);
@@ -433,6 +446,11 @@ public class SignalsTenant implements Closeable {
         @Override
         public Job newJob(TriggerFiredBundle bundle, Scheduler scheduler) throws SchedulerException {
             Watch watch = getConfig(bundle);
+            
+            if (log.isDebugEnabled()) {
+                log.debug("newJob() on " + SignalsTenant.this + "@" + SignalsTenant.this.hashCode() + ": " + watch);
+            }
+            
             WatchState watchState = watchStateManager.getWatchState(watch.getId());
 
             if (watchState.isRefreshBeforeExecuting()) {
@@ -450,14 +468,33 @@ public class SignalsTenant implements Closeable {
             return ((JobDetailWithBaseConfig) bundle.getJobDetail()).getBaseConfig(Watch.class);
         }
 
-        private WatchState refreshState(Watch watch, WatchState state) {
+        private WatchState refreshState(Watch watch, WatchState oldState) {
             try {
-                state = watchStateReader.get(watch.getId());
-                state.setNode(nodeName);
-                return state;
+                if (log.isDebugEnabled()) {
+                    log.debug("Refreshing state for " + watch.getId() + "\nOld state: " + (oldState != null ? Strings.toString(oldState) : null));
+                }
+                WatchState newState = watchStateReader.get(watch.getId());
+
+                if (newState.getNode() == null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Got refreshed state for " + watch.getId()
+                                + "\nThis however has a null node. Thus, it is probably the initial default state. Discarding: "
+                                + (oldState != null ? Strings.toString(oldState) : null));
+                    }
+
+                    return oldState;
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Refreshed state for " + watch.getId() + "\nNew state: " + (oldState != null ? Strings.toString(oldState) : null));
+                    }
+
+                    newState.setNode(nodeName);
+                    return newState;
+                }
+
             } catch (Exception e) {
                 log.error("Error while refreshing WatchState of " + watch.getId() + ";\nUsing original state", e);
-                return state;
+                return oldState;
             }
         }
 
@@ -465,39 +502,7 @@ public class SignalsTenant implements Closeable {
 
     private final JobConfigListener<Watch> jobConfigListener = new JobConfigListener<Watch>() {
 
-        @Override
-        public void onChange(Set<Watch> newJobs, Map<Watch, Watch> updatedJobs, Set<Watch> deletedJobs) {
-            for (Watch deletedWatch : deletedJobs) {
-                watchStateManager.delete(deletedWatch.getId());
-            }
-            
-            if (newJobs != null && newJobs.size() > 0) {
-                Set<String> watchIds = newJobs.stream().map((watch) -> watch.getId()).collect(Collectors.toSet());
-
-                tenantState.setState(State.INITIALIZING, "reading_states");
-                
-                if (log.isDebugEnabled()) {
-                    log.debug("Reading states of newly arrived watches from index: " + watchIds);
-                }
-                
-                Map<String, WatchState> statesFromIndex = watchStateReader.get(watchIds);
-
-                Map<String, WatchState> dirtyStates = watchStateManager.add(statesFromIndex, watchIds);
-
-                if (!dirtyStates.isEmpty()) {
-                    tenantState.setState(State.INITIALIZING, "writing_states");
-                    
-                    if (log.isDebugEnabled()) {
-                        log.debug("Updating dirty states: " + dirtyStates);
-                    }
-
-                    watchStateWriter.putAll(dirtyStates);
-                }
-
-                tenantState.setState(State.INITIALIZED);
-            }
-        }
-
+      
         @Override
         public void onInit(Set<Watch> watches) {
             Set<String> watchIds = watches.stream().map((watch) -> watch.getId()).collect(Collectors.toSet());
@@ -513,6 +518,42 @@ public class SignalsTenant implements Closeable {
             }
 
             tenantState.setState(State.INITIALIZED);
+        }
+
+        @Override
+        public void beforeChange(Set<Watch> newJobs) {
+            if (newJobs != null && newJobs.size() > 0) {
+                Set<String> watchIds = newJobs.stream().map((watch) -> watch.getId()).collect(Collectors.toSet());
+
+                tenantState.setState(State.INITIALIZING, "reading_states");
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Reading states of newly arrived watches from index: " + watchIds);
+                }
+
+                Map<String, WatchState> statesFromIndex = watchStateReader.get(watchIds);
+
+                Map<String, WatchState> dirtyStates = watchStateManager.add(statesFromIndex, watchIds);
+
+                if (!dirtyStates.isEmpty()) {
+                    tenantState.setState(State.INITIALIZING, "writing_states");
+
+                    if (log.isDebugEnabled()) {
+                        log.debug("Updating dirty states: " + dirtyStates);
+                    }
+
+                    watchStateWriter.putAll(dirtyStates);
+                }
+
+                tenantState.setState(State.INITIALIZED);
+            }            
+        }
+
+        @Override
+        public void afterChange(Set<Watch> newJobs, Map<Watch, Watch> updatedJobs, Set<Watch> deletedJobs) {
+            for (Watch deletedWatch : deletedJobs) {
+                watchStateManager.delete(deletedWatch.getId());
+            }           
         }
 
     };
