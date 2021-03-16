@@ -83,7 +83,7 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
                 return null;
             }
 
-            return AuthCredentials.forUser(subject).claims(claims.asMap()).complete().build();
+            return AuthCredentials.forUser(subject).authenticatorType(getType()).claims(claims.asMap()).complete().build();
 
         } catch (JwtException e) {
             log.info("JWT is invalid", e);

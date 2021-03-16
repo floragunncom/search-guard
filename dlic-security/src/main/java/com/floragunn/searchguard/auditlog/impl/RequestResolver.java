@@ -61,6 +61,7 @@ import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.support.WildcardMatcher;
+import com.floragunn.searchguard.user.UserInformation;
 
 public final class RequestResolver {
     
@@ -71,9 +72,9 @@ public final class RequestResolver {
             final Origin origin, 
             final String action, 
             final String privilege, 
-            final String effectiveUser, 
+            final UserInformation effectiveUser, 
             final Boolean sgAdmin, 
-            final String initiatingUser, 
+            final UserInformation initiatingUser, 
             final TransportAddress remoteAddress, 
             final TransportRequest request,
             final Map<String, String> headers,
@@ -156,9 +157,9 @@ public final class RequestResolver {
     
 
     private static AuditMessage resolveInner(final Category category,
-            final String effectiveUser,
+            final UserInformation effectiveUser,
             final Boolean sgAdmin,
-            final String initiatingUser,
+            final UserInformation initiatingUser,
             final TransportAddress remoteAddress,
             final String action,
             final String priv,

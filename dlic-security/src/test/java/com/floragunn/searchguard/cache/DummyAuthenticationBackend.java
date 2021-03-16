@@ -39,7 +39,7 @@ public class DummyAuthenticationBackend implements SyncAuthenticationBackend {
     @Override
     public User authenticate(AuthCredentials credentials) throws ElasticsearchSecurityException {
         authCount++;
-        return new User(credentials.getUsername());
+        return new User(credentials.getUsername(), credentials.getAuthDomainInfo());
     }
 
     @Override

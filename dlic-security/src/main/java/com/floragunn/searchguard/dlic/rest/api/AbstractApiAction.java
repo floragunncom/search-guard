@@ -365,7 +365,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         if (authError != null) {
             log.error("No permission to access REST API: " + authError);
             final User user = (User) threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
-            auditLog.logMissingPrivileges(authError, user == null ? null : user.getName(), request);
+            auditLog.logMissingPrivileges(authError, user, request);
             // for rest request
             request.params().clear();
             return channel -> forbidden(channel, "No permission to access REST API: " + authError);

@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -76,6 +77,7 @@ import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.user.UserInformation;
 import com.google.common.io.BaseEncoding;
 
 public abstract class AbstractAuditLog implements AuditLog {
@@ -212,7 +214,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, Task task) {
+    public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
         final String action = null;
 
         if(!checkTransportFilter(Category.FAILED_LOGIN, action, effectiveUser, request)) {
@@ -229,7 +231,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
 
     @Override
-    public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+    public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
 
         if(!checkRestFilter(Category.FAILED_LOGIN, effectiveUser, request)) {
             return;
@@ -256,7 +258,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
     
     @Override
-    public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request,
+    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request,
     		Task task) {
 
         final String action = null;
@@ -274,7 +276,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
     
     @Override
-    public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
         if(!checkRestFilter(Category.BLOCKED_USER, effectiveUser, request)) {
             return;
         }
@@ -301,7 +303,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
     
     @Override
-    public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, String action, Task task) {
+    public void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, String action, Task task) {
 
         if(!checkTransportFilter(Category.AUTHENTICATED, action, effectiveUser, request)) {
             return;
@@ -316,7 +318,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+    public void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
 
         if(!checkRestFilter(Category.AUTHENTICATED, effectiveUser, request)) {
             return;
@@ -342,7 +344,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logMissingPrivileges(String privilege, String effectiveUser, RestRequest request) {
+    public void logMissingPrivileges(String privilege, UserInformation effectiveUser, RestRequest request) {
         if(!checkRestFilter(Category.MISSING_PRIVILEGES, effectiveUser, request)) {
             return;
         }
@@ -558,7 +560,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         
         Category category = searchguardIndex.equals(index)?Category.COMPLIANCE_INTERNAL_CONFIG_READ:Category.COMPLIANCE_DOC_READ;
 
-        String effectiveUser = getUser();
+        UserInformation effectiveUser = getUser();
         if(!checkComplianceFilter(category, effectiveUser, getOrigin())) {
             return;
         }
@@ -617,7 +619,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         
         Category category = searchguardIndex.equals(shardId.getIndexName())?Category.COMPLIANCE_INTERNAL_CONFIG_WRITE:Category.COMPLIANCE_DOC_WRITE;
 
-        String effectiveUser = getUser();
+        UserInformation effectiveUser = getUser();
 
         if(!checkComplianceFilter(category, effectiveUser, getOrigin())) {
             return;
@@ -706,7 +708,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     @Override
     public void logDocumentDeleted(ShardId shardId, Delete delete, DeleteResult result) {
 
-        String effectiveUser = getUser();
+        UserInformation effectiveUser = getUser();
 
         if(!checkComplianceFilter(Category.COMPLIANCE_DOC_WRITE, effectiveUser, getOrigin())) {
             return;
@@ -747,9 +749,9 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         });
         
-        final Map propsAsMap = AccessController.doPrivileged(new PrivilegedAction<Map>() {
+        final Properties propsAsMap = AccessController.doPrivileged(new PrivilegedAction<Properties>() {
             @Override
-            public Map run() {
+            public Properties run() {
                 return System.getProperties();
             }
         });
@@ -807,19 +809,19 @@ public abstract class AbstractAuditLog implements AuditLog {
         return address;
     }
 
-    private String getUser() {
+    private UserInformation getUser() {
         User user = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
         if(user == null && threadPool.getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER) != null) {
             user = (User) Base64Helper.deserializeObject(threadPool.getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER));
         }
-        return user==null?null:user.getName();
+        return user;
     }
 
     private Map<String, String> getThreadContextHeaders() {
         return threadPool.getThreadContext().getHeaders();
     }
 
-    private boolean checkTransportFilter(final Category category, final String action, final String effectiveUser, TransportRequest request) {
+    private boolean checkTransportFilter(final Category category, final String action, final UserInformation effectiveUser, TransportRequest request) {
 
         if(log.isTraceEnabled()) {
             log.trace("Check category:{}, action:{}, effectiveUser:{}, request:{}", category, action, effectiveUser, request==null?null:request.getClass().getSimpleName());
@@ -854,7 +856,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
 
-        if (ignoredAuditUsers.size() > 0 && WildcardMatcher.matchAny(ignoredAuditUsers, effectiveUser)) {
+        if (ignoredAuditUsers.size() > 0 && effectiveUser != null && WildcardMatcher.matchAny(ignoredAuditUsers, effectiveUser.getName())) {
 
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
@@ -891,7 +893,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     }
 
-    private boolean checkComplianceFilter(final Category category, final String effectiveUser, Origin origin) {
+    private boolean checkComplianceFilter(final Category category, final UserInformation effectiveUser, Origin origin) {
         if(log.isTraceEnabled()) {
             log.trace("Check for COMPLIANCE category:{}, effectiveUser:{}, origin: {}", category, effectiveUser, origin);
         }
@@ -904,8 +906,8 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         
         if(category == Category.COMPLIANCE_DOC_READ || category == Category.COMPLIANCE_INTERNAL_CONFIG_READ) {
-            if (ignoredComplianceUsersForRead.size() > 0 && effectiveUser != null
-                    && WildcardMatcher.matchAny(ignoredComplianceUsersForRead, effectiveUser)) {
+            if (ignoredComplianceUsersForRead.size() > 0 && effectiveUser != null && effectiveUser.getName() != null
+                    && WildcardMatcher.matchAny(ignoredComplianceUsersForRead, effectiveUser.getName())) {
 
                 if(log.isTraceEnabled()) {
                     log.trace("Skipped compliance log message because of user {} is ignored", effectiveUser);
@@ -916,8 +918,8 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         if(category == Category.COMPLIANCE_DOC_WRITE || category == Category.COMPLIANCE_INTERNAL_CONFIG_WRITE) {
-            if (ignoredComplianceUsersForWrite.size() > 0 && effectiveUser != null
-                    && WildcardMatcher.matchAny(ignoredComplianceUsersForWrite, effectiveUser)) {
+            if (ignoredComplianceUsersForWrite.size() > 0 && effectiveUser != null && effectiveUser.getName() != null
+                    && WildcardMatcher.matchAny(ignoredComplianceUsersForWrite, effectiveUser.getName())) {
 
                 if(log.isTraceEnabled()) {
                     log.trace("Skipped compliance log message because of user {} is ignored", effectiveUser);
@@ -931,7 +933,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
 
-    private boolean checkRestFilter(final Category category, final String effectiveUser, RestRequest request) {
+    private boolean checkRestFilter(final Category category, final UserInformation effectiveUser, RestRequest request) {
         if(log.isTraceEnabled()) {
             log.trace("Check for REST category:{}, effectiveUser:{}, request:{}", category, effectiveUser, request==null?null:request.path());
         }
@@ -947,7 +949,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         }
 
-        if (ignoredAuditUsers.size() > 0 && WildcardMatcher.matchAny(ignoredAuditUsers, effectiveUser)) {
+        if (ignoredAuditUsers.size() > 0 && effectiveUser != null && WildcardMatcher.matchAny(ignoredAuditUsers, effectiveUser.getName())) {
 
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
