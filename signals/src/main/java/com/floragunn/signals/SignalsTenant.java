@@ -375,26 +375,38 @@ public class SignalsTenant implements Closeable {
         watchStateWriter.put(watchId, watchState);
     }
 
-    public List<String> unack(String watchId, User user) {
+    public List<String> unack(String watchId, User user) throws NoSuchWatchOnThisNodeException {
         if (log.isInfoEnabled()) {
             log.info("unack(" + watchId + ", " + user + ")");
         }
 
-        WatchState watchState = watchStateManager.getWatchState(watchId);
+        WatchState watchState = watchStateManager.peekWatchState(watchId);
 
+        if (watchState == null) {
+            throw new NoSuchWatchOnThisNodeException(watchId, nodeName);
+        }
+        
         List<String> result = watchState.unack(user != null ? user.getName() : null);
 
+        if (log.isDebugEnabled()) {
+            log.debug("Unacked actions: " + result);
+        }
+        
         watchStateWriter.put(watchId, watchState);
 
         return result;
     }
 
-    public boolean unack(String watchId, String actionId, User user) {
+    public boolean unack(String watchId, String actionId, User user) throws NoSuchWatchOnThisNodeException {
         if (log.isInfoEnabled()) {
             log.info("unack(" + watchId + ", " + actionId + ", " + user + ")");
         }
 
-        WatchState watchState = watchStateManager.getWatchState(watchId);
+        WatchState watchState = watchStateManager.peekWatchState(watchId);
+        
+        if (watchState == null) {
+            throw new NoSuchWatchOnThisNodeException(watchId, nodeName);
+        }
 
         boolean result = watchState.getActionState(actionId).unackIfPossible(user != null ? user.getName() : null);
 

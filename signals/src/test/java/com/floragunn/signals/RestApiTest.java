@@ -1120,6 +1120,35 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
         }
     }
+    
+
+    @Test
+    public void testUnAckOfFreshWatch() throws Exception {
+        String tenant = "_main";
+        String watchId = "unack_of_fresh_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest("testsource_unack_watch")).actionGet();
+            client.admin().indices().create(new CreateIndexRequest("testsink_unack_watch")).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource_unack_watch").query("{\"match_all\" : {} }").as("testsearch")
+                    .checkCondition("data.testsearch.hits.hits.length > 0").then().index("testsink_unack_watch").refreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .throttledFor("0").name("testaction").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(1000);
+            
+            response = restClient.delete(watchPath + "/_ack");
+
+            Assert.assertEquals(response.getBody(), 412, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), "No actions are in an un-acknowlegable state", response.toJsonNode().path("error").asText());            
+        }
+    }
+
 
     @Test
     public void testSearchWatch() throws Exception {

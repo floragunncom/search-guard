@@ -23,6 +23,7 @@ import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.signals.NoSuchWatchOnThisNodeException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 
@@ -108,7 +109,9 @@ public class TransportAckWatchAction
                     }
                 }
             }
-
+        } catch (NoSuchWatchOnThisNodeException e) {
+            // Note: We checked before signalsTenant.runsWatchLocally: If we get this exception anyway, this can only mean one thing:
+            return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.ILLEGAL_STATE, "The watch has not been initialized yet");
         } catch (Exception e) {
             log.error("Error while acknowledging " + request.request, e);
             return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.EXCEPTION, e.toString());

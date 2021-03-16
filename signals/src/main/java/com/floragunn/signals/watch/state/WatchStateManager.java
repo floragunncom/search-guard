@@ -52,6 +52,14 @@ public class WatchStateManager {
 
         return watchState;
     }
+    
+    public WatchState peekWatchState(String watchId) {
+        if (watchId == null) {
+            throw new IllegalArgumentException("watchId is null");
+        }
+
+        return this.watchIdToStateMap.get(watchId);
+    }
 
     public void delete(String watchId) {
         if (log.isDebugEnabled()) {
