@@ -95,6 +95,8 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
             listener.onFailure(e.toElasticsearchException());
         } catch (Exception e) {
             listener.onFailure(e);
+        } catch (Throwable t) {
+            log.error(t);
         }
     }
 
@@ -141,6 +143,8 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                         + response.getSourceAsString() + "\n" + e.getValidationErrors(), e);
                                 listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
                                         ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e, ToXContent.EMPTY_PARAMS)));
+                            } catch (Exception e) {
+                                listener.onFailure(e);
                             }
                         }
 
@@ -164,7 +168,11 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                     "__inline_watch", request.getWatchJson(), -1);
 
             threadPool.generic().submit(threadPool.getThreadContext().preserveContext(() -> {
-                listener.onResponse(executeWatch(watch, request, signalsTenant));
+                try {
+                    listener.onResponse(executeWatch(watch, request, signalsTenant));
+                } catch (Exception e) {
+                    listener.onFailure(e);
+                }
             }));
 
         } catch (ConfigValidationException e) {

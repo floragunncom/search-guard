@@ -7,5 +7,7 @@ public interface JobConfigListener<JobType extends com.floragunn.searchsupport.j
 
     void onInit(Set<JobType> jobs);
 
-    void onChange(Set<JobType> newJobs, Map<JobType, JobType> updatedJobs, Set<JobType> deletedJobs);
+    void beforeChange(Set<JobType> newJobs);
+    
+    void afterChange(Set<JobType> newJobs, Map<JobType, JobType> updatedJobs, Set<JobType> deletedJobs);
 }

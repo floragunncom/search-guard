@@ -228,7 +228,13 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         }
 
         if (this.threadPool == null) {
-            this.threadPool = new DynamicQuartzThreadPool(Thread.currentThread().getThreadGroup(), name, maxThreads, threadPriority, threadKeepAlive);
+            String suffix = "";
+            
+            if (clusterService != null) {
+                suffix = "[" + clusterService.getNodeName() + "]";
+            }
+            
+            this.threadPool = new DynamicQuartzThreadPool(Thread.currentThread().getThreadGroup(), name, suffix, maxThreads, threadPriority, threadKeepAlive);
         }
 
         schedulerPluginMap.put(CleanupSchedulerPlugin.class.getName(), new CleanupSchedulerPlugin(clusterService, jobDistributor, jobStore));

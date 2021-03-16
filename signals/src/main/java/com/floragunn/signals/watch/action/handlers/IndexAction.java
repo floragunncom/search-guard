@@ -7,10 +7,14 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -26,6 +30,7 @@ import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
 public class IndexAction extends ActionHandler {
+    private static final Logger log = LogManager.getLogger(IndexAction.class);
 
     public static final String TYPE = "index";
 
@@ -66,7 +71,11 @@ public class IndexAction extends ActionHandler {
             IndexRequest indexRequest = createIndexRequest(ctx, data, this.refreshPolicy);
 
             if (ctx.getSimulationMode() == SimulationMode.FOR_REAL) {
-                ctx.getClient().index(indexRequest).get();
+                IndexResponse indexResponse = ctx.getClient().index(indexRequest).get();
+                
+                if (log.isDebugEnabled()) {
+                    log.debug("Result of " + this + ":\n" + Strings.toString(indexResponse));
+                }
             }
 
             return new ActionExecutionResult(indexRequest);
@@ -95,6 +104,10 @@ public class IndexAction extends ActionHandler {
             if (ctx.getSimulationMode() == SimulationMode.FOR_REAL) {
                 BulkResponse response = ctx.getClient().bulk(bulkRequest).get();
 
+                if (log.isDebugEnabled()) {
+                    log.debug("Result of " + this + ":\n" + Strings.toString(response));
+                }
+                
                 if (response.hasFailures()) {
                     throw new ActionExecutionException(this, "BulkRequest contains failures: " + response.buildFailureMessage());
                 }

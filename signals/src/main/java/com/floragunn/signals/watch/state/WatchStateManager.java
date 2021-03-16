@@ -5,7 +5,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class WatchStateManager {
+    private static final Logger log = LogManager.getLogger(WatchStateManager.class);
+
     private final Map<String, WatchState> watchIdToStateMap = new ConcurrentHashMap<>();
     private final String tenant;
     private final String node;
@@ -16,6 +21,11 @@ public class WatchStateManager {
     }
 
     public Map<String, WatchState> reset(Map<String, WatchState> watchIdToStateMap, Set<String> additionalWatchIds) {
+        
+        if (log.isDebugEnabled()) {
+            log.debug("WatchStateManager.reset(" + watchIdToStateMap.keySet() + ", " + additionalWatchIds + ")");
+        }
+        
         this.watchIdToStateMap.putAll(watchIdToStateMap);
         this.watchIdToStateMap.keySet().retainAll(watchIdToStateMap.keySet());
 
@@ -23,6 +33,10 @@ public class WatchStateManager {
     }
 
     public Map<String, WatchState> add(Map<String, WatchState> watchIdToStateMap, Set<String> additionalWatchIds) {
+        if (log.isDebugEnabled()) {
+            log.debug("WatchStateManager.add(" + watchIdToStateMap.keySet() + ", " + additionalWatchIds + ")");
+        }
+        
         this.watchIdToStateMap.putAll(watchIdToStateMap);
 
         return checkNodeChanges(watchIdToStateMap, additionalWatchIds);
@@ -40,6 +54,10 @@ public class WatchStateManager {
     }
 
     public void delete(String watchId) {
+        if (log.isDebugEnabled()) {
+            log.debug("WatchStateManager.delete(" + watchId + ")");
+        }
+        
         watchIdToStateMap.remove(watchId);
     }
 

@@ -23,6 +23,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.index.query.MatchQueryBuilder;
@@ -203,7 +204,7 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, testSink, 1);
 
-            Assert.assertEquals(0, getCountOfDocuments(client, testSinkResolve));
+            Assert.assertEquals(getDocs(client, testSinkResolve), 0, getCountOfDocuments(client, testSinkResolve));
 
             client.delete(new DeleteRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")).actionGet();
 
@@ -211,7 +212,7 @@ public class RestApiTest {
 
             Thread.sleep(2000);
 
-            Assert.assertEquals(1, getCountOfDocuments(client, testSinkResolve));
+            Assert.assertEquals(getDocs(client, testSinkResolve), 1, getCountOfDocuments(client, testSinkResolve));
 
         }
     }
@@ -301,7 +302,7 @@ public class RestApiTest {
 
             Assert.assertEquals(0, getCountOfDocuments(client, testSinkResolve1));
             Assert.assertEquals(0, getCountOfDocuments(client, testSinkResolve2));
-            Assert.assertEquals(2, getCountOfDocuments(client, testSink));
+            Assert.assertEquals(getDocs(client, testSink), 2, getCountOfDocuments(client, testSink));
 
             client.delete(new DeleteRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")).actionGet();
 
@@ -309,9 +310,9 @@ public class RestApiTest {
 
             Thread.sleep(200);
 
-            Assert.assertEquals(0, getCountOfDocuments(client, testSinkResolve1));
-            Assert.assertEquals(1, getCountOfDocuments(client, testSinkResolve2));
-            Assert.assertEquals(2, getCountOfDocuments(client, testSink));
+            Assert.assertEquals(getDocs(client, testSinkResolve1), 0, getCountOfDocuments(client, testSinkResolve1));
+            Assert.assertEquals(getDocs(client, testSinkResolve2), 1, getCountOfDocuments(client, testSinkResolve2));
+            Assert.assertEquals(getDocs(client, testSink), 2, getCountOfDocuments(client, testSink));
 
             client.delete(new DeleteRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("2")).actionGet();
 
@@ -319,9 +320,9 @@ public class RestApiTest {
 
             Thread.sleep(200);
 
-            Assert.assertEquals(1, getCountOfDocuments(client, testSinkResolve1));
-            Assert.assertEquals(1, getCountOfDocuments(client, testSinkResolve2));
-            Assert.assertEquals(2, getCountOfDocuments(client, testSink));
+            Assert.assertEquals(getDocs(client, testSinkResolve1), 1, getCountOfDocuments(client, testSinkResolve1));
+            Assert.assertEquals(getDocs(client, testSinkResolve2), 1, getCountOfDocuments(client, testSinkResolve2));
+            Assert.assertEquals(getDocs(client, testSink), 2, getCountOfDocuments(client, testSink));
 
         }
     }
@@ -1977,6 +1978,17 @@ public class RestApiTest {
         SearchResponse response = client.search(request).get();
 
         return response.getHits().getTotalHits().value;
+    }
+    
+    public String getDocs(Client client, String index) throws InterruptedException, ExecutionException {
+        SearchRequest request = new SearchRequest(index);
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+        request.source(searchSourceBuilder);
+
+        SearchResponse response = client.search(request).get();
+
+        return Strings.toString(response.getHits());
     }
 
     private long awaitMinCountOfDocuments(Client client, String index, long minCount) throws Exception {

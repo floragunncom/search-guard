@@ -84,13 +84,13 @@ public class JobDistributor implements AutoCloseable {
         int oldCurrentNodeIndex = this.currentNodeIndex;
         Object[] availableNodeIds = getAvailableNodeIds(clusterState);
 
-        /*if (currentAvailableNodeIds != null && Arrays.equals(availableNodeIds, currentAvailableNodeIds)) {
+        if (currentAvailableNodeIds != null && Arrays.equals(availableNodeIds, currentAvailableNodeIds)) {
             if (log.isTraceEnabled()) {
                 log.trace("Got cluster change event on " + clusterState.nodes().getLocalNodeId() + ", but nodes did not change");
             }
         
             return false;
-        }*/
+        }
 
         if (log.isDebugEnabled()) {
             log.debug("Update of " + this + " on " + clusterState.nodes().getLocalNodeId() + ": " + Arrays.asList(availableNodeIds));
@@ -144,8 +144,8 @@ public class JobDistributor implements AutoCloseable {
                 return;
             }
 
-            if (log.isDebugEnabled()) {
-                log.debug("ClusterChangedEvent:\nblocksChanged: " + event.blocksChanged() + "\nmetadata: " + event.changedCustomMetadataSet()
+            if (log.isTraceEnabled()) {
+                log.trace("ClusterChangedEvent:\nblocksChanged: " + event.blocksChanged() + "\nmetadata: " + event.changedCustomMetadataSet()
                         + "\nindices created: " + event.indicesCreated() + "\nindices deleted: " + event.indicesDeleted() + "\nnew cluster: "
                         + event.isNewCluster() + "\nlocalNodeMaster: " + event.localNodeMaster() + "\nmetadataChanged: " + event.metadataChanged()
                         + "\nnodesAdded: " + event.nodesAdded() + "\nnodesChanged: " + event.nodesChanged() + "\nnodesRemoved: "

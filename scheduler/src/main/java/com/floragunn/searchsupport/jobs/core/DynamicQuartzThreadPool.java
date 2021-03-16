@@ -61,6 +61,7 @@ public class DynamicQuartzThreadPool implements ThreadPool {
     private static final Logger log = LogManager.getLogger(DynamicQuartzThreadPool.class);
 
     private final String threadPoolName;
+    private final  String threadNameSuffix;
     private final int maxThreadCount;
     private final int threadPriority;
     private final Duration threadKeepAlive;
@@ -93,12 +94,13 @@ public class DynamicQuartzThreadPool implements ThreadPool {
      * 
      * @see java.lang.Thread
      */
-    public DynamicQuartzThreadPool(ThreadGroup threadGroup, String threadPoolName, int maxThreadCount, int threadPriority, Duration threadKeepAlive) {
+    public DynamicQuartzThreadPool(ThreadGroup threadGroup, String threadPoolName, String threadNameSuffix, int maxThreadCount, int threadPriority, Duration threadKeepAlive) {
         this.threadGroup = threadGroup;
         this.threadPoolName = threadPoolName;
         this.maxThreadCount = maxThreadCount;
         this.threadPriority = threadPriority;
         this.threadKeepAlive = threadKeepAlive;
+        this.threadNameSuffix = threadNameSuffix;
         this.availableWorkers = new ArrayDeque<>(maxThreadCount);
     }
 
@@ -293,7 +295,7 @@ public class DynamicQuartzThreadPool implements ThreadPool {
     }
 
     protected WorkerThread createNewWorker(Runnable runnable) {
-        WorkerThread result = new WorkerThread(threadGroup, this.threadPoolName + "/worker_" + threadIdCounter.incrementAndGet(), threadPriority,
+        WorkerThread result = new WorkerThread(threadGroup, this.threadPoolName + "/worker_" + threadIdCounter.incrementAndGet() + threadNameSuffix, threadPriority,
                 true, runnable);
 
         lock.lock();
