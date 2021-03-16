@@ -143,7 +143,7 @@ public class LDAPAuthenticationBackend2 implements SyncAuthenticationBackend, De
             // length of 36 are included in the user object
             // if the whitelist contains at least one value then all attributes will be
             // additional check if whitelisted (whitelist can contain wildcard and regex)
-            LdapUser ldapUser = new LdapUser(username, user, new DirEntry(entry), credentials, customAttrMaxValueLen, whitelistedAttributes);
+            LdapUser ldapUser = new LdapUser(username, credentials.getAuthDomainInfo().authBackendType(getType()), user, new DirEntry(entry), credentials, customAttrMaxValueLen, whitelistedAttributes);
 
             processAttributeMapping(ldapUser, entry);
             

@@ -189,7 +189,7 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
             
             final String[] roles = extractRoles(claims);
             
-            return AuthCredentials.forUser(subject).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
+            return AuthCredentials.forUser(subject).authenticatorType(getType()).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
                     .prefixOldAttributes("attr.jwt.", claims).complete().build();
             
         } catch (WeakKeyException e) {

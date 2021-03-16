@@ -44,6 +44,7 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
                     // This auth token has no restrictions and no snapshotted base. We can use the current roles. Thus, we can completely initialize the user
 
                     onSuccess.accept(User.forUser(authToken.getUserName()).type(AuthTokenService.USER_TYPE_FULL_CURRENT_PERMISSIONS)
+                            .authDomainInfo(credentials.getAuthDomainInfo().authBackendType(getType()))
                             .backendRoles(authToken.getBase().getBackendRoles()).searchGuardRoles(authToken.getBase().getSearchGuardRoles())
                             .specialAuthzConfig(authToken.getId()).attributes(authToken.getBase().getAttributes()).authzComplete().build());
                 } else {
@@ -52,7 +53,7 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
                     // as these would not refer to the current configuration. Code which is supposed to support auth tokens with frozen configuration,
                     // needs to use the SpecialPrivilegesEvaluationContextProvider API to retrieve the correct configuration
 
-                    onSuccess.accept(User.forUser(authToken.getUserName())
+                    onSuccess.accept(User.forUser(authToken.getUserName()).authDomainInfo(credentials.getAuthDomainInfo().authBackendType(getType()))
                             .subName("AuthToken " + authToken.getTokenName() + " [" + authToken.getId() + "]").type(AuthTokenService.USER_TYPE)
                             .specialAuthzConfig(authToken.getId()).attributes(authToken.getBase().getAttributes()).authzComplete().build());
                 }
