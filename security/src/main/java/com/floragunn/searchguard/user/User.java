@@ -35,19 +35,20 @@ import com.jayway.jsonpath.JsonPath;
  * <b>Do not subclass from this class!</b>
  *
  */
-public class User implements Serializable, CustomAttributesAware {
+public class User implements Serializable, CustomAttributesAware, UserInformation {
 
     public static Builder forUser(String username) {
         return new Builder().name(username);
     }
 
-    public static final User ANONYMOUS = new User("sg_anonymous", Lists.newArrayList("sg_anonymous_backendrole"), null);
+    public static final User ANONYMOUS = new User("sg_anonymous", AuthDomainInfo.ANON, Lists.newArrayList("sg_anonymous_backendrole"), null);
     public static final String USER_TENANT = "__user__";
 
     private static final long serialVersionUID = -5500938501822658596L;
     private final String name;
     private final String subName;
     private final String type;
+    private String authDomain;
 
     /**
      * roles == backend_roles
@@ -61,11 +62,13 @@ public class User implements Serializable, CustomAttributesAware {
     private boolean isInjected = false;
     private transient boolean authzComplete = false;
 
-    public User(String name, String subName, String type, Set<String> roles, Set<String> searchGuardRoles,  Object specialAuthzConfig, String requestedTenant, Map<String, Object> structuredAttributes, Map<String, String> attributes,
+    public User(String name, String subName, AuthDomainInfo authDomainInfo, String type, Set<String> roles, Set<String> searchGuardRoles,
+            Object specialAuthzConfig, String requestedTenant, Map<String, Object> structuredAttributes, Map<String, String> attributes,
             boolean isInjected, boolean authzComplete) {
         super();
         this.name = name;
         this.subName = subName;
+        this.authDomain = authDomainInfo != null ? authDomainInfo.toInfoString() : null;
         this.type = type;
         this.roles = roles;
         this.searchGuardRoles = searchGuardRoles;
@@ -85,7 +88,7 @@ public class User implements Serializable, CustomAttributesAware {
      * @param customAttributes Custom attributes associated with this (maybe null)
      * @throws IllegalArgumentException if name is null or empty
      */
-    public User(final String name, final Collection<String> roles, final AuthCredentials customAttributes) {
+    public User(final String name, AuthDomainInfo authDomainInfo, final Collection<String> roles, final AuthCredentials customAttributes) {
         super();
 
         if (name == null || name.isEmpty()) {
@@ -93,6 +96,7 @@ public class User implements Serializable, CustomAttributesAware {
         }
 
         this.name = name;
+        this.authDomain = authDomainInfo != null ? authDomainInfo.toInfoString() : null;
         this.subName = null;
         this.type = null;
         this.roles = new HashSet<String>();
@@ -109,17 +113,25 @@ public class User implements Serializable, CustomAttributesAware {
             this.structuredAttributes.putAll(customAttributes.getStructuredAttributes());
         }
 
-        
     }
 
+    @Deprecated
+    public User(final String name,  final Collection<String> roles, final AuthCredentials customAttributes) {
+        this(name, null, roles, customAttributes);
+    }
+    
     /**
      * Create a new authenticated user without roles and attributes
      * 
      * @param name The username (must not be null or empty)
      * @throws IllegalArgumentException if name is null or empty
      */
-    public User(final String name) {
-        this(name, null, null);
+    public User(String name) {
+        this(name, null, null, null);
+    }
+
+    public User(String name, AuthDomainInfo authDomainInfo) {
+        this(name, authDomainInfo, null, null);
     }
 
     public final String getName() {
@@ -195,20 +207,72 @@ public class User implements Serializable, CustomAttributesAware {
     }
 
     public final String toStringWithAttributes() {
-        if (subName != null && subName.length() > 0) {
-            return "User [name=" + name + " (" + subName + "), backend_roles=" + roles + ", requestedTenant=" + requestedTenant + ", attributes=" + attributes + "]";
-        } else {
-            return "User [name=" + name + ", backend_roles=" + roles + ", requestedTenant=" + requestedTenant + ", attributes=" + attributes + "]";
-        }
+        return toString(true);
     }
 
     @Override
     public final String toString() {
+        return toString(false);
+    }
+
+    private String toString(boolean includeAttributes) {
+        StringBuilder result = new StringBuilder("User ").append(name);
+
         if (subName != null && subName.length() > 0) {
-            return "User [name=" + name + " (" + subName + "), backend_roles=" + roles + ", requestedTenant=" + requestedTenant + "]";
-        } else {
-            return "User [name=" + name + ", backend_roles=" + roles + ", requestedTenant=" + requestedTenant + "]";
+            result.append(" (").append(subName).append(")");
         }
+
+        if (authDomain != null && authDomain.length() > 0) {
+            result.append(" <").append(authDomain).append(">");
+        }
+
+        boolean propsAdded = false;
+
+        if (roles != null && roles.size() > 0) {
+            if (!propsAdded) {
+                result.append(" [");
+                propsAdded = true;
+            } else {
+                result.append(" ");
+            }
+            result.append("backend_roles=").append(roles);
+        }
+
+        if (searchGuardRoles != null && searchGuardRoles.size() > 0) {
+            if (!propsAdded) {
+                result.append(" [");
+                propsAdded = true;
+            } else {
+                result.append(" ");
+            }
+            result.append("sg_roles=").append(searchGuardRoles);
+        }
+
+        if (requestedTenant != null && requestedTenant.length() > 0) {
+            if (!propsAdded) {
+                result.append(" [");
+                propsAdded = true;
+            } else {
+                result.append(" ");
+            }
+            result.append("requestedTenant=").append(requestedTenant);
+        }
+
+        if (includeAttributes && attributes != null && attributes.size() > 0) {
+            if (!propsAdded) {
+                result.append(" [");
+                propsAdded = true;
+            } else {
+                result.append(" ");
+            }
+            result.append("attributes=").append(attributes);
+        }
+
+        if (propsAdded) {
+            result.append("]");
+        }
+
+        return result.toString();
     }
 
     @Override
@@ -256,20 +320,18 @@ public class User implements Serializable, CustomAttributesAware {
         return attributes;
     }
 
-
     public Map<String, Object> getStructuredAttributes() {
         return structuredAttributes;
     }
-    
+
     public void addStructuredAttribute(String key, Object value) {
         structuredAttributes.put(key, value);
     }
-    
-    public void addStructuredAttributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {       
-        UserAttributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);            
+
+    public void addStructuredAttributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {
+        UserAttributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);
     }
 
-    
     public final void addSearchGuardRoles(final Collection<String> sgRoles) {
         if (sgRoles != null && this.searchGuardRoles != null) {
             this.searchGuardRoles.addAll(sgRoles);
@@ -287,7 +349,7 @@ public class User implements Serializable, CustomAttributesAware {
     public Object getSpecialAuthzConfig() {
         return specialAuthzConfig;
     }
-    
+
     public boolean isAuthzComplete() {
         return authzComplete;
     }
@@ -312,6 +374,7 @@ public class User implements Serializable, CustomAttributesAware {
     public static class Builder {
         private String name;
         private String subName;
+        private AuthDomainInfo authDomainInfo;
         private String type;
         private final Set<String> backendRoles = new HashSet<String>();
         private final Set<String> searchGuardRoles = new HashSet<String>();
@@ -332,6 +395,15 @@ public class User implements Serializable, CustomAttributesAware {
             return this;
         }
 
+        public Builder authDomainInfo(AuthDomainInfo authDomainInfo) {
+            if (this.authDomainInfo == null) {
+                this.authDomainInfo = authDomainInfo;
+            } else {
+                this.authDomainInfo = this.authDomainInfo.add(authDomainInfo);
+            }
+            return this;
+        }
+
         public Builder type(String type) {
             this.type = type;
             return this;
@@ -341,8 +413,9 @@ public class User implements Serializable, CustomAttributesAware {
             this.requestedTenant = requestedTenant;
             return this;
         }
-        
+
         public Builder with(AuthCredentials authCredentials) {
+            this.authDomainInfo(authCredentials.getAuthDomainInfo());
             this.backendRoles(authCredentials.getBackendRoles());
             this.oldAttributes(authCredentials.getAttributes());
             this.attributes(authCredentials.getStructuredAttributes());
@@ -382,26 +455,24 @@ public class User implements Serializable, CustomAttributesAware {
             this.structuredAttributes.putAll(attributes);
             return this;
         }
-        
+
         public Builder attribute(String key, Object value) {
             UserAttributes.validate(value);
             this.structuredAttributes.put(key, value);
             return this;
         }
-        
-        
-        public Builder attributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {       
-            UserAttributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);            
+
+        public Builder attributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {
+            UserAttributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);
             return this;
         }
-        
-        
+
         @Deprecated
         public Builder oldAttribute(String key, String value) {
             this.attributes.put(key, value);
             return this;
         }
-        
+
         public Builder injected() {
             this.injected = true;
             return this;
@@ -411,15 +482,28 @@ public class User implements Serializable, CustomAttributesAware {
             this.specialAuthzConfig = specialAuthzConfig;
             return this;
         }
-        
+
         public Builder authzComplete() {
             this.authzComplete = true;
             return this;
         }
 
         public User build() {
-            return new User(name, subName, type, backendRoles, searchGuardRoles, specialAuthzConfig, requestedTenant, structuredAttributes, attributes, injected, authzComplete);
+            return new User(name, subName, authDomainInfo, type, backendRoles, searchGuardRoles, specialAuthzConfig, requestedTenant,
+                    structuredAttributes, attributes, injected, authzComplete);
         }
+    }
+
+    public String getAuthDomain() {
+        return authDomain;
+    }
+
+    public void setAuthDomain(String authDomain) {
+        if (authDomain != null) {
+            throw new IllegalStateException("AuthDomain has been already set: " + this);
+        }
+
+        this.authDomain = authDomain;
     }
 
 }

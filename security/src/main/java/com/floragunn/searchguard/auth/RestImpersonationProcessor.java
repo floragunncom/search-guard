@@ -28,6 +28,7 @@ import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
@@ -124,7 +125,8 @@ public class RestImpersonationProcessor {
             }
 
             AuthenticationBackend authenticationBackend = authenticationDomain.getBackend();
-            User impersonatedUser = new User(this.impersonatedUserHeader);
+            User impersonatedUser = new User(this.impersonatedUserHeader,
+                    AuthDomainInfo.from(this.originalUser).addAuthBackend(authenticationBackend.getType() + "+impersonation"));
 
             if (authenticationBackend.exists(impersonatedUser)) {
                 authz(impersonatedUser, (user) -> {

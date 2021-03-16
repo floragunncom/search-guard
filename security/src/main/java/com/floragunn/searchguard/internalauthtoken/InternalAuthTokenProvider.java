@@ -40,6 +40,7 @@ import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
+import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
@@ -132,7 +133,7 @@ public class InternalAuthTokenProvider implements DCFListener {
 
             SgRoles sgRoles = ConfigModelV7.SgRoles.create(rolesConfigV7, configModel.getActionGroupResolver());
             String userName = verifiedToken.getClaims().getSubject();
-            User user = User.forUser(userName).searchGuardRoles(sgRoles.getRoleNames()).build();
+            User user = User.forUser(userName).authDomainInfo(AuthDomainInfo.STORED_AUTH).searchGuardRoles(sgRoles.getRoleNames()).build();
             AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, sgRoles);
 
             return userAuth;

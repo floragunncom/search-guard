@@ -33,6 +33,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.http.XFFResolver;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.SgUtils;
+import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 
@@ -82,7 +83,7 @@ public class UserInjector {
             return false;
         }
 
-        final User user = new User(parts[0]);
+        final User user = new User(parts[0], AuthDomainInfo.INJECTED);
 
         // backend roles
         if (parts.length > 1 && !Strings.isNullOrEmpty(parts[1])) {
@@ -133,7 +134,7 @@ public class UserInjector {
         user.setInjected(true);
 
         threadPool.getThreadContext().putTransient(ConfigConstants.SG_USER, user);
-        auditLog.logSucceededLogin(parts[0], true, null, request);
+        auditLog.logSucceededLogin(user, true, null, request);
         if (log.isTraceEnabled()) {
             log.trace("Injected user object:{} ", user.toString());
         }

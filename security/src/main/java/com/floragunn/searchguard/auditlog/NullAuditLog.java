@@ -35,6 +35,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.compliance.ComplianceConfig;
+import com.floragunn.searchguard.user.UserInformation;
 
 public class NullAuditLog implements AuditLog {
 
@@ -44,22 +45,22 @@ public class NullAuditLog implements AuditLog {
     }
 
     @Override
-    public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, Task task) {
+    public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
         //noop, intentionally left empty
     }
 
     @Override
-    public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+    public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
         //noop, intentionally left empty
     }
 
     @Override
-    public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, String action, Task task) {
+    public void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, String action, Task task) {
         //noop, intentionally left empty
     }
 
     @Override
-    public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+    public void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
         //noop, intentionally left empty
     }
 
@@ -104,7 +105,7 @@ public class NullAuditLog implements AuditLog {
     }
 
     @Override
-    public void logMissingPrivileges(String privilege, String effectiveUser, RestRequest request) {
+    public void logMissingPrivileges(String privilege, UserInformation effectiveUser, RestRequest request) {
         //noop, intentionally left empty
     }
 
@@ -144,13 +145,13 @@ public class NullAuditLog implements AuditLog {
 	}
 
 	@Override
-	public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request,
+	public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request,
 			Task task) {
 		//noop, intentionally left empty		
 	}
 
 	@Override
-	public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+	public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
 		//noop, intentionally left empty		
 	}
     

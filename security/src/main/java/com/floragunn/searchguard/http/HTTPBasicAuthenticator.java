@@ -52,7 +52,13 @@ public class HTTPBasicAuthenticator implements HTTPAuthenticator {
         
         final String authorizationHeader = request.header("Authorization");
         
-        return HTTPHelper.extractCredentials(authorizationHeader, log);
+        AuthCredentials.Builder credsBuilder = HTTPHelper.extractCredentials(authorizationHeader, log);
+        
+        if (credsBuilder != null) {
+            return credsBuilder.authenticatorType(getType()).build();
+        } else {
+            return null;
+        }
     }
 
     @Override

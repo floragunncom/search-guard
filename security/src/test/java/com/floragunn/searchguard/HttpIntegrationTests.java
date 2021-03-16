@@ -236,9 +236,9 @@ public class HttpIntegrationTests extends SingleClusterTest {
             //rest impersonation
             res = rh.executeGetRequest("/_searchguard/authinfo", new BasicHeader("sg_impersonate_as","knuddel"), encodeBasicHeader("worf", "worf"));
             Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-            Assert.assertTrue(res.getBody().contains("name=knuddel"));
-            Assert.assertTrue(res.getBody().contains("attr.internal.test1"));
-            Assert.assertFalse(res.getBody().contains("worf"));
+            Assert.assertTrue(res.getBody(), res.getBody().contains("User knuddel"));
+            Assert.assertTrue(res.getBody(), res.getBody().contains("attr.internal.test1"));
+            Assert.assertFalse(res.getBody(), res.getBody().contains("worf"));
             
             res = rh.executeGetRequest("/_searchguard/authinfo", new BasicHeader("sg_impersonate_as","nonexists"), encodeBasicHeader("worf", "worf"));
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());
@@ -674,8 +674,8 @@ public class HttpIntegrationTests extends SingleClusterTest {
         //rest impersonation
         HttpResponse res = rh.executeGetRequest("/_searchguard/authinfo", new BasicHeader("sg_impersonate_as","someotherusernotininternalusersfile"), encodeBasicHeader("worf", "worf"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-        Assert.assertTrue(res.getBody().contains("name=someotherusernotininternalusersfile"));
-        Assert.assertFalse(res.getBody().contains("worf"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("User someotherusernotininternalusersfile"));
+        Assert.assertFalse(res.getBody(), res.getBody().contains("worf"));
     }
     
     @Test

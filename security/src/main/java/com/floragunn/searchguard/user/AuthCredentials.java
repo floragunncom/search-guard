@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
+ * Copyright 2015-2021 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ import com.jayway.jsonpath.JsonPath;
  * native credentials like GSS tokens.
  *
  */
-public final class AuthCredentials {
+public final class AuthCredentials implements UserInformation {
     private static final Logger log = LogManager.getLogger(AuthCredentials.class);
 
     public static Builder forUser(String username) {
@@ -49,6 +49,7 @@ public final class AuthCredentials {
     private static final String DIGEST_ALGORITHM = "SHA-256";
     private final String username;
     private final String subUserName;
+    private final AuthDomainInfo authDomainInfo;
     private byte[] password;
 
     /**
@@ -75,12 +76,13 @@ public final class AuthCredentials {
      */
     private final Map<String, Object> claims;
 
-    private AuthCredentials(String username, String subUserName, byte[] password, Object nativeCredentials, Set<String> backendRoles,
+    private AuthCredentials(String username, String subUserName, AuthDomainInfo authDomainInfo, byte[] password, Object nativeCredentials, Set<String> backendRoles,
             boolean complete, boolean authzComplete, byte[] internalPasswordHash, Map<String, Object> structuredAttributes,
             Map<String, String> attributes, Map<String, Object> claims) {
         super();
         this.username = username;
         this.subUserName = subUserName;
+        this.authDomainInfo = authDomainInfo;
         this.password = password;
         this.nativeCredentials = nativeCredentials;
         this.backendRoles = Collections.unmodifiableSet(backendRoles);
@@ -129,6 +131,7 @@ public final class AuthCredentials {
         this.subUserName = null;
         this.complete = false;
         this.authzComplete = false;
+        this.authDomainInfo = AuthDomainInfo.UNKNOWN;
 
         if (this.password != null) {
             try {
@@ -282,6 +285,7 @@ public final class AuthCredentials {
         builder.internalPasswordHash = this.internalPasswordHash;
         builder.attributes.putAll(this.attributes);
         builder.structuredAttributes.putAll(this.structuredAttributes);
+        builder.authDomainInfo = this.authDomainInfo;
         return builder;
     }
 
@@ -301,6 +305,7 @@ public final class AuthCredentials {
     public static class Builder {
         private String userName;
         private String subUserName;
+        private AuthDomainInfo authDomainInfo = AuthDomainInfo.UNKNOWN;
         private byte[] password;
         private Object nativeCredentials;
         private Set<String> backendRoles = new HashSet<>();
@@ -425,13 +430,17 @@ public final class AuthCredentials {
             return this;
         }
 
+        public Builder authenticatorType(String authDomainType) {
+            this.authDomainInfo = this.authDomainInfo.authenticatorType(authDomainType);
+            return this;
+        }
         
         public String getUserName() {
             return userName;
         }
-
+               
         public AuthCredentials build() {
-            AuthCredentials result = new AuthCredentials(userName, subUserName, password, nativeCredentials, backendRoles, complete, authzComplete,
+            AuthCredentials result = new AuthCredentials(userName, subUserName, authDomainInfo, password, nativeCredentials, backendRoles, complete, authzComplete,
                     internalPasswordHash, structuredAttributes, attributes, claims);
             this.password = null;
             this.nativeCredentials = null;
@@ -447,4 +456,24 @@ public final class AuthCredentials {
     public Map<String, Object> getClaims() {
         return claims;
     }
+
+    public AuthDomainInfo getAuthDomainInfo() {
+        return authDomainInfo;
+    }
+
+    @Override
+    public String getName() {
+        return username;
+    }
+
+    @Override
+    public String getSubName() {
+        return subUserName;
+    }
+
+    @Override
+    public String getAuthDomain() {
+        return authDomainInfo != null ? authDomainInfo.toInfoString() : null;
+    }
+   
 }
