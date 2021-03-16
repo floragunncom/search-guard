@@ -42,6 +42,7 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.sink.WebhookSink.WebhookFormat;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.network.PortAllocator;
 
 public class WebhookAuditLogTest {
     
@@ -219,16 +220,17 @@ public class WebhookAuditLogTest {
 	@Test
 	public void postGetHttpTest() throws Exception {
 		TestHttpHandler handler = new TestHttpHandler();
+        int port = PortAllocator.TCP.allocateSingle(WebhookAuditLogTest.class.getName(), 8090);
 
 		server = ServerBootstrap.bootstrap()
-				.setListenerPort(8080)
+				.setListenerPort(port)
 				.setServerInfo("Test/1.1")
 				.registerHandler("*", handler)
 				.create();
 
 		server.start();
 
-		String url = "http://localhost:8080/endpoint";
+		String url = "http://localhost:" + port + "/endpoint";
 
 		// SLACK
 		Settings settings = Settings.builder()
@@ -325,15 +327,17 @@ public class WebhookAuditLogTest {
 
 		TestHttpHandler handler = new TestHttpHandler();
 
+		int port = PortAllocator.TCP.allocateSingle(WebhookAuditLogTest.class.getName(), 8080);
+		
 		server = ServerBootstrap.bootstrap()
-				.setListenerPort(8081)
+				.setListenerPort(port)
 				.setServerInfo("Test/1.1")
 				.registerHandler("*", handler)
 				.create();
 
 		server.start();
 
-		String url = "https://localhost:8081/endpoint";
+		String url = "https://localhost:" + port + "/endpoint";
 
 		Settings settings = Settings.builder()
 				.put("searchguard.audit.config.webhook.url", url)
@@ -362,8 +366,11 @@ public class WebhookAuditLogTest {
 
         TestHttpHandler handler = new TestHttpHandler();
 
+        int port = PortAllocator.TCP.allocateSingle(WebhookAuditLogTest.class.getName(), 8090);
+
+        
         server = ServerBootstrap.bootstrap()
-                .setListenerPort(8090)
+                .setListenerPort(port)
                 .setServerInfo("Test/1.1")
                 .setSslContext(createSSLContext())
                 .registerHandler("*", handler)
@@ -372,7 +379,7 @@ public class WebhookAuditLogTest {
         server.start();
         AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
 
-        String url = "https://localhost:8090/endpoint";
+        String url = "https://localhost:" + port + "/endpoint";
         
         // try with ssl verification on, no trust ca, must fail
         Settings settings = Settings.builder()
@@ -446,8 +453,11 @@ public class WebhookAuditLogTest {
 
         TestHttpHandler handler = new TestHttpHandler();
 
+        int port = PortAllocator.TCP.allocateSingle(WebhookAuditLogTest.class.getName(), 8090);
+
+        
         server = ServerBootstrap.bootstrap()
-                .setListenerPort(8084)
+                .setListenerPort(port)
                 .setServerInfo("Test/1.1")
                 .setSslContext(createSSLContext())
                 .registerHandler("*", handler)
@@ -457,7 +467,7 @@ public class WebhookAuditLogTest {
         AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
         LoggingSink fallback =  new LoggingSink("test", Settings.EMPTY, null, null);
         
-        String url = "https://localhost:8084/endpoint";
+        String url = "https://localhost:" + port + "/endpoint";
         
         // test default with filepath
         handler.reset();
@@ -560,8 +570,10 @@ public class WebhookAuditLogTest {
 
         TestHttpHandler handler = new TestHttpHandler();
 
+        int port = PortAllocator.TCP.allocateSingle(WebhookAuditLogTest.class.getName(), 8090);
+        
         server = ServerBootstrap.bootstrap()
-                .setListenerPort(8091)
+                .setListenerPort(port)
                 .setServerInfo("Test/1.1")
                 .setSslContext(createSSLContext())
                 .registerHandler("*", handler)
@@ -571,7 +583,7 @@ public class WebhookAuditLogTest {
         AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
         LoggingSink fallback =  new LoggingSink("test", Settings.EMPTY, null, null);
         
-        String url = "https://localhost:8091/endpoint";
+        String url = "https://localhost:" + port + "/endpoint";
         
         // test default with filepath
         handler.reset();
@@ -657,8 +669,10 @@ public class WebhookAuditLogTest {
 
         TestHttpHandler handler = new TestHttpHandler();
 
+        int port = PortAllocator.TCP.allocateSingle(WebhookAuditLogTest.class.getName(), 8090);
+        
         server = ServerBootstrap.bootstrap()
-                .setListenerPort(8086)
+                .setListenerPort(port)
                 .setServerInfo("Test/1.1")
                 .setSslContext(createSSLContext())
                 .registerHandler("*", handler)
@@ -668,7 +682,7 @@ public class WebhookAuditLogTest {
         AuditMessage msg = MockAuditMessageFactory.validAuditMessage();
         LoggingSink fallback =  new LoggingSink("test", Settings.EMPTY, null, null);
         
-        String url = "https://localhost:8086/endpoint";
+        String url = "https://localhost:" + port + "/endpoint";
         
         // test  with filecontent
         handler.reset();
