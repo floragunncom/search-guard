@@ -47,6 +47,7 @@ import org.joda.time.format.DateTimeFormatter;
 import com.floragunn.searchguard.auditlog.AuditLog.Operation;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
+import com.floragunn.searchguard.user.UserInformation;
 
 public final class AuditMessage {
 
@@ -55,7 +56,11 @@ public final class AuditMessage {
     public static final String FORMAT_VERSION = "audit_format_version";
     public static final String CATEGORY = "audit_category";
     public static final String REQUEST_EFFECTIVE_USER = "audit_request_effective_user";
+    public static final String REQUEST_EFFECTIVE_USER_AUTH_DOMAIN = "audit_request_effective_user_auth_domain";
+
     public static final String REQUEST_INITIATING_USER = "audit_request_initiating_user";
+    public static final String REQUEST_INITIATING_USER_AUTH_DOMAIN = "audit_request_initiating_user_auth_domain";
+
     public static final String UTC_TIMESTAMP = "@timestamp";
 
     public static final String CLUSTER_NAME = "audit_cluster_name";
@@ -159,10 +164,30 @@ public final class AuditMessage {
             auditInfo.put(REQUEST_INITIATING_USER, user);
         }
     }
+    
+    public void addInitiatingUser(UserInformation user) {
+        if (user != null&& user.getName() != null) {
+            auditInfo.put(REQUEST_INITIATING_USER, user.getName());
+        }
+        
+        if (user != null && user.getAuthDomain() != null) {
+            auditInfo.put(REQUEST_INITIATING_USER_AUTH_DOMAIN, user.getAuthDomain());
+        }
+    }
 
     public void addEffectiveUser(String user) {
         if (user != null) {
             auditInfo.put(REQUEST_EFFECTIVE_USER, user);
+        }
+    }
+    
+    public void addEffectiveUser(UserInformation user) {
+        if (user != null&& user.getName() != null) {
+            auditInfo.put(REQUEST_EFFECTIVE_USER, user.getName());
+        }
+        
+        if (user != null && user.getAuthDomain() != null) {
+            auditInfo.put(REQUEST_EFFECTIVE_USER_AUTH_DOMAIN, user.getAuthDomain());
         }
     }
 

@@ -145,7 +145,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
             log.trace("From JWT:\nSubject: " + subject + "\nRoles: " + Arrays.asList(roles));
         }
         
-        return AuthCredentials.forUser(subject).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
+        return AuthCredentials.forUser(subject).authenticatorType(getType()).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
                 .prefixOldAttributes("attr.jwt.", claims.asMap()).complete().build();
     }
 

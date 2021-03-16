@@ -54,7 +54,7 @@ public class IgnoreAuditUsersTest {
 
     static String ignoreUser = "Wesley Crusher";
     String nonIgnoreUser = "Diana Crusher";
-    private final User ignoreUserObj = new User(ignoreUser);
+    private final User ignoreUserObj = new User(ignoreUser, null);
     static SearchRequest sr;
 
     @BeforeClass
@@ -114,7 +114,7 @@ public class IgnoreAuditUsersTest {
     public void testWildcards() {
 
         SearchRequest sr = new SearchRequest();
-        User user = new User("John Doe");
+        User user = new User("John Doe", null);
         //sr.putInContext(ConfigConstants.SG_USER, user);
         //sr.putInContext(ConfigConstants.SG_REMOTE_ADDRESS, "8.8.8.8");
         //sr.putInContext(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE");
@@ -134,7 +134,7 @@ public class IgnoreAuditUsersTest {
         TransportAddress ta = new TransportAddress(new InetSocketAddress("8.8.8.8",80));
 
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
-                                                                             ConfigConstants.SG_USER, new User("John Doe"),
+                                                                             ConfigConstants.SG_USER, new User("John Doe", null),
                                                                              ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                                                                               ), null, cs);
         TestAuditlogImpl.clear();
@@ -149,7 +149,7 @@ public class IgnoreAuditUsersTest {
                 .putList("searchguard.audit.ignore_users", "xxx")
                 .build();
         al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
-                ConfigConstants.SG_USER, new User("John Doe"),
+                ConfigConstants.SG_USER, new User("John Doe", null),
                 ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                  ), null, cs);
         TestAuditlogImpl.clear();
@@ -164,7 +164,7 @@ public class IgnoreAuditUsersTest {
                 .putList("searchguard.audit.ignore_users", "John Doe","Capatin Kirk")
                 .build();
         al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
-                ConfigConstants.SG_USER, new User("John Doe"),
+                ConfigConstants.SG_USER, new User("John Doe", null),
                 ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                  ), null, cs);
         TestAuditlogImpl.clear();
@@ -181,7 +181,7 @@ public class IgnoreAuditUsersTest {
                 .putList("searchguard.audit.ignore_users", "Wil Riker","Capatin Kirk")
                 .build();
         al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
-                ConfigConstants.SG_USER, new User("John Doe"),
+                ConfigConstants.SG_USER, new User("John Doe", null),
                 ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                  ), null, cs);
         TestAuditlogImpl.clear();

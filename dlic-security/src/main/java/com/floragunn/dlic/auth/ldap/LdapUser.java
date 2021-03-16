@@ -29,6 +29,7 @@ import com.floragunn.dlic.auth.ldap.LdapUser.DirEntry.DirAttribute;
 import com.floragunn.dlic.auth.ldap.util.Utils;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.SearchResultEntry;
@@ -39,9 +40,9 @@ public class LdapUser extends User {
     private final transient DirEntry userEntry;
     private final String originalUsername;
 
-    public LdapUser(final String name, String originalUsername, final DirEntry userEntry,
+    public LdapUser(String name, AuthDomainInfo authDomainInfo, String originalUsername, final DirEntry userEntry,
             final AuthCredentials credentials, int customAttrMaxValueLen, List<String> whiteListedAttributes) {
-        super(name, null, credentials);
+        super(name, authDomainInfo, null, credentials);
         this.originalUsername = originalUsername;
         this.userEntry = userEntry;
         Map<String, String> attributes = getCustomAttributesMap();

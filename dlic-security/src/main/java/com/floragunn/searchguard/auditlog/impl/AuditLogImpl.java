@@ -37,6 +37,7 @@ import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.routing.AuditMessageRouter;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
+import com.floragunn.searchguard.user.UserInformation;
 
 public final class AuditLogImpl extends AbstractAuditLog {
 
@@ -71,21 +72,21 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
 
     @Override
-    public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, Task task) {
+    public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
         if (enabled) {
             super.logFailedLogin(effectiveUser, sgadmin, initiatingUser, request, task);
         }
     }
 
     @Override
-    public void logFailedLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+    public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
         if (enabled) {
             super.logFailedLogin(effectiveUser, sgadmin, initiatingUser, request);
         }
     }
     
     @Override
-    public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request,
+    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request,
     		Task task) {        
     	if (enabled) {
             super.logBlockedUser(effectiveUser, sgadmin, initiatingUser, request, task);
@@ -93,28 +94,28 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
     
     @Override
-    public void logBlockedUser(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
     	if (enabled) {
             super.logBlockedUser(effectiveUser, sgadmin, initiatingUser, request);
         }      	
     }
 
     @Override
-    public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, TransportRequest request, String action, Task task) {
+    public void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, String action, Task task) {
         if (enabled) {
             super.logSucceededLogin(effectiveUser, sgadmin, initiatingUser, request, action, task);
         }
     }
 
     @Override
-    public void logSucceededLogin(String effectiveUser, boolean sgadmin, String initiatingUser, RestRequest request) {
+    public void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
         if (enabled) {
             super.logSucceededLogin(effectiveUser, sgadmin, initiatingUser, request);
         }
     }
 
     @Override
-    public void logMissingPrivileges(String privilege, String effectiveUser, RestRequest request) {
+    public void logMissingPrivileges(String privilege, UserInformation effectiveUser, RestRequest request) {
         if (enabled) {
             super.logMissingPrivileges(privilege, effectiveUser, request);
         }

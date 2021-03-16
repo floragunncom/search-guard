@@ -41,6 +41,7 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.AbstractSGUnitTest;
+import com.floragunn.searchguard.user.UserInformation;
 import com.google.common.base.Joiner;
 
 public class DisabledCategoriesTest {
@@ -207,20 +208,20 @@ public class DisabledCategoriesTest {
     }
 
 	 protected void logRestSucceededLogin(AuditLog auditLog) {
-	     auditLog.logSucceededLogin("testuser.rest.succeededlogin", false, "testuser.rest.succeededlogin", new MockRestRequest());
+	     auditLog.logSucceededLogin(UserInformation.forName("testuser.rest.succeededlogin"), false, UserInformation.forName("testuser.rest.succeededlogin"), new MockRestRequest());
 	 }
 
 	 protected void logTransportSucceededLogin(AuditLog auditLog) {
-	     auditLog.logSucceededLogin("testuser.transport.succeededlogin", false, "testuser.transport.succeededlogin", new TransportRequest.Empty(), "test/action", new Task(0, "x", "ac", "", null, null));
+	     auditLog.logSucceededLogin(UserInformation.forName("testuser.transport.succeededlogin"), false, UserInformation.forName("testuser.transport.succeededlogin"), new TransportRequest.Empty(), "test/action", new Task(0, "x", "ac", "", null, null));
 	 }
 
 
     protected void logRestFailedLogin(AuditLog auditLog) {
-    	auditLog.logFailedLogin("testuser.rest.failedlogin", false, "testuser.rest.failedlogin", new MockRestRequest());
+    	auditLog.logFailedLogin(UserInformation.forName("testuser.rest.failedlogin"), false, UserInformation.forName("testuser.rest.failedlogin"), new MockRestRequest());
     }
 
     protected void logTransportFailedLogin(AuditLog auditLog) {
-    	auditLog.logFailedLogin("testuser.transport.failedlogin", false, "testuser.transport.failedlogin", new TransportRequest.Empty(), null);
+    	auditLog.logFailedLogin(UserInformation.forName("testuser.transport.failedlogin"), false, UserInformation.forName("testuser.transport.failedlogin"), new TransportRequest.Empty(), null);
     }
 
     protected void logMissingPrivileges(AuditLog auditLog) {
@@ -258,7 +259,7 @@ public class DisabledCategoriesTest {
     }
     
     protected void logBlockedUser(AuditLog auditLog) {
-        auditLog.logBlockedUser("horst", false, "horst", new MockRestRequest());
+        auditLog.logBlockedUser(UserInformation.forName("horst"), false, UserInformation.forName("horst"), new MockRestRequest());
     }
 
 

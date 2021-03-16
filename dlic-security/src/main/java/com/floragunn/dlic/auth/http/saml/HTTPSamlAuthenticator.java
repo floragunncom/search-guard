@@ -416,7 +416,7 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
 
         @Override
         public String getType() {
-            return null;
+            return "saml[jwt]";
         }
 
         @Override
