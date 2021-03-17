@@ -1,16 +1,15 @@
 package com.floragunn.signals;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
-import java.util.Base64;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
-import org.apache.http.Header;
 import org.apache.http.HttpStatus;
-import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -26,8 +25,9 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
-import org.elasticsearch.index.query.MatchQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -48,6 +48,7 @@ import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.floragunn.searchsupport.junit.LoggingTestWatcher;
 import com.floragunn.signals.support.JsonBuilder;
+import com.floragunn.signals.util.WatchLogSearch;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
@@ -78,8 +79,9 @@ public class RestApiTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
-            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "signals.enterprise.enabled", false,
-                    "searchguard.diagnosis.action_stack.enabled", true)
+            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals__main_log", "signals.enterprise.enabled", false,
+                    "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
+                    "signals.watch_log.sync_indexing", true)
             .build();
 
     @BeforeClass
@@ -282,8 +284,9 @@ public class RestApiTest {
 
             watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
 
-            log.info("Created watch; as it should find one doc in " +  testSource + ", it should go to severity ERROR and write exactly one doc to " + testSink);
-            
+            log.info("Created watch; as it should find one doc in " + testSource + ", it should go to severity ERROR and write exactly one doc to "
+                    + testSink);
+
             awaitMinCountOfDocuments(client, testSink, 1);
 
             Thread.sleep(500);
@@ -291,8 +294,9 @@ public class RestApiTest {
             Assert.assertEquals(0, getCountOfDocuments(client, testSinkResolve1));
             Assert.assertEquals(0, getCountOfDocuments(client, testSinkResolve2));
             Assert.assertEquals(1, getCountOfDocuments(client, testSink));
-            
-            log.info("Adding one doc to " + testSource + "; this should raise severity from ERROR to CRITICAL and write exactly one doc to " + testSink);
+
+            log.info("Adding one doc to " + testSource + "; this should raise severity from ERROR to CRITICAL and write exactly one doc to "
+                    + testSink);
 
             client.index(new IndexRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("2").source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
@@ -508,7 +512,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            WatchLog watchLog = awaitWatchLog(client, "main", watchId);
+            WatchLog watchLog = awaitWatchLog(client, tenant, watchId);
 
             Assert.assertEquals(watchLog.toString(), Status.Code.EXECUTION_FAILED, watchLog.getStatus().getCode());
             Assert.assertTrue(watchLog.toString(), watchLog.getStatus().getDetail().contains("Error while executing SearchInput testsearch"));
@@ -615,7 +619,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            WatchLog watchLog = awaitWatchLog(client, "main", watchId);
+            WatchLog watchLog = awaitWatchLog(client, tenant, watchId);
 
             Assert.assertEquals(watchLog.toString(), Status.Code.ACTION_FAILED, watchLog.getStatus().getCode());
 
@@ -1120,7 +1124,6 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
         }
     }
-    
 
     @Test
     public void testUnAckOfFreshWatch() throws Exception {
@@ -1134,21 +1137,20 @@ public class RestApiTest {
             client.admin().indices().create(new CreateIndexRequest("testsink_unack_watch")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource_unack_watch").query("{\"match_all\" : {} }").as("testsearch")
-                    .checkCondition("data.testsearch.hits.hits.length > 0").then().index("testsink_unack_watch").refreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .throttledFor("0").name("testaction").build();
+                    .checkCondition("data.testsearch.hits.hits.length > 0").then().index("testsink_unack_watch")
+                    .refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testaction").build();
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             Thread.sleep(1000);
-            
+
             response = restClient.delete(watchPath + "/_ack");
 
             Assert.assertEquals(response.getBody(), 412, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), "No actions are in an un-acknowlegable state", response.toJsonNode().path("error").asText());            
+            Assert.assertEquals(response.getBody(), "No actions are in an un-acknowlegable state", response.toJsonNode().path("error").asText());
         }
     }
-
 
     @Test
     public void testSearchWatch() throws Exception {
@@ -1572,8 +1574,8 @@ public class RestApiTest {
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             } finally {
-                restClient.delete(watchPath, basicAuth("uhura", "uhura"));
-                restClient.delete("/_signals/account/slack/default", basicAuth("uhura", "uhura"));
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/account/slack/default");
             }
         }
     }
@@ -1819,6 +1821,7 @@ public class RestApiTest {
                         .index("testsink").name("testsink").build();
 
                 HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
                 response = restClient.get(watchPath);
@@ -1884,6 +1887,60 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("https://xyz.test.com"));
+        }
+    }
+
+    @Test
+    public void testStateIsDeletedWhenWatchIsDeleted() throws Exception {
+        String tenant = "_main";
+        String watchId = "watch_delete_is_state_delete";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String testSink = "testsink_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest("testsink_put_watch")).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink).throttledFor("1000h").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            long watchVersion = response.toJsonNode().path("_version").asLong();
+
+            List<WatchLog> watchLogs = new WatchLogSearch(client).index("signals__main_log").watchId(watchId).watchVersion(watchVersion)
+                    .fromTheStart().count(3).await();
+
+            log.info("First pass watchLogs: " + watchLogs);
+
+            Assert.assertEquals(watchLogs.toString(),
+                    Arrays.asList(Status.Code.ACTION_EXECUTED, Status.Code.ACTION_THROTTLED, Status.Code.ACTION_THROTTLED),
+                    watchLogs.stream().map((logEntry) -> logEntry.getStatus().getCode()).collect(Collectors.toList()));
+
+            response = restClient.delete(watchPath);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Thread.sleep(1000);
+
+            response = restClient.putJson(watchPath, watch);
+
+            long newWatchVersion = response.toJsonNode().path("_version").asLong();
+
+            Assert.assertNotEquals(response.getBody(), watchVersion, newWatchVersion);
+
+            watchLogs = new WatchLogSearch(client).index("signals__main_log").watchId(watchId).watchVersion(newWatchVersion).fromTheStart().count(3)
+                    .await();
+            
+            log.info("Second pass watchLogs: " + watchLogs);
+
+
+            Assert.assertEquals(watchLogs.toString(),
+                    Arrays.asList(Status.Code.ACTION_EXECUTED, Status.Code.ACTION_THROTTLED, Status.Code.ACTION_THROTTLED),
+                    watchLogs.stream().map((logEntry) -> logEntry.getStatus().getCode()).collect(Collectors.toList()));
+
+
         }
     }
 
@@ -2008,7 +2065,7 @@ public class RestApiTest {
 
         return response.getHits().getTotalHits().value;
     }
-    
+
     public String getDocs(Client client, String index) throws InterruptedException, ExecutionException {
         SearchRequest request = new SearchRequest(index);
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -2039,19 +2096,34 @@ public class RestApiTest {
         return 0;
     }
 
-    private WatchLog getMostRecentWatchLog(Client client, String tenantName, String watchName) {
+    private List<WatchLog> getMostRecentWatchLogs(Client client, String tenantName, String watchName, Long watchVersion, int count) {
         try {
-            SearchResponse searchResponse = client.search(new SearchRequest("signals_" + tenantName + "_log").source(
-                    new SearchSourceBuilder().size(1).sort("execution_end", SortOrder.DESC).query(new MatchQueryBuilder("watch_id", watchName))))
-                    .actionGet();
 
-            if (searchResponse.getHits().getHits().length == 0) {
-                return null;
+            QueryBuilder queryBuilder;
+
+            if (watchVersion == null) {
+                queryBuilder = new TermQueryBuilder("watch_id", watchName);
+            } else {
+                queryBuilder = QueryBuilders.boolQuery().must(new TermQueryBuilder("watch_id", watchName))
+                        .must(new TermQueryBuilder("watch_version", watchVersion));
             }
 
-            SearchHit searchHit = searchResponse.getHits().getHits()[0];
+            SearchResponse searchResponse = client.search(new SearchRequest("signals_" + tenantName + "_log")
+                    .source(new SearchSourceBuilder().size(count).sort("execution_end", SortOrder.DESC).query(queryBuilder))).actionGet();
 
-            return WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString());
+            if (searchResponse.getHits().getHits().length == 0) {
+                return Collections.emptyList();
+            }
+
+            ArrayList<WatchLog> result = new ArrayList<>(count);
+
+            for (SearchHit searchHit : searchResponse.getHits().getHits()) {
+                result.add(WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString()));
+            }
+
+            Collections.reverse(result);
+
+            return result;
         } catch (org.elasticsearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
             throw e;
         } catch (Exception e) {
@@ -2060,6 +2132,10 @@ public class RestApiTest {
     }
 
     private WatchLog awaitWatchLog(Client client, String tenantName, String watchName) throws Exception {
+        return awaitWatchLogs(client, tenantName, watchName, null, 1).get(0);
+    }
+
+    private List<WatchLog> awaitWatchLogs(Client client, String tenantName, String watchName, Long watchVersion, int count) throws Exception {
         try {
             long start = System.currentTimeMillis();
             Exception indexNotFoundException = null;
@@ -2068,12 +2144,14 @@ public class RestApiTest {
                 Thread.sleep(10);
 
                 try {
-                    WatchLog watchLog = getMostRecentWatchLog(client, tenantName, watchName);
+                    List<WatchLog> watchLogs = getMostRecentWatchLogs(client, tenantName, watchName, watchVersion, count);
 
-                    if (watchLog != null) {
-                        log.info("Found " + watchLog + " for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms");
+                    if (watchLogs.size() == count) {
+                        log.info("Found " + watchLogs + " for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms");
 
-                        return watchLog;
+                        return watchLogs;
+                    } else if (i != 0 && i % 200 == 0) {
+                        log.debug("Still waiting for watch logs; found so far: " + watchLogs);
                     }
 
                     indexNotFoundException = null;
@@ -2134,8 +2212,4 @@ public class RestApiTest {
 
     }
 
-    private static Header basicAuth(String username, String password) {
-        return new BasicHeader("Authorization",
-                "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-    }
 }

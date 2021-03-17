@@ -81,7 +81,7 @@ public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable
             if (this.searchRequest == null) {
                 try {
                     this.searchRequest = new SearchRequest(indexName);
-                    this.searchRequest.source(new SearchSourceBuilder().query(query).size(1000));
+                    this.searchRequest.source(new SearchSourceBuilder().query(query).size(1000).version(true));
                     this.searchRequest.scroll(new TimeValue(10000));
 
                     if (log.isDebugEnabled()) {

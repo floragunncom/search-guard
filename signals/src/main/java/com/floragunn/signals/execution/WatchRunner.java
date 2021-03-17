@@ -96,6 +96,7 @@ public class WatchRunner implements Job {
                 ActionInvocationType.ALERT, this.contextData, watchState != null ? watchState.getLastExecutionContextData() : null, simulationMode,
                 new HttpEndpointWhitelist(signalsSettings.getDynamicSettings().getAllowedHttpEndpoints()));
         this.watchLog.setWatchId(watch.getId());
+        this.watchLog.setWatchVersion(watch.getVersion());
         this.signalsSettings = signalsSettings;
         this.nodeName = nodeName;
         this.simulationMode = simulationMode;
@@ -138,7 +139,7 @@ public class WatchRunner implements Job {
         try (DiagnosticContext.Handle h = diagnosticContext.pushActionStack("signals_watch:" + watch.getTenant() + "/" + watch.getId())) {
 
             if (log.isInfoEnabled()) {
-                log.info("Running " + watch);
+                log.info("Running " + watch + "@" + watch.getVersion());
             }
 
             if (log.isDebugEnabled()) {

@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -28,12 +29,16 @@ public class WatchLogIndexWriter implements WatchLogWriter {
     private final String tenant;
     private final SignalsSettings settings;
     private final ToXContent.Params toXparams;
+    private final RefreshPolicy refreshPolicy;
+    private final boolean syncIndexing;
 
     public WatchLogIndexWriter(Client client, String tenant, SignalsSettings settings, ToXContent.Params toXparams) {
         this.client = client;
         this.tenant = tenant;
         this.settings = settings;
         this.toXparams = toXparams;
+        this.refreshPolicy = settings.getStaticSettings().getWatchLogRefreshPolicy();
+        this.syncIndexing = settings.getStaticSettings().isWatchLogSyncIndexingEnabled();
     }
 
     @Override
@@ -50,7 +55,7 @@ public class WatchLogIndexWriter implements WatchLogWriter {
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("Going to write WatchLog: " + watchLog);
+                log.debug("Going to write WatchLog " + (refreshPolicy == RefreshPolicy.IMMEDIATE ? " (immediate) " : "") + watchLog);
             }
 
             // Elevate permissions
@@ -59,21 +64,30 @@ public class WatchLogIndexWriter implements WatchLogWriter {
 
             watchLog.toXContent(jsonBuilder, toXparams);
             indexRequest.source(jsonBuilder);
+            indexRequest.setRefreshPolicy(refreshPolicy);
 
-            client.index(indexRequest, new ActionListener<IndexResponse>() {
+            if (syncIndexing) {
+                IndexResponse response = client.index(indexRequest).actionGet();
+                
+                if (log.isDebugEnabled()) {
+                    log.debug("Completed sync writing WatchLog: " + watchLog + "\n" + Strings.toString(response));
+                }
+            } else {
+                client.index(indexRequest, new ActionListener<IndexResponse>() {
 
-                @Override
-                public void onResponse(IndexResponse response) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Completed writing WatchLog: " + watchLog + "\n" + Strings.toString(response));
+                    @Override
+                    public void onResponse(IndexResponse response) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Completed writing WatchLog: " + watchLog + "\n" + Strings.toString(response));
+                        }
                     }
-                }
 
-                @Override
-                public void onFailure(Exception e) {
-                    log.error("Error while writing WatchLog " + watchLog, e);
-                }
-            });
+                    @Override
+                    public void onFailure(Exception e) {
+                        log.error("Error while writing WatchLog " + watchLog, e);
+                    }
+                });
+            }
 
         } catch (Exception e) {
             log.error("Error while writing WatchLog " + watchLog, e);

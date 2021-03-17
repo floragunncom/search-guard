@@ -86,7 +86,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
                                     threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
 
                                     client.prepareDelete(signalsTenant.getSettings().getStaticSettings().getIndexNames().getWatchesState(), null,
-                                            idInIndex).execute(new ActionListener<DeleteResponse>() {
+                                            idInIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DeleteResponse>() {
 
                                                 @Override
                                                 public void onResponse(DeleteResponse response) {
