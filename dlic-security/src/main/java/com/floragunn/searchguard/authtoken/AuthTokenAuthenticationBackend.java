@@ -39,6 +39,10 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
     public void authenticate(AuthCredentials credentials, Consumer<User> onSuccess, Consumer<Exception> onFailure) {
         try {
             authTokenService.getByClaims(credentials.getClaims(), (authToken) -> {
+                
+                if (authToken.isRevoked()) {
+                    onFailure.accept(new ElasticsearchSecurityException("Auth token " + authToken.getId() + " has been revoked"));
+                }
 
                 if (authToken.getBase().getConfigVersions() == null && authToken.getRequestedPrivileges().isTotalWildcard()) {
                     // This auth token has no restrictions and no snapshotted base. We can use the current roles. Thus, we can completely initialize the user
