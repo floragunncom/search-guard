@@ -23,9 +23,6 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -280,38 +277,11 @@ public class SignalsTenant implements Closeable {
 
     public IndexResponse addWatch(Watch watch, User user) throws IOException {
 
-        try (XContentBuilder watchContentBuilder = XContentFactory.jsonBuilder()) {
-
-            watch.setTenant(name);
-            watch.getMeta().setLastEditByUser(user.getName());
-            watch.getMeta().setLastEditByDate(new Date());
-            watch.getMeta().setAuthToken(internalAuthTokenProvider.getJwt(user, watch.getIdAndHash()));
-
-            watch.toXContent(watchContentBuilder, ToXContent.EMPTY_PARAMS);
-
-            IndexResponse indexResponse = privilegedConfigClient.prepareIndex(getConfigIndexName(), null, getWatchIdForConfigIndex(watch.getId()))
-                    .setSource(watchContentBuilder).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute().actionGet();
-
-            if (indexResponse.getResult() == Result.CREATED) {
-                watchStateWriter.put(watch.getId(), new WatchState(name), new ActionListener<IndexResponse>() {
-
-                    @Override
-                    public void onResponse(IndexResponse response) {
-                        SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        log.warn("Error while writing initial state for " + watch + ". Ignoring", e);
-                        SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
-                    }
-
-                });
-            } else if (indexResponse.getResult() == Result.UPDATED) {
-                SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
-            }
-
-            return indexResponse;
+        try {
+            return addWatch(watch.getId(), Strings.toString(watch), user);
+        } catch (ConfigValidationException e) {
+            // This should not happen
+            throw new RuntimeException(e);
         }
     }
 
@@ -339,13 +309,29 @@ public class SignalsTenant implements Closeable {
         IndexResponse indexResponse = privilegedConfigClient.prepareIndex(getConfigIndexName(), null, getWatchIdForConfigIndex(watch.getId()))
                 .setSource(newWatchJsonString, XContentType.JSON).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute().actionGet();
 
-        if (indexResponse.getResult() == Result.CREATED) {
-            watchStateWriter.put(watch.getId(), new WatchState(name));
+        if (log.isDebugEnabled()) {
+            log.debug("IndexResponse from addWatch()\n" + Strings.toString(indexResponse));
         }
 
-        if (indexResponse.getResult() == Result.CREATED || indexResponse.getResult() == Result.UPDATED) {
+        if (indexResponse.getResult() == Result.CREATED) {
+            watchStateWriter.put(watch.getId(), new WatchState(name), new ActionListener<IndexResponse>() {
+
+                @Override
+                public void onResponse(IndexResponse response) {
+                    SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    log.warn("Error while writing initial state for " + watch + ". Ignoring", e);
+                    SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
+                }
+
+            });
+        } else if (indexResponse.getResult() == Result.UPDATED) {
             SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
         }
+
         return indexResponse;
     }
 
@@ -385,13 +371,13 @@ public class SignalsTenant implements Closeable {
         if (watchState == null) {
             throw new NoSuchWatchOnThisNodeException(watchId, nodeName);
         }
-        
+
         List<String> result = watchState.unack(user != null ? user.getName() : null);
 
         if (log.isDebugEnabled()) {
             log.debug("Unacked actions: " + result);
         }
-        
+
         watchStateWriter.put(watchId, watchState);
 
         return result;
@@ -403,7 +389,7 @@ public class SignalsTenant implements Closeable {
         }
 
         WatchState watchState = watchStateManager.peekWatchState(watchId);
-        
+
         if (watchState == null) {
             throw new NoSuchWatchOnThisNodeException(watchId, nodeName);
         }
@@ -458,11 +444,11 @@ public class SignalsTenant implements Closeable {
         @Override
         public Job newJob(TriggerFiredBundle bundle, Scheduler scheduler) throws SchedulerException {
             Watch watch = getConfig(bundle);
-            
+
             if (log.isDebugEnabled()) {
                 log.debug("newJob() on " + SignalsTenant.this + "@" + SignalsTenant.this.hashCode() + ": " + watch);
             }
-            
+
             WatchState watchState = watchStateManager.getWatchState(watch.getId());
 
             if (watchState.isRefreshBeforeExecuting()) {
@@ -514,7 +500,6 @@ public class SignalsTenant implements Closeable {
 
     private final JobConfigListener<Watch> jobConfigListener = new JobConfigListener<Watch>() {
 
-      
         @Override
         public void onInit(Set<Watch> watches) {
             Set<String> watchIds = watches.stream().map((watch) -> watch.getId()).collect(Collectors.toSet());
@@ -558,14 +543,14 @@ public class SignalsTenant implements Closeable {
                 }
 
                 tenantState.setState(State.INITIALIZED);
-            }            
+            }
         }
 
         @Override
         public void afterChange(Set<Watch> newJobs, Map<Watch, Watch> updatedJobs, Set<Watch> deletedJobs) {
             for (Watch deletedWatch : deletedJobs) {
                 watchStateManager.delete(deletedWatch.getId());
-            }           
+            }
         }
 
     };

@@ -480,6 +480,8 @@ public class SignalsSettings {
         public static Setting<Integer> THREAD_PRIO = Setting.intSetting("signals.worker_threads.prio", Thread.NORM_PRIORITY, Property.NodeScope);
 
         public static Setting<Boolean> ACTIVE_BY_DEFAULT = Setting.boolSetting("signals.all_tenants_active_by_default", true, Property.NodeScope);
+        public static Setting<String> WATCH_LOG_REFRESH_POLICY = Setting.simpleString("signals.watch_log.refresh_policy", Property.NodeScope);
+        public static Setting<Boolean> WATCH_LOG_SYNC_INDEXING = Setting.boolSetting("signals.watch_log.sync_indexing", false, Property.NodeScope);
 
         public static class IndexNames {
             public static Setting<String> WATCHES = Setting.simpleString("signals.index_names.watches", ".signals_watches", Property.NodeScope);
@@ -524,8 +526,9 @@ public class SignalsSettings {
         }
 
         public static List<Setting<?>> getAvailableSettings() {
-            return Arrays.asList(ENABLED, ENTERPRISE_ENABLED, MAX_THREADS, THREAD_KEEP_ALIVE, THREAD_PRIO, ACTIVE_BY_DEFAULT, IndexNames.WATCHES,
-                    IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE, IndexNames.ACCOUNTS, IndexNames.LOG);
+            return Arrays.asList(ENABLED, ENTERPRISE_ENABLED, MAX_THREADS, THREAD_KEEP_ALIVE, THREAD_PRIO, ACTIVE_BY_DEFAULT,
+                    WATCH_LOG_REFRESH_POLICY, WATCH_LOG_SYNC_INDEXING, IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE,
+                    IndexNames.ACCOUNTS, IndexNames.LOG);
         }
 
         private final Settings settings;
@@ -566,6 +569,22 @@ public class SignalsSettings {
 
         public boolean isActiveByDefault() {
             return ACTIVE_BY_DEFAULT.get(settings);
+        }
+
+        public RefreshPolicy getWatchLogRefreshPolicy() {
+            String value = WATCH_LOG_REFRESH_POLICY.get(settings);
+
+            if (value == null) {
+                return RefreshPolicy.NONE;
+            } else if ("immediate".equalsIgnoreCase(value)) {
+                return RefreshPolicy.IMMEDIATE;
+            } else {
+                return RefreshPolicy.NONE;
+            }
+        }
+
+        public boolean isWatchLogSyncIndexingEnabled() {
+            return WATCH_LOG_SYNC_INDEXING.get(settings);
         }
     }
 

@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -30,6 +31,7 @@ public class WatchLog implements ToXContentObject {
 
     private String tenant;
     private String watchId;
+    private long watchVersion = -1;
     private Status status;
 
     private Date executionStart;
@@ -103,6 +105,11 @@ public class WatchLog implements ToXContentObject {
         builder.startObject();
         builder.field("tenant", tenant);
         builder.field("watch_id", watchId);
+        
+        if (watchVersion > 0) {
+            builder.field("watch_version", watchVersion);
+        }
+        
         builder.field("status", status);
 
         if (error != null) {
@@ -163,6 +170,10 @@ public class WatchLog implements ToXContentObject {
         if (jsonNode.hasNonNull("watch_id")) {
             result.watchId = jsonNode.get("watch_id").asText();
         }
+        
+        if (jsonNode.hasNonNull("watch_version")) {
+            result.watchVersion = jsonNode.get("watch_version").asLong();
+        }
 
         if (jsonNode.hasNonNull("status")) {
             result.status = Status.parse(jsonNode.get("status"));
@@ -203,8 +214,7 @@ public class WatchLog implements ToXContentObject {
 
     @Override
     public String toString() {
-        return "WatchLog [id=" + id + ", watchId=" + watchId + ", status=" + status + ", executionStart=" + executionStart + ", executionFinished="
-                + executionFinished + ", data=" + data + ", actions=" + actions + "]";
+        return Strings.toString(this);
     }
 
     public String getTenant() {
@@ -245,6 +255,14 @@ public class WatchLog implements ToXContentObject {
 
     public void setRuntimeAttributes(WatchExecutionContextData runtimeAttributes) {
         this.runtimeAttributes = runtimeAttributes;
+    }
+
+    public long getWatchVersion() {
+        return watchVersion;
+    }
+
+    public void setWatchVersion(long watchVersion) {
+        this.watchVersion = watchVersion;
     }
 
 
