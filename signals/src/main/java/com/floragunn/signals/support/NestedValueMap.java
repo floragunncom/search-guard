@@ -51,8 +51,8 @@ public class NestedValueMap extends HashMap<String, Object> {
 
     @Override
     public NestedValueMap clone() {
-        NestedValueMap result = new NestedValueMap(Math.max(this.size(), 10),
-                this.originalToCloneMap != null ? new MapMaker().weakKeys().makeMap() : null, this.cloneWhilePut);
+        NestedValueMap result = new NestedValueMap(Math.max(this.size(), 10), cloneWhilePut ? new MapMaker().weakKeys().makeMap() : null,
+                this.cloneWhilePut);
 
         result.putAll(this);
 
@@ -60,8 +60,8 @@ public class NestedValueMap extends HashMap<String, Object> {
     }
 
     public NestedValueMap without(String... keys) {
-        NestedValueMap result = new NestedValueMap(Math.max(this.size(), 10),
-                this.originalToCloneMap != null ? new MapMaker().weakKeys().makeMap() : null, this.cloneWhilePut);
+        NestedValueMap result = new NestedValueMap(Math.max(this.size(), 10), cloneWhilePut ? new MapMaker().weakKeys().makeMap() : null,
+                this.cloneWhilePut);
 
         Set<String> withoutKeySet = new HashSet<>(Arrays.asList(keys));
 
