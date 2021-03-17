@@ -638,4 +638,8 @@ public class SignalsTenant implements Closeable {
     public WatchStateIndexReader getWatchStateReader() {
         return watchStateReader;
     }
+
+    public SignalsSettings getSettings() {
+        return settings;
+    }
 }
