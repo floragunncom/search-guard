@@ -43,6 +43,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.RemoteClusterService;
 import org.elasticsearch.transport.Transport.Connection;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportInterceptor.AsyncSender;
@@ -52,7 +53,7 @@ import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
+import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auth.BackendRegistry;
@@ -79,6 +80,7 @@ public class SearchGuardInterceptor {
     private final ClusterInfoHolder clusterInfoHolder;
     private final List<Pattern> customAllowedHeaderPatterns;
     private final DiagnosticContext diagnosticContext;
+    private final GuiceDependencies guiceDependencies;
 
     public SearchGuardInterceptor(final Settings settings,
             final ThreadPool threadPool, final BackendRegistry backendRegistry,
@@ -86,7 +88,7 @@ public class SearchGuardInterceptor {
             final InterClusterRequestEvaluator requestEvalProvider,
             final ClusterService cs,
             final SslExceptionHandler sslExceptionHandler,
-            final ClusterInfoHolder clusterInfoHolder, DiagnosticContext diagnosticContext) {
+            final ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies, DiagnosticContext diagnosticContext) {
         this.backendRegistry = backendRegistry;
         this.auditLog = auditLog;
         this.threadPool = threadPool;
@@ -97,6 +99,7 @@ public class SearchGuardInterceptor {
         this.clusterInfoHolder = clusterInfoHolder;
         this.customAllowedHeaderPatterns = getCustomAllowedHeaderPatterns(settings);
         this.diagnosticContext = diagnosticContext;
+        this.guiceDependencies = guiceDependencies;
     }
 
     public <T extends TransportRequest> SearchGuardRequestHandler<T> getHandler(String action,
@@ -139,7 +142,9 @@ public class SearchGuardInterceptor {
                     || checkCustomAllowedHeader(k)
                     )));
             
-            if (SearchGuardPlugin.GuiceHolder.getRemoteClusterService().isCrossClusterSearchEnabled() 
+            RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
+            
+            if (remoteClusterService.isCrossClusterSearchEnabled() 
                     && clusterInfoHolder.isInitialized()
                     && (action.equals(ClusterSearchShardsAction.NAME)
                             || action.equals(SearchAction.NAME) 
@@ -153,7 +158,7 @@ public class SearchGuardInterceptor {
                 headerMap.remove(ConfigConstants.SG_FLS_FIELDS_HEADER);
             }
             
-            if (SearchGuardPlugin.GuiceHolder.getRemoteClusterService().isCrossClusterSearchEnabled() 
+            if (remoteClusterService.isCrossClusterSearchEnabled() 
                   && clusterInfoHolder.isInitialized()
                   && !action.startsWith("internal:") 
                   && !action.equals(ClusterSearchShardsAction.NAME) 

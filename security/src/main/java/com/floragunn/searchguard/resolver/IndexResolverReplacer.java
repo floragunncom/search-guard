@@ -83,7 +83,7 @@ import org.elasticsearch.snapshots.SnapshotUtils;
 import org.elasticsearch.transport.RemoteClusterService;
 import org.elasticsearch.transport.TransportRequest;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
+import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
@@ -100,13 +100,15 @@ public final class IndexResolverReplacer implements DCFListener {
     private final IndexNameExpressionResolver resolver;
     private final ClusterService clusterService;
     private final ClusterInfoHolder clusterInfoHolder;
+    private final GuiceDependencies guiceDependencies;
     private volatile boolean respectRequestIndicesOptions = false;
 
-    public IndexResolverReplacer(IndexNameExpressionResolver resolver, ClusterService clusterService, ClusterInfoHolder clusterInfoHolder) {
+    public IndexResolverReplacer(IndexNameExpressionResolver resolver, ClusterService clusterService, ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies) {
         super();
         this.resolver = resolver;
         this.clusterService = clusterService;
         this.clusterInfoHolder = clusterInfoHolder;
+        this.guiceDependencies = guiceDependencies;
     }
 
     private static final boolean isAllWithNoRemote(final String... requestedPatterns) {
@@ -163,12 +165,12 @@ public final class IndexResolverReplacer implements DCFListener {
         Set<String> remoteIndices;
         final List<String> localRequestedPatterns = new ArrayList<>(Arrays.asList(requestedPatterns0));
 
-        final RemoteClusterService remoteClusterService = SearchGuardPlugin.GuiceHolder.getRemoteClusterService();
+        final RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
 
         if (remoteClusterService.isCrossClusterSearchEnabled() && request != null
                 && (request instanceof FieldCapabilitiesRequest || request instanceof SearchRequest || request instanceof ResolveIndexAction.Request)) {
             remoteIndices = new HashSet<>();
-            final Map<String, OriginalIndices> remoteClusterIndices = SearchGuardPlugin.GuiceHolder.getRemoteClusterService()
+            final Map<String, OriginalIndices> remoteClusterIndices = remoteClusterService
                     .groupIndices(indicesOptions, requestedPatterns0, idx -> resolver.hasIndexAbstraction(idx, clusterService.state()));
             final Set<String> remoteClusters = remoteClusterIndices.keySet().stream()
                     .filter(k -> !RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY.equals(k)).collect(Collectors.toSet());
@@ -706,7 +708,7 @@ public final class IndexResolverReplacer implements DCFListener {
                 }      
 
                 final RestoreSnapshotRequest restoreRequest = (RestoreSnapshotRequest) request;
-                final SnapshotInfo snapshotInfo = SnapshotRestoreHelper.getSnapshotInfo(restoreRequest);
+                final SnapshotInfo snapshotInfo = SnapshotRestoreHelper.getSnapshotInfo(restoreRequest, guiceDependencies.getRepositoriesService());
 
                 if (snapshotInfo == null) {
                     log.warn("snapshot repository '" + restoreRequest.repository() + "', snapshot '" + restoreRequest.snapshot() + "' not found");

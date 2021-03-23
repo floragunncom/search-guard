@@ -20,7 +20,6 @@ package com.floragunn.searchguard.support;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.logging.log4j.LogManager;
@@ -36,16 +35,14 @@ import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.snapshots.SnapshotUtils;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
-
 public class SnapshotRestoreHelper {
 
     protected static final Logger log = LogManager.getLogger(SnapshotRestoreHelper.class);
     
     private final static String GENERC_THREAD_NAME = "[" + ThreadPool.Names.GENERIC + "]";
     
-    public static List<String> resolveOriginalIndices(RestoreSnapshotRequest restoreRequest) {
-        final SnapshotInfo snapshotInfo = getSnapshotInfo(restoreRequest);
+    public static List<String> resolveOriginalIndices(RestoreSnapshotRequest restoreRequest, RepositoriesService repositoriesService) {
+        final SnapshotInfo snapshotInfo = getSnapshotInfo(restoreRequest, repositoriesService);
 
         if (snapshotInfo == null) {
             log.warn("snapshot repository '" + restoreRequest.repository() + "', snapshot '" + restoreRequest.snapshot() + "' not found");
@@ -57,8 +54,7 @@ public class SnapshotRestoreHelper {
         
     }
     
-    public static SnapshotInfo getSnapshotInfo(RestoreSnapshotRequest restoreRequest) {
-        final RepositoriesService repositoriesService = Objects.requireNonNull(SearchGuardPlugin.GuiceHolder.getRepositoriesService(), "RepositoriesService not initialized");     
+    public static SnapshotInfo getSnapshotInfo(RestoreSnapshotRequest restoreRequest, RepositoriesService repositoriesService) {
         final Repository repository = repositoriesService.repository(restoreRequest.repository());
         final String threadName = Thread.currentThread().getName();
         SnapshotInfo snapshotInfo = null;
