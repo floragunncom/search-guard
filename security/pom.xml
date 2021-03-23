@@ -82,6 +82,12 @@
 			<version>${elasticsearch.version}</version>
 			<scope>provided</scope>				
 		</dependency>
+		
+		<dependency>
+    		<groupId>org.elasticsearch.plugin</groupId>
+    		<artifactId>elasticsearch-scripting-painless-spi</artifactId>
+    		<scope>provided</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
@@ -270,13 +276,6 @@
 			<scope>test</scope>
 		</dependency>
 		
-		<dependency>
-			<groupId>org.codelibs.elasticsearch.module</groupId>
-			<artifactId>lang-painless</artifactId>
-			<version>7.10.2</version>
-			<scope>provided</scope>
-		</dependency>
-
 		<dependency>
 			<groupId>com.github.stephenc.jcip</groupId>
 			<artifactId>jcip-annotations</artifactId>

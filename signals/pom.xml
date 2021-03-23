@@ -57,6 +57,12 @@
 		</dependency>
 
 		<dependency>
+    		<groupId>org.elasticsearch.plugin</groupId>
+    		<artifactId>elasticsearch-scripting-painless-spi</artifactId>
+    		<scope>provided</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
 		</dependency>
@@ -65,13 +71,6 @@
 			<groupId>org.simplejavamail</groupId>
 			<artifactId>simple-java-mail</artifactId>
 			<version>${simplemail.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.codelibs.elasticsearch.module</groupId>
-			<artifactId>lang-painless</artifactId>
-			<scope>provided</scope>
-			<version>7.10.2</version>
 		</dependency>
 
 		<dependency>
