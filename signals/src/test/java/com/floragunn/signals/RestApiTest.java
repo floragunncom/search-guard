@@ -436,22 +436,22 @@ public class RestApiTest {
 
             JsonNode parsedResponse = DefaultObjectMapper.readTree(response.getBody());
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, parsedResponse.get("status").asInt());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, parsedResponse.path("status").asInt());
             Assert.assertEquals(response.getBody(), "Invalid value",
-                    parsedResponse.get("detail").get("checks[testsearch].type").get(0).get("error").asText());
+                    parsedResponse.path("detail").path("checks[testsearch].type").path(0).path("error").asText());
             Assert.assertEquals(response.getBody(), "searchx",
-                    parsedResponse.get("detail").get("checks[testsearch].type").get(0).get("value").asText());
+                    parsedResponse.path("detail").path("checks[testsearch].type").path(0).path("value").asText());
             Assert.assertEquals(response.getBody(), "cannot resolve symbol [x]",
-                    parsedResponse.get("detail").get("checks[].source").get(0).get("error").asText());
+                    parsedResponse.path("detail").path("checks[].source").path(0).path("error").asText());
             Assert.assertTrue(response.getBody(),
-                    parsedResponse.get("detail").get("trigger.schedule.cron").get(0).get("error").asText().contains("Invalid cron expression"));
+                    parsedResponse.path("detail").path("trigger.schedule.cron").path(0).path("error").asText().contains("Invalid cron expression"));
             Assert.assertTrue(response.getBody(),
-                    parsedResponse.get("detail").get("trigger.schedule.x").get(0).get("error").asText().contains("Unsupported attribute"));
+                    parsedResponse.path("detail").path("trigger.schedule.x").path(0).path("error").asText().contains("Unsupported attribute"));
             Assert.assertEquals(response.getBody(), "Required attribute is missing",
-                    parsedResponse.get("detail").get("actions[].name").get(0).get("error").asText());
+                    parsedResponse.path("detail").path("actions[].name").path(0).path("error").asText());
             Assert.assertEquals(response.getBody(), "unexpected end of script.",
-                    parsedResponse.get("detail").get("checks[testcalc].source").get(0).get("error").asText());
-            Assert.assertEquals(response.getBody(), "Unsupported attribute", parsedResponse.get("detail").get("horst").get(0).get("error").asText());
+                    parsedResponse.path("detail").path("checks[testcalc].source").path(0).path("error").asText());
+            Assert.assertEquals(response.getBody(), "Unsupported attribute", parsedResponse.path("detail").path("horst").path(0).get("error").asText());
 
         }
     }
