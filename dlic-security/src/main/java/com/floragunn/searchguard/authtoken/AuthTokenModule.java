@@ -34,6 +34,7 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 
 import com.fasterxml.jackson.core.JsonPointer;
+import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.authtoken.api.AuthTokenInfoAction;
 import com.floragunn.searchguard.authtoken.api.AuthTokenInfoRestAction;
 import com.floragunn.searchguard.authtoken.api.AuthTokenRestAction;
