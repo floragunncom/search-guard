@@ -20,21 +20,14 @@ package com.floragunn.searchguard.test.helper.cluster;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
-import org.elasticsearch.painless.PainlessPlugin;
-import org.elasticsearch.painless.spi.PainlessExtension;
-import org.elasticsearch.plugins.ExtensiblePlugin.ExtensionLoader;
 import org.elasticsearch.plugins.Plugin;
 import org.junit.Assert;
 import org.junit.rules.ExternalResource;
@@ -149,6 +142,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         try {
             // TODO make this optional
 
+            /*
+              
+             
             final ClassLoader classLoader = getClass().getClassLoader();
 
             try (PainlessPlugin p = new PainlessPlugin()) {
@@ -170,6 +166,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            */
         } catch (NoClassDefFoundError e) {
 
         }

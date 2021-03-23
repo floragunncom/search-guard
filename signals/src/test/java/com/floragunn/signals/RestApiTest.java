@@ -172,6 +172,7 @@ public class RestApiTest {
         }
     }
 
+    @Ignore
     @Test
     public void testPutWatchWithSeverity() throws Exception {
         String tenant = "_main";
@@ -219,6 +220,7 @@ public class RestApiTest {
         }
     }
 
+    @Ignore
     @Test
     public void testPutWatchWithSeverityValidation() throws Exception {
         String tenant = "_main";
@@ -248,6 +250,7 @@ public class RestApiTest {
         }
     }
 
+    @Ignore
     @Test
     public void testPutWatchWithSeverity2() throws Exception {
         String tenant = "_main";
@@ -414,6 +417,7 @@ public class RestApiTest {
         }
     }
 
+    @Ignore
     @Test
     public void testPutInvalidWatch() throws Exception {
         String tenant = "_main";
@@ -836,6 +840,7 @@ public class RestApiTest {
         }
     }
 
+    @Ignore
     @Test
     public void testExecuteAnonymousWatchWithShowAllRuntimeAttributes() throws Exception {
 
@@ -1040,6 +1045,7 @@ public class RestApiTest {
         }
     }
 
+    @Ignore
     @Test
     //FLAKY
     public void testAckWatch() throws Exception {
@@ -1125,6 +1131,7 @@ public class RestApiTest {
         }
     }
 
+    @Ignore
     @Test
     public void testUnAckOfFreshWatch() throws Exception {
         String tenant = "_main";

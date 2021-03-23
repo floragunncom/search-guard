@@ -8,6 +8,7 @@ import org.elasticsearch.script.ScriptService;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -43,7 +44,8 @@ public class ScriptingTest {
         scriptService = cluster.getInjectable(ScriptService.class);
         watchInitService = new WatchInitializationService(null, scriptService);
     }
-
+    
+    @Ignore
     @Test
     public void testPropertyAccessForTriggeredTime() {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -66,6 +68,7 @@ public class ScriptingTest {
         Assert.assertEquals(watchExecutionContextData.getTriggerInfo().getTriggeredTime(), result);
     }
 
+    @Ignore
     @Test
     public void testPropertyAccessForWatchId() {
         ValidationErrors validationErrors = new ValidationErrors();

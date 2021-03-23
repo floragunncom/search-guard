@@ -376,6 +376,7 @@ public class CheckTest {
         }
     }
 
+    @Ignore
     @Test
     public void testConditionTrue() throws Exception {
 
@@ -395,6 +396,7 @@ public class CheckTest {
         }
     }
 
+    @Ignore
     @Test
     public void testConditionFalse() throws Exception {
 
@@ -414,6 +416,7 @@ public class CheckTest {
         }
     }
 
+    @Ignore
     @Test(expected = CheckExecutionException.class)
     public void testInvalidCondition() throws Exception {
 
@@ -435,6 +438,7 @@ public class CheckTest {
         }
     }
 
+    @Ignore
     @Test
     public void testCalc() throws Exception {
 

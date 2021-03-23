@@ -8,6 +8,7 @@ import org.elasticsearch.script.ScriptService;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -184,6 +185,7 @@ public class SeverityMappingTest {
         Assert.assertEquals(new SeverityMapping.Element(new BigDecimal("1.0"), SeverityLevel.ERROR), element);
     }
 
+    @Ignore
     @Test
     public void evaluationResultTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, scriptService);
