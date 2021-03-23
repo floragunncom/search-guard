@@ -25,6 +25,7 @@ import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotR
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 
+import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
@@ -37,12 +38,14 @@ public class SnapshotRestoreEvaluator {
     private final boolean enableSnapshotRestorePrivilege;
     private final AuditLog auditLog;
     private final boolean restoreSgIndexEnabled;
+    private final GuiceDependencies guiceDependencies;
     
-    public SnapshotRestoreEvaluator(final Settings settings, AuditLog auditLog) {
+    public SnapshotRestoreEvaluator(final Settings settings, AuditLog auditLog, GuiceDependencies guiceDependencies) {
         this.enableSnapshotRestorePrivilege = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE,
                 ConfigConstants.SG_DEFAULT_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE);
         this.restoreSgIndexEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTORE_SGINDEX_ENABLED, false);
         this.auditLog = auditLog;
+        this.guiceDependencies = guiceDependencies;
     }
 
     public PrivilegesEvaluatorResponse evaluate(final ActionRequest request, final Task task, final String action, final ClusterInfoHolder clusterInfoHolder,
@@ -82,7 +85,7 @@ public class SnapshotRestoreEvaluator {
             return presponse.markComplete();
         }
 
-        final List<String> rs = SnapshotRestoreHelper.resolveOriginalIndices(restoreRequest);
+        final List<String> rs = SnapshotRestoreHelper.resolveOriginalIndices(restoreRequest, guiceDependencies.getRepositoriesService());
 
         if (rs != null && (SearchGuardPlugin.getProtectedIndices().containsProtected(rs) || rs.contains("_all") || rs.contains("*"))) {
             auditLog.logSgIndexAttempt(request, action, task);

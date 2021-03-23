@@ -67,6 +67,7 @@ import org.elasticsearch.index.reindex.ReindexAction;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -113,7 +114,8 @@ public class PrivilegesEvaluator implements DCFListener {
     public PrivilegesEvaluator(final ClusterService clusterService, final ThreadPool threadPool,
             final ConfigurationRepository configurationRepository, final IndexNameExpressionResolver resolver, AuditLog auditLog,
             final Settings settings, final PrivilegesInterceptor privilegesInterceptor, final ClusterInfoHolder clusterInfoHolder,
-            final IndexResolverReplacer irr, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, boolean enterpriseModulesEnabled) {
+            final IndexResolverReplacer irr, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
+            GuiceDependencies guiceDependencies, boolean enterpriseModulesEnabled) {
 
         super();
         this.clusterService = clusterService;
@@ -130,7 +132,7 @@ public class PrivilegesEvaluator implements DCFListener {
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
 
         this.irr = irr;
-        snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog);
+        snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog, guiceDependencies);
         sgIndexAccessEvaluator = new SearchGuardIndexAccessEvaluator(settings, auditLog, irr);
         dlsFlsEvaluator = new DlsFlsEvaluator(settings, threadPool);
         termsAggregationEvaluator = new TermsAggregationEvaluator();

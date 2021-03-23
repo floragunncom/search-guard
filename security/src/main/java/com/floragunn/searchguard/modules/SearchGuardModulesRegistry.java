@@ -31,12 +31,12 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.auth.api.AuthorizationBackend;
-import com.floragunn.searchguard.modules.SearchGuardModule.BaseDependencies;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;

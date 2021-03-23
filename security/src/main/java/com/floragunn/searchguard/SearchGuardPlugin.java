@@ -141,7 +141,6 @@ import com.floragunn.searchguard.http.SearchGuardHttpServerTransport;
 import com.floragunn.searchguard.http.SearchGuardNonSslHttpServerTransport;
 import com.floragunn.searchguard.http.XFFResolver;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
-import com.floragunn.searchguard.modules.SearchGuardModule.BaseDependencies;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.api.ComponentStateRestAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
@@ -795,12 +794,16 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (client || disabled) {
             return components;
         }
+        
+        GuiceDependencies guiceDependencies = new GuiceDependencies();
+        components.add(guiceDependencies);
+        
         final ClusterInfoHolder cih = new ClusterInfoHolder();
         this.cs.addListener(cih);
 
         dlsFlsValve = ReflectionHelper.instantiateDlsFlsValve();
 
-        irr = new IndexResolverReplacer(indexNameExpressionResolver, clusterService, cih);
+        irr = new IndexResolverReplacer(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
         auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService);
         complianceConfig = (dlsFlsAvailable && (auditLog.getClass() != NullAuditLog.class))
                 ? new ComplianceConfig(environment, Objects.requireNonNull(irr), auditLog, localClient)
@@ -837,7 +840,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         final CompatConfig compatConfig = new CompatConfig(environment);
 
         evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, privilegesInterceptor,
-                cih, irr, specialPrivilegesEvaluationContextProviderRegistry, enterpriseModulesEnabled);
+                cih, irr, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, enterpriseModulesEnabled);
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, staticSgConfig, settings, configPath, localClient, threadPool, cih, moduleRegistry);
         dcf.registerDCFListener(backendRegistry);
@@ -869,13 +872,16 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         } else {
             principalExtractor = ReflectionHelper.instantiatePrincipalExtractor(principalExtractorClass);
         }
-
-        sgi = new SearchGuardInterceptor(settings, threadPool, backendRegistry, auditLog, principalExtractor, interClusterRequestEvaluator, cs,
-                Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), diagnosticContext);
-        components.add(principalExtractor);
         
         protectedConfigIndexService = new ProtectedConfigIndexService(localClient, clusterService, threadPool, protectedIndices);
-        
+
+        BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
+                scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, dcf, staticSgConfig, cr,
+                protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, diagnosticContext);
+
+        sgi = new SearchGuardInterceptor(settings, threadPool, backendRegistry, auditLog, principalExtractor, interClusterRequestEvaluator, cs,
+                Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), guiceDependencies, diagnosticContext);
+        components.add(principalExtractor);        
         components.add(adminDns);
         components.add(cr);
         components.add(xffResolver);
@@ -890,10 +896,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(authInfoService);
         components.add(diagnosticContext);
         
-        BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
-                scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, dcf, staticSgConfig, cr,
-                protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, diagnosticContext);
-
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
                 
         components.addAll(moduleComponents);
@@ -1181,17 +1183,14 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     //below is a hack because it seems not possible to access RepositoriesService from a non guice class
     //the way of how deguice is organized is really a mess - hope this can be fixed in later versions
     //TODO check if this could be removed
-
     @Override
     public Collection<Class<? extends LifecycleComponent>> getGuiceServiceClasses() {
 
         if (client || disabled || sslOnly) {
             return Collections.emptyList();
         }
-
-        final List<Class<? extends LifecycleComponent>> services = new ArrayList<>(1);
-        services.add(GuiceHolder.class);
-        return services;
+        
+        return Arrays.asList(GuiceDependencies.GuiceRedirector.class);
     }
 
     @Override
@@ -1241,52 +1240,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             return field.substring(0, field.length() - KEYWORD.length());
         }
         return field;
-    }
-
-    public static class GuiceHolder implements LifecycleComponent {
-
-        private static RepositoriesService repositoriesService;
-        private static RemoteClusterService remoteClusterService;
-
-        @Inject
-        public GuiceHolder(final RepositoriesService repositoriesService, final TransportService remoteClusterService) {
-            GuiceHolder.repositoriesService = repositoriesService;
-            GuiceHolder.remoteClusterService = remoteClusterService.getRemoteClusterService();
-        }
-
-        public static RepositoriesService getRepositoriesService() {
-            return repositoriesService;
-        }
-
-        public static RemoteClusterService getRemoteClusterService() {
-            return remoteClusterService;
-        }
-
-        @Override
-        public void close() {
-        }
-
-        @Override
-        public State lifecycleState() {
-            return null;
-        }
-
-        @Override
-        public void addLifecycleListener(LifecycleListener listener) {
-        }
-
-        @Override
-        public void removeLifecycleListener(LifecycleListener listener) {
-        }
-
-        @Override
-        public void start() {
-        }
-
-        @Override
-        public void stop() {
-        }
-
     }
 
     public static ProtectedIndices getProtectedIndices() {
