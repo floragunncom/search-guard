@@ -36,7 +36,7 @@ import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.index.query.AbstractQueryBuilder;
 import org.elasticsearch.index.query.ParsedQuery;
 import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryShardContext;
+import org.elasticsearch.index.query.SearchExecutionContext;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -64,7 +64,7 @@ final class DlsQueryParser {
 
     }
 
-    static Query parse(final Set<String> unparsedDlsQueries, final QueryShardContext queryShardContext,
+    static Query parse(final Set<String> unparsedDlsQueries, final SearchExecutionContext queryShardContext,
             final NamedXContentRegistry namedXContentRegistry) throws IOException {
 
         if (unparsedDlsQueries == null || unparsedDlsQueries.isEmpty()) {
@@ -108,7 +108,7 @@ final class DlsQueryParser {
 
     }
     
-    static ParsedQuery parse(final Set<String> unparsedDlsQueries, ParsedQuery originalQuery, final QueryShardContext queryShardContext,
+    static ParsedQuery parse(final Set<String> unparsedDlsQueries, ParsedQuery originalQuery, final SearchExecutionContext queryShardContext,
             final NamedXContentRegistry namedXContentRegistry) throws IOException {
         if (unparsedDlsQueries == null || unparsedDlsQueries.isEmpty()) {
             return null;
@@ -152,7 +152,7 @@ final class DlsQueryParser {
         return new ParsedQuery(dlsQueryBuilder.build());
     }
     
-    private static void handleNested(final QueryShardContext queryShardContext, 
+    private static void handleNested(final SearchExecutionContext queryShardContext, 
             final BooleanQuery.Builder dlsQueryBuilder, 
             final Query parentQuery) {      
         final BitSetProducer parentDocumentsFilter = queryShardContext.bitsetFilter(NON_NESTED_QUERY);

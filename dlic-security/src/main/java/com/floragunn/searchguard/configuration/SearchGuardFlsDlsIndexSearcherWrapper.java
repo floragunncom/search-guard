@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.function.LongSupplier;
 
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -99,8 +100,9 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 if(unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) { 
                     //disable reader optimizations
-                    dlsQuery = DlsQueryParser.parse(unparsedDlsQueries, this.indexService.newQueryShardContext(shardId.getId(), null, nowInMillis, null, Collections.emptyMap())
-                            , this.indexService.xContentRegistry());
+                    dlsQuery = DlsQueryParser.parse(unparsedDlsQueries,
+                            this.indexService.newSearchExecutionContext(shardId.getId(), 0, null, nowInMillis, null, Collections.emptyMap()),
+                            this.indexService.xContentRegistry());
                 }
             }
             
