@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 by floragunn GmbH - All rights reserved
+ * Copyright 2017-2021 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -14,9 +14,17 @@
 
 package com.floragunn.searchguard.configuration;
 
+import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.ALLOW;
+import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.DENY;
+import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest.Replaceable;
@@ -36,10 +44,7 @@ import org.elasticsearch.action.support.single.shard.SingleShardRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
@@ -54,22 +59,36 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
     private static final String USER_TENANT = "__user__";
 
     protected final Logger log = LogManager.getLogger(this.getClass());
+    private final String kibanaServerUsername;
+    private final String kibanaIndexName;
+    private final String kibanaIndexNamePrefix;
+    private final Pattern versionedKibanaIndexPattern;
+    private final Pattern kibanaIndexPatternWithTenant;
+    private final ConfigModel configModel;
+    private final boolean enabled;
 
-    public PrivilegesInterceptorImpl(IndexNameExpressionResolver resolver, ClusterService clusterService, Client client, ThreadPool threadPool) {
-        super(resolver, clusterService, client, threadPool);
+    public PrivilegesInterceptorImpl(ConfigModel configModel, DynamicConfigModel dynamicConfigModel) {
+        this.enabled = dynamicConfigModel.isKibanaMultitenancyEnabled();//config.dynamic.kibana.multitenancy_enabled
+        this.kibanaServerUsername = dynamicConfigModel.getKibanaServerUsername();//config.dynamic.kibana.server_username;
+        this.kibanaIndexName = dynamicConfigModel.getKibanaIndexname();//config.dynamic.kibana.index;
+        this.kibanaIndexNamePrefix = this.kibanaIndexName + "_";
+        this.versionedKibanaIndexPattern = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+)?(_\\d+\\.\\d+\\.\\d+)");
+        this.kibanaIndexPatternWithTenant = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+)");
+
+        this.configModel = configModel;
     }
 
-    private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, SgRoles sgRoles, ConfigModel configModel,
+    private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, SgRoles sgRoles,
             final String requestedTenant) {
-        
+
         if (!configModel.isTenantValid(requestedTenant)) {
             log.warn("Invalid tenant: " + requestedTenant + "; user: " + user);
 
             return false;
         }
-        
+
         TenantPermissions tenantPermissions = sgRoles.getTenantPermissions(user, requestedTenant);
-        
+
         if (!tenantPermissions.isReadPermitted()) {
             log.warn("Tenant {} is not allowed for user {}", requestedTenant, user.getName());
             return false;
@@ -88,110 +107,61 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         return true;
     }
 
-    /**
-     * return Boolean.TRUE to prematurely deny request
-     * return Boolean.FALSE to prematurely allow request
-     * return null to go through original eval flow
-     *
-     */
     @Override
-    public Boolean replaceKibanaIndex(final ActionRequest request, final String action, final User user, final DynamicConfigModel config,
-            final Resolved requestedResolved, SgRoles sgRoles, ConfigModel configModel) {
-
-        final boolean enabled = config.isKibanaMultitenancyEnabled();//config.dynamic.kibana.multitenancy_enabled;
+    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user, final Resolved requestedResolved,
+            SgRoles sgRoles) {
 
         if (!enabled) {
-            return null;
+            return NORMAL;
         }
 
-        //next two lines needs to be retrieved from configuration
-        final String kibanaserverUsername = config.getKibanaServerUsername();//config.dynamic.kibana.server_username;
-        final String kibanaIndexName = config.getKibanaIndexname();//config.dynamic.kibana.index;
+        if (user.getName().equals(kibanaServerUsername)) {
+            return NORMAL;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("replaceKibanaIndex(" + action + ", " + user + ")\nrequestedResolved: " + requestedResolved);
+        }
+
+        IndexInfo kibanaIndexInfo = checkForExclusivelyUsedKibanaIndexOrAlias(requestedResolved);
+
+        if (kibanaIndexInfo == null) {
+            // This is not about the .kibana index: Nothing to do here, get out early!
+            return NORMAL;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("IndexInfo: " + kibanaIndexInfo);
+        }
 
         String requestedTenant = user.getRequestedTenant();
 
-        if (log.isDebugEnabled()) {
-            log.debug("raw requestedTenant: '" + requestedTenant + "'");
-        }
-        
-        //intercept when requests are not made by the kibana server and if the kibana index/alias (.kibana) is the only index/alias involved
-        final boolean kibanaIndexOnly = !user.getName().equals(kibanaserverUsername) && resolveToKibanaIndexOrAlias(requestedResolved, kibanaIndexName);
-
         if (requestedTenant == null || requestedTenant.length() == 0) {
-            if (log.isTraceEnabled()) {
-                log.trace("No tenant, will resolve to " + kibanaIndexName);
-            }
-            
-            if (kibanaIndexOnly && !isTenantAllowed(request, action, user, sgRoles, configModel, "SGS_GLOBAL_TENANT")) {
-                return Boolean.TRUE;
-            }
-
-            return null;
-        }
-
-        String requestedTenantForIndexName;
-        
-        if (USER_TENANT.equals(requestedTenant)) {
-            requestedTenantForIndexName = user.getName();
-        } else {
-            requestedTenantForIndexName = requestedTenant;
-        }
-
-        if (log.isDebugEnabled() && !user.getName().equals(kibanaserverUsername)) {
-            //log statements only here
-            log.debug("requestedResolved: " + requestedResolved);
-        }
-
-        //request not made by the kibana server and user index is the only index/alias involved
-        if (!user.getName().equals(kibanaserverUsername) && requestedResolved.getAllIndices().size() == 1) {
-
-            if (requestedResolved.getAliases().size() == 0) {
-                if (requestedResolved.getAllIndices().contains(toUserIndexName(kibanaIndexName, requestedTenantForIndexName))) {
-
-                    if (isTenantAllowed(request, action, user, sgRoles, configModel, requestedTenant)) {
-                        return Boolean.FALSE;
-                    }
-                }
+            if (kibanaIndexInfo.tenantInfoPart != null) {
+                // XXX This indicates that the user tried to directly address an internal Kibana index including tenant name  (like .kibana_92668751_admin)
+                // The original implementation allows these requests to pass with normal privileges if the sgtenant header is null. Tenant privileges are ignored then.
+                // Integration tests (such as test_multitenancy_mget) are relying on this behaviour.
+                return NORMAL;
+            } else if (isTenantAllowed(request, action, user, sgRoles, "SGS_GLOBAL_TENANT")) {
+                return NORMAL;
             } else {
-                if (requestedResolved.getAliases().contains(toUserIndexName(kibanaIndexName, requestedTenantForIndexName))) {
-
-                    if (isTenantAllowed(request, action, user, sgRoles, configModel, requestedTenant)) {
-                        return Boolean.FALSE;
-                    }
+                return DENY;
+            }
+        } else {
+            if (isTenantAllowed(request, action, user, sgRoles, requestedTenant)) {
+                if (kibanaIndexInfo.isReplacementNeeded()) {
+                    replaceIndex(request, kibanaIndexName, kibanaIndexInfo.toInternalIndexName(user), action);
                 }
+                return ALLOW;
+            } else {
+                return DENY;
             }
         }
 
-        //intercept when requests are not made by the kibana server and if the kibana index/alias (.kibana) is the only index/alias involved
-        if (kibanaIndexOnly) {
+        // TODO handle user tenant in that way that this tenant cannot be specified as
+        // regular tenant
+        // to avoid security issue
 
-            if (log.isDebugEnabled()) {
-                log.debug("requestedTenant: " + requestedTenant);
-                log.debug("is user tenant: " + requestedTenantForIndexName.equals(user.getName()));
-            }
-
-            if (!isTenantAllowed(request, action, user, sgRoles, configModel, requestedTenant)) {
-                return Boolean.TRUE;
-            }
-
-            // TODO handle user tenant in that way that this tenant cannot be specified as
-            // regular tenant
-            // to avoid security issue
-
-            replaceIndex(request, kibanaIndexName, toUserIndexName(kibanaIndexName, requestedTenantForIndexName), action);
-            return Boolean.FALSE;
-
-        } else if (!user.getName().equals(kibanaserverUsername)) {
-
-            if (log.isTraceEnabled()) {
-                log.trace("not a request to only the .kibana index");
-                log.trace(user.getName() + "/" + kibanaserverUsername);
-                log.trace(requestedResolved + " does not contain only " + kibanaIndexName);
-            }
-
-        }
-
-        return null;
     }
 
     private void replaceIndex(final ActionRequest request, final String oldIndexName, final String newIndexName, final String action) {
@@ -288,17 +258,110 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         }
     }
 
-    private String toUserIndexName(final String originalKibanaIndex, final String tenant) {
+    private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(Resolved requestedResolved) {
+        String alias;
 
-        if (tenant == null) {
-            throw new ElasticsearchException("tenant must not be null here");
+        if (requestedResolved.getAliases().size() == 1) {
+            alias = requestedResolved.getAliases().iterator().next();
+        } else if (requestedResolved.getAllIndices().size() == 1) {
+            alias = requestedResolved.getAllIndices().iterator().next();
+        } else {
+            return null;
         }
 
-        return originalKibanaIndex + "_" + tenant.hashCode() + "_" + tenant.toLowerCase().replaceAll("[^a-z0-9]+", "");
+        if (alias.equals(kibanaIndexName)) {
+            // Pre 7.12: Just .kibana
+            return new IndexInfo(alias, kibanaIndexName, null);
+        }
+
+        if (alias.startsWith(kibanaIndexNamePrefix)) {
+            Matcher matcher = versionedKibanaIndexPattern.matcher(alias);
+
+            if (matcher.matches()) {
+                // Post 7.12: .kibana_7.12.0
+                // Prefix will be: .kibana_
+                // Suffix will be: _7.12.0
+                if (matcher.group(1) == null) {
+                    // Basic case
+                    return new IndexInfo(alias, kibanaIndexName, matcher.group(2));
+                } else {
+                    // We have here the case that the index replacement has been already applied.
+                    // This can happen when internal ES operations trigger further operations, e.g. an index triggers an auto_create.
+                    return new IndexInfo(alias, kibanaIndexName, matcher.group(2), matcher.group(1));
+                }
+            }
+
+            matcher = kibanaIndexPatternWithTenant.matcher(alias);
+
+            if (matcher.matches()) {
+                // Pre 7.12: .kibana_12345678_tenantname
+
+                return new IndexInfo(alias, kibanaIndexName, null, matcher.group(1));
+            }
+        }
+
+        return null;
     }
 
-    private boolean resolveToKibanaIndexOrAlias(final Resolved requestedResolved, final String kibanaIndexName) {
-        return (requestedResolved.getAllIndices().size() == 1 && requestedResolved.getAllIndices().contains(kibanaIndexName))
-                || (requestedResolved.getAliases().size() == 1 && requestedResolved.getAliases().contains(kibanaIndexName));
+    private class IndexInfo {
+        final String originalName;
+        final String prefix;
+        final String suffix;
+        final String tenantInfoPart;
+
+        IndexInfo(String originalName, String prefix, String suffix) {
+            this.originalName = originalName;
+            this.prefix = prefix;
+            this.suffix = suffix;
+            this.tenantInfoPart = null;
+        }
+
+        IndexInfo(String originalName, String prefix, String suffix, String tenantInfoPart) {
+            this.originalName = originalName;
+            this.prefix = prefix;
+            this.suffix = suffix;
+            this.tenantInfoPart = tenantInfoPart;
+        }
+
+        String toInternalIndexName(User user) {
+            if (USER_TENANT.equals(user.getRequestedTenant())) {
+                return toInternalIndexName(user.getName());
+            } else {
+                return toInternalIndexName(user.getRequestedTenant());
+            }
+        }
+
+        boolean isReplacementNeeded() {
+            return this.tenantInfoPart == null;
+        }
+
+        private String toInternalIndexName(String tenant) {
+            if (tenant == null) {
+                throw new ElasticsearchException("tenant must not be null here");
+            }
+
+            String tenantInfoPart = "_" + tenant.hashCode() + "_" + tenant.toLowerCase().replaceAll("[^a-z0-9]+", "");
+
+            if (this.tenantInfoPart != null && !this.tenantInfoPart.equals(tenantInfoPart)) {
+                throw new ElasticsearchSecurityException(
+                        "This combination of sgtenant header and index is not allowed.\nTenant: " + tenant + "\nIndex: " + originalName,
+                        RestStatus.BAD_REQUEST);
+            }
+
+            StringBuilder result = new StringBuilder(prefix).append(tenantInfoPart);
+
+            if (this.suffix != null) {
+                result.append(suffix);
+            }
+
+            return result.toString();
+        }
+
+        @Override
+        public String toString() {
+            return "IndexInfo [originalName=" + originalName + ", prefix=" + prefix + ", suffix=" + suffix + ", tenantInfoPart=" + tenantInfoPart
+                    + "]";
+        }
+
     }
 }
