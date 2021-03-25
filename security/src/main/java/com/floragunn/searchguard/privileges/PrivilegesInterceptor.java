@@ -18,39 +18,24 @@
 package com.floragunn.searchguard.privileges;
 
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
-import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
 
 public class PrivilegesInterceptor {
 
-    protected final IndexNameExpressionResolver resolver;
-    protected final ClusterService clusterService;
-    protected final Client client;
-    protected final ThreadPool threadPool;
-
-    public PrivilegesInterceptor(final IndexNameExpressionResolver resolver, final ClusterService clusterService, final Client client,
-            ThreadPool threadPool) {
-        this.resolver = resolver;
-        this.clusterService = clusterService;
-        this.client = client;
-        this.threadPool = threadPool;
+    public PrivilegesInterceptor() {
     }
 
-    public Boolean replaceKibanaIndex(final ActionRequest request, final String action, final User user, final DynamicConfigModel config,
-            final Resolved requestedResolved, SgRoles sgRoles, ConfigModel configModel) {
-        throw new RuntimeException("not implemented");
+    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user, final Resolved requestedResolved,
+            SgRoles sgRoles) {
+        return InterceptionResult.NORMAL;
     }
-
-    protected final ThreadContext getThreadContext() {
-        return threadPool.getThreadContext();
+    
+    public enum InterceptionResult {
+        ALLOW,
+        DENY,
+        NORMAL
     }
 }
