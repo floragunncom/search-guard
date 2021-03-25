@@ -62,10 +62,7 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.CheckedFunction;
-import org.elasticsearch.common.component.Lifecycle.State;
 import org.elasticsearch.common.component.LifecycleComponent;
-import org.elasticsearch.common.component.LifecycleListener;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.network.NetworkService;
@@ -102,7 +99,6 @@ import org.elasticsearch.search.internal.ReaderContext;
 import org.elasticsearch.search.internal.ScrollContext;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.RemoteClusterService;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.Transport.Connection;
 import org.elasticsearch.transport.TransportInterceptor;
@@ -111,7 +107,6 @@ import org.elasticsearch.transport.TransportRequestHandler;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
-import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -145,7 +140,6 @@ import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.api.ComponentStateRestAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
-import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
 import com.floragunn.searchguard.privileges.extended_action_handling.ResourceOwnerService;
@@ -822,10 +816,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (!DEFAULT_INTERCLUSTER_REQUEST_EVALUATOR_CLASS.equals(className)) {
             interClusterRequestEvaluator = ReflectionHelper.instantiateInterClusterRequestEvaluator(className, settings);
         }
-
-        final PrivilegesInterceptor privilegesInterceptor = ReflectionHelper.instantiatePrivilegesInterceptorImpl(indexNameExpressionResolver, clusterService,
-                localClient, threadPool);
-
+        
         adminDns = new AdminDNs(settings);
 
         cr = (ConfigurationRepository) ConfigurationRepository.create(settings, this.configPath, threadPool, localClient, clusterService, auditLog,
@@ -839,10 +830,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, auditLog, threadPool);
         final CompatConfig compatConfig = new CompatConfig(environment);
 
-        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, privilegesInterceptor,
-                cih, irr, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, enterpriseModulesEnabled);
+        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih, irr,
+                specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, enterpriseModulesEnabled);
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, staticSgConfig, settings, configPath, localClient, threadPool, cih, moduleRegistry);
+
         dcf.registerDCFListener(backendRegistry);
         dcf.registerDCFListener(compatConfig);
         dcf.registerDCFListener(irr);

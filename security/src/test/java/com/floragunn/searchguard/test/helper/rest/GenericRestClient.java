@@ -145,10 +145,10 @@ public class GenericRestClient implements AutoCloseable {
         return executeRequest(new HttpDelete(getHttpServerUri() + "/" + path), headers);
     }
 
-    public HttpResponse postJson(String path, String body) throws Exception {
+    public HttpResponse postJson(String path, String body, Header... headers) throws Exception {
         HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
         uriRequest.setEntity(new StringEntity(body));
-        return executeRequest(uriRequest, CONTENT_TYPE_JSON);
+        return executeRequest(uriRequest, mergeHeaders(CONTENT_TYPE_JSON, headers));
     }
 
     public HttpResponse postJson(String path, ToXContentObject body) throws Exception {

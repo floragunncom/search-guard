@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
+ * Copyright 2015-2021 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -81,6 +81,7 @@ import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.ReflectionHelper;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
@@ -113,7 +114,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
     public PrivilegesEvaluator(final ClusterService clusterService, final ThreadPool threadPool,
             final ConfigurationRepository configurationRepository, final IndexNameExpressionResolver resolver, AuditLog auditLog,
-            final Settings settings, final PrivilegesInterceptor privilegesInterceptor, final ClusterInfoHolder clusterInfoHolder,
+            final Settings settings, final ClusterInfoHolder clusterInfoHolder,
             final IndexResolverReplacer irr, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
             GuiceDependencies guiceDependencies, boolean enterpriseModulesEnabled) {
 
@@ -123,7 +124,6 @@ public class PrivilegesEvaluator implements DCFListener {
         this.auditLog = auditLog;
 
         this.threadContext = threadPool.getThreadContext();
-        this.privilegesInterceptor = privilegesInterceptor;
 
         this.checkSnapshotRestoreWritePrivileges = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
                 ConfigConstants.SG_DEFAULT_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES);
@@ -143,6 +143,8 @@ public class PrivilegesEvaluator implements DCFListener {
     public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
         this.dcm = dcm;
         this.configModel = cm;
+        
+        this.privilegesInterceptor = ReflectionHelper.instantiatePrivilegesInterceptorImpl(cm, dcm);
     }
 
     private SgRoles getSgRoles(Set<String> roles) {
@@ -251,21 +253,19 @@ public class PrivilegesEvaluator implements DCFListener {
                     }
                 } else {
 
-                    if (privilegesInterceptor.getClass() != PrivilegesInterceptor.class) {
+                    if (privilegesInterceptor != null) {
 
-                        final Boolean replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user, dcm, requestedResolved,
-                                sgRoles, configModel);
+                        PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user,
+                                requestedResolved, sgRoles);
 
                         if (log.isDebugEnabled()) {
                             log.debug("Result from privileges interceptor for cluster perm: {}", replaceResult);
                         }
 
-                        if (replaceResult == Boolean.TRUE) {
+                        if (replaceResult == PrivilegesInterceptor.InterceptionResult.DENY) {
                             auditLog.logMissingPrivileges(action0, request, task);
                             return presponse;
-                        }
-
-                        if (replaceResult == Boolean.FALSE) {
+                        } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
                             presponse.allowed = true;
                             return presponse;
                         }
@@ -348,20 +348,18 @@ public class PrivilegesEvaluator implements DCFListener {
 
         //TODO exclude sg index
 
-        if (privilegesInterceptor.getClass() != PrivilegesInterceptor.class) {
+        if (privilegesInterceptor != null) {
 
-            final Boolean replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user, dcm, requestedResolved, sgRoles, configModel);
+            PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user, requestedResolved, sgRoles);
 
             if (log.isDebugEnabled()) {
                 log.debug("Result from privileges interceptor: {}", replaceResult);
             }
 
-            if (replaceResult == Boolean.TRUE) {
+            if (replaceResult == PrivilegesInterceptor.InterceptionResult.DENY) {
                 auditLog.logMissingPrivileges(action0, request, task);
                 return presponse;
-            }
-
-            if (replaceResult == Boolean.FALSE) {
+            } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
                 presponse.allowed = true;
                 return presponse;
             }
@@ -469,11 +467,11 @@ public class PrivilegesEvaluator implements DCFListener {
     }
 
     public boolean multitenancyEnabled() {
-        return privilegesInterceptor.getClass() != PrivilegesInterceptor.class && dcm.isKibanaMultitenancyEnabled();
+        return privilegesInterceptor != null && dcm.isKibanaMultitenancyEnabled();
     }
 
     public boolean notFailOnForbiddenEnabled() {
-        return privilegesInterceptor.getClass() != PrivilegesInterceptor.class && dcm.isDnfofEnabled();
+        return privilegesInterceptor != null && dcm.isDnfofEnabled();
     }
 
     public String kibanaIndex() {

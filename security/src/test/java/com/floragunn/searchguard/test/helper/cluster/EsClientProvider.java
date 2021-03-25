@@ -51,6 +51,13 @@ public interface EsClientProvider {
         return getRestClient(user.getName(), user.getPassword());
     }
 
+    default public GenericRestClient getRestClient(String user, String password, String tenant) {
+        BasicHeader basicAuthHeader = new BasicHeader("Authorization",
+                "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
+
+        return new GenericRestClient(getHttpAddress(), Arrays.asList(basicAuthHeader, new BasicHeader("sgtenant", tenant)), getResourceFolder());
+    }
+    
     default public GenericRestClient getRestClient(String user, String password) {
         BasicHeader basicAuthHeader = new BasicHeader("Authorization",
                 "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));

@@ -200,7 +200,6 @@ public class HttpIntegrationTests extends SingleClusterTest {
             Assert.assertTrue(res.getBody().contains("\"user_name\":\"worf\""));
             Assert.assertTrue(res.getBody().contains("\"custom_attribute_names\":[]"));
             Assert.assertFalse(res.getBody().contains("attributes="));
-            Assert.assertTrue(PrivilegesInterceptorImpl.count > 0);
             
             res = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("custattr", "nagilum"));
             Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
@@ -210,7 +209,6 @@ public class HttpIntegrationTests extends SingleClusterTest {
             Assert.assertTrue(res.getBody().contains("\"custom_attribute_names\" : ["));
             Assert.assertTrue(res.getBody().contains("attr.internal.c3"));
             Assert.assertTrue(res.getBody().contains("attr.internal.c1"));
-            Assert.assertTrue(PrivilegesInterceptorImpl.count > 0);
             
             res = rh.executeGetRequest("v2/_search", encodeBasicHeader("custattr", "nagilum"));
             Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());

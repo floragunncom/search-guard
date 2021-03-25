@@ -53,6 +53,8 @@ import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
+import com.floragunn.searchguard.sgconf.ConfigModel;
+import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.ssl.transport.DefaultPrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -292,20 +294,16 @@ public class ReflectionHelper {
         }
     }
 
-    public static PrivilegesInterceptor instantiatePrivilegesInterceptorImpl(final IndexNameExpressionResolver resolver,
-            final ClusterService clusterService, final Client localClient, final ThreadPool threadPool) {
-
-        final PrivilegesInterceptor noop = new PrivilegesInterceptor(resolver, clusterService, localClient, threadPool);
+    public static PrivilegesInterceptor instantiatePrivilegesInterceptorImpl(ConfigModel configModel, DynamicConfigModel dynamicConfigModel) {
 
         if (enterpriseModulesDisabled()) {
-            return noop;
+            return null;
         }
 
         try {
             final Class<?> clazz = Class.forName("com.floragunn.searchguard.configuration.PrivilegesInterceptorImpl");
-            final PrivilegesInterceptor ret = (PrivilegesInterceptor) clazz
-                    .getConstructor(IndexNameExpressionResolver.class, ClusterService.class, Client.class, ThreadPool.class)
-                    .newInstance(resolver, clusterService, localClient, threadPool);
+            final PrivilegesInterceptor ret = (PrivilegesInterceptor) clazz.getConstructor(ConfigModel.class, DynamicConfigModel.class)
+                    .newInstance(configModel, dynamicConfigModel);
             addLoadedModule(clazz);
             return ret;
         } catch (final Throwable e) {
@@ -313,7 +311,7 @@ public class ReflectionHelper {
             if (log.isDebugEnabled()) {
                 log.debug("Stacktrace: ", e);
             }
-            return noop;
+            return null;
         }
     }
 
