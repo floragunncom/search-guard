@@ -245,6 +245,7 @@ sg_all_access:
   - tenant_patterns:
     - "adm_tenant"
     - "test_tenant_ro"
+    - "kibana_7_12_alias_test"
     allowed_actions:
     - "SGS_KIBANA_ALL_WRITE"
 sg_logstash:
