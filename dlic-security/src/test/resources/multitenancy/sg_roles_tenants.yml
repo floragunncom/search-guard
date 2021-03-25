@@ -69,3 +69,6 @@ dept_04:
 dept_05:
   reserved: false
   hidden: false 
+kibana_7_12_alias_test:  
+  reserved: false
+  hidden: false 
