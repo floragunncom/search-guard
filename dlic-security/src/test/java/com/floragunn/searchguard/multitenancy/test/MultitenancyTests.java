@@ -19,15 +19,24 @@ import java.util.Map;
 
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -253,6 +262,43 @@ public class MultitenancyTests {
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana_-815674808_kibana712aliastest_7.12.0_001")).actionGet();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    @Test
+    public void testAliasCreationKibana_7_12() throws Exception {
+        try {
+            try (RestHighLevelClient tenantClient = cluster.getRestHighLevelClient("admin", "admin", "kibana_7_12_alias_creation_test");
+                    Client client = cluster.getInternalNodeClient()) {
+                IndexResponse indexResponse = tenantClient.index(new IndexRequest(".kibana_7.12.0_001").id("test")
+                        .source(ImmutableMap.of("buildNum", 15460)).setRefreshPolicy(RefreshPolicy.IMMEDIATE), RequestOptions.DEFAULT);
+                Assert.assertEquals(indexResponse.toString(), indexResponse.getResult(), DocWriteResponse.Result.CREATED);
+                Assert.assertEquals(indexResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", indexResponse.getIndex());
+
+                AcknowledgedResponse ackResponse = tenantClient.indices().updateAliases(
+                        new IndicesAliasesRequest().addAliasAction(AliasActions.add().index(".kibana_7.12.0_001").alias(".kibana_7.12.0")),
+                        RequestOptions.DEFAULT);
+
+                Assert.assertTrue(ackResponse.toString(), ackResponse.isAcknowledged());
+
+                GetResponse getResponse = tenantClient.get(new GetRequest(".kibana_7.12.0", "test"), RequestOptions.DEFAULT);
+
+                Assert.assertEquals(getResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", getResponse.getIndex());
+
+                GetAliasesResponse getAliasesResponse = client.admin().indices()
+                        .getAliases(new GetAliasesRequest(".kibana_1482524924_kibana712aliascreationtest_7.12.0")).actionGet();
+
+                Assert.assertNotNull(getAliasesResponse.getAliases().toString(),
+                        getAliasesResponse.getAliases().get(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001"));
+                Assert.assertEquals(getAliasesResponse.getAliases().toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0",
+                        getAliasesResponse.getAliases().get(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001").get(0).alias());
+
+            }
+        } finally {
+            try (Client tc = cluster.getInternalNodeClient()) {
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001")).actionGet();
             } catch (Exception ignored) {
             }
         }

@@ -28,6 +28,8 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest.Replaceable;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
@@ -72,8 +74,9 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         this.kibanaServerUsername = dynamicConfigModel.getKibanaServerUsername();//config.dynamic.kibana.server_username;
         this.kibanaIndexName = dynamicConfigModel.getKibanaIndexname();//config.dynamic.kibana.index;
         this.kibanaIndexNamePrefix = this.kibanaIndexName + "_";
-        this.versionedKibanaIndexPattern = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+)?(_\\d+\\.\\d+\\.\\d+)");
-        this.kibanaIndexPatternWithTenant = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+)");
+        this.versionedKibanaIndexPattern = Pattern
+                .compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+)?(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)");
+        this.kibanaIndexPatternWithTenant = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+(_[0-9]{3})?)");
 
         this.configModel = configModel;
     }
@@ -150,7 +153,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         } else {
             if (isTenantAllowed(request, action, user, sgRoles, requestedTenant)) {
                 if (kibanaIndexInfo.isReplacementNeeded()) {
-                    replaceIndex(request, kibanaIndexName, kibanaIndexInfo.toInternalIndexName(user), action);
+                    replaceIndex(request, kibanaIndexInfo.originalName, kibanaIndexInfo.toInternalIndexName(user), action, user);
                 }
                 return ALLOW;
             } else {
@@ -164,7 +167,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
     }
 
-    private void replaceIndex(final ActionRequest request, final String oldIndexName, final String newIndexName, final String action) {
+    private void replaceIndex(ActionRequest request, String oldIndexName, String newIndexName, String action, User user) {
         boolean kibOk = false;
 
         if (log.isDebugEnabled()) {
@@ -249,6 +252,53 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             Replaceable replaceableRequest = (Replaceable) request;
             replaceableRequest.indices(newIndexNames);
             kibOk = true;
+        } else if (request instanceof IndicesAliasesRequest) {
+            IndicesAliasesRequest indicesAliasesRequest = (IndicesAliasesRequest) request;
+
+            for (AliasActions aliasActions : indicesAliasesRequest.getAliasActions()) {
+                if (aliasActions.indices() == null || aliasActions.indices().length != 1) {
+                    // This is guarded by replaceKibanaIndex()
+                    // Only actions operating on a single Kibana index should arrive here.
+                    log.warn("Unexpected AliasActions: " + aliasActions);
+                    continue;
+                }
+
+                if (!aliasActions.indices()[0].equals(oldIndexName)) {
+                    // This is guarded by replaceKibanaIndex()
+                    // Only actions operating on a single Kibana index should arrive here.
+                    log.warn("Unexpected AliasActions: " + aliasActions + "; expected index: " + oldIndexName);
+                    continue;
+                }
+
+                aliasActions.index(newIndexName);
+
+                if (aliasActions.actionType() != AliasActions.Type.REMOVE_INDEX) {
+                    if (aliasActions.aliases() == null) {
+                        log.warn("Unexpected AliasActions: " + aliasActions);
+                        continue;
+                    }
+
+                    String[] aliases = aliasActions.aliases();
+                    String[] newAliases = new String[aliases.length];
+                    for (int i = 0; i < aliases.length; i++) {
+                        IndexInfo indexInfo = checkForExclusivelyUsedKibanaIndexOrAlias(aliases[i]);
+
+                        if (indexInfo != null && indexInfo.isReplacementNeeded()) {
+                            newAliases[i] = indexInfo.toInternalIndexName(user);
+                        } else {
+                            newAliases[i] = aliases[i];
+                        }
+                    }
+
+                    aliasActions.aliases(newAliases);
+                }
+                
+                if (log.isDebugEnabled()) {
+                    log.debug("Rewritten IndicesAliasesRequest: " + indicesAliasesRequest.getAliasActions());
+                }
+            }
+            
+            kibOk = true;
         } else {
             log.warn("Dont know what to do (1) with {}", request.getClass());
         }
@@ -259,23 +309,28 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
     }
 
     private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(Resolved requestedResolved) {
-        String alias;
+        String aliasOrIndex;
 
         if (requestedResolved.getAliases().size() == 1) {
-            alias = requestedResolved.getAliases().iterator().next();
+            aliasOrIndex = requestedResolved.getAliases().iterator().next();
         } else if (requestedResolved.getAllIndices().size() == 1) {
-            alias = requestedResolved.getAllIndices().iterator().next();
+            aliasOrIndex = requestedResolved.getAllIndices().iterator().next();
         } else {
             return null;
         }
 
-        if (alias.equals(kibanaIndexName)) {
+        return checkForExclusivelyUsedKibanaIndexOrAlias(aliasOrIndex);
+    }
+
+    private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(String aliasOrIndex) {
+
+        if (aliasOrIndex.equals(kibanaIndexName)) {
             // Pre 7.12: Just .kibana
-            return new IndexInfo(alias, kibanaIndexName, null);
+            return new IndexInfo(aliasOrIndex, kibanaIndexName, null);
         }
 
-        if (alias.startsWith(kibanaIndexNamePrefix)) {
-            Matcher matcher = versionedKibanaIndexPattern.matcher(alias);
+        if (aliasOrIndex.startsWith(kibanaIndexNamePrefix)) {
+            Matcher matcher = versionedKibanaIndexPattern.matcher(aliasOrIndex);
 
             if (matcher.matches()) {
                 // Post 7.12: .kibana_7.12.0
@@ -283,20 +338,20 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                 // Suffix will be: _7.12.0
                 if (matcher.group(1) == null) {
                     // Basic case
-                    return new IndexInfo(alias, kibanaIndexName, matcher.group(2));
+                    return new IndexInfo(aliasOrIndex, kibanaIndexName, matcher.group(2));
                 } else {
                     // We have here the case that the index replacement has been already applied.
                     // This can happen when internal ES operations trigger further operations, e.g. an index triggers an auto_create.
-                    return new IndexInfo(alias, kibanaIndexName, matcher.group(2), matcher.group(1));
+                    return new IndexInfo(aliasOrIndex, kibanaIndexName, matcher.group(2), matcher.group(1));
                 }
             }
 
-            matcher = kibanaIndexPatternWithTenant.matcher(alias);
+            matcher = kibanaIndexPatternWithTenant.matcher(aliasOrIndex);
 
             if (matcher.matches()) {
                 // Pre 7.12: .kibana_12345678_tenantname
 
-                return new IndexInfo(alias, kibanaIndexName, null, matcher.group(1));
+                return new IndexInfo(aliasOrIndex, kibanaIndexName, null, matcher.group(1));
             }
         }
 

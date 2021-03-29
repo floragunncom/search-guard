@@ -246,6 +246,7 @@ sg_all_access:
     - "adm_tenant"
     - "test_tenant_ro"
     - "kibana_7_12_alias_test"
+    - "kibana_7_12_alias_creation_test"
     allowed_actions:
     - "SGS_KIBANA_ALL_WRITE"
 sg_logstash:
