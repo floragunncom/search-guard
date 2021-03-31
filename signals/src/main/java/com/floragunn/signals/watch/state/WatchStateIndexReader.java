@@ -17,6 +17,8 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 
+import com.floragunn.searchsupport.client.Actions;
+
 public class WatchStateIndexReader {
     private static final Logger log = LogManager.getLogger(WatchStateIndexReader.class);
 
@@ -62,21 +64,25 @@ public class WatchStateIndexReader {
             SearchResponse searchResponse = client.prepareSearch(this.indexName).setQuery(queryBuilder).setSize(1000).setScroll(new TimeValue(10000))
                     .get();
 
-            do {
-                for (SearchHit searchHit : searchResponse.getHits().getHits()) {
-                    try {
-                        result.put(searchHit.getId().substring(watchIdPrefix.length()),
-                                WatchState.createFromJson(tenant, searchHit.getSourceAsString()));
-                    } catch (Exception e) {
-                        log.error("Error while loading " + searchHit, e);
+            try {
+                do {
+                    for (SearchHit searchHit : searchResponse.getHits().getHits()) {
+                        try {
+                            result.put(searchHit.getId().substring(watchIdPrefix.length()),
+                                    WatchState.createFromJson(tenant, searchHit.getSourceAsString()));
+                        } catch (Exception e) {
+                            log.error("Error while loading " + searchHit, e);
+                        }
                     }
+                    searchResponse = client.prepareSearchScroll(searchResponse.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
+
+                } while (searchResponse.getHits().getHits().length != 0);
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Got states: " + result);
                 }
-                searchResponse = client.prepareSearchScroll(searchResponse.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
-
-            } while (searchResponse.getHits().getHits().length != 0);
-
-            if (log.isDebugEnabled()) {
-                log.debug("Got states: " + result);
+            } finally {
+                Actions.clearScrollAsync(client, searchResponse);
             }
 
             return result;

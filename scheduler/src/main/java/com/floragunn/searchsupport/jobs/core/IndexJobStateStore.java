@@ -71,6 +71,7 @@ import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.TriggerFiredBundle;
 import org.quartz.spi.TriggerFiredResult;
 
+import com.floragunn.searchsupport.client.Actions;
 import com.floragunn.searchsupport.jobs.JobConfigListener;
 import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerAction;
 import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerRequest;
@@ -1253,7 +1254,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             if (log.isTraceEnabled()) {
                 log.trace("Going to load jobs; ");
             }
-            
+
             Set<JobType> jobConfigSet = this.loadJobConfigAfterReachingYellowStatus();
 
             notifyJobConfigInitListeners(jobConfigSet);
@@ -1292,13 +1293,12 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
 
         Map<JobKey, JobType> loadedJobConfig = this.getLoadedJobConfig();
 
-        
         if (log.isInfoEnabled()) {
             log.info("Updating jobs:\n " + newJobConfig + "\n");
         }
-        
+
         // First pass: Collect new jobs so that we can load the states
-        
+
         for (JobType newJob : newJobConfig) {
             JobKey jobKey = newJob.getJobKey();
             JobType existingJob = loadedJobConfig.get(jobKey);
@@ -1307,11 +1307,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
                 newJobTypes.add(newJob);
             }
         }
-        
+
         notifyJobConfigListenersBeforeChange(newJobTypes);
 
         // Second pass: do the actual update; inside a critical block
-        
+
         synchronized (this) {
             loadedJobConfig = this.getLoadedJobConfig();
             newJobTypes.clear();
@@ -1404,7 +1404,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             }
         }
     }
-    
+
     private void notifyJobConfigListenersBeforeChange(Set<JobType> newJobs) {
 
         for (JobConfigListener<JobType> listener : this.jobConfigListeners) {
@@ -1740,25 +1740,28 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             SearchResponse searchResponse = client.prepareSearch(this.statusIndexName).setQuery(queryBuilder).setSize(1000)
                     .setScroll(new TimeValue(10000)).get();
 
-            do {
-                for (SearchHit searchHit : searchResponse.getHits().getHits()) {
-                    try {
-                        TriggerKey triggerKey = triggerIds.get(searchHit.getId());
+            try {
+                do {
+                    for (SearchHit searchHit : searchResponse.getHits().getHits()) {
+                        try {
+                            TriggerKey triggerKey = triggerIds.get(searchHit.getId());
 
-                        InternalOperableTrigger internalOperableTrigger = InternalOperableTrigger.fromAttributeMap(this, triggerKey,
-                                searchHit.getSourceAsMap());
+                            InternalOperableTrigger internalOperableTrigger = InternalOperableTrigger.fromAttributeMap(this, triggerKey,
+                                    searchHit.getSourceAsMap());
 
-                        result.put(triggerKey, internalOperableTrigger);
+                            result.put(triggerKey, internalOperableTrigger);
 
-                    } catch (Exception e) {
-                        log.error("Error while loading " + searchHit, e);
+                        } catch (Exception e) {
+                            log.error("Error while loading " + searchHit, e);
+                        }
                     }
-                }
 
-                searchResponse = client.prepareSearchScroll(searchResponse.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
+                    searchResponse = client.prepareSearchScroll(searchResponse.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
 
-            } while (searchResponse.getHits().getHits().length != 0);
-
+                } while (searchResponse.getHits().getHits().length != 0);
+            } finally {
+                Actions.clearScrollAsync(client, searchResponse);
+            }
             return result;
         } catch (IndexNotFoundException e) {
             return Collections.emptyMap();
