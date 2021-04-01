@@ -12,12 +12,18 @@ import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.indices.ResizeRequest;
+import org.elasticsearch.client.indices.ResizeResponse;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestStatus;
 import org.junit.Assert;
@@ -26,11 +32,19 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 
 public class PrivilegesEvaluatorTest {
+
+
+    private static TestSgConfig.User RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV = new TestSgConfig.User("resize_user_without_create_index_priv").roles(new Role("resize_role").clusterPermissions("*")
+            .indexPermissions("indices:admin/resize", "indices:monitor/stats").on("resize_test_source"));
+    
+    private static TestSgConfig.User RESIZE_USER = new TestSgConfig.User("resize_user").roles(new Role("resize_role").clusterPermissions("*")
+            .indexPermissions("indices:admin/resize", "indices:monitor/stats").on("resize_test_source").indexPermissions("SGS_CREATE_INDEX").on("resize_test_target"));
 
     @ClassRule
     public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled()
@@ -87,6 +101,8 @@ public class PrivilegesEvaluatorTest {
                     new Role("exclusion_test_user_cluster_permission_role").clusterPermissions("*")
                             .excludeClusterPermissions("indices:data/read/msearch").indexPermissions("*").on("exclude_test_*")
                             .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
+            .user(RESIZE_USER)//
+            .user(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)//
             .build();
 
     @BeforeClass
@@ -390,6 +406,56 @@ public class PrivilegesEvaluatorTest {
             Assert.assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/viva']", equalTo(false))));
         }
 
+    }
+
+    @Test
+    public void testResizeAction() throws Exception {
+        String sourceIndex = "resize_test_source";
+        String targetIndex = "resize_test_target";
+
+        try (Client client = clusterFof.getInternalNodeClient()) {
+            client.index(new IndexRequest(sourceIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index", "a", "b", "y",
+                    "date", "1985/01/01")).actionGet();
+
+            client.admin().indices()
+                    .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", true).build())).actionGet();
+        }
+
+        Thread.sleep(300);
+        
+        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {            
+            client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT);
+            Assert.fail();
+        }  catch (ElasticsearchStatusException e) {
+            // Expected
+            Assert.assertTrue(e.toString(), e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user_without_create_index_priv"));
+        }
+        
+        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {            
+            client.indices().shrink(new ResizeRequest(targetIndex, sourceIndex), RequestOptions.DEFAULT);
+            Assert.fail();
+        } catch (ElasticsearchStatusException e) {
+            // Expected
+            Assert.assertTrue(e.toString(), e.getMessage().contains("no permissions for [indices:admin/create] and User resize_user_without_create_index_priv"));
+        }
+                
+        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {            
+            client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT);
+            Assert.fail();
+        }  catch (ElasticsearchStatusException e) {
+            // Expected
+            Assert.assertTrue(e.toString(), e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user"));
+        }
+        
+        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {            
+            ResizeResponse resizeResponse = client.indices().shrink(new ResizeRequest(targetIndex, sourceIndex), RequestOptions.DEFAULT);
+            Assert.assertTrue(resizeResponse.toString(), resizeResponse.isAcknowledged());
+        }
+        
+        try (Client client = clusterFof.getInternalNodeClient()) {
+           IndicesExistsResponse response = client.admin().indices().exists(new IndicesExistsRequest(targetIndex)).actionGet();
+           Assert.assertTrue(response.toString(), response.isExists());
+        }
     }
 
 }
