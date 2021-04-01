@@ -37,10 +37,12 @@ import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotR
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
+import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
 import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
+import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkItemRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -71,7 +73,6 @@ import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig;
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfigRegistry;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
@@ -155,7 +156,7 @@ public class PrivilegesEvaluator implements DCFListener {
         return configModel != null && configModel.getSgRoles() != null && dcm != null;
     }
 
-    public PrivilegesEvaluatorResponse evaluate(final User user, String action0, final ActionRequest request, Task task, ActionConfig actionConfig,
+    public PrivilegesEvaluatorResponse evaluate(final User user, String action0, final ActionRequest request, Task task, 
             SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
 
         if (!isInitialized()) {
@@ -422,7 +423,7 @@ public class PrivilegesEvaluator implements DCFListener {
                 return presponse;
             }
         }
-
+        
         //not bulk, mget, etc request here
         boolean permGiven = false;
 
@@ -437,6 +438,20 @@ public class PrivilegesEvaluator implements DCFListener {
 
         }
 
+        if (permGiven && request instanceof ResizeRequest) {
+            if (log.isDebugEnabled()) {
+                log.debug("Checking additional create index action for resize operation: " + request);
+            }
+            ResizeRequest resizeRequest = (ResizeRequest) request;
+            CreateIndexRequest createIndexRequest = resizeRequest.getTargetIndexRequest();
+            PrivilegesEvaluatorResponse subResponse = evaluate(user, CreateIndexAction.NAME, createIndexRequest, task,
+                    specialPrivilegesEvaluationContext);
+
+            if (!subResponse.allowed) {
+                return subResponse;
+            }
+        }
+        
         if (!permGiven) {
             log.info("No {}-level perm match for {} {} [Action [{}]] [RolesChecked {}]", "index", user, requestedResolved, action0,
                     sgRoles.getRoleNames());

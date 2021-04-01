@@ -293,7 +293,7 @@ public class SearchGuardFilter implements ActionFilter {
                 log.trace("Evaluate permissions for user: {}", user.getName());
             }
 
-            final PrivilegesEvaluatorResponse pres = eval.evaluate(user, action, request, task, actionConfig, specialPrivilegesEvaluationContext);
+            final PrivilegesEvaluatorResponse pres = eval.evaluate(user, action, request, task, specialPrivilegesEvaluationContext);
 
             if (log.isDebugEnabled()) {
                 log.debug(pres);

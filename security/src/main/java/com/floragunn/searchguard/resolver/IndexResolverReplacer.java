@@ -47,6 +47,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasA
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
+import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -811,6 +812,17 @@ public final class IndexResolverReplacer implements DCFListener {
         } else if (request instanceof ReindexRequest) {
             result = getOrReplaceAllIndices(((ReindexRequest) request).getDestination(), provider, false) && result;
             result = getOrReplaceAllIndices(((ReindexRequest) request).getSearchRequest(), provider, false) && result;
+        } else if (request instanceof ResizeRequest) {
+            // Note: The targetIndex of ResizeRequest gets special treatment in PrivilegesEvaluator
+            ResizeRequest resizeRequest = (ResizeRequest) request;
+            
+            String[] n = provider.provide(new String[] { resizeRequest.getSourceIndex() }, request, true);
+
+            if (n != IndicesProvider.NOOP) {
+                throw new IllegalStateException("Only supported for resolveRequest()");
+            }            
+            
+            return false;            
         } else if (request instanceof BaseNodesRequest) {
             //do nothing
         } else if (request instanceof MainRequest) {
