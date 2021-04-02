@@ -46,11 +46,9 @@ import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.tools.SearchGuardAdmin;
+import com.floragunn.searchsupport.json.BasicJsonReader;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-
-import net.minidev.json.JSONObject;
 
 public class SSLReloadCertsActionTests extends SingleClusterTest {
 
@@ -124,9 +122,8 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
         RestHelper.HttpResponse reloadCertsResponse = rh.executePostRequest(RELOAD_TRANSPORT_CERTS_ENDPOINT, null);
 
         Assert.assertEquals(200, reloadCertsResponse.getStatusCode());
-        JSONObject expectedJsonResponse = new JSONObject();
-        expectedJsonResponse.appendField("message", "updated transport certs");
-        Assert.assertEquals(expectedJsonResponse.toString(), reloadCertsResponse.getBody());
+        Assert.assertEquals(reloadCertsResponse.getBody(), ImmutableMap.of("message", "updated transport certs"),
+                BasicJsonReader.read(reloadCertsResponse.getBody()));
 
         certDetailsResponse = rh.executeSimpleRequest(GET_CERT_DETAILS_ENDPOINT);
 
@@ -169,9 +166,8 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
         RestHelper.HttpResponse reloadCertsResponse = rh.executePostRequest(RELOAD_HTTP_CERTS_ENDPOINT, null);
 
         Assert.assertEquals(200, reloadCertsResponse.getStatusCode());
-        JSONObject expectedJsonResponse = new JSONObject();
-        expectedJsonResponse.appendField("message", "updated http certs");
-        Assert.assertEquals(expectedJsonResponse.toString(), reloadCertsResponse.getBody());
+        Assert.assertEquals(reloadCertsResponse.getBody(), ImmutableMap.of("message",  "updated http certs"),
+                BasicJsonReader.read(reloadCertsResponse.getBody()));
 
         certDetailsResponse = rh.executeSimpleRequest(GET_CERT_DETAILS_ENDPOINT);
 
@@ -200,11 +196,10 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
         rh.keystore = "ssl/reload/kirk-keystore.jks";
 
         RestHelper.HttpResponse reloadCertsResponse = rh.executePostRequest("_searchguard/_security/api/ssl/wrong/reloadcerts", null);
-        JSONObject expectedResponse = new JSONObject();
-        // Note: toString and toJSONString replace / with \/. This helps get rid of the additional \ character.
-        expectedResponse.put("error", "no handler found for uri [/_searchguard/_security/api/ssl/wrong/reloadcerts] and method [POST]");
-        final String expectedResponseString = expectedResponse.toString().replace("\\", "");
-        Assert.assertEquals(expectedResponseString, reloadCertsResponse.getBody());
+
+        Assert.assertEquals(reloadCertsResponse.getBody(),
+                ImmutableMap.of("error", "no handler found for uri [/_searchguard/_security/api/ssl/wrong/reloadcerts] and method [POST]"),
+                BasicJsonReader.read(reloadCertsResponse.getBody()));
     }
 
     @Test
