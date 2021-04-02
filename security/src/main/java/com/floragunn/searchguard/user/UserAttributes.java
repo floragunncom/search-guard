@@ -34,6 +34,7 @@ import org.elasticsearch.common.settings.Settings;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.floragunn.searchsupport.json.BasicJsonPathDefaultConfiguration;
 import com.floragunn.searchsupport.json.BasicJsonReader;
 import com.floragunn.searchsupport.json.BasicJsonWriter;
 import com.google.common.base.Joiner;
@@ -47,7 +48,7 @@ public class UserAttributes {
 
     private static final Logger log = LogManager.getLogger(UserAttributes.class);
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
-    private static final Configuration JSON_PATH_CONFIG = Configuration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
+    private static final Configuration JSON_PATH_CONFIG = BasicJsonPathDefaultConfiguration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
 
     public static Map<String, JsonPath> getAttributeMapping(Settings settings) {
         HashMap<String, JsonPath> result = new HashMap<>();
