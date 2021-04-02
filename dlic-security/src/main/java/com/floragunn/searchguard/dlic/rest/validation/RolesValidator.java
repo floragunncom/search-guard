@@ -21,6 +21,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.configuration.MaskedField;
+import com.floragunn.searchsupport.json.BasicJsonPathDefaultConfiguration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.ReadContext;
 
@@ -48,7 +49,7 @@ public class RolesValidator extends AbstractConfigurationValidator {
 
         if (this.content != null && this.content.length() > 0) {
 
-            final ReadContext ctx = JsonPath.parse(this.content.utf8ToString());
+            final ReadContext ctx = JsonPath.parse(this.content.utf8ToString(), BasicJsonPathDefaultConfiguration.defaultConfiguration());
             final List<String> maskedFields = ctx.read("$..masked_fields[*]");
 
             if (maskedFields != null) {
