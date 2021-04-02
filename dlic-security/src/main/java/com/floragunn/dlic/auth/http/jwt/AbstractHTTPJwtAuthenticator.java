@@ -17,10 +17,7 @@ package com.floragunn.dlic.auth.http.jwt;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,15 +41,15 @@ import com.floragunn.dlic.auth.http.jwt.keybyoidc.AuthenticatorUnavailableExcept
 import com.floragunn.dlic.auth.http.jwt.keybyoidc.BadCredentialsException;
 import com.floragunn.dlic.auth.http.jwt.keybyoidc.JwtVerifier;
 import com.floragunn.dlic.auth.http.jwt.keybyoidc.KeyProvider;
+import com.floragunn.dlic.util.Roles;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.UserAttributes;
+import com.floragunn.searchsupport.json.BasicJsonPathDefaultConfiguration;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.PathNotFoundException;
-
-import net.minidev.json.JSONArray;
 
 public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator {
     private final static Logger log = LogManager.getLogger(AbstractHTTPJwtAuthenticator.class);
@@ -79,7 +76,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         jsonRolesPath = settings.get("roles_path");
         jsonSubjectPath = settings.get("subject_path");
         subjectPattern = getSubjectPattern(settings);
-      
+
         try {
             this.keyProvider = this.initKeyProvider(settings, configPath);
             jwtVerifier = new JwtVerifier(keyProvider);
@@ -91,7 +88,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
             throw new IllegalStateException("Both, subject_key and subject_path or roles_key and roles_path have simultaneously provided."
                     + " Please provide only one combination.");
         }
-        jsonPathConfig = Configuration.builder().options(Option.ALWAYS_RETURN_LIST).build();
+        jsonPathConfig = BasicJsonPathDefaultConfiguration.builder().options(Option.ALWAYS_RETURN_LIST).build();
         attributeMapping = UserAttributes.getAttributeMapping(settings.getAsSettings("map_claims_to_user_attrs"));
     }
 
@@ -113,7 +110,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         if (Strings.isNullOrEmpty(jwtString)) {
             return null;
         }
-                
+
         JwtToken jwt;
 
         try {
@@ -131,7 +128,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         if (log.isTraceEnabled()) {
             log.trace("Claims from JWT: " + claims);
         }
-        
+
         final String subject = extractSubject(claims);
 
         if (subject == null) {
@@ -140,11 +137,11 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         }
 
         final String[] roles = extractRoles(claims);
-        
+
         if (log.isTraceEnabled()) {
             log.trace("From JWT:\nSubject: " + subject + "\nRoles: " + Arrays.asList(roles));
         }
-        
+
         return AuthCredentials.forUser(subject).authenticatorType(getType()).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
                 .prefixOldAttributes("attr.jwt.", claims.asMap()).complete().build();
     }
@@ -155,7 +152,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         if (jwtToken != null && jwtToken.toLowerCase().startsWith("basic ")) {
             jwtToken = null;
         }
-        
+
         if (jwtUrlParameter != null) {
             if (jwtToken == null || jwtToken.isEmpty()) {
                 jwtToken = request.param(jwtUrlParameter);
@@ -168,13 +165,13 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
         if (jwtToken == null) {
             return null;
         }
-        
+
         int index;
 
         if ((index = jwtToken.toLowerCase().indexOf(BEARER)) > -1) { // detect Bearer
             jwtToken = jwtToken.substring(index + BEARER.length());
         }
-        
+
         return jwtToken;
     }
 
@@ -200,32 +197,32 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
             }
         } else if (jsonSubjectPath != null) {
             try {
-                subject = JsonPath.read(claims.asMap(), jsonSubjectPath);
+                subject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims.asMap()).read(jsonSubjectPath);
             } catch (PathNotFoundException e) {
                 log.error("The provided JSON path {} could not be found ", jsonSubjectPath);
                 return null;
             }
         }
-        
+
         if (subject != null && subjectPattern != null) {
             Matcher matcher = subjectPattern.matcher(subject);
-            
+
             if (!matcher.matches()) {
                 log.warn("Subject " + subject + " does not match subject_pattern " + subjectPattern);
                 return null;
             }
-            
+
             if (matcher.groupCount() == 1) {
                 subject = matcher.group(1);
             } else if (matcher.groupCount() > 1) {
                 StringBuilder subjectBuilder = new StringBuilder();
-                
+
                 for (int i = 1; i <= matcher.groupCount(); i++) {
                     if (matcher.group(i) != null) {
                         subjectBuilder.append(matcher.group(i));
                     }
                 }
-                
+
                 if (subjectBuilder.length() != 0) {
                     subject = subjectBuilder.toString();
                 } else {
@@ -233,7 +230,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
                 }
             }
         }
-        
+
         return subject;
     }
 
@@ -244,11 +241,10 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
 
         if (jsonRolesPath != null) {
             try {
-                Object roles = JsonPath.using(jsonPathConfig).parse(claims.asMap()).read(jsonRolesPath);
-                return splitRoles(roles);
+                return Roles.split(JsonPath.using(jsonPathConfig).parse(claims.asMap()).read(jsonRolesPath));
             } catch (PathNotFoundException e) {
                 log.error("The provided JSON path {} could not be found ", jsonRolesPath);
-                return null;
+                return new String[0];
             }
         }
 
@@ -259,39 +255,8 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
                     rolesKey);
             return new String[0];
         }
-        return splitRoles(rolesObject);
-    }
 
-    private String[] splitRoles(Object rolesObject) {
-        String[] roles = String.valueOf(rolesObject).split(",");
-
-        // We expect a String or Collection. If we find something else, convert to
-        // String but issue a warning
-        if (!(rolesObject instanceof String) && !(rolesObject instanceof Collection<?>)) {
-            log.warn(
-                    "Expected type String or Collection for roles in the JWT for roles_key {}, but value was '{}' ({}). Will convert this value to String.",
-                    rolesKey, rolesObject, rolesObject.getClass());
-        } else if (rolesObject instanceof JSONArray) {
-            List<String> roles0 = new ArrayList<>();
-            for (Object o : ((JSONArray) rolesObject)) {
-                if (o instanceof List) {
-                    for (Object oo : (List<?>) o) {
-                        roles0.addAll(Arrays.asList(String.valueOf(oo).split(",")));
-                    }
-                } else {
-                    roles0.addAll(Arrays.asList(String.valueOf(o).split(",")));
-                }
-            }
-            roles = roles0.toArray(new String[0]);
-        } else if (rolesObject instanceof Collection<?>) {
-            roles = ((Collection<String>) rolesObject).toArray(new String[0]);
-        }
-
-        for (int i = 0; i < roles.length; i++) {
-            roles[i] = roles[i].trim();
-        }
-
-        return roles;
+        return Roles.split(rolesObject);
     }
 
     protected abstract KeyProvider initKeyProvider(Settings settings, Path configPath) throws Exception;

@@ -45,6 +45,7 @@ import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
+import com.floragunn.searchsupport.json.BasicJsonPathDefaultConfiguration;
 import com.floragunn.searchsupport.json.BasicJsonReader;
 import com.google.common.io.BaseEncoding;
 import com.jayway.jsonpath.Configuration;
@@ -92,7 +93,7 @@ public class AuthTokenIntegrationTest {
                     "          type: sg_auth_token";
 
     static TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(SGCONFIG));
-    private static Configuration JSON_PATH_CONFIG = Configuration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
+    private static Configuration JSON_PATH_CONFIG = BasicJsonPathDefaultConfiguration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
@@ -140,7 +141,7 @@ public class AuthTokenIntegrationTest {
 
             String tokenPayload = getJwtPayload(token);
             Map<String, Object> parsedTokenPayload = BasicJsonReader.readObject(tokenPayload);
-            Assert.assertEquals(tokenPayload, "spock", JsonPath.parse(parsedTokenPayload).read("sub"));
+            Assert.assertEquals(tokenPayload, "spock", JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
             Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") != null);
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
@@ -202,7 +203,7 @@ public class AuthTokenIntegrationTest {
 
             String tokenPayload = getJwtPayload(token);
             Map<String, Object> parsedTokenPayload = BasicJsonReader.readObject(tokenPayload);
-            Assert.assertEquals(tokenPayload, "spock", JsonPath.parse(parsedTokenPayload).read("sub"));
+            Assert.assertEquals(tokenPayload, "spock", JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
             Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") == null);
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
