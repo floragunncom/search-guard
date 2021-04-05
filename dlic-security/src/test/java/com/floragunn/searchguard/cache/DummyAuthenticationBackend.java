@@ -22,6 +22,7 @@ import org.elasticsearch.common.settings.Settings;
 import com.floragunn.searchguard.auth.api.SyncAuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.metrics.NestedMeter;
 
 public class DummyAuthenticationBackend implements SyncAuthenticationBackend {
 
@@ -37,7 +38,7 @@ public class DummyAuthenticationBackend implements SyncAuthenticationBackend {
     }
 
     @Override
-    public User authenticate(AuthCredentials credentials) throws ElasticsearchSecurityException {
+    public User authenticate(AuthCredentials credentials, NestedMeter nestedMeter) throws ElasticsearchSecurityException {
         authCount++;
         return new User(credentials.getUsername(), credentials.getAuthDomainInfo());
     }

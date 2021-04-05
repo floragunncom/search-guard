@@ -36,6 +36,7 @@ import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
 import com.floragunn.searchsupport.config.proxy.ProxyConfig;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.rest.Responses;
 
 public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthenticator {
@@ -45,7 +46,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
     private ProxyConfig proxyConfig;
     private OpenIdProviderClient openIdProviderClient;
 
-    public HTTPJwtKeyByOpenIdConnectAuthenticator(Settings settings, Path configPath) {
+    public HTTPJwtKeyByOpenIdConnectAuthenticator(Settings settings, Path configPath) throws ConfigValidationException {
         super(settings, configPath);
     }
 

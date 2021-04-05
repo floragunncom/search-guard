@@ -22,7 +22,6 @@ import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.createSigned;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,8 +34,8 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestRequest.Method;
+import org.elasticsearch.rest.RestResponse;
 import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -47,6 +46,7 @@ import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.util.FakeRestRequest;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.json.BasicJsonReader;
 import com.google.common.collect.ImmutableMap;
 
@@ -78,7 +78,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    public void basicTest() {
+    public void basicTest() throws ConfigValidationException {
         Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).build();
 
         HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
@@ -94,7 +94,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    public void proxyTest() throws UnknownHostException, IOException {
+    public void proxyTest() throws Exception {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL)
                 .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"))) {
             Settings settings = Settings.builder().put("openid_connect_url", proxyOnlyMockIdpServer.getDiscoverUri()).put("proxy.host", "127.0.0.8")
@@ -135,7 +135,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    public void bearerTest() {
+    public void bearerTest() throws Exception {
         Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).build();
 
         HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
@@ -273,7 +273,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    public void testPeculiarJsonEscaping() {
+    public void testPeculiarJsonEscaping() throws Exception {
         Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).build();
 
         HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
@@ -290,7 +290,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
     }
     
     @Test
-    public void testSubjectPattern() {
+    public void testSubjectPattern() throws Exception {
         Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri()).put("subject_pattern", "^(.)(?:.*)$").build();
 
         HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);

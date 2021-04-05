@@ -47,6 +47,7 @@ import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PemKeyReader;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.google.common.base.Strings;
 import com.onelogin.saml2.authn.AuthnRequest;
 import com.onelogin.saml2.logout.LogoutRequest;
@@ -410,7 +411,7 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
 
     class HTTPJwtAuthenticator extends AbstractHTTPJwtAuthenticator {
 
-        public HTTPJwtAuthenticator(Settings settings, Path configPath) {
+        public HTTPJwtAuthenticator(Settings settings, Path configPath) throws ConfigValidationException {
             super(settings, configPath);
         }
 

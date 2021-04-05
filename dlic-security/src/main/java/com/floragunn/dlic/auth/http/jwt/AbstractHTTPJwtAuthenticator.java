@@ -47,6 +47,7 @@ import com.floragunn.dlic.auth.http.jwt.keybyoidc.KeyProvider;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.UserAttributes;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
@@ -71,7 +72,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
     private Configuration jsonPathConfig;
     private Map<String, JsonPath> attributeMapping;
 
-    protected AbstractHTTPJwtAuthenticator(Settings settings, Path configPath) {
+    protected AbstractHTTPJwtAuthenticator(Settings settings, Path configPath) throws ConfigValidationException {
         jwtUrlParameter = settings.get("jwt_url_parameter");
         jwtHeaderName = settings.get("jwt_header", "Authorization");
         rolesKey = settings.get("roles_key");

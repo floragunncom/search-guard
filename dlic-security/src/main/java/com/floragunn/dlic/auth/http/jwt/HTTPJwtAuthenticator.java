@@ -46,6 +46,7 @@ import org.elasticsearch.rest.RestStatus;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.UserAttributes;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
@@ -75,7 +76,7 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
     private Map<String, JsonPath> attributeMapping;
     private final Pattern subjectPattern;
 
-    public HTTPJwtAuthenticator(final Settings settings, final Path configPath) {
+    public HTTPJwtAuthenticator(final Settings settings, final Path configPath) throws ConfigValidationException {
         super();
         
         subjectPattern = getSubjectPattern(settings);

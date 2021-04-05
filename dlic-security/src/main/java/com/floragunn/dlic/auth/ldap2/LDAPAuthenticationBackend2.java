@@ -42,6 +42,7 @@ import com.floragunn.searchguard.auth.api.SyncAuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserAttributes;
+import com.floragunn.searchsupport.metrics.NestedMeter;
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
@@ -67,8 +68,12 @@ public class LDAPAuthenticationBackend2 implements SyncAuthenticationBackend, De
         attributeMapping = UserAttributes.getFlatAttributeMapping(settings.getAsSettings("map_ldap_attrs_to_user_attrs"));
     }
     
+    public User authenticate(AuthCredentials credentials) throws ElasticsearchSecurityException {
+        return authenticate(credentials, NestedMeter.NO_OP);
+    }
+    
     @Override
-    public User authenticate(final AuthCredentials credentials) throws ElasticsearchSecurityException {
+    public User authenticate(AuthCredentials credentials, NestedMeter nestedMeter) throws ElasticsearchSecurityException {
         final SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {

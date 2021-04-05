@@ -16,6 +16,7 @@ package com.floragunn.dlic.auth.http.jwt;
 
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.util.FakeRestRequest;
+import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.BaseEncoding;
 import io.jsonwebtoken.Jwts;
@@ -443,7 +444,7 @@ public class HTTPJwtAuthenticatorTest {
     }
 
     @Test
-    public void testJsonPathRolesAndSubjectExpression() {
+    public void testJsonPathRolesAndSubjectExpression() throws ConfigValidationException {
         Settings settings = Settings.builder()
                 .put("signing_key", BaseEncoding.base64().encode(secretKey))
                 .put("subject_path", "$['some_claim_name']['user']['id']")
@@ -472,7 +473,7 @@ public class HTTPJwtAuthenticatorTest {
     }
 
     @Test
-    public void testJsonPathRolesAndSubjectExpressionWithSingleRole() {
+    public void testJsonPathRolesAndSubjectExpressionWithSingleRole() throws ConfigValidationException {
         Settings settings = Settings.builder()
                 .put("signing_key", BaseEncoding.base64().encode(secretKey))
                 .put("subject_path", "$['some_claim_name']['user']['id']")
@@ -501,7 +502,7 @@ public class HTTPJwtAuthenticatorTest {
     }
 
     @Test
-    public void testJsonPathRolesAndSubjectExpressionWithCollection() {
+    public void testJsonPathRolesAndSubjectExpressionWithCollection() throws ConfigValidationException {
         Settings settings = Settings.builder()
                 .put("signing_key", BaseEncoding.base64().encode(secretKey))
                 .put("subject_path", "$['some_claim_name']['user']['id']")
@@ -530,7 +531,7 @@ public class HTTPJwtAuthenticatorTest {
     }
 
     @Test
-    public void testJsonPathRolesAndSubjectExpressionWithInvalidRolePath() {
+    public void testJsonPathRolesAndSubjectExpressionWithInvalidRolePath() throws ConfigValidationException {
         Settings settings = Settings.builder()
                 .put("signing_key", BaseEncoding.base64().encode(secretKey))
                 .put("subject_path", "$['some_claim_name']['user']['id']")
@@ -559,7 +560,7 @@ public class HTTPJwtAuthenticatorTest {
     }
 
     @Test
-    public void testInvalidJsonPathRolesAndSubjectExpression() {
+    public void testInvalidJsonPathRolesAndSubjectExpression() throws ConfigValidationException {
         Settings settings = Settings.builder()
                 .put("signing_key", BaseEncoding.base64().encode(secretKey))
                 .put("subject_path", "$['123123asd']['asdf']['id']")
@@ -586,7 +587,7 @@ public class HTTPJwtAuthenticatorTest {
     }
 
     @Test
-    public void testIllegalJWTConfigurationDuplicateSubjects() {
+    public void testIllegalJWTConfigurationDuplicateSubjects() throws ConfigValidationException {
         Settings settings = Settings.builder()
                 .put("signing_key", BaseEncoding.base64().encode(secretKey))
                 .put("subject_path", "$['some_claim_name']['user']['id']")
@@ -609,7 +610,7 @@ public class HTTPJwtAuthenticatorTest {
     }
 
     @Test
-    public void testIllegalJWTConfigurationDuplicateRoleSpecification() {
+    public void testIllegalJWTConfigurationDuplicateRoleSpecification() throws ConfigValidationException {
         Settings settings = Settings.builder()
                 .put("signing_key", BaseEncoding.base64().encode(secretKey))
                 .put("subject_path", "$['some_claim_name']['user']['id']")

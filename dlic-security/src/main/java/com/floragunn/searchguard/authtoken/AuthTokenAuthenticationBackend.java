@@ -21,6 +21,7 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.metrics.NestedMeter;
 
 public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
 
@@ -36,7 +37,7 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
     }
 
     @Override
-    public void authenticate(AuthCredentials credentials, Consumer<User> onSuccess, Consumer<Exception> onFailure) {
+    public void authenticate(AuthCredentials credentials, NestedMeter meter, Consumer<User> onSuccess, Consumer<Exception> onFailure) {
         try {
             authTokenService.getByClaims(credentials.getClaims(), (authToken) -> {
                 
