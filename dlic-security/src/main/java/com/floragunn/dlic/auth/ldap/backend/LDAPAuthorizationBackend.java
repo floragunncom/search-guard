@@ -40,7 +40,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.naming.InvalidNameException;
+import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
 import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -1092,6 +1095,25 @@ public class LDAPAuthorizationBackend implements AuthorizationBackend {
 
         if("dn".equalsIgnoreCase(role)) {
             return ldapName.toString();
+        }
+        
+        if (role.startsWith("dn.")) {
+            String rdnType = role.substring(3);
+            List<Rdn> rdns = ldapName.getRdns();
+            
+            for (Rdn rdn : rdns) {
+                Attribute attribute = rdn.toAttributes().get(rdnType);
+                
+                try {
+                    if (attribute != null && attribute.size() > 0 && attribute.get() != null) {
+                        return attribute.get().toString();
+                    }
+                } catch (NamingException e) {
+                    log.warn(e);
+                }
+            }
+            
+            return null;
         }
 
         try {
