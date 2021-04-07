@@ -22,8 +22,6 @@ import com.floragunn.dlic.auth.ldap.util.LdapHelper;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.google.common.collect.ImmutableSet;
-
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.AfterClass;
@@ -1017,47 +1015,6 @@ public class LdapBackendTest {
         Assert.assertEquals("cn=cabc,ou=people,o=TEST", user.getName());
     }
 
-    @Test
-    public void testLdapAuthorizationDnRdnAttr() throws Exception {
-        Settings settings = Settings.builder()
-                .putList(ConfigConstants.LDAP_HOSTS, "127.0.0.1:4", "localhost:" + ldapPort)
-                .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})")
-                .put(ConfigConstants.LDAP_AUTHC_USERBASE, "ou=people,o=TEST")
-                .put(ConfigConstants.LDAP_AUTHZ_ROLEBASE, "ou=groups,o=TEST")
-                .put(ConfigConstants.LDAP_AUTHZ_ROLENAME, "dn.cn")
-                .put(ConfigConstants.LDAP_AUTHZ_ROLESEARCH, "(uniqueMember={0})")
-                .build();
-
-        LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
-                .getBytes(StandardCharsets.UTF_8)));
-
-        new LDAPAuthorizationBackend(settings, null).fillRoles(user, null);
-
-        Assert.assertNotNull(user);
-        Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
-        Assert.assertEquals(ImmutableSet.of("ceo", "role2"), user.getRoles());
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
-        
-        settings = Settings.builder()
-                .putList(ConfigConstants.LDAP_HOSTS, "127.0.0.1:4", "localhost:" + ldapPort)
-                .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})")
-                .put(ConfigConstants.LDAP_AUTHC_USERBASE, "ou=people,o=TEST")
-                .put(ConfigConstants.LDAP_AUTHZ_ROLEBASE, "ou=groups,o=TEST")
-                .put(ConfigConstants.LDAP_AUTHZ_ROLENAME, "dn.ou")
-                .put(ConfigConstants.LDAP_AUTHZ_ROLESEARCH, "(uniqueMember={0})")
-                .build();
-
-        user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(new AuthCredentials("jacksonm", "secret"
-                .getBytes(StandardCharsets.UTF_8)));
-
-        new LDAPAuthorizationBackend(settings, null).fillRoles(user, null);
-
-        Assert.assertNotNull(user);
-        Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
-        Assert.assertEquals(ImmutableSet.of("groups"), user.getRoles());
-        Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
-    }
-    
     @AfterClass
     public static void tearDown() throws Exception {
         if (ldapServer != null) {
