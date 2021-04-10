@@ -18,22 +18,38 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
 import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.modules.SearchGuardModule;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
@@ -41,6 +57,7 @@ import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
+    private static final Logger log = LogManager.getLogger(LocalCluster.class);
 
     static {
         System.setProperty("sg.default_init.dir", new File("./sgconfig").getAbsolutePath());
@@ -119,6 +136,41 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         return this.localCluster.getNodeByName(name);
     }
 
+    public void updateSgConfig(CType configType, String key, Map<String, Object> value) {
+        try (Client client = getAdminCertClient()) {
+            log.info("Updating config " + configType + "." + key + ": " + value);
+
+            GetResponse getResponse = client.get(new GetRequest("searchguard", configType.toLCString())).actionGet();
+            String jsonDoc = new String(Base64.getDecoder().decode(String.valueOf(getResponse.getSource().get(configType.toLCString()))));
+            NestedValueMap config = NestedValueMap.fromJsonString(jsonDoc);
+
+            config.put(key, value);
+
+            if (log.isTraceEnabled()) {
+                log.trace("Updated config: " + config);
+            }
+
+            IndexResponse response = client
+                    .index(new IndexRequest("searchguard").id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                            .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
+                    .actionGet();
+
+            if (response.getResult() != DocWriteResponse.Result.UPDATED) {
+                throw new RuntimeException("Updated failed " + response);
+            }
+
+            ConfigUpdateResponse configUpdateResponse = client
+                    .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
+
+            if (configUpdateResponse.hasFailures()) {
+                throw new RuntimeException("ConfigUpdateResponse produced failures: " + configUpdateResponse.failures());
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private void start() {
 
         try {
@@ -146,17 +198,17 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
               
              
             final ClassLoader classLoader = getClass().getClassLoader();
-
+            
             try (PainlessPlugin p = new PainlessPlugin()) {
                 p.loadExtensions(new ExtensionLoader() {
-
+            
                     @SuppressWarnings("unchecked")
                     @Override
                     public <T> List<T> loadExtensions(Class<T> extensionPointType) {
                         if (extensionPointType.equals(PainlessExtension.class)) {
                             List<?> result = StreamSupport.stream(ServiceLoader.load(PainlessExtension.class, classLoader).spliterator(), false)
                                     .collect(Collectors.toList());
-
+            
                             return (List<T>) result;
                         } else {
                             return Collections.emptyList();
@@ -173,6 +225,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     }
 
     protected void initSearchGuardIndex(TestSgConfig testSgConfig) {
+
+        log.info("Initializing Search Guard index");
 
         try (Client client = getAdminCertClient()) {
 
@@ -246,7 +300,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         private Settings.Builder nodeOverrideSettingsBuilder = Settings.builder();
         private List<String> disabledModules = new ArrayList<>();
         private List<Class<? extends Plugin>> plugins = new ArrayList<>();
-        private TestSgConfig testSgConfig = new TestSgConfig();
+        private TestSgConfig testSgConfig = new TestSgConfig().resources("/");
 
         public Builder sslEnabled() {
             this.sslEnabled = true;

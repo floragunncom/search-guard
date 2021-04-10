@@ -20,9 +20,11 @@ package com.floragunn.searchguard.test.helper.cluster;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 import org.apache.http.Header;
@@ -51,18 +53,35 @@ public interface EsClientProvider {
         return getRestClient(user.getName(), user.getPassword());
     }
 
+    default GenericRestClient getRestClient(TestSgConfig.User user, Header... headers) {
+        return getRestClient(user.getName(), user.getPassword(), headers);
+    }
+
     default public GenericRestClient getRestClient(String user, String password, String tenant) {
         BasicHeader basicAuthHeader = new BasicHeader("Authorization",
                 "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
 
         return new GenericRestClient(getHttpAddress(), Arrays.asList(basicAuthHeader, new BasicHeader("sgtenant", tenant)), getResourceFolder());
     }
-    
+
     default public GenericRestClient getRestClient(String user, String password) {
         BasicHeader basicAuthHeader = new BasicHeader("Authorization",
                 "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
 
         return new GenericRestClient(getHttpAddress(), Collections.singletonList(basicAuthHeader), getResourceFolder());
+    }
+
+    default public GenericRestClient getRestClient(String user, String password, Header... headers) {
+        BasicHeader basicAuthHeader = new BasicHeader("Authorization",
+                "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
+
+        List<Header> headersList = new ArrayList<>();
+        headersList.add(basicAuthHeader);
+        if (headers != null && headers.length > 0) {
+            headersList.addAll(Arrays.asList(headers));
+        }
+
+        return new GenericRestClient(getHttpAddress(), headersList, getResourceFolder());
     }
 
     default public GenericRestClient getRestClient(Header... headers) {
