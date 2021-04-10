@@ -156,6 +156,41 @@ public class NestedValueMap extends HashMap<String, Object> {
 
         return result;
     }
+    
+    public static NestedValueMap of(Path key1, Object value1) {
+        NestedValueMap result = new NestedValueMap(1);
+        result.put(key1, value1);
+        return result;
+    }
+
+    public static NestedValueMap of(Path key1, Object value1, Path key2, Object value2) {
+        NestedValueMap result = new NestedValueMap(2);
+        result.put(key1, value1);
+        result.put(key2, value2);
+        return result;
+    }
+
+    public static NestedValueMap of(Path key1, Object value1, Path key2, Object value2, Path key3, Object value3) {
+        NestedValueMap result = new NestedValueMap(3);
+        result.put(key1, value1);
+        result.put(key2, value2);
+        result.put(key3, value3);
+
+        return result;
+    }
+
+    public static NestedValueMap of(Path key1, Object value1, Path key2, Object value2, Path key3, Object value3, Object... furtherEntries) {
+        NestedValueMap result = new NestedValueMap(3 + furtherEntries.length);
+        result.put(key1, value1);
+        result.put(key2, value2);
+        result.put(key3, value3);
+
+        for (int i = 0; i < furtherEntries.length - 1; i += 2) {
+            result.put(Path.parse(String.valueOf(furtherEntries[i])), furtherEntries[i + 1]);
+        }
+
+        return result;
+    }
 
     public Object put(String key, Map<?, ?> data) {
         checkWritable();
