@@ -156,15 +156,8 @@ public final class IndexResolverReplacer implements DCFListener {
             log.trace("resolve requestedPatterns: " + Arrays.toString(requestedPatterns0));
         }
 
-        if (isAllWithNoRemote(requestedPatterns0)) {
-            if (log.isTraceEnabled()) {
-                log.trace(Arrays.toString(requestedPatterns0) + " is an ALL pattern without any remote indices");
-            }
-            return Resolved._LOCAL_ALL;
-        }
-
         Set<String> remoteIndices;
-        final List<String> localRequestedPatterns = new ArrayList<>(Arrays.asList(requestedPatterns0));
+        List<String> localRequestedPatterns = new ArrayList<>(Arrays.asList(requestedPatterns0));
 
         final RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
 
@@ -201,21 +194,17 @@ public final class IndexResolverReplacer implements DCFListener {
         final Set<String> matchingIndices;
         final Set<String> matchingAllIndices;
 
-        if (isLocalAll(requestedPatterns0)) {
-            if (log.isTraceEnabled()) {
-                log.trace(Arrays.toString(requestedPatterns0) + " is an LOCAL ALL pattern");
-            }
-            matchingAliases = Resolved.All_SET;
-            matchingIndices = Resolved.All_SET;
-            matchingAllIndices = Resolved.All_SET;
-
-        } else if (!remoteIndices.isEmpty() && localRequestedPatterns.isEmpty()) {
+        if (!isLocalAll(requestedPatterns0) && !remoteIndices.isEmpty() && localRequestedPatterns.isEmpty()) {
             if (log.isTraceEnabled()) {
                 log.trace(Arrays.toString(requestedPatterns0) + " is an LOCAL EMPTY request");
             }
             return new Resolved.Builder().addOriginalRequested(Arrays.asList(requestedPatterns0)).addRemoteIndices(remoteIndices).build();
         } else {
 
+            if (isLocalAll(requestedPatterns0)) {
+                localRequestedPatterns = Collections.singletonList("*");
+            }
+            
             ClusterState state = clusterService.state();
             // IndexOrAlias has been replaced, see Thttps://github.com/elastic/elasticsearch/pull/54394
             final SortedMap<String, IndexAbstraction> lookup = state.getMetadata().getIndicesLookup();
@@ -274,8 +263,7 @@ public final class IndexResolverReplacer implements DCFListener {
 
         }
 
-        return new Resolved.Builder(matchingAliases, matchingIndices, matchingAllIndices, null, requestedPatterns0, remoteIndices)
-                /*.addTypes(resolveTypes(request))*/.build();
+        return new Resolved.Builder(matchingAliases, matchingIndices, matchingAllIndices, null, requestedPatterns0, remoteIndices).build();
 
     }
 
@@ -327,7 +315,7 @@ public final class IndexResolverReplacer implements DCFListener {
 
         if(!isIndicesRequest.get()) {
             //not an indices request
-            return Resolved._LOCAL_ALL;
+            return resolveIndexPatterns(indicesOptionsFrom(request), isIndicesRequest, "*");
         }
         
         if(log.isTraceEnabled()) {
@@ -339,12 +327,10 @@ public final class IndexResolverReplacer implements DCFListener {
 
     public final static class Resolved implements Serializable, Writeable {
 
-        /**
-         *
-         */
         private static final Set<String> All_SET = Collections.singleton("*");
-        private static final long serialVersionUID = 1L;
         public final static Resolved _LOCAL_ALL = new Resolved(All_SET, All_SET, All_SET, All_SET, Collections.emptySet(), Collections.emptySet());
+
+        private static final long serialVersionUID = 1L;
         private final Set<String> aliases;
         private final Set<String> indices;
         private final Set<String> allIndices;
