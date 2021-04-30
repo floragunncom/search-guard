@@ -73,7 +73,7 @@ public class DlsTermsLookupTest2 extends AbstractTLQTest {
 
     @BeforeClass
     public static void setupTestData() {
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             // user access codes, basis for TLQ query
             client.index(new IndexRequest("user_access_codes").id("tlq_1337"). setRefreshPolicy(RefreshPolicy.IMMEDIATE)

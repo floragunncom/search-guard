@@ -14,8 +14,6 @@
 
 package com.floragunn.searchguard.dlic.dlsfls;
 
-import static com.floragunn.searchguard.test.AbstractSGUnitTest.encodeBasicHeader;
-
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -41,8 +39,7 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.google.common.collect.ImmutableSet;
 
 public class DlsTermsLookupTest {
@@ -53,7 +50,7 @@ public class DlsTermsLookupTest {
 
     @BeforeClass
     public static void setupTestData() {
-        try (Client client = cluster.getInternalClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             client.index(new IndexRequest("deals_1").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source("{\"amount\": 10, \"acodes\": [6,7], \"keywords\": [\"test\", \"foo\", \"bar\"]}", XContentType.JSON)).actionGet();
@@ -165,7 +162,7 @@ public class DlsTermsLookupTest {
             Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
         }
     }
-    
+
     @Test
     public void testMultiSearch() throws Exception {
 
@@ -174,7 +171,7 @@ public class DlsTermsLookupTest {
 
         SearchRequest searchRequest2 = new SearchRequest("deals_2")
                 .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "foo")));
-        
+
         MultiSearchRequest multiSearchRequest = new MultiSearchRequest();
         multiSearchRequest.add(searchRequest1);
         multiSearchRequest.add(searchRequest2);
@@ -182,8 +179,10 @@ public class DlsTermsLookupTest {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
             MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
 
-            Assert.assertEquals(multiSearchResponse.toString(), 2, multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
-            Assert.assertEquals(multiSearchResponse.toString(), 3, multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchResponse.toString(), 2,
+                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchResponse.toString(), 3,
+                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
 
         }
 
@@ -191,19 +190,22 @@ public class DlsTermsLookupTest {
             MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
             System.out.println(Strings.toString(multiSearchResponse));
 
-            Assert.assertEquals(multiSearchResponse.toString(), 1, multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
-            Assert.assertEquals(multiSearchResponse.toString(), 1, multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchResponse.toString(), 1,
+                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchResponse.toString(), 1,
+                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
             MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
 
             System.out.println(Strings.toString(multiSearchResponse));
-            Assert.assertEquals(multiSearchResponse.toString(), 0, multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
-            Assert.assertEquals(multiSearchResponse.toString(), 2, multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchResponse.toString(), 0,
+                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchResponse.toString(), 2,
+                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
         }
     }
-
 
     @Test
     public void testDlsWithTermsLookupSingleIndexUnmatchedQuery() throws Exception {
@@ -238,20 +240,19 @@ public class DlsTermsLookupTest {
     @Test
     public void testDlsWithTermsLookupGet() throws Exception {
 
-        RestHelper rh = cluster.restHelper();
+        try (GenericRestClient client = cluster.getRestClient("sg_dls_lookup_user1", "password")) {
+            GenericRestClient.HttpResponse res = client.get("/deals_1/_doc/0?pretty");
 
-        HttpResponse res = rh.executeGetRequest("/deals_1/_doc/0?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"));
+            System.out.println(res.getBody());
 
-        System.out.println(res.getBody());
+            Assert.assertEquals(res.getBody(), HttpStatus.SC_NOT_FOUND, res.getStatusCode());
 
-        Assert.assertEquals(res.getBody(), HttpStatus.SC_NOT_FOUND, res.getStatusCode());
+            res = client.get("/deals_1/_doc/1?pretty");
 
-        res = rh.executeGetRequest("/deals_1/_doc/1?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"));
+            System.out.println(res.getBody());
 
-        System.out.println(res.getBody());
-
-        Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());
-
+            Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());
+        }
     }
 
     @Ignore // TODO
@@ -261,7 +262,7 @@ public class DlsTermsLookupTest {
         try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls")
                 .nodeSettings(ConfigConstants.SEARCHGUARD_UNSUPPORTED_ALLOW_TLQ_IN_DLS, false).build()) {
 
-            try (Client client = cluster.getInternalClient()) {
+            try (Client client = cluster.getInternalNodeClient()) {
 
                 client.index(new IndexRequest("deals").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"amount\": 10, \"acodes\": [6,7]}",
                         XContentType.JSON)).actionGet();
@@ -274,17 +275,18 @@ public class DlsTermsLookupTest {
                         .source("{\"acode\": [2,3]}", XContentType.JSON)).actionGet();
             }
 
-            RestHelper rh = cluster.restHelper();
+            try (GenericRestClient client = cluster.getRestClient("sg_dls_lookup_user1", "password")) {
 
-            HttpResponse res = rh.executeGetRequest("/deals/_doc/0?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"));
+                GenericRestClient.HttpResponse res = client.get("/deals/_doc/0?pretty");
 
-            Assert.assertEquals(res.getBody(), HttpStatus.SC_INTERNAL_SERVER_ERROR, res.getStatusCode());
+                Assert.assertEquals(res.getBody(), HttpStatus.SC_INTERNAL_SERVER_ERROR, res.getStatusCode());
 
-            res = rh.executeGetRequest("/deals/_doc/1?pretty", encodeBasicHeader("sg_dls_lookup_user1", "password"));
+                res = client.get("/deals/_doc/1?pretty");
 
-            Assert.assertEquals(res.getBody(), HttpStatus.SC_INTERNAL_SERVER_ERROR, res.getStatusCode());
+                Assert.assertEquals(res.getBody(), HttpStatus.SC_INTERNAL_SERVER_ERROR, res.getStatusCode());
 
-            Assert.assertTrue(res.getBody(), res.getBody().contains("Terms lookup queries are not allowed as DLS queries"));
+                Assert.assertTrue(res.getBody(), res.getBody().contains("Terms lookup queries are not allowed as DLS queries"));
+            }
         }
     }
 }
