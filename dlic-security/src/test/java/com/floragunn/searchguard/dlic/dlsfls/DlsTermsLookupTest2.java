@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.get.GetRequest;
@@ -40,6 +41,7 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
@@ -52,7 +54,6 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 
@@ -61,7 +62,6 @@ public class DlsTermsLookupTest2 extends AbstractTLQTest {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", true)
-            .nodeSettings(ConfigConstants.SEARCHGUARD_UNSUPPORTED_ALLOW_TLQ_IN_DLS, true)
             .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*").on("tlqdummy").indexPermissions("*").dls(
                     "{ \"terms\": { \"access_codes\": { \"index\": \"user_access_codes\", \"id\": \"${user.name}\", \"path\": \"access_codes\" } } }")
                     .on("tlqdocuments")
@@ -470,14 +470,16 @@ public class DlsTermsLookupTest2 extends AbstractTLQTest {
             }
         }      
     
-        @Test(expected = ElasticsearchSecurityException.class)
-        // TODO: Why do we get a ElasticsearchStatusException instead of ElasticsearchSecurityException?
+        @Test
         public void testGet_UserAccessCodesIndex_1337() throws Exception {
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {                        
                 // no access to user_codes index, must throw exception
                 GetRequest request = new GetRequest().index("user_access_codes").id("tlq_1337");
                 client.get(request, RequestOptions.DEFAULT);
-            } 
+                Assert.fail();
+            } catch (ElasticsearchStatusException e) {
+                Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+            }
         }  
 
     @Test
