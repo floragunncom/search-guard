@@ -95,7 +95,7 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
     public static void setupTestData() {
         // we use the same data in both clusters but different DLS definitions on remote and coordinating
         for (LocalCluster cluster : new LocalCluster[] { remote, coordinating }) {
-            try (Client client = cluster.getInternalClient()) {
+            try (Client client = cluster.getInternalNodeClient()) {
 
                 // user access codes, basis for TLQ query
                 client.index(new IndexRequest("user_access_codes").id("tlq_1337").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
