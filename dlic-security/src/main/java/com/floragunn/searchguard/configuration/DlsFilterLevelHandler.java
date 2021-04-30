@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
@@ -36,13 +37,13 @@ import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.get.GetResult;
 import org.elasticsearch.index.mapper.MapperService;
@@ -65,38 +66,20 @@ import com.floragunn.searchguard.support.SgUtils;
 public class DlsFilterLevelHandler {
     private static final Logger log = LogManager.getLogger(DlsFilterLevelHandler.class);
 
-    private final ActionRequest request;
-    private final ActionListener<?> listener;
-    private final EvaluatedDlsFlsConfig evaluatedDlsFlsConfig;
-    private final Resolved resolved;
-    private final boolean requiresIndexScoping;
-    private final Client nodeClient;
-    private final NamedXContentRegistry namedXContentRegistry;
-    private final ClusterService clusterService;
-    private final IndicesService indicesService;
-    private final ThreadContext threadContext;
-
-    private BoolQueryBuilder filterLevelQueryBuilder;
-    private DocumentWhitelist documentWhitelist;
-
-    DlsFilterLevelHandler(ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, Resolved resolved,
-            Client nodeClient, ClusterService clusterService, IndicesService indicesService, NamedXContentRegistry namedXContentRegistry,
+    static boolean handle(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, Resolved resolved,
+            Client nodeClient, ClusterService clusterService, IndicesService indicesService, DlsQueryParser dlsQueryParser,
             ThreadContext threadContext) {
-        this.request = request;
-        this.listener = listener;
-        this.evaluatedDlsFlsConfig = evaluatedDlsFlsConfig;
-        this.resolved = resolved;
-        this.nodeClient = nodeClient;
-        this.clusterService = clusterService;
-        this.indicesService = indicesService;
-        this.namedXContentRegistry = namedXContentRegistry;
-        this.threadContext = threadContext;
-
-        this.requiresIndexScoping = resolved.getAllIndices().size() != 1 || resolved.isAll();
-    }
-
-    boolean handle() {
+        
         if (threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE) != null) {
+            return true;
+        }
+
+        if (action.startsWith("searchguard:cluster:") || action.startsWith("cluster:")
+                || action.startsWith("indices:admin/template/") || action.startsWith("indices:admin/index_template/")) {
+            return true;
+        }
+        
+        if (action.startsWith(SearchScrollAction.NAME)) {
             return true;
         }
         
@@ -105,19 +88,60 @@ public class DlsFilterLevelHandler {
             return true;
         }
         
-        threadContext.putHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE, "true");
+        if (request instanceof ClusterSearchShardsRequest) {
+            return true;
+        }
         
+        return new DlsFilterLevelHandler(request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService, indicesService,
+                dlsQueryParser, threadContext).handle();
+    }
+
+    private final ActionRequest request;
+    private final ActionListener<?> listener;
+    private final EvaluatedDlsFlsConfig evaluatedDlsFlsConfig;
+    private final Resolved resolved;
+    private final boolean requiresIndexScoping;
+    private final Client nodeClient;
+    private final DlsQueryParser dlsQueryParser;
+    private final ClusterService clusterService;
+    private final IndicesService indicesService;
+    private final ThreadContext threadContext;
+
+    private BoolQueryBuilder filterLevelQueryBuilder;
+    private DocumentWhitelist documentWhitelist;
+
+    DlsFilterLevelHandler(ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, Resolved resolved,
+            Client nodeClient, ClusterService clusterService, IndicesService indicesService, DlsQueryParser dlsQueryParser,
+            ThreadContext threadContext) {
+        this.request = request;
+        this.listener = listener;
+        this.evaluatedDlsFlsConfig = evaluatedDlsFlsConfig;
+        this.resolved = resolved;
+        this.nodeClient = nodeClient;
+        this.clusterService = clusterService;
+        this.indicesService = indicesService;
+        this.dlsQueryParser = dlsQueryParser;
+        this.threadContext = threadContext;
+
+        this.requiresIndexScoping = resolved.getAllIndices().size() != 1 || resolved.isAll();
+    }
+
+    private boolean handle() {
+
+        threadContext.putHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE, request.toString());
+
         try {
             if (!createQueryExtension()) {
-                return false;
+                return true;
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("Created filterLevelQuery: " + filterLevelQueryBuilder);
+                log.debug("Created filterLevelQuery for " + request + ":\n" + filterLevelQueryBuilder);
             }
 
-        } catch (IOException e) {
-            listener.onFailure(new ElasticsearchSecurityException("Unable to handle terms lookup queries", e));
+        } catch (Exception e) {
+            log.error("Unable to handle filter level DLS", e);
+            listener.onFailure(new ElasticsearchSecurityException("Unable to handle filter level DLS", e));
             return false;
         }
 
@@ -132,8 +156,8 @@ public class DlsFilterLevelHandler {
         } else if (request instanceof MultiGetRequest) {
             return handle((MultiGetRequest) request);
         } else {
-            listener.onFailure(
-                    new ElasticsearchSecurityException("Unsupported request type for DLS with term lookup queries: " + request.getClass().getName()));
+            log.error("Unsupported request type for filter level DLS: " + request);
+            listener.onFailure(new ElasticsearchSecurityException("Unsupported request type for filter level DLS: " + request.getClass().getName()));
             return false;
         }
 
@@ -155,7 +179,6 @@ public class DlsFilterLevelHandler {
 
     private boolean handle(GetRequest getRequest) {
         try (StoredContext ctx = threadContext.newStoredContext(true)) {
-
             if (documentWhitelist != null) {
                 documentWhitelist.applyTo(threadContext);
             }
@@ -200,7 +223,6 @@ public class DlsFilterLevelHandler {
 
     private boolean handle(MultiGetRequest multiGetRequest) {
         try (StoredContext ctx = threadContext.newStoredContext(true)) {
-
             if (documentWhitelist != null) {
                 documentWhitelist.applyTo(threadContext);
             }
@@ -260,7 +282,6 @@ public class DlsFilterLevelHandler {
         }
     }
 
-    
     private GetResult searchHitToGetResult(SearchHit hit) {
 
         if (log.isDebugEnabled()) {
@@ -315,7 +336,7 @@ public class DlsFilterLevelHandler {
     }
 
     private boolean createQueryExtension() throws IOException {
-        Map<String, Set<String>> filterLevelQueries = evaluatedDlsFlsConfig.getFilterLevelDlsQueriesByIndex();
+        Map<String, Set<String>> filterLevelQueries = evaluatedDlsFlsConfig.getDlsQueriesByIndex();
 
         BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery().minimumShouldMatch(1);
         DocumentWhitelist documentWhitelist = new DocumentWhitelist();
@@ -348,7 +369,7 @@ public class DlsFilterLevelHandler {
             for (String unparsedDlsQuery : unparsedDlsQueries) {
                 queryCount++;
 
-                QueryBuilder parsedDlsQuery = DlsQueryParser.parseRaw(unparsedDlsQuery, namedXContentRegistry);
+                QueryBuilder parsedDlsQuery = dlsQueryParser.parse(unparsedDlsQuery);
 
                 if (!requiresIndexScoping) {
                     dlsQueryBuilder.should(parsedDlsQuery);

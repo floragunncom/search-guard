@@ -15,8 +15,6 @@
 package com.floragunn.searchguard.configuration;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -33,7 +31,6 @@ import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.join.BitSetProducer;
 import org.apache.lucene.search.join.ToChildBlockJoinQuery;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -44,45 +41,44 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.SearchExecutionContext;
 import org.elasticsearch.index.query.TermsQueryBuilder;
 
-import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-
 final class DlsQueryParser {
-    
-	private static final Logger log = LogManager.getLogger(DlsQueryParser.class);
+
+    private static final Logger log = LogManager.getLogger(DlsQueryParser.class);
     private static final Query NON_NESTED_QUERY;
-    
+
     static {
         //Match all documents but not the nested ones
         //Nested document types start with __ 
         //https://discuss.elastic.co/t/whats-nested-documents-layout-inside-the-lucene/59944/9
-        NON_NESTED_QUERY = new BooleanQuery.Builder()
-        .add(new MatchAllDocsQuery(), Occur.FILTER)
-        .add(new PrefixQuery(new Term("_type", "__")), Occur.MUST_NOT)
-        .build();
+        NON_NESTED_QUERY = new BooleanQuery.Builder().add(new MatchAllDocsQuery(), Occur.FILTER)
+                .add(new PrefixQuery(new Term("_type", "__")), Occur.MUST_NOT).build();
     }
 
-
-    private static Cache<String, QueryBuilder> queries = CacheBuilder.newBuilder().maximumSize(10000).expireAfterWrite(4, TimeUnit.HOURS)
+    private static Cache<String, QueryBuilder> parsedQueryCache = CacheBuilder.newBuilder().maximumSize(10000).expireAfterWrite(4, TimeUnit.HOURS)
+            .build();
+    private static Cache<String, Boolean> queryContainsTlqCache = CacheBuilder.newBuilder().maximumSize(10000).expireAfterWrite(4, TimeUnit.HOURS)
             .build();
 
-    private DlsQueryParser() {
+    private final NamedXContentRegistry namedXContentRegistry;
 
+    public DlsQueryParser(NamedXContentRegistry namedXContentRegistry) {
+        this.namedXContentRegistry = namedXContentRegistry;
     }
-
 
     //return null means the wrapper is not doing dls
     //the wrapper does dls slow, its only for get and suggest
     //can not handle tl queries
-    static Query parseForWrapper(final Set<String> unparsedDlsQueries, final SearchExecutionContext queryShardContext,
-            final NamedXContentRegistry namedXContentRegistry, final ThreadContext threadContext) throws IOException {
+    Query parseForWrapper(final Set<String> unparsedDlsQueries, final SearchExecutionContext queryShardContext)
+            throws IOException {
 
         if (unparsedDlsQueries == null || unparsedDlsQueries.isEmpty()) {
             return null;
         }
-  
+
         final boolean hasNestedMapping = queryShardContext.hasNested();
 
         BooleanQuery.Builder dlsQueryBuilder = new BooleanQuery.Builder();
@@ -90,20 +86,14 @@ final class DlsQueryParser {
 
         for (final String unparsedDlsQuery : unparsedDlsQueries) {
 
-            	final QueryBuilder qb = parseRaw(unparsedDlsQuery, namedXContentRegistry);
-                final ParsedQuery parsedQuery = parseSafely(queryShardContext, qb);
-                final Query dlsQuery = parsedQuery.query();
-                dlsQueryBuilder.add(dlsQuery, Occur.SHOULD);
-                
-                if (hasNestedMapping) {
-                    handleNested(queryShardContext, dlsQueryBuilder, dlsQuery);
-                }
-        }
-        
-        //to make check for "now" in date math queries we can not perform this check earlier
-        if(isSearchAndNoSuggest(threadContext)) {
-        	//we handle this in the valve
-        	return null;
+            final QueryBuilder qb = parse(unparsedDlsQuery);
+            final ParsedQuery parsedQuery = queryShardContext.toQuery(qb);
+            final Query dlsQuery = parsedQuery.query();
+            dlsQueryBuilder.add(dlsQuery, Occur.SHOULD);
+
+            if (hasNestedMapping) {
+                handleNested(queryShardContext, dlsQueryBuilder, dlsQuery);
+            }
         }
 
         // no need for scoring here, so its possible to wrap this in a
@@ -111,26 +101,15 @@ final class DlsQueryParser {
         return new ConstantScoreQuery(dlsQueryBuilder.build());
 
     }
-    
+
     //return null means the valve is not doing dls
     //the valve does dls fast, its for normal search request
     //can not handle tl queries
-    static ParsedQuery parseForValve(final Set<String> unparsedDlsQueries, ParsedQuery originalQuery, final SearchExecutionContext queryShardContext,
-            final NamedXContentRegistry namedXContentRegistry, final ThreadContext threadContext) throws IOException {
+    ParsedQuery parseForValve(Set<String> unparsedDlsQueries, ParsedQuery originalQuery, SearchExecutionContext queryShardContext) throws IOException {
         if (unparsedDlsQueries == null || unparsedDlsQueries.isEmpty()) {
             return null;
         }
-        
-        if(isNoSearchOrSuggest(threadContext)) {
-        	//we handle this in the wrapper
-        	return null;
-        }
 
-        //if not queries left we can return null because no DLS needs to be executed
-        if(unparsedDlsQueries.isEmpty()) {
-        	return null;
-        }
-        
         final boolean hasNestedMapping = queryShardContext.hasNested();
 
         BooleanQuery.Builder dlsQueryBuilder = new BooleanQuery.Builder();
@@ -138,103 +117,85 @@ final class DlsQueryParser {
 
         for (final String unparsedDlsQuery : unparsedDlsQueries) {
 
-            	final QueryBuilder qb = parseRaw(unparsedDlsQuery, namedXContentRegistry);
-                final ParsedQuery parsedQuery = parseSafely(queryShardContext, qb);
-                
-                // no need for scoring here, so its possible to wrap this in a
-                // ConstantScoreQuery
-                final Query dlsQuery = new ConstantScoreQuery(parsedQuery.query());
-                dlsQueryBuilder.add(dlsQuery, Occur.SHOULD);
-                
-                if (hasNestedMapping) {
-                    handleNested(queryShardContext, dlsQueryBuilder, dlsQuery);
-                }
+            final QueryBuilder qb = parse(unparsedDlsQuery);
+            final ParsedQuery parsedQuery = queryShardContext.toQuery(qb);
+
+            // no need for scoring here, so its possible to wrap this in a
+            // ConstantScoreQuery
+            final Query dlsQuery = new ConstantScoreQuery(parsedQuery.query());
+            dlsQueryBuilder.add(dlsQuery, Occur.SHOULD);
+
+            if (hasNestedMapping) {
+                handleNested(queryShardContext, dlsQueryBuilder, dlsQuery);
+            }
         }
 
         dlsQueryBuilder.add(originalQuery.query(), Occur.MUST);
         return new ParsedQuery(dlsQueryBuilder.build());
     }
-    
-    private static void handleNested(final SearchExecutionContext queryShardContext, 
-            final BooleanQuery.Builder dlsQueryBuilder, 
-            final Query parentQuery) {      
+
+    private static void handleNested(final SearchExecutionContext queryShardContext, final BooleanQuery.Builder dlsQueryBuilder,
+            final Query parentQuery) {
         final BitSetProducer parentDocumentsFilter = queryShardContext.bitsetFilter(NON_NESTED_QUERY);
         dlsQueryBuilder.add(new ToChildBlockJoinQuery(parentQuery, parentDocumentsFilter), Occur.SHOULD);
     }
-    
-    static QueryBuilder parseRaw(final String unparsedDlsQuery, final NamedXContentRegistry namedXContentRegistry) throws IOException {
-    	try {
-			final QueryBuilder qb = queries.get(unparsedDlsQuery, new Callable<QueryBuilder>() {
 
-			    @Override
-			    public QueryBuilder call() throws Exception {
-			        final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, unparsedDlsQuery);                
-			        final QueryBuilder qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
-			        return qb;
-			    }
-
-			});
-			
-			return qb;
-		} catch (ExecutionException e) {
-			if(e.getCause() instanceof IOException) {
-				throw (IOException) e.getCause();
-			} else {
-				throw new IOException(e.getCause());
-			}
-		}
-    }
-    
-    private static ParsedQuery parseSafely(final SearchExecutionContext queryShardContext, QueryBuilder qb) throws IOException {
+    QueryBuilder parse(String unparsedDlsQuery) throws IOException {
         try {
-			return queryShardContext.toQuery(qb);
-		} catch (RuntimeException e) {
-			//https://forum.search-guard.com/t/terms-lookup-in-dls-query/1479			
-			log.warn("Geo shape queries with indexed shapes and percolate queries are not supported as DLS queries. For Terms lookup queries special rules apply.", e);
-			throw e;
-		}
+            final QueryBuilder qb = parsedQueryCache.get(unparsedDlsQuery, new Callable<QueryBuilder>() {
+
+                @Override
+                public QueryBuilder call() throws Exception {
+                    final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry,
+                            DeprecationHandler.THROW_UNSUPPORTED_OPERATION, unparsedDlsQuery);
+                    final QueryBuilder qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
+                    return qb;
+                }
+
+            });
+
+            return qb;
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IOException) {
+                throw (IOException) e.getCause();
+            } else if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            } else {
+                throw new RuntimeException(e.getCause());
+            }
+        }
     }
-    
-    static Set<String> getTermsLookupQueries(Set<String> unparsedDlsQueries, final NamedXContentRegistry namedXContentRegistry) throws IOException {
-    	Set<String> ret = new HashSet<>();
-    	for (final String unparsedDlsQuery : unparsedDlsQueries) {
-    		if(isTermsLookupQuery(parseRaw(unparsedDlsQuery, namedXContentRegistry))) {
-    			ret.add(unparsedDlsQuery);
-    		}
-    	}
-    	
-    	return Collections.unmodifiableSet(ret);
-    }
-    
-    private static boolean stripTermsLookupQueries(Set<String> unparsedDlsQueries, final NamedXContentRegistry namedXContentRegistry) throws IOException {
-    	Set<String> ret = new HashSet<>();
-    	for (final String unparsedDlsQuery : unparsedDlsQueries) {
-    		if(isTermsLookupQuery(parseRaw(unparsedDlsQuery, namedXContentRegistry))) {
-    			ret.add(unparsedDlsQuery);
-    		}
-    	}
-    	
-    	return unparsedDlsQueries.removeAll(ret);
-    }
-    
-    private static boolean isTermsLookupQuery(QueryBuilder qb) {
-    	return qb != null && qb.getClass() == TermsQueryBuilder.class && ((TermsQueryBuilder) qb).termsLookup() != null;	
-    }
-    
-    private static boolean isSearchAndNoSuggest(ThreadContext threadContext) {
-    	return !isNoSearchOrSuggest(threadContext);
-    }
-    
-    private static boolean isNoSearchOrSuggest(ThreadContext threadContext) {
-        if(threadContext.getTransient("_sg_issuggest") == Boolean.TRUE) {
-            return true;
+
+    boolean containsTermLookupQuery(Set<String> unparsedQueries) {
+        for (String query : unparsedQueries) {
+            if (containsTermLookupQuery(query)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("containsTermLookupQuery() returns true due to " + query + "\nqueries: " + unparsedQueries);
+                }
+                
+                return true;
+            }
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("containsTermLookupQuery() returns false\nqueries: " + unparsedQueries);
         }
         
-        
-        final String action = (String) threadContext.getTransient(ConfigConstants.SG_ACTION_NAME);
-        assert action != null;
-        return !action.startsWith("indices:data/read/search");
+        return false;
     }
-    
 
+    boolean containsTermLookupQuery(String query)  {
+        try {
+            return queryContainsTlqCache.get(query, () -> {
+                QueryBuilder queryBuilder = parse(query);
+
+                return QueryBuilderTraverser.exists(queryBuilder,
+                        (q) -> (q instanceof TermsQueryBuilder) && ((TermsQueryBuilder) q).termsLookup() != null);
+            });
+        } catch (ExecutionException e) {
+            throw new RuntimeException("Error handling parsing " + query, e.getCause());
+        }
+    }
+
+  
 }
