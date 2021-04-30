@@ -23,11 +23,12 @@ import java.util.Set;
 
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.ConfigModel.ActionGroupResolver;
+import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.Sets;
@@ -119,16 +120,10 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public Map<String, Set<String>> getMaskedFields(User user, IndexNameExpressionResolver resolver, ClusterService clusterService) {
+    public EvaluatedDlsFlsConfig getDlsFls(User user, IndexNameExpressionResolver resolver,
+            ClusterService clusterService, NamedXContentRegistry namedXContentRegistry) {
         // not implemented
-        return base.getMaskedFields(user, resolver, clusterService);
-    }
-
-    @Override
-    public Tuple<Map<String, Set<String>>, Map<String, Set<String>>> getDlsFls(User user, IndexNameExpressionResolver resolver,
-            ClusterService clusterService) {
-        // not implemented
-        return base.getDlsFls(user, resolver, clusterService);
+        return base.getDlsFls(user, resolver, clusterService, namedXContentRegistry);
     }
 
     @Override

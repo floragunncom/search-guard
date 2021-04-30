@@ -48,7 +48,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.query.ParsedQuery;
-import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
@@ -63,6 +62,7 @@ import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.query.QuerySearchResult;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -79,15 +79,15 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     private final Client nodeClient;
     private final NamedXContentRegistry namedXContentRegistry;
     private final ClusterService clusterService;
-    private final IndicesService indicesService;
+    private final GuiceDependencies guiceDependencies;
     private final ThreadContext threadContext;
 
-    public DlsFlsValveImpl(Settings settings, Client nodeClient, ClusterService clusterService, IndicesService indicesService,
+    public DlsFlsValveImpl(Settings settings, Client nodeClient, ClusterService clusterService, GuiceDependencies guiceDependencies,
             NamedXContentRegistry namedXContentRegistry, ThreadContext threadContext) {
         super();
         this.nodeClient = nodeClient;
         this.clusterService = clusterService;
-        this.indicesService = indicesService;
+        this.guiceDependencies = guiceDependencies;
         this.namedXContentRegistry = namedXContentRegistry;
         this.threadContext = threadContext;
     }
@@ -197,8 +197,8 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         }
 
         if (evaluatedDlsFlsConfig.hasFilterLevelDlsQueries()) {
-            return new DlsFilterLevelHandler(request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService, indicesService,
-                    namedXContentRegistry, threadContext).handle();
+            return new DlsFilterLevelHandler(request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService,
+                    guiceDependencies.getIndicesService(), namedXContentRegistry, threadContext).handle();
         } else {
             return true;
         }
