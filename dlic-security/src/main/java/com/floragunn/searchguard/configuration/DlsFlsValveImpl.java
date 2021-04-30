@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.configuration;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -34,6 +35,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.RealtimeRequest;
+import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkItemRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -65,6 +67,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
+import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SgUtils;
@@ -77,10 +80,11 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     private static final Field BUCKET_FORMAT = getField(InternalTerms.Bucket.class, "format");
 
     private final Client nodeClient;
-    private final NamedXContentRegistry namedXContentRegistry;
     private final ClusterService clusterService;
     private final GuiceDependencies guiceDependencies;
     private final ThreadContext threadContext;
+    private final Mode mode;
+    private final DlsQueryParser dlsQueryParser;
 
     public DlsFlsValveImpl(Settings settings, Client nodeClient, ClusterService clusterService, GuiceDependencies guiceDependencies,
             NamedXContentRegistry namedXContentRegistry, ThreadContext threadContext) {
@@ -88,8 +92,9 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         this.nodeClient = nodeClient;
         this.clusterService = clusterService;
         this.guiceDependencies = guiceDependencies;
-        this.namedXContentRegistry = namedXContentRegistry;
         this.threadContext = threadContext;
+        this.mode = Mode.get(settings);
+        this.dlsQueryParser = new DlsQueryParser(namedXContentRegistry);
     }
 
     /**
@@ -98,15 +103,55 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
      * @param listener
      * @return false on error
      */
-    public boolean invoke(final ActionRequest request, final ActionListener<?> listener, final EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
+    public boolean invoke(String action, ActionRequest request, final ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
             final boolean localHashingEnabled, final Resolved resolved) {
 
         if (log.isDebugEnabled()) {
             log.debug("DlsFlsValveImpl.invoke()\nrequest: " + request + "\nevaluatedDlsFlsConfig: " + evaluatedDlsFlsConfig + "\nresolved: "
-                    + resolved);
+                    + resolved + "\nmode: " + mode);
         }
 
         if (evaluatedDlsFlsConfig == null || evaluatedDlsFlsConfig.isEmpty()) {
+            return true;
+        }
+
+        if (threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE) != null) {
+            if (log.isDebugEnabled()) {
+                log.debug("DLS is already done for: " + threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE));
+            }
+
+            return true;
+        }
+
+        EvaluatedDlsFlsConfig filteredDlsFlsConfig = evaluatedDlsFlsConfig.filter(resolved.getAllIndices());
+
+        boolean doFilterLevelDls;
+
+        if (mode == Mode.FILTER_LEVEL) {
+            doFilterLevelDls = true;
+        } else if (mode == Mode.LUCENE_LEVEL) {
+            doFilterLevelDls = false;
+        } else { // mode == Mode.ADAPTIVE
+            Mode modeByHeader = getDlsModeHeader();
+
+            if (modeByHeader == Mode.FILTER_LEVEL) {
+                doFilterLevelDls = true;
+            } else {
+                doFilterLevelDls = dlsQueryParser.containsTermLookupQuery(filteredDlsFlsConfig.getAllQueries());
+
+                if (doFilterLevelDls) {
+                    setDlsModeHeader(Mode.FILTER_LEVEL);
+                }
+            }
+        }
+
+        if (!doFilterLevelDls) {
+            setDlsHeaders(evaluatedDlsFlsConfig, request);
+        }
+
+        setFlsHeaders(evaluatedDlsFlsConfig, request);
+
+        if (filteredDlsFlsConfig.isEmpty()) {
             return true;
         }
 
@@ -196,9 +241,9 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             }
         }
 
-        if (evaluatedDlsFlsConfig.hasFilterLevelDlsQueries()) {
-            return new DlsFilterLevelHandler(request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService,
-                    guiceDependencies.getIndicesService(), namedXContentRegistry, threadContext).handle();
+        if (doFilterLevelDls && filteredDlsFlsConfig.hasDls()) {
+            return DlsFilterLevelHandler.handle(action, request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService,
+                    guiceDependencies.getIndicesService(), dlsQueryParser, threadContext);
         } else {
             return true;
         }
@@ -223,12 +268,12 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 if (unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) {
-                    final ParsedQuery dlsQuery = DlsQueryParser.parseForValve(unparsedDlsQueries, context.parsedQuery(), context.getQueryShardContext(),
-                            namedXContentRegistry, threadPool.getThreadContext());
-                    
-                    if(dlsQuery != null) {
-	                    context.parsedQuery(dlsQuery);
-	                    context.preProcess(true);
+                    final ParsedQuery dlsQuery = dlsQueryParser.parseForValve(unparsedDlsQueries, context.parsedQuery(),
+                            context.getQueryShardContext());
+
+                    if (dlsQuery != null) {
+                        context.parsedQuery(dlsQuery);
+                        context.preProcess(true);
                     }
                 }
             }
@@ -324,7 +369,6 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
         return true;
     }
-
 
     private boolean checkForCorrectReduceOrder(BucketOrder reduceOrder, List<StringTerms.Bucket> buckets) {
         Comparator<Bucket> comparator = reduceOrder.comparator();
@@ -473,4 +517,124 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         });
     }
 
+    private void setDlsHeaders(EvaluatedDlsFlsConfig dlsFls, ActionRequest request) {
+        if (!dlsFls.getDlsQueriesByIndex().isEmpty()) {
+            Map<String, Set<String>> dlsQueries = dlsFls.getDlsQueriesByIndex();
+
+            if (request instanceof ClusterSearchShardsRequest && HeaderHelper.isTrustedClusterRequest(threadContext)) {
+                threadContext.addResponseHeader(ConfigConstants.SG_DLS_QUERY_HEADER, Base64Helper.serializeObject((Serializable) dlsQueries));
+                if (log.isDebugEnabled()) {
+                    log.debug("added response header for DLS info: {}", dlsQueries);
+                }
+            } else {
+                if (threadContext.getHeader(ConfigConstants.SG_DLS_QUERY_HEADER) != null) {
+                    if (!dlsQueries.equals(Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_DLS_QUERY_HEADER)))) {
+                        throw new ElasticsearchSecurityException(ConfigConstants.SG_DLS_QUERY_HEADER + " does not match (SG 900D)");
+                    }
+                } else {
+                    threadContext.putHeader(ConfigConstants.SG_DLS_QUERY_HEADER, Base64Helper.serializeObject((Serializable) dlsQueries));
+                    if (log.isDebugEnabled()) {
+                        log.debug("attach DLS info: {}", dlsQueries);
+                    }
+                }
+            }
+        }
+    }
+
+    private void setDlsModeHeader(Mode mode) {
+        String modeString = mode.name();
+
+        if (threadContext.getHeader(ConfigConstants.SG_DLS_MODE_HEADER) != null) {
+            if (!modeString.equals(threadContext.getHeader(ConfigConstants.SG_DLS_MODE_HEADER))) {
+                log.warn("Cannot update DLS mode to " + mode + "; current: " + threadContext.getHeader(ConfigConstants.SG_DLS_MODE_HEADER));
+            }
+        } else {
+            threadContext.putHeader(ConfigConstants.SG_DLS_MODE_HEADER, modeString);
+        }
+    }
+
+    private Mode getDlsModeHeader() {
+        String modeString = threadContext.getHeader(ConfigConstants.SG_DLS_MODE_HEADER);
+
+        if (modeString != null) {
+            return Mode.valueOf(modeString);
+        } else {
+            return null;
+        }
+    }
+
+    private void setFlsHeaders(EvaluatedDlsFlsConfig dlsFls, ActionRequest request) {
+        if (!dlsFls.getFieldMaskingByIndex().isEmpty()) {
+            Map<String, Set<String>> maskedFieldsMap = dlsFls.getFieldMaskingByIndex();
+
+            if (request instanceof ClusterSearchShardsRequest && HeaderHelper.isTrustedClusterRequest(threadContext)) {
+                threadContext.addResponseHeader(ConfigConstants.SG_MASKED_FIELD_HEADER, Base64Helper.serializeObject((Serializable) maskedFieldsMap));
+                if (log.isDebugEnabled()) {
+                    log.debug("added response header for masked fields info: {}", maskedFieldsMap);
+                }
+            } else {
+
+                if (threadContext.getHeader(ConfigConstants.SG_MASKED_FIELD_HEADER) != null) {
+                    if (!maskedFieldsMap.equals(Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_MASKED_FIELD_HEADER)))) {
+                        throw new ElasticsearchSecurityException(ConfigConstants.SG_MASKED_FIELD_HEADER + " does not match (SG 901D)");
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug(ConfigConstants.SG_MASKED_FIELD_HEADER + " already set");
+                        }
+                    }
+                } else {
+                    threadContext.putHeader(ConfigConstants.SG_MASKED_FIELD_HEADER, Base64Helper.serializeObject((Serializable) maskedFieldsMap));
+                    if (log.isDebugEnabled()) {
+                        log.debug("attach masked fields info: {}", maskedFieldsMap);
+                    }
+                }
+            }
+        }
+
+        if (!dlsFls.getFlsByIndex().isEmpty()) {
+            Map<String, Set<String>> flsFields = dlsFls.getFlsByIndex();
+
+            if (request instanceof ClusterSearchShardsRequest && HeaderHelper.isTrustedClusterRequest(threadContext)) {
+                threadContext.addResponseHeader(ConfigConstants.SG_FLS_FIELDS_HEADER, Base64Helper.serializeObject((Serializable) flsFields));
+                if (log.isDebugEnabled()) {
+                    log.debug("added response header for FLS info: {}", flsFields);
+                }
+            } else {
+                if (threadContext.getHeader(ConfigConstants.SG_FLS_FIELDS_HEADER) != null) {
+                    if (!flsFields.equals(Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_FLS_FIELDS_HEADER)))) {
+                        throw new ElasticsearchSecurityException(ConfigConstants.SG_FLS_FIELDS_HEADER + " does not match (SG 901D) " + flsFields
+                                + "---" + Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_FLS_FIELDS_HEADER)));
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug(ConfigConstants.SG_FLS_FIELDS_HEADER + " already set");
+                        }
+                    }
+                } else {
+                    threadContext.putHeader(ConfigConstants.SG_FLS_FIELDS_HEADER, Base64Helper.serializeObject((Serializable) flsFields));
+                    if (log.isDebugEnabled()) {
+                        log.debug("attach FLS info: {}", flsFields);
+                    }
+                }
+            }
+
+        }
+    }
+
+    private static enum Mode {
+        ADAPTIVE, LUCENE_LEVEL, FILTER_LEVEL;
+
+        static Mode get(Settings settings) {
+            String modeString = settings.get(ConfigConstants.SEARCHGUARD_DLS_MODE);
+
+            if ("adaptive".equalsIgnoreCase(modeString)) {
+                return Mode.ADAPTIVE;
+            } else if ("lucene_level".equalsIgnoreCase(modeString)) {
+                return Mode.LUCENE_LEVEL;
+            } else if ("filter_level".equalsIgnoreCase(modeString)) {
+                return Mode.FILTER_LEVEL;
+            } else {
+                return Mode.ADAPTIVE;
+            }
+        }
+    };
 }

@@ -46,6 +46,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
     private final ComplianceConfig complianceConfig;
     private final AuditLog auditlog;
     private final LongSupplier nowInMillis;
+    private final DlsQueryParser dlsQueryParser;
 
     public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings,
             final AdminDNs adminDNs, final ClusterService clusterService, final AuditLog auditlog,
@@ -56,6 +57,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
         this.indexService = indexService;
         this.complianceConfig = complianceConfig;
         this.auditlog = auditlog;
+        this.dlsQueryParser = new DlsQueryParser(indexService.xContentRegistry());
         final boolean allowNowinDlsQueries = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_ALLOW_NOW_IN_DLS, false);
         if (allowNowinDlsQueries) {
             nowInMillis = () -> System.currentTimeMillis();
@@ -98,9 +100,8 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 if(unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) { 
                     //disable reader optimizations
-                    dlsQuery = DlsQueryParser.parseForWrapper(unparsedDlsQueries,
-                            this.indexService.newQueryShardContext(shardId.getId(), null, nowInMillis, null),
-                            this.indexService.xContentRegistry(), threadContext);
+                    dlsQuery = dlsQueryParser.parseForWrapper(unparsedDlsQueries,
+                            this.indexService.newQueryShardContext(shardId.getId(), null, nowInMillis, null));
 
                 }
             }
