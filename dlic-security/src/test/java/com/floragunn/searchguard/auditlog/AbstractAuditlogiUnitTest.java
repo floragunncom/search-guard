@@ -17,6 +17,7 @@ package com.floragunn.searchguard.auditlog;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.FileNotFoundException;
 import java.util.Collection;
 
 import org.apache.http.Header;
@@ -48,7 +49,7 @@ public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
         rh = restHelper();
     }
 	
-    protected Settings defaultNodeSettings(Settings additionalSettings) {
+    protected Settings defaultNodeSettings(Settings additionalSettings) throws FileNotFoundException {
         Settings.Builder builder = Settings.builder();
 
         builder.put("searchguard.ssl.http.enabled", true)
