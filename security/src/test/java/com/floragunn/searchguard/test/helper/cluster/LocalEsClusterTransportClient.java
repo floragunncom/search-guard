@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.test.helper.cluster;
 
+import java.io.FileNotFoundException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collection;
@@ -51,9 +52,13 @@ public class LocalEsClusterTransportClient extends TransportClient {
     }
 
     private static Settings createSettings(String clusterName, InetSocketAddress host, String truststore, String keystore) {
-        return Settings.builder().put("cluster.name", clusterName)
-                .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(truststore))
-                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(keystore)).build();
+        try {
+            return Settings.builder().put("cluster.name", clusterName)
+                    .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(truststore))
+                    .put("searchguard.ssl.transport.enforce_hostname_verification", false)
+                    .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(keystore)).build();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -35,6 +35,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -63,26 +65,39 @@ public class FileHelper {
 	    return ks;
 	}
 	
-	public static Path getAbsoluteFilePathFromClassPath(final String fileNameFromClasspath) {
-		File file = null;
-		final URL fileUrl = FileHelper.class.getClassLoader().getResource(fileNameFromClasspath);
-		if (fileUrl != null) {
-			try {
-				file = new File(URLDecoder.decode(fileUrl.getFile(), "UTF-8"));
-			} catch (final UnsupportedEncodingException e) {
-				return null;
-			}
-
-			if (file.exists() && file.canRead()) {
-				return Paths.get(file.getAbsolutePath());
-			} else {
-				log.error("Cannot read from {}, maybe the file does not exists? ", file.getAbsolutePath());
-			}
-
-		} else {
-			log.error("Failed to load " + fileNameFromClasspath);
+	public static Path getAbsoluteFilePathFromClassPath(String fileNameFromClasspath) throws FileNotFoundException {
+		URL fileUrl = FileHelper.class.getClassLoader().getResource(fileNameFromClasspath);
+		
+		if (fileUrl == null) {
+		    throw new FileNotFoundException("Could not locate " + fileNameFromClasspath);
 		}
-		return null;
+		
+		if (fileUrl.getProtocol().equals("file")) {
+            try {
+                File file = new File(URLDecoder.decode(fileUrl.getFile(), "UTF-8"));
+                
+                if (!file.exists()) {
+                    throw new FileNotFoundException("Could not locate " + fileNameFromClasspath + " at " + file);
+                }
+                
+                return Paths.get(file.getAbsolutePath());
+            } catch (UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
+            }
+        } else if (fileUrl.getProtocol().equals("jar")) {
+            try {
+                File tempFile = File.createTempFile(FilenameUtils.getBaseName(fileNameFromClasspath),
+                        FilenameUtils.getExtension(fileNameFromClasspath));
+
+                FileUtils.copyInputStreamToFile(fileUrl.openStream(), tempFile);
+                
+                return tempFile.toPath();
+            } catch (IOException e) {
+                throw new RuntimeException("Error while making " + fileNameFromClasspath + " available as temp file", e);
+            }
+        } else {
+            throw new RuntimeException("Unsupported scheme " + fileUrl);
+        }
 	}
 
 	public static final String loadFile(final String file) throws IOException {

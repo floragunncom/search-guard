@@ -19,6 +19,7 @@ package com.floragunn.searchguard.test;
 
 import io.netty.handler.ssl.OpenSsl;
 
+import java.io.FileNotFoundException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -133,14 +134,22 @@ public abstract class AbstractSGUnitTest {
 
         if (initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH) == null
                 && initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH) == null) {
-            settingsBuilder.put("searchguard.ssl.transport.truststore_filepath",
-                    FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"));
+            try {
+                settingsBuilder.put("searchguard.ssl.transport.truststore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"));
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException("Could not locate truststore for " + prefix);
+            }
         }
 
         if (initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH) == null
                 && initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH) == null) {
-            settingsBuilder.put("searchguard.ssl.transport.keystore_filepath",
-                    FileHelper.getAbsoluteFilePathFromClassPath(prefix + "kirk-keystore.jks"));
+            try {
+                settingsBuilder.put("searchguard.ssl.transport.keystore_filepath",
+                        FileHelper.getAbsoluteFilePathFromClassPath(prefix + "kirk-keystore.jks"));
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException("Could not locate keystore for " + prefix);
+            }
         }
 
         settingsBuilder.put(initTransportClientSettings);
@@ -154,21 +163,21 @@ public abstract class AbstractSGUnitTest {
 
     protected TransportClient getUserTransportClient(ClusterInfo info, String keyStore, Settings initTransportClientSettings) {
 
-        final String prefix = getResourceFolder()==null?"":getResourceFolder()+"/";
+        try {
+            final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 
-        Settings tcSettings = Settings.builder()
-                .put("cluster.name", info.clustername)
-                .put("searchguard.ssl.transport.truststore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath(prefix+"truststore.jks"))
-                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                .put("searchguard.ssl.transport.keystore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath(prefix+keyStore))
-                .put(initTransportClientSettings)
-                .build();
+            Settings tcSettings = Settings.builder().put("cluster.name", info.clustername)
+                    .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
+                    .put("searchguard.ssl.transport.enforce_hostname_verification", false)
+                    .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + keyStore))
+                    .put(initTransportClientSettings).build();
 
-        TransportClient tc = new TransportClientImpl(tcSettings, asCollection(Netty4Plugin.class, SearchGuardPlugin.class));
-        tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));
-        return tc;
+            TransportClient tc = new TransportClientImpl(tcSettings, asCollection(Netty4Plugin.class, SearchGuardPlugin.class));
+            tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));
+            return tc;
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     protected void initialize(ClusterInfo info, Settings initTransportClientSettings, DynamicSgConfig sgconfig) {
@@ -212,27 +221,30 @@ public abstract class AbstractSGUnitTest {
     }
 
     protected Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly, boolean hasCustomTransportSettings) {
-        final String prefix = getResourceFolder()==null?"":getResourceFolder()+"/";
+        try {
+            final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 
-        Settings.Builder builder = Settings.builder()
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL);
+            Settings.Builder builder = Settings.builder().put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
+                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL);
 
-        if (!hasCustomTransportSettings) {
-            builder.put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
-                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH,
-                            FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
-                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH,
-                            FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
-                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION, false);
+            if (!hasCustomTransportSettings) {
+                builder.put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
+                        .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH,
+                                FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
+                        .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH,
+                                FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
+                        .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION, false);
+            }
+
+            if (!sslOnly) {
+                builder.putList(SEARCHGUARD_AUTHCZ_ADMIN_DN, "CN=kirk,OU=client,O=client,l=tEst, C=De");
+                builder.put(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, false);
+            }
+
+            return builder;
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
         }
-
-        if (!sslOnly) {
-            builder.putList(SEARCHGUARD_AUTHCZ_ADMIN_DN, "CN=kirk,OU=client,O=client,l=tEst, C=De");
-            builder.put(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, false);
-        }
-
-        return builder;
     }
 
     protected NodeSettingsSupplier minimumSearchGuardSettings(Settings other) {
