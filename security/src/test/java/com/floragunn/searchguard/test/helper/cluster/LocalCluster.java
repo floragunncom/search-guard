@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -251,25 +252,28 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     }
 
     protected Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly) {
+        try {
+            final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 
-        final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
+            Settings.Builder builder = Settings.builder()
+                    //.put("searchguard.ssl.transport.enabled", true)
+                    //.put("searchguard.no_default_init", true)
+                    .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, false)
+                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, false)
+                    .put("searchguard.ssl.transport.keystore_alias", "node-0")
+                    .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
+                    .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
+                    .put("searchguard.ssl.transport.enforce_hostname_verification", false);
 
-        Settings.Builder builder = Settings.builder()
-                //.put("searchguard.ssl.transport.enabled", true)
-                //.put("searchguard.no_default_init", true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, false)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, false)
-                .put("searchguard.ssl.transport.keystore_alias", "node-0")
-                .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
-                .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
-                .put("searchguard.ssl.transport.enforce_hostname_verification", false);
+            if (!sslOnly) {
+                builder.putList("searchguard.authcz.admin_dn", "CN=kirk,OU=client,O=client,l=tEst, C=De");
+                builder.put(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, false);
+            }
 
-        if (!sslOnly) {
-            builder.putList("searchguard.authcz.admin_dn", "CN=kirk,OU=client,O=client,l=tEst, C=De");
-            builder.put(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, false);
+            return builder;
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
         }
-
-        return builder;
     }
 
     protected NodeSettingsSupplier minimumSearchGuardSettings(Settings other) {
