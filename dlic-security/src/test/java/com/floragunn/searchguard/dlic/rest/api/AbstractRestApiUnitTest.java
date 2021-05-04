@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.dlic.rest.api;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -237,7 +238,7 @@ public abstract class AbstractRestApiUnitTest extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("*/_search?pretty", encodeBasicHeader("admin", "admin")).getStatusCode());
 	}
     
-	protected Settings defaultNodeSettings(boolean enableRestSSL) {
+	protected Settings defaultNodeSettings(boolean enableRestSSL) throws FileNotFoundException {
 		Settings.Builder builder = Settings.builder();
 
 		if (enableRestSSL) {
