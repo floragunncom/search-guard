@@ -30,6 +30,11 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.script.ScriptType;
+import org.elasticsearch.script.mustache.MultiSearchTemplateRequest;
+import org.elasticsearch.script.mustache.MultiSearchTemplateResponse;
+import org.elasticsearch.script.mustache.SearchTemplateRequest;
+import org.elasticsearch.script.mustache.SearchTemplateResponse;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -39,6 +44,7 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 public class DlsTermsLookupTest {
@@ -250,6 +256,89 @@ public class DlsTermsLookupTest {
             System.out.println(res.getBody());
 
             Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());
+        }
+    }
+    
+    @Test
+    public void testSearchTemplate() throws Exception {
+        
+        SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest(new SearchRequest("deals_1"));
+        searchTemplateRequest.setScriptType(ScriptType.INLINE);
+        searchTemplateRequest.setScript("{\"query\": {\"term\": {\"keywords\": \"{{x}}\" } } }");
+        searchTemplateRequest.setScriptParams(ImmutableMap.of("x", "test"));
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
+            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
+            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+
+            Assert.assertEquals(searchResponse.toString(), 2, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("0", "1"),
+                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+        }
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
+            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
+            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+            
+            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("1"),
+                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+        }
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
+            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
+            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+            
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+        }
+    }
+
+    @Test
+    public void testMultiSearchTemplate() throws Exception {
+
+        SearchTemplateRequest searchTemplateRequest1 = new SearchTemplateRequest(new SearchRequest("deals_1"));
+        searchTemplateRequest1.setScriptType(ScriptType.INLINE);
+        searchTemplateRequest1.setScript("{\"query\": {\"term\": {\"keywords\": \"{{x}}\" } } }");
+        searchTemplateRequest1.setScriptParams(ImmutableMap.of("x", "test"));
+
+        SearchTemplateRequest searchTemplateRequest2 = new SearchTemplateRequest(new SearchRequest("deals_2"));
+        searchTemplateRequest2.setScriptType(ScriptType.INLINE);
+        searchTemplateRequest2.setScript("{\"query\": {\"term\": {\"keywords\": \"{{x}}\" } } }");
+        searchTemplateRequest2.setScriptParams(ImmutableMap.of("x", "foo"));
+
+        MultiSearchTemplateRequest multiSearchRequest = new MultiSearchTemplateRequest();
+        multiSearchRequest.add(searchTemplateRequest1);
+        multiSearchRequest.add(searchTemplateRequest2);
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
+            MultiSearchTemplateResponse multiSearchTemplateResponse = client.msearchTemplate(multiSearchRequest, RequestOptions.DEFAULT);
+
+            Assert.assertEquals(multiSearchTemplateResponse.toString(), 2,
+                    multiSearchTemplateResponse.getResponses()[0].getResponse().getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchTemplateResponse.toString(), 3,
+                    multiSearchTemplateResponse.getResponses()[1].getResponse().getResponse().getHits().getTotalHits().value);
+
+        }
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
+            MultiSearchTemplateResponse multiSearchTemplateResponse = client.msearchTemplate(multiSearchRequest, RequestOptions.DEFAULT);
+
+            Assert.assertEquals(multiSearchTemplateResponse.toString(), 1,
+                    multiSearchTemplateResponse.getResponses()[0].getResponse().getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchTemplateResponse.toString(), 1,
+                    multiSearchTemplateResponse.getResponses()[1].getResponse().getResponse().getHits().getTotalHits().value);
+        }
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
+            MultiSearchTemplateResponse multiSearchTemplateResponse = client.msearchTemplate(multiSearchRequest, RequestOptions.DEFAULT);
+
+            Assert.assertEquals(multiSearchTemplateResponse.toString(), 0,
+                    multiSearchTemplateResponse.getResponses()[0].getResponse().getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchTemplateResponse.toString(), 2,
+                    multiSearchTemplateResponse.getResponses()[1].getResponse().getResponse().getHits().getTotalHits().value);
         }
     }
 

@@ -53,6 +53,8 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermsQueryBuilder;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.script.mustache.MultiSearchTemplateRequest;
+import org.elasticsearch.script.mustache.SearchTemplateRequest;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -83,7 +85,7 @@ public class DlsFilterLevelHandler {
             return true;
         }
         
-        if (request instanceof MultiSearchRequest) {
+        if (request instanceof MultiSearchRequest || request instanceof SearchTemplateRequest || request instanceof MultiSearchTemplateRequest) {
             // Let it pass; DLS will be handled on a lower level
             return true;
         }
