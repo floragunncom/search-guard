@@ -20,8 +20,12 @@ sg_dls_lookup:
                        "path": "acode"
                      }
                    }
-                 }
-  
+                 }          
+    - index_patterns: # FIXME: This is a workaround for https://git.floragunn.com/search-guard/search-guard-suite/-/issues/35
+       - "*" 
+      allowed_actions:
+       - "indices:data/read/search/template"   
+       - "indices:data/read/msearch/template"   
 
 sg_dfm_anon_1:
   cluster_permissions:
