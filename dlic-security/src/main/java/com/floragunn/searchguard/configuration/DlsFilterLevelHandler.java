@@ -53,8 +53,8 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermsQueryBuilder;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.script.mustache.MultiSearchTemplateRequest;
-import org.elasticsearch.script.mustache.SearchTemplateRequest;
+import org.elasticsearch.script.mustache.MultiSearchTemplateAction;
+import org.elasticsearch.script.mustache.SearchTemplateAction;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -85,7 +85,13 @@ public class DlsFilterLevelHandler {
             return true;
         }
         
-        if (request instanceof MultiSearchRequest || request instanceof SearchTemplateRequest || request instanceof MultiSearchTemplateRequest) {
+        
+        if (action.equals(SearchTemplateAction.NAME) || action.equals(MultiSearchTemplateAction.NAME)) {
+            // Let it pass; DLS will be handled on a lower level
+            return true;
+        }
+        
+        if (request instanceof MultiSearchRequest) {
             // Let it pass; DLS will be handled on a lower level
             return true;
         }
@@ -94,10 +100,11 @@ public class DlsFilterLevelHandler {
             return true;
         }
         
-        return new DlsFilterLevelHandler(request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService, indicesService,
+        return new DlsFilterLevelHandler(action, request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService, indicesService,
                 dlsQueryParser, threadContext).handle();
     }
 
+    private final String action;
     private final ActionRequest request;
     private final ActionListener<?> listener;
     private final EvaluatedDlsFlsConfig evaluatedDlsFlsConfig;
@@ -112,9 +119,10 @@ public class DlsFilterLevelHandler {
     private BoolQueryBuilder filterLevelQueryBuilder;
     private DocumentWhitelist documentWhitelist;
 
-    DlsFilterLevelHandler(ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, Resolved resolved,
+    DlsFilterLevelHandler(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, Resolved resolved,
             Client nodeClient, ClusterService clusterService, IndicesService indicesService, DlsQueryParser dlsQueryParser,
             ThreadContext threadContext) {
+        this.action = action;
         this.request = request;
         this.listener = listener;
         this.evaluatedDlsFlsConfig = evaluatedDlsFlsConfig;
@@ -159,7 +167,8 @@ public class DlsFilterLevelHandler {
             return handle((MultiGetRequest) request);
         } else {
             log.error("Unsupported request type for filter level DLS: " + request);
-            listener.onFailure(new ElasticsearchSecurityException("Unsupported request type for filter level DLS: " + request.getClass().getName()));
+            listener.onFailure(new ElasticsearchSecurityException(
+                    "Unsupported request type for filter level DLS: " + action + "; " + request.getClass().getName()));
             return false;
         }
 
