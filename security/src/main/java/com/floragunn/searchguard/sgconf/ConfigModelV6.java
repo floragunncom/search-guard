@@ -52,7 +52,6 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
-import com.floragunn.searchguard.sgconf.ConfigModelV7.SgRole;
 import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v6.ActionGroupsV6;
@@ -279,6 +278,24 @@ public class ConfigModelV6 extends ConfigModel {
                         }
 
                         _sgRole.addIndexPattern(_indexPattern);
+                        
+                        if ("*".equals(permittedAliasesIndex.getKey())) {
+                            // Map legacy config for actions which should have been marked as cluster permissions but were treated as index permissions
+                            // These will be always configured for a * index pattern; other index patterns would not have worked for these actions in previous SG versions.
+
+                            for (TypePerm typePerm : _indexPattern.getTypePerms()) {
+                                if ("*".equals(typePerm.typePattern)) {
+                                    if (typePerm.getPerms().contains("indices:data/read/search/template")) {
+                                        _sgRole.clusterPerms.add("indices:data/read/search/template");
+                                    }
+
+                                    if (typePerm.getPerms().contains("indices:data/read/msearch/template")) {
+                                        _sgRole.clusterPerms.add("indices:data/read/msearch/template");
+                                    }
+                                }
+                            }
+                        }
+
 
                     }
 

@@ -847,6 +847,19 @@ public class ConfigModelV7 extends ConfigModel {
                     _indexPattern.addPerm(actionGroupResolver.resolvedActions(permittedAliasesIndex.getAllowed_actions()));
 
                     result.addIndexPattern(_indexPattern);
+                    
+                    if ("*".equals(pat)) {
+                        // Map legacy config for actions which should have been marked as cluster permissions but were treated as index permissions
+                        // These will be always configured for a * index pattern; other index patterns would not have worked for these actions in previous SG versions.
+
+                        if (_indexPattern.getPerms().contains("indices:data/read/search/template")) {
+                            result.clusterPerms.add("indices:data/read/search/template");
+                        }
+
+                        if (_indexPattern.getPerms().contains("indices:data/read/msearch/template")) {
+                            result.clusterPerms.add("indices:data/read/msearch/template");
+                        }
+                    }
 
                 }
             }

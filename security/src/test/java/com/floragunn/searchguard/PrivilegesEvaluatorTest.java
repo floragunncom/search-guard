@@ -8,6 +8,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 
+import java.util.Arrays;
+
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -17,6 +19,8 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRespon
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RequestOptions;
@@ -26,6 +30,9 @@ import org.elasticsearch.client.indices.ResizeResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.script.ScriptType;
+import org.elasticsearch.script.mustache.SearchTemplateRequest;
+import org.elasticsearch.script.mustache.SearchTemplateResponse;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -36,6 +43,8 @@ import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 public class PrivilegesEvaluatorTest {
 
@@ -46,6 +55,16 @@ public class PrivilegesEvaluatorTest {
     private static TestSgConfig.User RESIZE_USER = new TestSgConfig.User("resize_user").roles(new Role("resize_role").clusterPermissions("*")
             .indexPermissions("indices:admin/resize", "indices:monitor/stats").on("resize_test_source").indexPermissions("SGS_CREATE_INDEX").on("resize_test_target"));
 
+    private static TestSgConfig.User SEARCH_TEMPLATE_USER = new TestSgConfig.User("search_template_user").roles(new Role("search_template_role")
+            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_SEARCH_TEMPLATES").indexPermissions("SGS_READ").on("resolve_test_*"));
+
+    private static TestSgConfig.User SEARCH_NO_TEMPLATE_USER = new TestSgConfig.User("search_no_template_user").roles(new Role("search_no_template_role")
+            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ").on("resolve_test_*"));
+    
+    private static TestSgConfig.User SEARCH_TEMPLATE_LEGACY_USER = new TestSgConfig.User("search_template_legacy_user")
+            .roles(new Role("search_template_legacy_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ")
+                    .on("resolve_test_*").indexPermissions("indices:data/read/search/template").on("*"));
+    
     @ClassRule
     public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")
@@ -78,6 +97,7 @@ public class PrivilegesEvaluatorTest {
                             .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
             .user("admin", "admin", new Role("admin_role").clusterPermissions("*"))//
             .user("permssion_rest_api_user", "secret", new Role("permssion_rest_api_user_role").clusterPermissions("indices:data/read/mtv"))//
+            .users(SEARCH_TEMPLATE_USER, SEARCH_NO_TEMPLATE_USER, SEARCH_TEMPLATE_LEGACY_USER)
             .build();
 
     @ClassRule
@@ -455,6 +475,56 @@ public class PrivilegesEvaluatorTest {
         try (Client client = clusterFof.getInternalNodeClient()) {
            IndicesExistsResponse response = client.admin().indices().exists(new IndicesExistsRequest(targetIndex)).actionGet();
            Assert.assertTrue(response.toString(), response.isExists());
+        }
+    }
+    
+    @Test
+    public void searchTemplate() throws Exception {
+        
+        SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest(new SearchRequest("resolve_test_allow_*"));
+        searchTemplateRequest.setScriptType(ScriptType.INLINE);
+        searchTemplateRequest.setScript("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }");
+        searchTemplateRequest.setScriptParams(ImmutableMap.of("x", "yy"));
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_TEMPLATE_USER)) {
+            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
+            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+
+            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.getHits().getTotalHits().value);
+        }
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_NO_TEMPLATE_USER)) {
+            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
+            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+
+            Assert.fail(searchResponse.toString());
+        } catch (ElasticsearchStatusException e) {
+            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+        }
+    }
+    
+    @Test
+    public void searchTemplateLegacy() throws Exception {
+        
+        SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest(new SearchRequest("resolve_test_allow_*"));
+        searchTemplateRequest.setScriptType(ScriptType.INLINE);
+        searchTemplateRequest.setScript("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }");
+        searchTemplateRequest.setScriptParams(ImmutableMap.of("x", "yy"));
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_TEMPLATE_LEGACY_USER)) {
+            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
+            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+
+            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.getHits().getTotalHits().value);
+        }
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_NO_TEMPLATE_USER)) {
+            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
+            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+
+            Assert.fail(searchResponse.toString());
+        } catch (ElasticsearchStatusException e) {
+            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
         }
     }
 

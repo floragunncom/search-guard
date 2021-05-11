@@ -569,6 +569,7 @@ public class PrivilegesEvaluator implements DCFListener {
                 || action0.startsWith("indices:admin/template/") || action0.startsWith("indices:admin/index_template/")
                 || action0.startsWith(SearchScrollAction.NAME) || (action0.equals(BulkAction.NAME)) || (action0.equals(MultiGetAction.NAME))
                 || (action0.equals(MultiSearchAction.NAME)) || (action0.equals(MultiTermVectorsAction.NAME)) || action0.equals(ReindexAction.NAME)
+                || action0.equals("indices:data/read/search/template") || action0.equals("indices:data/read/msearch/template")
                 || ActionConfigRegistry.INSTANCE.isClusterAction(action0));
 
     }

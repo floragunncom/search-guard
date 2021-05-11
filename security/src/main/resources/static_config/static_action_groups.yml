@@ -251,7 +251,16 @@ SGS_CLUSTER_MANAGE_PIPELINES:
   - "cluster:admin/ingest/pipeline/*"
   type: "cluster"
   description: "Manage pipelines"
-
+SGS_SEARCH_TEMPLATES:  
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/read/search/template"
+  - "indices:data/read/msearch/template"
+  type: "cluster"
+  description: "Use search templates"
+  
 ### Auth Tokens
 
 SGS_CREATE_MANAGE_OWN_AUTH_TOKEN:
