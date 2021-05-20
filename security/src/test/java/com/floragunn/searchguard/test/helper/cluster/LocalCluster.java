@@ -78,16 +78,18 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     private final ClusterConfiguration clusterConfiguration;
     private final TestSgConfig testSgConfig;
     private final Settings nodeOverride;
+    private final String clusterName;
     private LocalEsCluster localCluster;
 
-    public LocalCluster(String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride, ClusterConfiguration clusterConfiguration,
+    public LocalCluster(String clusterName, String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride, ClusterConfiguration clusterConfiguration,
             List<Class<? extends Plugin>> plugins) {
         this.resourceFolder = resourceFolder;
         this.plugins = plugins;
         this.clusterConfiguration = clusterConfiguration;
         this.testSgConfig = testSgConfig;
         this.nodeOverride = nodeOverride;
-
+        this.clusterName = clusterName;
+        
         painlessWhitelistKludge();
 
         start();
@@ -181,8 +183,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     private void start() {
         try {
-            String clusterName = "lc_utest_n" + num.incrementAndGet() + "_f" + System.getProperty("forkno") + "_t" + System.nanoTime();
-
             this.localCluster = new LocalEsCluster(clusterName, clusterConfiguration, minimumSearchGuardSettings(ccs(nodeOverride)), resourceFolder,
                     plugins);
             localCluster.start();
@@ -307,6 +307,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         private List<String> disabledModules = new ArrayList<>();
         private List<Class<? extends Plugin>> plugins = new ArrayList<>();
         private TestSgConfig testSgConfig = new TestSgConfig().resources("/");
+        private String clusterName = "local_cluster";
 
         public Builder sslEnabled() {
             this.sslEnabled = true;
@@ -407,6 +408,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
+        public Builder clusterName(String clusterName) {
+            this.clusterName = clusterName;
+            return this;
+        }
+        
         public LocalCluster build() {
             try {
 
@@ -422,8 +428,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 if (this.disabledModules.size() > 0) {
                     nodeOverrideSettingsBuilder.putList(SearchGuardModulesRegistry.DISABLED_MODULES.getKey(), this.disabledModules);
                 }
+                
+                clusterName += "_" + num.incrementAndGet();
 
-                return new LocalCluster(resourceFolder, testSgConfig, nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins);
+                return new LocalCluster(clusterName, resourceFolder, testSgConfig, nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

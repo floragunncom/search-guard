@@ -28,6 +28,8 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.cluster.ClusterName;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
@@ -121,11 +123,18 @@ public final class DiagnosticContext {
         return getActionStack(threadContext);
     }
 
-    public void addHeadersToLogContext(ThreadContext threadContext) {
+    public void addHeadersToLogContext(ClusterService clusterService, ThreadContext threadContext) {
         if (!addExtendedHeadersToLogContext) {
             return;
         }
 
+        ClusterName clusterName = clusterService.getClusterName();
+        
+        if (clusterName != null) {
+            org.apache.logging.log4j.ThreadContext.put("cluster_name", clusterName.value());
+        }
+        
+        org.apache.logging.log4j.ThreadContext.put("node_name", clusterService.getNodeName());        
         org.apache.logging.log4j.ThreadContext.put("sg_origin", threadContext.getTransient("_sg_origin"));
         org.apache.logging.log4j.ThreadContext.put("sg_channel_type", threadContext.getTransient("_sg_channel_type"));
     }
