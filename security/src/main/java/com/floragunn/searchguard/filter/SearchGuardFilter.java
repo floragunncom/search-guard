@@ -159,7 +159,7 @@ public class SearchGuardFilter implements ActionFilter {
             final boolean internalRequest = (interClusterRequest || HeaderHelper.isDirectRequest(threadContext)) && action.startsWith("internal:")
                     && !action.startsWith("internal:transport/proxy");
             
-            diagnosticContext.addHeadersToLogContext(threadContext);
+            diagnosticContext.addHeadersToLogContext(cs, threadContext);
 
             if (specialPrivilegesEvaluationContext != null) {
                 if (log.isDebugEnabled()) {
