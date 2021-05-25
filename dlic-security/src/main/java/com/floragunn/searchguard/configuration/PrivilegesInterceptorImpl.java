@@ -289,7 +289,6 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
     }
 
     private String toUserIndexName(final String originalKibanaIndex, final String tenant) {
-
         if (tenant == null) {
             throw new ElasticsearchException("tenant must not be null here");
         }
@@ -297,8 +296,14 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         return originalKibanaIndex + "_" + tenant.hashCode() + "_" + tenant.toLowerCase().replaceAll("[^a-z0-9]+", "");
     }
 
-    private boolean resolveToKibanaIndexOrAlias(final Resolved requestedResolved, final String kibanaIndexName) {
-        return (requestedResolved.getAllIndices().size() == 1 && requestedResolved.getAllIndices().contains(kibanaIndexName))
-                || (requestedResolved.getAliases().size() == 1 && requestedResolved.getAliases().contains(kibanaIndexName));
-    }
+	private boolean resolveToKibanaIndexOrAlias(final Resolved requestedResolved, final String kibanaIndexName) {
+		if (requestedResolved.isLocalAll()) {
+			return false;
+		}
+
+		return (requestedResolved.getAllIndices().size() == 1
+				&& requestedResolved.getAllIndices().contains(kibanaIndexName))
+				|| (requestedResolved.getAliases().size() == 1
+						&& requestedResolved.getAliases().contains(kibanaIndexName));
+	}
 }
