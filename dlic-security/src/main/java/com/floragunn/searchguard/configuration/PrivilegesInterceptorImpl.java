@@ -311,7 +311,9 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
     private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(Resolved requestedResolved) {
         String aliasOrIndex;
 
-        if (requestedResolved.getAliases().size() == 1) {
+        if (requestedResolved.isLocalAll()) {
+            return null;
+        } else if (requestedResolved.getAliases().size() == 1) {
             aliasOrIndex = requestedResolved.getAliases().iterator().next();
         } else if (requestedResolved.getAllIndices().size() == 1) {
             aliasOrIndex = requestedResolved.getAllIndices().iterator().next();
