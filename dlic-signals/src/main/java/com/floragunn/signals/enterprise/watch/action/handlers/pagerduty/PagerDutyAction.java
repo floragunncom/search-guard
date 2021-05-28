@@ -29,6 +29,7 @@ import com.floragunn.signals.watch.action.handlers.ActionHandler;
 import com.floragunn.signals.watch.action.handlers.AutoResolveActionHandler;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.common.HttpClientConfig;
+import com.floragunn.signals.watch.common.HttpProxyConfig;
 import com.floragunn.signals.watch.common.HttpUtils;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
@@ -84,7 +85,7 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
             }
 
             if (ctx.getSimulationMode() == SimulationMode.FOR_REAL) {
-                send(account, event);
+                send(account, event, ctx.getHttpProxyConfig());
             }
 
             return new ActionExecutionResult(Strings.toString(event));
@@ -103,10 +104,10 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
         return TYPE;
     }
 
-    private void send(PagerDutyAccount account, PagerDutyEvent event) throws ActionExecutionException, IOException {
-        HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+    private void send(PagerDutyAccount account, PagerDutyEvent event, HttpProxyConfig proxyConfig) throws ActionExecutionException, IOException {
+        HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
-        try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient()) {
+        try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient(proxyConfig)) {
             HttpPost httpRequest = new HttpPost(account.getUri() != null ? account.getUri() : "https://events.pagerduty.com/v2/enqueue");
 
             String eventJson = Strings.toString(event);
