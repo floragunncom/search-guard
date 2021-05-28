@@ -11,6 +11,7 @@ import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
@@ -38,6 +39,7 @@ import com.floragunn.searchsupport.util.temporal.DurationExpression;
 import com.floragunn.signals.SignalsInitializationException;
 import com.floragunn.signals.actions.settings.update.SettingsUpdateAction;
 import com.floragunn.signals.support.LuckySisyphos;
+import com.floragunn.signals.watch.common.HttpProxyConfig;
 
 public class SignalsSettings {
     private static final Logger log = LogManager.getLogger(SignalsSettings.class);
@@ -99,8 +101,10 @@ public class SignalsSettings {
 
         public static Setting<List<String>> ALLOWED_HTTP_ENDPOINTS = Setting.listSetting("http.allowed_endpoints", Collections.singletonList("*"),
                 Function.identity());
-        public static final Setting<String> NODE_FILTER = Setting.simpleString("node_filter");
+        public static final Setting<String> HTTP_PROXY = Setting.simpleString("http.proxy");
 
+        public static final Setting<String> NODE_FILTER = Setting.simpleString("node_filter");
+        
         private final String indexName;
         private final StaticSettings staticSettings;
 
@@ -164,6 +168,21 @@ public class SignalsSettings {
             return ALLOWED_HTTP_ENDPOINTS.get(settings);
         }
 
+        public HttpProxyConfig getHttpProxyConfig() {
+            String proxy = HTTP_PROXY.get(settings);
+
+            if (proxy == null || proxy.length() == 0) {
+                return null;
+            }
+
+            try {
+                return HttpProxyConfig.create(proxy);
+            } catch (ConfigValidationException e) {
+                log.error("Invalid proxy config " + proxy, e);
+                return null;
+            }
+        }
+
         Tenant getTenant(String name) {
             return new Tenant(settings.getAsSettings("tenant." + name), this);
         }
@@ -186,6 +205,14 @@ public class SignalsSettings {
         }
 
         private void validate(String key, Object value) throws ConfigValidationException {
+            if (key.equals(HTTP_PROXY.getKey()) && value != null) {
+                try {
+                    HttpProxyConfig.create(value.toString());
+                } catch (ConfigValidationException e) {
+                    throw new ConfigValidationException(new ValidationErrors().add(key, e));
+                }
+            }
+            
             ParsedSettingsKey parsedKey = matchSetting(key);
 
             Settings.Builder settingsBuilder = Settings.builder();
@@ -346,7 +373,7 @@ public class SignalsSettings {
 
         static List<Setting<?>> getAvailableSettings() {
             return Arrays.asList(ACTIVE, DEFAULT_THROTTLE_PERIOD, INCLUDE_NODE_IN_WATCHLOG, ALLOWED_HTTP_ENDPOINTS, TENANT,
-                    INTERNAL_AUTH_TOKEN_SIGNING_KEY, INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY, WATCH_LOG_INDEX, NODE_FILTER);
+                    INTERNAL_AUTH_TOKEN_SIGNING_KEY, INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY, WATCH_LOG_INDEX, NODE_FILTER, HTTP_PROXY);
         }
 
         public static Setting<?> getSetting(String key) throws ConfigValidationException {

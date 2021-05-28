@@ -141,7 +141,7 @@ public class InputConverter {
         ConversionResult<HttpRequestConfig> httpRequestConfig = EsWatcherConverter.createHttpRequestConfig(requestNode);
 
         // TODO
-        HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+        HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
         if (vJsonNode.hasNonNull("extract")) {
             validationErrors.add(new ValidationError("extract", "Signals does not support the extract attribute. Use a transform instead."));

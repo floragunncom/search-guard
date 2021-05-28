@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
+
 package com.floragunn.signals.watch.common;
 
 import java.io.IOException;
@@ -5,6 +22,7 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
+import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
@@ -19,14 +37,16 @@ public class HttpClientConfig extends WatchElement {
     private final Integer connectionTimeoutSecs;
     private final Integer readTimeoutSecs;
     private final TlsConfig tlsConfig;
+    private final HttpProxyConfig proxyConfig;
 
-    public HttpClientConfig(Integer connectionTimeoutSecs, Integer readTimeoutSecs, TlsConfig tlsConfig) {
+    public HttpClientConfig(Integer connectionTimeoutSecs, Integer readTimeoutSecs, TlsConfig tlsConfig, HttpProxyConfig proxyConfig) {
         this.connectionTimeoutSecs = connectionTimeoutSecs;
         this.readTimeoutSecs = readTimeoutSecs;
         this.tlsConfig = tlsConfig;
+        this.proxyConfig = proxyConfig;
     }
 
-    public HttpClient createHttpClient() {
+    public HttpClient createHttpClient(HttpProxyConfig defaultProxyConfig) {
 
         RequestConfig.Builder configBuilder = RequestConfig.custom();
 
@@ -56,6 +76,24 @@ public class HttpClientConfig extends WatchElement {
         if (tlsConfig != null) {
             clientBuilder.setSSLSocketFactory(tlsConfig.toSSLConnectionSocketFactory());
         }
+        
+        HttpHost proxy = null;
+        
+        if (defaultProxyConfig != null) {
+            proxy = defaultProxyConfig.getProxy();
+        }
+        
+        if (proxyConfig != null) {            
+            if (proxyConfig.getType() == HttpProxyConfig.Type.USE_SPECIFIC_PROXY) {
+                proxy = proxyConfig.getProxy();
+            } else if (proxyConfig.getType() == HttpProxyConfig.Type.USE_NO_PROXY) {
+                proxy = null;
+            }
+        }
+    
+        if (proxy != null) {
+            clientBuilder.setProxy(proxy);
+        }
 
         try {
             SecurityManager sm = System.getSecurityManager();
@@ -84,6 +122,11 @@ public class HttpClientConfig extends WatchElement {
         if (tlsConfig != null) {
             builder.field("tls", tlsConfig);
         }
+        
+        if (proxyConfig != null && proxyConfig.getType() != HttpProxyConfig.Type.USE_DEFAULT_PROXY) {
+            builder.field("proxy");
+            proxyConfig.toXContent(builder, params);
+        }
 
         return builder;
     }
@@ -92,6 +135,7 @@ public class HttpClientConfig extends WatchElement {
         Integer connectionTimeout = null;
         Integer readTimeout = null;
         TlsConfig tlsConfig = null;
+        HttpProxyConfig proxyConfig = null;
 
         // TODO support units
 
@@ -108,12 +152,23 @@ public class HttpClientConfig extends WatchElement {
         if (tlsJsonNode != null) {
             tlsConfig = TlsConfig.create(tlsJsonNode);
         }
+        
+        JsonNode proxyJsonNode = jsonObject.get("proxy");
+        
+        if (proxyJsonNode != null) {
+            proxyConfig = HttpProxyConfig.create(proxyJsonNode);
+        }
 
-        return new HttpClientConfig(connectionTimeout, readTimeout, tlsConfig);
-
+        return new HttpClientConfig(connectionTimeout, readTimeout, tlsConfig, proxyConfig);
     }
 
     public boolean isNull() {
-        return connectionTimeoutSecs == null && readTimeoutSecs == null && tlsConfig == null;
+        return connectionTimeoutSecs == null && readTimeoutSecs == null && tlsConfig == null && proxyConfig == null;
     }
+
+    public HttpProxyConfig getProxyConfig() {
+        return proxyConfig;
+    }
+    
+    
 }

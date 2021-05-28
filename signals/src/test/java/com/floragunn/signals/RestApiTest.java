@@ -1,5 +1,6 @@
 package com.floragunn.signals;
 
+import java.net.InetAddress;
 import java.net.URI;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.SortOrder;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -40,6 +42,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.quartz.TimeOfDay;
 
+import com.browserup.bup.BrowserUpProxy;
+import com.browserup.bup.BrowserUpProxyServer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -73,6 +77,7 @@ public class RestApiTest {
     private static final Logger log = LogManager.getLogger(RestApiTest.class);
 
     private static ScriptService scriptService;
+    private static BrowserUpProxy httpProxy;
 
     @Rule
     public LoggingTestWatcher loggingTestWatcher = new LoggingTestWatcher();
@@ -98,9 +103,19 @@ public class RestApiTest {
     }
 
     @BeforeClass
-    public static void setupDependencies() {
+    public static void setupDependencies() throws Exception {
         scriptService = cluster.getInjectable(ScriptService.class);
+        httpProxy = new BrowserUpProxyServer();
+        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
+    }
+    
 
+   
+    @AfterClass
+    public static void tearDown() {
+        if (httpProxy != null) {
+            httpProxy.abort();
+        }
     }
 
     @Test
@@ -568,6 +583,130 @@ public class RestApiTest {
         }
     }
 
+    @Test
+    public void testHttpDefaultProxy() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "http_default_proxy";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+                MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+            try {
+                webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+                Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).throttledFor("0")
+                        .name("testhook").build();
+                HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                Thread.sleep(600);
+
+                Assert.assertEquals(0, webhookProvider.getRequestCount());
+
+                response = restClient.putJson("/_signals/settings/http.proxy", "\"http://127.0.0.8:" + httpProxy.getPort() + "\"");
+
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+                response = restClient.get("/_signals/settings/http.proxy");
+
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), "\"http://127.0.0.8:" + httpProxy.getPort()+ "\"");
+
+                
+                Thread.sleep(600);
+
+                Assert.assertTrue(webhookProvider.getRequestCount() > 0);
+
+                response = restClient.delete("/_signals/settings/http.proxy");
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/settings/http.proxy");
+            }
+        }
+    }
+    
+    @Test
+    public void testHttpExplicitProxy() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "http_explicit_proxy";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+                MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+            try {
+                webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+                Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).throttledFor("0")
+                        .name("testhook").build();
+                HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                Thread.sleep(600);
+
+                Assert.assertEquals(0, webhookProvider.getRequestCount());
+
+                watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri())
+                        .proxy("http://127.0.0.8:" + httpProxy.getPort()).throttledFor("0").name("testhook").build();
+                response = restClient.putJson(watchPath, watch.toJson());
+                
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+                Thread.sleep(600);
+
+                Assert.assertTrue(webhookProvider.getRequestCount() > 0);
+
+            } finally {
+                restClient.delete(watchPath);
+            }
+        }
+    }
+
+    @Test
+    public void testHttpExplicitNoProxy() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "http_explicit_no_proxy";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+                MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+            try {
+                HttpResponse response = restClient.putJson("/_signals/settings/http.proxy", "\"http://127.0.0.8:" + httpProxy.getPort() + "\"");
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+                Thread.sleep(200);
+
+                Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).proxy("none").throttledFor("0")
+                        .name("testhook").build();
+                response = restClient.putJson(watchPath, watch.toJson());
+
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                Thread.sleep(600);
+
+                Assert.assertTrue(webhookProvider.getRequestCount() > 0);
+                Assert.assertEquals(webhookProvider.getLastRequestClientAddress(), InetAddress.getByName("127.0.0.1"));                
+            } finally {
+                restClient.delete(watchPath);
+                restClient.delete("/_signals/settings/http.proxy");
+            }
+        }
+    }
+    
+    
     @Ignore
     @Test
     public void testPutWatchWithCredentials() throws Exception {

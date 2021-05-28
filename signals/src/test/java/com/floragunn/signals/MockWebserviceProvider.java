@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals;
 
 import java.io.Closeable;
@@ -5,6 +22,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
@@ -24,12 +43,14 @@ import javax.net.ssl.TrustManagerFactory;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
+import org.apache.http.HttpInetConnection;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.config.ConnectionConfig;
 import org.apache.http.config.MessageConstraints;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentLengthStrategy;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.ConnSupport;
 import org.apache.http.impl.DefaultBHttpServerConnection;
 import org.apache.http.impl.bootstrap.HttpServer;
@@ -55,8 +76,10 @@ public class MockWebserviceProvider implements Closeable {
     private byte[] responseBody = "Mockery".getBytes();
     private String responseContentType = "text/plain";
     private String lastRequestBody;
+    private InetAddress lastRequestClientAddress;
     private final AtomicInteger requestCount = new AtomicInteger();
     private long responseDelayMs = 0;
+    private InetAddress acceptConnectionsOnlyFromInetAddress;
 
     MockWebserviceProvider(String path) throws IOException {
         this(path, SocketUtils.findAvailableTcpPort());
@@ -122,6 +145,11 @@ public class MockWebserviceProvider implements Closeable {
 
     }
 
+    public MockWebserviceProvider acceptConnectionsOnlyFromInetAddress(InetAddress inetAddress) {
+        this.acceptConnectionsOnlyFromInetAddress = inetAddress;
+        return this;
+    }
+    
     public void start() throws IOException {
         httpServer.start();
     }
@@ -165,6 +193,10 @@ public class MockWebserviceProvider implements Closeable {
     }
 
     protected void handleRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
+        if (!checkClientAddress(request, response, context)) {
+            return;
+        }
+
         if (responseDelayMs > 0) {
             try {
                 Thread.sleep(responseDelayMs);
@@ -213,6 +245,26 @@ public class MockWebserviceProvider implements Closeable {
             throw new RuntimeException(e);
         }
     }
+    
+    private boolean checkClientAddress(HttpRequest request, HttpResponse response, HttpContext context) throws UnsupportedEncodingException {
+        HttpInetConnection connection = (HttpInetConnection) context.getAttribute("http.connection");
+
+        lastRequestClientAddress = connection.getRemoteAddress();
+
+        if (acceptConnectionsOnlyFromInetAddress == null) {
+            return true;
+        }
+
+        if (connection.getRemoteAddress().equals(acceptConnectionsOnlyFromInetAddress)) {
+            return true;
+        } else {
+            response.setStatusCode(451);
+            response.setEntity(new StringEntity(
+                    "We are not accepting connections from " + connection.getRemoteAddress() + "; only: " + acceptConnectionsOnlyFromInetAddress));
+            return false;
+        }
+    }
+
 
     static class SSLTestHttpServerConnection extends DefaultBHttpServerConnection {
         public SSLTestHttpServerConnection(final int buffersize, final int fragmentSizeHint, final CharsetDecoder chardecoder,
@@ -274,5 +326,9 @@ public class MockWebserviceProvider implements Closeable {
 
     public void setResponseDelayMs(long responseDelayMs) {
         this.responseDelayMs = responseDelayMs;
+    }
+
+    public InetAddress getLastRequestClientAddress() {
+        return lastRequestClientAddress;
     }
 }

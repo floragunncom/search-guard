@@ -225,7 +225,7 @@ public class ActionConverter {
         validationErrors.add(null, httpRequestConfig.sourceValidationErrors);
 
         // TODO
-        HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+        HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
         WebhookAction webhookAction = new WebhookAction(httpRequestConfig.getElement(), httpClientConfig);
 
