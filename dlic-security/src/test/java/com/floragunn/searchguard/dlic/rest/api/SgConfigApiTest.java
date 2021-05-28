@@ -62,12 +62,12 @@ public class SgConfigApiTest extends AbstractRestApiUnitTest {
 
         HttpResponse response = rh.executeGetRequest("/_searchguard/api/sgconfig", new Header[0]);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-
-        response = rh.executePutRequest("/_searchguard/api/sgconfig/sg_xxx", FileHelper.loadFile("restapi/sgconfig.json"), new Header[0]);
-        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
         
         response = rh.executePutRequest("/_searchguard/api/sgconfig/sg_config", FileHelper.loadFile("restapi/sgconfig.json"), new Header[0]);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        
+        response = rh.executePutRequest("/_searchguard/api/sg_config", FileHelper.loadFile("restapi/sgconfig.json"), new Header[0]);
+        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
         
         response = rh.executePutRequest("/_searchguard/api/sgconfig/sg_config", FileHelper.loadFile("restapi/invalid_sgconfig.json"), new Header[0]);
         Assert.assertEquals(HttpStatus.SC_INTERNAL_SERVER_ERROR, response.getStatusCode());

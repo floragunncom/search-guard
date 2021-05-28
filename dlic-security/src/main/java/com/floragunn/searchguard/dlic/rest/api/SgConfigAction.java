@@ -66,8 +66,9 @@ public class SgConfigAction extends PatchableResourceApiAction {
 
         if (allowPutOrPatch) {
             return ImmutableList.of(new Route(Method.GET, "/_searchguard/api/sgconfig/"), new Route(Method.GET, "/_searchguard/api/sg_config/"),
-                    new Route(Method.PUT, "/_searchguard/api/sgconfig/{name}"), new Route(Method.PATCH, "/_searchguard/api/sgconfig/"),
-                    new Route(Method.PUT, "/_searchguard/api/sg_config/{name}"), new Route(Method.PATCH, "/_searchguard/api/sg_config/"));
+                    new Route(Method.PUT, "/_searchguard/api/sg_config/"), new Route(Method.PUT, "/_searchguard/api/sgconfig/{name}"),
+                    new Route(Method.PATCH, "/_searchguard/api/sgconfig/"), new Route(Method.PUT, "/_searchguard/api/sg_config/{name}"),
+                    new Route(Method.PATCH, "/_searchguard/api/sg_config/"));
         } else {
             return ImmutableList.of(new Route(Method.GET, "/_searchguard/api/sgconfig/"), new Route(Method.GET, "/_searchguard/api/sg_config/"));
         }
@@ -96,13 +97,10 @@ public class SgConfigAction extends PatchableResourceApiAction {
     @Override
     protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
         if (allowPutOrPatch) {
+            // Consume unused name param
+            request.param("name");
 
-            if (!"sg_config".equals(request.param("name"))) {
-                badRequestResponse(channel, "name must be sg_config");
-                return;
-            }
-
-            super.handlePut(channel, request, client, content);
+            super.handlePut("sg_config", channel, request, client, content);
         } else {
             notImplemented(channel, Method.PUT);
         }
