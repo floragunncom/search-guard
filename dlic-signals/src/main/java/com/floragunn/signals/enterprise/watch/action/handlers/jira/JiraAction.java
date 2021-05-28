@@ -30,6 +30,7 @@ import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;
 import com.floragunn.signals.watch.action.handlers.ActionHandler;
 import com.floragunn.signals.watch.common.HttpClientConfig;
+import com.floragunn.signals.watch.common.HttpProxyConfig;
 import com.floragunn.signals.watch.common.HttpUtils;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
@@ -66,7 +67,7 @@ public class JiraAction extends ActionHandler {
             JiraIssueApiCall call = this.issue.render(ctx, account, this);
 
             if (ctx.getSimulationMode() == SimulationMode.FOR_REAL) {
-                callJiraApi(account, call);
+                callJiraApi(account, call, ctx.getHttpProxyConfig());
             }
 
             return new ActionExecutionResult(Strings.toString(call));
@@ -98,10 +99,10 @@ public class JiraAction extends ActionHandler {
         }
     }
 
-    private void callJiraApi(JiraAccount account, JiraIssueApiCall call) throws ActionExecutionException, IOException {
-        HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+    private void callJiraApi(JiraAccount account, JiraIssueApiCall call, HttpProxyConfig httpProxyConfig) throws ActionExecutionException, IOException {
+        HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
-        try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient()) {
+        try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient(httpProxyConfig)) {
             HttpPost httpRequest = new HttpPost(getCreateIssueEndpoint(account));
 
             String callJson = Strings.toString(call);
