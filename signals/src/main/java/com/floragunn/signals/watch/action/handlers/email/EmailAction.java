@@ -191,7 +191,7 @@ public class EmailAction extends ActionHandler {
                 Attachment attachment = r.getValue();
 
                 if (attachment != null && attachment.httpClientConfig != null && attachment.requestConfig != null) {
-                    try (CloseableHttpClient httpClient = attachment.httpClientConfig.createHttpClient()) {
+                    try (CloseableHttpClient httpClient = attachment.httpClientConfig.createHttpClient(ctx.getHttpProxyConfig())) {
                         HttpUriRequest request = attachment.requestConfig.createHttpRequest(ctx);
 
                         if (log.isDebugEnabled()) {

@@ -44,7 +44,7 @@ public class WebhookAction extends ActionHandler {
     @Override
     public ActionExecutionResult execute(WatchExecutionContext ctx) throws ActionExecutionException {
 
-        try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient()) {
+        try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient(ctx.getHttpProxyConfig())) {
             HttpUriRequest request = requestConfig.createHttpRequest(ctx);
 
             if (log.isDebugEnabled()) {

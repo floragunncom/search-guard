@@ -94,7 +94,8 @@ public class WatchRunner implements Job {
         this.contextData = new WatchExecutionContextData(new WatchExecutionContextData.WatchInfo(watch.getId(), watch.getTenant()));
         this.ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment,
                 ActionInvocationType.ALERT, this.contextData, watchState != null ? watchState.getLastExecutionContextData() : null, simulationMode,
-                new HttpEndpointWhitelist(signalsSettings.getDynamicSettings().getAllowedHttpEndpoints()));
+                new HttpEndpointWhitelist(signalsSettings.getDynamicSettings().getAllowedHttpEndpoints()),
+                signalsSettings.getDynamicSettings().getHttpProxyConfig());
         this.watchLog.setWatchId(watch.getId());
         this.watchLog.setWatchVersion(watch.getVersion());
         this.signalsSettings = signalsSettings;

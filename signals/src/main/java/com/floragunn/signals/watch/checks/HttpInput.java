@@ -47,7 +47,7 @@ public class HttpInput extends AbstractInput {
     @Override
     public boolean execute(WatchExecutionContext ctx) throws CheckExecutionException {
 
-        try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient()) {
+        try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient(ctx.getHttpProxyConfig())) {
             HttpUriRequest httpRequest = request.createHttpRequest(ctx);
             CloseableHttpResponse response = AccessController
                     .doPrivileged((PrivilegedExceptionAction<CloseableHttpResponse>) () -> httpClient.execute(httpRequest));

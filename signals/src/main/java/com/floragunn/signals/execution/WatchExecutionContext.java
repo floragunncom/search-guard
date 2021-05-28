@@ -10,6 +10,7 @@ import org.elasticsearch.script.ScriptService;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.common.HttpEndpointWhitelist;
+import com.floragunn.signals.watch.common.HttpProxyConfig;
 
 public class WatchExecutionContext {
 
@@ -24,6 +25,7 @@ public class WatchExecutionContext {
     private final WatchExecutionContextData resolvedContextData;
     private final SimulationMode simulationMode;
     private final HttpEndpointWhitelist httpEndpointWhitelist;
+    private final HttpProxyConfig httpProxyConfig;
 
     public Map<String, Object> getMetadata() {
         return metadata;
@@ -37,12 +39,12 @@ public class WatchExecutionContext {
     public WatchExecutionContext(Client client, ScriptService scriptService, NamedXContentRegistry xContentRegistry, AccountRegistry accountRegistry,
             ExecutionEnvironment executionEnvironment, ActionInvocationType actionInvocationType, WatchExecutionContextData contextData) {
         this(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType, contextData, null,
-                SimulationMode.FOR_REAL, null);
+                SimulationMode.FOR_REAL, null, null);
     }
 
     public WatchExecutionContext(Client client, ScriptService scriptService, NamedXContentRegistry xContentRegistry, AccountRegistry accountRegistry,
             ExecutionEnvironment executionEnvironment, ActionInvocationType actionInvocationType, WatchExecutionContextData contextData,
-            WatchExecutionContextData resolvedContextData, SimulationMode simulationMode, HttpEndpointWhitelist httpEndpointWhitelist) {
+            WatchExecutionContextData resolvedContextData, SimulationMode simulationMode, HttpEndpointWhitelist httpEndpointWhitelist, HttpProxyConfig httpProxyConfig) {
         this.client = client;
         this.scriptService = scriptService;
         this.xContentRegistry = xContentRegistry;
@@ -54,6 +56,7 @@ public class WatchExecutionContext {
         this.resolvedContextData = resolvedContextData;
         this.simulationMode = simulationMode;
         this.httpEndpointWhitelist = httpEndpointWhitelist;
+        this.httpProxyConfig = httpProxyConfig;
     }
 
     public Client getClient() {
@@ -92,18 +95,18 @@ public class WatchExecutionContext {
 
     public WatchExecutionContext with(WatchExecutionContextData contextData) {
         return new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType,
-                contextData, resolvedContextData, simulationMode, httpEndpointWhitelist);
+                contextData, resolvedContextData, simulationMode, httpEndpointWhitelist, httpProxyConfig);
     }
 
     public WatchExecutionContext with(ActionInvocationType actionInvocationType) {
         return new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType,
-                contextData, resolvedContextData, simulationMode, httpEndpointWhitelist);
+                contextData, resolvedContextData, simulationMode, httpEndpointWhitelist, httpProxyConfig);
     }
 
     public WatchExecutionContext clone() {
         return new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType,
                 contextData != null ? contextData.clone() : null, resolvedContextData != null ? resolvedContextData.clone() : null, simulationMode,
-                httpEndpointWhitelist);
+                httpEndpointWhitelist, httpProxyConfig);
     }
 
     public WatchExecutionContextData getResolvedContextData() {
@@ -120,6 +123,10 @@ public class WatchExecutionContext {
 
     public HttpEndpointWhitelist getHttpEndpointWhitelist() {
         return httpEndpointWhitelist;
+    }
+
+    public HttpProxyConfig getHttpProxyConfig() {
+        return httpProxyConfig;
     }
 
 }

@@ -90,11 +90,11 @@ public class SlackAction extends ActionHandler {
             SlackAccount destination = ctx.getAccountRegistry().lookupAccount(slackActionConf.getAccount(), SlackAccount.class);
 
             // TODO get timeout from destination
-            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             HttpUriRequest httpRequest = createSlackRequest(ctx, destination);
 
             if (ctx.getSimulationMode() == SimulationMode.FOR_REAL) {
-                try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient()) {
+                try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient(ctx.getHttpProxyConfig())) {
 
                     CloseableHttpResponse response = AccessController
                             .doPrivileged((PrivilegedExceptionAction<CloseableHttpResponse>) () -> httpClient.execute(httpRequest));

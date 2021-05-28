@@ -207,7 +207,7 @@ public class ActionTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                     "/{{data.path}}", null, "{{data.body}}", null, null, null);
-            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
@@ -239,7 +239,7 @@ public class ActionTest {
             tlsConfig.setInlineTruststorePem(ROOT_CA_CERT);
             tlsConfig.init();
 
-            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
             //           webhookAction = parseBackAndForth(new WatchInitializationService(null, scriptService), webhookAction, new WebhookAction.Factory());
@@ -265,7 +265,7 @@ public class ActionTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                     "/{{data.path}}", null, "{{data.body}}", null, null, null);
 
-            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
@@ -307,7 +307,7 @@ public class ActionTest {
             tlsConfig.setClientAuthConfig(tlsClientAuthConfig);
             tlsConfig.init();
 
-            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
             //           webhookAction = parseBackAndForth(new WatchInitializationService(null, scriptService), webhookAction, new WebhookAction.Factory());
@@ -337,7 +337,7 @@ public class ActionTest {
             tlsConfig.setInlineTruststorePem(ROOT_CA_CERT);
             tlsConfig.init();
 
-            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
@@ -367,7 +367,7 @@ public class ActionTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                     "/{{data.path}}", null, "{{data.body}}", null, null, null);
-            HttpClientConfig httpClientConfig = new HttpClientConfig(1, 1, null);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(1, 1, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
@@ -1070,7 +1070,7 @@ public class ActionTest {
 
                 HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                         "/{{data.path}}", null, "{{data.body}}", null, null, null);
-                HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+                HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
                 httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
 
@@ -1145,7 +1145,7 @@ public class ActionTest {
                 runtimeData.put("x", "y");
                 HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                         "/{{data.path}}", null, "{{data.body}}", null, null, null);
-                HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+                HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
                 httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
 
@@ -1220,7 +1220,7 @@ public class ActionTest {
 
                 HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                         "/{{data.path}}", null, "{{data.body}}", null, null, null);
-                HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null);
+                HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
                 httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
 

@@ -1,5 +1,6 @@
 package com.floragunn.signals;
 
+import java.net.InetAddress;
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -26,12 +27,15 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.SortOrder;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.browserup.bup.BrowserUpProxy;
+import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
@@ -49,6 +53,7 @@ import com.floragunn.signals.watch.checks.Condition;
 import com.floragunn.signals.watch.checks.HttpInput;
 import com.floragunn.signals.watch.checks.SearchInput;
 import com.floragunn.signals.watch.common.HttpClientConfig;
+import com.floragunn.signals.watch.common.HttpProxyConfig;
 import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.result.Status;
@@ -62,6 +67,7 @@ public class CheckTest {
 
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
+    private static BrowserUpProxy httpProxy;
 
     @ClassRule
     public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
@@ -90,9 +96,18 @@ public class CheckTest {
     }
 
     @BeforeClass
-    public static void setupDependencies() {
+    public static void setupDependencies() throws Exception {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
+        httpProxy = new BrowserUpProxyServer();
+        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
+    }
+    
+    @AfterClass
+    public static void tearDown() {
+        if (httpProxy != null) {
+            httpProxy.abort();
+        }
     }
 
     @Test
@@ -253,7 +268,7 @@ public class CheckTest {
                     null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
 
-            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null));
+            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
@@ -281,7 +296,7 @@ public class CheckTest {
                     null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
 
-            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null));
+            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
@@ -311,7 +326,7 @@ public class CheckTest {
                     null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
 
-            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null));
+            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
@@ -324,7 +339,47 @@ public class CheckTest {
             Assert.assertEquals(text, runtimeData.get("test"));
         }
     }
+    
 
+    @Test
+    public void httpInputProxyTest() throws Exception {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
+            
+            webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
+            webserviceProvider.setResponseContentType("text/json");
+            webserviceProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
+                    null, null, null, null, null);
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+
+            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            try {
+                httpInput.execute(ctx);
+                Assert.fail();
+            } catch (CheckExecutionException e) {
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("We are not accepting connections from"));
+            }
+            
+            httpInput = new HttpInput("test", "test", httpRequestConfig,
+                    new HttpClientConfig(null, null, null, HttpProxyConfig.create("http://127.0.0.8:" + httpProxy.getPort())));
+
+            boolean result = httpInput.execute(ctx);
+
+            Assert.assertTrue(result);
+            
+            Map<?, ?> inputResult = (Map<?, ?>) runtimeData.get("test");
+
+            Assert.assertEquals("bar", inputResult.get("foo"));
+            Assert.assertEquals(55, inputResult.get("x"));
+        }
+    }
+    
     @Test(expected = CheckExecutionException.class)
     public void httpWrongContentTypeTest() throws Exception {
         try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
@@ -338,7 +393,7 @@ public class CheckTest {
                     null, null, null, null, "application/x-yaml");
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
 
-            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null));
+            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
@@ -362,7 +417,7 @@ public class CheckTest {
                     null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
 
-            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(1, 1, null));
+            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(1, 1, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,

@@ -48,6 +48,7 @@ import com.floragunn.signals.watch.checks.SearchInput;
 import com.floragunn.signals.watch.checks.StaticInput;
 import com.floragunn.signals.watch.checks.Transform;
 import com.floragunn.signals.watch.common.HttpClientConfig;
+import com.floragunn.signals.watch.common.HttpProxyConfig;
 import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.common.auth.Auth;
 import com.floragunn.signals.watch.common.auth.BasicAuth;
@@ -411,6 +412,7 @@ public class WatchBuilder {
         private Auth auth;
         private String body;
         private Map<String, Object> headers = new HashMap<>();
+        private HttpProxyConfig proxy;
 
         WebhookActionBuilder(BaseActionBuilder parent, HttpRequestConfig.Method method, String uri) throws URISyntaxException {
             super(parent);
@@ -423,9 +425,18 @@ public class WatchBuilder {
             return this;
         }
 
+        public WebhookActionBuilder proxy(String proxy) throws ConfigValidationException {
+            if (proxy != null) {
+                this.proxy = HttpProxyConfig.create(proxy);
+            } else {
+                this.proxy = null;
+            }
+            return this;
+        }
+        
         protected ActionHandler finish() {
             return new WebhookAction(new HttpRequestConfig(method, uri, null, null, body, headers, auth, null),
-                    new HttpClientConfig(null, null, null));
+                    new HttpClientConfig(null, null, null, proxy));
         }
     }
 
