@@ -174,15 +174,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		}
 	}
 
-	protected void handlePut(final RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+	protected void handlePut(String name, RestChannel channel, RestRequest request, Client client, JsonNode content) throws IOException {
 		
-		final String name = request.param("name");
-
-		if (name == null || name.length() == 0) {
-			badRequestResponse(channel, "No " + getResourceName() + " specified.");
-			return;
-		}
-
 		final SgDynamicConfiguration<?> existingConfiguration = load(getConfigName(), false);
 
 		if (isHidden(existingConfiguration, name)) {
@@ -216,6 +209,18 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         });
 		
 	}
+	
+	protected void handlePut(final RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+        
+        final String name = request.param("name");
+
+        if (name == null || name.length() == 0) {
+            badRequestResponse(channel, "No " + getResourceName() + " specified.");
+            return;
+        }
+
+        handlePut(name, channel, request, client, content);        
+    }
 
 	protected void handlePost(final RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
 		notImplemented(channel, Method.POST);
