@@ -40,6 +40,7 @@ import org.junit.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
@@ -95,6 +96,10 @@ public class AuthTokenIntegrationTest {
     static TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(SGCONFIG));
     private static Configuration JSON_PATH_CONFIG = BasicJsonPathDefaultConfiguration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
 
+
+    @ClassRule 
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+    
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
             .resources("authtoken").sslEnabled().sgConfig(sgConfig).build();

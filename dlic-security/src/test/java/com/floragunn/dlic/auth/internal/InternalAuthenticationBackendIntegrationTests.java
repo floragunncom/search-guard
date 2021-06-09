@@ -14,9 +14,14 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class InternalAuthenticationBackendIntegrationTests {
+
+    @ClassRule 
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+    
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("internal_user_db").build();
 

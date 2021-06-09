@@ -36,6 +36,7 @@ import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
@@ -56,6 +57,10 @@ public class AuthTokenServiceTest {
     private static StaticSgConfig staticSgConfig;
     private static ClusterService clusterService;
 
+
+    @ClassRule 
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+    
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").singleNode().sslEnabled()
             .disableModule(AuthTokenModule.class).build();

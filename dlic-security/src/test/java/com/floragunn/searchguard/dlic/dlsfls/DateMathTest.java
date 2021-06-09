@@ -24,12 +24,17 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.support.SgUtils;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class DateMathTest extends AbstractDlsFlsTest{
+    
+    @ClassRule 
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @Override
     protected void populateData(TransportClient tc) {

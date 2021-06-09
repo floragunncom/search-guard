@@ -17,16 +17,21 @@ package com.floragunn.searchguard.auditlog.compliance;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
+    @ClassRule 
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+    
     @Test
     public void testRestApiRolesEnabled() throws Exception {
 

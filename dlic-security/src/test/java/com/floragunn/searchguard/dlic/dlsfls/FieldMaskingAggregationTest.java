@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.TestData;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
@@ -58,6 +59,9 @@ public class FieldMaskingAggregationTest {
 
     private final static byte[] salt = ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT_DEFAULT.getBytes(StandardCharsets.UTF_8);
 
+    @ClassRule 
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+    
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().users(MASKED_TEST_USER, UNMASKED_TEST_USER).resources("dlsfls")
             .build();
