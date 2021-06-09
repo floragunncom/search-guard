@@ -2,15 +2,21 @@ package com.floragunn.searchguard.ssl;
 
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.SingleClusterTest;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class BksTest extends SingleClusterTest {
+
+    @ClassRule 
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+    
     @Test
     public void testBksUnsupported() throws Exception {
 

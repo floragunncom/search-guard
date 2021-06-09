@@ -28,6 +28,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
@@ -50,6 +51,9 @@ public class BackendRegistryTests {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().sgConfig(SG_CONFIG).build();
 
+    @ClassRule 
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+    
     @Test
     public void when_user_is_skipped_then_authentication_should_fail() throws Exception {
         // In the community version, we only have two authc backends: internal and noop. 

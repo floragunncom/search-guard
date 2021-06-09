@@ -261,6 +261,7 @@ public class ReflectionHelper {
             if (log.isDebugEnabled()) {
                 log.debug("Stacktrace: ", e);
             }
+
             return new NullAuditLog();
         }
     }
@@ -286,10 +287,7 @@ public class ReflectionHelper {
             }
             return new ComplianceIndexingOperationListener();
         } catch (final Throwable e) {
-            log.error("Unable to enable Compliance Module due to {}", e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
+            log.error("Unable to enable Compliance Module", e);
             return new ComplianceIndexingOperationListener();
         }
     }

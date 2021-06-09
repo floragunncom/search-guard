@@ -46,6 +46,7 @@ import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
@@ -83,11 +84,14 @@ public class RestApiTest {
     public LoggingTestWatcher loggingTestWatcher = new LoggingTestWatcher();
 
     @ClassRule
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+
+    @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals__main_log", "signals.enterprise.enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
                     "signals.watch_log.sync_indexing", true)
-            .build();
+            .dependsOn(javaSecurity).build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -470,7 +474,8 @@ public class RestApiTest {
                     parsedResponse.path("detail").path("actions[].name").path(0).path("error").asText());
             Assert.assertEquals(response.getBody(), "unexpected end of script.",
                     parsedResponse.path("detail").path("checks[testcalc].source").path(0).path("error").asText());
-            Assert.assertEquals(response.getBody(), "Unsupported attribute", parsedResponse.path("detail").path("horst").path(0).get("error").asText());
+            Assert.assertEquals(response.getBody(), "Unsupported attribute",
+                    parsedResponse.path("detail").path("horst").path(0).get("error").asText());
 
         }
     }
@@ -2078,14 +2083,12 @@ public class RestApiTest {
 
             watchLogs = new WatchLogSearch(client).index("signals__main_log").watchId(watchId).watchVersion(newWatchVersion).fromTheStart().count(3)
                     .await();
-            
-            log.info("Second pass watchLogs: " + watchLogs);
 
+            log.info("Second pass watchLogs: " + watchLogs);
 
             Assert.assertEquals(watchLogs.toString(),
                     Arrays.asList(Status.Code.ACTION_EXECUTED, Status.Code.ACTION_THROTTLED, Status.Code.ACTION_THROTTLED),
                     watchLogs.stream().map((logEntry) -> logEntry.getStatus().getCode()).collect(Collectors.toList()));
-
 
         }
     }
