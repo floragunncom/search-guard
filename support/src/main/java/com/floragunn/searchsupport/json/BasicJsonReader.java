@@ -66,6 +66,8 @@ public class BasicJsonReader {
     public static Object read(String string) throws JsonProcessingException {
         try (JsonParser parser = jsonFactory.createParser(string)) {
             return new BasicJsonReader(parser).read();
+        } catch (JsonProcessingException e) {
+            throw e;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -74,6 +76,8 @@ public class BasicJsonReader {
     public static Object read(BytesReference data, XContentType contentType) throws JsonProcessingException {
         try {
             return read(new ByteArrayInputStream(BytesReference.toBytes(data)), getJsonFactory(contentType));
+        } catch (JsonProcessingException e) {
+            throw e;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
