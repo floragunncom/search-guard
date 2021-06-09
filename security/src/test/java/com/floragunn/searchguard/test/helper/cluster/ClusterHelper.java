@@ -89,7 +89,7 @@ public final class ClusterHelper {
 
     public final synchronized ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration,
             List<Class<? extends Plugin>> additionalPlugins, int timeout, Integer nodes) throws Exception {
-
+        
         if (!esNodes.isEmpty()) {
             throw new RuntimeException("There are still " + esNodes.size() + " nodes instantiated, close them first.");
         }

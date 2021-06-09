@@ -180,7 +180,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     }
 
     private void start() {
-
         try {
             String clusterName = "lc_utest_n" + num.incrementAndGet() + "_f" + System.getProperty("forkno") + "_t" + System.nanoTime();
 
@@ -311,6 +310,14 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         public Builder sslEnabled() {
             this.sslEnabled = true;
+            return this;
+        }
+
+        public Builder dependsOn(Object object) {
+            // We just want to make sure that the object is already done
+            if (object == null) {
+                throw new IllegalStateException("Dependency not fulfilled");
+            }
             return this;
         }
 
