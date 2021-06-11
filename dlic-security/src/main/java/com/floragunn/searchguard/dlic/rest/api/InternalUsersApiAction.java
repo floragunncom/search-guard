@@ -181,7 +181,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         if (passwordNode != null) {
             String plainTextPassword = passwordNode.asText();
             try {
-				XContentBuilder builder = channel.newBuilder();
+                XContentBuilder builder = channel.newBuilder();
 				builder.startObject();
 				builder.field("password", plainTextPassword);
 				builder.endObject();
