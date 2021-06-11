@@ -1,0 +1,51 @@
+{
+  "trigger": {
+    "schedule": {
+      "cron": [
+        "*/10 * * * * ?"
+      ]
+    }
+  },
+  "checks": [
+    {
+      "type": "static",
+      "name": "teststatic",
+      "target": "myconsts",
+      "value": {
+        "bla": {
+          "blub": 42
+        },
+        "placeholder": "a"
+      }
+    },
+    {
+      "type": "search",
+      "name": "testsearch",
+      "target": "testsearch",
+      "request": {
+        "indices": [
+          "testsource"
+        ],
+        "body": {
+          "query": {
+            "term": {
+              "a": "{{myconsts.placeholder}}"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "condition.script",
+      "name": "testcondition",
+      "source": "ctx.testsearch.hits.hits.length > 0"
+    }
+  ],
+  "actions": [
+    {
+      "type": "index",
+      "checks": [],
+      "index": "testsink"
+    }
+  ]
+}

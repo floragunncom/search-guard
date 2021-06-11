@@ -1,43 +1,673 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Copyright 2016-2017 by floragunn GmbH - All rights reserved Unless required 
-	by applicable law or agreed to in writing, software distributed here is distributed 
-	on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either 
-	express or implied. -->
+<!-- ~ Copyright 2015-2017 floragunn GmbH ~ ~ This program is licensed to
+	you under the Apache License Version 2.0, ~ and you may not use this file
+	except in compliance with the Apache License Version 2.0. ~ You may obtain
+	a copy of the Apache License Version 2.0 at http://www.apache.org/licenses/LICENSE-2.0.
+	~ ~ Unless required by applicable law or agreed to in writing, ~ software
+	distributed under the Apache License Version 2.0 is distributed on an ~ "AS
+	IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+	implied. ~ See the Apache License Version 2.0 for the specific language governing
+	permissions and limitations there under. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-suite-parent</artifactId>
-		<version>${revision}</version>
-		<relativePath>../search-guard-suite</relativePath>
-	</parent>
-
-	<artifactId>dlic-search-guard-suite-parent</artifactId>
-	
+	<groupId>com.floragunn</groupId>
+	<artifactId>search-guard-suite-parent</artifactId>
+	<version>${revision}</version>
 	<packaging>pom</packaging>
+	<name>Search Guard Suite - Parent</name>
 
-	<name>Search Guard Suite - Parent (Enterprise)</name>
+	<properties>
+		<elasticsearch.version>7.10.2</elasticsearch.version>
+		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
+		<revision>${elasticsearch.version}-${sg-suite.version}</revision>
+
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<sonatypeOssDistMgmtSnapshotsUrl>https://oss.sonatype.org/content/repositories/snapshots/
+		</sonatypeOssDistMgmtSnapshotsUrl>
+		<dependency.locations.enabled>false</dependency.locations.enabled>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+		<maven.compiler.release>8</maven.compiler.release>
+
+		<netty-native.version>2.0.25.Final</netty-native.version>
+		<bc.version>1.68</bc.version>
+		<log4j.version>2.11.1</log4j.version>
+		<guava.version>30.0-jre</guava.version>
+		<commons.cli.version>1.4</commons.cli.version>
+		<jackson-databind.version>2.11.2</jackson-databind.version>
+	    <cxf.version>3.3.7</cxf.version>
+		<http.commons.version>4.5.13</http.commons.version>
+		<quartz.version>2.3.2</quartz.version>
+		<simplemail.version>5.2.1</simplemail.version>
+
+		<!-- Test only -->
+		<mockito.version>2.23.0</mockito.version>
+		<powermock.version>2.0.2</powermock.version>
+
+		<!-- For mvn license:aggregate-add-third-party -->
+		<license.excludedArtifacts>.*search-guard.*</license.excludedArtifacts>
+		<license.excludedScopes>test,provided</license.excludedScopes>
+	</properties>
 
 	<modules>
-		<module>dlic-security</module>
-		<module>dlic-signals</module>
+		<module>security</module>
+		<module>scheduler</module>
+		<module>signals</module>
+		<module>support</module>
+		<module>plugin</module>		
 	</modules>
 
+	<repositories>
+		<repository>
+			<id>sonatype-nexus-snapshots</id>
+			<name>Sonatype Nexus Snapshots</name>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>release</id>
+			<url>https://maven.search-guard.com:443/search-guard-suite-release-test</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>snapshot</id>
+			<url>https://maven.search-guard.com:443/search-guard-suite-snapshot</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>elasticsearch-releases</id>
+			<url>https://artifacts.elastic.co/maven</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
+	<distributionManagement>
+		<repository>
+			<id>release</id>
+			<name>Release repository</name>
+			<url>https://maven.search-guard.com:443/search-guard-suite-release-test</url>
+		</repository>
+		<snapshotRepository>
+			<id>snapshot</id>
+			<name>Snapshot repository</name>
+			<url>https://maven.search-guard.com:443/search-guard-suite-snapshot</url>
+		</snapshotRepository>
+	</distributionManagement>
 	<scm>
-		<url>https://git.floragunn.com/search-guard/search-guard-suite-enterprise</url>
-		<connection>scm:git:git@git.floragunn.com/search-guard/search-guard-suite-enterprise.git</connection>
-		<developerConnection>scm:git:git@git.floragunn.com/search-guard/search-guard-suite-enterprise.git</developerConnection>
+		<url>https://git.floragunn.com/search-guard/search-guard-suite/</url>
+		<connection>scm:git:git@git.floragunn.com/search-guard/search-guard-suite.git</connection>
+		<developerConnection>scm:git:git@git.floragunn.com/search-guard/search-guard-suite.git</developerConnection>
 		<tag>HEAD</tag>
 	</scm>
 
-	<dependencies />
+	<dependencies>
 
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- provided scoped deps -->
+		<dependency>
+			<groupId>org.elasticsearch</groupId>
+			<artifactId>elasticsearch</artifactId>
+			<version>${elasticsearch.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<version>${log4j.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson-databind.version}</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>jackson-core</artifactId>
+					<groupId>com.fasterxml.jackson.core</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>lang-mustache-client</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>percolator-client</artifactId>
+			<version>${elasticsearch.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>parent-join-client</artifactId>
+			<version>${elasticsearch.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>aggs-matrix-stats-client</artifactId>
+			<version>${elasticsearch.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>reindex-client</artifactId>
+			<version>${elasticsearch.version}</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
 
 	<dependencyManagement>
-		<dependencies />
+		<dependencies>
 
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>${http.commons.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>fluent-hc</artifactId>
+				<version>${http.commons.version}</version>
+			</dependency>
+
+			<dependency>
+    			<groupId>org.apache.httpcomponents</groupId>
+    			<artifactId>httpcore</artifactId>
+				<version>4.4.14</version>
+			</dependency>
+
+			<dependency>
+    			<groupId>org.apache.httpcomponents</groupId>
+    			<artifactId>httpasyncclient</artifactId>
+    			<version>4.1.4</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.quartz-scheduler</groupId>
+				<artifactId>quartz</artifactId>
+				<version>${quartz.version}</version>
+				<exclusions>
+        			<exclusion>
+          				<groupId>com.mchange</groupId>
+          				<artifactId>c3p0</artifactId>
+        			</exclusion>
+      			</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-security</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-security</artifactId>
+				<version>${project.version}</version>
+				<classifier>tests</classifier>
+			</dependency>
+
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-scheduler</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-support</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
+
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-support</artifactId>
+				<version>${project.version}</version>
+				<classifier>tests</classifier>
+			</dependency>
+
+			<dependency>
+				<groupId>org.elasticsearch.plugin</groupId>
+				<artifactId>lang-mustache-client</artifactId>
+				<version>${elasticsearch.version}</version>
+			</dependency>
+
+			<dependency>
+    			<groupId>org.elasticsearch.plugin</groupId>
+    			<artifactId>elasticsearch-scripting-painless-spi</artifactId>
+    			<version>${elasticsearch.version}</version>
+			</dependency>
+
+
+			<dependency>
+				<groupId>org.powermock</groupId>
+				<artifactId>powermock-module-junit4</artifactId>
+				<version>${powermock.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.powermock</groupId>
+				<artifactId>powermock-api-mockito2</artifactId>
+				<version>${powermock.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.icegreen</groupId>
+				<artifactId>greenmail</artifactId>
+				<version>1.5.10</version>
+			</dependency>
+
+
+			<dependency>
+				<groupId>commons-io</groupId>
+				<artifactId>commons-io</artifactId>
+				<version>2.6</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.hamcrest</groupId>
+				<artifactId>hamcrest-all</artifactId>
+				<version>1.3</version>
+			</dependency>
+
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<version>4.12</version>
+			</dependency>
+
+			<dependency>
+				<groupId>commons-codec</groupId>
+				<artifactId>commons-codec</artifactId>
+				<version>1.15</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.cryptacular</groupId>
+				<artifactId>cryptacular</artifactId>
+				<version>1.1.4</version>
+			</dependency>
+		</dependencies>
 	</dependencyManagement>
+
+	<build>
+		<testResources>
+			<testResource>
+				<directory>${basedir}/src/test/resources</directory>
+				<filtering>false</filtering>
+				<includes>
+					<include>**/*</include>
+				</includes>
+			</testResource>
+		</testResources>
+		<resources>
+			<resource>
+				<directory>${basedir}</directory>
+				<filtering>false</filtering>
+				<includes>
+					<include>LICENSE</include>
+					<include>NOTICE.txt</include>
+					<include>THIRD-PARTY.txt</include>
+					<include>KEYS</include>
+				</includes>
+			</resource>
+			<resource>
+				<directory>${basedir}/src/main/resources</directory>
+				<filtering>false</filtering>
+				<includes>
+					<include>**/*</include>
+				</includes>
+			</resource>
+		</resources>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>3.0.0-M2</version>
+				<executions>
+					<execution>
+						<id>enforce-maven</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireMavenVersion>
+									<version>[3.5.4,)</version>
+									<message>Maven 3.5.4 or later required</message>
+								</requireMavenVersion>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
+						<id>enforce-java</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireJavaVersion>
+									<version>[1.11,)</version>
+									<message>Java 11 or later required to build the plugin</message>
+								</requireJavaVersion>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-clean-plugin</artifactId>
+				<version>3.1.0</version>
+				<configuration>
+					<filesets>
+						<fileset>
+							<directory>data</directory>
+						</fileset>
+					</filesets>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>flatten-maven-plugin</artifactId>
+				<version>1.1.0</version>
+				<configuration>
+				  <updatePomFile>true</updatePomFile>
+				  <flattenMode>resolveCiFriendliesOnly</flattenMode>
+				</configuration>
+				<executions>
+				  <execution>
+				    <?m2e ignore?>
+					<id>flatten</id>
+					<phase>process-resources</phase>
+					<goals>
+					  <goal>flatten</goal>
+					</goals>
+				  </execution>
+				  <execution>
+				    <?m2e ignore?>
+					<id>flatten.clean</id>
+					<phase>clean</phase>
+					<goals>
+					  <goal>clean</goal>
+					</goals>
+				  </execution>
+				</executions>
+			  </plugin>
+
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>license-maven-plugin</artifactId>
+            <version>1.13</version>
+          </plugin>
+		</plugins>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-resources-plugin</artifactId>
+					<version>3.1.0</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-release-plugin</artifactId>
+					<version>2.5.3</version>
+					<configuration>
+						<tagNameFormat>v@{project.version}</tagNameFormat>
+						<pushChanges>false</pushChanges>
+						<localCheckout>true</localCheckout>
+						<autoVersionSubmodules>true</autoVersionSubmodules>
+						<useReleaseProfile>false</useReleaseProfile>
+						<releaseProfiles>release</releaseProfiles>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-source-plugin</artifactId>
+					<version>3.0.1</version>
+					<executions>
+						<execution>
+							<id>attach-sources</id>
+							<goals>
+								<goal>jar</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-javadoc-plugin</artifactId>
+					<version>3.1.0</version>
+					<configuration>
+						<encoding>${project.build.sourceEncoding}</encoding>
+						<locale>en</locale>
+						<doclint>none</doclint>
+					</configuration>
+					<executions>
+						<execution>
+							<id>attach-javadocs</id>
+							<goals>
+								<goal>jar</goal>
+							</goals>
+							<configuration>
+								<additionalparam>-Xdoclint:none</additionalparam>
+							</configuration>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-gpg-plugin</artifactId>
+					<version>1.6</version>
+					<configuration>
+						<keyname>${gpg.keyname}</keyname>
+						<passphraseServerId>${gpg.keyname}</passphraseServerId>
+					</configuration>
+					<executions>
+						<execution>
+							<id>sign-artifacts</id>
+							<phase>verify</phase>
+							<goals>
+								<goal>sign</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>3.1.1</version>
+					<configuration>
+						<excludes>
+							<exclude>**/*cobertura*</exclude>
+							<exclude>**/*jacoco*</exclude>
+						</excludes>
+						<archive>
+							<manifest>
+								<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+							</manifest>
+							<manifestEntries>
+								<Built-By>floragunn GmbH</Built-By>
+								<Build-Time>${maven.build.timestamp}</Build-Time>
+								<git-sha1>${git.commit.id}</git-sha1>
+							</manifestEntries>
+						</archive>
+					</configuration>
+					<executions>
+						<execution>
+							<goals>
+								<goal>test-jar</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>3.8.0</version>
+					<configuration>
+						<showDeprecation>true</showDeprecation>
+						<showWarnings>true</showWarnings>
+						<compilerArgument>-Xlint:unchecked</compilerArgument>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>3.0.0-M3</version>
+					<configuration>
+						<argLine>-Xmx3072m</argLine>
+						<rerunFailingTestsCount>3</rerunFailingTestsCount>
+						<forkCount>3</forkCount>
+						<reuseForks>true</reuseForks>
+						<!-- <parallel>methods</parallel> <threadCount>1</threadCount> -->
+						<systemPropertyVariables>
+							<forkno>fork_${surefire.forkNumber}</forkno>
+						</systemPropertyVariables>
+
+						<includes>
+							<include>**/*.java</include>
+						</includes>
+						<trimStackTrace>false</trimStackTrace>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.jacoco</groupId>
+					<artifactId>jacoco-maven-plugin</artifactId>
+					<version>0.8.3</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<version>3.1.1</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+		<extensions>
+			<extension>
+				<groupId>kr.motd.maven</groupId>
+				<artifactId>os-maven-plugin</artifactId>
+				<version>1.5.0.Final</version>
+			</extension>
+		</extensions>
+	</build>
+
+	<profiles>
+		<profile>
+			<id>enterprise</id>
+			<activation>
+				<file>
+					<exists>dlic-security</exists>
+				</file>
+			</activation>
+			<modules>
+				<module>security</module>
+				<module>scheduler</module>
+				<module>signals</module>
+				<module>support</module>
+				<module>dlic-security</module>
+				<module>dlic-signals</module>				
+				<module>plugin</module>
+			</modules>
+		</profile>
+
+		<profile>
+			<id>release</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-source-plugin</artifactId>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>coverage</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.jacoco</groupId>
+						<artifactId>jacoco-maven-plugin</artifactId>
+						<configuration>
+							<append>true</append>
+						</configuration>
+						<executions>
+							<execution>
+								<id>agent-for-ut</id>
+								<goals>
+									<goal>prepare-agent</goal>
+								</goals>
+							</execution>
+							<execution>
+								<id>agent-for-it</id>
+								<goals>
+									<goal>prepare-agent-integration</goal>
+								</goals>
+							</execution>
+							<execution>
+								<id>jacoco-site</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>report</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 </project>

@@ -1,0 +1,32 @@
+{
+    "trigger": {
+        "schedule": {
+            "cron": [
+                "*/10 * * * * ?"
+            ]
+        }
+    },
+    "checks": [
+        {
+            "type": "http",
+            "name": "testhttp",
+            "target": "eur_conversation_rates",
+            "request": {
+                "url": "https://api.exchangeratesapi.io/latest",
+                "method": "GET"
+            }
+        },
+        {
+            "type": "condition.script",
+            "name": "testcondition",
+            "source": "ctx.eur_conversation_rates.rates.GBP > 0.89"
+        }
+    ],
+    "actions": [
+        {
+            "type": "index",
+            "checks": [],
+            "index": "euro_alerts"
+        }
+    ]
+}

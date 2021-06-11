@@ -12,7 +12,7 @@
 
 	<parent>
 		<groupId>com.floragunn</groupId>
-		<artifactId>dlic-search-guard-suite-parent</artifactId>
+		<artifactId>search-guard-suite-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
@@ -25,12 +25,6 @@
 
 
 	<dependencies>
-
-		<dependency>
-			<groupId>org.codelibs.elasticsearch.module</groupId>
-			<artifactId>lang-painless</artifactId>
-			<scope>provided</scope>
-		</dependency>
 
 		<!-- Signals -->
 		<dependency>

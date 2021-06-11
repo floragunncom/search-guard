@@ -1,0 +1,37 @@
+class com.floragunn.signals.watch.severity.SeverityLevel {
+  int getLevel()
+  java.lang.String getName()
+  java.lang.String getId()
+}
+
+class com.floragunn.signals.watch.severity.SeverityMapping$EvaluationResult {
+  com.floragunn.signals.watch.severity.SeverityLevel getLevel()
+  java.lang.Number getValue() 
+  java.lang.Number getThreshold()
+  java.lang.String getName()
+  java.lang.String getId()
+}
+
+class com.floragunn.signals.execution.WatchExecutionContextData$TriggerInfo {
+	org.elasticsearch.script.JodaCompatibleZonedDateTime getTriggeredTime()
+	org.elasticsearch.script.JodaCompatibleZonedDateTime getScheduledTime()
+	org.elasticsearch.script.JodaCompatibleZonedDateTime getTriggered_time()
+	org.elasticsearch.script.JodaCompatibleZonedDateTime getScheduled_time()
+}
+
+class com.floragunn.signals.execution.WatchExecutionContextData$WatchInfo {
+	java.lang.String getId()
+	java.lang.String getTenant()
+}
+
+class com.floragunn.signals.execution.WatchExecutionContextData {
+	com.floragunn.signals.support.NestedValueMap getData()
+    com.floragunn.signals.watch.severity.SeverityMapping.EvaluationResult getSeverity()
+    com.floragunn.signals.execution.WatchExecutionContextData.TriggerInfo getTriggerInfo()
+    org.elasticsearch.script.JodaCompatibleZonedDateTime getExecutionTime()
+    com.floragunn.signals.execution.WatchExecutionContextData.WatchInfo getWatch()
+}
+
+
+class com.floragunn.signals.support.NestedValueMap {
+}

@@ -1,0 +1,24 @@
+---
+_sg_meta:
+  type: "tenants"
+  config_version: 2
+admin:
+  reserved: false
+  hidden: false
+  description: "admin"
+test1:
+  reserved: false
+  hidden: false
+  description: "test1"  
+redshirt_club:
+  reserved: false
+  hidden: false
+  description: "redshirt_club"  
+dash-tenant:
+  reserved: false
+  hidden: false
+  description: "dash-tenant"   
+unit_test_search_watch_without_body:
+  reserved: false
+  hidden: false
+  description: "For unit test RestApiTest.testSearchWatchWithoutBody"  
