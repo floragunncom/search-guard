@@ -31,12 +31,6 @@ public class SearchAccountApiAction extends BaseRestHandler {
     }
 
     @Override
-    public List<DeprecatedRoute> deprecatedRoutes() {
-        return ImmutableList.of(new DeprecatedRoute(GET, "/_signals/destination/_search", "Use /_signals/account/_search instead"),
-                new DeprecatedRoute(POST, "/_signals/destination/_search", "Use /_signals/account/_search instead"));
-    }
-
-    @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         String scroll = request.param("scroll");
         int from = request.paramAsInt("from", -1);

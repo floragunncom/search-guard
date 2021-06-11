@@ -2120,7 +2120,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = restClient.postJson("/_signals/destination/_search?scroll=60s&size=1",
+            response = restClient.postJson("/_signals/account/_search?scroll=60s&size=1",
                     "{ \"sort\": [{\"type.keyword\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"type\": \"SLACK\"}}}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
