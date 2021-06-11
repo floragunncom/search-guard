@@ -1,6 +1,11 @@
 target/
 test-output/
-
+smoketests/
+target/
+test-output/
+kibana*/
+logstash*/
+deploy_all.sh
 /build.gradle
 *.log
 .externalToolBuilders
@@ -31,3 +36,4 @@ puppet/.vagrant
 test.sh
 .vagrant/
 .flattened-pom.xml
+plugin/plugin-descriptor.properties

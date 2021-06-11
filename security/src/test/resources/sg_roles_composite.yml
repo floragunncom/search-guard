@@ -1,0 +1,71 @@
+---
+_sg_meta:
+  type: "roles"
+  config_version: 2
+sg_user1:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "alias1"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_role_klingons1:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "indices:data/read/msearch"
+  index_permissions:
+  - index_patterns:
+    - "klingonempire"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_role_klingons2:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "klingonempire"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []
+sg_role_starfleet:
+  reserved: false
+  hidden: false
+  description: "Migrated from v6 (all types mapped)"
+  cluster_permissions:
+  - "cluster:monitor*"
+  - "indices:data/read/scroll"
+  index_permissions:
+  - index_patterns:
+    - "sf"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+    - "indices:*"
+  - index_patterns:
+    - "pub*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: []

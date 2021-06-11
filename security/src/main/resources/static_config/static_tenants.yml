@@ -1,0 +1,10 @@
+---
+_sg_meta:
+  type: "tenants"
+  config_version: 2
+
+SGS_GLOBAL_TENANT:
+  reserved: true
+  hidden: false
+  static: true
+  description: "Global tenant"
