@@ -239,7 +239,7 @@ public abstract class AbstractConfigurationValidator {
 
     public XContentBuilder errorsAsXContent(RestChannel channel) {
         try {
-            final XContentBuilder builder = channel.newBuilder();
+            final XContentBuilder builder = channel.newErrorBuilder();
             builder.startObject();
             if (lastException != null) {
                 builder.field("details", lastException.toString());

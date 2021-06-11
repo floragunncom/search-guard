@@ -110,7 +110,7 @@ public class FieldMaskingAggregationTest {
     @Test
     public void testHashMaskedField() throws Exception {
         SearchRequest searchRequest = new SearchRequest("ip").source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(10)
-                .aggregation(AggregationBuilders.terms("source_loc_terms").field("source_loc.keyword").size(100)));
+                .aggregation(AggregationBuilders.terms("source_loc_terms").field("source_loc.keyword").size(1000)));
         SearchResponse makedSearchResponse;
         SearchResponse unmakedSearchResponse;
 
