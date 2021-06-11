@@ -26,6 +26,12 @@
 
 	<dependencies>
 
+		<dependency>
+			<groupId>org.codelibs.elasticsearch.module</groupId>
+			<artifactId>lang-painless</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- Signals -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
