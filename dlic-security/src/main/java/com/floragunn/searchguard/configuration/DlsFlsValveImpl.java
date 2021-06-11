@@ -51,8 +51,11 @@ import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation.Bucket;
+import org.elasticsearch.search.aggregations.bucket.sampler.DiversifiedAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.InternalTerms;
+import org.elasticsearch.search.aggregations.bucket.terms.SignificantTermsAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
+import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.query.QuerySearchResult;
@@ -63,6 +66,7 @@ import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SgUtils;
 
 public class DlsFlsValveImpl implements DlsFlsRequestValve {
+    private static final String MAP_EXECUTION_HINT = "map";
     private static final Logger log = LogManager.getLogger(DlsFlsValveImpl.class);
 
     private static final Field REDUCE_ORDER_FIELD = getField(InternalTerms.class, "reduceOrder");
@@ -84,7 +88,31 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         final boolean fls = allowedFlsFields != null && !allowedFlsFields.isEmpty();
         final boolean masked = maskedFields != null && !maskedFields.isEmpty();
         final boolean dls = queries != null && !queries.isEmpty();
-        
+
+        //When we encounter a terms or sampler aggregation with masked fields activated we forcibly
+        //need to switch off global ordinals because field masking can break ordering
+        //https://www.elastic.co/guide/en/elasticsearch/reference/master/eager-global-ordinals.html#_avoiding_global_ordinal_loading
+        if (masked && request instanceof SearchRequest) {
+            
+            SearchRequest searchRequest = ((SearchRequest) request);
+            
+            if (searchRequest.source() != null && searchRequest.source().aggregations() != null) {
+                for (AggregationBuilder aggregationBuilder : searchRequest.source().aggregations().getAggregatorFactories()) {
+                    if (aggregationBuilder instanceof TermsAggregationBuilder) {
+                        ((TermsAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
+                    }
+
+                    if (aggregationBuilder instanceof SignificantTermsAggregationBuilder) {
+                        ((SignificantTermsAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
+                    }
+
+                    if (aggregationBuilder instanceof DiversifiedAggregationBuilder) {
+                        ((DiversifiedAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
+                    }
+                }
+            }
+        }
+
         if(fls || masked || dls) {
             
             if(request instanceof RealtimeRequest) {
@@ -234,6 +262,9 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         if (checkForCorrectReduceOrder(aggregations)) {
             return;
         }
+        
+        //If this assert is not raised during integration tests we should consider to remove the entire onQueryPhase() method from this class
+        assert false:"Because of the fact we now use no longer global ordinals for terms aggregations when masked fields are enabled this correction feature shoudl no longer be necessary.";
 
         if (log.isDebugEnabled()) {
             log.debug("Found buckets with equal keys. Merging these buckets: " + aggregations);
