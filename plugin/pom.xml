@@ -95,6 +95,21 @@
 									<goal>single</goal>
 								</goals>
 							</execution>
+							<execution>
+								<id>sgadmin</id>
+								<phase>package</phase>
+								<configuration>
+									<appendAssemblyId>true</appendAssemblyId>
+									<tarLongFileMode>posix</tarLongFileMode>
+									<outputDirectory>${project.build.directory}/releases/</outputDirectory>
+									<descriptors>
+										<descriptor>${sgstandalone.descriptor}</descriptor>
+									</descriptors>
+								</configuration>
+								<goals>
+									<goal>single</goal>
+								</goals>
+							</execution>							
 						</executions>
 					</plugin>
 					<plugin>
