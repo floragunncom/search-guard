@@ -27,6 +27,7 @@ import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.MultiSearchResponse.Item;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RequestOptions;
@@ -43,6 +44,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -542,7 +544,7 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
     // ------------------------
 
     @Test
-    public void testSimpleSearch_Scroll_AccessCode_1337() throws Exception {
+    public void testFailureSimpleSearch_Scroll_AccessCode_1337() throws Exception {
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
 
             final Scroll scroll = new Scroll(TimeValue.timeValueMinutes(1L));
@@ -562,37 +564,43 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
                 Assert.assertTrue(e.getMessage(),
                         e.getMessage().contains("Unsupported request type for filter level DLS: indices:admin/shards/search_shards"));
             }
-            /*
+        }
+    }
+
+    @Ignore // Scroll is not supported with filter level CCS
+    @Test
+    public void testSimpleSearch_Scroll_AccessCode_1337() throws Exception {
+        try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
+
+            final Scroll scroll = new Scroll(TimeValue.timeValueMinutes(1L));
+            SearchRequest searchRequest = new SearchRequest("my_remote:tlqdocuments");
+            searchRequest.scroll(scroll);
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            searchSourceBuilder.size(1);
+            searchRequest.source(searchSourceBuilder);
+
+            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
             String scrollId = searchResponse.getScrollId();
             SearchHit[] searchHits = searchResponse.getHits().getHits();
             int totalHits = 0;
-            
-            System.out.println("-------------------------------------------------------------------------------");
-            
-            System.out.println(Strings.toString(searchResponse));
-            
+
             // we scroll one by one
             while (searchHits != null && searchHits.length > 0) {
                 // for counting the total documents
                 totalHits += searchHits.length;
-                
                 // only docs with access codes 1337 must be returned
                 assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 1337 });
                 // fetch next
                 SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
                 scrollRequest.scroll(scroll);
-                System.out.println("*******************************");
-            
                 searchResponse = client.scroll(scrollRequest, RequestOptions.DEFAULT);
-                System.out.println(Strings.toString(searchResponse));
-            
+
                 scrollId = searchResponse.getScrollId();
                 searchHits = searchResponse.getHits().getHits();
             }
-            
+
             // assume total of 10 documents
             Assert.assertTrue("" + totalHits, totalHits == 10);
-            */
         }
     }
 
