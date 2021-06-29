@@ -228,17 +228,12 @@ public class GenericRestClient implements AutoCloseable {
 
             log.debug("Configure HTTP client with SSL");
 
-            if (prefix != null && !keystore.contains("/")) {
-                keystore = prefix + "/" + keystore;
-            }
-
-            final String keyStorePath = FileHelper.getAbsoluteFilePathFromClassPath(keystore).toFile().getParent();
-
             final KeyStore myTrustStore = KeyStore.getInstance("JKS");
-            myTrustStore.load(new FileInputStream(keyStorePath + "/truststore.jks"), "changeit".toCharArray());
+            myTrustStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix, "truststore.jks").toFile()),
+                    "changeit".toCharArray());
 
             final KeyStore keyStore = KeyStore.getInstance("JKS");
-            keyStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(keystore).toFile()), "changeit".toCharArray());
+            keyStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix, keystore).toFile()), "changeit".toCharArray());
 
             final SSLContextBuilder sslContextbBuilder = SSLContexts.custom();
 
