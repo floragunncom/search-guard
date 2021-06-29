@@ -165,13 +165,36 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
         if (request instanceof SearchRequest) {
 
-            SearchRequest sr = ((SearchRequest) request);
+            SearchRequest searchRequest = ((SearchRequest) request);
 
-            if (localHashingEnabled && !evaluatedDlsFlsConfig.hasFls() && !evaluatedDlsFlsConfig.hasDls() && sr.source().aggregations() != null) {
+            //When we encounter a terms or sampler aggregation with masked fields activated we forcibly
+            //need to switch off global ordinals because field masking can break ordering
+            //https://www.elastic.co/guide/en/elasticsearch/reference/master/eager-global-ordinals.html#_avoiding_global_ordinal_loading
+            if (evaluatedDlsFlsConfig.hasFieldMasking()) {
+
+                if (searchRequest.source() != null && searchRequest.source().aggregations() != null) {
+                    for (AggregationBuilder aggregationBuilder : searchRequest.source().aggregations().getAggregatorFactories()) {
+                        if (aggregationBuilder instanceof TermsAggregationBuilder) {
+                            ((TermsAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
+                        }
+
+                        if (aggregationBuilder instanceof SignificantTermsAggregationBuilder) {
+                            ((SignificantTermsAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
+                        }
+
+                        if (aggregationBuilder instanceof DiversifiedAggregationBuilder) {
+                            ((DiversifiedAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
+                        }
+                    }
+                }
+            }
+
+            if (localHashingEnabled && !evaluatedDlsFlsConfig.hasFls() && !evaluatedDlsFlsConfig.hasDls()
+                    && searchRequest.source().aggregations() != null) {
 
                 boolean cacheable = true;
 
-                for (AggregationBuilder af : sr.source().aggregations().getAggregatorFactories()) {
+                for (AggregationBuilder af : searchRequest.source().aggregations().getAggregatorFactories()) {
 
                     if (!af.getType().equals("cardinality") && !af.getType().equals("count")) {
                         cacheable = false;
@@ -180,8 +203,8 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
                     StringBuilder sb = new StringBuilder();
 
-                    if (sr.source() != null) {
-                        sb.append(Strings.toString(sr.source()) + System.lineSeparator());
+                    if (searchRequest.source() != null) {
+                        sb.append(Strings.toString(searchRequest.source()) + System.lineSeparator());
                     }
 
                     sb.append(Strings.toString(af) + System.lineSeparator());
@@ -191,14 +214,14 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
                 }
 
                 if (!cacheable) {
-                    sr.requestCache(Boolean.FALSE);
+                    searchRequest.requestCache(Boolean.FALSE);
                 } else {
-                    LogManager.getLogger("debuglogger")
-                            .error("Shard requestcache enabled for " + (sr.source() == null ? "<NULL>" : Strings.toString(sr.source())));
+                    LogManager.getLogger("debuglogger").error("Shard requestcache enabled for "
+                            + (searchRequest.source() == null ? "<NULL>" : Strings.toString(searchRequest.source())));
                 }
 
             } else {
-                sr.requestCache(Boolean.FALSE);
+                searchRequest.requestCache(Boolean.FALSE);
             }
         }
 
@@ -311,9 +334,9 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         if (checkForCorrectReduceOrder(aggregations)) {
             return;
         }
-        
+
         //If this assert is not raised during integration tests we should consider to remove the entire onQueryPhase() method from this class
-        assert false:"Because of the fact we now use no longer global ordinals for terms aggregations when masked fields are enabled this correction feature shoudl no longer be necessary.";
+        assert false : "Because of the fact we now use no longer global ordinals for terms aggregations when masked fields are enabled this correction feature shoudl no longer be necessary.";
 
         if (log.isDebugEnabled()) {
             log.debug("Found buckets with equal keys. Merging these buckets: " + aggregations);
