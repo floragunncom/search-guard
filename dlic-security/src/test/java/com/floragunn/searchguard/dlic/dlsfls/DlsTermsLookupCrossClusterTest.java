@@ -21,21 +21,16 @@ import java.util.stream.Collectors;
 
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
-import org.elasticsearch.action.get.MultiGetItemResponse;
-import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.MultiSearchResponse.Item;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.search.Scroll;
@@ -48,7 +43,6 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -65,7 +59,9 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
 
     @ClassRule
     public static LocalCluster remote = new LocalCluster.Builder().singleNode().sslEnabled()//
+            .nodeSettings("searchguard.logging.context.extended", true)//
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")//
+            .clusterName("remote")//
             .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*").on("tlqdummy").indexPermissions("*")
 
                     .dls("{ \"terms\": { \"access_codes\": { \"index\": \"user_access_codes\", \"id\": \"${user.name}\", \"path\": \"access_codes\" } } }")
@@ -80,7 +76,9 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
 
     @ClassRule
     public static LocalCluster coordinating = new LocalCluster.Builder().singleNode().sslEnabled().remote(CLUSTER_ALIAS, remote)//
+            .nodeSettings("searchguard.logging.context.extended", true)//
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")//
+            .clusterName("coordinating")//
             .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*")
                     .dls("{ \"bool\": { \"must\": { \"match\": { \"bu\": \"GGG\"  }}}}").on("tlqdummy").indexPermissions("*")
                     .dls("{ \"bool\": { \"must\": { \"match\": { \"bu\": \"AAA\"  }}}}"
@@ -231,11 +229,11 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
     // Test multiple indices, CCS, wildcards and _all queries
     // --------------------------------------------------
 
-    @Ignore // XXX 403 failure comes from my_remote:user_access_codes 
+    // XXX 403 failure comes from my_remote:user_access_codes 
     @Test
     public void testSimpleSearch_Coordinating_To_Remote_Multiple_Indices_AccessCodes_1337() throws Exception {
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
-            SearchRequest request = new SearchRequest("my_remote:tlqdummy, my_remote:tlqdocuments, my_remote:user_access_codes");
+            SearchRequest request = new SearchRequest("my_remote:tlqdummy,my_remote:tlqdocuments,my_remote:user_access_codes");
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().from(0).size(100);
             request.source(searchSourceBuilder);
             SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
@@ -268,13 +266,15 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
         }
     }
 
-    @Ignore // TODO
     @Test
     public void testSimpleSearch_Coordinating_To_Remote_Wildcard_Indices_AccessCodes_1337() throws Exception {
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
             SearchRequest request = new SearchRequest("my_remote:tlq*");
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().from(0).size(100);
             request.source(searchSourceBuilder);
+
+            System.out.println("========================================");
+
             SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
 
             // assume hits from 2 indices:
@@ -298,7 +298,6 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
         }
     }
 
-    @Ignore // TODO
     @Test
     public void testSimpleSearch_Coordinating_To_Remote_All_AccessCodes_1337() throws Exception {
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
@@ -332,7 +331,6 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
         }
     }
 
-    @Ignore // TODO
     @Test
     public void testSimpleSearch_Coordinating_Wildcard_Only_AccessCodes_1337() throws Exception {
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
@@ -512,46 +510,6 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
         }
     }
 
-    // ------------
-    // Test mget
-    // ------------    
-
-    @Ignore // CCS is unsupported for MGET
-    @Test
-    public void testMGet_Coordinating_To_Remote_AccessCodes_1337() throws Exception {
-        try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
-
-            MultiGetRequest request = new MultiGetRequest();
-            request.add("my_remote:tlqdocuments", "1"); // on remote, visible
-            request.add("my_remote:tlqdocuments", "2"); // on remote, not visible
-            request.add("my_remote:tlqdocuments", "3"); // on remote, visible
-            request.add("tlqdummy", "101"); // on coordinating cluster, visible
-            request.add("tlqdummy", "105"); // on coordinating cluster, filtered by role DLS
-            request.add("user_access_codes", "tlq_1337"); // not accessible
-
-            MultiGetResponse searchResponse = client.mget(request, RequestOptions.DEFAULT);
-
-            for (MultiGetItemResponse response : searchResponse.getResponses()) {
-                // no response from index "user_access_codes"
-                Assert.assertFalse(response.getIndex().equals("user_access_codes"));
-                switch (response.getIndex()) {
-                case "my_remote:tlqdocuments":
-                    Assert.assertFalse(response.getFailure().getMessage(), response.isFailed());
-                    Assert.assertTrue(response.getId(), response.getId().equals("1") | response.getId().equals("3"));
-                    break;
-                case "tlqdummy":
-                    Assert.assertFalse(response.getFailure().getMessage(), response.isFailed());
-                    Assert.assertTrue(response.getId(), response.getId().equals("101"));
-                    break;
-                default:
-                    Assert.fail("Index " + response.getIndex() + " present in mget response, but should not");
-                }
-
-            }
-
-        }
-    }
-
     // ------------------------
     // Test aggregations CCS
     // ------------------------
@@ -583,25 +541,33 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
     // Test scroll with CCS
     // ------------------------
 
-    @Ignore // TODO
     @Test
     public void testSimpleSearch_Scroll_AccessCode_1337() throws Exception {
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
 
             final Scroll scroll = new Scroll(TimeValue.timeValueMinutes(1L));
             SearchRequest searchRequest = new SearchRequest("my_remote:tlqdocuments");
+            searchRequest.setCcsMinimizeRoundtrips(false);
             searchRequest.scroll(scroll);
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
             searchSourceBuilder.size(1);
             searchRequest.source(searchSourceBuilder);
 
-            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            // Right now we don't support filter level DLS with CCS and scrolling. We need to ensure that this fails to avoid data leakage.
+
+            try {
+                client.search(searchRequest, RequestOptions.DEFAULT);
+                Assert.fail();
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage(),
+                        e.getMessage().contains("Unsupported request type for filter level DLS: indices:admin/shards/search_shards"));
+            }
+            /*
             String scrollId = searchResponse.getScrollId();
             SearchHit[] searchHits = searchResponse.getHits().getHits();
             int totalHits = 0;
-
+            
             System.out.println("-------------------------------------------------------------------------------");
-
             
             System.out.println(Strings.toString(searchResponse));
             
@@ -609,20 +575,24 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
             while (searchHits != null && searchHits.length > 0) {
                 // for counting the total documents
                 totalHits += searchHits.length;
+                
                 // only docs with access codes 1337 must be returned
                 assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 1337 });
                 // fetch next
                 SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
                 scrollRequest.scroll(scroll);
+                System.out.println("*******************************");
+            
                 searchResponse = client.scroll(scrollRequest, RequestOptions.DEFAULT);
                 System.out.println(Strings.toString(searchResponse));
-
+            
                 scrollId = searchResponse.getScrollId();
                 searchHits = searchResponse.getHits().getHits();
             }
-
+            
             // assume total of 10 documents
             Assert.assertTrue("" + totalHits, totalHits == 10);
+            */
         }
     }
 

@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -28,7 +29,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
@@ -64,42 +64,41 @@ import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.SgUtils;
+import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 
 public class DlsFilterLevelHandler {
     private static final Logger log = LogManager.getLogger(DlsFilterLevelHandler.class);
 
-    static boolean handle(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, Resolved resolved,
-            Client nodeClient, ClusterService clusterService, IndicesService indicesService, DlsQueryParser dlsQueryParser,
+    private static final Function<SearchRequest, String> LOCAL_CLUSTER_ALIAS_GETTER = ReflectiveAttributeAccessors
+            .protectedObjectAttr("localClusterAlias", String.class);
+
+    static boolean handle(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
+            Resolved resolved, Client nodeClient, ClusterService clusterService, IndicesService indicesService, DlsQueryParser dlsQueryParser,
             ThreadContext threadContext) {
-        
+
         if (threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE) != null) {
             return true;
         }
 
-        if (action.startsWith("searchguard:cluster:") || action.startsWith("cluster:")
-                || action.startsWith("indices:admin/template/") || action.startsWith("indices:admin/index_template/")) {
+        if (action.startsWith("searchguard:cluster:") || action.startsWith("cluster:") || action.startsWith("indices:admin/template/")
+                || action.startsWith("indices:admin/index_template/")) {
             return true;
         }
-        
+
         if (action.startsWith(SearchScrollAction.NAME)) {
             return true;
         }
-        
-        
+
         if (action.equals(SearchTemplateAction.NAME) || action.equals(MultiSearchTemplateAction.NAME)) {
             // Let it pass; DLS will be handled on a lower level
             return true;
         }
-        
+
         if (request instanceof MultiSearchRequest) {
             // Let it pass; DLS will be handled on a lower level
             return true;
         }
-        
-        if (request instanceof ClusterSearchShardsRequest) {
-            return true;
-        }
-        
+
         return new DlsFilterLevelHandler(action, request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService, indicesService,
                 dlsQueryParser, threadContext).handle();
     }
@@ -119,8 +118,8 @@ public class DlsFilterLevelHandler {
     private BoolQueryBuilder filterLevelQueryBuilder;
     private DocumentWhitelist documentWhitelist;
 
-    DlsFilterLevelHandler(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, Resolved resolved,
-            Client nodeClient, ClusterService clusterService, IndicesService indicesService, DlsQueryParser dlsQueryParser,
+    DlsFilterLevelHandler(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
+            Resolved resolved, Client nodeClient, ClusterService clusterService, IndicesService indicesService, DlsQueryParser dlsQueryParser,
             ThreadContext threadContext) {
         this.action = action;
         this.request = request;
@@ -177,6 +176,18 @@ public class DlsFilterLevelHandler {
     private boolean handle(SearchRequest searchRequest) {
         if (documentWhitelist != null) {
             documentWhitelist.applyTo(threadContext);
+        }
+
+        String localClusterAlias = LOCAL_CLUSTER_ALIAS_GETTER.apply(searchRequest);
+
+        if (localClusterAlias != null) {
+            try {
+                createQueryExtension(localClusterAlias);
+            } catch (Exception e) {
+                log.error("Unable to handle filter level DLS", e);
+                listener.onFailure(new ElasticsearchSecurityException("Unable to handle filter level DLS", e));
+                return false;
+            }
         }
 
         if (searchRequest.source().query() != null) {
@@ -347,6 +358,10 @@ public class DlsFilterLevelHandler {
     }
 
     private boolean createQueryExtension() throws IOException {
+        return createQueryExtension(null);
+    }
+
+    private boolean createQueryExtension(String localClusterAlias) throws IOException {
         Map<String, Set<String>> filterLevelQueries = evaluatedDlsFlsConfig.getDlsQueriesByIndex();
 
         BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery().minimumShouldMatch(1);
@@ -357,11 +372,19 @@ public class DlsFilterLevelHandler {
         for (String index : resolved.getAllIndices()) {
             String dlsEval = SgUtils.evalMap(filterLevelQueries, index);
 
+            String prefixedIndex;
+
+            if (localClusterAlias != null) {
+                prefixedIndex = localClusterAlias + ":" + index;
+            } else {
+                prefixedIndex = index;
+            }
+
             if (dlsEval == null) {
                 if (requiresIndexScoping) {
                     // This index has no DLS configured, thus it is unrestricted.
                     // To allow the index in a complex query, we need to add the query below to let the index pass.
-                    dlsQueryBuilder.should(QueryBuilders.termQuery("_index", index));
+                    dlsQueryBuilder.should(QueryBuilders.termQuery("_index", prefixedIndex));
                 }
                 continue;
             }
@@ -372,7 +395,7 @@ public class DlsFilterLevelHandler {
                 if (requiresIndexScoping) {
                     // This index has no DLS configured, thus it is unrestricted.
                     // To allow the index in a complex query, we need to add the query below to let the index pass.
-                    dlsQueryBuilder.should(QueryBuilders.termQuery("_index", index));
+                    dlsQueryBuilder.should(QueryBuilders.termQuery("_index", prefixedIndex));
                 }
                 continue;
             }
@@ -386,7 +409,7 @@ public class DlsFilterLevelHandler {
                     dlsQueryBuilder.should(parsedDlsQuery);
                 } else {
                     // The original request referred to several indices. That's why we have to scope each query to the index it is meant for
-                    dlsQueryBuilder.should(QueryBuilders.boolQuery().must(QueryBuilders.termQuery("_index", index)).must(parsedDlsQuery));
+                    dlsQueryBuilder.should(QueryBuilders.boolQuery().must(QueryBuilders.termQuery("_index", prefixedIndex)).must(parsedDlsQuery));
                 }
 
                 Set<QueryBuilder> queryBuilders = QueryBuilderTraverser.findAll(parsedDlsQuery,
