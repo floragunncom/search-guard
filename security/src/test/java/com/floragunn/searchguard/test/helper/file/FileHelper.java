@@ -64,8 +64,20 @@ public class FileHelper {
 	    }
 	    return ks;
 	}
+
+    public static Path getAbsoluteFilePathFromClassPath(String fileNameFromClasspath) throws FileNotFoundException {
+        return getAbsoluteFilePathFromClassPath(null, fileNameFromClasspath);
+    }
 	
-	public static Path getAbsoluteFilePathFromClassPath(String fileNameFromClasspath) throws FileNotFoundException {
+	public static Path getAbsoluteFilePathFromClassPath(String resourceDirectory, String fileNameFromClasspath) throws FileNotFoundException {
+        if (resourceDirectory != null) {
+            if (resourceDirectory.endsWith("/")) {
+                fileNameFromClasspath = resourceDirectory + fileNameFromClasspath;
+            } else {
+                fileNameFromClasspath = resourceDirectory + "/" + fileNameFromClasspath;
+            }
+        }
+
 		URL fileUrl = FileHelper.class.getClassLoader().getResource(fileNameFromClasspath);
 		
 		if (fileUrl == null) {
