@@ -656,16 +656,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                             throw new ElasticsearchSecurityException("No user in scroll context", RestStatus.FORBIDDEN);
                         }
                     }
-                }
-
-                @Override
-                public void onQueryPhase(SearchContext searchContext, long tookInNanos) {
-
-                    if (enterpriseModulesEnabled) {
-                        dlsFlsValve.onQueryPhase(searchContext, tookInNanos, threadPool);
-                    }
-                }
-
+                }                
             });
         }
     }

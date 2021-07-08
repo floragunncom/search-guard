@@ -37,9 +37,6 @@ public interface DlsFlsRequestValve {
     boolean invoke(ActionRequest request, ActionListener<?> listener, Map<String,Set<String>> allowedFlsFields, final Map<String,Set<String>> maskedFields, Map<String,Set<String>> queries, boolean localHasingEnabled);
 
     void handleSearchContext(SearchContext context, ThreadPool threadPool, NamedXContentRegistry namedXContentRegistry);
-        
-    default void onQueryPhase(SearchContext searchContext, long tookInNanos, ThreadPool threadPool) {
-    }
 
     public static class NoopDlsFlsRequestValve implements DlsFlsRequestValve {
 
