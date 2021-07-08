@@ -21,7 +21,10 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.search.internal.SearchContext;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportChannel;
+import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
@@ -29,6 +32,7 @@ import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 public interface DlsFlsRequestValve {
 
     /**
+     * Invoked for calls intercepted by ActionFilter
      * 
      * @param request
      * @param listener
@@ -39,6 +43,11 @@ public interface DlsFlsRequestValve {
 
     void handleSearchContext(SearchContext context, ThreadPool threadPool, NamedXContentRegistry namedXContentRegistry);
 
+    /**
+     * Invoked for calls intercepted by RequestHandler
+     */
+    <T extends TransportRequest> T handleRequest(T request, TransportChannel channel, Task task);
+    
     default void onQueryPhase(SearchContext searchContext, long tookInNanos, ThreadPool threadPool) {
     }
 
@@ -53,6 +62,11 @@ public interface DlsFlsRequestValve {
         @Override
         public void handleSearchContext(SearchContext context, ThreadPool threadPool, NamedXContentRegistry namedXContentRegistry) {
 
+        }
+
+        @Override
+        public <T extends TransportRequest> T handleRequest(T request, TransportChannel channel, Task task) {
+            return request;
         }
     }
 

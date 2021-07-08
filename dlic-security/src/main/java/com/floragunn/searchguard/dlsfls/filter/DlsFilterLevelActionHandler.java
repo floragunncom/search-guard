@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.configuration;
+package com.floragunn.searchguard.dlsfls.filter;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,6 +29,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
@@ -41,6 +42,7 @@ import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -58,21 +60,24 @@ import org.elasticsearch.script.mustache.SearchTemplateAction;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
+import com.floragunn.searchguard.dlsfls.DlsFlsValveImpl;
+import com.floragunn.searchguard.dlsfls.DlsQueryParser;
 import com.floragunn.searchguard.privileges.DocumentWhitelist;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 
-public class DlsFilterLevelHandler {
-    private static final Logger log = LogManager.getLogger(DlsFilterLevelHandler.class);
+public class DlsFilterLevelActionHandler {
+    private static final Logger log = LogManager.getLogger(DlsFilterLevelActionHandler.class);
 
     private static final Function<SearchRequest, String> LOCAL_CLUSTER_ALIAS_GETTER = ReflectiveAttributeAccessors
             .protectedObjectAttr("localClusterAlias", String.class);
 
-    static boolean handle(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
+    public static boolean handle(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
             Resolved resolved, Client nodeClient, ClusterService clusterService, IndicesService indicesService, DlsQueryParser dlsQueryParser,
             ThreadContext threadContext) {
 
@@ -99,7 +104,7 @@ public class DlsFilterLevelHandler {
             return true;
         }
 
-        return new DlsFilterLevelHandler(action, request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService, indicesService,
+        return new DlsFilterLevelActionHandler(action, request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService, indicesService,
                 dlsQueryParser, threadContext).handle();
     }
 
@@ -118,7 +123,7 @@ public class DlsFilterLevelHandler {
     private BoolQueryBuilder filterLevelQueryBuilder;
     private DocumentWhitelist documentWhitelist;
 
-    DlsFilterLevelHandler(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
+    DlsFilterLevelActionHandler(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
             Resolved resolved, Client nodeClient, ClusterService clusterService, IndicesService indicesService, DlsQueryParser dlsQueryParser,
             ThreadContext threadContext) {
         this.action = action;
@@ -164,6 +169,8 @@ public class DlsFilterLevelHandler {
             return handle((GetRequest) request);
         } else if (request instanceof MultiGetRequest) {
             return handle((MultiGetRequest) request);
+        } else if (request instanceof ClusterSearchShardsRequest) {
+            return handle((ClusterSearchShardsRequest) request);
         } else {
             log.error("Unsupported request type for filter level DLS: " + request);
             listener.onFailure(new ElasticsearchSecurityException(
@@ -302,6 +309,43 @@ public class DlsFilterLevelHandler {
 
             return false;
         }
+    }
+
+    private boolean handle(ClusterSearchShardsRequest request) {
+        // ClusterSearchShardsRequest is sent for CCS from the coordinating cluster to the remote cluster as first request. 
+        // Subsequently, the coordinating cluster will send ShardSearchRequests to the single shards on the remote cluster. 
+        // ShardSearchRequest is not implementing ActionRequest, but only TransportRequest; thus, these requests don't pass
+        // the SearchGuardFilter which is an ActionFilter, i.e. it only filters ActionRequests.
+        // ClusterSearchShardsRequest does not carry the query to be executed, it only carries the index information; the query
+        // is carried again by the ShardSearchRequests.
+        // 
+        // In order to apply the query, we write here the query in a response header. This is later resent by the coordinating cluster 
+        // along with the ShardSearchRequests. Then, the ShardSearchRequests need to be intercepted and modified. 
+        // 
+        // This corresponds to the mechanism employed by non-filter CCS and the SG_DLS_QUERY_HEADER. There might be also the possibility
+        // to directly evaluate the DLS config for ShardSearchRequests. However, as these don't pass the SearchGuardFilter, this would 
+        // require larger restructuring.
+        // 
+        // See also SearchGuardInterceptor and SearchGuardRequestHandler
+
+        if (!HeaderHelper.isTrustedClusterRequest(threadContext)) {
+            log.error("ClusterSearchShardsRequest is only supported for requests from trusted nodes: " + request);
+            listener.onFailure(new ElasticsearchSecurityException("ClusterSearchShardsRequest is only supported for requests from trusted nodes"));
+            return false;
+        }
+        
+        threadContext.addResponseHeader(ConfigConstants.SG_DLS_MODE_HEADER, DlsFlsValveImpl.Mode.FILTER_LEVEL.name());
+        threadContext.addResponseHeader(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER, Strings.toString(filterLevelQueryBuilder));
+        
+        if (documentWhitelist != null && !documentWhitelist.isEmpty()) {
+            threadContext.addResponseHeader(ConfigConstants.SG_DOC_WHITELST_HEADER, documentWhitelist.toString());
+        }
+        
+        if (log.isDebugEnabled()) {
+            log.debug("Added response headers for ClusterSearchShardsRequest:\n" + threadContext.getResponseHeaders());
+        }
+        
+        return true;
     }
 
     private GetResult searchHitToGetResult(SearchHit hit) {

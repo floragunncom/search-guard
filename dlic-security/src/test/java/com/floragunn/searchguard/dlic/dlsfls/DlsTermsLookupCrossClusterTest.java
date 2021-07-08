@@ -32,6 +32,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.search.Scroll;
@@ -558,16 +559,19 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
             // Right now we don't support filter level DLS with CCS and scrolling. We need to ensure that this fails to avoid data leakage.
 
             try {
+                System.out.println("-------------------------------------------------------------");
                 client.search(searchRequest, RequestOptions.DEFAULT);
+                System.out.println("-------------------------------------------------------------");
                 Assert.fail();
             } catch (Exception e) {
+                System.out.println("-------------------------------------------------------------");
+
                 Assert.assertTrue(e.getMessage(),
                         e.getMessage().contains("Unsupported request type for filter level DLS: indices:admin/shards/search_shards"));
             }
         }
     }
 
-    @Ignore // Scroll is not supported with filter level CCS
     @Test
     public void testSimpleSearch_Scroll_AccessCode_1337() throws Exception {
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
@@ -579,13 +583,17 @@ public class DlsTermsLookupCrossClusterTest extends AbstractTLQTest {
             searchSourceBuilder.size(1);
             searchRequest.source(searchSourceBuilder);
 
+            System.out.println("-------------------------------------------------------------");
             SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            System.out.println("-------------------------------------------------------------");
+
             String scrollId = searchResponse.getScrollId();
             SearchHit[] searchHits = searchResponse.getHits().getHits();
             int totalHits = 0;
 
             // we scroll one by one
             while (searchHits != null && searchHits.length > 0) {
+                System.out.println(Strings.toString(searchResponse.getHits()));
                 // for counting the total documents
                 totalHits += searchHits.length;
                 // only docs with access codes 1337 must be returned

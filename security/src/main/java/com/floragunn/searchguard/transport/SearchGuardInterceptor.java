@@ -58,6 +58,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
+import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.support.Base64Helper;
@@ -81,14 +82,12 @@ public class SearchGuardInterceptor {
     private final List<Pattern> customAllowedHeaderPatterns;
     private final DiagnosticContext diagnosticContext;
     private final GuiceDependencies guiceDependencies;
+    private final DlsFlsRequestValve dlsFlsRequestValve;
 
-    public SearchGuardInterceptor(final Settings settings,
-            final ThreadPool threadPool, final BackendRegistry backendRegistry,
-            final AuditLog auditLog, final PrincipalExtractor principalExtractor,
-            final InterClusterRequestEvaluator requestEvalProvider,
-            final ClusterService cs,
-            final SslExceptionHandler sslExceptionHandler,
-            final ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies, DiagnosticContext diagnosticContext) {
+    public SearchGuardInterceptor(Settings settings, ThreadPool threadPool, BackendRegistry backendRegistry, AuditLog auditLog,
+            PrincipalExtractor principalExtractor, InterClusterRequestEvaluator requestEvalProvider, ClusterService cs,
+            SslExceptionHandler sslExceptionHandler, ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies,
+            DiagnosticContext diagnosticContext, DlsFlsRequestValve dlsFlsRequestValve) {
         this.backendRegistry = backendRegistry;
         this.auditLog = auditLog;
         this.threadPool = threadPool;
@@ -100,12 +99,13 @@ public class SearchGuardInterceptor {
         this.customAllowedHeaderPatterns = getCustomAllowedHeaderPatterns(settings);
         this.diagnosticContext = diagnosticContext;
         this.guiceDependencies = guiceDependencies;
+        this.dlsFlsRequestValve = dlsFlsRequestValve;
     }
 
     public <T extends TransportRequest> SearchGuardRequestHandler<T> getHandler(String action,
             TransportRequestHandler<T> actualHandler) {
         return new SearchGuardRequestHandler<T>(action, actualHandler, threadPool, backendRegistry, auditLog,
-                principalExtractor, requestEvalProvider, cs, sslExceptionHandler);
+                principalExtractor, requestEvalProvider, cs, sslExceptionHandler, dlsFlsRequestValve);
     }
 
     public <T extends TransportResponse> void sendRequestDecorate(AsyncSender sender, Connection connection, String action,
@@ -118,10 +118,12 @@ public class SearchGuardInterceptor {
         final String origCCSTransientDls = getThreadContext().getTransient(ConfigConstants.SG_DLS_QUERY_CCS);
         final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
         final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
+        String origCCSTransientFilterLevelQuery = getThreadContext().getTransient(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_TRANSIENT);
+        String origCCSTransientDocWhitelist = getThreadContext().getTransient(ConfigConstants.SG_DOC_WHITELST_TRANSIENT);
+        String origCCSDlsMode = getThreadContext().getTransient(ConfigConstants.SG_DLS_MODE_TRANSIENT);
         String actionStack = diagnosticContext.getActionStack();
         
-        
-        
+               
         //stash headers and transient objects
         try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) {
             
@@ -139,6 +141,7 @@ public class SearchGuardInterceptor {
                     || k.equals(ConfigConstants.SG_DOC_WHITELST_HEADER)
                     || k.equals(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE)
                     || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
+                    || k.equals(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER)
                     || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest))
                     || k.startsWith("_sg_trace")
                     || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
@@ -146,6 +149,8 @@ public class SearchGuardInterceptor {
                     )));
             
             RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
+            
+            System.out.println("~~~~~> " + action + " " + request + " fl: " + origCCSTransientFilterLevelQuery + " wl: " + origCCSTransientDocWhitelist + "\n" + headerMap);
             
             if (remoteClusterService.isCrossClusterSearchEnabled() 
                     && clusterInfoHolder.isInitialized()
@@ -161,6 +166,8 @@ public class SearchGuardInterceptor {
                 headerMap.remove(ConfigConstants.SG_MASKED_FIELD_HEADER);
                 headerMap.remove(ConfigConstants.SG_FLS_FIELDS_HEADER);
                 headerMap.remove(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE);
+                headerMap.remove(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER);
+                headerMap.remove(ConfigConstants.SG_DOC_WHITELST_HEADER);
             }
             
             if (remoteClusterService.isCrossClusterSearchEnabled() 
@@ -181,6 +188,16 @@ public class SearchGuardInterceptor {
                 }
                 if (origCCSTransientFls != null && !origCCSTransientFls.isEmpty()) {
                     headerMap.put(ConfigConstants.SG_FLS_FIELDS_HEADER, origCCSTransientFls);
+                }
+                if (origCCSTransientFilterLevelQuery != null) {
+                    headerMap.put(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER, origCCSTransientFilterLevelQuery);
+                    headerMap.remove(ConfigConstants.SG_DLS_QUERY_HEADER);
+                }
+                if (origCCSTransientDocWhitelist != null) {
+                    headerMap.put(ConfigConstants.SG_DOC_WHITELST_HEADER, origCCSTransientDocWhitelist);
+                }
+                if (origCCSDlsMode != null) {
+                    headerMap.put(ConfigConstants.SG_DLS_MODE_HEADER, origCCSDlsMode);
                 }
             }
 
@@ -294,32 +311,42 @@ public class SearchGuardInterceptor {
 
         @Override
         public void handleResponse(T response) {
-            final List<String> flsResponseHeader = getThreadContext().getResponseHeaders().get(ConfigConstants.SG_FLS_FIELDS_HEADER);
-            final List<String> dlsResponseHeader = getThreadContext().getResponseHeaders().get(ConfigConstants.SG_DLS_QUERY_HEADER);
-            final List<String> maskedFieldsResponseHeader = getThreadContext().getResponseHeaders().get(ConfigConstants.SG_MASKED_FIELD_HEADER);
-            
+            ThreadContext threadContext = getThreadContext();
+            Map<String, List<String>> responseHeaders = threadContext.getResponseHeaders();
+
+            List<String> flsResponseHeader = responseHeaders.get(ConfigConstants.SG_FLS_FIELDS_HEADER);
+            List<String> dlsResponseHeader = responseHeaders.get(ConfigConstants.SG_DLS_QUERY_HEADER);
+            List<String> maskedFieldsResponseHeader = responseHeaders.get(ConfigConstants.SG_MASKED_FIELD_HEADER);
+            List<String> dlsFilterLevelQuery = responseHeaders.get(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER);
+            List<String> docWhitelist = responseHeaders.get(ConfigConstants.SG_DOC_WHITELST_HEADER);
+            List<String> dlsMode = responseHeaders.get(ConfigConstants.SG_DLS_MODE_HEADER);
+
             contextToRestore.restore();
 
-            if (response instanceof ClusterSearchShardsResponse && flsResponseHeader != null && !flsResponseHeader.isEmpty()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("add flsResponseHeader as transient");
+            if (response instanceof ClusterSearchShardsResponse) {           
+                if (flsResponseHeader != null && !flsResponseHeader.isEmpty()) {
+                    threadContext.putTransient(ConfigConstants.SG_FLS_FIELDS_CCS, flsResponseHeader.get(0));
                 }
-                getThreadContext().putTransient(ConfigConstants.SG_FLS_FIELDS_CCS, flsResponseHeader.get(0));
-            }
 
-            if (response instanceof ClusterSearchShardsResponse && dlsResponseHeader != null && !dlsResponseHeader.isEmpty()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("add dlsResponseHeader as transient");
+                if (dlsResponseHeader != null && !dlsResponseHeader.isEmpty()) {
+                    threadContext.putTransient(ConfigConstants.SG_DLS_QUERY_CCS, dlsResponseHeader.get(0));
                 }
-                getThreadContext().putTransient(ConfigConstants.SG_DLS_QUERY_CCS, dlsResponseHeader.get(0));
 
-            }
-            
-            if (response instanceof ClusterSearchShardsResponse && maskedFieldsResponseHeader != null && !maskedFieldsResponseHeader.isEmpty()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("add maskedFieldsResponseHeader as transient");
+                if (maskedFieldsResponseHeader != null && !maskedFieldsResponseHeader.isEmpty()) {
+                    threadContext.putTransient(ConfigConstants.SG_MASKED_FIELD_CCS, maskedFieldsResponseHeader.get(0));
                 }
-                getThreadContext().putTransient(ConfigConstants.SG_MASKED_FIELD_CCS, maskedFieldsResponseHeader.get(0));
+
+                if (dlsFilterLevelQuery != null && !dlsFilterLevelQuery.isEmpty()) {
+                    threadContext.putTransient(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_TRANSIENT, dlsFilterLevelQuery.get(0));
+                }
+                
+                if (docWhitelist != null && !docWhitelist.isEmpty()) {
+                    threadContext.putTransient(ConfigConstants.SG_DOC_WHITELST_TRANSIENT, docWhitelist.get(0));
+                }
+                
+                if (dlsMode != null && !dlsMode.isEmpty()) {
+                    threadContext.putTransient(ConfigConstants.SG_DLS_MODE_TRANSIENT, dlsMode.get(0));
+                }
             }
 
             innerHandler.handleResponse(response);
@@ -327,6 +354,7 @@ public class SearchGuardInterceptor {
 
         @Override
         public void handleException(TransportException e) {
+            e.printStackTrace();
             contextToRestore.restore();
             innerHandler.handleException(e);
         }

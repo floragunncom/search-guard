@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
+ * Copyright 2015-2021 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auth.BackendRegistry;
+import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLRequestHandler;
@@ -62,6 +63,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
     private final AuditLog auditLog;
     private final InterClusterRequestEvaluator requestEvalProvider;
     private final ClusterService cs;
+    private final DlsFlsRequestValve dlsRequestValve;
 
     SearchGuardRequestHandler(String action,
             final TransportRequestHandler<T> actualHandler,
@@ -71,16 +73,18 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
             final PrincipalExtractor principalExtractor,
             final InterClusterRequestEvaluator requestEvalProvider,
             final ClusterService cs,
-            final SslExceptionHandler sslExceptionHandler) {
+            final SslExceptionHandler sslExceptionHandler,
+            DlsFlsRequestValve dlsRequestValve) {
         super(action, actualHandler, threadPool, principalExtractor, sslExceptionHandler);
         this.backendRegistry = backendRegistry;
         this.auditLog = auditLog;
         this.requestEvalProvider = requestEvalProvider;
         this.cs = cs;
+        this.dlsRequestValve = dlsRequestValve;
     }
 
     @Override
-    protected void messageReceivedDecorate(final T request, final TransportRequestHandler<T> handler,
+    protected void messageReceivedDecorate(T request, final TransportRequestHandler<T> handler,
             final TransportChannel transportChannel, Task task) throws Exception {
         
         String resolvedActionClass = request.getClass().getSimpleName();
@@ -92,7 +96,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
         }
         
         if(request instanceof ConcreteShardRequest) {
-            resolvedActionClass = ((ConcreteShardRequest) request).getRequest().getClass().getSimpleName();
+            resolvedActionClass = ((ConcreteShardRequest<?>) request).getRequest().getClass().getSimpleName();
         }
                 
         String initialActionClassValue = getThreadContext().getHeader(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER);
@@ -267,6 +271,18 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                 
                 putInitialActionClassHeader(initialActionClassValue, resolvedActionClass);
                 
+                System.out.println("_>" + dlsRequestValve);
+                
+                if (dlsRequestValve != null) {
+                    try {
+                        request = dlsRequestValve.handleRequest(request, transportChannel, task);
+                    } catch (Exception e) {
+                        log.error("Error in dlsRequestHandlerValve for " + request, e);
+                        transportChannel.sendResponse(e);
+                        return;
+                    }
+                }
+                                
                 super.messageReceivedDecorate(request, handler, transportChannel, task);
             }
         } finally {

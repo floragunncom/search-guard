@@ -873,7 +873,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, diagnosticContext);
 
         sgi = new SearchGuardInterceptor(settings, threadPool, backendRegistry, auditLog, principalExtractor, interClusterRequestEvaluator, cs,
-                Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), guiceDependencies, diagnosticContext);
+                Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), guiceDependencies, diagnosticContext, dlsFlsValve);
         components.add(principalExtractor);        
         components.add(adminDns);
         components.add(cr);

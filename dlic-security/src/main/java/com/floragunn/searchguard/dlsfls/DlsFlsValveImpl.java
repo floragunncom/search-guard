@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.configuration;
+package com.floragunn.searchguard.dlsfls;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -65,9 +65,15 @@ import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilde
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.query.QuerySearchResult;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportChannel;
+import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.GuiceDependencies;
+import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
+import com.floragunn.searchguard.dlsfls.filter.DlsFilterLevelActionHandler;
+import com.floragunn.searchguard.dlsfls.filter.DlsFilterLevelRequestHandler;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.Base64Helper;
@@ -89,6 +95,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     private final ThreadContext threadContext;
     private final Mode mode;
     private final DlsQueryParser dlsQueryParser;
+    private final DlsFilterLevelRequestHandler dlsFilterLevelRequestHandler;
 
     public DlsFlsValveImpl(Settings settings, Client nodeClient, ClusterService clusterService, GuiceDependencies guiceDependencies,
             NamedXContentRegistry namedXContentRegistry, ThreadContext threadContext) {
@@ -99,6 +106,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         this.threadContext = threadContext;
         this.mode = Mode.get(settings);
         this.dlsQueryParser = new DlsQueryParser(namedXContentRegistry);
+        this.dlsFilterLevelRequestHandler = new DlsFilterLevelRequestHandler(namedXContentRegistry, threadContext);
     }
 
     /**
@@ -140,11 +148,15 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
             if (modeByHeader == Mode.FILTER_LEVEL) {
                 doFilterLevelDls = true;
+                log.debug("Doing filter-level DLS due to header");
             } else {
                 doFilterLevelDls = dlsQueryParser.containsTermLookupQuery(filteredDlsFlsConfig.getAllQueries());
 
                 if (doFilterLevelDls) {
                     setDlsModeHeader(Mode.FILTER_LEVEL);
+                    log.debug("Doing filter-level DLS because query contains TLQ");
+                } else {
+                    log.debug("Doing lucene-level DLS because query does not contain TLQ", new Exception());
                 }
             }
         }
@@ -269,7 +281,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         }
 
         if (doFilterLevelDls && filteredDlsFlsConfig.hasDls()) {
-            return DlsFilterLevelHandler.handle(action, request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService,
+            return DlsFilterLevelActionHandler.handle(action, request, listener, evaluatedDlsFlsConfig, resolved, nodeClient, clusterService,
                     guiceDependencies.getIndicesService(), dlsQueryParser, threadContext);
         } else {
             return true;
@@ -558,7 +570,8 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
                 }
             } else {
                 if (threadContext.getHeader(ConfigConstants.SG_DLS_QUERY_HEADER) != null) {
-                    if (!dlsQueries.equals(Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_DLS_QUERY_HEADER)))) {
+                    Object deserializedDlsQueries = Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_DLS_QUERY_HEADER));
+                    if (!dlsQueries.equals(deserializedDlsQueries)) {                        
                         throw new ElasticsearchSecurityException(ConfigConstants.SG_DLS_QUERY_HEADER + " does not match (SG 900D)");
                     }
                 } else {
@@ -650,7 +663,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         }
     }
 
-    private static enum Mode {
+    public static enum Mode {
         ADAPTIVE, LUCENE_LEVEL, FILTER_LEVEL;
 
         static Mode get(Settings settings) {
@@ -666,5 +679,10 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
                 return Mode.ADAPTIVE;
             }
         }
+    }
+
+    @Override
+    public <T extends TransportRequest> T handleRequest(T request, TransportChannel channel, Task task) {
+        return dlsFilterLevelRequestHandler.handle(request, channel, task);
     };
 }

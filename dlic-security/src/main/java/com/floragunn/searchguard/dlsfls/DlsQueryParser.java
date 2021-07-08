@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.configuration;
+package com.floragunn.searchguard.dlsfls;
 
 import java.io.IOException;
 import java.util.Set;
@@ -45,7 +45,7 @@ import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-final class DlsQueryParser {
+public class DlsQueryParser {
 
     private static final Logger log = LogManager.getLogger(DlsQueryParser.class);
     private static final Query NON_NESTED_QUERY;
@@ -72,12 +72,14 @@ final class DlsQueryParser {
     //return null means the wrapper is not doing dls
     //the wrapper does dls slow, its only for get and suggest
     //can not handle tl queries
-    Query parseForWrapper(final Set<String> unparsedDlsQueries, final SearchExecutionContext queryShardContext)
+    public Query parseForWrapper(final Set<String> unparsedDlsQueries, final SearchExecutionContext queryShardContext)
             throws IOException {
 
         if (unparsedDlsQueries == null || unparsedDlsQueries.isEmpty()) {
             return null;
         }
+        
+        System.out.println("PFW " + unparsedDlsQueries);
 
         final boolean hasNestedMapping = queryShardContext.hasNested();
 
@@ -140,7 +142,7 @@ final class DlsQueryParser {
         dlsQueryBuilder.add(new ToChildBlockJoinQuery(parentQuery, parentDocumentsFilter), Occur.SHOULD);
     }
 
-    QueryBuilder parse(String unparsedDlsQuery) throws IOException {
+    public QueryBuilder parse(String unparsedDlsQuery) throws IOException {
         try {
             final QueryBuilder qb = parsedQueryCache.get(unparsedDlsQuery, new Callable<QueryBuilder>() {
 

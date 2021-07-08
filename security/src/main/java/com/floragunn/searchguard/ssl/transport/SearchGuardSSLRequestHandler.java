@@ -76,6 +76,8 @@ implements TransportRequestHandler<T> {
     public final void messageReceived(T request, TransportChannel channel, Task task) throws Exception {
         ThreadContext threadContext = getThreadContext() ;
       
+        System.out.println("ÖÖÖÖÖÖ " + request);
+        
         if(SSLRequestHelper.containsBadHeader(threadContext, "_sg_ssl_")) {
             final Exception exception = ExceptionUtils.createBadHeaderException();
             channel.sendResponse(exception);
