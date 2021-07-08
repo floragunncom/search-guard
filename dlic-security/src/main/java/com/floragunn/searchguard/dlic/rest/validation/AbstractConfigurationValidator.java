@@ -14,15 +14,14 @@
 
 package com.floragunn.searchguard.dlic.rest.validation;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -34,9 +33,14 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 
-import java.io.IOException;
-import java.util.*;
-import java.util.Map.Entry;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 
 public abstract class AbstractConfigurationValidator {
 
@@ -239,7 +243,7 @@ public abstract class AbstractConfigurationValidator {
 
     public XContentBuilder errorsAsXContent(RestChannel channel) {
         try {
-            final XContentBuilder builder = channel.newBuilder();
+            final XContentBuilder builder = channel.newErrorBuilder();
             builder.startObject();
             if (lastException != null) {
                 builder.field("details", lastException.toString());

@@ -29,6 +29,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
@@ -180,8 +181,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
 
         if (passwordNode != null) {
             String plainTextPassword = passwordNode.asText();
-            try {
-                XContentBuilder builder = channel.newBuilder();
+            try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
 				builder.startObject();
 				builder.field("password", plainTextPassword);
 				builder.endObject();
