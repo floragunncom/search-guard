@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.configuration;
+package com.floragunn.searchguard.dlsfls;
 
 import java.io.IOException;
 import java.util.Set;
@@ -42,7 +42,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
 
-final class DlsQueryParser {
+public class DlsQueryParser {
     
     private static final Query NON_NESTED_QUERY;
     
@@ -64,7 +64,7 @@ final class DlsQueryParser {
 
     }
 
-    static Query parse(final Set<String> unparsedDlsQueries, final SearchExecutionContext queryShardContext,
+    public static Query parse(final Set<String> unparsedDlsQueries, final SearchExecutionContext queryShardContext,
             final NamedXContentRegistry namedXContentRegistry) throws IOException {
 
         if (unparsedDlsQueries == null || unparsedDlsQueries.isEmpty()) {

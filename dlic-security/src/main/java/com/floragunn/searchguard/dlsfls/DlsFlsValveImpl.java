@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.searchguard.configuration;
+package com.floragunn.searchguard.dlsfls;
 
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +41,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SgUtils;

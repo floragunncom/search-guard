@@ -20,7 +20,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 
-import com.floragunn.searchguard.configuration.MaskedField;
+import com.floragunn.searchguard.dlsfls.MaskedField;
 import com.floragunn.searchsupport.json.BasicJsonPathDefaultConfiguration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.ReadContext;

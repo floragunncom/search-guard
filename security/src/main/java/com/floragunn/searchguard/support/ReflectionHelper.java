@@ -209,7 +209,7 @@ public class ReflectionHelper {
         }
 
         try {
-            final Class<?> clazz = Class.forName("com.floragunn.searchguard.configuration.SearchGuardFlsDlsIndexSearcherWrapper");
+            final Class<?> clazz = Class.forName("com.floragunn.searchguard.dlsfls.lucene.SearchGuardFlsDlsIndexSearcherWrapper");
             final Constructor<?> ret = clazz.getConstructor(IndexService.class, Settings.class, AdminDNs.class, ClusterService.class, AuditLog.class,
                     ComplianceIndexingOperationListener.class, ComplianceConfig.class);
             addLoadedModule(clazz);
@@ -230,7 +230,7 @@ public class ReflectionHelper {
         }
 
         try {
-            final Class<?> clazz = Class.forName("com.floragunn.searchguard.configuration.DlsFlsValveImpl");
+            final Class<?> clazz = Class.forName("com.floragunn.searchguard.dlsfls.DlsFlsValveImpl");
             final DlsFlsRequestValve ret = (DlsFlsRequestValve) clazz.newInstance();
             return ret;
         } catch (final Throwable e) {
