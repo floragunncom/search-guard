@@ -12,7 +12,7 @@
  *
  */
 
-package com.floragunn.searchguard.configuration;
+package com.floragunn.searchguard.dlsfls.lucene;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -32,6 +32,9 @@ import org.elasticsearch.indices.IndicesModule;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.SearchGuardIndexSearcherWrapper;
+import com.floragunn.searchguard.dlsfls.DlsQueryParser;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SgUtils;
@@ -98,8 +101,8 @@ public class SearchGuardFlsDlsIndexSearcherWrapper extends SearchGuardIndexSearc
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 if(unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) { 
                     //disable reader optimizations
-                    dlsQuery = DlsQueryParser.parse(unparsedDlsQueries, this.indexService.newQueryShardContext(shardId.getId(), null, nowInMillis, null)
-                            , this.indexService.xContentRegistry());
+                    dlsQuery = DlsQueryParser.parse(unparsedDlsQueries,
+                            this.indexService.newQueryShardContext(shardId.getId(), null, nowInMillis, null), this.indexService.xContentRegistry());
                 }
             }
             

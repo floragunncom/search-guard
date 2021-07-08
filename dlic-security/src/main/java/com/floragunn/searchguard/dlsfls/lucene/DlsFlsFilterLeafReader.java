@@ -12,7 +12,7 @@
  *
  */
 
-package com.floragunn.searchguard.configuration;
+package com.floragunn.searchguard.dlsfls.lucene;
 
 //This implementation is based on
 //https://github.com/apache/lucene-solr/blob/branch_6_3/lucene/test-framework/src/java/org/apache/lucene/index/FieldFilterLeafReader.java
@@ -79,6 +79,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.FieldReadCallback;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
+import com.floragunn.searchguard.dlsfls.MaskedField;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.MapUtils;
