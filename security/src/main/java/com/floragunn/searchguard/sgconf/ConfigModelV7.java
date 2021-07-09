@@ -60,6 +60,8 @@ import com.floragunn.searchguard.auth.blocking.IpRangeVerdictBasedBlockRegistry;
 import com.floragunn.searchguard.auth.blocking.VerdictBasedBlockRegistry;
 import com.floragunn.searchguard.auth.blocking.WildcardVerdictBasedBlockRegistry;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.ConfigModelV6.IndexPattern;
+import com.floragunn.searchguard.sgconf.ConfigModelV6.TypePerm;
 import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
@@ -788,7 +790,7 @@ public class ConfigModelV7 extends ConfigModel {
                     for (String requestedAction : actions) {
                         if (WildcardMatcher.matchAny(indexPattern.perms, requestedAction)) {
                             try {
-                                if (indexPattern.matches(requestedResolved.getIndices(), user, resolver, cs)) {
+                                if (requestedResolved.isLocalAll() || indexPattern.matches(requestedResolved.getAllIndices(), user, resolver, cs)) {
                                     return true;
                                 }
                             } catch (StringInterpolationException e) {
@@ -935,7 +937,7 @@ public class ConfigModelV7 extends ConfigModel {
                         continue;
                     } 
                     final Set<String> res = new HashSet<>();
-                    if (!resolved.isLocalAll() && !resolved.getAllIndices().contains("*") && !resolved.getAllIndices().contains("_all")) {
+                    if (!resolved.isLocalAll() && !resolved.getAllIndicesOrPattern().contains("*") && !resolved.getAllIndicesOrPattern().contains("_all")) {
                         final Set<String> wanted = new HashSet<>(resolved.getAllIndices());
                         //resolved but can contain patterns for nonexistent indices
                         WildcardMatcher.wildcardRetainInSet(wanted, permitted);
@@ -1679,34 +1681,61 @@ public class ConfigModelV7 extends ConfigModel {
  
     private static boolean impliesTypePerm(Set<IndexPattern> ipatterns, Resolved resolved, User user, String[] actions,
                                            IndexNameExpressionResolver resolver, ClusterService cs) {
-        Set<String> matchingIndex = new HashSet<>(resolved.getAllIndices());
+        if (resolved.isLocalAll()) {
+            // Only let localAll pass if there is an explicit privilege for a * index pattern
 
-        for (String in : resolved.getAllIndices()) {
-            //find index patterns who are matching
-            Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
-            for (IndexPattern p : ipatterns) {
-                String[] resolvedIndexPatterns;
+            for (IndexPattern indexPattern : ipatterns) {
                 try {
-                    resolvedIndexPatterns = p.getResolvedIndexPatterns(user, resolver, cs, true);
+                    if ("*".equals(indexPattern.getUnresolvedIndexPattern(user))) {
+                        Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
+
+                        for (String action : actions) {
+                            if (WildcardMatcher.matchAny(indexPattern.perms, action)) {
+                                matchingActions.remove(action);
+                            }
+                        }
+
+                        if (matchingActions.isEmpty()) {
+                            return true;
+                        }
+                    }
                 } catch (StringInterpolationException e) {
-                    log.warn("Invalid index pattern " + p.indexPattern, e);
+                    log.warn("Invalid index pattern " + indexPattern.indexPattern, e);
                     continue;
                 }
-                if (WildcardMatcher.matchAny(resolvedIndexPatterns, in)) {
-                    for (String a : actions) {
-                        if (WildcardMatcher.matchAny(p.perms, a)) {
-                            matchingActions.remove(a);
+            }
+
+            return false;
+        } else {
+            Set<String> matchingIndex = new HashSet<>(resolved.getAllIndices());
+
+            for (String in : resolved.getAllIndices()) {
+                //find index patterns who are matching
+                Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
+                for (IndexPattern p : ipatterns) {
+                    String[] resolvedIndexPatterns;
+                    try {
+                        resolvedIndexPatterns = p.getResolvedIndexPatterns(user, resolver, cs, true);
+                    } catch (StringInterpolationException e) {
+                        log.warn("Invalid index pattern " + p.indexPattern, e);
+                        continue;
+                    }
+                    if (WildcardMatcher.matchAny(resolvedIndexPatterns, in)) {
+                        for (String a : actions) {
+                            if (WildcardMatcher.matchAny(p.perms, a)) {
+                                matchingActions.remove(a);
+                            }
                         }
                     }
                 }
+
+                if (matchingActions.isEmpty()) {
+                    matchingIndex.remove(in);
+                }
             }
 
-            if (matchingActions.isEmpty()) {
-                matchingIndex.remove(in);
-            }
+            return matchingIndex.isEmpty();
         }
-
-        return matchingIndex.isEmpty();
     }
 
     private class RoleMappingHolder {

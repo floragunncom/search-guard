@@ -46,21 +46,30 @@ import com.google.common.collect.ImmutableMap;
 
 public class PrivilegesEvaluatorTest {
 
-    private static TestSgConfig.User RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV = new TestSgConfig.User("resize_user_without_create_index_priv").roles(new Role("resize_role").clusterPermissions("*")
-            .indexPermissions("indices:admin/resize", "indices:monitor/stats").on("resize_test_source"));
-    
-    private static TestSgConfig.User RESIZE_USER = new TestSgConfig.User("resize_user").roles(new Role("resize_role").clusterPermissions("*")
-            .indexPermissions("indices:admin/resize", "indices:monitor/stats").on("resize_test_source").indexPermissions("SGS_CREATE_INDEX").on("resize_test_target"));
+    private static TestSgConfig.User RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV = new TestSgConfig.User("resize_user_without_create_index_priv")
+            .roles(new Role("resize_role").clusterPermissions("*").indexPermissions("indices:admin/resize", "indices:monitor/stats")
+                    .on("resize_test_source"));
+
+    private static TestSgConfig.User RESIZE_USER = new TestSgConfig.User("resize_user")
+            .roles(new Role("resize_role").clusterPermissions("*").indexPermissions("indices:admin/resize", "indices:monitor/stats")
+                    .on("resize_test_source").indexPermissions("SGS_CREATE_INDEX").on("resize_test_target"));
 
     private static TestSgConfig.User SEARCH_TEMPLATE_USER = new TestSgConfig.User("search_template_user").roles(new Role("search_template_role")
             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_SEARCH_TEMPLATES").indexPermissions("SGS_READ").on("resolve_test_*"));
 
-    private static TestSgConfig.User SEARCH_NO_TEMPLATE_USER = new TestSgConfig.User("search_no_template_user").roles(new Role("search_no_template_role")
-            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ").on("resolve_test_*"));
-    
+    private static TestSgConfig.User SEARCH_NO_TEMPLATE_USER = new TestSgConfig.User("search_no_template_user").roles(
+            new Role("search_no_template_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ").on("resolve_test_*"));
+
+    private static TestSgConfig.User NEG_LOOKAHEAD_USER = new TestSgConfig.User("neg_lookahead_user").roles(
+            new Role("neg_lookahead_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ").on("/^(?!t.*).*/"));
+
+    private static TestSgConfig.User REGEX_USER = new TestSgConfig.User("regex_user")
+            .roles(new Role("neg_lookahead_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ").on("/^[a-z].*/"));
+
     private static TestSgConfig.User SEARCH_TEMPLATE_LEGACY_USER = new TestSgConfig.User("search_template_legacy_user")
             .roles(new Role("search_template_legacy_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ")
                     .on("resolve_test_*").indexPermissions("indices:data/read/search/template").on("*"));
+
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
@@ -96,8 +105,7 @@ public class PrivilegesEvaluatorTest {
                             .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
             .user("admin", "admin", new Role("admin_role").clusterPermissions("*"))//
             .user("permssion_rest_api_user", "secret", new Role("permssion_rest_api_user_role").clusterPermissions("indices:data/read/mtv"))//
-            .users(SEARCH_TEMPLATE_USER, SEARCH_NO_TEMPLATE_USER, SEARCH_TEMPLATE_LEGACY_USER)
-            .build();
+            .users(SEARCH_TEMPLATE_USER, SEARCH_NO_TEMPLATE_USER, SEARCH_TEMPLATE_LEGACY_USER).build();
 
     @ClassRule
     public static LocalCluster clusterFof = new LocalCluster.Builder().singleNode().sslEnabled().remote("my_remote", anotherCluster)
@@ -120,8 +128,7 @@ public class PrivilegesEvaluatorTest {
                     new Role("exclusion_test_user_cluster_permission_role").clusterPermissions("*")
                             .excludeClusterPermissions("indices:data/read/msearch").indexPermissions("*").on("exclude_test_*")
                             .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
-            .user(RESIZE_USER)//
-            .user(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)//
+            .users(RESIZE_USER, RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV, NEG_LOOKAHEAD_USER, REGEX_USER)//
             .build();
 
     @BeforeClass
@@ -166,6 +173,9 @@ public class PrivilegesEvaluatorTest {
                     "exclude_test_disallow_1", "b", "yy", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("exclude_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
+
+            client.index(new IndexRequest("tttexclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+                    "tttexclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
         }
 
         try (Client client = anotherCluster.getAdminCertClient()) {
@@ -437,49 +447,52 @@ public class PrivilegesEvaluatorTest {
                     "date", "1985/01/01")).actionGet();
 
             client.admin().indices()
-                    .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", true).build())).actionGet();
+                    .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", true).build()))
+                    .actionGet();
         }
 
         Thread.sleep(300);
-        
-        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {            
+
+        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
             client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT);
             Assert.fail();
-        }  catch (ElasticsearchStatusException e) {
+        } catch (ElasticsearchStatusException e) {
             // Expected
-            Assert.assertTrue(e.toString(), e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user_without_create_index_priv"));
+            Assert.assertTrue(e.toString(),
+                    e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user_without_create_index_priv"));
         }
-        
-        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {            
+
+        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
             client.indices().shrink(new ResizeRequest(targetIndex, sourceIndex), RequestOptions.DEFAULT);
             Assert.fail();
         } catch (ElasticsearchStatusException e) {
             // Expected
-            Assert.assertTrue(e.toString(), e.getMessage().contains("no permissions for [indices:admin/create] and User resize_user_without_create_index_priv"));
+            Assert.assertTrue(e.toString(),
+                    e.getMessage().contains("no permissions for [indices:admin/create] and User resize_user_without_create_index_priv"));
         }
-                
-        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {            
+
+        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
             client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT);
             Assert.fail();
-        }  catch (ElasticsearchStatusException e) {
+        } catch (ElasticsearchStatusException e) {
             // Expected
             Assert.assertTrue(e.toString(), e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user"));
         }
-        
-        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {            
+
+        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
             ResizeResponse resizeResponse = client.indices().shrink(new ResizeRequest(targetIndex, sourceIndex), RequestOptions.DEFAULT);
             Assert.assertTrue(resizeResponse.toString(), resizeResponse.isAcknowledged());
         }
-        
+
         try (Client client = clusterFof.getInternalNodeClient()) {
-           IndicesExistsResponse response = client.admin().indices().exists(new IndicesExistsRequest(targetIndex)).actionGet();
-           Assert.assertTrue(response.toString(), response.isExists());
+            IndicesExistsResponse response = client.admin().indices().exists(new IndicesExistsRequest(targetIndex)).actionGet();
+            Assert.assertTrue(response.toString(), response.isExists());
         }
     }
-    
+
     @Test
     public void searchTemplate() throws Exception {
-        
+
         SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest(new SearchRequest("resolve_test_allow_*"));
         searchTemplateRequest.setScriptType(ScriptType.INLINE);
         searchTemplateRequest.setScript("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }");
@@ -501,10 +514,10 @@ public class PrivilegesEvaluatorTest {
             Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
         }
     }
-    
+
     @Test
     public void searchTemplateLegacy() throws Exception {
-        
+
         SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest(new SearchRequest("resolve_test_allow_*"));
         searchTemplateRequest.setScriptType(ScriptType.INLINE);
         searchTemplateRequest.setScript("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }");
@@ -524,6 +537,36 @@ public class PrivilegesEvaluatorTest {
             Assert.fail(searchResponse.toString());
         } catch (ElasticsearchStatusException e) {
             Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+        }
+    }
+
+    @Test
+    public void negativeLookaheadPattern() throws Exception {
+
+        try (GenericRestClient restClient = clusterFof.getRestClient(NEG_LOOKAHEAD_USER)) {
+
+            HttpResponse httpResponse = restClient.get("*/_search");
+
+            Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
+            
+            httpResponse = restClient.get("r*/_search");
+
+            Assert.assertEquals(httpResponse.getBody(), 200, httpResponse.getStatusCode());
+        }
+    }
+
+    @Test
+    public void regexPattern() throws Exception {
+
+        try (GenericRestClient restClient = clusterFof.getRestClient(REGEX_USER)) {
+
+            HttpResponse httpResponse = restClient.get("*/_search");
+
+            Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
+            
+            httpResponse = restClient.get("r*/_search");
+
+            Assert.assertEquals(httpResponse.getBody(), 200, httpResponse.getStatusCode());
         }
     }
 

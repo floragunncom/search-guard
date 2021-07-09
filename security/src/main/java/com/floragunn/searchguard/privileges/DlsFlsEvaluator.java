@@ -90,7 +90,7 @@ public class DlsFlsEvaluator {
         
             presponse.maskedFields = new HashMap<>(maskedFieldsMap);
             
-            if (!requestedResolved.getAllIndices().isEmpty()) {
+            if (!requestedResolved.isLocalAll() && !requestedResolved.getAllIndices().isEmpty()) {
                 for (Iterator<Entry<String, Set<String>>> it = presponse.maskedFields.entrySet().iterator(); it.hasNext();) {
                     Entry<String, Set<String>> entry = it.next();
                     if (!WildcardMatcher.matchAny(entry.getKey(), requestedResolved.getAllIndices(), false)) {
@@ -127,7 +127,7 @@ public class DlsFlsEvaluator {
 
             presponse.queries = new HashMap<>(dlsQueries);
 
-            if (!requestedResolved.getAllIndices().isEmpty()) {
+            if (!requestedResolved.isLocalAll() && !requestedResolved.getAllIndices().isEmpty()) {
                 for (Iterator<Entry<String, Set<String>>> it = presponse.queries.entrySet().iterator(); it.hasNext();) {
                     Entry<String, Set<String>> entry = it.next();
                     if (!WildcardMatcher.matchAny(entry.getKey(), requestedResolved.getAllIndices(), false)) {
@@ -164,7 +164,7 @@ public class DlsFlsEvaluator {
             
             presponse.allowedFlsFields = new HashMap<>(flsFields);
 
-            if (!requestedResolved.getAllIndices().isEmpty()) {
+            if (!requestedResolved.isLocalAll() && !requestedResolved.getAllIndices().isEmpty()) {
                 for (Iterator<Entry<String, Set<String>>> it = presponse.allowedFlsFields.entrySet().iterator(); it.hasNext();) {
                     Entry<String, Set<String>> entry = it.next();
                     if (!WildcardMatcher.matchAny(entry.getKey(), requestedResolved.getAllIndices(), false)) {
