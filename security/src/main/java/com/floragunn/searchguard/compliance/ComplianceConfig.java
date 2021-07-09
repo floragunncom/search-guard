@@ -326,9 +326,14 @@ public class ComplianceConfig implements LicenseChangeListener, DCFListener {
         }
         
         final Resolved resolved = irr.resolveRequest(request);
-        final Set<String> allIndices = resolved.getAllIndices();
+        
+        if (resolved.isLocalAll()) {
+            return true;
+        } else {        
+            final Set<String> allIndices = resolved.getAllIndices();
 
-        return WildcardMatcher.matchAny(immutableIndicesPatterns, allIndices);
+            return WildcardMatcher.matchAny(immutableIndicesPatterns, allIndices);
+        }
     }
 
     public byte[] getSalt16() {

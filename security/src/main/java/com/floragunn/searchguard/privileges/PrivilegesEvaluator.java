@@ -272,9 +272,9 @@ public class PrivilegesEvaluator implements DCFListener {
                         }
                     }
 
-                    if (dnfofEnabled && (action0.startsWith("indices:data/read/")) && !requestedResolved.getAllIndices().isEmpty()) {
+                    if (dnfofEnabled && (action0.startsWith("indices:data/read/")) && !requestedResolved.isAllIndicesEmpty()) {
 
-                        if (requestedResolved.getAllIndices().isEmpty()) {
+                        if (requestedResolved.isAllIndicesEmpty()) {
                             presponse.missingPrivileges.clear();
                             presponse.allowed = true;
                             return presponse;
@@ -369,7 +369,7 @@ public class PrivilegesEvaluator implements DCFListener {
         if (dnfofEnabled && (action0.startsWith("indices:data/read/") || action0.startsWith("indices:admin/mappings/fields/get")
                 || action0.equals("indices:admin/shards/search_shards") || action0.equals(ResolveIndexAction.NAME))) {
 
-            if (requestedResolved.getAllIndices().isEmpty()) {
+            if (requestedResolved.isAllIndicesEmpty()) {
                 presponse.missingPrivileges.clear();
                 presponse.allowed = true;
                 return presponse;
@@ -458,7 +458,7 @@ public class PrivilegesEvaluator implements DCFListener {
             log.info("No permissions for {}", presponse.missingPrivileges);
         } else {
 
-            if (checkFilteredAliases(requestedResolved.getAllIndices(), action0)) {
+            if (checkFilteredAliases(requestedResolved, action0)) {
                 presponse.allowed = false;
                 return presponse;
             }
@@ -578,25 +578,55 @@ public class PrivilegesEvaluator implements DCFListener {
         return action0.startsWith("cluster:admin:searchguard:tenant:");
     }
 
-    private boolean checkFilteredAliases(Set<String> requestedResolvedIndices, String action) {
+    private boolean checkFilteredAliases(Resolved requestedResolved, String action) {
+        final String faMode = dcm.getFilteredAliasMode();// getConfigSettings().dynamic.filtered_alias_mode;
+
+        if (!"disallow".equals(faMode)) {
+            return false;
+        }
+        
+        if (!WildcardMatcher.match("indices:data/read/*search*", action)) {
+            return false;
+        }
+        
+        Iterable<IndexMetadata> indexMetaDataCollection;
+        
+        if (requestedResolved.isLocalAll()) {
+            indexMetaDataCollection = new Iterable<IndexMetadata>() {                
+                @Override
+                public Iterator<IndexMetadata> iterator() {
+                    return clusterService.state().getMetadata().getIndices().valuesIt();
+                }
+            };
+        } else {        
+            Set<IndexMetadata> indexMetaDataSet = new HashSet<>(requestedResolved.getAllIndices().size());
+            
+            for (String requestAliasOrIndex : requestedResolved.getAllIndices()) {
+
+                IndexMetadata indexMetaData = clusterService.state().getMetadata().getIndices().get(requestAliasOrIndex);
+
+                if (indexMetaData == null) {
+                    log.debug("{} does not exist in cluster metadata", requestAliasOrIndex);
+                    continue;
+                }
+                
+                indexMetaDataSet.add(indexMetaData);
+            }
+            
+            indexMetaDataCollection = indexMetaDataSet;
+        }
+        
         //check filtered aliases
-        for (String requestAliasOrIndex : requestedResolvedIndices) {
+        for (IndexMetadata indexMetaData : indexMetaDataCollection) {
 
             final List<AliasMetadata> filteredAliases = new ArrayList<AliasMetadata>();
-
-            final IndexMetadata indexMetaData = clusterService.state().getMetadata().getIndices().get(requestAliasOrIndex);
-
-            if (indexMetaData == null) {
-                log.debug("{} does not exist in cluster metadata", requestAliasOrIndex);
-                continue;
-            }
 
             final ImmutableOpenMap<String, AliasMetadata> aliases = indexMetaData.getAliases();
 
             if (aliases != null && aliases.size() > 0) {
 
                 if (log.isDebugEnabled()) {
-                    log.debug("Aliases for {}: {}", requestAliasOrIndex, aliases);
+                    log.debug("Aliases for {}: {}", indexMetaData.getIndex().getName(), aliases);
                 }
 
                 final Iterator<String> it = aliases.keysIt();
@@ -617,23 +647,12 @@ public class PrivilegesEvaluator implements DCFListener {
                 }
             }
 
-            if (filteredAliases.size() > 1 && WildcardMatcher.match("indices:data/read/*search*", action)) {
+            if (filteredAliases.size() > 1) {
                 //TODO add queries as dls queries (works only if dls module is installed)
-                final String faMode = dcm.getFilteredAliasMode();// getConfigSettings().dynamic.filtered_alias_mode;
 
-                if (faMode.equals("warn")) {
-                    log.warn("More than one ({}) filtered alias found for same index ({}). This is currently not recommended. Aliases: {}",
-                            filteredAliases.size(), requestAliasOrIndex, toString(filteredAliases));
-                } else if (faMode.equals("disallow")) {
-                    log.error("More than one ({}) filtered alias found for same index ({}). This is currently not supported. Aliases: {}",
-                            filteredAliases.size(), requestAliasOrIndex, toString(filteredAliases));
-                    return true;
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("More than one ({}) filtered alias found for same index ({}). Aliases: {}", filteredAliases.size(),
-                                requestAliasOrIndex, toString(filteredAliases));
-                    }
-                }
+                log.error("More than one ({}) filtered alias found for same index ({}). This is currently not supported. Aliases: {}",
+                        filteredAliases.size(), indexMetaData.getIndex().getName(), toString(filteredAliases));
+                return true;
             }
         } //end-for
 

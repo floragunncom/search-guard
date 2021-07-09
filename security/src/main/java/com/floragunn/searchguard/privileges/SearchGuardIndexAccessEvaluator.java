@@ -75,55 +75,55 @@ public class SearchGuardIndexAccessEvaluator {
     
     public PrivilegesEvaluatorResponse evaluate(final ActionRequest request, final Task task, final String action, final Resolved requestedResolved,
             final PrivilegesEvaluatorResponse presponse)  {
-                
-        if (SearchGuardPlugin.getProtectedIndices().containsProtected(requestedResolved.getAllIndices())
-                && WildcardMatcher.matchAny(sgDeniedActionPatterns, action)) {
-            
-            
-            if(filterSgIndex) {
-                Set<String> allWithoutProtected = new HashSet<>(requestedResolved.getAllIndices());
-                SearchGuardPlugin.getProtectedIndices().filterIndices(allWithoutProtected);
-                if(allWithoutProtected.isEmpty()) {
-                    if(log.isDebugEnabled()) {
-                        log.debug("Filtered '{}' but resulting list is empty", SearchGuardPlugin.getProtectedIndices().printProtectedIndices());
+
+        if (WildcardMatcher.matchAny(sgDeniedActionPatterns, action)) {
+
+            if (requestedResolved.isLocalAll()) {
+
+                if (filterSgIndex) {
+                    final String[] resolvedProtectedIndices = SearchGuardPlugin.getProtectedIndices().getProtectedIndicesAsMinusPattern(irr, request);
+                    irr.replace(request, false, ObjectArrays.concat("*", resolvedProtectedIndices));
+                    if (log.isDebugEnabled()) {
+                        log.debug("Filtered '{}'from {}, resulting list with *,-{} is {}",
+                                SearchGuardPlugin.getProtectedIndices().printProtectedIndices(), requestedResolved,
+                                Arrays.toString(resolvedProtectedIndices), irr.resolveRequest(request));
                     }
+                    return presponse;
+                } else {
+                    auditLog.logSgIndexAttempt(request, action, task);
+                    log.warn(action + " for '_all' indices is not allowed for a regular user");
                     presponse.allowed = false;
                     return presponse.markComplete();
                 }
-                irr.replace(request, false, allWithoutProtected.toArray(new String[0]));
-                if(log.isDebugEnabled()) {
-                    log.debug("Filtered '{}', resulting list is {}", SearchGuardPlugin.getProtectedIndices().printProtectedIndices(), allWithoutProtected);
-                }
-                return presponse;
-            } else {
-                auditLog.logSgIndexAttempt(request, action, task);
-                log.warn(action + " for '{}' index is not allowed for a regular user", SearchGuardPlugin.getProtectedIndices().printProtectedIndices());
-                presponse.allowed = false;
-                return presponse.markComplete();
-            }
+            } else if (SearchGuardPlugin.getProtectedIndices().containsProtected(requestedResolved.getAllIndices())) {
 
-        }
-
-        if (requestedResolved.isLocalAll()
-                && WildcardMatcher.matchAny(sgDeniedActionPatterns, action)) {
-            
-            if(filterSgIndex) {
-                final String[] resolvedProtectedIndices = SearchGuardPlugin.getProtectedIndices().getProtectedIndicesAsMinusPattern(irr, request);
-                irr.replace(request, false, ObjectArrays.concat("*", resolvedProtectedIndices));
-                if(log.isDebugEnabled()) {
-                    log.debug("Filtered '{}'from {}, resulting list with *,-{} is {}", SearchGuardPlugin.getProtectedIndices().printProtectedIndices(), requestedResolved, Arrays.toString(resolvedProtectedIndices), irr.resolveRequest(request));
+                if (filterSgIndex) {
+                    Set<String> allWithoutProtected = new HashSet<>(requestedResolved.getAllIndices());
+                    SearchGuardPlugin.getProtectedIndices().filterIndices(allWithoutProtected);
+                    if (allWithoutProtected.isEmpty()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Filtered '{}' but resulting list is empty", SearchGuardPlugin.getProtectedIndices().printProtectedIndices());
+                        }
+                        presponse.allowed = false;
+                        return presponse.markComplete();
+                    }
+                    irr.replace(request, false, allWithoutProtected.toArray(new String[0]));
+                    if (log.isDebugEnabled()) {
+                        log.debug("Filtered '{}', resulting list is {}", SearchGuardPlugin.getProtectedIndices().printProtectedIndices(),
+                                allWithoutProtected);
+                    }
+                    return presponse;
+                } else {
+                    auditLog.logSgIndexAttempt(request, action, task);
+                    log.warn(action + " for '{}' index is not allowed for a regular user",
+                            SearchGuardPlugin.getProtectedIndices().printProtectedIndices());
+                    presponse.allowed = false;
+                    return presponse.markComplete();
                 }
-                return presponse;
-            } else {
-              auditLog.logSgIndexAttempt(request, action, task);
-              log.warn(action + " for '_all' indices is not allowed for a regular user");
-              presponse.allowed = false;
-              return presponse.markComplete();
             }
         }
 
-        if(SearchGuardPlugin.getProtectedIndices().containsProtected(requestedResolved.getAllIndices())
-                || requestedResolved.isLocalAll()) {
+        if(requestedResolved.isLocalAll() || SearchGuardPlugin.getProtectedIndices().containsProtected(requestedResolved.getAllIndices())) {
 
             if(request instanceof SearchRequest) {
                 ((SearchRequest)request).requestCache(Boolean.FALSE);

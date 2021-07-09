@@ -677,7 +677,7 @@ public class ConfigModelV6 extends ConfigModel {
                     //resolved but can contain patterns for nonexistent indices
                     final String[] permitted = p.getResolvedIndexPattern(user, resolver, cs); //maybe they do not exist
                     final Set<String> res = new HashSet<>();
-                    if (!resolved.isLocalAll() && !resolved.getAllIndices().contains("*") && !resolved.getAllIndices().contains("_all")) {
+                    if (!resolved.isLocalAll() && !resolved.getAllIndicesOrPattern().contains("*") && !resolved.getAllIndicesOrPattern().contains("_all")) {
                         final Set<String> wanted = new HashSet<>(resolved.getAllIndices());
                         //resolved but can contain patterns for nonexistent indices
                         WildcardMatcher.wildcardRetainInSet(wanted, permitted);
@@ -1161,36 +1161,60 @@ public class ConfigModelV6 extends ConfigModel {
 
     private static boolean impliesTypePerm(Set<IndexPattern> ipatterns, Resolved resolved, User user, String[] actions,
             IndexNameExpressionResolver resolver, ClusterService cs) {
-        Set<String> matchingIndex = new HashSet<>(resolved.getAllIndices());
+        if (resolved.isLocalAll()) {
+            // Only let localAll pass if there is an explicit privilege for a * index pattern
+            
+            for (IndexPattern indexPattern : ipatterns) {                
+                if ("*".equals(indexPattern.getUnresolvedIndexPattern(user))) {
+                    Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
+                    
+                    for (TypePerm typePerm : indexPattern.typePerms) {
+                        for (String action : actions) {
+                            if (WildcardMatcher.matchAny(typePerm.perms, action)) {
+                                matchingActions.remove(action);
+                            }
+                        }
+                    }
+                    
+                    if (matchingActions.isEmpty()) {
+                        return true;
+                    }
+                }                
+            }
+            
+            return false;
+        } else {
+            Set<String> matchingIndex = new HashSet<>(resolved.getAllIndices());
 
-        for (String in : resolved.getAllIndices()) {
-            //find index patterns who are matching
-            Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
-            Set<String> matchingTypes = new HashSet<>(resolved.getTypes());
-            for (IndexPattern p : ipatterns) {
-                if (WildcardMatcher.matchAny(p.getResolvedIndexPattern(user, resolver, cs), in)) {
-                    //per resolved index per pattern
-                    for (String t : resolved.getTypes()) {
-                        for (TypePerm tp : p.typePerms) {
-                            if (WildcardMatcher.match(tp.typePattern, t)) {
-                                matchingTypes.remove(t);
-                                for (String a : Arrays.asList(actions)) {
-                                    if (WildcardMatcher.matchAny(tp.perms, a)) {
-                                        matchingActions.remove(a);
+            for (String in : resolved.getAllIndices()) {
+                //find index patterns who are matching
+                Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
+                Set<String> matchingTypes = new HashSet<>(resolved.getTypes());
+                for (IndexPattern p : ipatterns) {
+                    if (WildcardMatcher.matchAny(p.getResolvedIndexPattern(user, resolver, cs), in)) {
+                        //per resolved index per pattern
+                        for (String t : resolved.getTypes()) {
+                            for (TypePerm tp : p.typePerms) {
+                                if (WildcardMatcher.match(tp.typePattern, t)) {
+                                    matchingTypes.remove(t);
+                                    for (String a : Arrays.asList(actions)) {
+                                        if (WildcardMatcher.matchAny(tp.perms, a)) {
+                                            matchingActions.remove(a);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+
+                if (matchingActions.isEmpty() && matchingTypes.isEmpty()) {
+                    matchingIndex.remove(in);
+                }
             }
 
-            if (matchingActions.isEmpty() && matchingTypes.isEmpty()) {
-                matchingIndex.remove(in);
-            }
+            return matchingIndex.isEmpty();
         }
-
-        return matchingIndex.isEmpty();
     }
 
  
