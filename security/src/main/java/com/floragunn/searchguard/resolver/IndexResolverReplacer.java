@@ -161,7 +161,7 @@ public final class IndexResolverReplacer implements DCFListener {
         }
 
         Set<String> remoteIndices;
-        final List<String> localRequestedPatterns = new ArrayList<>(Arrays.asList(requestedPatterns0));
+        List<String> localRequestedPatterns = new ArrayList<>(Arrays.asList(requestedPatterns0));
 
         final RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
 
@@ -198,21 +198,17 @@ public final class IndexResolverReplacer implements DCFListener {
         final Set<String> matchingIndices;
         final Set<String> matchingAllIndices;
 
-        if (isLocalAll(requestedPatterns0)) {
-            if (log.isTraceEnabled()) {
-                log.trace(Arrays.toString(requestedPatterns0) + " is an LOCAL ALL pattern");
-            }
-            matchingAliases = Resolved.All_SET;
-            matchingIndices = Resolved.All_SET;
-            matchingAllIndices = Resolved.All_SET;
-
-        } else if (!remoteIndices.isEmpty() && localRequestedPatterns.isEmpty()) {
+        if (!isLocalAll(requestedPatterns0) && !remoteIndices.isEmpty() && localRequestedPatterns.isEmpty()) {
             if (log.isTraceEnabled()) {
                 log.trace(Arrays.toString(requestedPatterns0) + " is an LOCAL EMPTY request");
             }
             return new Resolved.Builder().addOriginalRequested(Arrays.asList(requestedPatterns0)).addRemoteIndices(remoteIndices).build();
         } else {
 
+            if (isLocalAll(requestedPatterns0)) {
+                localRequestedPatterns = Collections.singletonList("*");
+            }
+            
             ClusterState state = clusterService.state();
             // IndexOrAlias has been replaced, see Thttps://github.com/elastic/elasticsearch/pull/54394
             final SortedMap<String, IndexAbstraction> lookup = state.getMetadata().getIndicesLookup();
@@ -271,8 +267,7 @@ public final class IndexResolverReplacer implements DCFListener {
 
         }
 
-        return new Resolved.Builder(matchingAliases, matchingIndices, matchingAllIndices, null, requestedPatterns0, remoteIndices)
-                /*.addTypes(resolveTypes(request))*/.build();
+        return new Resolved.Builder(matchingAliases, matchingIndices, matchingAllIndices, null, requestedPatterns0, remoteIndices).build();
 
     }
 
@@ -325,7 +320,7 @@ public final class IndexResolverReplacer implements DCFListener {
 
         if(!isIndicesRequest.get()) {
             //not an indices request
-            return Resolved._LOCAL_ALL;
+            return resolveIndexPatterns(indicesOptionsFrom(request), isIndicesRequest, "*");
         }
         
         if(log.isTraceEnabled()) {

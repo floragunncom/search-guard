@@ -17,31 +17,34 @@
 
 package com.floragunn.searchguard.configuration;
 
-import java.util.Map;
-import java.util.Set;
-
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
+
 public interface DlsFlsRequestValve {
-    
+
     /**
+     * Invoked for calls intercepted by ActionFilter
      * 
      * @param request
      * @param listener
      * @return false to stop
      */
-    boolean invoke(ActionRequest request, ActionListener<?> listener, Map<String,Set<String>> allowedFlsFields, final Map<String,Set<String>> maskedFields, Map<String,Set<String>> queries, boolean localHasingEnabled);
+    boolean invoke(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, boolean localHasingEnabled,
+            Resolved resolved);
 
     void handleSearchContext(SearchContext context, ThreadPool threadPool, NamedXContentRegistry namedXContentRegistry);
 
     public static class NoopDlsFlsRequestValve implements DlsFlsRequestValve {
 
         @Override
-        public boolean invoke(ActionRequest request, ActionListener<?> listener, Map<String,Set<String>> allowedFlsFields, final Map<String,Set<String>> maskedFields, Map<String,Set<String>> queries, boolean localHasingEnabled) {
+        public boolean invoke(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
+                boolean localHasingEnabled, Resolved resolved) {
             return true;
         }
 
@@ -50,5 +53,5 @@ public interface DlsFlsRequestValve {
 
         }
     }
-    
+
 }

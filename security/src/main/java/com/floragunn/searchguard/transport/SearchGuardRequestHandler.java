@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
+ * Copyright 2015-2021 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
     }
 
     @Override
-    protected void messageReceivedDecorate(final T request, final TransportRequestHandler<T> handler,
+    protected void messageReceivedDecorate(T request, final TransportRequestHandler<T> handler,
             final TransportChannel transportChannel, Task task) throws Exception {
         
         String resolvedActionClass = request.getClass().getSimpleName();
@@ -92,7 +92,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
         }
         
         if(request instanceof ConcreteShardRequest) {
-            resolvedActionClass = ((ConcreteShardRequest) request).getRequest().getClass().getSimpleName();
+            resolvedActionClass = ((ConcreteShardRequest<?>) request).getRequest().getClass().getSimpleName();
         }
                 
         String initialActionClassValue = getThreadContext().getHeader(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER);
@@ -266,7 +266,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
 
                 
                 putInitialActionClassHeader(initialActionClassValue, resolvedActionClass);
-                
+                             
                 super.messageReceivedDecorate(request, handler, transportChannel, task);
             }
         } finally {

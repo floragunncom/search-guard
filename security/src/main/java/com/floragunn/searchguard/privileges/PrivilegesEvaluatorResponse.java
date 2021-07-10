@@ -18,36 +18,29 @@
 package com.floragunn.searchguard.privileges;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
+
+import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 
 public class PrivilegesEvaluatorResponse {
     boolean allowed = false;
     Set<String> missingPrivileges = new HashSet<String>();
-    Map<String,Set<String>> allowedFlsFields;
-    Map<String,Set<String>> maskedFields;
-    Map<String,Set<String>> queries;
-    PrivilegesEvaluatorResponseState state = PrivilegesEvaluatorResponseState.PENDING;
+    EvaluatedDlsFlsConfig evaluatedDlsFlsConfig;
     
-    public boolean isAllowed() {
+    PrivilegesEvaluatorResponseState state = PrivilegesEvaluatorResponseState.PENDING;
+    Resolved resolved;
+    
+    public Resolved getResolved() {
+		return resolved;
+	}
+	public boolean isAllowed() {
         return allowed;
     }
     public Set<String> getMissingPrivileges() {
         return new HashSet<String>(missingPrivileges);
     }
 
-    public Map<String,Set<String>> getAllowedFlsFields() {
-        return allowedFlsFields;
-    }
-    
-    public Map<String,Set<String>> getMaskedFields() {
-        return maskedFields;
-    }
-
-    public Map<String,Set<String>> getQueries() {
-        return queries;
-    }
-    
     public PrivilegesEvaluatorResponse markComplete() {
         this.state = PrivilegesEvaluatorResponseState.COMPLETE;
         return this;
@@ -65,16 +58,22 @@ public class PrivilegesEvaluatorResponse {
     public boolean isPending() {
         return this.state == PrivilegesEvaluatorResponseState.PENDING;
     }
-
+    
     @Override
     public String toString() {
-        return "PrivEvalResponse [allowed=" + allowed + ", missingPrivileges=" + missingPrivileges
-                + ", allowedFlsFields=" + allowedFlsFields + ", maskedFields=" + maskedFields + ", queries=" + queries + "]";
+        return "PrivEvalResponse [allowed=" + allowed + ", missingPrivileges=" + missingPrivileges + ", evaluatedDlsFlsConfig="
+                + evaluatedDlsFlsConfig + "]";
     }
     
     public static enum PrivilegesEvaluatorResponseState {
         PENDING,
         COMPLETE;
     }
+
+    public EvaluatedDlsFlsConfig getEvaluatedDlsFlsConfig() {
+        return evaluatedDlsFlsConfig;
+    }
+
+  
     
 }
