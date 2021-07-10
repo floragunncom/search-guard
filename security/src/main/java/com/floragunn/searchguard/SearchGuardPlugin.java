@@ -786,7 +786,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         final ClusterInfoHolder cih = new ClusterInfoHolder();
         this.cs.addListener(cih);
 
-        dlsFlsValve = ReflectionHelper.instantiateDlsFlsValve();
+        dlsFlsValve = ReflectionHelper.instantiateDlsFlsValve(settings, localClient, clusterService, indexNameExpressionResolver, guiceDependencies,
+                xContentRegistry, threadPool.getThreadContext());
 
         irr = new IndexResolverReplacer(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
         auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService);
@@ -822,7 +823,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         final CompatConfig compatConfig = new CompatConfig(environment);
 
         evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih, irr,
-                specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, enterpriseModulesEnabled);
+                specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry, enterpriseModulesEnabled);
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, staticSgConfig, settings, configPath, localClient, threadPool, cih, moduleRegistry);
 
@@ -846,7 +847,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
         diagnosticContext = new DiagnosticContext(settings, threadPool.getThreadContext());
         sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, diagnosticContext, complianceConfig, compatConfig,
-                specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService);
+                specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry);
 
         final String principalExtractorClass = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, null);
 
@@ -1127,6 +1128,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true, Property.NodeScope, Property.Filtered));
 
+            settings.add(
+                    Setting.simpleString(ConfigConstants.SEARCHGUARD_DLS_MODE, Property.NodeScope, Property.Filtered));
+
+            
             settings.addAll(ResourceOwnerService.SUPPORTED_SETTINGS);
 
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false, Property.NodeScope, Property.Filtered));

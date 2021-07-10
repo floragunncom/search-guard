@@ -2050,7 +2050,7 @@ public class RestApiTest {
 
         try (Client client = cluster.getInternalNodeClient();
                 GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
-            client.admin().indices().create(new CreateIndexRequest("testsink_put_watch")).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink).throttledFor("1000h").name("testsink").build();

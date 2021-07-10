@@ -36,6 +36,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.rest.RestController;
@@ -43,6 +44,7 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
@@ -223,7 +225,9 @@ public class ReflectionHelper {
         }
     }
 
-    public static DlsFlsRequestValve instantiateDlsFlsValve() {
+    public static DlsFlsRequestValve instantiateDlsFlsValve(Settings settings, Client nodeClient, ClusterService clusterService,
+            IndexNameExpressionResolver resolver, GuiceDependencies guiceDependencies, NamedXContentRegistry namedXContentRegistry,
+            ThreadContext threadContext) {
 
         if (enterpriseModulesDisabled()) {
             return new DlsFlsRequestValve.NoopDlsFlsRequestValve();
@@ -231,10 +235,14 @@ public class ReflectionHelper {
 
         try {
             final Class<?> clazz = Class.forName("com.floragunn.searchguard.dlsfls.DlsFlsValveImpl");
-            final DlsFlsRequestValve ret = (DlsFlsRequestValve) clazz.newInstance();
+            final DlsFlsRequestValve ret = (DlsFlsRequestValve) clazz
+                    .getConstructor(Settings.class, Client.class, ClusterService.class, IndexNameExpressionResolver.class, GuiceDependencies.class,
+                            NamedXContentRegistry.class, ThreadContext.class)
+                    .newInstance(settings, nodeClient, clusterService, resolver, guiceDependencies, namedXContentRegistry, threadContext);
             return ret;
         } catch (final Throwable e) {
-            log.warn("Unable to enable DLS/FLS Valve Module due to {}", e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
+            log.warn("Unable to enable DLS/FLS Valve Module due to {}",
+                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
             if (log.isDebugEnabled()) {
                 log.debug("Stacktrace: ", e);
             }
