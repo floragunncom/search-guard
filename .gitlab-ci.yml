@@ -185,7 +185,7 @@ deploy_snapshot:
   script:
     - |
       mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml deploy | tee deploy.out
-      'PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o http.*zip`'
+      PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
       echo PACKAGE_URI="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
       echo SG_SNAPSHOT="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
       echo "SGADMIN_SNAPSHOT=https://maven.search-guard.com/search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.10.2-49.0.0/search-guard-suite-plugin-7.10.2-49.0.0-sgadmin-standalone.zip" >> $CI_PROJECT_DIR/environment.env
@@ -239,7 +239,7 @@ deploy_staging:
       export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       echo "Deploying Release to Staging repo"
       mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging -DskipTests -B -Penterprise -Prelease -Drevision=$ES_VERSION-$SG_VERSION | tee deploy.out
-      'PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o http.*zip`'
+      PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
       echo PACKAGE_URI="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
       echo SG_SNAPSHOT="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
       echo "SGADMIN_SNAPSHOT=https://maven.search-guard.com/search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.10.2-49.0.0/search-guard-suite-plugin-7.10.2-49.0.0-sgadmin-standalone.zip" >> $CI_PROJECT_DIR/environment.env
