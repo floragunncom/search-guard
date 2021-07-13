@@ -75,7 +75,7 @@
 		</repository>
 		<repository>
 			<id>release</id>
-			<url>https://maven.search-guard.com:443/search-guard-suite-release-test</url>
+			<url>https://maven.search-guard.com:443/search-guard-suite-release</url>
 			<releases>
 				<enabled>true</enabled>
 			</releases>
@@ -108,7 +108,7 @@
 		<repository>
 			<id>release</id>
 			<name>Release repository</name>
-			<url>https://maven.search-guard.com:443/search-guard-suite-release-test</url>
+			<url>https://maven.search-guard.com:443/search-guard-suite-release</url>
 		</repository>
 		<snapshotRepository>
 			<id>snapshot</id>
