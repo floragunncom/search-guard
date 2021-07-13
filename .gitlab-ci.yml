@@ -199,18 +199,17 @@ deploy_snapshot:
       export MAJOR=$(echo $esversion | cut -d'.' -f 1,2)
       echo "ES_VERSION=$esversion" >> $CI_PROJECT_DIR/environment.env
       echo "MAJOR=$MAJOR" >> $CI_PROJECT_DIR/environment.env
-      cat  $CI_PROJECT_DIR/environment.env
-      [[ -n $KIBANA_VERSION ]] && echo KIBANA_VERSION="${KIBANA_VERSION}"  >> environment.env
-      [[ -n $KIBANA_VERSION ]] && echo KI_URL="https://artifacts.elastic.co/downloads/kibana/kibana-$KIBANA_VERSION-linux-x86_64.tar.gz"
-      [[ -n $KIBANA_PLUGIN_VERSION ]] && echo KI_PLUGIN_VERSION="${KIBANA_PLUGIN_VERSION}"  >> environment.env
-      [[ -n $KIBANA_PLUGIN_VERSION ]] && echo KI_SOURCE="snapshot"  >> environment.env
+      [[ -n $KIBANA_VERSION ]] && echo "KIBANA_VERSION=${KIBANA_VERSION}"  >> $CI_PROJECT_DIR/environment.env
+      [[ -n $KIBANA_VERSION ]] && echo "KI_URL=https://artifacts.elastic.co/downloads/kibana/kibana-$KIBANA_VERSION-linux-x86_64.tar.gz"
+      [[ -n $KIBANA_PLUGIN_VERSION ]] && echo "KI_PLUGIN_VERSION=${KIBANA_PLUGIN_VERSION}"  >> $CI_PROJECT_DIR/environment.env
+      [[ -n $KIBANA_PLUGIN_VERSION ]] && echo "KI_SOURCE=snapshot"  >> $CI_PROJECT_DIR/environment.env
       RELEASE_KIBANA_PLUGIN_ID=$(curl -Ss --fail "https://maven.search-guard.com/api/search/gavc?g=com.floragunn&a=search-guard-kibana-plugin&v=$KIBANA_PLUGIN_VERSION&repos=search-guard-kibana-plugin-release"| grep zip|sed -E "s/(.*)\/(.*).zip(.*)/\2/"|sort|uniq|tail -n 1) || true
-      [[ -n $RELEASE_KIBANA_PLUGIN_ID ]] && echo KI_SNAPSHOT="https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-release/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$RELEASE_KIBANA_PLUGIN_ID.zip"  >> environment.env
+      [[ -n $RELEASE_KIBANA_PLUGIN_ID ]] && echo "KI_SNAPSHOT=https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-release/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$RELEASE_KIBANA_PLUGIN_ID.zip"  >> $CI_PROJECT_DIR/environment.env
       [[ -z $RELEASE_KIBANA_PLUGIN_ID ]] && SNAPSHOT_KIBANA_PLUGIN_ID=$(curl -Ss --fail "https://maven.search-guard.com/api/search/gavc?g=com.floragunn&a=search-guard-kibana-plugin&v=$KIBANA_PLUGIN_VERSION&repos=search-guard-kibana-plugin-snapshot"| grep zip|sed -E "s/(.*)\/(.*).zip(.*)/\2/"|sort|uniq|tail -n 1) || true
-      [[ -n $SNAPSHOT_KIBANA_PLUGIN_ID ]] && echo KI_SNAPSHOT="https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-snapshot/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$SNAPSHOT_KIBANA_PLUGIN_ID.zip" >> environment.env
-
+      [[ -n $SNAPSHOT_KIBANA_PLUGIN_ID ]] && echo "KI_SNAPSHOT=https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-snapshot/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$SNAPSHOT_KIBANA_PLUGIN_ID.zip" >> $CI_PROJECT_DIR/environment.env
+      cat $CI_PROJECT_DIR/environment.env
   artifacts:
-    when: on_success
+    when: always
     paths:
       - "plugin/target"
       - "environment.env"
@@ -251,18 +250,17 @@ deploy_staging:
       echo "TCNATIVE_URL=https://maven.search-guard.com/netty-tcnative/netty-tcnative-openssl-1.1.1c-static-2.0.25.Final-non-fedora-linux-x86_64.jar" >> $CI_PROJECT_DIR/environment.env
       echo "ES_VERSION=$ES_VERSION" >> $CI_PROJECT_DIR/environment.env
       echo "MAJOR=$MAJOR" >> $CI_PROJECT_DIR/environment.env
-      cat $CI_PROJECT_DIR/environment.env
-      [[ -n $KIBANA_VERSION ]] && echo KIBANA_VERSION="${KIBANA_VERSION}"  >> environment.env
-      [[ -n $KIBANA_VERSION ]] && echo KI_URL="https://artifacts.elastic.co/downloads/kibana/kibana-$KIBANA_VERSION-linux-x86_64.tar.gz"
-      [[ -n $KIBANA_PLUGIN_VERSION ]] && echo KI_PLUGIN_VERSION="${KIBANA_PLUGIN_VERSION}"  >> environment.env
-      [[ -n $KIBANA_PLUGIN_VERSION ]] && echo KI_SOURCE="snapshot"  >> environment.env
+      [[ -n $KIBANA_VERSION ]] && echo "KIBANA_VERSION=${KIBANA_VERSION}"  >> $CI_PROJECT_DIR/environment.env
+      [[ -n $KIBANA_VERSION ]] && echo "KI_URL=https://artifacts.elastic.co/downloads/kibana/kibana-$KIBANA_VERSION-linux-x86_64.tar.gz"
+      [[ -n $KIBANA_PLUGIN_VERSION ]] && echo "KI_PLUGIN_VERSION=${KIBANA_PLUGIN_VERSION}"  >> $CI_PROJECT_DIR/environment.env
+      [[ -n $KIBANA_PLUGIN_VERSION ]] && echo "KI_SOURCE=snapshot"  >> $CI_PROJECT_DIR/environment.env
       RELEASE_KIBANA_PLUGIN_ID=$(curl -Ss --fail "https://maven.search-guard.com/api/search/gavc?g=com.floragunn&a=search-guard-kibana-plugin&v=$KIBANA_PLUGIN_VERSION&repos=search-guard-kibana-plugin-release"| grep zip|sed -E "s/(.*)\/(.*).zip(.*)/\2/"|sort|uniq|tail -n 1) || true
-      [[ -n $RELEASE_KIBANA_PLUGIN_ID ]] && echo KI_SNAPSHOT="https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-release/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$RELEASE_KIBANA_PLUGIN_ID.zip"  >> environment.env
+      [[ -n $RELEASE_KIBANA_PLUGIN_ID ]] && echo "KI_SNAPSHOT=https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-release/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$RELEASE_KIBANA_PLUGIN_ID.zip"  >> $CI_PROJECT_DIR/environment.env
       [[ -z $RELEASE_KIBANA_PLUGIN_ID ]] && SNAPSHOT_KIBANA_PLUGIN_ID=$(curl -Ss --fail "https://maven.search-guard.com/api/search/gavc?g=com.floragunn&a=search-guard-kibana-plugin&v=$KIBANA_PLUGIN_VERSION&repos=search-guard-kibana-plugin-snapshot"| grep zip|sed -E "s/(.*)\/(.*).zip(.*)/\2/"|sort|uniq|tail -n 1) || true
-      [[ -n $SNAPSHOT_KIBANA_PLUGIN_ID ]] && echo KI_SNAPSHOT="https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-snapshot/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$SNAPSHOT_KIBANA_PLUGIN_ID.zip" >> environment.env
-
+      [[ -n $SNAPSHOT_KIBANA_PLUGIN_ID ]] && echo "KI_SNAPSHOT=https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-snapshot/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$SNAPSHOT_KIBANA_PLUGIN_ID.zip" >> $CI_PROJECT_DIR/environment.env
+      cat $CI_PROJECT_DIR/environment.env
   artifacts:
-    when: on_success
+    when: always
     paths:
       - "plugin/target"
       - "environment.env"
