@@ -195,8 +195,8 @@ deploy_snapshot:
       echo "SG_VERSION=unused" >> $CI_PROJECT_DIR/environment.env
       echo "KI_SOURCE=none" >> $CI_PROJECT_DIR/environment.env
       echo "TCNATIVE_URL=https://maven.search-guard.com/netty-tcnative/netty-tcnative-openssl-1.1.1c-static-2.0.25.Final-non-fedora-linux-x86_64.jar" >> $CI_PROJECT_DIR/environment.env
-      export esversion=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
-      export MAJOR=$(echo $esversion | cut -d'.' -f 1,2)
+      esversion=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
+      MAJOR=$(echo $esversion | cut -d'.' -f 1,2)
       echo "ES_VERSION=$esversion" >> $CI_PROJECT_DIR/environment.env
       echo "MAJOR=$MAJOR" >> $CI_PROJECT_DIR/environment.env
       [[ -n $KIBANA_VERSION ]] && echo "KIBANA_VERSION=${KIBANA_VERSION}"  >> $CI_PROJECT_DIR/environment.env
@@ -233,9 +233,9 @@ deploy_staging:
   script:
     - |
       ./dev/setup_gpg.sh
-      export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
-      export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
-      export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+      SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
+      ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+      MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       echo "Deploying Release to Staging repo"
       mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging -DskipTests -B -Penterprise -Prelease -Drevision=$ES_VERSION-$SG_VERSION | tee deploy.out
       PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
