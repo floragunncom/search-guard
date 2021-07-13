@@ -209,7 +209,7 @@ deploy_snapshot:
       [[ -n $SNAPSHOT_KIBANA_PLUGIN_ID ]] && echo "KI_SNAPSHOT=https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-snapshot/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$SNAPSHOT_KIBANA_PLUGIN_ID.zip" >> $CI_PROJECT_DIR/environment.env
       cat $CI_PROJECT_DIR/environment.env
   artifacts:
-    when: always
+    when: on_success
     paths:
       - "plugin/target"
       - "environment.env"
@@ -260,7 +260,7 @@ deploy_staging:
       [[ -n $SNAPSHOT_KIBANA_PLUGIN_ID ]] && echo "KI_SNAPSHOT=https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-snapshot/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$SNAPSHOT_KIBANA_PLUGIN_ID.zip" >> $CI_PROJECT_DIR/environment.env
       cat $CI_PROJECT_DIR/environment.env
   artifacts:
-    when: always
+    when: on_success
     paths:
       - "plugin/target"
       - "environment.env"
