@@ -39,7 +39,7 @@
 		<guava.version>30.0-jre</guava.version>
 		<commons.cli.version>1.4</commons.cli.version>
 		<jackson-databind.version>2.11.2</jackson-databind.version>
-	    <cxf.version>3.3.7</cxf.version>
+	    <cxf.version>3.3.11</cxf.version>
 		<http.commons.version>4.5.13</http.commons.version>
 		<quartz.version>2.3.2</quartz.version>
 		<simplemail.version>5.2.1</simplemail.version>
