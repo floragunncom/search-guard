@@ -56,7 +56,10 @@ class TestJwts {
     }
 
     static class PeculiarEscaping {
-        static final String MC_COY_SIGNED_RSA_1 = createSignedWithPeculiarEscaping(MC_COY, TestJwk.RSA_1);
+        // CXF starting with 3.3.11 can be no longer used to create the peculiar escaping: https://github.com/apache/cxf/pull/819
+        // Thus, we need to hardcode the value here. This was produced with 
+        //         jwsHeaders.setKeyId(jwk.getKeyId().replace("/", "\\/"));
+        static final String MC_COY_SIGNED_RSA_1 = "eyJraWQiOiJraWRcLzEiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJMZW9uYXJkIE1jQ295IiwiYXVkIjoiVGVzdEF1ZGllbmNlIiwicm9sZXMiOiJyb2xlMSxyb2xlMiJ9.C0ntlhZtalpOYzgrzq_I4c6NxeQEmUk9Id5fVI6SXLIyscBrpS8nQ3bZrtX3qDiCYZDbp5n1OJMp3nhC7Ro2qdWjFe3FRSewKyZSowzVdQSlPetEsyLh3KdEs2ZPx3vry_y8SeCcJw_tiUOysceTMKzseL3DzF2PmoRRARLbQVI6zQvanRC8-WREraA2gTXpv_R-haOy7sf00VQhjGPMTCjqxXTfO6gzCz5-02tpGOOooQ8BcPy_At0nKjmuZgw_jODTL4TYs_T48M9tHxuY02qF3zv6iLonFz1mrb7Ff-65OUo4QVfqiOMxCOAe1JFP9o1tbtgaoiaWVznezjRK6A";
     }
 
     static JwtToken create(String subject, String audience, Object... moreClaims) {
@@ -94,16 +97,5 @@ class TestJwts {
         JwtToken signedToken = new JwtToken(jwsHeaders, baseJwt.getClaims());
 
         return new JoseJwtProducer().processJwt(signedToken, null, JwsUtils.getSignatureProvider(jwk));
-    }
-
-    static String createSignedWithPeculiarEscaping(JwtToken baseJwt, JsonWebKey jwk) {
-        JwsSignatureProvider signatureProvider = JwsUtils.getSignatureProvider(jwk);
-        JwsHeaders jwsHeaders = new JwsHeaders();
-        JwtToken signedToken = new JwtToken(jwsHeaders, baseJwt.getClaims());
-
-        // Depends on CXF not escaping the input string. This may fail for other frameworks or versions.
-        jwsHeaders.setKeyId(jwk.getKeyId().replace("/", "\\/"));
-
-        return new JoseJwtProducer().processJwt(signedToken, null, signatureProvider);
     }
 }
