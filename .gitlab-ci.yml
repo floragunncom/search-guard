@@ -5,14 +5,6 @@ variables:
 
 image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 
-#cache:
-#  key: "$CI_COMMIT_REF_SLUG"
-#  paths:
-#  - "sgbuild0/search-guard-suite-enterprise/m2repository" #path look like this because of mv we do below
-#
-#before_script:
-#- rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 netcat pinentry-tty expect psmisc xmlstarlet sudo > /dev/null 2>&1
-
 stages:
   - build
   - test
@@ -29,6 +21,9 @@ workflow:
 build:
   stage: build
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: never  
   tags:
     - openstack-runner
   script:
@@ -43,6 +38,34 @@ build:
     key: mavenrepo
     paths:
       - .m2/repository
+
+build_for_tag_version:
+  stage: build
+  interruptible: true
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+  tags:
+    - openstack-runner
+  before_script:
+    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null    
+  script:
+    - export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
+    - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+    - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:sg-suite.version" -v $SG_VERSION pom.xml
+    - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:elasticsearch.version" -v $ES_VERSION pom.xml
+    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
+  artifacts:
+    when: on_success
+    paths:
+      - "pom.xml"
+      - "*/target"
+      - ".m2/repository/com/floragunn/*"
+    expire_in: 12h
+  cache:
+    key: mavenrepo
+    paths:
+      - .m2/repository
+  allow_failure: false
 
 
 test_security:
@@ -227,7 +250,7 @@ deploy_staging:
     - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
     - export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
     - echo "Deploying Release to Staging repo"
-    - mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging -DskipTests -B -Penterprise -Prelease -Drevision=$ES_VERSION-$SG_VERSION | tee deploy.out
+    - mvn deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION | tee deploy.out
     - 'PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o http.*zip`'
     - 'SGADMIN_STANDALONE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`'        
     - echo PACKAGE_URI="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
@@ -286,7 +309,6 @@ include:
 
 deploy_release:
   stage: release
-  interruptible: true
   rules:
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
   before_script:
@@ -294,18 +316,17 @@ deploy_release:
   tags:
     - openstack-runner
   script:
+    - ./dev/setup_gpg.sh
     - |
-       ./dev/setup_gpg.sh
        export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
        export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
        export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
-
        cd search-guard-integration-tests
        git tag $CI_COMMIT_TAG || true
        echo "Tag created in int repo"
        git show-ref $CI_COMMIT_TAG
-       #git push --tags || true
-
-       echo "Deploying Release to Production repo. In future"
-       #mvn clean deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Drevision=$ES_VERSION-$SG_VERSION || exit 1
+       git push --tags || true
+       cd ..
+       echo "Deploying Release to Production repo."
+       mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
   allow_failure: false
