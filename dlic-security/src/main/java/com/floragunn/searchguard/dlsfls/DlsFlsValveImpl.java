@@ -32,7 +32,6 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
@@ -180,26 +179,12 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
                     if (!af.getType().equals("cardinality") && !af.getType().equals("count")) {
                         cacheable = false;
-                        continue;
+                        break;
                     }
-
-                    StringBuilder sb = new StringBuilder();
-
-                    if (searchRequest.source() != null) {
-                        sb.append(Strings.toString(searchRequest.source()) + System.lineSeparator());
-                    }
-
-                    sb.append(Strings.toString(af) + System.lineSeparator());
-
-                    LogManager.getLogger("debuglogger").error(sb.toString());
-
                 }
 
                 if (!cacheable) {
                     searchRequest.requestCache(Boolean.FALSE);
-                } else {
-                    LogManager.getLogger("debuglogger").error("Shard requestcache enabled for "
-                            + (searchRequest.source() == null ? "<NULL>" : Strings.toString(searchRequest.source())));
                 }
 
             } else {
