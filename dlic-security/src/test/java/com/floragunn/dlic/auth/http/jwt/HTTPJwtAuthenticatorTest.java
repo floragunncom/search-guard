@@ -14,13 +14,16 @@
 
 package com.floragunn.dlic.auth.http.jwt;
 
-import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchguard.util.FakeRestRequest;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.BaseEncoding;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.elasticsearch.common.settings.Settings;
 import org.hamcrest.CoreMatchers;
@@ -30,9 +33,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.security.*;
-import java.util.*;
-import static com.floragunn.searchguard.test.SgMatchers.equalsAsJson;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.util.FakeRestRequest;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.BaseEncoding;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 
 public class HTTPJwtAuthenticatorTest {
 
@@ -676,4 +684,60 @@ public class HTTPJwtAuthenticatorTest {
         Assert.assertNotNull(creds);
         Assert.assertEquals("leonard", creds.getUsername());
     }
+    
+    @Test
+    public void testSubjectPathWithList() {
+        Settings settings = Settings.builder()
+                .put("signing_key", BaseEncoding.base64().encode(secretKey))
+                .put("subject_path", "$['some_claim_name']['user']['id']")
+                .put("roles_path", "$['some_claim_name']['user']['roles']")
+                .build();
+
+        Map<String, Map<String, Object>> user = new HashMap<>();
+
+        HashMap<String, Object> values = new HashMap<>();
+        values.put("id", Arrays.asList("peter mueller"));
+        values.put("roles", "some role a, another role b");
+        user.put("user", values);
+
+        String jwsToken = Jwts.builder()
+                .claim("some_claim_name", user)
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+
+        HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Authorization", jwsToken);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
+        Assert.assertNotNull(creds);
+        Assert.assertEquals("peter mueller", creds.getUsername());
+    }
+ 
+    
+    @Test
+    public void testSubjectPathWithListSize2() {
+        Settings settings = Settings.builder()
+                .put("signing_key", BaseEncoding.base64().encode(secretKey))
+                .put("subject_path", "$['some_claim_name']['user']['id']")
+                .put("roles_path", "$['some_claim_name']['user']['roles']")
+                .build();
+
+        Map<String, Map<String, Object>> user = new HashMap<>();
+
+        HashMap<String, Object> values = new HashMap<>();
+        values.put("id", Arrays.asList("peter mueller", "lieschen mueller"));
+        values.put("roles", "some role a, another role b");
+        user.put("user", values);
+
+        String jwsToken = Jwts.builder()
+                .claim("some_claim_name", user)
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+
+        HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Authorization", jwsToken);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
+        Assert.assertNull(creds);
+    } 
 }
