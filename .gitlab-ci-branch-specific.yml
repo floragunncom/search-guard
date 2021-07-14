@@ -1,5 +1,5 @@
 ##Specify SG Kibana plugin and Kibana version for adding Kibana plugin integration tests to the test scope
 variables:
-  KIBANA_PLUGIN_TESTS: false
+  KIBANA_PLUGIN_TESTS: "false"
 #  KIBANA_VERSION: ""
 #  KIBANA_PLUGIN_VERSION: ""
