@@ -5,6 +5,7 @@ variables:
 
 image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 
+
 #cache:
 #  key: "$CI_COMMIT_REF_SLUG"
 #  paths:
