@@ -23,6 +23,7 @@ import java.security.PrivilegedAction;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Collection;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -230,9 +231,35 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
         }
         else if (jsonSubjectPath != null) {
             try {
-                subject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims).read(jsonSubjectPath);
+                Object subjectObject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims).read(jsonSubjectPath);
+
+                if (subjectObject == null) {
+                    log.error("The subject is null: " + jsonSubjectPath);
+                    return null;
+                }
+
+                if (subjectObject instanceof Collection) {
+                    Collection<?> subjectCollection = (Collection<?>) subjectObject;
+
+                    if (subjectCollection.size() == 0) {
+                        log.error("The subject is empty: " + jsonSubjectPath);
+                        return null;
+                    }
+
+                    if (subjectCollection.size() > 1) {
+                        log.error("More than one subject was found. Failing authentication: " + subjectObject + "; " + jsonSubjectPath);
+                        return null;
+                    }
+
+                    subject = String.valueOf(subjectCollection.iterator().next());
+
+                } else {
+                    subject = String.valueOf(subjectObject);
+                }
+
             } catch (PathNotFoundException e) {
                 log.error("The provided JSON path {} could not be found ", jsonSubjectPath);
+                return null;
             }
         }
         

@@ -305,6 +305,33 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         Assert.assertEquals(3, creds.getAttributes().size());
     }
 
+    @Test
+    public void testSubjectJsonPathWithList() throws Exception {
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri())
+                .put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.n").build();
+
+        HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(
+                new FakeRestRequest(ImmutableMap.of("Authorization", TestJwts.MC_LIST_CLAIM_SIGNED_OCT_1), new HashMap<>()), null);
+
+        Assert.assertNotNull(creds);
+        Assert.assertEquals("mcl", creds.getUsername());
+        Assert.assertEquals(TestJwts.TEST_ROLES, creds.getBackendRoles());
+    }
+
+    @Test
+    public void testSubjectJsonPathWithListSize2() throws Exception {
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri())
+                .put("roles_path", "$." + TestJwts.ROLES_CLAIM).put("subject_path", "$.n").build();
+
+        HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(
+                new FakeRestRequest(ImmutableMap.of("Authorization", TestJwts.MC_LIST_2_CLAIM_SIGNED_OCT_1), new HashMap<>()), null);
+
+        Assert.assertNull(creds);
+    }
 
     static class TestRestChannel implements RestChannel {
 
