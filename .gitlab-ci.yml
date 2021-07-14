@@ -11,8 +11,9 @@ image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 #  paths:
 #  - "sgbuild0/search-guard-suite-enterprise/m2repository" #path look like this because of mv we do below
 #
-#before_script:
-#- rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 netcat pinentry-tty expect psmisc xmlstarlet sudo > /dev/null 2>&1
+before_script:
+  - export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
+  - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
 
 stages:
   - build
