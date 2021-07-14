@@ -204,7 +204,7 @@ deploy_snapshot:
       [[ -n $KIBANA_PLUGIN_VERSION ]] && echo "KI_SOURCE=snapshot"  >> $CI_PROJECT_DIR/environment.env || echo "KI_SOURCE=none" >> $CI_PROJECT_DIR/environment.env
       [[ -n $KIBANA_PLUGIN_VERSION ]] && RELEASE_KIBANA_PLUGIN_ID=$(curl -Ss --fail "https://maven.search-guard.com/api/search/gavc?g=com.floragunn&a=search-guard-kibana-plugin&v=$KIBANA_PLUGIN_VERSION&repos=search-guard-kibana-plugin-release"| grep zip|sed -E "s/(.*)\/(.*).zip(.*)/\2/"|sort|uniq|tail -n 1) || true
       [[ -n $RELEASE_KIBANA_PLUGIN_ID ]] && echo "KI_SNAPSHOT=https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-release/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$RELEASE_KIBANA_PLUGIN_ID.zip"  >> $CI_PROJECT_DIR/environment.env
-      [[ -z $RELEASE_KIBANA_PLUGIN_ID ]] && SNAPSHOT_KIBANA_PLUGIN_ID=$(curl -Ss --fail "https://maven.search-guard.com/api/search/gavc?g=com.floragunn&a=search-guard-kibana-plugin&v=$KIBANA_PLUGIN_VERSION&repos=search-guard-kibana-plugin-snapshot"| grep zip|sed -E "s/(.*)\/(.*).zip(.*)/\2/"|sort|uniq|tail -n 1) || true
+      [[ -z $RELEASE_KIBANA_PLUGIN_ID && -n $KIBANA_PLUGIN_VERSION ]] && SNAPSHOT_KIBANA_PLUGIN_ID=$(curl -Ss --fail "https://maven.search-guard.com/api/search/gavc?g=com.floragunn&a=search-guard-kibana-plugin&v=$KIBANA_PLUGIN_VERSION&repos=search-guard-kibana-plugin-snapshot"| grep zip|sed -E "s/(.*)\/(.*).zip(.*)/\2/"|sort|uniq|tail -n 1) || true
       [[ -n $SNAPSHOT_KIBANA_PLUGIN_ID ]] && echo "KI_SNAPSHOT=https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-snapshot/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$SNAPSHOT_KIBANA_PLUGIN_ID.zip" >> $CI_PROJECT_DIR/environment.env
       cat $CI_PROJECT_DIR/environment.env
   artifacts:
