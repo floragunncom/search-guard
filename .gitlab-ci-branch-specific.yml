@@ -1,4 +1,4 @@
 ##Specify SG Kibana plugin and Kibana version for adding Kibana plugin integration tests to the test scope
-##variables:
-##  KIBANA_VERSION: "7.13.1"
-##  KIBANA_PLUGIN_VERSION: "7.13.1-51.0.0"
+variables:
+  KIBANA_VERSION: ""
+  KIBANA_PLUGIN_VERSION: ""
