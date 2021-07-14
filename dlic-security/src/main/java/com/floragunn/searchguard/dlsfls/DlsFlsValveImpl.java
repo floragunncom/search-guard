@@ -26,15 +26,9 @@ import org.apache.lucene.search.ConstantScoreQuery;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.RealtimeRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
-import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
-import org.elasticsearch.action.bulk.BulkItemRequest;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -211,34 +205,6 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             } else {
                 searchRequest.requestCache(Boolean.FALSE);
             }
-        }
-
-        if (request instanceof UpdateRequest) {
-            listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS or DLS or Fieldmasking is activated"));
-            return false;
-        }
-
-        if (request instanceof BulkRequest) {
-            for (DocWriteRequest<?> inner : ((BulkRequest) request).requests()) {
-                if (inner instanceof UpdateRequest) {
-                    listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS or DLS or Fieldmasking is activated"));
-                    return false;
-                }
-            }
-        }
-
-        if (request instanceof BulkShardRequest) {
-            for (BulkItemRequest inner : ((BulkShardRequest) request).items()) {
-                if (inner.request() instanceof UpdateRequest) {
-                    listener.onFailure(new ElasticsearchSecurityException("Update is not supported when FLS or DLS or Fieldmasking is activated"));
-                    return false;
-                }
-            }
-        }
-
-        if (request instanceof ResizeRequest) {
-            listener.onFailure(new ElasticsearchSecurityException("Resize is not supported when FLS or DLS or Fieldmasking is activated"));
-            return false;
         }
 
         if (evaluatedDlsFlsConfig.hasDls()) {

@@ -190,29 +190,5 @@ public class FlsTest extends AbstractDlsFlsTest{
         Assert.assertTrue(res.getBody().contains("secret"));
     }
     
-    @Test
-    public void testFlsUpdate() throws Exception {
-        
-        setup();
-
-        HttpResponse res;
-
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/deals/0/_update?pretty", "{\"doc\": {\"zip\": \"98765\"}}", encodeBasicHeader("admin", "admin"))).getStatusCode());
-        Assert.assertTrue(res.getBody().contains("\"_version\" : 2"));
-        Assert.assertFalse(res.getBody(), res.getBody().contains("\"successful\" : 0"));
-        
-        Assert.assertEquals(HttpStatus.SC_INTERNAL_SERVER_ERROR, (res = rh.executePostRequest("/deals/deals/0/_update?pretty", "{\"doc\": {\"zip\": \"98765000\"}}", encodeBasicHeader("dept_manager_fls", "password"))).getStatusCode());
-        Assert.assertTrue(res.getBody().contains("Update is not supported"));
-    }
-    
-    @Test
-    public void testFlsUpdateIndex() throws Exception {
-        
-        setup();
-
-        HttpResponse res = null;
-              
-        Assert.assertEquals(HttpStatus.SC_INTERNAL_SERVER_ERROR, (res = rh.executePostRequest("/deals/deals/0/_update?pretty", "{\"doc\": {\"zip\": \"98765000\"}}", encodeBasicHeader("dept_manager_fls", "password"))).getStatusCode());
-        Assert.assertTrue(res.getBody().contains("Update is not supported"));
-    }
+ 
 }
