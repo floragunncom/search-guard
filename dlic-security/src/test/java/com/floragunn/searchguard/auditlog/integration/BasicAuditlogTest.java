@@ -56,12 +56,10 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         setupStarfleetIndex();
         TestAuditlogImpl.clear();
         
-        System.out.println("#### testSimpleAuthenticated");
         HttpResponse response = rh.executeGetRequest("_search", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         Thread.sleep(1500);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("REST"));
@@ -95,7 +93,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         }
 
         Thread.sleep(1500);
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertFalse(TestAuditlogImpl.messages.isEmpty());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("SSL_EXCEPTION"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("exception_stacktrace"));
@@ -120,21 +117,18 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         setupStarfleetIndex();
         TestAuditlogImpl.clear();
         
-        System.out.println("#### testSimpleAuthenticated");        
         try (TransportClient tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
             StoredContext ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 Header header = encodeBasicHeader("admin", "admin");
                 tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
                 SearchResponse res = tc.search(new SearchRequest()).actionGet(); 
-                System.out.println(res);
             } finally {
                 ctx.close();
             }
         }
         
         Thread.sleep(1500);
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue("Was "+TestAuditlogImpl.messages.size(), TestAuditlogImpl.messages.size() >= 2);
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
@@ -166,14 +160,12 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 Header header = encodeBasicHeader("admin", "admin");
                 tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
                 SearchResponse res = tc.search(new SearchRequest()).actionGet(); 
-                System.out.println(res);
             } finally {
                 ctx.close();
             }
         }
         
         Thread.sleep(1500);
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(String.valueOf(TestAuditlogImpl.messages.size()), TestAuditlogImpl.messages.size() >= 2);
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
@@ -205,7 +197,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         
         Thread.sleep(1500);
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(2, TestAuditlogImpl.messages.size());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
@@ -304,12 +295,10 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
     public void testUnauthenticated() throws Exception {
      
-        System.out.println("#### testUnauthenticated");
         HttpResponse response = rh.executeGetRequest("_search");
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Thread.sleep(1500);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("FAILED_LOGIN"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("<NONE>"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("/_search"));
@@ -375,10 +364,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 "{\"index\":\"sf\", \"ignore_unavailable\": true}"+System.lineSeparator()+
                 "{\"size\":0,\"query\":{\"match_all\":{}}}"+System.lineSeparator();           
             
-        System.out.println("##### msaerch");
         HttpResponse response = rh.executePostRequest("_msearch?pretty", msearch, encodeBasicHeader("admin", "admin"));        
         Assert.assertEquals(response.getStatusReason(), HttpStatus.SC_OK, response.getStatusCode());
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("indices:data/read/msearch"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("match_all"));
@@ -391,7 +378,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 	
     public void testBulkAuth() throws Exception {
 
-        System.out.println("#### testBulkAuth");
         String bulkBody = 
                 "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
@@ -406,7 +392,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 
 
         HttpResponse response = rh.executePostRequest("_bulk", bulkBody, encodeBasicHeader("admin", "admin"));
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());  
         Assert.assertTrue(response.getBody().contains("\"errors\":false"));
         Assert.assertTrue(response.getBody().contains("\"status\":201"));                   
@@ -435,9 +420,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 "{ \"field1\" : \"value3x\" }"+System.lineSeparator();
 
         HttpResponse response = rh.executePostRequest("_bulk", bulkBody, encodeBasicHeader("worf", "worf"));
-        System.out.println(response.getBody());
 
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         Assert.assertTrue(response.getBody().contains("\"errors\":true"));
         Assert.assertTrue(response.getBody().contains("\"status\":200")); 
@@ -464,7 +447,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
         HttpResponse response = rh.executePutRequest("_cluster/settings", json, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("cluster:admin/settings/update"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("discovery.zen.minimum_master_nodes"));
@@ -536,7 +518,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         
         HttpResponse response = rh.executeGetRequest("sf/_search?pretty", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("starfleet_academy"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("starfleet_library"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("starfleet"));
@@ -579,7 +560,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         TestAuditlogImpl.clear();
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res=rh.executePostRequest("/_search/scroll?pretty=true", "{\"scroll_id\" : \""+scrollid+"\"}", encodeBasicHeader("admin2", "admin"))).getStatusCode());
         Thread.sleep(1000);
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("InternalScrollSearchRequest"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("MISSING_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.messages.size() > 2);
@@ -611,7 +591,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         TestAuditlogImpl.clear();
         HttpResponse response = rh.executeGetRequest("thealias/_search?pretty", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("thealias"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_trace_resolved_indices"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("vulcangov"));
@@ -637,7 +616,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         TestAuditlogImpl.clear();
         HttpResponse response = rh.executeGetRequest("_search?pretty", new BasicHeader("_sg_user", "xxx"), encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("YWRtaW46YWRtaW4"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("BAD_HEADERS"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("xxx"));
@@ -672,7 +650,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         response = rh.executePostRequest("index2/_close?pretty", "", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:admin/close"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:admin/delete"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.messages.size() >= 2);
