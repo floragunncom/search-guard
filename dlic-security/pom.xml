@@ -131,6 +131,28 @@
 			<groupId>org.apache.cxf</groupId>
 			<artifactId>cxf-rt-rs-security-jose</artifactId>
 			<version>${cxf.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.glassfish.jaxb</groupId>
+					<artifactId>jaxb-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>jakarta.xml.bind</groupId>
+					<artifactId>jakarta.xml.bind-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.activation</groupId>
+					<artifactId>activation</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.sun.activation</groupId>
+					<artifactId>javax.activation</artifactId>
+				</exclusion>	
+				<exclusion>
+					<groupId>com.fasterxml.woodstox</groupId>
+					<artifactId>woodstox-core</artifactId>
+				</exclusion>												
+			</exclusions>				
 		</dependency>
 
 		<dependency>
