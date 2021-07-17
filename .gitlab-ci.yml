@@ -341,7 +341,10 @@ deploy_release:
     mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
   allow_failure: false
 sast:
-  stage: build
+  stage: test
 spotbugs-sast:
+  variables:
+    MAVEN_REPO_PATH: ./.m2/repository
+    COMPILE: "false"  
   rules:
     - when: always
