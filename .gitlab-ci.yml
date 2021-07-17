@@ -340,3 +340,8 @@ deploy_release:
   allow_failure: false
 sast:
   stage: test
+spotbugs-sast:
+  rules:
+    - if: $SAST_DISABLED
+      when: never
+    - if: true
