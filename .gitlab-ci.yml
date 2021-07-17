@@ -344,7 +344,7 @@ sast:
   stage: test
 spotbugs-sast:
   variables:
-    MAVEN_REPO_PATH: ./.m2/repository
+    MAVEN_REPO_PATH: /builds/search-guard/search-guard-suite-enterprise/.m2/repository
     COMPILE: "false"  
   rules:
     - when: always
