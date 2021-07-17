@@ -1,331 +1,342 @@
+# You can override the included template(s) by including variable overrides
+# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
+# Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/#customizing-settings
+# Note that environment variables can be set in several places
+# See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
 variables:
-  SG_JAVA_BUILD_VERSION: "11"
+  SG_JAVA_BUILD_VERSION: '11'
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode"
-
 image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
-
 stages:
-  - build
-  - test
-  - package
-  - integration_test
-  - release
-
+- build
+- test
+- package
+- integration_test
+- release
 workflow:
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
-      when: never
-    - when: always
-
+  - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+    when: never
+  - when: always
 build:
   stage: build
   interruptible: true
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-      when: never  
-    - when: always      
+  - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
+    when: never
+  - when: always
   tags:
-    - openstack-runner
+  - openstack-runner
   script:
-    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
+  - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
   artifacts:
     when: on_success
     paths:
-      - "*/target"
-      - ".m2/repository/com/floragunn/*"
+    - "*/target"
+    - ".m2/repository/com/floragunn/*"
     expire_in: 12h
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
-
+    - ".m2/repository"
 build_for_tag_version:
   stage: build
   interruptible: true
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+  - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
   tags:
-    - openstack-runner
+  - openstack-runner
   before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null    
+  - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client
+    apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty
+    expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   script:
-    - export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
-    - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
-    - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:sg-suite.version" -v $SG_VERSION pom.xml
-    - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:elasticsearch.version" -v $ES_VERSION pom.xml
-    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
+  - export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
+  - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+  - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:sg-suite.version"
+    -v $SG_VERSION pom.xml
+  - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:elasticsearch.version"
+    -v $ES_VERSION pom.xml
+  - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
   artifacts:
     when: on_success
     paths:
-      - "pom.xml"
-      - "*/target"
-      - ".m2/repository/com/floragunn/*"
+    - pom.xml
+    - "*/target"
+    - ".m2/repository/com/floragunn/*"
     expire_in: 12h
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
   allow_failure: false
-
-
 test_security:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+  - openstack-runner
   script:
-    - find .
-    - mvn $MAVEN_CLI_OPTS -pl security test
+  - find .
+  - mvn $MAVEN_CLI_OPTS -pl security test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_signals:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+  - openstack-runner
   script:
-    - mvn $MAVEN_CLI_OPTS -pl signals test
+  - mvn $MAVEN_CLI_OPTS -pl signals test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_scheduler:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+  - openstack-runner
   script:
-    - mvn $MAVEN_CLI_OPTS -pl scheduler test
+  - mvn $MAVEN_CLI_OPTS -pl scheduler test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_support:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+  - openstack-runner
   script:
-    - mvn $MAVEN_CLI_OPTS -pl support test
+  - mvn $MAVEN_CLI_OPTS -pl support test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_dlic_security:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+  - openstack-runner
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-security test
+  - mvn $MAVEN_CLI_OPTS -pl dlic-security test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_dlic_signals:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+  - openstack-runner
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-signals test
+  - mvn $MAVEN_CLI_OPTS -pl dlic-signals test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
-
 deploy_snapshot:
   stage: package
   interruptible: true
   tags:
-    - openstack-runner
+  - openstack-runner
   needs:
-    - job: build
-      artifacts: true
+  - job: build
+    artifacts: true
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule"'
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-      when: never
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule"
+  - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
+    when: never
   before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
+  - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client
+    apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty
+    expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   script:
-    - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml deploy | tee deploy.out
-    - 'PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o http.*zip`'
-    - echo PACKAGE_URI="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
-    - echo SG_SNAPSHOT="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
-    - echo "SGADMIN_SNAPSHOT=https://maven.search-guard.com/search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.10.2-49.0.0/search-guard-suite-plugin-7.10.2-49.0.0-sgadmin-standalone.zip" >> $CI_PROJECT_DIR/environment.env
-    - echo "SG_SOURCE=snapshot" >> $CI_PROJECT_DIR/environment.env
-    - echo "BASEIMAGE=0.9.3-open-jdk-11" >> $CI_PROJECT_DIR/environment.env
-    - echo "TCNATIVE_SOURCE=download" >> $CI_PROJECT_DIR/environment.env
-    - echo "SG_VERSION=unused" >> $CI_PROJECT_DIR/environment.env
-    - echo "KI_SOURCE=none" >> $CI_PROJECT_DIR/environment.env
-    - echo "TCNATIVE_URL=https://maven.search-guard.com/netty-tcnative/netty-tcnative-openssl-1.1.1c-static-2.0.25.Final-non-fedora-linux-x86_64.jar" >> $CI_PROJECT_DIR/environment.env
-    - export esversion=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
-    - export MAJOR=$(echo $esversion | cut -d'.' -f 1,2)
-    - echo "ES_VERSION=$esversion" >> $CI_PROJECT_DIR/environment.env
-    - echo "MAJOR=$MAJOR" >> $CI_PROJECT_DIR/environment.env
-    - cat  $CI_PROJECT_DIR/environment.env
+  - mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml
+    deploy | tee deploy.out
+  - 'PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip
+    " deploy.out | grep -o http.*zip`'
+  - echo PACKAGE_URI="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
+  - echo SG_SNAPSHOT="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
+  - echo "SGADMIN_SNAPSHOT=https://maven.search-guard.com/search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.10.2-49.0.0/search-guard-suite-plugin-7.10.2-49.0.0-sgadmin-standalone.zip"
+    >> $CI_PROJECT_DIR/environment.env
+  - echo "SG_SOURCE=snapshot" >> $CI_PROJECT_DIR/environment.env
+  - echo "BASEIMAGE=0.9.3-open-jdk-11" >> $CI_PROJECT_DIR/environment.env
+  - echo "TCNATIVE_SOURCE=download" >> $CI_PROJECT_DIR/environment.env
+  - echo "SG_VERSION=unused" >> $CI_PROJECT_DIR/environment.env
+  - echo "KI_SOURCE=none" >> $CI_PROJECT_DIR/environment.env
+  - echo "TCNATIVE_URL=https://maven.search-guard.com/netty-tcnative/netty-tcnative-openssl-1.1.1c-static-2.0.25.Final-non-fedora-linux-x86_64.jar"
+    >> $CI_PROJECT_DIR/environment.env
+  - export esversion=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m
+    my:project -m my:properties -v my:elasticsearch.version pom.xml)
+  - export MAJOR=$(echo $esversion | cut -d'.' -f 1,2)
+  - echo "ES_VERSION=$esversion" >> $CI_PROJECT_DIR/environment.env
+  - echo "MAJOR=$MAJOR" >> $CI_PROJECT_DIR/environment.env
+  - cat  $CI_PROJECT_DIR/environment.env
   artifacts:
     when: on_success
     paths:
-      - "plugin/target"
-      - "environment.env"
+    - plugin/target
+    - environment.env
     expire_in: 12h
     reports:
       dotenv: environment.env
   cache:
     key: mavenrepopackage
     paths:
-      - .m2/repository
-
+    - ".m2/repository"
 deploy_staging:
   stage: package
   interruptible: true
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+  - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
   before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
+  - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client
+    apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty
+    expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   tags:
-    - openstack-runner
+  - openstack-runner
   script:
-    - ./dev/setup_gpg.sh
-    - export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
-    - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
-    - export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
-    - echo "Deploying Release to Staging repo"
-    - mvn deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION | tee deploy.out
-    - 'PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o http.*zip`'
-    - echo PACKAGE_URI="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
-    - echo SG_SNAPSHOT="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
-    - echo "SGADMIN_SNAPSHOT=https://maven.search-guard.com/search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.10.2-49.0.0/search-guard-suite-plugin-7.10.2-49.0.0-sgadmin-standalone.zip" >> $CI_PROJECT_DIR/environment.env
-    - echo "SG_SOURCE=staging" >> $CI_PROJECT_DIR/environment.env
-    - echo "BASEIMAGE=0.9.3-open-jdk-11" >> $CI_PROJECT_DIR/environment.env
-    - echo "TCNATIVE_SOURCE=download" >> $CI_PROJECT_DIR/environment.env
-    - echo "SG_VERSION=$SG_VERSION" >> $CI_PROJECT_DIR/environment.env
-    - echo "KI_SOURCE=none" >> $CI_PROJECT_DIR/environment.env
-    - echo "TCNATIVE_URL=https://maven.search-guard.com/netty-tcnative/netty-tcnative-openssl-1.1.1c-static-2.0.25.Final-non-fedora-linux-x86_64.jar" >> $CI_PROJECT_DIR/environment.env
-    - echo "ES_VERSION=$ES_VERSION" >> $CI_PROJECT_DIR/environment.env
-    - echo "MAJOR=$MAJOR" >> $CI_PROJECT_DIR/environment.env
-    - cat $CI_PROJECT_DIR/environment.env
+  - "./dev/setup_gpg.sh"
+  - export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
+  - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+  - export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+  - echo "Deploying Release to Staging repo"
+  - mvn deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging
+    -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION
+    | tee deploy.out
+  - 'PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip
+    " deploy.out | grep -o http.*zip`'
+  - echo PACKAGE_URI="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
+  - echo SG_SNAPSHOT="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
+  - echo "SGADMIN_SNAPSHOT=https://maven.search-guard.com/search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.10.2-49.0.0/search-guard-suite-plugin-7.10.2-49.0.0-sgadmin-standalone.zip"
+    >> $CI_PROJECT_DIR/environment.env
+  - echo "SG_SOURCE=staging" >> $CI_PROJECT_DIR/environment.env
+  - echo "BASEIMAGE=0.9.3-open-jdk-11" >> $CI_PROJECT_DIR/environment.env
+  - echo "TCNATIVE_SOURCE=download" >> $CI_PROJECT_DIR/environment.env
+  - echo "SG_VERSION=$SG_VERSION" >> $CI_PROJECT_DIR/environment.env
+  - echo "KI_SOURCE=none" >> $CI_PROJECT_DIR/environment.env
+  - echo "TCNATIVE_URL=https://maven.search-guard.com/netty-tcnative/netty-tcnative-openssl-1.1.1c-static-2.0.25.Final-non-fedora-linux-x86_64.jar"
+    >> $CI_PROJECT_DIR/environment.env
+  - echo "ES_VERSION=$ES_VERSION" >> $CI_PROJECT_DIR/environment.env
+  - echo "MAJOR=$MAJOR" >> $CI_PROJECT_DIR/environment.env
+  - cat $CI_PROJECT_DIR/environment.env
   artifacts:
     when: on_success
     paths:
-      - "plugin/target"
-      - "environment.env"
+    - plugin/target
+    - environment.env
     expire_in: 12h
     reports:
       dotenv: environment.env
   cache:
     key: mavenrepopackage
     paths:
-      - .m2/repository
-
+    - ".m2/repository"
 include:
-  - project: 'private/search-guard-integration-tests'
-    ref: 7.12.x
-    file: 'ci-tools/ci-jobs-configuration/config_ccs.yml'
-  - project: 'private/search-guard-integration-tests'
-    ref: 7.12.x
-    file: 'ci-tools/ci-jobs-configuration/config_community.yml'
-  - project: 'private/search-guard-integration-tests'
-    ref: 7.12.x
-    file: 'ci-tools/ci-jobs-configuration/config_enterprise.yml'
-  - project: 'private/search-guard-integration-tests'
-    ref: 7.12.x
-    file: 'ci-tools/ci-jobs-configuration/config_compliance.yml'
-  - project: 'private/search-guard-integration-tests'
-    ref: 7.12.x
-    file: 'ci-tools/ci-jobs-configuration/config_compliance_clientnode.yml'
-  - project: 'private/search-guard-integration-tests'
-    ref: 7.12.x
-    file: 'ci-tools/ci-jobs-configuration/config_enterprise_clientnode.yml'
-  - project: 'private/search-guard-integration-tests'
-    ref: 7.12.x
-    file: 'ci-tools/ci-jobs-configuration/config_integrator.yml'
-  - project: 'private/search-guard-integration-tests'
-    ref: 7.12.x
-    file: 'ci-tools/ci-jobs-configuration/config_ldap2.yml'
-  - project: 'private/search-guard-integration-tests'
-    ref: 7.12.x
-    file: 'ci-tools/ci-jobs-configuration/config_signals.yml'
-
+- project: private/search-guard-integration-tests
+  ref: 7.12.x
+  file: ci-tools/ci-jobs-configuration/config_ccs.yml
+- project: private/search-guard-integration-tests
+  ref: 7.12.x
+  file: ci-tools/ci-jobs-configuration/config_community.yml
+- project: private/search-guard-integration-tests
+  ref: 7.12.x
+  file: ci-tools/ci-jobs-configuration/config_enterprise.yml
+- project: private/search-guard-integration-tests
+  ref: 7.12.x
+  file: ci-tools/ci-jobs-configuration/config_compliance.yml
+- project: private/search-guard-integration-tests
+  ref: 7.12.x
+  file: ci-tools/ci-jobs-configuration/config_compliance_clientnode.yml
+- project: private/search-guard-integration-tests
+  ref: 7.12.x
+  file: ci-tools/ci-jobs-configuration/config_enterprise_clientnode.yml
+- project: private/search-guard-integration-tests
+  ref: 7.12.x
+  file: ci-tools/ci-jobs-configuration/config_integrator.yml
+- project: private/search-guard-integration-tests
+  ref: 7.12.x
+  file: ci-tools/ci-jobs-configuration/config_ldap2.yml
+- project: private/search-guard-integration-tests
+  ref: 7.12.x
+  file: ci-tools/ci-jobs-configuration/config_signals.yml
+- template: Security/SAST.gitlab-ci.yml
 deploy_release:
   stage: release
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+  - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
   before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
+  - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client
+    apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty
+    expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   tags:
-    - openstack-runner
+  - openstack-runner
   script:
-    - ./dev/setup_gpg.sh
-    - |
-       export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
-       export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
-       export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
-       cd search-guard-integration-tests
-       git tag $CI_COMMIT_TAG || true
-       echo "Tag created in int repo"
-       git show-ref $CI_COMMIT_TAG
-       git push --tags || true
-       cd ..
-       echo "Deploying Release to Production repo."
-       mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
+  - "./dev/setup_gpg.sh"
+  - |
+    export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
+    export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+    export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+    cd search-guard-integration-tests
+    git tag $CI_COMMIT_TAG || true
+    echo "Tag created in int repo"
+    git show-ref $CI_COMMIT_TAG
+    git push --tags || true
+    cd ..
+    echo "Deploying Release to Production repo."
+    mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
   allow_failure: false
+sast:
+  stage: test
