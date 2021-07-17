@@ -339,7 +339,7 @@ deploy_release:
     mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
   allow_failure: false
 sast:
-  stage: test
+  stage: build
 spotbugs-sast:
   rules:
     - when: always
