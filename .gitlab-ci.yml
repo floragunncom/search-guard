@@ -7,6 +7,7 @@ variables:
   SG_JAVA_BUILD_VERSION: '11'
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode"
+  SECURE_LOG_LEVEL: debug
 image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 stages:
 - build
