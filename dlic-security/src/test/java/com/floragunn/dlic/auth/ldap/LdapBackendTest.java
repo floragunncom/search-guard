@@ -16,7 +16,6 @@ package com.floragunn.dlic.auth.ldap;
 
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.TreeSet;
 
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -123,6 +122,7 @@ public class LdapBackendTest {
         String injectString = "*jack*";
 
 
+        @SuppressWarnings("unused")
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser(injectString).password("secret").build());
     }
 
@@ -381,7 +381,7 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
+        Assert.assertEquals("ceo", new ArrayList<>(new TreeSet<>(user.getRoles())).get(0));
         Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
 
@@ -450,7 +450,7 @@ public class LdapBackendTest {
         Assert.assertEquals("Michael Jackson", user.getOriginalUsername());
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getUserEntry().getDN());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
+        Assert.assertEquals("ceo", new ArrayList<>(new TreeSet<>(user.getRoles())).get(0));
         Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
 
@@ -474,7 +474,7 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("jacksonm", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
+        Assert.assertEquals("ceo", new ArrayList<>(new TreeSet<>(user.getRoles())).get(0));
     }
 
     @Test
@@ -496,7 +496,7 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("jacksonm", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("ceo-ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
+        Assert.assertEquals("ceo-ceo", new ArrayList<>(new TreeSet<>(user.getRoles())).get(0));
     }
 
     @Test
@@ -520,7 +520,7 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(4, user.getRoles().size());
-        Assert.assertEquals("nested1", new ArrayList(new TreeSet(user.getRoles())).get(1));
+        Assert.assertEquals("nested1", new ArrayList<>(new TreeSet<>(user.getRoles())).get(1));
     }
 
     @Test
@@ -545,8 +545,8 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
-        Assert.assertEquals("nested2", new ArrayList(new TreeSet(user.getRoles())).get(1));
+        Assert.assertEquals("ceo", new ArrayList<>(new TreeSet<>(user.getRoles())).get(0));
+        Assert.assertEquals("nested2", new ArrayList<>(new TreeSet<>(user.getRoles())).get(1));
     }
 
     @Test
@@ -570,7 +570,7 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(4, user.getRoles().size());
-        Assert.assertEquals("cn=nested1,ou=groups,o=TEST", new ArrayList(new TreeSet(user.getRoles())).get(1));
+        Assert.assertEquals("cn=nested1,ou=groups,o=TEST", new ArrayList<>(new TreeSet<>(user.getRoles())).get(1));
     }
 
     @Test
@@ -595,7 +595,7 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("jacksonm", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("cn=ceo,ou=groups,o=TEST", new ArrayList(new TreeSet(user.getRoles())).get(0));
+        Assert.assertEquals("cn=ceo,ou=groups,o=TEST", new ArrayList<>(new TreeSet<>(user.getRoles())).get(0));
     }
 
     @Test
@@ -698,8 +698,8 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(8, user.getRoles().size());
-        Assert.assertEquals("nested3", new ArrayList(new TreeSet(user.getRoles())).get(4));
-        Assert.assertEquals("rolemo4", new ArrayList(new TreeSet(user.getRoles())).get(7));
+        Assert.assertEquals("nested3", new ArrayList<>(new TreeSet<>(user.getRoles())).get(4));
+        Assert.assertEquals("rolemo4", new ArrayList<>(new TreeSet<>(user.getRoles())).get(7));
     }
 
     @Test
@@ -726,8 +726,8 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(6, user.getRoles().size());
-        Assert.assertEquals("role2", new ArrayList(new TreeSet(user.getRoles())).get(4));
-        Assert.assertEquals("nested1", new ArrayList(new TreeSet(user.getRoles())).get(2));
+        Assert.assertEquals("role2", new ArrayList<>(new TreeSet<>(user.getRoles())).get(4));
+        Assert.assertEquals("nested1", new ArrayList<>(new TreeSet<>(user.getRoles())).get(2));
 
     }
 
@@ -807,10 +807,11 @@ public class LdapBackendTest {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(3, user.getRoles().size());
-        Assert.assertEquals("nested3", new ArrayList(new TreeSet(user.getRoles())).get(1));
-        Assert.assertEquals("rolemo4", new ArrayList(new TreeSet(user.getRoles())).get(2));
+        Assert.assertEquals("nested3", new ArrayList<>(new TreeSet<>(user.getRoles())).get(1));
+        Assert.assertEquals("rolemo4", new ArrayList<>(new TreeSet<>(user.getRoles())).get(2));
     }
 
+    @Deprecated
     @Test
     public void testCustomAttributes() throws Exception {
 
