@@ -34,6 +34,10 @@ build:
   interruptible: true
   tags:
     - openstack-runner
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
   artifacts:
@@ -46,6 +50,35 @@ build:
     key: mavenrepo
     paths:
       - .m2/repository
+
+build_for_tag_version:
+  stage: build
+  interruptible: true
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+  tags:
+    - openstack-runner
+  before_script:
+    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
+  script:
+    - export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
+    - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+    - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:sg-suite.version" -v $SG_VERSION pom.xml
+    - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:elasticsearch.version" -v $ES_VERSION pom.xml
+    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
+  artifacts:
+    when: on_success
+    paths:
+      - "pom.xml"
+      - "*/target"
+      - ".m2/repository/com/floragunn/*"
+    expire_in: 12h
+  cache:
+    key: mavenrepo
+    paths:
+      - .m2/repository
+  allow_failure: false
+
 
 
 test_security:
