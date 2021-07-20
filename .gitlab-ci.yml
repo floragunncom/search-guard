@@ -275,58 +275,58 @@ deploy_staging:
 include:
   - '.gitlab-ci-branch-specific.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_ccs.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_community.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_enterprise.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_compliance.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_compliance_clientnode.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_enterprise_clientnode.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_integrator.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_ldap2.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_signals.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_kibana_basicauth.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_kibana_multitenancy.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_kibana_configui.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_kibana_sso.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_kibana_impersonation.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_kibana_clientcert.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_kibana_signals.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_kibana_authtokens.yml'
   - project: 'private/search-guard-integration-tests'
-    ref: 7.13.x-new-ci-kibana-tests
+    ref: 7.13.x
     file: 'ci-tools/ci-jobs-configuration/config_kibana_anonymous_user.yml'
 
 
