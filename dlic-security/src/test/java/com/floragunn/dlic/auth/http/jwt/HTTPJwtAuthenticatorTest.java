@@ -57,7 +57,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testNoKey() throws Exception {
         Settings settings = Settings.builder().build();
         
-        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(SignatureAlgorithm.HS512, secretKey).compact();
+        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth =new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -71,7 +71,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testEmptyKey() throws Exception {
         Settings settings = Settings.builder().put("signing_key", "").build();
         
-        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(SignatureAlgorithm.HS512, secretKey).compact();
+        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -85,7 +85,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testBadKey() throws Exception {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(new byte[]{1,3,3,4,3,6,7,8,3,10})).build();
         
-        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(SignatureAlgorithm.HS512, secretKey).compact();
+        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -124,7 +124,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testBearer() throws Exception {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).build();
         
-        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").setAudience("myaud").signWith(SignatureAlgorithm.HS512, secretKey).compact();
+        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").setAudience("myaud").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -141,7 +141,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testBearerWrongPosition() throws Exception {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).build();
         
-        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(SignatureAlgorithm.HS512, secretKey).compact();
+        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -155,7 +155,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testNonBearer() throws Exception {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).build();
         
-        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(SignatureAlgorithm.HS512, secretKey).compact();
+        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -177,7 +177,7 @@ public class HTTPJwtAuthenticatorTest {
         String jwsToken = Jwts.builder()
                 .setSubject("Leonard McCoy")
                 .claim("roles", "role1,role2")
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -199,7 +199,7 @@ public class HTTPJwtAuthenticatorTest {
         String jwsToken = Jwts.builder()
                 .setSubject("Leonard McCoy")
                 .claim("roles", null)
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -221,7 +221,7 @@ public class HTTPJwtAuthenticatorTest {
         String jwsToken = Jwts.builder()
                 .setSubject("Leonard McCoy")
                 .claim("roles", 123L)
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -243,7 +243,7 @@ public class HTTPJwtAuthenticatorTest {
         
         String jwsToken = Jwts.builder()
                 .setSubject("Leonard McCoy")                
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -265,7 +265,7 @@ public class HTTPJwtAuthenticatorTest {
         String jwsToken = Jwts.builder()
                 .claim("roles", "role1,role2")
                 .claim("asub", "Dr. Who")
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -286,7 +286,7 @@ public class HTTPJwtAuthenticatorTest {
                 .setSubject("Leonard McCoy")
                 .claim("roles", "role1,role2")
                 .claim("asub", "Dr. Who")
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -309,7 +309,7 @@ public class HTTPJwtAuthenticatorTest {
                 .setSubject("Leonard McCoy")
                 .claim("roles", "role1,role2")
                 .claim("asub", false)
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -330,7 +330,7 @@ public class HTTPJwtAuthenticatorTest {
         
         String jwsToken = Jwts.builder()
                 .setSubject("Leonard McCoy")
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -352,7 +352,7 @@ public class HTTPJwtAuthenticatorTest {
         String jwsToken = Jwts.builder()
                 .setSubject("Expired")
                 .setExpiration(new Date(100))
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -371,7 +371,7 @@ public class HTTPJwtAuthenticatorTest {
         String jwsToken = Jwts.builder()
                 .setSubject("Expired")
                 .setNotBefore(new Date(System.currentTimeMillis()+(1000*36000)))
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -389,7 +389,7 @@ public class HTTPJwtAuthenticatorTest {
         PrivateKey priv = pair.getPrivate();
         PublicKey pub = pair.getPublic();
     
-        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(SignatureAlgorithm.RS256, priv).compact();
+        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(priv, SignatureAlgorithm.RS256).compact();
         Settings settings = Settings.builder().put("signing_key", "-----BEGIN PUBLIC KEY-----\n"+BaseEncoding.base64().encode(pub.getEncoded())+"-----END PUBLIC KEY-----").build();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
@@ -410,7 +410,7 @@ public class HTTPJwtAuthenticatorTest {
         PrivateKey priv = pair.getPrivate();
         PublicKey pub = pair.getPublic();
     
-        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(SignatureAlgorithm.ES512, priv).compact();
+        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").signWith(priv, SignatureAlgorithm.ES512).compact();
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(pub.getEncoded())).build();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
@@ -435,7 +435,7 @@ public class HTTPJwtAuthenticatorTest {
                     "\"sub\": \"John Doe\","+
                     "\"roles\": [\"a\",\"b\",\"3rd\"]"+
                   "}")
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -467,7 +467,7 @@ public class HTTPJwtAuthenticatorTest {
 
         String jwsToken = Jwts.builder()
                 .claim("some_claim_name", user)
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -496,7 +496,7 @@ public class HTTPJwtAuthenticatorTest {
 
         String jwsToken = Jwts.builder()
                 .claim("some_claim_name", user)
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -525,7 +525,7 @@ public class HTTPJwtAuthenticatorTest {
 
         String jwsToken = Jwts.builder()
                 .claim("some_claim_name", user)
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -554,7 +554,7 @@ public class HTTPJwtAuthenticatorTest {
 
         String jwsToken = Jwts.builder()
                 .claim("some_claim_name", user)
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -583,7 +583,7 @@ public class HTTPJwtAuthenticatorTest {
 
         String jwsToken = Jwts.builder()
                 .claim("some_claim_name", user)
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -608,9 +608,10 @@ public class HTTPJwtAuthenticatorTest {
         values.put("roles", Arrays.asList("some role a", "another role b"));
         user.put("user", values);
 
+        @SuppressWarnings("unused")
         String jwsToken = Jwts.builder()
                 .claim("some_claim_name", user)
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
 
         thrown.expect(IllegalStateException.class);
         new HTTPJwtAuthenticator(settings, null);
@@ -630,9 +631,10 @@ public class HTTPJwtAuthenticatorTest {
         HashMap<String, Object> values = new HashMap<>();
         user.put("user", values);
 
+        @SuppressWarnings("unused")
         String jwsToken = Jwts.builder()
                 .claim("some_claim_name", user)
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
 
         thrown.expect(IllegalStateException.class);
         new HTTPJwtAuthenticator(settings, null);
