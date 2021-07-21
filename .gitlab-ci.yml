@@ -379,6 +379,10 @@ deploy_release:
       export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
       export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
       export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+
+      echo "Removing current release from Staging"
+      curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-suite-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
+
       cd search-guard-integration-tests
       git tag $CI_COMMIT_TAG || true
       echo "Tag created in int repo"
