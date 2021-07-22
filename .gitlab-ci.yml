@@ -221,7 +221,7 @@ deploy_snapshot:
     - |
       mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml deploy | tee deploy.out
       PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      'SGADMIN_STANDALONE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`' 
+      SGADMIN_STANDALONE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip` 
       echo PACKAGE_URI="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
       echo SG_SNAPSHOT="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
       echo SGADMIN_SNAPSHOT="${SGADMIN_STANDALONE_URI}" >> $CI_PROJECT_DIR/environment.env
