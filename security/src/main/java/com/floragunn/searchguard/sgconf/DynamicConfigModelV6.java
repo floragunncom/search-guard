@@ -199,6 +199,11 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
         final List<ClientBlockRegistry<InetAddress>> ipClientBlockRegistries0 = new ArrayList<>();
         final Multimap<String, ClientBlockRegistry<String>> authBackendClientBlockRegistries0 = ArrayListMultimap.create();
 
+        if (config == null) {
+            // We are not yet initialized
+            return;
+        }
+        
         final Authz authzDyn = config.dynamic.authz;
 
         for (final Entry<String, AuthzDomain> ad : authzDyn.getDomains().entrySet()) {

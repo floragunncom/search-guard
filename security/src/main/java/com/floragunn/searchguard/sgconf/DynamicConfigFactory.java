@@ -19,6 +19,7 @@ import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.secrets.SecretsService;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
@@ -56,7 +57,8 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     SgDynamicConfiguration<?> config;
     
     public DynamicConfigFactory(ConfigurationRepository cr, StaticSgConfig staticSgConfig, final Settings esSettings, 
-            final Path configPath, Client client, ThreadPool threadPool, ClusterInfoHolder cih, SearchGuardModulesRegistry modulesRegistry) {
+            final Path configPath, Client client, ThreadPool threadPool, ClusterInfoHolder cih, SearchGuardModulesRegistry modulesRegistry,
+            SecretsService secretsStorageService) {
         super();
         this.cr = cr;
         this.esSettings = esSettings;
@@ -72,8 +74,13 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
                 internalAuthBackendFactory);
         modulesRegistry.getAuthorizationBackends().add(Arrays.asList("intern", "internal", InternalAuthenticationBackend.class.getName()),
                 internalAuthBackendFactory);
-
         this.cr.subscribeOnChange(this);
+        
+        secretsStorageService.addChangeListener(() -> {
+            if (config != null) {
+                onChange(Collections.emptyMap());
+            }
+        });
     }
     
     @Override

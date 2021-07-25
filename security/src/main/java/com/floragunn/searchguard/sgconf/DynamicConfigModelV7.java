@@ -16,7 +16,6 @@ import java.util.TreeSet;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 
-import com.floragunn.codova.validation.ConfigVariableProviders;
 import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.AuthenticationDomain;
 import com.floragunn.searchguard.auth.AuthorizationDomain;
@@ -194,7 +193,12 @@ public class DynamicConfigModelV7 extends DynamicConfigModel implements Componen
         final Multimap<String, AuthFailureListener> authBackendFailureListeners0 = ArrayListMultimap.create();
         final List<ClientBlockRegistry<InetAddress>> ipClientBlockRegistries0 = new ArrayList<>();
         final Multimap<String, ClientBlockRegistry<String>> authBackendClientBlockRegistries0 = ArrayListMultimap.create();
-
+        
+        if (config == null) {
+            // We are not yet initialized
+            return;
+        }
+        
         final Authz authzDyn = config.dynamic.authz;
 
         for (final Entry<String, AuthzDomain> ad : authzDyn.getDomains().entrySet()) {
