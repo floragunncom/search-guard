@@ -28,8 +28,11 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
+import com.floragunn.codova.validation.ConfigVariableProviders;
+import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.configuration.secrets.SecretsService;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
@@ -55,13 +58,17 @@ public class BaseDependencies {
     private final InternalAuthTokenProvider internalAuthTokenProvider;
     private final StaticSgConfig staticSgConfig;
     private final DiagnosticContext diagnosticContext;
+    private final BackendRegistry backendRegistry;
+    private final SecretsService secretsService;
+    private final ConfigVariableProviders configVariableProviders;
 
     public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
             DynamicConfigFactory dynamicConfigFactory, StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository,
             ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, DiagnosticContext diagnosticContext) {
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, BackendRegistry backendRegistry,
+            SecretsService secretsStorageService, ConfigVariableProviders configVariableProviders, DiagnosticContext diagnosticContext) {
         super();
         this.settings = settings;
         this.localClient = localClient;
@@ -79,7 +86,10 @@ public class BaseDependencies {
         this.protectedConfigIndexService = protectedConfigIndexService;
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         this.internalAuthTokenProvider = internalAuthTokenProvider;
+        this.backendRegistry = backendRegistry;
+        this.secretsService = secretsStorageService;
         this.diagnosticContext = diagnosticContext;
+        this.configVariableProviders = configVariableProviders;
     }
 
     public Settings getSettings() {
@@ -141,7 +151,7 @@ public class BaseDependencies {
     public InternalAuthTokenProvider getInternalAuthTokenProvider() {
         return internalAuthTokenProvider;
     }
-    
+
     public StaticSgConfig getStaticSgConfig() {
         return staticSgConfig;
     }
@@ -150,7 +160,17 @@ public class BaseDependencies {
         return diagnosticContext;
     }
 
-  
+    public BackendRegistry getBackendRegistry() {
+        return backendRegistry;
+    }
 
-  
+    public SecretsService getSecretsService() {
+        return secretsService;
+    }
+
+    public ConfigVariableProviders getConfigVariableProviders() {
+        return configVariableProviders;
+    }
+
+
 }

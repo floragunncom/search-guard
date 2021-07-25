@@ -21,7 +21,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.codova.validation.jackson.JacksonExceptions;
 import com.floragunn.searchguard.DefaultObjectMapper;
