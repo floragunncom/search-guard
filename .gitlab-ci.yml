@@ -1,7 +1,7 @@
 variables:
   SG_JAVA_BUILD_VERSION: "11"
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
-  MAVEN_CLI_OPTS: "--batch-mode"
+  MAVEN_CLI_OPTS: "--batch-mode -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 
 image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 
