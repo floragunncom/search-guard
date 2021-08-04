@@ -22,9 +22,9 @@ import java.io.IOException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
-import org.elasticsearch.common.CheckedFunction;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
 

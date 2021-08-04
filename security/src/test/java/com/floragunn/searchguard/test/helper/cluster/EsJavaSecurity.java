@@ -53,9 +53,9 @@ import java.util.Set;
 
 import org.elasticsearch.bootstrap.BootstrapInfo;
 import org.elasticsearch.bootstrap.FilePermissionUtils;
-import org.elasticsearch.bootstrap.JarHell;
-import org.elasticsearch.common.SuppressForbidden;
-import org.elasticsearch.common.io.PathUtils;
+import org.elasticsearch.core.PathUtils;
+import org.elasticsearch.core.SuppressForbidden;
+import org.elasticsearch.jdk.JarHell;
 
 public class EsJavaSecurity {
     static Policy getBaseEsSecurityPolicy() {

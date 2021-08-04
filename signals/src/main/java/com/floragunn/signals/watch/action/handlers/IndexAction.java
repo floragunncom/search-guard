@@ -15,9 +15,9 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.core.TimeValue;
 
 import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;

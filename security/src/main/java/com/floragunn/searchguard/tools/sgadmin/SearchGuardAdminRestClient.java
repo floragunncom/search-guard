@@ -11,7 +11,7 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.Validatable;
-import org.elasticsearch.common.CheckedFunction;
+import org.elasticsearch.core.CheckedFunction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 

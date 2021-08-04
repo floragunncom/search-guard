@@ -38,9 +38,9 @@ import org.elasticsearch.threadpool.ThreadPool;
 public class SnapshotRestoreHelper {
 
     protected static final Logger log = LogManager.getLogger(SnapshotRestoreHelper.class);
-    
+
     private final static String GENERC_THREAD_NAME = "[" + ThreadPool.Names.GENERIC + "]";
-    
+
     public static List<String> resolveOriginalIndices(RestoreSnapshotRequest restoreRequest, RepositoriesService repositoriesService) {
         final SnapshotInfo snapshotInfo = getSnapshotInfo(restoreRequest, repositoriesService);
 
@@ -49,19 +49,18 @@ public class SnapshotRestoreHelper {
             return null;
         } else {
             return SnapshotUtils.filterIndices(snapshotInfo.indices(), restoreRequest.indices(), restoreRequest.indicesOptions());
-        }    
-        
-        
+        }
+
     }
-    
+
     public static SnapshotInfo getSnapshotInfo(RestoreSnapshotRequest restoreRequest, RepositoriesService repositoriesService) {
         final Repository repository = repositoriesService.repository(restoreRequest.repository());
         final String threadName = Thread.currentThread().getName();
         SnapshotInfo snapshotInfo = null;
-        
+
         try {
             setCurrentThreadName(GENERC_THREAD_NAME);
-            
+
             final RepositoryDataListener repositoryDataListener = new RepositoryDataListener(restoreRequest, repository);
             repository.getRepositoryData(repositoryDataListener);
             repositoryDataListener.waitForCompletion();
@@ -72,14 +71,14 @@ public class SnapshotRestoreHelper {
         }
         return snapshotInfo;
     }
-    
+
     private static void setCurrentThreadName(final String name) {
         final SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
             sm.checkPermission(new SpecialPermission());
         }
-        
+
         AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
@@ -88,59 +87,92 @@ public class SnapshotRestoreHelper {
             }
         });
     }
-    
+
     private static final class RepositoryDataListener implements ActionListener<RepositoryData> {
-    	
-    	private final RestoreSnapshotRequest restoreRequest;
-    	private final Repository repository;
-    	private SnapshotInfo snapshotInfo = null;
-    	private Exception repositoryException = null;
-    	private final CountDownLatch latch = new CountDownLatch(1); 
 
-		public RepositoryDataListener(RestoreSnapshotRequest restoreRequest, Repository repository) {
-			super();
-			this.restoreRequest = restoreRequest;
-			this.repository = repository;
-		}
+        private final RestoreSnapshotRequest restoreRequest;
+        private final Repository repository;
+        private SnapshotInfo snapshotInfo = null;
+        private Exception repositoryException = null;
+        private final CountDownLatch latch = new CountDownLatch(1);
 
-		@Override
-		public void onResponse(RepositoryData repositoryData) {
-			for (final SnapshotId snapshotId : repositoryData.getSnapshotIds()) {
-                if (snapshotId.getName().equals(restoreRequest.snapshot())) {
+        public RepositoryDataListener(RestoreSnapshotRequest restoreRequest, Repository repository) {
+            super();
+            this.restoreRequest = restoreRequest;
+            this.repository = repository;
+        }
 
-                    if(log.isDebugEnabled()) {
-                        log.debug("snapshot found: {} (UUID: {})", snapshotId.getName(), snapshotId.getUUID());
+        @Override
+        public void onResponse(RepositoryData repositoryData) {
+            if (log.isTraceEnabled()) {
+                log.trace("RepositoryDataListener got: " + repositoryData);
+            }
+
+            SnapshotId snapshotId = findSnapshot(restoreRequest.snapshot(), repositoryData);
+
+            if (snapshotId != null) {
+
+                if (log.isDebugEnabled()) {
+                    log.debug("snapshot found: {} (UUID: {})", snapshotId.getName(), snapshotId.getUUID());
+                }
+
+                repository.getSnapshotInfo(snapshotId, new ActionListener<SnapshotInfo>() {
+
+                    @Override
+                    public void onResponse(SnapshotInfo response) {
+                        snapshotInfo = response;
+                        latch.countDown();
                     }
 
-                    snapshotInfo = repository.getSnapshotInfo(snapshotId);
-                    break;
+                    @Override
+                    public void onFailure(Exception e) {
+                        log.error("Error in getSnapshotInfo()", e);
+                        repositoryException = e;
+                        latch.countDown();
+                    }
+
+                });
+
+            } else {
+                log.warn("Could not find snapshot " + restoreRequest.snapshot());
+                latch.countDown();
+            }
+
+        }
+
+        @Override
+        public void onFailure(Exception e) {
+            log.error("Error in RepositoryDataListener", e);
+            repositoryException = e;
+            latch.countDown();
+        }
+
+        public SnapshotInfo getSnapshotInfo() {
+            return snapshotInfo;
+        }
+
+        public Exception getRepositoryException() {
+            return repositoryException;
+        }
+
+        public void waitForCompletion() {
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                log.error(e);
+            }
+        }
+
+        private SnapshotId findSnapshot(String snapshotName, RepositoryData repositoryData) {
+
+            for (SnapshotId snapshotId : repositoryData.getSnapshotIds()) {
+                if (snapshotId.getName().equals(snapshotName)) {
+                    return snapshotId;
                 }
             }
-			latch.countDown();
-		}
 
-		@Override
-		public void onFailure(Exception e) {
-			repositoryException = e;
-			latch.countDown();
-		}
-
-		public SnapshotInfo getSnapshotInfo() {
-			return snapshotInfo;
-		}
-
-		public Exception getRepositoryException() {
-			return repositoryException;
-		}
-		
-		public void waitForCompletion() {
-			try {
-				latch.await();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
+            return null;
+        }
     }
-    
+
 }
