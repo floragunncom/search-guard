@@ -12,7 +12,7 @@ sg_admin:
     allowed_actions:
     - "*"
 
-sg_dls_nested:
+sg_dls_nested_top_level:
   cluster_permissions:
   - "*"
   index_permissions:
@@ -21,3 +21,15 @@ sg_dls_nested:
     allowed_actions:
     - "READ"
     dls: "{ \"bool\": { \"must_not\": { \"match\": { \"field1\": \"a\" } } } }"
+
+sg_dls_nested:
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "nestedindex"
+    allowed_actions:
+    - "READ"
+    dls: "{ \"nested\": { \"path\": \"field2\", \"query\": { \"term\": { \"field2.field3\": { \"value\": \"1\" } } } } }"
+
+
