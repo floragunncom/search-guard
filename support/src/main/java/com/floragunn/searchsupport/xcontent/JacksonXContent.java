@@ -1,6 +1,7 @@
 package com.floragunn.searchsupport.xcontent;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,11 +27,13 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentGenerator;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.core.CheckedConsumer;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Charsets;
 
 public class JacksonXContent implements XContent {
     private final static Logger log = LogManager.getLogger(JacksonXContent.class);
@@ -415,6 +418,19 @@ public class JacksonXContent implements XContent {
                 return null;
             } else {
                 return this.objectStack.remove(this.objectStack.size() - 1);
+            }
+        }
+
+        @Override
+        public void writeDirectField(String name, CheckedConsumer<OutputStream, IOException> writer) throws IOException {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+            writer.accept(outputStream);
+
+            try (XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY,
+                    LoggingDeprecationHandler.INSTANCE, new String(outputStream.toByteArray(), Charsets.UTF_8))) {
+                parser.nextToken();
+                copyCurrentStructure(parser);
             }
         }
 

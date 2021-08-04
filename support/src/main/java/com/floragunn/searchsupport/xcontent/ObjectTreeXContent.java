@@ -1,6 +1,7 @@
 package com.floragunn.searchsupport.xcontent;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -24,6 +25,10 @@ import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.ToXContent.MapParams;
 import org.elasticsearch.common.xcontent.ToXContent.Params;
+import org.elasticsearch.core.CheckedConsumer;
+
+import com.google.common.base.Charsets;
+
 import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -391,10 +396,23 @@ public class ObjectTreeXContent implements XContent {
         }
 
         @Override
+        public void writeDirectField(String name, CheckedConsumer<OutputStream, IOException> writer) throws IOException {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+            writer.accept(outputStream);
+
+            try (XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY,
+                    LoggingDeprecationHandler.INSTANCE, new String(outputStream.toByteArray(), Charsets.UTF_8))) {
+                parser.nextToken();
+                copyCurrentStructure(parser);
+            }
+        }
+        
+        @Override
         public boolean isClosed() {
             return false;
         }
-
+        
         Object getTopLevelObject() {
             if (topLevelObjects.size() == 0) {
                 return null;
