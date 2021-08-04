@@ -2,7 +2,7 @@
 
 set -e
 
-MAIN_DIR=$(echo ~/searchguard-test/)
+MAIN_DIR=$(echo ~/searchguard-test)
 DOWNLOAD_CACHE="$MAIN_DIR/download-cache"
 INSTALL_DIR="$MAIN_DIR/es"
 REPO_DIR=$(pwd)
@@ -11,7 +11,7 @@ mvn install -Dmaven.test.skip.exec=true
 
 SG_SNAPSHOT=$(echo $REPO_DIR/plugin/target/releases/search-guard-suite-plugin-*.zip)
 
-echo "Search Guard Suite Snapshot: $SG_SNAPSHOT" 
+echo "Search Guard Suite Snapshot: $SG_SNAPSHOT"
 
 mkdir -p $DOWNLOAD_CACHE
 
@@ -19,7 +19,14 @@ ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.versi
 
 echo "ES version: $ES_VERSION"
 
-ES_ARCHIVE="elasticsearch-$ES_VERSION-linux-x86_64.tar.gz"
+if [[ "$OSTYPE"  == "linux"* ]]; then
+  ES_ARCHIVE="elasticsearch-$ES_VERSION-linux-x86_64.tar.gz"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  ES_ARCHIVE="elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz"
+else
+  echo "OS type $OSTYPE not supported"
+  exit
+fi
 
 if [ ! -f "$DOWNLOAD_CACHE/$ES_ARCHIVE" ]; then
 	wget "https://artifacts.elastic.co/downloads/elasticsearch/$ES_ARCHIVE" -P $DOWNLOAD_CACHE
