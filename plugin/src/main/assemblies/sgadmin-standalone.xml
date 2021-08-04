@@ -23,6 +23,15 @@
       </includes>
       <fileMode>0755</fileMode>
     </fileSet>
+	<fileSet>
+		<directory>${basedir}${file.separator}src${file.separator}main${file.separator}assemblies${file.separator}
+		</directory>
+		<outputDirectory>${file.separator}</outputDirectory>
+		<filtered>false</filtered>
+		<includes>
+			<include>LICENSE</include>
+		</includes>
+	</fileSet>    
   </fileSets>
   <dependencySets>
     <dependencySet>
