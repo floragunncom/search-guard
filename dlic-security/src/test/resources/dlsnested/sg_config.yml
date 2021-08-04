@@ -1,0 +1,20 @@
+---
+_sg_meta:
+  type: "config"
+  config_version: 2
+sg_config:
+  dynamic:
+    do_not_fail_on_forbidden: false
+    authc:
+      authentication_domain_basic_internal:
+        http_enabled: true
+        transport_enabled: true
+        order: 0
+        http_authenticator:
+          challenge: true
+          type: "basic"
+          config: {}
+        authentication_backend:
+          type: "intern"
+          config: {}
+        description: "Migrated from v6"

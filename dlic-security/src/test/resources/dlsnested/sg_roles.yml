@@ -1,0 +1,23 @@
+---
+_sg_meta:
+  type: "roles"
+  config_version: 2
+
+sg_admin:
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    allowed_actions:
+    - "*"
+
+sg_dls_nested:
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "nestedindex"
+    allowed_actions:
+    - "READ"
+    dls: "{ \"bool\": { \"must_not\": { \"match\": { \"field1\": \"a\" } } } }"
