@@ -187,7 +187,7 @@
 			</dependencies>
 		</profile>
 		<profile>
-			<id>veracode</id>
+			<id>quick</id>
 			<build>
 				<plugins>
 					<plugin>
@@ -195,27 +195,25 @@
 						<artifactId>maven-assembly-plugin</artifactId>
 						<executions>
 							<execution>
-								<id>veracode</id>
+								<id>plugin</id>
 								<phase>package</phase>
 								<configuration>
-									<appendAssemblyId>true</appendAssemblyId>
+									<appendAssemblyId>false</appendAssemblyId>
 									<tarLongFileMode>posix</tarLongFileMode>
-									<outputDirectory>${project.build.directory}/veracode/</outputDirectory>
+									<outputDirectory>${project.build.directory}/releases/</outputDirectory>
 									<descriptors>
-										<descriptor>${veracode.descriptor}</descriptor>
+										<descriptor>${elasticsearch.assembly.descriptor}</descriptor>
 									</descriptors>
 								</configuration>
 								<goals>
 									<goal>single</goal>
 								</goals>
-							</execution>
+							</execution>							
 						</executions>
 					</plugin>
 				</plugins>
 			</build>
 			<dependencies>
-				<!-- omit netty-tcnative and conscrypt-openjdk-uber if scan should be 
-					done without natives -->
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>search-guard-suite-security</artifactId>
@@ -251,7 +249,7 @@
 					<groupId>${project.groupId}</groupId>
 					<artifactId>dlic-search-guard-suite-signals</artifactId>
 					<version>${project.version}</version>
-				</dependency>				
+				</dependency>
 			</dependencies>
 		</profile>
 	</profiles>

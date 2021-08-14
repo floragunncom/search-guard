@@ -7,9 +7,9 @@ DOWNLOAD_CACHE="$MAIN_DIR/download-cache"
 INSTALL_DIR="$MAIN_DIR/es"
 REPO_DIR=$(pwd)
 
-mvn install -Dmaven.test.skip.exec=true
+mvn install -Dmaven.test.skip.exec=true -Pquick
 
-SG_SNAPSHOT=$(echo $REPO_DIR/plugin/target/releases/search-guard-suite-plugin-*.zip)
+SG_SNAPSHOT=$(echo $REPO_DIR/plugin/target/releases/search-guard-suite-plugin-*SNAPSHOT.zip)
 
 echo "Search Guard Suite Snapshot: $SG_SNAPSHOT"
 
@@ -49,6 +49,15 @@ bin/elasticsearch-plugin install -b file:///$SG_SNAPSHOT
 chmod u+x plugins/search-guard-7/tools/install_demo_configuration.sh
 
 ./plugins/search-guard-7/tools/install_demo_configuration.sh -i
+
+for param in "$@"
+do
+	if [[ "$param" =~ .*/sg_[^/]+\.yml ]]; then
+		echo "Using config file $param"
+		cp -v $param ./plugins/search-guard-7/sgconfig/
+	fi 	
+done
+
 
 echo "Starting ES"
 
