@@ -253,27 +253,6 @@ deploy_staging:
   tags:
     - openstack-runner
   script:
-<<<<<<< sg-7.52.x-es-7.14.x
-    - ./dev/setup_gpg.sh
-    - export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
-    - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
-    - export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
-    - echo "Deploying Release to Staging repo"
-    - mvn deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION | tee deploy.out
-    - 'PACKAGE_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o http.*zip`'
-    - echo PACKAGE_URI="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
-    - echo SG_SNAPSHOT="${PACKAGE_URI}" >> $CI_PROJECT_DIR/environment.env
-    - echo "SGADMIN_SNAPSHOT=https://maven.search-guard.com/search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.10.2-49.0.0/search-guard-suite-plugin-7.10.2-49.0.0-sgadmin-standalone.zip" >> $CI_PROJECT_DIR/environment.env
-    - echo "SG_SOURCE=staging" >> $CI_PROJECT_DIR/environment.env
-    - echo "BASEIMAGE=0.9.3-open-jdk-11" >> $CI_PROJECT_DIR/environment.env
-    - echo "TCNATIVE_SOURCE=download" >> $CI_PROJECT_DIR/environment.env
-    - echo "SG_VERSION=$SG_VERSION" >> $CI_PROJECT_DIR/environment.env
-    - echo "KI_SOURCE=none" >> $CI_PROJECT_DIR/environment.env
-    - echo "TCNATIVE_URL=https://maven.search-guard.com/netty-tcnative/netty-tcnative-openssl-1.1.1c-static-2.0.25.Final-non-fedora-linux-x86_64.jar" >> $CI_PROJECT_DIR/environment.env
-    - echo "ES_VERSION=$ES_VERSION" >> $CI_PROJECT_DIR/environment.env
-    - echo "MAJOR=$MAJOR" >> $CI_PROJECT_DIR/environment.env
-    - cat $CI_PROJECT_DIR/environment.env
-=======
     - |
       ./dev/setup_gpg.sh
       SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
@@ -302,7 +281,6 @@ deploy_staging:
       [[ -z $RELEASE_KIBANA_PLUGIN_ID ]] && SNAPSHOT_KIBANA_PLUGIN_ID=$(curl -Ss --fail "https://maven.search-guard.com/api/search/gavc?g=com.floragunn&a=search-guard-kibana-plugin&v=$KIBANA_PLUGIN_VERSION&repos=search-guard-kibana-plugin-snapshot"| grep zip|sed -E "s/(.*)\/(.*).zip(.*)/\2/"|sort|uniq|tail -n 1) || true
       [[ -n $SNAPSHOT_KIBANA_PLUGIN_ID ]] && echo "KI_SNAPSHOT=https://maven.search-guard.com/artifactory/search-guard-kibana-plugin-snapshot/com/floragunn/search-guard-kibana-plugin/$KIBANA_PLUGIN_VERSION/$SNAPSHOT_KIBANA_PLUGIN_ID.zip" >> $CI_PROJECT_DIR/environment.env
       cat $CI_PROJECT_DIR/environment.env
->>>>>>> 36a7fdc Reenabled sgadmin standalone
   artifacts:
     when: on_success
     paths:
