@@ -53,7 +53,12 @@ public class DlsTest {
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
             HttpResponse response = client.get("/_searchguard/license");
 
-            Assert.assertFalse(response.getBody(), response.toJsonNode().path("modules").path("DLSFLS").isMissingNode());
+            try {
+                Assert.assertFalse(response.getBody(), response.toJsonNode().path("modules").path("DLSFLS").isMissingNode());
+            } catch (Exception e) {
+                System.err.println("Error while parsing: " + response.getBody());
+                throw e;
+            }
         }
     }
 
