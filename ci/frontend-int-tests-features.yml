@@ -1,0 +1,63 @@
+fe_configui_1:
+  extends:
+  - .fe_integration_test_features
+  variables:
+    TEST: "kibana_basicauth_configui_1"
+    TEST_ENVIRONMENT: "kibana_noxpack"
+    TEST_KI_CONFIG: "basicauth"
+
+fe_configui_2:
+  extends:
+  - .fe_integration_test_features
+  variables:
+    TEST: "kibana_basicauth_configui_2"
+    TEST_ENVIRONMENT: "kibana_noxpack"
+    TEST_KI_CONFIG: "basicauth"
+
+fe_configui_3:
+  extends:
+  - .fe_integration_test_features
+  variables:
+    TEST: "kibana_basicauth_configui_3"
+    TEST_ENVIRONMENT: "kibana_noxpack"
+    TEST_KI_CONFIG: "basicauth"
+
+fe_configui_4:
+  extends:
+  - .fe_integration_test_features
+  variables:
+    TEST: "kibana_basicauth_configui_4_sgconfig_auth_page_enabled"
+    TEST_ENVIRONMENT: "kibana_noxpack"
+    TEST_KI_CONFIG: "basicauth_sgconfig_auth_page_enabled"
+
+fe_configui_license:
+  extends:
+  - .fe_integration_test_features
+  variables:
+    TEST: "kibana_basicauth_configui_licensehandling"
+    TEST_ENVIRONMENT: "kibana_noxpack"
+    TEST_KI_CONFIG: "basicauth"
+
+fe_signals:
+  extends:
+  - .fe_integration_test_features
+  variables:
+    TEST: "kibana_signals"
+    TEST_ENVIRONMENT: "kibana_signals"
+    TEST_KI_CONFIG: "signals"
+
+fe_authtokens:
+  extends:
+  - .fe_integration_test_features
+  variables:
+    TEST: "kibana_authtokens"
+    TEST_ENVIRONMENT: "kibana_authtokens"
+    TEST_KI_CONFIG: "authtokens"
+    TEST_COMPOSEFILE: "docker-compose-kibana-authtokens.yml"
+
+# -------------------------------------------------------------------------
+
+.fe_integration_test_features:
+  stage: "Frontend Int Tests Features"
+  extends:
+  - .fe_integration_test
