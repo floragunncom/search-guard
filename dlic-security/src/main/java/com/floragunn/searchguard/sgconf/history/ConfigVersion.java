@@ -24,10 +24,10 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
 public class ConfigVersion implements ToXContentObject, Writeable, Serializable {
 

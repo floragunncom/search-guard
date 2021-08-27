@@ -58,7 +58,9 @@
 		<module>scheduler</module>
 		<module>signals</module>
 		<module>support</module>
-		<module>plugin</module>		
+		<module>plugin</module>
+		<module>codova</module>		
+		
 	</modules>
 
 	<repositories>
@@ -269,6 +271,12 @@
 				<artifactId>search-guard-suite-support</artifactId>
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
+			</dependency>
+							
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>codova-sg</artifactId>
+				<version>${project.version}</version>
 			</dependency>
 
 			<dependency>
@@ -590,6 +598,7 @@
 				<module>dlic-security</module>
 				<module>dlic-signals</module>				
 				<module>plugin</module>
+				<module>codova</module>					
 			</modules>
 		</profile>
 

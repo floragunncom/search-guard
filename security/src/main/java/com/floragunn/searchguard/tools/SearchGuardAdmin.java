@@ -98,6 +98,7 @@ import org.elasticsearch.plugins.PluginInfo;
 import org.elasticsearch.transport.Netty4Plugin;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;

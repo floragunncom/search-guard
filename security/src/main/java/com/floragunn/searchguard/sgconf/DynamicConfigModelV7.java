@@ -16,6 +16,7 @@ import java.util.TreeSet;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 
+import com.floragunn.codova.validation.ConfigVariableProviders;
 import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.AuthenticationDomain;
 import com.floragunn.searchguard.auth.AuthorizationDomain;

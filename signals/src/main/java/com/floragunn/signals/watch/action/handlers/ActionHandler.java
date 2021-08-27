@@ -8,12 +8,12 @@ import org.elasticsearch.common.Strings;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
-import com.floragunn.searchsupport.config.validation.MissingAttribute;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.watch.action.handlers.email.EmailAction;

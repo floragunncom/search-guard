@@ -35,8 +35,8 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestRequest.Method;
+import org.elasticsearch.rest.RestResponse;
 import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -45,9 +45,9 @@ import org.junit.Test;
 
 import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
+import com.floragunn.codova.documents.DocReader;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.util.FakeRestRequest;
-import com.floragunn.searchsupport.json.BasicJsonReader;
 import com.google.common.collect.ImmutableMap;
 
 public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
@@ -116,7 +116,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
             jwtAuth.handleMetaRequest(restRequest, restChannel, "/_searchguard/test/openid", "config", null);
             String response = restChannel.response.content().utf8ToString();
-            Map<String, Object> parsedResponse = BasicJsonReader.readObject(response);
+            Map<String, Object> parsedResponse = DocReader.readObject(response);
 
             Assert.assertTrue(response, parsedResponse.containsKey("token_endpoint_proxy"));
 
@@ -128,7 +128,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
             jwtAuth.handleMetaRequest(restRequest, restChannel, "/_searchguard/test/openid", "token", null);
 
             response = restChannel.response.content().utf8ToString();
-            parsedResponse = BasicJsonReader.readObject(response);
+            parsedResponse = DocReader.readObject(response);
 
             Assert.assertTrue(response, parsedResponse.containsKey("id_token"));
         }

@@ -1,6 +1,6 @@
 package com.floragunn.signals.confconv;
 
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.floragunn.codova.validation.ValidationErrors;
 
 public class ConversionResult<Element> {
     public final Element element;

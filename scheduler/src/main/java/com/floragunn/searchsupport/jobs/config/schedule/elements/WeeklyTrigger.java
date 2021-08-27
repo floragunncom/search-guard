@@ -17,10 +17,10 @@ import org.quartz.TimeOfDay;
 import org.quartz.impl.triggers.CronTriggerImpl;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
-import com.floragunn.searchsupport.config.validation.MissingAttribute;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.MissingAttribute;
 
 public class WeeklyTrigger extends HumanReadableCronTrigger<WeeklyTrigger> {
 

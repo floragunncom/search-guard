@@ -1,6 +1,6 @@
 package com.floragunn.searchsupport.config.validation;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ConfigValidationException;
 
 @FunctionalInterface
 public interface JsonNodeParser<ValueType> {

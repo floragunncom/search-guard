@@ -34,9 +34,9 @@ import org.elasticsearch.common.settings.Settings;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
-import com.floragunn.searchsupport.json.BasicJsonPathDefaultConfiguration;
-import com.floragunn.searchsupport.json.BasicJsonReader;
-import com.floragunn.searchsupport.json.BasicJsonWriter;
+import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
 import com.jayway.jsonpath.Configuration;
@@ -302,7 +302,7 @@ public class UserAttributes {
                 if (operation.equals("toString")) {
                     value = value.toString();
                 } else if (operation.equals("toJson")) {
-                    value = BasicJsonWriter.writeAsString(value);
+                    value = DocWriter.writeAsString(value);
                 } else if (operation.equals("toList")) {
                     if (!(value instanceof Collection)) {
                         value = Collections.singletonList(value);
@@ -364,7 +364,7 @@ public class UserAttributes {
             try {
                 JsonParser parser = JSON_FACTORY.createParser(string.substring(start));
 
-                Object result = BasicJsonReader.read(parser);
+                Object result = DocReader.read(parser);
 
                 i = start + (int) parser.getTokenLocation().getCharOffset() + parser.getLastClearedToken().asString().length();
 

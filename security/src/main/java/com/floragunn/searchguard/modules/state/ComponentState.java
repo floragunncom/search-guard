@@ -45,9 +45,9 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.configuration.SearchGuardLicense;
-import com.floragunn.searchsupport.json.BasicJsonReader;
-import com.floragunn.searchsupport.json.BasicJsonWriter;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 
@@ -410,7 +410,7 @@ public class ComponentState implements Writeable, ToXContentObject {
             return detailJson;
         } else if (detailJsonElements != null) {
             try {
-                return BasicJsonWriter.writeAsString(detailJsonElements);
+                return DocWriter.writeAsString(detailJsonElements);
             } catch (Exception e) {
                 log.error("Error while writing " + detailJsonElements, e);
                 return null;
@@ -515,7 +515,7 @@ public class ComponentState implements Writeable, ToXContentObject {
         if (detailJsonElements == null) {
             if (detailJson != null) {
                 try {
-                    Object parsedDetailJson = BasicJsonReader.read(detailJson);
+                    Object parsedDetailJson = DocReader.read(detailJson);
 
                     if (parsedDetailJson instanceof List) {
                         @SuppressWarnings("unchecked")

@@ -17,11 +17,11 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.ScriptService;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.filter.TenantAwareRestHandler;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchAction;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchRequest;

@@ -24,6 +24,7 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.FailureListener;
@@ -37,7 +38,6 @@ import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.settings.SignalsSettings;

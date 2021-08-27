@@ -14,9 +14,9 @@ import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.script.TemplateScript;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchsupport.config.validation.ScriptValidationError;
-import com.floragunn.searchsupport.config.validation.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.signals.accounts.Account;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.accounts.NoSuchAccountException;

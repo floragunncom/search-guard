@@ -1,7 +1,7 @@
 package com.floragunn.signals.confconv.es;
 
-import com.floragunn.searchsupport.config.validation.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.signals.confconv.ConversionResult;
 
 public class MustacheTemplateConverter {

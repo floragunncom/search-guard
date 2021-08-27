@@ -21,12 +21,12 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.support.PemKeyReader;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
 
 public class TlsClientAuthConfig implements ToXContentObject {
     private String inlineAuthCertsPem;

@@ -34,12 +34,12 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
-import com.floragunn.searchsupport.config.validation.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.google.common.collect.ImmutableList;
 
 public class TlsConfig implements ToXContentObject {

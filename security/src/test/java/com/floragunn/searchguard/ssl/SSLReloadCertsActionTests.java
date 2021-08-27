@@ -34,6 +34,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocReader;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.ssl.util.config.ClientAuthCredentials;
@@ -46,7 +47,6 @@ import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.tools.SearchGuardAdmin;
-import com.floragunn.searchsupport.json.BasicJsonReader;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -123,7 +123,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
 
         Assert.assertEquals(200, reloadCertsResponse.getStatusCode());
         Assert.assertEquals(reloadCertsResponse.getBody(), ImmutableMap.of("message", "updated transport certs"),
-                BasicJsonReader.read(reloadCertsResponse.getBody()));
+                DocReader.read(reloadCertsResponse.getBody()));
 
         certDetailsResponse = rh.executeSimpleRequest(GET_CERT_DETAILS_ENDPOINT);
 
@@ -167,7 +167,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
 
         Assert.assertEquals(200, reloadCertsResponse.getStatusCode());
         Assert.assertEquals(reloadCertsResponse.getBody(), ImmutableMap.of("message",  "updated http certs"),
-                BasicJsonReader.read(reloadCertsResponse.getBody()));
+                DocReader.read(reloadCertsResponse.getBody()));
 
         certDetailsResponse = rh.executeSimpleRequest(GET_CERT_DETAILS_ENDPOINT);
 
@@ -199,7 +199,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
 
         Assert.assertEquals(reloadCertsResponse.getBody(),
                 ImmutableMap.of("error", "no handler found for uri [/_searchguard/_security/api/ssl/wrong/reloadcerts] and method [POST]"),
-                BasicJsonReader.read(reloadCertsResponse.getBody()));
+                DocReader.read(reloadCertsResponse.getBody()));
     }
 
     @Test

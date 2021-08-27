@@ -70,6 +70,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.authtoken.AuthTokenServiceConfig.FreezePrivileges;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
@@ -92,7 +93,6 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.google.common.cache.Cache;

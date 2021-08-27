@@ -28,13 +28,14 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
-import com.floragunn.searchsupport.config.validation.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
+
 
 public class RequestedPrivileges implements Writeable, ToXContentObject, Serializable {
     private static final long serialVersionUID = 5862219250642101795L;

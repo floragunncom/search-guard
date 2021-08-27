@@ -15,9 +15,9 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;

@@ -1,7 +1,7 @@
 package com.floragunn.signals.execution;
 
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.signals.watch.action.handlers.ActionHandler;
 
 public class ActionExecutionException extends WatchOperationExecutionException {

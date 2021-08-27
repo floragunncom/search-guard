@@ -12,10 +12,10 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionContextData;

@@ -24,9 +24,9 @@ import org.elasticsearch.script.TemplateScript;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.floragunn.signals.execution.CheckExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;

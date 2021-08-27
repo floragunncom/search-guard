@@ -15,8 +15,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchsupport.json.BasicJsonWriter;
 import com.google.common.collect.MapMaker;
 
 public class NestedValueMap extends HashMap<String, Object> {
@@ -207,7 +207,7 @@ public class NestedValueMap extends HashMap<String, Object> {
     }
 
     public String toJsonString() {
-        return BasicJsonWriter.writeAsString(this);
+        return DocWriter.writeAsString(this);
     }
 
     private Object deepCloneObject(Object object) {

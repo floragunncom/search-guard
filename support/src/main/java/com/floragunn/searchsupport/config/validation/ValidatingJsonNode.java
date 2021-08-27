@@ -21,11 +21,17 @@ import org.elasticsearch.script.ScriptService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.config.temporal.DurationExpression;
+import com.floragunn.codova.config.temporal.DurationFormat;
+import com.floragunn.codova.config.temporal.TemporalAmountFormat;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingFunction;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.codova.validation.errors.UnsupportedAttribute;
 import com.floragunn.searchsupport.config.elements.EnumValueParser;
 import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
-import com.floragunn.searchsupport.util.temporal.DurationExpression;
-import com.floragunn.searchsupport.util.temporal.DurationFormat;
-import com.floragunn.searchsupport.util.temporal.TemporalAmountFormat;
 
 public class ValidatingJsonNode {
     private ValidationErrors validationErrors;

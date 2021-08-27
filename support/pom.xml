@@ -25,6 +25,11 @@
 	<dependencies>
 
 		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>codova-sg</artifactId>
+		</dependency>
+
+		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
@@ -40,6 +45,17 @@
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
 		</dependency>		
+		
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpasyncclient</artifactId>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcpkix-jdk15on</artifactId>
+			<version>${bc.version}</version>
+		</dependency>
 		
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>

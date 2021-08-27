@@ -11,9 +11,9 @@ import org.elasticsearch.script.ScriptException;
 import org.elasticsearch.script.ScriptType;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.CheckExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;

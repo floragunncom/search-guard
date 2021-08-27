@@ -43,6 +43,12 @@
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>codova-sg</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- Security -->
 		<dependency>
 			<groupId>com.floragunn</groupId>

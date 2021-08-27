@@ -19,12 +19,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
+import com.floragunn.codova.config.temporal.DurationFormat;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.TriggerFactory;
-import com.floragunn.searchsupport.util.temporal.DurationFormat;
 
 public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
     public static DefaultScheduleFactory INSTANCE = new DefaultScheduleFactory();

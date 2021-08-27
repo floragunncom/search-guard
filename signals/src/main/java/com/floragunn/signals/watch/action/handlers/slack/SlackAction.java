@@ -20,12 +20,12 @@ import org.elasticsearch.script.TemplateScript;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.MissingAttribute;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.SimulationMode;
 import com.floragunn.signals.execution.WatchExecutionContext;
