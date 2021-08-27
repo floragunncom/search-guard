@@ -38,6 +38,8 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -45,8 +47,6 @@ import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
-import com.floragunn.searchsupport.json.BasicJsonPathDefaultConfiguration;
-import com.floragunn.searchsupport.json.BasicJsonReader;
 import com.google.common.io.BaseEncoding;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
@@ -140,7 +140,7 @@ public class AuthTokenIntegrationTest {
             Assert.assertEquals("HS512", getJwtHeaderValue(token, "alg"));
 
             String tokenPayload = getJwtPayload(token);
-            Map<String, Object> parsedTokenPayload = BasicJsonReader.readObject(tokenPayload);
+            Map<String, Object> parsedTokenPayload = DocReader.readObject(tokenPayload);
             Assert.assertEquals(tokenPayload, "spock", JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
             Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") != null);
 
@@ -202,7 +202,7 @@ public class AuthTokenIntegrationTest {
             Assert.assertEquals("HS512", getJwtHeaderValue(token, "alg"));
 
             String tokenPayload = getJwtPayload(token);
-            Map<String, Object> parsedTokenPayload = BasicJsonReader.readObject(tokenPayload);
+            Map<String, Object> parsedTokenPayload = DocReader.readObject(tokenPayload);
             Assert.assertEquals(tokenPayload, "spock", JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
             Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") == null);
 

@@ -6,6 +6,8 @@ import org.apache.logging.log4j.util.Strings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.ScriptException;
 
+import com.floragunn.codova.validation.errors.ValidationError;
+
 public class ScriptExecutionError extends ValidationError {
 
     private String context;

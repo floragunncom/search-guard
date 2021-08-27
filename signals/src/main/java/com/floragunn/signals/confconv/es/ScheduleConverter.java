@@ -15,17 +15,17 @@ import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
-import com.floragunn.searchsupport.config.validation.MissingAttribute;
-import com.floragunn.searchsupport.config.validation.ValidationErrors;
+import com.floragunn.codova.config.temporal.DurationFormat;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchsupport.jobs.config.schedule.Schedule;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleImpl;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.DailyTrigger;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.HourlyTrigger;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.MonthlyTrigger;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.WeeklyTrigger;
-import com.floragunn.searchsupport.util.temporal.DurationFormat;
 import com.floragunn.signals.confconv.ConversionResult;
 import com.google.common.primitives.Ints;
 

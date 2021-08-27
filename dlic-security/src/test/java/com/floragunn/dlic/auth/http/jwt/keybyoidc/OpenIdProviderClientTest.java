@@ -43,11 +43,11 @@ import org.junit.Test;
 
 import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
+import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.floragunn.searchsupport.config.proxy.ProxyConfig;
 import com.google.common.hash.Hashing;
 
 public class OpenIdProviderClientTest {

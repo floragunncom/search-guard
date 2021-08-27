@@ -20,8 +20,8 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
+import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
-import com.floragunn.searchsupport.util.temporal.DurationExpression;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
 import com.floragunn.signals.settings.SignalsSettings;

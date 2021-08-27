@@ -15,7 +15,7 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.cluster.JobDistributor;
 
 public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable<JobType> {

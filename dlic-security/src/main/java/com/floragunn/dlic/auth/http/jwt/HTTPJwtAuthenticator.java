@@ -40,11 +40,11 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
+import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.dlic.util.Roles;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.UserAttributes;
-import com.floragunn.searchsupport.json.BasicJsonPathDefaultConfiguration;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;

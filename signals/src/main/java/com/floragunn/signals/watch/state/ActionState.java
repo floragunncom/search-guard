@@ -12,7 +12,7 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchsupport.util.temporal.DurationExpression;
+import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.signals.watch.common.Ack;
 import com.floragunn.signals.watch.result.Status;
 import com.floragunn.signals.watch.severity.SeverityLevel;

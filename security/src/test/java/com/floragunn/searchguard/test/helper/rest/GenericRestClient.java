@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.net.ssl.SSLContext;
@@ -62,6 +63,7 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
@@ -153,6 +155,10 @@ public class GenericRestClient implements AutoCloseable {
 
     public HttpResponse postJson(String path, ToXContentObject body) throws Exception {
         return postJson(path, Strings.toString(body));
+    }
+    
+    public HttpResponse postJson(String path, Map<String, Object> body, Header...headers) throws Exception {
+        return postJson(path, DocWriter.writeAsString(body), headers);
     }
 
     public HttpResponse post(String path) throws Exception {

@@ -30,7 +30,7 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestStatus;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.google.common.base.Charsets;
 
 public class Responses {

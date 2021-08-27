@@ -43,10 +43,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
 
+import com.floragunn.codova.config.net.ProxyConfig;
+import com.floragunn.codova.documents.DocReader;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfig;
-import com.floragunn.searchsupport.config.proxy.ProxyConfig;
-import com.floragunn.searchsupport.json.BasicJsonReader;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(KeySetRetriever.class);
@@ -116,7 +116,7 @@ public class OpenIdProviderClient {
                         throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": Empty response entity");
                     }
 
-                    return new OidcProviderConfig(BasicJsonReader.readObject(httpEntity.getContent()));
+                    return new OidcProviderConfig(DocReader.readObject(httpEntity.getContent()));
                 }
 
             } catch (IOException e) {

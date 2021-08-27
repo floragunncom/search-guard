@@ -31,11 +31,11 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
+import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.dlic.auth.http.jwt.AbstractHTTPJwtAuthenticator;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
-import com.floragunn.searchsupport.config.proxy.ProxyConfig;
 import com.floragunn.searchsupport.rest.Responses;
 
 public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthenticator {

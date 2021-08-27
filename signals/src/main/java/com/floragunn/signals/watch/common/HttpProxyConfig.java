@@ -26,8 +26,8 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.TextNode;
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.InvalidAttributeValue;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 
 public class HttpProxyConfig implements ToXContent {
 

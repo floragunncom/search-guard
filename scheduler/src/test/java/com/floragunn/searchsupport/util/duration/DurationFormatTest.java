@@ -6,7 +6,7 @@ import java.time.Duration;
 
 import org.junit.Test;
 
-import com.floragunn.searchsupport.util.temporal.DurationFormat;
+import com.floragunn.codova.config.temporal.DurationFormat;
 
 public class DurationFormatTest {
 

@@ -29,8 +29,8 @@ import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchsupport.config.validation.ConfigValidationException;
-import com.floragunn.searchsupport.json.BasicJsonWriter;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.google.common.base.Charsets;
 
 public class Responses {
@@ -129,7 +129,7 @@ public class Responses {
                 }
                 channel.sendResponse(new BytesRestResponse(RestStatus.OK, builder));
             } else {
-                channel.sendResponse(new BytesRestResponse(RestStatus.OK, "application/json", BasicJsonWriter.writeAsString(json)));
+                channel.sendResponse(new BytesRestResponse(RestStatus.OK, "application/json", DocWriter.writeAsString(json)));
             }
         } catch (Exception e) {
             log.error(e.toString(), e);

@@ -63,9 +63,9 @@ import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpRequestHandler;
 import org.apache.http.util.EntityUtils;
 
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.floragunn.searchsupport.json.BasicJsonWriter;
 import com.google.common.collect.ImmutableMap;
 
 class MockIpdServer implements Closeable {
@@ -254,7 +254,7 @@ class MockIpdServer implements Closeable {
         Map<String, Object> responseBody = ImmutableMap.of("access_token", "totototototo", "token_type", "bearer", "expires_in", 3600, "scope",
                 "profile app:read app:write", "id_token", "kenkenken");
 
-        response.setEntity(new StringEntity(BasicJsonWriter.writeAsString(responseBody), ContentType.APPLICATION_JSON));
+        response.setEntity(new StringEntity(DocWriter.writeAsString(responseBody), ContentType.APPLICATION_JSON));
     }
 
     private SSLContext createSSLContext() {
