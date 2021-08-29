@@ -86,7 +86,7 @@ public class ConfigV7 {
         public Authc authc = new Authc();
         public Authz authz = new Authz();
         public AuthFailureListeners auth_failure_listeners = new AuthFailureListeners();
-        public boolean do_not_fail_on_forbidden;
+        public boolean do_not_fail_on_forbidden = true;
         public boolean multi_rolespan_enabled = true;
         public String hosts_resolver_mode = "ip-only";
         public String transport_userrname_attribute;
