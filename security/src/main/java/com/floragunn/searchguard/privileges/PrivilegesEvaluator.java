@@ -17,13 +17,10 @@
 
 package com.floragunn.searchguard.privileges;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -58,11 +55,8 @@ import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
 import org.elasticsearch.action.update.UpdateAction;
-import org.elasticsearch.cluster.metadata.AliasMetadata;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -457,12 +451,6 @@ public class PrivilegesEvaluator implements DCFListener {
                     sgRoles.getRoleNames());
             log.info("No permissions for {}", presponse.missingPrivileges);
         } else {
-
-            if (checkFilteredAliases(requestedResolved, action0)) {
-                presponse.allowed = false;
-                return presponse;
-            }
-
             if (log.isDebugEnabled()) {
                 log.debug("Allowed because we have all indices permissions for " + action0);
             }
@@ -582,103 +570,6 @@ public class PrivilegesEvaluator implements DCFListener {
         return !isClusterPerm(action) && !isTenantPerm(action);
     }
 
-    private boolean checkFilteredAliases(Resolved requestedResolved, String action) {
-        final String faMode = dcm.getFilteredAliasMode();// getConfigSettings().dynamic.filtered_alias_mode;
-
-        if (!"disallow".equals(faMode)) {
-            return false;
-        }
-        
-        if (!WildcardMatcher.match("indices:data/read/*search*", action)) {
-            return false;
-        }
-        
-        Iterable<IndexMetadata> indexMetaDataCollection;
-        
-        if (requestedResolved.isLocalAll()) {
-            indexMetaDataCollection = new Iterable<IndexMetadata>() {                
-                @Override
-                public Iterator<IndexMetadata> iterator() {
-                    return clusterService.state().getMetadata().getIndices().valuesIt();
-                }
-            };
-        } else {        
-            Set<IndexMetadata> indexMetaDataSet = new HashSet<>(requestedResolved.getAllIndices().size());
-            
-            for (String requestAliasOrIndex : requestedResolved.getAllIndices()) {
-
-                IndexMetadata indexMetaData = clusterService.state().getMetadata().getIndices().get(requestAliasOrIndex);
-
-                if (indexMetaData == null) {
-                    log.debug("{} does not exist in cluster metadata", requestAliasOrIndex);
-                    continue;
-                }
-                
-                indexMetaDataSet.add(indexMetaData);
-            }
-            
-            indexMetaDataCollection = indexMetaDataSet;
-        }
-        
-        //check filtered aliases
-        for (IndexMetadata indexMetaData : indexMetaDataCollection) {
-
-            final List<AliasMetadata> filteredAliases = new ArrayList<AliasMetadata>();
-
-            final ImmutableOpenMap<String, AliasMetadata> aliases = indexMetaData.getAliases();
-
-            if (aliases != null && aliases.size() > 0) {
-
-                if (log.isDebugEnabled()) {
-                    log.debug("Aliases for {}: {}", indexMetaData.getIndex().getName(), aliases);
-                }
-
-                final Iterator<String> it = aliases.keysIt();
-                while (it.hasNext()) {
-                    final String alias = it.next();
-                    final AliasMetadata aliasMetaData = aliases.get(alias);
-
-                    if (aliasMetaData != null && aliasMetaData.filteringRequired()) {
-                        filteredAliases.add(aliasMetaData);
-                        if (log.isDebugEnabled()) {
-                            log.debug(alias + " is a filtered alias " + aliasMetaData.getFilter());
-                        }
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug(alias + " is not an alias or does not have a filter");
-                        }
-                    }
-                }
-            }
-
-            if (filteredAliases.size() > 1) {
-                //TODO add queries as dls queries (works only if dls module is installed)
-
-                log.error("More than one ({}) filtered alias found for same index ({}). This is currently not supported. Aliases: {}",
-                        filteredAliases.size(), indexMetaData.getIndex().getName(), toString(filteredAliases));
-                return true;
-            }
-        } //end-for
-
-        return false;
-    }
-
-    private List<String> toString(List<AliasMetadata> aliases) {
-        if (aliases == null || aliases.size() == 0) {
-            return Collections.emptyList();
-        }
-
-        final List<String> ret = new ArrayList<>(aliases.size());
-
-        for (final AliasMetadata amd : aliases) {
-            if (amd != null) {
-                ret.add(amd.alias());
-            }
-        }
-
-        return Collections.unmodifiableList(ret);
-    }
-    
     /**
      * Only used for authinfo REST API
      */
