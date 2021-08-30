@@ -44,6 +44,9 @@ tar xfz "$DOWNLOAD_CACHE/$ES_ARCHIVE" -C "$INSTALL_DIR" --strip-components 1
 
 cd "$INSTALL_DIR"
 
+echo "-Xms1g" >>config/jvm.options
+echo "-Xmx1g" >>config/jvm.options
+
 bin/elasticsearch-plugin install -b file:///$SG_SNAPSHOT
 
 chmod u+x plugins/search-guard-7/tools/install_demo_configuration.sh
