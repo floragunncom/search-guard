@@ -38,6 +38,11 @@ cfe2_multitenancy:
   - fe_multitenancy
   - .cfe2_integration_test
 
+cfe2_openid_auth0:
+  extends:
+  - fe_openid_auth0
+  - .cfe2_integration_test
+
 cfe2_openid_keycloak:
   extends:
   - fe_openid_keycloak
