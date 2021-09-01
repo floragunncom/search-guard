@@ -56,6 +56,14 @@ fe_multitenancy:
     TEST_ENVIRONMENT: "kibana_noxpack"
     TEST_KI_CONFIG: "basicauth"
 
+fe_openid_auth0:
+  extends:
+  - .fe_integration_test
+  variables:
+    TEST: "kibana_openid_auth0"
+    TEST_ENVIRONMENT: "kibana_noxpack"
+    TEST_KI_CONFIG: "openid_auth0"
+
 fe_openid_keycloak:
   extends:
   - .fe_integration_test
