@@ -88,6 +88,14 @@ fe_saml_auth0:
     TEST_ENVIRONMENT: "kibana_noxpack"
     TEST_KI_CONFIG: "saml"
 
+fe_session_auth:
+  extends:
+  - .fe_integration_test
+  variables:
+    TEST: "kibana_session_auth"
+    TEST_ENVIRONMENT: "kibana_noxpack"
+    TEST_KI_CONFIG: "session_auth"
+
 fe_sso_proxy:
   extends:
   - .fe_integration_test
