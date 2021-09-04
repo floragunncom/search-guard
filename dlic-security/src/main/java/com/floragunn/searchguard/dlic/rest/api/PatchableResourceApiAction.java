@@ -46,6 +46,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.flipkart.zjsonpatch.JsonPatch;
 import com.flipkart.zjsonpatch.JsonPatchApplicationException;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -57,6 +58,7 @@ import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextPr
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
+import com.floragunn.searchsupport.rest.Responses;
 import com.google.common.collect.ImmutableList;
 
 public abstract class PatchableResourceApiAction extends AbstractApiAction {
@@ -106,15 +108,19 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
         ObjectNode existingAsObjectNode = (ObjectNode) existingAsJsonNode;
 
-        if (Strings.isNullOrEmpty(name)) {
-            handleBulkPatch(channel, request, client, existingConfiguration, existingAsObjectNode, jsonPatch);
-        } else {
-            handleSinglePatch(channel, request, client, name, existingConfiguration, existingAsObjectNode, jsonPatch);
+        try {
+            if (Strings.isNullOrEmpty(name)) {
+                handleBulkPatch(channel, request, client, existingConfiguration, existingAsObjectNode, jsonPatch);
+            } else {
+                handleSinglePatch(channel, request, client, name, existingConfiguration, existingAsObjectNode, jsonPatch);
+            }
+        } catch (ConfigValidationException e) {
+            Responses.sendError(channel, e);
         }
     }
 
     private void handleSinglePatch(RestChannel channel, RestRequest request, Client client, String name,
-            SgDynamicConfiguration<?> existingConfiguration, ObjectNode existingAsObjectNode, JsonNode jsonPatch) throws IOException {
+            SgDynamicConfiguration<?> existingConfiguration, ObjectNode existingAsObjectNode, JsonNode jsonPatch) throws IOException, ConfigValidationException {
         if (isHidden(existingConfiguration, name)) {
             notFound(channel, getResourceName() + " " + name + " not found.");
             return;
@@ -177,7 +183,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     }
 
     private void handleBulkPatch(RestChannel channel, RestRequest request, Client client, SgDynamicConfiguration<?> existingConfiguration,
-            ObjectNode existingAsObjectNode, JsonNode jsonPatch) throws IOException {
+            ObjectNode existingAsObjectNode, JsonNode jsonPatch) throws IOException, ConfigValidationException {
 
         JsonNode patchedAsJsonNode;
 

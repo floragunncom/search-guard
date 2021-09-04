@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
@@ -173,11 +174,11 @@ public class DefaultObjectMapper {
         }
     }
 
-    public static <T> T convertValue(Object value, JavaType jt) throws IOException {
+    public static <T> T convertValue(Object value, JavaType jt) {
         return convertValue(value, jt, false);
     }
 
-    public static <T> T convertValue(Object value, JavaType jt, boolean omitDefaults) throws IOException {
+    public static <T> T convertValue(Object value, JavaType jt, boolean omitDefaults) {
 
         final SecurityManager sm = System.getSecurityManager();
 
@@ -185,19 +186,15 @@ public class DefaultObjectMapper {
             sm.checkPermission(new SpecialPermission());
         }
 
-        try {
-            return AccessController.doPrivileged(new PrivilegedExceptionAction<T>() {
-                @Override
-                public T run() throws Exception {
-                    return (omitDefaults ? defaulOmittingObjectMapper : objectMapper).convertValue(value, jt);
-                }
-            });
-        } catch (final PrivilegedActionException e) {
-            throw (IOException) e.getCause();
-        }
+        return AccessController.doPrivileged(new PrivilegedAction<T>() {
+            @Override
+            public T run() {
+                return (omitDefaults ? defaulOmittingObjectMapper : objectMapper).convertValue(value, jt);
+            }
+        });
     }
 
-    public static <T> T convertValue(Object value, Class<T> clazz, boolean omitDefaults) throws IOException {
+    public static <T> T convertValue(Object value, Class<T> clazz, boolean omitDefaults) {
 
         final SecurityManager sm = System.getSecurityManager();
 
@@ -205,16 +202,12 @@ public class DefaultObjectMapper {
             sm.checkPermission(new SpecialPermission());
         }
 
-        try {
-            return AccessController.doPrivileged(new PrivilegedExceptionAction<T>() {
-                @Override
-                public T run() throws Exception {
-                    return (omitDefaults ? defaulOmittingObjectMapper : objectMapper).convertValue(value, clazz);
-                }
-            });
-        } catch (final PrivilegedActionException e) {
-            throw (IOException) e.getCause();
-        }
+        return AccessController.doPrivileged(new PrivilegedAction<T>() {
+            @Override
+            public T run() {
+                return (omitDefaults ? defaulOmittingObjectMapper : objectMapper).convertValue(value, clazz);
+            }
+        });
     }
 
     public static TypeFactory getTypeFactory() {

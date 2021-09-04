@@ -51,7 +51,7 @@ public class ValidatingDocNode {
     private Set<String> unconsumedAttributes;
     private Set<String> consumedAttributes = new HashSet<>();
     private Map<String, Function<String, ?>> variableProviders = new HashMap<>();
-
+    
     public ValidatingDocNode(Map<String, Object> document, ValidationErrors validationErrors) {
         this(new DocNode.PlainJavaObjectAdapter(document), validationErrors);
     }

@@ -20,6 +20,10 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.codova.validation.jackson.JacksonExceptions;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.sgconf.Hashed;
 import com.floragunn.searchguard.sgconf.Hideable;
@@ -48,7 +52,7 @@ public class SgDynamicConfiguration<T> implements ToXContent {
         return new SgDynamicConfiguration<T>();
     }
     
-    public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType ctype, long docVersion, long seqNo, long primaryTerm, Settings settings) throws IOException {
+    public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType ctype, long docVersion, long seqNo, long primaryTerm, Settings settings) throws IOException, ConfigValidationException {
         String jsonString = SgUtils.replaceEnvVars(uninterpolatedJson, settings);
         JsonNode jsonNode = DefaultObjectMapper.readTree(jsonString);
         int configVersion = 1;
@@ -76,7 +80,7 @@ public class SgDynamicConfiguration<T> implements ToXContent {
         return SgDynamicConfiguration.fromJson(jsonString, uninterpolatedJson, ctype, configVersion, docVersion, seqNo, primaryTerm);
     }
 
-    public static <T> SgDynamicConfiguration<T> fromJson(String json, String uninterpolatedJson, CType ctype, int version, long docVersion, long seqNo, long primaryTerm) throws IOException {
+    public static <T> SgDynamicConfiguration<T> fromJson(String json, String uninterpolatedJson, CType ctype, int version, long docVersion, long seqNo, long primaryTerm) throws IOException, ConfigValidationException {
         SgDynamicConfiguration<T> sdc;
         if(ctype != null) {
             final Class<?> implementationClass = ctype.getImplementationClass().get(version);
@@ -101,22 +105,27 @@ public class SgDynamicConfiguration<T> implements ToXContent {
         return sdc;
     }
     
-    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype) throws IOException {
+    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype) throws ConfigValidationException {
         int configVersion = getConfigVersion(map, ctype);
         
         return fromMap(map, ctype, configVersion, -1, -1, -1);
     }
     
    
-    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype, int version, long docVersion, long seqNo, long primaryTerm) throws IOException {
+    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType ctype, int version, long docVersion, long seqNo, long primaryTerm) throws ConfigValidationException {
         SgDynamicConfiguration<T> sdc;
         if(ctype != null) {
             final Class<?> implementationClass = ctype.getImplementationClass().get(version);
             if(implementationClass == null) {
                 throw new IllegalArgumentException("No implementation class found for "+ctype+" and config version "+version);
             }
-            sdc = DefaultObjectMapper.convertValue(map, DefaultObjectMapper.getTypeFactory().constructParametricType(SgDynamicConfiguration.class, implementationClass));
-        
+            
+            try {
+                sdc = DefaultObjectMapper.convertValue(map, DefaultObjectMapper.getTypeFactory().constructParametricType(SgDynamicConfiguration.class, implementationClass));
+            } catch (IllegalArgumentException e) {
+                throw JacksonExceptions.toConfigValidationException(e);
+            }
+            
             validate(sdc, version, ctype);
         
         } else {
@@ -132,32 +141,36 @@ public class SgDynamicConfiguration<T> implements ToXContent {
         return sdc;
     }
     
-    public static void validate(SgDynamicConfiguration<?> sdc, int version, CType ctype) throws IOException {
+    public static void validate(SgDynamicConfiguration<?> sdc, int version, CType ctype) throws ConfigValidationException {
         if(version < 2 && sdc.get_sg_meta() != null) {
-            throw new IOException("A version of "+version+" can not have a _sg_meta key for "+ctype);
+            throw new ConfigValidationException(
+                    new ValidationError("_sg_meta", "A version of " + version + " can not have a _sg_meta key for " + ctype));
         }
         
         if(version >= 2 && sdc.get_sg_meta() == null) {
-            throw new IOException("A version of "+version+" must have a _sg_meta key for "+ctype);
+            throw new ConfigValidationException(
+                    new ValidationError("_sg_meta", "A version of " + version + " can not have a _sg_meta key for " + ctype));
         }
         
         if(version < 2 && ctype == CType.CONFIG && (sdc.getCEntries().size() != 1 || !sdc.getCEntries().keySet().contains("searchguard"))) {
-            throw new IOException("A version of "+version+" must have a single toplevel key named 'searchguard' for "+ctype);
+            throw new ConfigValidationException(
+                    new ValidationError(null, "A version of " + version + " must have a single toplevel key named 'searchguard' for " + ctype));
         }
         
         if(version >= 2 && ctype == CType.CONFIG && (sdc.getCEntries().size() != 1 || !sdc.getCEntries().keySet().contains("sg_config"))) {
-            throw new IOException("A version of "+version+" must have a single toplevel key named 'sg_config' for "+ctype);
+            throw new ConfigValidationException(
+                    new ValidationError(null, "A version of " + version + " must have a single toplevel key named 'sg_config' for " + ctype));
         }
         
     }
 
-    public static <T> SgDynamicConfiguration<T> fromNode(JsonNode json, CType ctype, int version, long docVersion, long seqNo, long primaryTerm) throws IOException {
+    public static <T> SgDynamicConfiguration<T> fromNode(JsonNode json, CType ctype, int version, long docVersion, long seqNo, long primaryTerm) throws IOException, ConfigValidationException {
         return fromJson(DefaultObjectMapper.writeValueAsString(json, false), null, ctype, version, docVersion, seqNo, primaryTerm);
     }
     
 
     public static <T> SgDynamicConfiguration<T> fromNode(JsonNode json, Class<T> configType, int version, long docVersion, long seqNo,
-            long primaryTerm) throws IOException {
+            long primaryTerm) throws IOException, ConfigValidationException {
         return fromJson(DefaultObjectMapper.writeValueAsString(json, false), null, CType.getByClass(configType), version, docVersion, seqNo, primaryTerm);
     }
     

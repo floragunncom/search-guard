@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.configuration;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +42,8 @@ import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -58,7 +62,13 @@ import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.codova.validation.ConfigVariableProviders;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -71,6 +81,7 @@ import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.ConfigHelper;
 import com.floragunn.searchguard.support.LicenseHelper;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.support.SgUtils;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -95,6 +106,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final Thread bgThread;
     private final AtomicBoolean installDefaultConfig = new AtomicBoolean();
     private final ComponentState componentState = new ComponentState(1, null, "config_repository", ConfigurationRepository.class);
+    private final PrivilegedConfigClient privilegedConfigClient;
 
     private ConfigurationRepository(Settings settings, final Path configPath, ThreadPool threadPool, 
             Client client, ClusterService clusterService, AuditLog auditLog, ComplianceConfig complianceConfig) {
@@ -107,6 +119,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.complianceConfig = complianceConfig;
         this.configurationChangedListener = new ArrayList<>();
         this.licenseChangeListener = new ArrayList<LicenseChangeListener>();
+        this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.componentState.setMandatory(true);
         cl = new ConfigurationLoaderSG7(client, threadPool, settings, clusterService, componentState);
         
@@ -377,7 +390,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public Map<CType, SgDynamicConfiguration<?>> getConfigurationsFromIndex(Collection<CType> configTypes, boolean logComplianceEvent) {
 
             final ThreadContext threadContext = threadPool.getThreadContext();
-            final Map<CType, SgDynamicConfiguration<?>> retVal = new HashMap<>();
+            final Map<CType, SgDynamicConfiguration<?>> retVal = new LinkedHashMap<>();
 
             try(StoredContext ctx = threadContext.stashContext()) {
                 threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
@@ -404,7 +417,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 throw new ElasticsearchException(e);
             }
             
-            if(logComplianceEvent && complianceConfig.isEnabled()) {
+            if (logComplianceEvent && complianceConfig != null && complianceConfig.isEnabled()) {
                 CType configurationType = configTypes.iterator().next();
                 Map<String, String> fields = new HashMap<String, String>();
                 fields.put(configurationType.toLCString(), Strings.toString(retVal.get(configurationType)));
@@ -412,6 +425,67 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
             
             return retVal;
+    }
+    
+    public void update(Map<CType, Map<String, Object>> configTypeToConfigMap) throws ConfigUpdateException, ConfigValidationException {
+        ValidationErrors validationErrors = new ValidationErrors();
+        BulkRequest bulkRequest = new BulkRequest();
+
+        bulkRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        
+        if (configTypeToConfigMap.isEmpty()) {
+            throw new ConfigValidationException(new ValidationError(null, "No configuration given"));
+        }
+
+        for (Map.Entry<CType, Map<String, Object>> entry : configTypeToConfigMap.entrySet()) {
+            CType ctype = entry.getKey();
+            Map<String, Object> configMap = entry.getValue();
+
+            if (configMap == null) {
+                validationErrors.add(new InvalidAttributeValue(ctype.toLCString(), null, "A config JSON document"));
+                continue;
+            }
+
+            try {
+                SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype);
+                configInstance.removeStatic();
+
+                String id = ctype.toLCString();
+
+                bulkRequest.add(new IndexRequest(this.searchguardIndex).id(id).source(id,
+                        XContentHelper.toXContent(configInstance, XContentType.JSON, false)));
+            } catch (ConfigValidationException e) {
+                validationErrors.add(ctype.toLCString(), e);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        validationErrors.throwExceptionForPresentErrors();
+
+        try {
+
+            BulkResponse bulkResponse = privilegedConfigClient.bulk(bulkRequest).actionGet();
+
+            if (bulkResponse.hasFailures()) {
+                throw new ConfigUpdateException("Updating the config failed", bulkResponse);
+            }
+        } catch (Exception e) {
+            throw new ConfigUpdateException("Updating the config failed", e);
+        }
+
+        try {
+            ConfigUpdateRequest configUpdateRequest = new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]));
+
+            ConfigUpdateResponse configUpdateResponse = privilegedConfigClient.execute(ConfigUpdateAction.INSTANCE, configUpdateRequest).actionGet();
+
+            if (configUpdateResponse.hasFailures()) {
+                throw new ConfigUpdateException("Configuration index was updated; however, some nodes reported failures while refreshing.",
+                        configUpdateResponse);
+            }
+        } catch (Exception e) {
+            throw new ConfigUpdateException("Configuration index was updated; however, the refresh failed", e);
+        }
     }
 
     private Map<CType, SgDynamicConfiguration<?>> validate(Map<CType, SgDynamicConfiguration<?>> conf, int expectedSize) throws InvalidConfigException {
