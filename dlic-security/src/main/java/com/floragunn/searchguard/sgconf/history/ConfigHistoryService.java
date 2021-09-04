@@ -45,6 +45,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 
 import com.fasterxml.jackson.core.Base64Variants;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
@@ -347,35 +348,37 @@ public class ConfigHistoryService implements ComponentStateProvider {
                 privilegedConfigClient.multiGet(multiGetRequest, new ActionListener<MultiGetResponse>() {
 
                     @Override
-                    public void onResponse(MultiGetResponse response) {
-
-                        for (MultiGetItemResponse itemResponse : response.getResponses()) {
-                            if (itemResponse.getResponse() == null) {
-                                if (itemResponse.getFailure() != null) {
-                                    if (itemResponse.getFailure().getFailure() instanceof IndexNotFoundException) {
-                                        continue;
+                    public void onResponse(MultiGetResponse response) {                        
+                        try {
+                            for (MultiGetItemResponse itemResponse : response.getResponses()) {
+                                if (itemResponse.getResponse() == null) {
+                                    if (itemResponse.getFailure() != null) {
+                                        if (itemResponse.getFailure().getFailure() instanceof IndexNotFoundException) {
+                                            continue;
+                                        } else {
+                                            throw new ElasticsearchException("Error while retrieving configuration versions " + configVersionSet
+                                                    + ": " + itemResponse.getFailure().getFailure());
+                                        }
                                     } else {
-                                        throw new ElasticsearchException("Error while retrieving configuration versions " + configVersionSet + ": "
-                                                + itemResponse.getFailure().getFailure());
+                                        throw new ElasticsearchException(
+                                                "Error while retrieving configuration versions " + configVersionSet + ": " + itemResponse);
                                     }
-                                } else {
-                                    throw new ElasticsearchException(
-                                            "Error while retrieving configuration versions " + configVersionSet + ": " + itemResponse);
                                 }
+
+                                if (itemResponse.getResponse().isExists()) {
+
+                                    SgDynamicConfiguration<?> sgDynamicConfig = parseConfig(itemResponse.getResponse());
+
+                                    configByType.put(sgDynamicConfig.getCType(), sgDynamicConfig);
+                                    configCache.put(new ConfigVersion(sgDynamicConfig.getCType(), sgDynamicConfig.getDocVersion()), sgDynamicConfig);
+                                }
+
                             }
 
-                            if (itemResponse.getResponse().isExists()) {
-
-                                SgDynamicConfiguration<?> sgDynamicConfig = parseConfig(itemResponse.getResponse());
-
-                                configByType.put(sgDynamicConfig.getCType(), sgDynamicConfig);
-                                configCache.put(new ConfigVersion(sgDynamicConfig.getCType(), sgDynamicConfig.getDocVersion()), sgDynamicConfig);
-                            }
-
+                            onResult.accept(new ConfigSnapshot(configByType, configVersionSet));
+                        } catch (Exception e) {
+                            onFailure(e);
                         }
-
-                        onResult.accept(new ConfigSnapshot(configByType, configVersionSet));
-
                     }
 
                     @Override
@@ -389,7 +392,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
         }
     }
 
-    public SgDynamicConfiguration<?> parseConfig(GetResponse singleGetResponse) {
+    public SgDynamicConfiguration<?> parseConfig(GetResponse singleGetResponse) throws ConfigValidationException {
         ConfigVersion configurationVersion = ConfigVersion.fromId(singleGetResponse.getId());
 
         Object config = singleGetResponse.getSource().get("config");

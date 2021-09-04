@@ -7,6 +7,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -24,7 +25,7 @@ public class ConfigModelV7Tests {
     private static SearchGuardModulesRegistry searchGuardModulesRegistry = new SearchGuardModulesRegistry(Settings.EMPTY);
 
     @Test
-    public void testWildcardTenantMapping() throws IOException {
+    public void testWildcardTenantMapping() throws IOException, ConfigValidationException {
         ConfigV7 configV7 = new ConfigV7();
         configV7.dynamic = new ConfigV7.Dynamic();
 

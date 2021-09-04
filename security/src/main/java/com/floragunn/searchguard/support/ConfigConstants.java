@@ -20,6 +20,7 @@ package com.floragunn.searchguard.support;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class ConfigConstants {
@@ -119,6 +120,11 @@ public class ConfigConstants {
 
     public static final String SEARCHGUARD_AUTHCZ_ADMIN_DN = "searchguard.authcz.admin_dn";
     public static final String SEARCHGUARD_CONFIG_INDEX_NAME = "searchguard.config_index_name";
+    
+    public static final String SEARCHGUARD_ACTIONS_ADMIN_ONLY = "searchguard.actions.admin_only";
+    public static final List<String> SEARCHGUARD_ACTIONS_ADMIN_ONLY_DEFAULT = Collections.singletonList("cluster:admin:searchguard:config/");
+    public static final String SEARCHGUARD_ACTIONS_ADMIN_ONLY_EXCEPTIONS = "searchguard.actions.admin_only_exceptions";
+    
     public static final String SEARCHGUARD_AUTHCZ_IMPERSONATION_DN = "searchguard.authcz.impersonation_dn";
     public static final String SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS="searchguard.authcz.rest_impersonation_user";
     

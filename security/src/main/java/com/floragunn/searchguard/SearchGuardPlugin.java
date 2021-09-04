@@ -131,6 +131,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.SearchGuardIndexSearcherWrapper;
+import com.floragunn.searchguard.configuration.api.BulkConfigApi;
 import com.floragunn.searchguard.filter.SearchGuardFilter;
 import com.floragunn.searchguard.filter.SearchGuardRestFilter;
 import com.floragunn.searchguard.http.SearchGuardHttpServerTransport;
@@ -490,6 +491,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
                 handlers.add(new ComponentStateRestAction());
+                handlers.add(new BulkConfigApi.RestAction());
             }
 
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
@@ -517,6 +519,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(LicenseInfoAction.INSTANCE, TransportLicenseInfoAction.class));
             actions.add(new ActionHandler<>(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));
             actions.add(new ActionHandler<>(GetComponentStateAction.INSTANCE, GetComponentStateAction.TransportAction.class));
+            actions.add(new ActionHandler<>(BulkConfigApi.GetAction.INSTANCE, BulkConfigApi.GetAction.TransportAction.class));
+            actions.add(new ActionHandler<>(BulkConfigApi.UpdateAction.INSTANCE, BulkConfigApi.UpdateAction.TransportAction.class));
         }
 
         actions.addAll(moduleRegistry.getActions());
@@ -937,6 +941,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DISABLED, false, Property.NodeScope, Property.Filtered));
 
             settings.add(Setting.intSetting(ConfigConstants.SEARCHGUARD_CACHE_TTL_MINUTES, 60, 0, Property.NodeScope, Property.Filtered));
+            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY, Collections.emptyList(), Function.identity(), Property.NodeScope));
+            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_EXCEPTIONS, Collections.emptyList(), Function.identity(), Property.NodeScope));
 
             //SG6
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true, Property.NodeScope, Property.Filtered));

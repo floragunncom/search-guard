@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
@@ -110,8 +111,6 @@ public abstract class DocNode implements Map<String, Object> {
             }
         }
     }
-
-    
 
     public static class PlainJavaObjectAdapter extends DocNode {
         private final Object object;
@@ -266,27 +265,9 @@ public abstract class DocNode implements Map<String, Object> {
         @Override
         public Map<String, Object> toMap() throws ConfigValidationException {
             if (this.object instanceof Map) {
-                return toStringKeyedMap((Map<?, ?>) this.object);
+                return DocUtils.toStringKeyedMap((Map<?, ?>) this.object);
             } else {
                 throw new ConfigValidationException(new InvalidAttributeValue(null, object, "An object"));
-            }
-        }
-
-        private static Map<String, Object> toStringKeyedMap(Map<?, ?> map) {
-            boolean allKeysAreStrings = map.keySet().stream().allMatch((o) -> o instanceof String || o == null);
-
-            if (allKeysAreStrings) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> result = (Map<String, Object>) map;
-                return result;
-            } else {
-                Map<String, Object> result = new HashMap<>(map.size());
-
-                for (Map.Entry<?, ?> entry : map.entrySet()) {
-                    result.put(entry.getKey() != null ? entry.getKey().toString() : null, entry.getValue());
-                }
-
-                return result;
             }
         }
 
@@ -412,6 +393,27 @@ public abstract class DocNode implements Map<String, Object> {
             } else {
                 return Collections.singletonList(toBaseType(object));
             }
+        }
+
+        @Override
+        public int hashCode() {
+            if (object != null) {
+                return object.hashCode();
+            } else {
+                return 0;
+            }
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            PlainJavaObjectAdapter other = (PlainJavaObjectAdapter) obj;
+            return Objects.equals(object, other.object);
         }
     }
 

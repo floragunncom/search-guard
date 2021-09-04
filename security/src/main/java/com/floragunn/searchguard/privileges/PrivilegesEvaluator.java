@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -108,6 +109,8 @@ public class PrivilegesEvaluator implements DCFListener {
     private DynamicConfigModel dcm;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
     private final NamedXContentRegistry namedXContentRegistry;
+    private final List<String> adminOnlyActions;
+    private final List<String> adminOnlyActionExceptions;
 
     public PrivilegesEvaluator(final ClusterService clusterService, final ThreadPool threadPool,
             final ConfigurationRepository configurationRepository, final IndexNameExpressionResolver resolver, AuditLog auditLog,
@@ -133,6 +136,8 @@ public class PrivilegesEvaluator implements DCFListener {
         termsAggregationEvaluator = new TermsAggregationEvaluator();
         this.enterpriseModulesEnabled = enterpriseModulesEnabled;
         this.namedXContentRegistry = namedXContentRegistry;
+        this.adminOnlyActions = settings.getAsList(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY, ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_DEFAULT);
+        this.adminOnlyActionExceptions = settings.getAsList(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_EXCEPTIONS, Collections.emptyList());
     }
 
     @Override
@@ -161,6 +166,15 @@ public class PrivilegesEvaluator implements DCFListener {
         if (action0.startsWith("internal:indices/admin/upgrade")) {
             action0 = "indices:admin/upgrade";
         }
+
+        PrivilegesEvaluatorResponse presponse = new PrivilegesEvaluatorResponse();
+
+        if (isAdminOnlyAction(action0)) {
+            log.info("Action " + action0 + " is reserved for users authenticating with an admin certificate");
+            presponse.missingPrivileges.add(action0);
+            presponse.allowed = false;
+            return presponse;
+        }
         
         TransportAddress caller;
         Set<String> mappedRoles;
@@ -176,8 +190,6 @@ public class PrivilegesEvaluator implements DCFListener {
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
             sgRoles = specialPrivilegesEvaluationContext.getSgRoles();
         }
-
-        final PrivilegesEvaluatorResponse presponse = new PrivilegesEvaluatorResponse();
 
         if (log.isDebugEnabled()) {
             log.debug("### evaluate permissions for {} on {}", user, clusterService.localNode().getName());
@@ -485,6 +497,31 @@ public class PrivilegesEvaluator implements DCFListener {
         return dcm.getKibanaServerUsername();
     }
 
+    private boolean isAdminOnlyAction(String action) {
+        if (adminOnlyActions.isEmpty()) {
+            return false;
+        }
+        
+        for (String adminOnlyAction : adminOnlyActions) {
+            if (action.startsWith(adminOnlyAction)) {
+                if (adminOnlyActionExceptions.isEmpty()) {
+                    return true;
+                } else {
+                    for (String exception : adminOnlyActionExceptions) {
+                        if (action.startsWith(exception)) {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                }
+                
+            }
+        }
+        
+        return false;
+    }
+    
     private Set<String> evaluateAdditionalIndexPermissions(final ActionRequest request, final String originalAction) {
         //--- check inner bulk requests
         final Set<String> additionalPermissionsRequired = new HashSet<>();
