@@ -810,7 +810,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         irr = new IndexResolverReplacer(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
         auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService);
-        complianceConfig = (dlsFlsAvailable && (auditLog.getClass() != NullAuditLog.class))
+        complianceConfig = dlsFlsAvailable 
                 ? new ComplianceConfig(environment, Objects.requireNonNull(irr), auditLog, localClient)
                 : null;
         log.debug("Compliance config is " + complianceConfig + " because of dlsFlsAvailable: " + dlsFlsAvailable + " and auditLog="

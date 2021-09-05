@@ -23,7 +23,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.dlic.rest.support.Utils;
+import com.floragunn.searchguard.auditlog.impl.Utils;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class SinkProvider {
