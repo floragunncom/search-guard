@@ -26,6 +26,7 @@ import java.util.Map;
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -90,6 +91,7 @@ public class UtilTests {
 
     }
     
+    @Ignore // This test is extremely slow. Disabled it for now because it does add so much value. 
     @Test
     public void testEnvReplace() {
         Settings settings = Settings.EMPTY;
