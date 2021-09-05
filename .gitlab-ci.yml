@@ -38,6 +38,7 @@ workflow:
 
 build:
   stage: build
+  image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}-slim
   interruptible: true
   rules:
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
@@ -90,6 +91,7 @@ build_for_tag_version:
 
 test_security:
   stage: test
+  image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}-slim
   interruptible: true
   tags:
     - openstack-runner
@@ -111,6 +113,7 @@ test_security:
 
 test_signals:
   stage: test
+  image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}-slim
   interruptible: true
   tags:
     - openstack-runner
@@ -131,6 +134,7 @@ test_signals:
 
 test_scheduler:
   stage: test
+  image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}-slim
   interruptible: true
   tags:
     - openstack-runner
@@ -151,6 +155,7 @@ test_scheduler:
 
 test_support:
   stage: test
+  image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}-slim
   interruptible: true
   tags:
     - openstack-runner
@@ -171,6 +176,7 @@ test_support:
 
 test_sgadmin:
   stage: test
+  image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}-slim
   interruptible: true
   tags:
     - aws-runner
@@ -191,6 +197,7 @@ test_sgadmin:
 
 test_codova:
   stage: test
+  image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}-slim
   interruptible: true
   tags:
     - openstack-runner
@@ -212,6 +219,7 @@ test_codova:
 
 test_dlic_security:
   stage: test
+  image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}-slim
   interruptible: true
   tags:
     - openstack-runner
@@ -232,6 +240,7 @@ test_dlic_security:
 
 test_dlic_auditlog:
   stage: test
+  image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}-slim
   interruptible: true
   tags:
     - aws-runner
@@ -252,6 +261,7 @@ test_dlic_auditlog:
 
 test_dlic_signals:
   stage: test
+  image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}-slim
   interruptible: true
   tags:
     - openstack-runner
