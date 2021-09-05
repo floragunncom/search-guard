@@ -51,9 +51,9 @@ public class ValidatingDocNode {
     private Set<String> unconsumedAttributes;
     private Set<String> consumedAttributes = new HashSet<>();
     private Map<String, Function<String, ?>> variableProviders = new HashMap<>();
-    
+
     public ValidatingDocNode(Map<String, Object> document, ValidationErrors validationErrors) {
-        this(new DocNode.PlainJavaObjectAdapter(document), validationErrors);
+        this(DocNode.wrap(document), validationErrors);
     }
 
     public ValidatingDocNode(DocNode documentNode, ValidationErrors validationErrors) {
@@ -163,6 +163,7 @@ public class ValidatingDocNode {
         protected final String name;
         protected final String fullAttributePath;
         protected final DocNode documentNode;
+        protected String expandedVariable;
 
         protected AbstractAttribute(String name, String fullAttributePath, DocNode documentNode) {
             this.name = name;
@@ -178,6 +179,14 @@ public class ValidatingDocNode {
             return (T) this;
         }
 
+        protected String getAttributePathForValidationError() {
+            if (expandedVariable == null) {
+                return fullAttributePath;
+            } else {
+                return fullAttributePath + "." + expandedVariable;
+            }
+        }
+        
         protected Object expandVariable(Object value) {
             if (value == null) {
                 return null;
@@ -185,6 +194,10 @@ public class ValidatingDocNode {
 
             if (variableProviders.isEmpty()) {
                 return value;
+            }
+            
+            if (value instanceof List) {
+                return expandVariables((List<?>) value);
             }
 
             if (!(value instanceof String)) {
@@ -207,15 +220,18 @@ public class ValidatingDocNode {
                 }
 
                 if (variableProvider == null) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, value, "Invalid variable definition"));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), value, "Invalid variable definition"));
                     return value;
                 }
 
                 Object newValue = variableProvider.apply(name);
 
                 if (newValue == null) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, value, "The variable " + value + " does not exist"));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), value, "The variable " + value + " does not exist"));
+                    return null;
                 }
+                
+                this.expandedVariable = string;
 
                 return newValue;
 
@@ -224,7 +240,41 @@ public class ValidatingDocNode {
             }
         }
 
-        protected List<String> expandVariables(List<String> values) {
+        protected DocNode expandVariable(DocNode docNode) {
+            if (docNode == null) {
+                return null;
+            }
+
+            Object value = docNode.get(null);
+
+            Object newValue = expandVariable(value);
+
+            if (newValue == value) {
+                return docNode;
+            } else {
+                return DocNode.wrap(newValue);
+            }
+        }
+
+        protected List<?> expandVariables(List<?> values) {
+            if (values == null || values.isEmpty() || variableProviders.isEmpty()) {
+                return values;
+            }
+
+            List<Object> result = new ArrayList<>(values.size());
+
+            for (Object value : values) {
+                Object expandedValue = expandVariable(value);
+
+                if (expandedValue != null) {
+                    result.add(expandedValue);
+                }
+            }
+
+            return result;
+        }
+        
+        protected List<String> expandVariablesForStrings(List<String> values) {
             if (values == null || values.isEmpty() || variableProviders.isEmpty()) {
                 return values;
             }
@@ -253,7 +303,7 @@ public class ValidatingDocNode {
             Object value = documentNode.get(name);
 
             if (value == null) {
-                validationErrors.add(new MissingAttribute(fullAttributePath, documentNode));
+                validationErrors.add(new MissingAttribute(getAttributePathForValidationError(), documentNode));
             }
 
             return this;
@@ -320,7 +370,7 @@ public class ValidatingDocNode {
         }
 
         public List<String> asListOfStrings() {
-            return expandVariables(documentNode.getAsListOfStrings(name));
+            return expandVariablesForStrings(documentNode.getAsListOfStrings(name));
         }
 
         public Number asNumber() {
@@ -331,7 +381,7 @@ public class ValidatingDocNode {
             } else if (object instanceof Number) {
                 return (Number) object;
             } else {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "A numeric value"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A numeric value"));
                 return null;
             }
         }
@@ -366,7 +416,7 @@ public class ValidatingDocNode {
             } else if (object instanceof Boolean) {
                 return (Boolean) object;
             } else {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "true or false"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "true or false"));
                 return null;
             }
         }
@@ -378,11 +428,11 @@ public class ValidatingDocNode {
                 try {
                     return new URI((String) object);
                 } catch (URISyntaxException e) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "A URI"));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A URI"));
                     return null;
                 }
             } else if (object != null) {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "A URI"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A URI"));
                 return null;
             } else {
                 return null;
@@ -393,7 +443,7 @@ public class ValidatingDocNode {
             URI uri = asURI();
 
             if (uri != null && !uri.isAbsolute()) {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, uri, "URI").message("Must be an absolute URI"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "URI").message("Must be an absolute URI"));
             }
 
             return uri;
@@ -408,17 +458,17 @@ public class ValidatingDocNode {
             if (uri != null) {
                 try {
                     if (!uri.isAbsolute()) {
-                        validationErrors.add(new InvalidAttributeValue(fullAttributePath, uri, "Base URL").message("Must be an absolute URL"));
+                        validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "Base URL").message("Must be an absolute URL"));
                     }
 
                     if (uri.getRawQuery() != null) {
                         validationErrors.add(
-                                new InvalidAttributeValue(fullAttributePath, uri, "Base URL").message("Cannot use query parameters for base URLs"));
+                                new InvalidAttributeValue(getAttributePathForValidationError(), uri, "Base URL").message("Cannot use query parameters for base URLs"));
                     }
 
                     if (uri.getRawFragment() != null) {
                         validationErrors
-                                .add(new InvalidAttributeValue(fullAttributePath, uri, "Base URL").message("Cannot use fragments for base URLs"));
+                                .add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "Base URL").message("Cannot use fragments for base URLs"));
                     }
 
                     String path = uri.getRawPath();
@@ -431,7 +481,7 @@ public class ValidatingDocNode {
 
                     return new URI(uri.getScheme(), uri.getRawUserInfo(), uri.getHost(), uri.getPort(), path, null, null);
                 } catch (URISyntaxException e) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, uri, "Base URL"));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "Base URL"));
                     return null;
                 }
             } else {
@@ -451,7 +501,7 @@ public class ValidatingDocNode {
                 }
             }
 
-            validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, enumClass));
+            validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, enumClass));
 
             return null;
         }
@@ -463,11 +513,11 @@ public class ValidatingDocNode {
                 try {
                     return Pattern.compile((String) object);
                 } catch (PatternSyntaxException e) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "Regular expression"));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "Regular expression"));
                     return null;
                 }
             } else if (object != null) {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "Regular expression"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "Regular expression"));
                 return null;
             } else {
                 return null;
@@ -484,7 +534,7 @@ public class ValidatingDocNode {
             try {
                 return value.toMap();
             } catch (ConfigValidationException e) {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, value, "JSON object"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), value, "JSON object"));
                 return null;
             }
         }
@@ -496,11 +546,11 @@ public class ValidatingDocNode {
                 try {
                     return TemporalAmountFormat.INSTANCE.parse((String) object);
                 } catch (ConfigValidationException e) {
-                    validationErrors.add(fullAttributePath, e);
+                    validationErrors.add(getAttributePathForValidationError(), e);
                     return null;
                 }
             } else if (object != null) {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object,
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object,
                         "<Years>y? <Months>M? <Weeks>w? <Days>d?  |  <Days>d? <Hours>h? <Minutes>m? <Seconds>s? <Milliseconds>ms?"));
                 return null;
             } else {
@@ -515,11 +565,11 @@ public class ValidatingDocNode {
                 try {
                     return DurationFormat.INSTANCE.parse((String) object);
                 } catch (ConfigValidationException e) {
-                    validationErrors.add(fullAttributePath, e);
+                    validationErrors.add(getAttributePathForValidationError(), e);
                     return null;
                 }
             } else if (object != null) {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object,
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object,
                         "<Weeks>w? <Days>d? <Hours>h? <Minutes>m? <Seconds>s? <Milliseconds>ms?"));
                 return null;
             } else {
@@ -534,11 +584,11 @@ public class ValidatingDocNode {
                 try {
                     return JsonPath.compile((String) object);
                 } catch (InvalidPathException e) {
-                    validationErrors.add(new ValidationError(fullAttributePath, e.getMessage()));
+                    validationErrors.add(new ValidationError(getAttributePathForValidationError(), e.getMessage()));
                     return null;
                 }
             } else if (object != null) {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "JSON Path"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "JSON Path"));
                 return null;
             } else {
                 return null;
@@ -562,10 +612,10 @@ public class ValidatingDocNode {
 
                     return parser.apply(string);
                 } catch (ConfigValidationException e) {
-                    validationErrors.add(name, e);
+                    validationErrors.add(getAttributePathForValidationError(), e);
                     return null;
                 } catch (Exception e) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, expected).cause(e));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, expected).cause(e));
                     return null;
                 }
             } else {
@@ -574,16 +624,16 @@ public class ValidatingDocNode {
         }
 
         public <T> T by(ValidatingFunction<DocNode, T> parser) {
-            DocNode value = documentNode.getAsNode(name);
+            DocNode value = expandVariable(documentNode.getAsNode(name));
 
             if (value != null) {
                 try {
                     return parser.apply(value);
                 } catch (ConfigValidationException e) {
-                    validationErrors.add(name, e);
+                    validationErrors.add(getAttributePathForValidationError(), e);
                     return null;
                 } catch (Exception e) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, value, expected).cause(e));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), value, expected).cause(e));
                     return null;
                 }
             } else {
@@ -595,7 +645,7 @@ public class ValidatingDocNode {
             try {
                 return documentNode.getAsList(name, parser, expected);
             } catch (ConfigValidationException e) {
-                validationErrors.add(fullAttributePath, e);
+                validationErrors.add(getAttributePathForValidationError(), e);
                 return Collections.emptyList();
             }
         }
@@ -604,7 +654,7 @@ public class ValidatingDocNode {
             try {
                 return documentNode.getAsListFromNodes(name, parser, expected);
             } catch (ConfigValidationException e) {
-                validationErrors.add(fullAttributePath, e);
+                validationErrors.add(getAttributePathForValidationError(), e);
                 return Collections.emptyList();
             }
         }
@@ -627,7 +677,7 @@ public class ValidatingDocNode {
             Object value = expandVariable(documentNode.getAsString(name));
 
             if (value != null && !validationPredicate.test(String.valueOf(value))) {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, value, expected));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), value, expected));
             }
 
             return this;
@@ -668,7 +718,7 @@ public class ValidatingDocNode {
             } else if (object instanceof Number) {
                 return (Number) object;
             } else {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "A numeric value"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A numeric value"));
                 return defaultValue;
             }
         }
@@ -742,7 +792,7 @@ public class ValidatingDocNode {
             } else if (object instanceof Boolean) {
                 return (Boolean) object;
             } else {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "true or false"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "true or false"));
                 return defaultValue;
             }
         }
@@ -768,11 +818,11 @@ public class ValidatingDocNode {
                 try {
                     return new URI((String) object);
                 } catch (URISyntaxException e) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "A URI"));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A URI"));
                     return defaultValue;
                 }
             } else if (object != null) {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, "A URI"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A URI"));
                 return defaultValue;
             } else {
                 return defaultValue;
@@ -784,7 +834,7 @@ public class ValidatingDocNode {
 
             if (uri != defaultValue) {
                 if (!uri.isAbsolute()) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, uri, "URI").message("Must be an absolute URI"));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "URI").message("Must be an absolute URI"));
                 }
             }
 
@@ -812,11 +862,11 @@ public class ValidatingDocNode {
                 try {
                     return DurationFormat.INSTANCE.parse((String) object);
                 } catch (ConfigValidationException e) {
-                    validationErrors.add(fullAttributePath, e);
+                    validationErrors.add(getAttributePathForValidationError(), e);
                     return defaultValue;
                 }
             } else if (object != null) {
-                validationErrors.add(new InvalidAttributeValue(fullAttributePath, object,
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object,
                         "<Weeks>w? <Days>d? <Hours>h? <Minutes>m? <Seconds>s? <Milliseconds>ms?"));
                 return defaultValue;
             } else {
@@ -866,7 +916,7 @@ public class ValidatingDocNode {
                     validationErrors.add(name, e);
                     return defaultValue;
                 } catch (Exception e) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, expected));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, expected));
                     return defaultValue;
                 }
             } else {
@@ -885,16 +935,16 @@ public class ValidatingDocNode {
                         ValidationErrors resultValidationErrors = this.validationFunction.apply(result);
 
                         if (resultValidationErrors != null) {
-                            validationErrors.add(fullAttributePath, resultValidationErrors);
+                            validationErrors.add(getAttributePathForValidationError(), resultValidationErrors);
                         }
                     }
 
                     return result;
                 } catch (ConfigValidationException e) {
-                    validationErrors.add(fullAttributePath, e);
+                    validationErrors.add(getAttributePathForValidationError(), e);
                     return defaultValue;
                 } catch (Exception e) {
-                    validationErrors.add(new InvalidAttributeValue(fullAttributePath, value, expected).cause(e));
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), value, expected).cause(e));
                     return defaultValue;
                 }
             } else {
@@ -932,7 +982,7 @@ public class ValidatingDocNode {
                 }
             }
 
-            validationErrors.add(new InvalidAttributeValue(fullAttributePath, object, enumClass));
+            validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, enumClass));
 
             return defaultValue;
         }
@@ -949,7 +999,7 @@ public class ValidatingDocNode {
 
             if (list != null && list.size() < minElements) {
                 validationErrors
-                        .add(new InvalidAttributeValue(fullAttributePath, list, "The list must contain at least " + minElements + " elements"));
+                        .add(new InvalidAttributeValue(getAttributePathForValidationError(), list, "The list must contain at least " + minElements + " elements"));
             }
 
             return this;
@@ -992,7 +1042,7 @@ public class ValidatingDocNode {
                 for (int i = 0; i < list.size(); i++) {
                     String string = list.get(i);
                     if (!validationPredicate.test(string)) {
-                        validationErrors.add(new InvalidAttributeValue(fullAttributePath + "." + i, string, expected));
+                        validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError() + "." + i, string, expected));
                     }
 
                 }
@@ -1003,7 +1053,7 @@ public class ValidatingDocNode {
 
         public List<String> ofStrings() {
             if (documentNode.hasNonNull(name)) {
-                return expandVariables(documentNode.getAsListOfStrings(name));
+                return expandVariablesForStrings(documentNode.getAsListOfStrings(name));
             } else {
                 return defaultValue;
             }

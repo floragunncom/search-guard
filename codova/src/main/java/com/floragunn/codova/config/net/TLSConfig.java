@@ -20,6 +20,7 @@ package com.floragunn.codova.config.net;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
@@ -38,8 +39,11 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -73,20 +77,27 @@ import org.bouncycastle.operator.InputDecryptorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.bouncycastle.pkcs.PKCSException;
+import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ConfigVariableProviders;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.FileDoesNotExist;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.io.Files;
 
-public class TLSConfig {
+
+public class TLSConfig implements ToXContentObject {
     private static final Logger log = LogManager.getLogger(TLSConfig.class);
 
     public static TLSConfig parse(Map<String, Object> config) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors);
+        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables("file", ConfigVariableProviders.FILE);
         TLSConfig tlsConfig = new TLSConfig();
 
         tlsConfig.supportedProtocols = vNode.get("enabled_protocols").asList().withDefault("TLSv1.2", "TLSv1.1").ofStrings();
@@ -94,6 +105,7 @@ public class TLSConfig {
         tlsConfig.hostnameVerificationEnabled = vNode.get("verify_hostnames").withDefault(true).asBoolean();
         tlsConfig.trustAll = vNode.get("trust_all").withDefault(false).asBoolean();
         tlsConfig.truststore = vNode.get("trusted_cas").by(TLSConfig::toTruststore);
+        tlsConfig.trustedCas = vNode.get("trusted_cas").asListOfStrings();
         tlsConfig.clientCertAuthConfig = vNode.get("client_auth").by(ClientCertAuthConfig::parse);
 
         validationErrors.throwExceptionForPresentErrors();
@@ -109,8 +121,117 @@ public class TLSConfig {
         return tlsConfig;
     }
 
+    public Map<String, Object> toMap() {
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        if (trustedCas != null && !trustedCas.isEmpty()) {
+            result.put("trusted_cas", trustedCas);
+        }
+
+        if (clientCertAuthConfig != null) {
+            result.put("client_auth", clientCertAuthConfig.toMap());
+        }
+
+        result.put("trust_all", trustAll);
+        result.put("verify_hostnames", hostnameVerificationEnabled);
+
+        if (supportedProtocols != null) {
+            result.put("enabled_protocols", supportedProtocols);
+        }
+
+        if (supportedCipherSuites != null) {
+            result.put("enabled_ciphers", supportedCipherSuites);
+        }
+
+        return result;
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
+
+        if (trustedCas != null && !trustedCas.isEmpty()) {
+            builder.field("trusted_cas", trustedCas);
+        }
+
+        if (clientCertAuthConfig != null) {
+            builder.field("client_auth", clientCertAuthConfig);
+        }
+
+        builder.field("trust_all", trustAll);
+        builder.field("verify_hostnames", hostnameVerificationEnabled);
+
+        if (supportedProtocols != null) {
+            builder.field("enabled_protocols", supportedProtocols);
+        }
+
+        if (supportedCipherSuites != null) {
+            builder.field("enabled_ciphers", supportedCipherSuites);
+        }
+
+        builder.endObject();
+        return builder;
+    }
+
     public static class Builder {
         private TLSConfig tlsConfig = new TLSConfig();
+        private ValidationErrors validationErrors = new ValidationErrors();
+
+        public Builder trust(File file) throws ConfigValidationException {
+            if (file != null) {
+                try {
+                    tlsConfig.truststore = TLSConfig.toTruststore(file);
+                } catch (FileNotFoundException e) {
+                    validationErrors.add(new FileDoesNotExist("trusted_cas", file));
+                } catch (ConfigValidationException e) {
+                    validationErrors.add("trusted_cas", e);
+                }
+                tlsConfig.trustedCas = Collections.singletonList("${file:" + file.getAbsolutePath() + "}");
+            } else {
+                tlsConfig.truststore = null;
+                tlsConfig.trustedCas = null;
+            }
+            return this;
+        }
+
+        public Builder clientCert(File certficatePem, File privateKeyPem, String privateKeyPassword) {
+            try {
+                tlsConfig.clientCertAuthConfig = ClientCertAuthConfig.create(certficatePem, privateKeyPem, privateKeyPassword);
+            } catch (ConfigValidationException e) {
+                validationErrors.add("client_auth", e);
+            }
+            return this;
+        }
+
+        public Builder enabledProtocols(List<String> enabledProtocols) {
+            tlsConfig.supportedProtocols = enabledProtocols;
+            return this;
+        }
+
+        public Builder enabledProtocols(String... enabledProtocols) {
+            tlsConfig.supportedProtocols = Arrays.asList(enabledProtocols);
+            return this;
+        }
+
+        public Builder enabledCiphers(List<String> enabledCiphers) {
+            tlsConfig.supportedCipherSuites = enabledCiphers;
+            return this;
+        }
+
+        public Builder enabledCiphers(String... enabledCiphers) {
+            tlsConfig.supportedCipherSuites = Arrays.asList(enabledCiphers);
+            return this;
+        }
+
+        public Builder trustAll(boolean trustAll) {
+            tlsConfig.trustAll = trustAll;
+            return this;
+        }
+
+        public Builder verifyHostnames(boolean verifyHostnames) {
+            tlsConfig.hostnameVerificationEnabled = verifyHostnames;
+            return this;
+        }
 
         public Builder trustJks(File file, String password) throws NoSuchAlgorithmException, CertificateException, IOException, KeyStoreException {
             KeyStore trustStore = KeyStore.getInstance("JKS");
@@ -136,7 +257,8 @@ public class TLSConfig {
             return this;
         }
 
-        public TLSConfig build() {
+        public TLSConfig build() throws ConfigValidationException {
+            validationErrors.throwExceptionForPresentErrors();
             tlsConfig.sslContext = tlsConfig.buildSSLContext();
 
             if (tlsConfig.hostnameVerificationEnabled) {
@@ -150,6 +272,24 @@ public class TLSConfig {
     }
 
     private static KeyStore toTruststore(DocNode documentNode) throws ConfigValidationException {
+        if (documentNode.isList()) {
+            return toTruststore(Joiner.on('\n').join(documentNode.toListOfStrings()));
+        } else {
+            return toTruststore(documentNode.getAsString(null));
+        }
+    }
+
+    private static KeyStore toTruststore(File file) throws ConfigValidationException, FileNotFoundException {
+        try {
+            return toTruststore(Files.asCharSource(file, Charsets.UTF_8).read());
+        } catch (FileNotFoundException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new ConfigValidationException(new ValidationError(null, "Error while reading file").cause(e));
+        }
+    }
+
+    private static KeyStore toTruststore(String certificateString) throws ConfigValidationException {
         CertificateFactory certificateFactory;
         try {
             certificateFactory = CertificateFactory.getInstance("X.509");
@@ -158,20 +298,12 @@ public class TLSConfig {
             throw new RuntimeException("Could not find CertificateFactory X.509", e);
         }
 
-        String certificateString;
-
-        if (documentNode.isList()) {
-            certificateString = Joiner.on('\n').join(documentNode.toListOfStrings());
-        } else {
-            certificateString = documentNode.getAsString(null);
-        }
-
         Collection<? extends Certificate> certificates;
 
         try {
             certificates = certificateFactory.generateCertificates(new ByteArrayInputStream(certificateString.getBytes(StandardCharsets.US_ASCII)));
         } catch (CertificateException e) {
-            log.info("Error parsing certificates", e);
+            log.warn("Error parsing certificates", e);
             throw new ConfigValidationException(new ValidationError(null, e.getMessage(), null).cause(e));
         }
 
@@ -201,6 +333,7 @@ public class TLSConfig {
     private boolean hostnameVerificationEnabled;
     private boolean trustAll;
     private KeyStore truststore;
+    private List<String> trustedCas;
     private ClientCertAuthConfig clientCertAuthConfig;
 
     private TLSConfig() {
@@ -226,7 +359,7 @@ public class TLSConfig {
 
         if (clientCertAuthConfig != null) {
             try {
-                sslContextBuilder.loadKeyMaterial(clientCertAuthConfig.keyStore, clientCertAuthConfig.password.toCharArray(),
+                sslContextBuilder.loadKeyMaterial(clientCertAuthConfig.keyStore, clientCertAuthConfig.keyStorePassword.toCharArray(),
                         new PrivateKeyStrategy() {
                             @Override
                             public String chooseAlias(Map<String, PrivateKeyDetails> aliases, Socket socket) {
@@ -290,6 +423,10 @@ public class TLSConfig {
         return trustAll;
     }
 
+    public ClientCertAuthConfig getClientCertAuthConfig() {
+        return clientCertAuthConfig;
+    }
+
     private static class OverlyTrustfulSSLContextBuilder extends SSLContextBuilder {
         @Override
         protected void initSSLContext(SSLContext sslContext, Collection<KeyManager> keyManagers, Collection<TrustManager> trustManagers,
@@ -314,36 +451,115 @@ public class TLSConfig {
         }
     }
 
-    static class ClientCertAuthConfig {
+    public static class ClientCertAuthConfig implements ToXContentObject {
+        private String certficate;
+        private String privateKey;
         private KeyStore keyStore;
+        private Collection<? extends Certificate> certificateChain;
         private String password;
+        private String keyStorePassword;
         private String alias;
 
         public static ClientCertAuthConfig parse(Map<String, Object> config) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors);
+            ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables("file", ConfigVariableProviders.FILE);
 
             ClientCertAuthConfig result = new ClientCertAuthConfig();
 
             Collection<? extends Certificate> certificateChain = vNode.get("certificate").required()
                     .byString(ClientCertAuthConfig::toCertificateChain);
+            result.certficate = vNode.get("certificate").asString();
             result.password = vNode.get("private_key_password").asString();
+            result.privateKey = vNode.get("private_key").asString();
             PrivateKey privateKey = vNode.get("private_key").required().byString(s -> toPrivateKey(s, result.password));
 
             validationErrors.throwExceptionForPresentErrors();
 
             result.alias = "key";
+            result.keyStorePassword = result.password != null ? result.password : "keyStorePassword";
+            result.keyStore = createKeyStore(certificateChain, privateKey, result.alias, result.keyStorePassword);
+            result.certificateChain = certificateChain != null ? Collections.unmodifiableList(new ArrayList<>(certificateChain)) : null;
+
+            return result;
+
+        }
+
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.startObject();
+            builder.field("certificate", certficate);
+            builder.field("private_key", privateKey);
+            builder.field("private_key_password", password);
+
+            builder.endObject();
+            return builder;
+        }
+
+        public Map<String, Object> toMap() {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("certificate", certficate);
+            result.put("private_key", privateKey);
+            result.put("private_key_password", password);
+            return result;
+        }
+
+        public static ClientCertAuthConfig create(File certficatePem, File privateKeyPem, String privateKeyPassword)
+                throws ConfigValidationException {
+            ValidationErrors validationErrors = new ValidationErrors();
+
+            ClientCertAuthConfig result = new ClientCertAuthConfig();
+
+            result.certficate = "${file:" + certficatePem.getAbsolutePath() + "}";
+            result.privateKey = "${file:" + privateKeyPem.getAbsolutePath() + "}";
+            result.password = privateKeyPassword;
+
+            Collection<? extends Certificate> certificateChain = null;
+
             try {
-                result.keyStore = KeyStore.getInstance("JKS");
-                result.keyStore.load(null, null);
-                result.keyStore.setKeyEntry(result.alias, privateKey, result.password != null ? result.password.toCharArray() : null,
+                certificateChain = ClientCertAuthConfig.toCertificateChain(Files.asCharSource(certficatePem, Charsets.UTF_8).read());
+            } catch (ConfigValidationException e) {
+                validationErrors.add("certificate", e);
+            } catch (FileNotFoundException e) {
+                validationErrors.add(new FileDoesNotExist("certificate", certficatePem).cause(e));
+            } catch (IOException e) {
+                validationErrors.add(new ValidationError("certificate", "Error while reading file").cause(e));
+            }
+
+            PrivateKey privateKey = null;
+
+            try {
+                privateKey = toPrivateKey(Files.asCharSource(privateKeyPem, Charsets.UTF_8).read(), result.password);
+            } catch (ConfigValidationException e) {
+                validationErrors.add("private_key", e);
+            } catch (FileNotFoundException e) {
+                validationErrors.add(new FileDoesNotExist("private_key", certficatePem).cause(e));
+            } catch (IOException e) {
+                validationErrors.add(new ValidationError("private_key", "Error while reading file").cause(e));
+            }
+
+            validationErrors.throwExceptionForPresentErrors();
+
+            result.alias = "key";
+            result.keyStorePassword = result.password != null ? result.password : "keyStorePassword";
+            result.keyStore = createKeyStore(certificateChain, privateKey, result.alias, result.keyStorePassword);
+            result.certificateChain = certificateChain != null ? Collections.unmodifiableList(new ArrayList<>(certificateChain)) : null;
+
+            return result;
+        }
+
+        private static KeyStore createKeyStore(Collection<? extends Certificate> certificateChain, PrivateKey privateKey, String alias,
+                String password) {
+            try {
+                KeyStore keyStore = KeyStore.getInstance("JKS");
+                keyStore.load(null, null);
+                keyStore.setKeyEntry(alias, privateKey, password != null ? password.toCharArray() : null,
                         certificateChain.toArray(new Certificate[certificateChain.size()]));
+
+                return keyStore;
             } catch (CertificateException | KeyStoreException | NoSuchAlgorithmException | IOException e) {
                 // This should not happen
                 throw new RuntimeException(e);
             }
-            return result;
-
         }
 
         private static Collection<? extends Certificate> toCertificateChain(String certificateString) throws ConfigValidationException {
@@ -393,6 +609,10 @@ public class TLSConfig {
                 log.info("Error while parsing private key", e);
                 throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
             }
+        }
+
+        public Collection<? extends Certificate> getCertificateChain() {
+            return certificateChain;
         }
 
     }
@@ -461,4 +681,5 @@ public class TLSConfig {
             return socket;
         }
     }
+
 }

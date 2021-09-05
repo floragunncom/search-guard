@@ -22,13 +22,14 @@ import java.io.IOException;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 public class InvalidAttributeValue extends ValidationError {
-    private final Object expected;
+    private Object expected;
     private final Object value;
 
     public InvalidAttributeValue(String attribute, Object value, Object expected, Object jsonNode) {
-        super(attribute, "Invalid value", jsonNode);
+        super(attribute, "Invalid value");
         this.expected = expected;
         this.value = value;
+        this.docNode(jsonNode);
     }
 
     public InvalidAttributeValue(String attribute, Object value, Object expected) {
@@ -81,11 +82,23 @@ public class InvalidAttributeValue extends ValidationError {
 
     @Override
     public String toString() {
-        return "invalid value; expected: " + expected + "; value: " + value + "; attribute: " + getAttribute();
+        return "invalid value; expected: " + expectedToString(expected) + "; value: " + value + "; attribute: " + getAttribute();
     }
-    
+
     @Override
     public String toValidationErrorsOverviewString() {
-        return "invalid value; expected: " + expected;
-    }    
+        return "invalid value; expected: " + expectedToString(expected);
+    }
+
+    public InvalidAttributeValue expected(Object expected) {
+        this.expected = expected;
+        return this;
+    }
+
+    @Override
+    protected InvalidAttributeValue clone() {
+        // TODO introduce generic base class to make casting not necessary
+        return (InvalidAttributeValue) new InvalidAttributeValue(getAttribute(), value, expected).cause(getCause()).docNode(getDocNode())
+                .message(getMessage());
+    }
 }
