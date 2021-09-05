@@ -26,6 +26,7 @@ import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
@@ -40,6 +41,7 @@ public class SlowIntegrationTests extends SingleClusterTest {
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
+    @Ignore
     @Test
     public void testCustomInterclusterRequestEvaluator() throws Exception {
         
