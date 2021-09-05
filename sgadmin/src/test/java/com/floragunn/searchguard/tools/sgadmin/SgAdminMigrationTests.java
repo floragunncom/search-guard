@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard;
+package com.floragunn.searchguard.tools.sgadmin;
 
 import java.io.File;
 import java.util.ArrayList;

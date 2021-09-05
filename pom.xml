@@ -58,6 +58,7 @@
 		<module>scheduler</module>
 		<module>signals</module>
 		<module>support</module>
+		<module>sgadmin</module>
 		<module>plugin</module>
 		<module>codova</module>		
 		
@@ -595,6 +596,7 @@
 				<module>scheduler</module>
 				<module>signals</module>
 				<module>support</module>
+				<module>sgadmin</module>				
 				<module>dlic-security</module>
 				<module>dlic-signals</module>				
 				<module>plugin</module>

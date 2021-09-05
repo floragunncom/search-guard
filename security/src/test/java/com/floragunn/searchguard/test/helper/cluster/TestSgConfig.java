@@ -21,15 +21,18 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -42,7 +45,6 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.test.helper.cluster.NestedValueMap.Path;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.tools.Hasher;
 
 public class TestSgConfig {
     private static final Logger log = LogManager.getLogger(TestSgConfig.class);
@@ -114,7 +116,7 @@ public class TestSgConfig {
             overrideUserSettings = new NestedValueMap();
         }
 
-        overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), Hasher.hash(password.toCharArray()));
+        overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), hash(password.toCharArray()));
 
         if (sgRoles != null && sgRoles.length > 0) {
             overrideUserSettings.put(new NestedValueMap.Path(name, "search_guard_roles"), sgRoles);
@@ -138,7 +140,7 @@ public class TestSgConfig {
             overrideUserSettings = new NestedValueMap();
         }
 
-        overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), Hasher.hash(password.toCharArray()));
+        overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), hash(password.toCharArray()));
 
         if (sgRoles != null && sgRoles.length > 0) {
             String roleNamePrefix = "user_" + name + "__";
@@ -605,4 +607,13 @@ public class TestSgConfig {
         }
     }
 
+    private static String hash(final char[] clearTextPassword) {
+        final byte[] salt = new byte[16];
+        new SecureRandom().nextBytes(salt);
+        final String hash = OpenBSDBCrypt.generate((Objects.requireNonNull(clearTextPassword)), salt, 12);
+        Arrays.fill(salt, (byte)0);
+        Arrays.fill(clearTextPassword, '\0');
+        return hash;
+    }
 }
+

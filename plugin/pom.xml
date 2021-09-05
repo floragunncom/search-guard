@@ -172,6 +172,12 @@
 					<version>${project.version}</version>
 				</dependency>
 				
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>sgadmin</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+				
 				<!-- DLIC -->
 				<dependency>
 					<groupId>${project.groupId}</groupId>
@@ -237,7 +243,13 @@
 					<artifactId>search-guard-suite-support</artifactId>
 					<version>${project.version}</version>
 				</dependency>
-				
+
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>sgadmin</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+								
 				<!-- DLIC -->
 				<dependency>
 					<groupId>${project.groupId}</groupId>

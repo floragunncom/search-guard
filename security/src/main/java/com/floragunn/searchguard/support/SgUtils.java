@@ -18,21 +18,22 @@
 package com.floragunn.searchguard.support;
 
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.common.settings.Settings;
-
-import com.floragunn.searchguard.tools.Hasher;
 
 public final class SgUtils {
     
@@ -182,14 +183,23 @@ public final class SgUtils {
     //${env.MY_ENV_VAR:-default}
     private static String resolveEnvVar(String envVarName, String mode, boolean bc) {
         final String envVarValue = System.getenv(envVarName);
-        if(envVarValue == null || envVarValue.isEmpty()) {
-            if(mode != null && mode.startsWith(":-") && mode.length() > 2) {
-                return bc?Hasher.hash(mode.substring(2).toCharArray()):mode.substring(2);
+        if (envVarValue == null || envVarValue.isEmpty()) {
+            if (mode != null && mode.startsWith(":-") && mode.length() > 2) {
+                return bc ? hash(mode.substring(2).toCharArray()) : mode.substring(2);
             } else {
                 return null;
             }
         } else {
-            return bc?Hasher.hash(envVarValue.toCharArray()):envVarValue;
+            return bc ? hash(envVarValue.toCharArray()) : envVarValue;
         }
+    }
+
+    private static String hash(final char[] clearTextPassword) {
+        final byte[] salt = new byte[16];
+        new SecureRandom().nextBytes(salt);
+        final String hash = OpenBSDBCrypt.generate((Objects.requireNonNull(clearTextPassword)), salt, 12);
+        Arrays.fill(salt, (byte) 0);
+        Arrays.fill(clearTextPassword, '\0');
+        return hash;
     }
 }

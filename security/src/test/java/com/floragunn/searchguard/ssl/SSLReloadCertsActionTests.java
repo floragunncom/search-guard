@@ -20,7 +20,6 @@
 package com.floragunn.searchguard.ssl;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -46,7 +45,6 @@ import com.floragunn.searchguard.test.SingleClusterTest;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.tools.SearchGuardAdmin;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -246,37 +244,6 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
         Assert.assertEquals("SSL Reload action called while searchguard.ssl.cert_reload_enabled is set to false.", reloadCertsResponse.getBody());
     }
 
-    @Test
-    public void testReloadWithSgAdmin() throws Exception {
-        final String pemCertFilePath = testFolder.newFile("node-temp-cert.pem").getAbsolutePath();
-        final String pemKeyFilePath = testFolder.newFile("node-temp-key.pem").getAbsolutePath();
-        FileHelper.copyFileContents(FileHelper.getAbsoluteFilePathFromClassPath("ssl/reload/node.crt.pem").toString(), pemCertFilePath);
-        FileHelper.copyFileContents(FileHelper.getAbsoluteFilePathFromClassPath("ssl/reload/node.key.pem").toString(), pemKeyFilePath);
-
-        initTestCluster(pemCertFilePath, pemKeyFilePath, pemCertFilePath, pemKeyFilePath, true);
-
-        FileHelper.copyFileContents(FileHelper.getAbsoluteFilePathFromClassPath("ssl/reload/node-new.crt.pem").toString(), pemCertFilePath);
-        FileHelper.copyFileContents(FileHelper.getAbsoluteFilePathFromClassPath("ssl/reload/node-new.key.pem").toString(), pemKeyFilePath);
-
-        List<String> argsAsList = new ArrayList<>();
-        argsAsList.add("-cacert");
-        argsAsList.add(FileHelper.getAbsoluteFilePathFromClassPath("ssl/reload/root-ca.pem").toFile().getAbsolutePath());
-        argsAsList.add("-ks");
-        argsAsList.add(FileHelper.getAbsoluteFilePathFromClassPath("ssl/reload/kirk-keystore.jks").toFile().getAbsolutePath());
-        argsAsList.add("-kspass");
-        argsAsList.add("changeit");
-        argsAsList.add("-p");
-        argsAsList.add(String.valueOf(clusterInfo.httpPort));
-        argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
-        argsAsList.add("-reload-http-certs");
-        argsAsList.add("-reload-transport-certs");
-        argsAsList.add("-nhnv");
-
-        int returnCode = SearchGuardAdmin.execute(argsAsList.toArray(new String[0]));
-        Assert.assertEquals(0, returnCode);
-
-    }
 
     @Test
     public void testReloadCa() throws Exception {
