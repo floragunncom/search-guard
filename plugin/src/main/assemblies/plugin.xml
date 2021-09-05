@@ -32,6 +32,14 @@
             <fileMode>0755</fileMode>
         </fileSet>
         <fileSet>
+            <directory>${project.basedir}${file.separator}..${file.separator}sgadmin</directory>
+            <outputDirectory>${file.separator}</outputDirectory>
+            <includes>
+                <include>tools${file.separator}**</include>
+            </includes>
+            <fileMode>0755</fileMode>
+        </fileSet>       
+        <fileSet>
             <outputDirectory>${file.separator}</outputDirectory>
             <includes>
                 <include>plugin-descriptor.properties</include>

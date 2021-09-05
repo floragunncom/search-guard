@@ -8,7 +8,7 @@
   <includeBaseDirectory>false</includeBaseDirectory>
   <fileSets>
     <fileSet>
-      <directory>${project.basedir}${file.separator}..${file.separator}security</directory>
+      <directory>${project.basedir}${file.separator}..${file.separator}sgadmin</directory>
       <outputDirectory>${file.separator}</outputDirectory>
       <includes>
         <include>tools/**</include>
