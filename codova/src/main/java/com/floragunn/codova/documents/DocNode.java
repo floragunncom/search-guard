@@ -93,6 +93,14 @@ public abstract class DocNode implements Map<String, Object> {
         return new PlainJavaObjectAdapter(map);
     }
 
+    public static DocNode wrap(Object object) {
+        if (object instanceof DocNode) {
+            return (DocNode) object;
+        } else {
+            return new PlainJavaObjectAdapter(object);
+        }
+    }
+    
     private static void add(Map<String, Object> map, String key, Object value) {
         int dot = key.indexOf('.');
 

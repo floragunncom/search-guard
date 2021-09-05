@@ -18,6 +18,8 @@
 package com.floragunn.codova.validation;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Collection;
 import java.util.Map;
 
@@ -28,6 +30,7 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.LinkedListMultimap;
@@ -142,6 +145,23 @@ public class ValidationErrors implements ToXContent {
         return result.toString();
     }
 
+    public String toDebugString() {
+        StringBuilder result = new StringBuilder();
+
+        for (Map.Entry<String, ValidationError> entry : this.attributeToErrorMap.entries()) {
+            result.append(entry.getKey()).append(":\n\t").append(entry.getValue().toValidationErrorsOverviewString());
+            result.append("\n");
+
+            if (entry.getValue().getCause() != null) {
+                StringWriter stringWriter = new StringWriter();
+                entry.getValue().getCause().printStackTrace(new PrintWriter(stringWriter));
+                result.append(stringWriter.toString()).append("\n");
+            }
+        }
+
+        return result.toString();
+    }
+
     public int size() {
         return this.attributeToErrorMap.size();
     }
@@ -189,5 +209,15 @@ public class ValidationErrors implements ToXContent {
         builder.endObject();
 
         return builder;
+    }
+
+    public static ValidationErrors parse(Map<String, Object> document) {
+        ValidationErrors result = new ValidationErrors();
+
+        for (Map.Entry<String, Object> entry : document.entrySet()) {
+            result.add(ValidationError.parse(entry.getKey(), new DocNode.PlainJavaObjectAdapter(entry.getValue())));
+        }
+
+        return result;
     }
 }

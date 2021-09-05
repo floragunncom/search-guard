@@ -17,6 +17,8 @@
 
 package com.floragunn.codova.documents;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigDecimal;
@@ -47,18 +49,27 @@ public class DocWriter {
     public static String writeAsString(Object object) {
         return writeAsString(object, XContentType.JSON);
     }
-    
+
     public static String writeAsString(Object object, XContentType contentType) {
         try (StringWriter writer = new StringWriter(); JsonGenerator generator = getJsonFactory(contentType).createGenerator(writer)) {
             new DocWriter(generator).write(object);
 
             generator.flush();
             writer.flush();
-            
+
             return writer.toString();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static void write(File file, Object object, XContentType contentType) throws IOException {
+        try (FileWriter writer = new FileWriter(file); JsonGenerator generator = getJsonFactory(contentType).createGenerator(writer)) {
+            new DocWriter(generator).write(object);
+
+            generator.flush();
+            writer.flush();
+        } 
     }
 
     private static JsonFactory getJsonFactory(XContentType contentType) {
@@ -71,11 +82,11 @@ public class DocWriter {
             throw new IllegalArgumentException("Content-Type " + contentType + " is not supported");
         }
     }
-    
+
     private static JsonFactory jsonFactory = new JsonFactory();
     private static YAMLFactory yamlFactory = new YAMLFactory();
-       
-     private JsonGenerator generator;
+
+    private JsonGenerator generator;
     private int maxDepth = 20;
 
     public DocWriter(JsonGenerator generator) {

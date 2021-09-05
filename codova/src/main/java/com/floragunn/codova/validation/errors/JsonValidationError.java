@@ -30,13 +30,19 @@ public class JsonValidationError extends ValidationError {
     private String context;
 
     public JsonValidationError(String attribute, JsonProcessingException jsonProcessingException) {
-        super(attribute, "Error while parsing JSON document: " + jsonProcessingException.getOriginalMessage());
+        super(attribute, "Invalid JSON document: " + jsonProcessingException.getOriginalMessage());
         cause(jsonProcessingException);
         this.jsonLocation = jsonProcessingException.getLocation();
 
         if (jsonProcessingException instanceof JsonParseException) {
             this.context = ((JsonParseException) jsonProcessingException).getRequestPayloadAsString();
         }
+    }
+    
+    public JsonValidationError(String attribute, String message, JsonLocation jsonLocation, String context) {
+        super(attribute, message);
+        this.jsonLocation = jsonLocation;
+        this.context = context;
     }
 
     @Override
