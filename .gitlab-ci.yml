@@ -2,6 +2,7 @@ variables:
   SG_JAVA_BUILD_VERSION: "11"
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode"
+  DOCKER_DRIVER: overlay2
   #SG_KI_PLUGIN: ""
   #KI_VERSION: ""
   #IT_BRANCH: ""
