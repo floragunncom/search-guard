@@ -103,7 +103,8 @@ public abstract class AbstractAuditLog implements AuditLog {
     private final List<String> defaultDisabledCategories = Arrays.asList(Category.AUTHENTICATED.toString(), Category.GRANTED_PRIVILEGES.toString());
     private final List<String> defaultIgnoredUsers = Arrays.asList("kibanaserver");
     private final boolean excludeSensitiveHeaders;
-
+    private final boolean logEnvVars;
+    
     private final String searchguardIndex;
     private static final List<String> writeClasses = new ArrayList<>();
     
@@ -129,6 +130,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         restAuditingEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true);
         transportAuditingEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true);
+        logEnvVars = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENV_VARS_ENABLED, true);
 
         disabledRestCategories = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, defaultDisabledCategories).stream()
                 .map(c->c.toUpperCase()).collect(Collectors.toList()));
@@ -742,12 +744,18 @@ public abstract class AbstractAuditLog implements AuditLog {
             sm.checkPermission(new SpecialPermission());
         }
 
-        final Map<String, String> envAsMap = AccessController.doPrivileged(new PrivilegedAction<Map<String, String>>() {
-            @Override
-            public Map<String, String> run() {
-                return System.getenv();
-            }
-        });
+        final Map<String, String> envAsMap;
+                
+        if (logEnvVars) {
+            envAsMap = AccessController.doPrivileged(new PrivilegedAction<Map<String, String>>() {
+                @Override
+                public Map<String, String> run() {
+                    return System.getenv();
+                }
+            });
+        } else {
+            envAsMap = null;
+        }
         
         final Properties propsAsMap = AccessController.doPrivileged(new PrivilegedAction<Properties>() {
             @Override
@@ -756,14 +764,18 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         });
 
-        final String sha256 = DigestUtils.sha256Hex(configAsMap.toString()+envAsMap.toString()+propsAsMap.toString());
+        final String sha256 = DigestUtils.sha256Hex(configAsMap.toString() + (envAsMap != null ? envAsMap.toString() : "") + propsAsMap.toString());
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_EXTERNAL_CONFIG, clusterService, null, null);
         
         try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
             builder.startObject();
             builder.startObject("external_configuration");
             builder.field("elasticsearch_yml", configAsMap);
-            builder.field("os_environment", envAsMap);
+            
+            if (logEnvVars) {
+                builder.field("os_environment", envAsMap);
+            }
+            
             builder.field("java_properties", propsAsMap);
             builder.field("sha256_checksum", sha256);
             builder.endObject();

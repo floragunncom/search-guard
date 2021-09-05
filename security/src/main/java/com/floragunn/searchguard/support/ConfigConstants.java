@@ -210,6 +210,7 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_COMPLIANCE_HISTORY_READ_IGNORE_USERS = "searchguard.compliance.history.read.ignore_users";
     public static final String SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_IGNORE_USERS = "searchguard.compliance.history.write.ignore_users";
     public static final String SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED  = "searchguard.compliance.history.external_config_enabled";
+    public static final String SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENV_VARS_ENABLED  = "searchguard.compliance.history.external_config.env_vars.enabled";
     public static final String SEARCHGUARD_COMPLIANCE_DISABLE_ANONYMOUS_AUTHENTICATION  = "searchguard.compliance.disable_anonymous_authentication";
     public static final String SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES = "searchguard.compliance.immutable_indices";
     public static final String SEARCHGUARD_COMPLIANCE_SALT = "searchguard.compliance.salt";
