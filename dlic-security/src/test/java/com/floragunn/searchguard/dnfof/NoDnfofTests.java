@@ -12,7 +12,7 @@
  *
  */
 
-package com.floragunn.searchguard.auditlog.misc;
+package com.floragunn.searchguard.dnfof;
 
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;

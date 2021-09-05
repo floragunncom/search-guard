@@ -229,6 +229,26 @@ test_dlic_security:
       - .m2/repository
     policy: pull
 
+test_dlic_auditlog:
+  stage: test
+  interruptible: true
+  tags:
+    - openstack-runner
+  script:
+    - mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo
+    paths:
+      - .m2/repository
+    policy: pull
+
 test_dlic_signals:
   stage: test
   interruptible: true
