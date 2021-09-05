@@ -172,7 +172,7 @@ test_sgadmin:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+    - aws-runner
   script:
     - mvn $MAVEN_CLI_OPTS -pl sgadmin test
   artifacts:
@@ -233,7 +233,7 @@ test_dlic_auditlog:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+    - aws-runner
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test
   artifacts:
