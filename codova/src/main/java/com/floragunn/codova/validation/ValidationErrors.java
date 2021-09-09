@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -80,6 +82,15 @@ public class ValidationErrors implements ToXContent {
 
         return this;
     }
+    
+    public ValidationErrors add(Collection<ValidationError> validationErrors) {
+        for (ValidationError validationError : validationErrors) {
+            add(validationError);
+        }
+        
+        return this;
+    }
+
 
     public ValidationErrors add(String attribute, ValidationErrors validationErrors) {
         for (Map.Entry<String, ValidationError> entry : validationErrors.attributeToErrorMap.entries()) {
@@ -210,14 +221,96 @@ public class ValidationErrors implements ToXContent {
 
         return builder;
     }
+    
+    public ValidationErrors mapKeys(Map<String, String> oldToNewKeyMap) {
+        if (oldToNewKeyMap.size() == 0 || this.attributeToErrorMap.size() == 0) {
+            return this;
+        }
+        
+        Multimap<String, ValidationError> newErrorMap = LinkedListMultimap.create(this.attributeToErrorMap.size());
+        
+        for (Map.Entry<String, Collection<ValidationError>> entry : this.attributeToErrorMap.asMap().entrySet()) {            
+            newErrorMap.putAll(mapKey(entry.getKey(), oldToNewKeyMap), entry.getValue());                    
+        }
+        
+        return new ValidationErrors(newErrorMap);
+    }
+    
+    public Map<String, ValidationErrors> groupByKeys(Map<String, String> oldToNewKeyMap) {
+        if (this.attributeToErrorMap.size() == 0) {
+            return Collections.emptyMap();
+        }
+        
+        if (oldToNewKeyMap.size() == 0) {
+            return Collections.singletonMap("", this);
+        }
+        
+        Map<String, ValidationErrors> result = new LinkedHashMap<>(oldToNewKeyMap.size() + 5);
+        
+        for (Map.Entry<String, Collection<ValidationError>> entry : this.attributeToErrorMap.asMap().entrySet()) {
+            SplitKey splitKey = splitAndMapKey(entry.getKey(), oldToNewKeyMap);
+            
+            ValidationErrors group = result.computeIfAbsent(splitKey.group, (k) -> new ValidationErrors());
+            
+            group.attributeToErrorMap.putAll(splitKey.key, entry.getValue()); 
+        }
+        
+        return result;
+    }
+        
+    private String mapKey(String key, Map<String, String> oldToNewKeyMap) {
+        String newKey = oldToNewKeyMap.get(key);
+        
+        if (newKey != null) {
+            return newKey;
+        }
+        
+        for (Map.Entry<String, String> entry : oldToNewKeyMap.entrySet()) {
+            if (key.startsWith(entry.getKey())) {
+                return entry.getValue() + key.substring(entry.getKey().length()); 
+            }
+        }
+        
+        return key;
+    }
+    
+    private SplitKey splitAndMapKey(String key, Map<String, String> oldToNewKeyMap) {
+  String newKey = oldToNewKeyMap.get(key);
+        
+        if (newKey != null) {
+            return new SplitKey(newKey, "");
+        }
+        
+        for (Map.Entry<String, String> entry : oldToNewKeyMap.entrySet()) {
+            if (key.startsWith(entry.getKey()) && key.charAt(entry.getKey().length()) == '.') {
+                return new SplitKey(entry.getValue(), key.substring(entry.getKey().length() + 1));
+            }
+        }
+        
+        return new SplitKey("", key);
+    }
+
 
     public static ValidationErrors parse(Map<String, Object> document) {
         ValidationErrors result = new ValidationErrors();
 
         for (Map.Entry<String, Object> entry : document.entrySet()) {
-            result.add(ValidationError.parse(entry.getKey(), new DocNode.PlainJavaObjectAdapter(entry.getValue())));
+            result.add(ValidationError.parseArray(entry.getKey(), new DocNode.PlainJavaObjectAdapter(entry.getValue())));
         }
 
         return result;
     }
+    
+    private static class SplitKey {
+        final String group;
+        final String key;
+
+        public SplitKey(String group, String key) {
+            this.group = group;
+            this.key = key;
+        }
+        
+        
+    }
+    
 }

@@ -163,17 +163,14 @@ public abstract class DocNode implements Map<String, Object> {
 
         @Override
         public List<DocNode> getListOfNodes(String attribute) throws ConfigValidationException {
-            Object object;
+            Object object = null;
 
             if (attribute == null) {
                 object = this.object;
-            }
-            if (this.object instanceof Map) {
+            } else if (this.object instanceof Map) {
                 object = ((Map<?, ?>) this.object).get(attribute);
-            } else {
-                return null;
-            }
-
+            } 
+            
             if (object == null) {
                 return null;
             }

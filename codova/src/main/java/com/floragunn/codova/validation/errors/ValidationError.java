@@ -19,6 +19,9 @@ package com.floragunn.codova.validation.errors;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -89,6 +92,24 @@ public class ValidationError implements ToXContentObject {
 
     public String toValidationErrorsOverviewString() {
         return message;
+    }
+    
+    public static List<ValidationError> parseArray(String attribute, DocNode docNode) {
+        if (!docNode.isList()) {
+            return Collections.singletonList(parse(attribute, docNode));
+        } else {
+            ArrayList<ValidationError> result = new ArrayList<>(docNode.size());
+
+            try {
+                for (DocNode subDocNode : docNode.getListOfNodes(null)) {
+                    result.add(parse(attribute, subDocNode));
+                }
+            } catch (ConfigValidationException e) {
+                throw new RuntimeException(e);
+            }
+
+            return result;
+        }
     }
 
     public static ValidationError parse(String attribute, DocNode docNode) {
