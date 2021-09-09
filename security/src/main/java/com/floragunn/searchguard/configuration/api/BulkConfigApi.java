@@ -58,6 +58,8 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.DocType.UnknownContentTypeException;
 import com.floragunn.codova.documents.DocUtils;
 import com.floragunn.codova.documents.UnparsedDoc;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -250,13 +252,17 @@ public class BulkConfigApi {
 
             public Request(StreamInput in) throws IOException {
                 super(in);
-                this.config = new UnparsedDoc(in);
+                try {
+                    this.config = UnparsedDoc.fromString(in.readString());
+                } catch (IllegalArgumentException | UnknownContentTypeException e) {
+                    throw new IOException(e);
+                }
                 this.options = in.readMap(StreamInput::readString, StreamInput::readGenericValue);
             }
 
             @Override
             public void writeTo(StreamOutput out) throws IOException {
-                config.writeTo(out);
+                out.writeString(config.toString());
                 out.writeMap(options, StreamOutput::writeString, StreamOutput::writeGenericValue);
             }
 
@@ -265,9 +271,9 @@ public class BulkConfigApi {
                 return null;
             }
 
-            public static Request parse(BytesReference bytesReference, XContentType contentType) throws ConfigValidationException {
+            public static Request parse(BytesReference bytesReference, DocType docType) throws ConfigValidationException {
                 String bodyAsString = new String(BytesReference.toBytes(bytesReference), Charsets.UTF_8);
-                return new Request(new UnparsedDoc(bodyAsString, contentType), new HashMap<>());
+                return new Request(new UnparsedDoc(bodyAsString, docType), new HashMap<>());
             }
 
             public Map<String, Object> getOptions() {
@@ -366,7 +372,7 @@ public class BulkConfigApi {
                         this.configurationRepository.update(parseConfigJson(request.getConfig()));
                         listener.onResponse(new Response(RestStatus.OK, "Configuration has been updated"));
                     } catch (ConfigValidationException e) {
-                        listener.onResponse(new Response(RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJson()));
+                        listener.onResponse(new Response(RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJsonString()));
                     } catch (ConfigUpdateException e) {
                         log.error("Error while updating configuration", e);
                         listener.onResponse(new Response(RestStatus.INTERNAL_SERVER_ERROR, e.getMessage(), e.getDetailsAsJson()));
@@ -466,7 +472,8 @@ public class BulkConfigApi {
 
         private RestChannelConsumer handlePut(RestRequest restRequest, NodeClient client) {
             try {
-                UpdateAction.Request request = UpdateAction.Request.parse(restRequest.requiredContent(), restRequest.getXContentType());
+                UpdateAction.Request request = UpdateAction.Request.parse(restRequest.requiredContent(),
+                        DocType.getByContentType(restRequest.getXContentType().mediaType()));
 
                 return channel -> client.execute(UpdateAction.INSTANCE, request, new RestStatusToXContentListener<UpdateAction.Response>(channel));
             } catch (Exception e) {

@@ -42,6 +42,8 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.UnsupportedAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Longs;
 import com.jayway.jsonpath.InvalidPathException;
 import com.jayway.jsonpath.JsonPath;
 
@@ -145,7 +147,27 @@ public class ValidatingDocNode {
     }
 
     public boolean hasNonNull(String attribute) {
-        return this.documentNode.get(attribute) != null;
+        if (this.documentNode.get(attribute) != null) {
+            return true;
+        }
+        
+        int dot = attribute.indexOf('.');
+
+        if (dot != -1) {
+            String[] parts = attribute.split("\\.");
+
+            DocNode currentDocumentNode = this.documentNode;
+
+            for (int i = 0; i < parts.length - 1 && currentDocumentNode != null; i++) {
+                currentDocumentNode = currentDocumentNode.getAsNode(parts[i]);
+            }
+            
+            if (currentDocumentNode != null) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     public void validateUnusedAttributes() {
@@ -607,7 +629,7 @@ public class ValidatingDocNode {
                     } else if (object instanceof Boolean || object instanceof Number || object instanceof Character) {
                         string = object.toString();
                     } else {
-                        string = DocWriter.writeAsString(object);
+                        string = DocWriter.json().writeAsString(object);
                     }
 
                     return parser.apply(string);
@@ -699,6 +721,7 @@ public class ValidatingDocNode {
 
     public class NumberAttribute extends AbstractAttribute<NumberAttribute> {
         private Number defaultValue;
+        private boolean allowNumericStrings;
 
         NumberAttribute(String name, String fullAttributePath, DocNode documentNode) {
             super(name, fullAttributePath, documentNode);
@@ -709,6 +732,11 @@ public class ValidatingDocNode {
             this.defaultValue = defaultValue;
             return this;
         }
+        
+        public NumberAttribute allowingNumericStrings() {
+            this.allowNumericStrings = true;
+            return this;
+        }
 
         public Number asNumber() {
             Object object = expandVariable(documentNode.get(name));
@@ -717,6 +745,8 @@ public class ValidatingDocNode {
                 return defaultValue;
             } else if (object instanceof Number) {
                 return (Number) object;
+            } else if (allowNumericStrings && object instanceof String) {
+               return parseString((String) object);
             } else {
                 validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A numeric value"));
                 return defaultValue;
@@ -773,6 +803,23 @@ public class ValidatingDocNode {
             } else {
                 return 0;
             }
+        }
+        
+        private Number parseString(String string) {
+            Number result = Longs.tryParse(string);
+            
+            if (result != null) {
+                return result;
+            }
+            
+            result = Doubles.tryParse(string);
+            
+            if (result != null) {
+                return result;
+            }
+            
+            validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), string, "A numeric value"));
+            return defaultValue;
         }
     }
 

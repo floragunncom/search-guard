@@ -90,7 +90,7 @@ public class Responses {
 
     public static void sendError(RestChannel channel, Exception e) {
         if (e instanceof ConfigValidationException) {
-            sendError(channel, RestStatus.BAD_REQUEST, e.getMessage(), ((ConfigValidationException) e).getValidationErrors());
+            sendError(channel, RestStatus.BAD_REQUEST, e.getMessage(), ((ConfigValidationException) e).getValidationErrors().toJsonString());
         } else {
             sendError(channel, ExceptionsHelper.status(e), e.getMessage());
         }
@@ -129,7 +129,7 @@ public class Responses {
                 }
                 channel.sendResponse(new BytesRestResponse(RestStatus.OK, builder));
             } else {
-                channel.sendResponse(new BytesRestResponse(RestStatus.OK, "application/json", DocWriter.writeAsString(json)));
+                channel.sendResponse(new BytesRestResponse(RestStatus.OK, "application/json", DocWriter.json().writeAsString(json)));
             }
         } catch (Exception e) {
             log.error(e.toString(), e);

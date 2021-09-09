@@ -17,50 +17,48 @@
 
 package com.floragunn.codova.documents;
 
-import java.io.IOException;
 import java.util.Map;
 
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
-import org.elasticsearch.common.xcontent.XContentType;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.floragunn.codova.documents.DocType.UnknownContentTypeException;
 
-public class UnparsedDoc implements Writeable {
+public class UnparsedDoc {
     private final String source;
-    private final XContentType contentType;
+    private final DocType docType;
 
-    public UnparsedDoc(String source, XContentType contentType) {
+    public UnparsedDoc(String source, DocType docType) {
         this.source = source;
-        this.contentType = contentType;
-    }
-
-    public UnparsedDoc(StreamInput in) throws IOException {
-        this.source = in.readString();
-        this.contentType = in.readEnum(XContentType.class);
+        this.docType = docType;
     }
 
     public Map<String, Object> parseAsMap() throws JsonProcessingException {
-        return DocReader.readObject(source, contentType);
+        return DocReader.type(docType).readObject(source);
     }
 
     public Object parse() throws JsonProcessingException {
-        return DocReader.read(source, contentType);
+        return DocReader.type(docType).read(source);
     }
 
     public String getSource() {
         return source;
     }
 
-    public XContentType getContentType() {
-        return contentType;
+    public DocType getDocType() {
+        return docType;
     }
 
     @Override
-    public void writeTo(StreamOutput out) throws IOException {
-        out.writeString(source);
-        out.writeEnum(contentType);
+    public String toString() {
+        return docType.getContentType() + ":\n" + source;
     }
 
+    public static UnparsedDoc fromString(String string) throws IllegalArgumentException, UnknownContentTypeException {
+        int sep = string.indexOf(":\n");
+
+        if (sep == -1) {
+            throw new IllegalArgumentException("Invalid string: " + string);
+        }
+
+        return new UnparsedDoc(string.substring(sep + 2), DocType.getByContentType(string.substring(0, sep)));
+    }
 }

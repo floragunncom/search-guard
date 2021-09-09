@@ -121,7 +121,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
 
         Assert.assertEquals(200, reloadCertsResponse.getStatusCode());
         Assert.assertEquals(reloadCertsResponse.getBody(), ImmutableMap.of("message", "updated transport certs"),
-                DocReader.read(reloadCertsResponse.getBody()));
+                DocReader.json().read(reloadCertsResponse.getBody()));
 
         certDetailsResponse = rh.executeSimpleRequest(GET_CERT_DETAILS_ENDPOINT);
 
@@ -165,7 +165,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
 
         Assert.assertEquals(200, reloadCertsResponse.getStatusCode());
         Assert.assertEquals(reloadCertsResponse.getBody(), ImmutableMap.of("message",  "updated http certs"),
-                DocReader.read(reloadCertsResponse.getBody()));
+                DocReader.json().read(reloadCertsResponse.getBody()));
 
         certDetailsResponse = rh.executeSimpleRequest(GET_CERT_DETAILS_ENDPOINT);
 
@@ -197,7 +197,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
 
         Assert.assertEquals(reloadCertsResponse.getBody(),
                 ImmutableMap.of("error", "no handler found for uri [/_searchguard/_security/api/ssl/wrong/reloadcerts] and method [POST]"),
-                DocReader.read(reloadCertsResponse.getBody()));
+                DocReader.json().read(reloadCertsResponse.getBody()));
     }
 
     @Test

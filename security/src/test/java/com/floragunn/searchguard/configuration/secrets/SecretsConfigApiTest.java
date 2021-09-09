@@ -46,7 +46,7 @@ public class SecretsConfigApiTest {
             String secretContent = "Blabla";
             String secretPath = "/_searchguard/secrets/" + secretId;
 
-            HttpResponse response = client.putJson(secretPath, DocWriter.writeAsString(secretContent));
+            HttpResponse response = client.putJson(secretPath, DocWriter.json().writeAsString(secretContent));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
@@ -55,10 +55,10 @@ public class SecretsConfigApiTest {
             response = client.get(secretPath);
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), secretContent, DocReader.read(response.getBody()));
+            Assert.assertEquals(response.getBody(), secretContent, DocReader.json().read(response.getBody()));
 
             response = client.get("/_searchguard/secrets");
-            DocNode responseDoc = new DocNode.PlainJavaObjectAdapter(DocReader.read(response.getBody()));
+            DocNode responseDoc = new DocNode.PlainJavaObjectAdapter(DocReader.json().read(response.getBody()));
 
             Assert.assertEquals(response.getBody(), secretContent, responseDoc.get(secretId));
 
@@ -79,7 +79,7 @@ public class SecretsConfigApiTest {
     public void putTestWithoutAdminCert() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(ADMIN_USER)) {
 
-            HttpResponse updateResponse = client.putJson("/_searchguard/secrets/foobar", DocWriter.writeAsString(DocNode.of("a", "b")));
+            HttpResponse updateResponse = client.putJson("/_searchguard/secrets/foobar", DocWriter.json().writeAsString(DocNode.of("a", "b")));
 
             Assert.assertEquals(updateResponse.getBody(), 403, updateResponse.getStatusCode());
         }

@@ -114,7 +114,7 @@ public class Responses {
 
     public static void sendError(RestChannel channel, Exception e) {
         if (e instanceof ConfigValidationException) {
-            sendError(channel, RestStatus.BAD_REQUEST, e.getMessage(), ((ConfigValidationException) e).getValidationErrors());
+            sendError(channel, RestStatus.BAD_REQUEST, e.getMessage(), ((ConfigValidationException) e).getValidationErrors().toJsonString());
         } else if (e instanceof JsonParseException) {
             sendError(channel, RestStatus.BAD_REQUEST, e.getMessage());
         } else {

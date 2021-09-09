@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 floragunn GmbH
+ * Copyright 2021 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,23 @@
  *
  */
 
-package com.floragunn.codova.validation.errors;
+package com.floragunn.codova.documents;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Map;
 
-public class MissingAttribute extends ValidationError {
+public interface Document {
+    Map<String, Object> toMap();
 
-    public MissingAttribute(String attribute) {
-        this(attribute, (JsonNode) null);
+    default String toString(DocType docType) {
+        return DocWriter.type(docType).writeAsString(this.toMap());
     }
 
-    public MissingAttribute(String attribute, Object jsonNode) {
-        super(attribute, "Required attribute is missing", jsonNode);
+    default String toJsonString() {
+        return DocWriter.json().writeAsString(this.toMap());
+    }
+
+    default String toYamlString() {
+        return DocWriter.yaml().writeAsString(this.toMap());
     }
 
 }

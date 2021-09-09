@@ -17,9 +17,8 @@
 
 package com.floragunn.codova.validation.errors;
 
-import java.io.IOException;
-
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class InvalidAttributeValue extends ValidationError {
     private Object expected;
@@ -41,18 +40,18 @@ public class InvalidAttributeValue extends ValidationError {
     }
 
     @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.field("error", getMessage());
+    public Map<String, Object> toMap() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        
+        result.put("error", getMessage());
 
-        builder.field("value", value);
+        result.put("value", value);
 
         if (expected != null) {
-            builder.field("expected", expectedToString(expected));
+            result.put("expected", expectedToString(expected));
         }
 
-        builder.endObject();
-        return builder;
+        return result;
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })

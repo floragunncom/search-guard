@@ -49,7 +49,6 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
@@ -122,52 +121,53 @@ public class SecretsService implements ComponentStateProvider {
     }
 
     public void delete(String id, ActionListener<SecretsConfigApi.DeleteAction.Response> actionListener) {
-        this.privilegedConfigClient.delete(new DeleteRequest(indexName, id).setRefreshPolicy(RefreshPolicy.IMMEDIATE), new ActionListener<DeleteResponse>() {
-
-            @Override
-            public void onResponse(DeleteResponse deleteResponse) {
-                SecretsRefreshAction.send(client, new ActionListener<Response>() {
+        this.privilegedConfigClient.delete(new DeleteRequest(indexName, id).setRefreshPolicy(RefreshPolicy.IMMEDIATE),
+                new ActionListener<DeleteResponse>() {
 
                     @Override
-                    public void onResponse(Response response) {
-                        try {
-                            log.info("Result of settings update:\n" + response);
+                    public void onResponse(DeleteResponse deleteResponse) {
+                        SecretsRefreshAction.send(client, new ActionListener<Response>() {
 
-                            if (response.hasFailures()) {
-                                actionListener.onResponse(new SecretsConfigApi.DeleteAction.Response(id, RestStatus.INTERNAL_SERVER_ERROR,
-                                        "Index update was successful, but node refresh partially failed",
-                                        DocWriter.writeAsString(response.failures().toString())));
-                            } else if (deleteResponse.getResult() == Result.DELETED) {
-                                actionListener.onResponse(new SecretsConfigApi.DeleteAction.Response(id, RestStatus.OK, "Deleted"));
-                            } else { 
-                                actionListener.onResponse(new SecretsConfigApi.DeleteAction.Response(id, RestStatus.NOT_FOUND, "Not found"));
+                            @Override
+                            public void onResponse(Response response) {
+                                try {
+                                    log.info("Result of settings update:\n" + response);
+
+                                    if (response.hasFailures()) {
+                                        actionListener.onResponse(new SecretsConfigApi.DeleteAction.Response(id, RestStatus.INTERNAL_SERVER_ERROR,
+                                                "Index update was successful, but node refresh partially failed",
+                                                DocWriter.json().writeAsString(response.failures().toString())));
+                                    } else if (deleteResponse.getResult() == Result.DELETED) {
+                                        actionListener.onResponse(new SecretsConfigApi.DeleteAction.Response(id, RestStatus.OK, "Deleted"));
+                                    } else {
+                                        actionListener.onResponse(new SecretsConfigApi.DeleteAction.Response(id, RestStatus.NOT_FOUND, "Not found"));
+                                    }
+                                } catch (Exception e) {
+                                    log.error("Error in onResponse", e);
+                                    actionListener.onFailure(e);
+                                }
                             }
-                        } catch (Exception e) {
-                            log.error("Error in onResponse", e);
-                            actionListener.onFailure(e);
-                        }
+
+                            @Override
+                            public void onFailure(Exception e) {
+                                log.error("settings update failed", e);
+                                actionListener.onResponse(new SecretsConfigApi.DeleteAction.Response(id, RestStatus.INTERNAL_SERVER_ERROR,
+                                        "Index update was successful, but node refresh failed"));
+                            }
+                        });
                     }
 
                     @Override
                     public void onFailure(Exception e) {
-                        log.error("settings update failed", e);
-                        actionListener.onResponse(new SecretsConfigApi.DeleteAction.Response(id, RestStatus.INTERNAL_SERVER_ERROR,
-                                "Index update was successful, but node refresh failed"));
+                        log.error("Error while deleting " + id, e);
+                        componentState.addLastException("delete", e);
+                        actionListener.onFailure(e);
                     }
                 });
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                log.error("Error while deleting " + id, e);
-                componentState.addLastException("delete", e);
-                actionListener.onFailure(e);
-            }
-        });
     }
 
     public void update(String id, Object value, ActionListener<SecretsConfigApi.UpdateAction.Response> actionListener) {
-        String json = DocWriter.writeAsString(value);
+        String json = DocWriter.json().writeAsString(value);
 
         log.info("Writing secret " + id);
 
@@ -187,7 +187,7 @@ public class SecretsService implements ComponentStateProvider {
                                         if (response.hasFailures()) {
                                             actionListener.onResponse(new SecretsConfigApi.UpdateAction.Response(id, RestStatus.INTERNAL_SERVER_ERROR,
                                                     "Index update was successful, but node refresh partially failed",
-                                                    DocWriter.writeAsString(response.failures().toString())));
+                                                    DocWriter.json().writeAsString(response.failures().toString())));
                                         } else if (indexResponse.getResult() == Result.CREATED) {
                                             actionListener.onResponse(new SecretsConfigApi.UpdateAction.Response(id, RestStatus.OK, "Created"));
                                         } else { // indexResponse.getResult() == Result.UPDATED
@@ -229,7 +229,7 @@ public class SecretsService implements ComponentStateProvider {
         bulkRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
         for (Map.Entry<String, Object> entry : valueMap.entrySet()) {
-            bulkRequest.add(new IndexRequest(indexName).id(entry.getKey()).source(DocWriter.writeAsString(entry.getValue(), XContentType.JSON)));
+            bulkRequest.add(new IndexRequest(indexName).id(entry.getKey()).source(DocWriter.json().writeAsString(entry.getValue())));
         }
 
         Set<String> idsForDeletion = this.values.keySet().stream().filter((id) -> !valueMap.containsKey(id)).collect(Collectors.toSet());
@@ -260,7 +260,7 @@ public class SecretsService implements ComponentStateProvider {
                             if (response.hasFailures()) {
                                 actionListener.onResponse(new SecretsConfigApi.UpdateAllAction.Response(RestStatus.INTERNAL_SERVER_ERROR,
                                         "Index update was successful, but node refresh partially failed",
-                                        DocWriter.writeAsString(response.failures().toString())));
+                                        DocWriter.json().writeAsString(response.failures().toString())));
                             } else {
                                 actionListener.onResponse(
                                         new SecretsConfigApi.UpdateAllAction.Response(RestStatus.OK, getUpdateMessage(bulkResponse), null));
@@ -375,7 +375,7 @@ public class SecretsService implements ComponentStateProvider {
                         String value = entry.getValue().get();
                         newValues.put(id, value);
 
-                        String valueAsJson = DocWriter.writeAsString(value);
+                        String valueAsJson = DocWriter.json().writeAsString(value);
 
                         IndexResponse response = privilegedConfigClient
                                 .index(new IndexRequest(this.indexName).id(id).source("value", valueAsJson).setRefreshPolicy(RefreshPolicy.IMMEDIATE))
@@ -430,7 +430,7 @@ public class SecretsService implements ComponentStateProvider {
 
         SearchResponse response = privilegedConfigClient.search(new SearchRequest(this.indexName)
                 .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(1000)).scroll(new TimeValue(10000))).actionGet();
-        
+
         Map<String, Object> values = new HashMap<>();
 
         try {
@@ -438,7 +438,7 @@ public class SecretsService implements ComponentStateProvider {
                 for (SearchHit searchHit : response.getHits().getHits()) {
                     try {
                         String valueJson = String.valueOf(searchHit.getSourceAsMap().get("value"));
-                        Object value = DocReader.read(valueJson);
+                        Object value = DocReader.json().read(valueJson);
                         values.put(searchHit.getId(), value);
                     } catch (Exception e) {
                         componentState.addLastException("readValues", e);

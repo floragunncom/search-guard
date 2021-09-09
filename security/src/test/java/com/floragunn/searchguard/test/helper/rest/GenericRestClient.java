@@ -158,7 +158,7 @@ public class GenericRestClient implements AutoCloseable {
     }
     
     public HttpResponse postJson(String path, Map<String, Object> body, Header...headers) throws Exception {
-        return postJson(path, DocWriter.writeAsString(body), headers);
+        return postJson(path, DocWriter.json().writeAsString(body), headers);
     }
 
     public HttpResponse post(String path) throws Exception {

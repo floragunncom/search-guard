@@ -34,6 +34,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.DocType.UnknownContentTypeException;
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.JsonValidationError;
@@ -87,25 +89,26 @@ public class ValidatingJsonParser {
 
     public static Map<String, Object> readObjectAsMap(String string) throws ConfigValidationException {
         try {
-            return DocReader.readObject(string);
+            return DocReader.json().readObject(string);
         } catch (UnexpectedDocumentStructureException e) {
             throw new ConfigValidationException(new ValidationError(null, "The JSON root node must be an object").cause(e));
         } catch (JsonProcessingException e) {
             throw new ConfigValidationException(new JsonValidationError(null, e));
         }
     }
-
 
     public static Map<String, Object> readObjectAsMap(String string, XContentType contentType) throws ConfigValidationException {
         try {
-            return DocReader.readObject(string, contentType);
+            return DocReader.type(DocType.getByContentType(contentType.mediaType())).readObject(string);
         } catch (UnexpectedDocumentStructureException e) {
             throw new ConfigValidationException(new ValidationError(null, "The JSON root node must be an object").cause(e));
         } catch (JsonProcessingException e) {
             throw new ConfigValidationException(new JsonValidationError(null, e));
+        } catch (UnknownContentTypeException e) {
+            throw new ConfigValidationException(new ValidationError(null, "Unsupported content type: " + contentType.mediaType()).cause(e));
         }
     }
-    
+
     private static JsonNode readTree0(String string, ObjectMapper objectMapper) throws IOException {
 
         final SecurityManager sm = System.getSecurityManager();

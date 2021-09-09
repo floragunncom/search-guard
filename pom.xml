@@ -140,39 +140,6 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- provided scoped deps -->
-		<dependency>
-			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-core</artifactId>
-			<version>${log4j.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>${jackson-databind.version}</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>jackson-core</artifactId>
-					<groupId>com.fasterxml.jackson.core</groupId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-
-		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
-			<artifactId>lang-mustache-client</artifactId>
-		</dependency>
-
 		<dependency>
 			<groupId>org.elasticsearch.plugin</groupId>
 			<artifactId>percolator-client</artifactId>
@@ -204,6 +171,18 @@
 
 	<dependencyManagement>
 		<dependencies>
+
+			<dependency>
+				<groupId>org.elasticsearch</groupId>
+				<artifactId>elasticsearch</artifactId>
+				<version>${elasticsearch.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-core</artifactId>
+				<version>${log4j.version}</version>
+			</dependency>
 
 			<dependency>
 				<groupId>org.apache.httpcomponents</groupId>

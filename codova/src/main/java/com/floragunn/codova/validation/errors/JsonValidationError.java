@@ -17,9 +17,8 @@
 
 package com.floragunn.codova.validation.errors;
 
-import java.io.IOException;
-
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonLocation;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -38,7 +37,7 @@ public class JsonValidationError extends ValidationError {
             this.context = ((JsonParseException) jsonProcessingException).getRequestPayloadAsString();
         }
     }
-    
+
     public JsonValidationError(String attribute, String message, JsonLocation jsonLocation, String context) {
         super(attribute, message);
         this.jsonLocation = jsonLocation;
@@ -46,26 +45,23 @@ public class JsonValidationError extends ValidationError {
     }
 
     @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.field("error", getMessage());
+    public Map<String, Object> toMap() {
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        result.put("error", getMessage());
 
         if (jsonLocation != null) {
-            builder.field("line", jsonLocation.getLineNr());
-        }
-
-        if (jsonLocation != null) {
-            builder.field("column", jsonLocation.getColumnNr());
+            result.put("line", jsonLocation.getLineNr());
+            result.put("column", jsonLocation.getColumnNr());
         }
 
         if (context != null) {
-            builder.field("context", context);
+            result.put("context", context);
         }
 
-        builder.endObject();
-        return builder;
+        return result;
     }
-    
+
     @Override
     public String toValidationErrorsOverviewString() {
         if (jsonLocation != null) {
@@ -74,6 +70,5 @@ public class JsonValidationError extends ValidationError {
             return getMessage();
         }
     }
-
 
 }

@@ -31,15 +31,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.XContentType;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 /**
  * A lightweight, reflection-less way of parsing JSON. Parses JSON to these basic Java types:
@@ -52,100 +48,17 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
  */
 public class DocReader {
 
-    public static Object read(JsonParser parser) throws JsonProcessingException, IOException {
-        return new DocReader(parser).read();
+    public static DocReaderBuilder type(DocType docType) {
+        return new DocReaderBuilder(docType.getJsonFactory());
     }
 
-    public static Object read(InputStream in) throws JsonProcessingException, IOException {
-        return read(in, jsonFactory);
+    public static DocReaderBuilder json() {
+        return type(DocType.JSON);
     }
 
-    public static Object read(Reader in) throws JsonProcessingException, IOException {
-        try (JsonParser parser = jsonFactory.createParser(in)) {
-            return new DocReader(parser).read();
-        }
+    public static DocReaderBuilder yaml() {
+        return type(DocType.YAML);
     }
-
-    public static Object read(String string) throws JsonProcessingException {
-        return read(string, XContentType.JSON);
-    }
-
-    public static Object read(String string, XContentType contentType) throws JsonProcessingException {
-        try (JsonParser parser = getJsonFactory(contentType).createParser(string)) {
-            return new DocReader(parser).read();
-        } catch (JsonProcessingException e) {
-            throw e;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static Object read(BytesReference data, XContentType contentType) throws JsonProcessingException {
-        try {
-            return read(new ByteArrayInputStream(BytesReference.toBytes(data)), getJsonFactory(contentType));
-        } catch (JsonProcessingException e) {
-            throw e;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static Map<String, Object> readObject(InputStream in) throws JsonProcessingException, IOException {
-        return toJsonObject(read(in));
-    }
-
-    public static Map<String, Object> readObject(String string) throws JsonProcessingException {
-        return toJsonObject(read(string));
-    }
-
-    public static Map<String, Object> readObject(String string, XContentType contentType) throws JsonProcessingException {
-        return toJsonObject(read(string, contentType));
-    }
-
-    public static Map<String, Object> readObject(BytesReference data, XContentType contentType) throws JsonProcessingException {
-        return toJsonObject(read(data, contentType));
-    }
-
-    public static Map<String, Object> readObject(File file, XContentType contentType)
-            throws UnexpectedDocumentStructureException, JsonProcessingException, FileNotFoundException, IOException {
-        return toJsonObject(read(new FileInputStream(file), contentType));
-    }
-
-    private static Object read(InputStream in, XContentType contentType) throws JsonProcessingException, IOException {
-        return read(in, getJsonFactory(contentType));
-    }
-
-    private static Object read(InputStream in, JsonFactory jsonFactory) throws JsonProcessingException, IOException {
-        try (JsonParser parser = jsonFactory.createParser(in)) {
-            return new DocReader(parser).read();
-        }
-    }
-
-    private static JsonFactory getJsonFactory(XContentType contentType) {
-        switch (contentType) {
-        case JSON:
-            return jsonFactory;
-        case YAML:
-            return yamlFactory;
-        default:
-            throw new IllegalArgumentException("Content-Type " + contentType + " is not supported");
-        }
-    }
-
-    private static Map<String, Object> toJsonObject(Object parsedDocument) throws UnexpectedDocumentStructureException {
-        if (parsedDocument instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> result = (Map<String, Object>) parsedDocument;
-
-            return result;
-        } else {
-            throw new UnexpectedDocumentStructureException(
-                    "Expected a JSON object. Got: " + (parsedDocument instanceof List ? "Array" : String.valueOf(parsedDocument)));
-        }
-    }
-
-    private static JsonFactory jsonFactory = new JsonFactory();
-    private static YAMLFactory yamlFactory = new YAMLFactory();
 
     private JsonParser parser;
     private LinkedList<Object> nodeStack = new LinkedList<>();
@@ -259,5 +172,75 @@ public class DocReader {
         currentAttributeName = null;
 
         return newNode;
+    }
+
+    public static class DocReaderBuilder {
+        private JsonFactory jsonFactory;
+
+        DocReaderBuilder(JsonFactory jsonFactory) {
+            this.jsonFactory = jsonFactory;
+        }
+
+        public Object read(Reader in) throws JsonProcessingException, IOException {
+            try (JsonParser parser = jsonFactory.createParser(in)) {
+                return new DocReader(parser).read();
+            }
+        }
+
+        public Object read(String string) throws JsonProcessingException {
+            try (JsonParser parser = jsonFactory.createParser(string)) {
+                return new DocReader(parser).read();
+            } catch (JsonProcessingException e) {
+                throw e;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public Object read(byte[] bytes) throws JsonProcessingException {
+            try {
+                return read(new ByteArrayInputStream(bytes));
+            } catch (JsonProcessingException e) {
+                throw e;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        private Object read(InputStream in) throws JsonProcessingException, IOException {
+            try (JsonParser parser = jsonFactory.createParser(in)) {
+                return new DocReader(parser).read();
+            }
+        }
+
+        public Map<String, Object> readObject(InputStream in) throws JsonProcessingException, IOException {
+            return toJsonObject(read(in));
+        }
+
+        public Map<String, Object> readObject(String string) throws JsonProcessingException {
+            return toJsonObject(read(string));
+        }
+
+        public Map<String, Object> readObject(byte[] bytes) throws JsonProcessingException {
+            return toJsonObject(read(bytes));
+        }
+
+        public Map<String, Object> readObject(File file)
+                throws UnexpectedDocumentStructureException, JsonProcessingException, FileNotFoundException, IOException {
+            return toJsonObject(read(new FileInputStream(file)));
+        }
+
+        private static Map<String, Object> toJsonObject(Object parsedDocument) throws UnexpectedDocumentStructureException {
+            if (parsedDocument instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> result = (Map<String, Object>) parsedDocument;
+
+                return result;
+            } else {
+                throw new UnexpectedDocumentStructureException(
+                        "Expected a JSON object. Got: " + (parsedDocument instanceof List ? "Array" : String.valueOf(parsedDocument)));
+            }
+        }
+
     }
 }

@@ -55,13 +55,13 @@ public class BasicJsonPathDefaultConfiguration implements com.jayway.jsonpath.Co
 
         @Override
         public String toJson(Object obj) {
-            return DocWriter.writeAsString(obj);
+            return DocWriter.json().writeAsString(obj);
         }
 
         @Override
         public Object parse(InputStream jsonStream, String charset) throws InvalidJsonException {
             try {
-                return DocReader.read(new InputStreamReader(jsonStream, charset));
+                return DocReader.json().read(new InputStreamReader(jsonStream, charset));
             } catch (IOException e) {
                 throw new InvalidJsonException(e);
             }
@@ -70,7 +70,7 @@ public class BasicJsonPathDefaultConfiguration implements com.jayway.jsonpath.Co
         @Override
         public Object parse(String json) throws InvalidJsonException {
             try {
-                return DocReader.read(json);
+                return DocReader.json().read(json);
             } catch (JsonProcessingException e) {
                 throw new InvalidJsonException(e);
             }

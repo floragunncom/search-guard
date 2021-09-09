@@ -31,7 +31,6 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingFunction;
@@ -630,10 +629,6 @@ public abstract class DocNode implements Map<String, Object> {
 
     public boolean hasNonNull(String attribute) {
         return get(attribute) != null;
-    }
-
-    public Settings toSettings() throws ConfigValidationException {
-        return Settings.builder().loadFromMap(toMap()).build();
     }
 
     @Override

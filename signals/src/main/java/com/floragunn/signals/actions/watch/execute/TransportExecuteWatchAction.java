@@ -10,6 +10,7 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -45,6 +46,7 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.result.WatchLog;
 import com.floragunn.signals.watch.result.WatchLogIndexWriter;
 import com.floragunn.signals.watch.result.WatchLogWriter;
+import com.google.common.base.Charsets;
 
 public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteWatchRequest, ExecuteWatchResponse> {
 
@@ -142,7 +144,8 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                 log.error("Invalid watch definition in fetchAndExecuteWatch(). This should not happen\n"
                                         + response.getSourceAsString() + "\n" + e.getValidationErrors(), e);
                                 listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
-                                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e, ToXContent.EMPTY_PARAMS)));
+                                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION,
+                                        new BytesArray(e.toJsonString().getBytes(Charsets.UTF_8))));
                             } catch (Exception e) {
                                 listener.onFailure(e);
                             }
@@ -177,7 +180,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
         } catch (ConfigValidationException e) {
             listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
-                    ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, toBytesReference(e, ToXContent.EMPTY_PARAMS)));
+                    ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION, new BytesArray(e.toJsonString().getBytes(Charsets.UTF_8))));
         } catch (Exception e) {
             log.error("Error while executing anonymous watch " + request, e);
             listener.onFailure(e);

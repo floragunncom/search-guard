@@ -18,9 +18,9 @@
 package com.floragunn.codova.validation.errors;
 
 import java.io.File;
-import java.io.IOException;
+import java.util.Map;
 
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import com.google.common.collect.ImmutableMap;
 
 public class FileDoesNotExist extends ValidationError {
     private final File file;
@@ -35,12 +35,8 @@ public class FileDoesNotExist extends ValidationError {
     }
 
     @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.field("error", getMessage());
-        builder.field("value", file);
-        builder.endObject();
-        return builder;
+    public Map<String, Object> toMap() {
+        return ImmutableMap.of("error", getMessage(), "value", file.getAbsolutePath());
     }
     
     @Override

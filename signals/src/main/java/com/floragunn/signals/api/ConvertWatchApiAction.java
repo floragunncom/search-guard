@@ -46,7 +46,7 @@ public class ConvertWatchApiAction extends SignalsBaseRestHandler {
                     convertToJson(channel, new Result(result.getElement(), result.getSourceValidationErrors()), Watch.WITHOUT_AUTH_TOKEN)));
 
         } catch (ConfigValidationException e) {
-            return channel -> errorResponse(channel, RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJson());
+            return channel -> errorResponse(channel, RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJsonString());
         }
     }
 
