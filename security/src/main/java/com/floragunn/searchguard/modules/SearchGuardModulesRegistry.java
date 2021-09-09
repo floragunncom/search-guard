@@ -245,7 +245,7 @@ public class SearchGuardModulesRegistry {
                             "sg_config");
 
                     configComponentState.setFailed(e.getMessage());
-                    configComponentState.setDetailJson(e.getValidationErrors().toJson());
+                    configComponentState.setDetailJson(e.getValidationErrors().toJsonString());
                 }
 
                 consumer.accept(null);

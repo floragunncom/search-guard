@@ -302,7 +302,7 @@ public class UserAttributes {
                 if (operation.equals("toString")) {
                     value = value.toString();
                 } else if (operation.equals("toJson")) {
-                    value = DocWriter.writeAsString(value);
+                    value = DocWriter.json().writeAsString(value);
                 } else if (operation.equals("toList")) {
                     if (!(value instanceof Collection)) {
                         value = Collections.singletonList(value);
@@ -364,7 +364,7 @@ public class UserAttributes {
             try {
                 JsonParser parser = JSON_FACTORY.createParser(string.substring(start));
 
-                Object result = DocReader.read(parser);
+                Object result = new DocReader(parser).read();
 
                 i = start + (int) parser.getTokenLocation().getCharOffset() + parser.getLastClearedToken().asString().length();
 

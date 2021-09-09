@@ -53,7 +53,7 @@ public class ConfigUpdateException extends Exception {
         if (details instanceof ToXContentObject) {
             return Strings.toString((ToXContentObject) details);
         } else if (details != null) {
-            return DocWriter.writeAsString(ImmutableMap.of("object", details.toString()));
+            return DocWriter.json().writeAsString(ImmutableMap.of("object", details.toString()));
         } else {
             return null;
         }

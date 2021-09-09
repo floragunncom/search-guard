@@ -47,6 +47,36 @@
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- provided scoped deps -->
+		<dependency>
+			<groupId>org.elasticsearch</groupId>
+			<artifactId>elasticsearch</artifactId>
+			<scope>provided</scope>				
+		</dependency>
+		
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>lang-mustache-client</artifactId>
+			<scope>provided</scope>
+		</dependency>		
+				
+		<dependency>
+			<groupId>org.elasticsearch.client</groupId>
+			<artifactId>elasticsearch-rest-high-level-client</artifactId>
+			<version>${elasticsearch.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.elasticsearch</groupId>
+					<artifactId>elasticsearch</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>			
+
 		<!-- Security Test -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
@@ -59,6 +89,7 @@
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-slf4j-impl</artifactId>
 			<version>${log4j.version}</version>
+			<scope>provided</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.logging.log4j</groupId>
@@ -93,24 +124,6 @@
 					<artifactId>httpcore</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>elasticsearch-rest-high-level-client</artifactId>
-			<version>${elasticsearch.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-    		<groupId>org.elasticsearch.client</groupId>
-    		<artifactId>elasticsearch-rest-client</artifactId>
-			<version>${elasticsearch.version}</version>
 		</dependency>
 
 		<dependency>

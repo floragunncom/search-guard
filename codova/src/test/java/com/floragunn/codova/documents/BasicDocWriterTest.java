@@ -26,57 +26,58 @@ import org.junit.Test;
 import com.google.common.collect.ImmutableMap;
 
 public class BasicDocWriterTest {
+
     @Test
     public void simpleStringTest() throws Exception {
-        assertEquals("\"a\"", DocWriter.writeAsString("a"));
+        assertEquals("\"a\"", DocWriter.json().writeAsString("a"));
     }
 
     @Test
     public void simpleNumberTest() throws Exception {
-        assertEquals("42", DocWriter.writeAsString(42));
+        assertEquals("42", DocWriter.json().writeAsString(42));
     }
 
     @Test
     public void simpleBooleanTest() throws Exception {
-        assertEquals("true", DocWriter.writeAsString(true));
+        assertEquals("true", DocWriter.json().writeAsString(true));
     }
 
     @Test
     public void simpleBooleanTest2() throws Exception {
-        assertEquals("false", DocWriter.writeAsString(false));
+        assertEquals("false", DocWriter.json().writeAsString(false));
     }
 
     @Test
     public void simpleNullTest() throws Exception {
-        assertEquals("null", DocWriter.writeAsString(null));
+        assertEquals("null", DocWriter.json().writeAsString(null));
     }
 
     @Test
     public void arrayTest() throws Exception {
         Object value = Arrays.asList("abc", 42, true, null, false);
 
-        assertEquals(value, DocReader.read(DocWriter.writeAsString(value)));
+        assertEquals(value, DocReader.json().read(DocWriter.json().writeAsString(value)));
     }
 
     @Test
     public void nestedArrayTest() throws Exception {
         Object value = Arrays.asList("abc", 42, true, null, false, Arrays.asList(1, 2, 3), ImmutableMap.of("x", "u"));
 
-        assertEquals(value, DocReader.read(DocWriter.writeAsString(value)));
+        assertEquals(value, DocReader.json().read(DocWriter.json().writeAsString(value)));
     }
 
     @Test
     public void objectTest() throws Exception {
         Object value = ImmutableMap.of("x", "u", "y", 42, "z", true);
 
-        assertEquals(value, DocReader.read(DocWriter.writeAsString(value)));
+        assertEquals(value, DocReader.json().read(DocWriter.json().writeAsString(value)));
     }
 
     @Test
     public void nestedObjectTest() throws Exception {
         Object value = ImmutableMap.of("x", "u", "y", 42, "z", true, "a", Arrays.asList(1, 2, 3), "b", ImmutableMap.of("foo", "bar", "bla", true));
 
-        assertEquals(value, DocReader.read(DocWriter.writeAsString(value)));
+        assertEquals(value, DocReader.json().read(DocWriter.json().writeAsString(value)));
     }
 
 }

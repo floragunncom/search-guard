@@ -17,9 +17,8 @@
 
 package com.floragunn.codova.validation.errors;
 
-import java.io.IOException;
-
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -32,11 +31,10 @@ public class UnsupportedAttribute extends ValidationError {
     }
 
     @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.field("error", getMessage());
-        builder.field("value", value);
-        builder.endObject();
-        return builder;
+    public Map<String, Object> toMap() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("error", getMessage());
+        result.put("value", value);
+        return result;
     }
 }

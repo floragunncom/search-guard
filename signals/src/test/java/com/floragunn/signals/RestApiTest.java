@@ -497,7 +497,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, parsedResponse.get("status").asInt());
             Assert.assertTrue(response.getBody(),
-                    parsedResponse.get("detail").get("_").get(0).get("error").asText().contains("Error while parsing JSON document"));
+                    parsedResponse.get("detail").get("_").get(0).get("error").asText().contains("Invalid JSON document"));
         }
     }
 

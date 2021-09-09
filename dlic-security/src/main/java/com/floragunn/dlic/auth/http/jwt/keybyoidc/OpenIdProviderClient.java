@@ -116,7 +116,7 @@ public class OpenIdProviderClient {
                         throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": Empty response entity");
                     }
 
-                    return new OidcProviderConfig(DocReader.readObject(httpEntity.getContent()));
+                    return new OidcProviderConfig(DocReader.json().readObject(httpEntity.getContent()));
                 }
 
             } catch (IOException e) {

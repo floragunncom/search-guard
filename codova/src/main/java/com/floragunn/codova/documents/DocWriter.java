@@ -26,12 +26,9 @@ import java.math.BigInteger;
 import java.util.Collection;
 import java.util.Map;
 
-import org.elasticsearch.common.xcontent.XContentType;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 /**
  * A lightweight, reflection-less way of serializing JSON. Is capable of handling these basic Java types:
@@ -46,13 +43,28 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
  */
 public class DocWriter {
 
-    public static String writeAsString(Object object) {
-        return writeAsString(object, XContentType.JSON);
+    public static DocWriter type(DocType docType) {
+        return new DocWriter(docType.getJsonFactory());
     }
 
-    public static String writeAsString(Object object, XContentType contentType) {
-        try (StringWriter writer = new StringWriter(); JsonGenerator generator = getJsonFactory(contentType).createGenerator(writer)) {
-            new DocWriter(generator).write(object);
+    public static DocWriter json() {
+        return type(DocType.JSON);
+    }
+
+    public static DocWriter yaml() {
+        return type(DocType.YAML);
+    }
+
+    private JsonFactory jsonFactory;
+    private int maxDepth = 20;
+
+    public DocWriter(JsonFactory jsonFactory) {
+        this.jsonFactory = jsonFactory;
+    }
+
+    public String writeAsString(Object object) {
+        try (StringWriter writer = new StringWriter(); JsonGenerator generator = jsonFactory.createGenerator(writer)) {
+            write(generator, object);
 
             generator.flush();
             writer.flush();
@@ -63,41 +75,28 @@ public class DocWriter {
         }
     }
 
-    public static void write(File file, Object object, XContentType contentType) throws IOException {
-        try (FileWriter writer = new FileWriter(file); JsonGenerator generator = getJsonFactory(contentType).createGenerator(writer)) {
-            new DocWriter(generator).write(object);
+    public void write(File file, Object object) throws IOException {
+        try (FileWriter writer = new FileWriter(file); JsonGenerator generator = jsonFactory.createGenerator(writer)) {
+            write(generator, object);
 
             generator.flush();
             writer.flush();
-        } 
-    }
-
-    private static JsonFactory getJsonFactory(XContentType contentType) {
-        switch (contentType) {
-        case JSON:
-            return jsonFactory;
-        case YAML:
-            return yamlFactory;
-        default:
-            throw new IllegalArgumentException("Content-Type " + contentType + " is not supported");
         }
     }
 
-    private static JsonFactory jsonFactory = new JsonFactory();
-    private static YAMLFactory yamlFactory = new YAMLFactory();
-
-    private JsonGenerator generator;
-    private int maxDepth = 20;
-
-    public DocWriter(JsonGenerator generator) {
-        this.generator = generator;
+    public String writeAsString(Document document) {
+        return writeAsString(document != null ? document.toMap() : (Object) null);
     }
 
-    public void write(Object object) throws IOException {
-        write(object, 0);
+    public void write(File file, Document document) throws IOException {
+        write(file, document.toMap());
     }
 
-    private void write(Object object, int depth) throws IOException {
+    private void write(JsonGenerator generator, Object object) throws IOException {
+        write(generator, object, 0);
+    }
+
+    private void write(JsonGenerator generator, Object object, int depth) throws IOException {
         if (depth > maxDepth) {
             throw new JsonGenerationException("Max JSON depth exceeded", generator);
         }
@@ -109,7 +108,7 @@ public class DocWriter {
             generator.writeStartArray();
 
             for (Object element : collection) {
-                write(element, depth + 1);
+                write(generator, element, depth + 1);
             }
 
             generator.writeEndArray();
@@ -122,7 +121,7 @@ public class DocWriter {
             for (Map.Entry<Object, Object> entry : map.entrySet()) {
                 generator.writeFieldName(String.valueOf(entry.getKey()));
 
-                write(entry.getValue(), depth + 1);
+                write(generator, entry.getValue(), depth + 1);
             }
 
             generator.writeEndObject();

@@ -410,7 +410,7 @@ public class ComponentState implements Writeable, ToXContentObject {
             return detailJson;
         } else if (detailJsonElements != null) {
             try {
-                return DocWriter.writeAsString(detailJsonElements);
+                return DocWriter.json().writeAsString(detailJsonElements);
             } catch (Exception e) {
                 log.error("Error while writing " + detailJsonElements, e);
                 return null;
@@ -470,7 +470,7 @@ public class ComponentState implements Writeable, ToXContentObject {
     public void addLastException(String key, Throwable t) {
         addLastException(key, new ExceptionRecord(t));
     }
-    
+
     public Instant getStartedAt() {
         return startedAt;
     }
@@ -515,7 +515,7 @@ public class ComponentState implements Writeable, ToXContentObject {
         if (detailJsonElements == null) {
             if (detailJson != null) {
                 try {
-                    Object parsedDetailJson = DocReader.read(detailJson);
+                    Object parsedDetailJson = DocReader.json().read(detailJson);
 
                     if (parsedDetailJson instanceof List) {
                         @SuppressWarnings("unchecked")
@@ -630,12 +630,10 @@ public class ComponentState implements Writeable, ToXContentObject {
             builder.field("parts", parts);
         }
 
-
         if (lastExceptions.size() != 0) {
             builder.field("last_exceptions", lastExceptions);
         }
 
-        
         builder.endObject();
 
         return builder;
@@ -947,8 +945,6 @@ public class ComponentState implements Writeable, ToXContentObject {
             }
             builder.field("exception", exceptionToString(exception));
             builder.field("occured_at", occuredAt.toString());
-
-            
 
             builder.endObject();
             return builder;

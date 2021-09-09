@@ -77,10 +77,9 @@ import org.bouncycastle.operator.InputDecryptorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.bouncycastle.pkcs.PKCSException;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ConfigVariableProviders;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -92,7 +91,7 @@ import com.google.common.base.Joiner;
 import com.google.common.io.Files;
 
 
-public class TLSConfig implements ToXContentObject {
+public class TLSConfig implements Document {
     private static final Logger log = LogManager.getLogger(TLSConfig.class);
 
     public static TLSConfig parse(Map<String, Object> config) throws ConfigValidationException {
@@ -144,33 +143,6 @@ public class TLSConfig implements ToXContentObject {
         }
 
         return result;
-    }
-
-    @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-
-        if (trustedCas != null && !trustedCas.isEmpty()) {
-            builder.field("trusted_cas", trustedCas);
-        }
-
-        if (clientCertAuthConfig != null) {
-            builder.field("client_auth", clientCertAuthConfig);
-        }
-
-        builder.field("trust_all", trustAll);
-        builder.field("verify_hostnames", hostnameVerificationEnabled);
-
-        if (supportedProtocols != null) {
-            builder.field("enabled_protocols", supportedProtocols);
-        }
-
-        if (supportedCipherSuites != null) {
-            builder.field("enabled_ciphers", supportedCipherSuites);
-        }
-
-        builder.endObject();
-        return builder;
     }
 
     public static class Builder {
@@ -451,7 +423,7 @@ public class TLSConfig implements ToXContentObject {
         }
     }
 
-    public static class ClientCertAuthConfig implements ToXContentObject {
+    public static class ClientCertAuthConfig implements Document {
         private String certficate;
         private String privateKey;
         private KeyStore keyStore;
@@ -482,17 +454,6 @@ public class TLSConfig implements ToXContentObject {
 
             return result;
 
-        }
-
-        @Override
-        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-            builder.startObject();
-            builder.field("certificate", certficate);
-            builder.field("private_key", privateKey);
-            builder.field("private_key_password", password);
-
-            builder.endObject();
-            return builder;
         }
 
         public Map<String, Object> toMap() {

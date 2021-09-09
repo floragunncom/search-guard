@@ -18,21 +18,21 @@
 package com.floragunn.codova.validation.errors;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.core.JsonLocation;
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.google.common.collect.ImmutableMap;
 
-public class ValidationError implements ToXContentObject {
+public class ValidationError implements Document {
     private static final Logger log = LogManager.getLogger(ValidationError.class);
 
     private String attribute;
@@ -74,11 +74,8 @@ public class ValidationError implements ToXContentObject {
     }
 
     @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.field("error", message);
-        builder.endObject();
-        return builder;
+    public Map<String, Object> toMap() {
+        return ImmutableMap.of("error", message);
     }
 
     public void setAttribute(String attribute) {
@@ -93,7 +90,7 @@ public class ValidationError implements ToXContentObject {
     public String toValidationErrorsOverviewString() {
         return message;
     }
-    
+
     public static List<ValidationError> parseArray(String attribute, DocNode docNode) {
         if (!docNode.isList()) {
             return Collections.singletonList(parse(attribute, docNode));

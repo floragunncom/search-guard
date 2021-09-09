@@ -27,51 +27,52 @@ import org.junit.Test;
 import com.google.common.collect.ImmutableMap;
 
 public class BasicDocReaderTest {
+
     @Test
     public void simpleStringTest() throws Exception {
-        assertEquals("a", DocReader.read("\"a\""));
+        assertEquals("a", DocReader.json().read("\"a\""));
     }
 
     @Test
     public void simpleNumberTest() throws Exception {
-        assertEquals(42, DocReader.read("42"));
+        assertEquals(42, DocReader.json().read("42"));
     }
 
     @Test
     public void simpleBooleanTest() throws Exception {
-        assertEquals(Boolean.TRUE, DocReader.read("true"));
+        assertEquals(Boolean.TRUE, DocReader.json().read("true"));
     }
 
     @Test
     public void simpleBooleanTest2() throws Exception {
-        assertEquals(Boolean.FALSE, DocReader.read("false"));
+        assertEquals(Boolean.FALSE, DocReader.json().read("false"));
     }
 
     @Test
     public void simpleNullTest() throws Exception {
-        assertNull(DocReader.read("null"));
+        assertNull(DocReader.json().read("null"));
     }
 
     @Test
     public void arrayTest() throws Exception {
-        assertEquals(Arrays.asList("abc", 42, true, null, false), DocReader.read("[\"abc\", 42, true, null, false]"));
+        assertEquals(Arrays.asList("abc", 42, true, null, false), DocReader.json().read("[\"abc\", 42, true, null, false]"));
     }
 
     @Test
     public void nestedArrayTest() throws Exception {
         assertEquals(Arrays.asList("abc", 42, true, null, false, Arrays.asList(1, 2, 3), ImmutableMap.of("x", "u")),
-                DocReader.read("[\"abc\", 42, true, null, false, [1, 2, 3], {\"x\": \"u\"}]"));
+                DocReader.json().read("[\"abc\", 42, true, null, false, [1, 2, 3], {\"x\": \"u\"}]"));
     }
 
     @Test
     public void objectTest() throws Exception {
-        assertEquals(ImmutableMap.of("x", "u", "y", 42, "z", true), DocReader.read("{\"x\": \"u\", \"y\": 42, \"z\": true}"));
+        assertEquals(ImmutableMap.of("x", "u", "y", 42, "z", true), DocReader.json().read("{\"x\": \"u\", \"y\": 42, \"z\": true}"));
     }
 
     @Test
     public void nestedObjectTest() throws Exception {
         assertEquals(ImmutableMap.of("x", "u", "y", 42, "z", true, "a", Arrays.asList(1, 2, 3), "b", ImmutableMap.of("foo", "bar", "bla", true)),
-                DocReader.read("{\"x\": \"u\", \"y\": 42, \"z\": true, \"a\": [1,2,3], \"b\": {\"foo\": \"bar\", \"bla\": true}}"));
+                DocReader.json().read("{\"x\": \"u\", \"y\": 42, \"z\": true, \"a\": [1,2,3], \"b\": {\"foo\": \"bar\", \"bla\": true}}"));
     }
 
 }

@@ -26,6 +26,40 @@
 
 	<dependencies>
 
+		<!-- provided scoped deps -->
+
+		<dependency>
+			<groupId>org.elasticsearch</groupId>
+			<artifactId>elasticsearch</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+
+		<dependency>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>lang-mustache-client</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson-databind.version}</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>jackson-core</artifactId>
+					<groupId>com.fasterxml.jackson.core</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+
 		<!-- Signals -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
@@ -60,7 +94,6 @@
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>dlic-search-guard-suite-security</artifactId>
-			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 

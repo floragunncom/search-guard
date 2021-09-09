@@ -207,7 +207,7 @@ public class NestedValueMap extends HashMap<String, Object> {
     }
 
     public String toJsonString() {
-        return DocWriter.writeAsString(this);
+        return DocWriter.json().writeAsString(this);
     }
 
     private Object deepCloneObject(Object object) {

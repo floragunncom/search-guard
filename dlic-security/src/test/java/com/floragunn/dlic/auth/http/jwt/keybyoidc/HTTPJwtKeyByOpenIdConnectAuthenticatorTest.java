@@ -116,7 +116,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
             jwtAuth.handleMetaRequest(restRequest, restChannel, "/_searchguard/test/openid", "config", null);
             String response = restChannel.response.content().utf8ToString();
-            Map<String, Object> parsedResponse = DocReader.readObject(response);
+            Map<String, Object> parsedResponse = DocReader.json().readObject(response);
 
             Assert.assertTrue(response, parsedResponse.containsKey("token_endpoint_proxy"));
 
@@ -128,7 +128,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
             jwtAuth.handleMetaRequest(restRequest, restChannel, "/_searchguard/test/openid", "token", null);
 
             response = restChannel.response.content().utf8ToString();
-            parsedResponse = DocReader.readObject(response);
+            parsedResponse = DocReader.json().readObject(response);
 
             Assert.assertTrue(response, parsedResponse.containsKey("id_token"));
         }

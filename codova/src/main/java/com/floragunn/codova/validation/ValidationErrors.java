@@ -17,7 +17,8 @@
 
 package com.floragunn.codova.validation;
 
-import java.io.IOException;
+import static java.util.stream.Collectors.toList;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collection;
@@ -25,21 +26,14 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.json.JsonXContent;
-
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 
-public class ValidationErrors implements ToXContent {
-    private static final Logger log = LogManager.getLogger(ValidationErrors.class);
+public class ValidationErrors implements Document {
 
     private Multimap<String, ValidationError> attributeToErrorMap;
     private ValidationErrors parent;
@@ -82,15 +76,14 @@ public class ValidationErrors implements ToXContent {
 
         return this;
     }
-    
+
     public ValidationErrors add(Collection<ValidationError> validationErrors) {
         for (ValidationError validationError : validationErrors) {
             add(validationError);
         }
-        
+
         return this;
     }
-
 
     public ValidationErrors add(String attribute, ValidationErrors validationErrors) {
         for (Map.Entry<String, ValidationError> entry : validationErrors.attributeToErrorMap.entries()) {
@@ -128,21 +121,6 @@ public class ValidationErrors implements ToXContent {
     public ValidationErrors add(String attribute, ConfigValidationException watchValidationException) {
         add(attribute, watchValidationException.getValidationErrors());
         return this;
-    }
-
-    public String toJson() {
-        try {
-
-            XContentBuilder builder = JsonXContent.contentBuilder();
-
-            this.toXContent(builder, ToXContent.EMPTY_PARAMS);
-
-            return Strings.toString(builder);
-
-        } catch (Exception e) {
-            log.error(e.toString(), e);
-            throw new RuntimeException(e);
-        }
     }
 
     public String toString() {
@@ -202,94 +180,83 @@ public class ValidationErrors implements ToXContent {
     }
 
     @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
+    public Map<String, Object> toMap() {
+        Map<String, Object> result = new LinkedHashMap<>();
 
         for (Map.Entry<String, Collection<ValidationError>> entry : attributeToErrorMap.asMap().entrySet()) {
-            builder.field(entry.getKey() != null ? entry.getKey() : "_");
-
-            builder.startArray();
-
-            for (ValidationError validationError : entry.getValue()) {
-                builder.value(validationError);
-            }
-
-            builder.endArray();
+            result.put(entry.getKey() != null ? entry.getKey() : "_", entry.getValue().stream().map(ValidationError::toMap).collect(toList()));
         }
 
-        builder.endObject();
-
-        return builder;
+        return result;
     }
-    
+
     public ValidationErrors mapKeys(Map<String, String> oldToNewKeyMap) {
         if (oldToNewKeyMap.size() == 0 || this.attributeToErrorMap.size() == 0) {
             return this;
         }
-        
+
         Multimap<String, ValidationError> newErrorMap = LinkedListMultimap.create(this.attributeToErrorMap.size());
-        
-        for (Map.Entry<String, Collection<ValidationError>> entry : this.attributeToErrorMap.asMap().entrySet()) {            
-            newErrorMap.putAll(mapKey(entry.getKey(), oldToNewKeyMap), entry.getValue());                    
+
+        for (Map.Entry<String, Collection<ValidationError>> entry : this.attributeToErrorMap.asMap().entrySet()) {
+            newErrorMap.putAll(mapKey(entry.getKey(), oldToNewKeyMap), entry.getValue());
         }
-        
+
         return new ValidationErrors(newErrorMap);
     }
-    
+
     public Map<String, ValidationErrors> groupByKeys(Map<String, String> oldToNewKeyMap) {
         if (this.attributeToErrorMap.size() == 0) {
             return Collections.emptyMap();
         }
-        
+
         if (oldToNewKeyMap.size() == 0) {
             return Collections.singletonMap("", this);
         }
-        
+
         Map<String, ValidationErrors> result = new LinkedHashMap<>(oldToNewKeyMap.size() + 5);
-        
+
         for (Map.Entry<String, Collection<ValidationError>> entry : this.attributeToErrorMap.asMap().entrySet()) {
             SplitKey splitKey = splitAndMapKey(entry.getKey(), oldToNewKeyMap);
-            
+
             ValidationErrors group = result.computeIfAbsent(splitKey.group, (k) -> new ValidationErrors());
-            
-            group.attributeToErrorMap.putAll(splitKey.key, entry.getValue()); 
+
+            group.attributeToErrorMap.putAll(splitKey.key, entry.getValue());
         }
-        
+
         return result;
     }
-        
+
     private String mapKey(String key, Map<String, String> oldToNewKeyMap) {
         String newKey = oldToNewKeyMap.get(key);
-        
+
         if (newKey != null) {
             return newKey;
         }
-        
+
         for (Map.Entry<String, String> entry : oldToNewKeyMap.entrySet()) {
             if (key.startsWith(entry.getKey())) {
-                return entry.getValue() + key.substring(entry.getKey().length()); 
+                return entry.getValue() + key.substring(entry.getKey().length());
             }
         }
-        
+
         return key;
     }
-    
+
     private SplitKey splitAndMapKey(String key, Map<String, String> oldToNewKeyMap) {
-  String newKey = oldToNewKeyMap.get(key);
-        
+        String newKey = oldToNewKeyMap.get(key);
+
         if (newKey != null) {
             return new SplitKey(newKey, "");
         }
-        
+
         for (Map.Entry<String, String> entry : oldToNewKeyMap.entrySet()) {
             if (key.startsWith(entry.getKey()) && key.charAt(entry.getKey().length()) == '.') {
                 return new SplitKey(entry.getValue(), key.substring(entry.getKey().length() + 1));
             }
         }
-        
+
         return new SplitKey("", key);
     }
-
 
     public static ValidationErrors parse(Map<String, Object> document) {
         ValidationErrors result = new ValidationErrors();
@@ -300,7 +267,7 @@ public class ValidationErrors implements ToXContent {
 
         return result;
     }
-    
+
     private static class SplitKey {
         final String group;
         final String key;
@@ -309,8 +276,7 @@ public class ValidationErrors implements ToXContent {
             this.group = group;
             this.key = key;
         }
-        
-        
+
     }
-    
+
 }

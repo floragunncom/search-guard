@@ -21,7 +21,6 @@ import java.util.Map;
 
 import org.apache.http.HttpHost;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -47,14 +46,7 @@ public class ProxyConfig {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors);
 
-        if (config.get(property) instanceof Map && ((Map<?, ?>) config.get(property)).containsKey("host")) {
-            ValidatingDocNode subNode = new ValidatingDocNode(vNode.getDocumentNode().getAsNode(property), validationErrors);
-
-            String hostName = subNode.get("host").asString();
-            int port = subNode.get("port").withDefault(80).asInt();
-            String scheme = subNode.get("scheme").withDefault("https").asString();
-            return new ProxyConfig(new HttpHost(hostName, port, scheme));
-        } else if (config.get(property) instanceof String) {
+        if (config.get(property) instanceof String) {
             String simpleString = (String) config.get(property);
 
             try {
@@ -62,30 +54,14 @@ public class ProxyConfig {
             } catch (IllegalArgumentException e) {
                 throw new ConfigValidationException(new InvalidAttributeValue(property, "HTTP host URL", simpleString).cause(e));
             }
+        } else if (vNode.hasNonNull(property + ".host")) {
+            String hostName = vNode.get(property + ".host").asString();
+            int port = vNode.get(property + ".port").withDefault(80).allowingNumericStrings().asInt();
+            String scheme = vNode.get(property + ".scheme").withDefault("https").asString();
 
-        } else {
-            return new ProxyConfig(null);
-        }
-    }
-    
-    @Deprecated
-    public static ProxyConfig parse(Settings settings, String property) throws ConfigValidationException {
+            validationErrors.throwExceptionForPresentErrors();
 
-        Settings subSettings = settings.getByPrefix(property + ".");
-
-        if (!subSettings.isEmpty() && subSettings.hasValue("host")) {
-            String hostName = subSettings.get("host");
-            int port = subSettings.getAsInt("port", 80);
-            String scheme = subSettings.get("scheme", "https");
             return new ProxyConfig(new HttpHost(hostName, port, scheme));
-        } else if (settings.hasValue(property)) {
-            String simpleString = settings.get(property);
-
-            try {
-                return new ProxyConfig(HttpHost.create(simpleString));
-            } catch (IllegalArgumentException e) {
-                throw new ConfigValidationException(new InvalidAttributeValue(property, "HTTP host URL", simpleString).cause(e));
-            }
         } else {
             return new ProxyConfig(null);
         }
@@ -93,5 +69,10 @@ public class ProxyConfig {
 
     public HttpHost getHost() {
         return host;
+    }
+
+    @Override
+    public String toString() {
+        return "ProxyConfig [host=" + host + "]";
     }
 }

@@ -91,7 +91,7 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
             }
         } catch (ConfigValidationException e) {
             listener.onResponse(
-                    new PutAccountResponse(scopedId, -1, Result.NOOP, RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJson()));
+                    new PutAccountResponse(scopedId, -1, Result.NOOP, RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJsonString()));
         } catch (Exception e) {
             listener.onFailure(e);
         }

@@ -53,6 +53,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchsupport.client.rest.Responses;
 import com.google.common.base.Charsets;
@@ -171,7 +172,7 @@ public class SecretsConfigApi {
                 try {
                     Object value = secretsService.get(request.getId());
 
-                    listener.onResponse(new Response(request.getId(), value != null ? DocWriter.writeAsString(value) : null));
+                    listener.onResponse(new Response(request.getId(), value != null ? DocWriter.json().writeAsString(value) : null));
                 } catch (Exception e) {
                     listener.onFailure(e);
                 }
@@ -542,7 +543,7 @@ public class SecretsConfigApi {
                 try {
                     Map<String, Object> secrets = secretsService.getAll();
 
-                    listener.onResponse(new Response(DocWriter.writeAsString(secrets)));
+                    listener.onResponse(new Response(DocWriter.json().writeAsString(secrets)));
                 } catch (Exception e) {
                     listener.onFailure(e);
                 }
@@ -710,7 +711,7 @@ public class SecretsConfigApi {
             return (RestChannel channel) -> {
 
                 try {
-                    Object requestBody = DocReader.read(body, xContentType);
+                    Object requestBody = DocReader.type(DocType.getByContentType(xContentType.mediaType())).read(BytesReference.toBytes(body));
 
                     client.execute(UpdateAction.INSTANCE, new UpdateAction.Request(id, requestBody),
                             new RestStatusToXContentListener<UpdateAction.Response>(channel));
@@ -759,7 +760,8 @@ public class SecretsConfigApi {
             return (RestChannel channel) -> {
 
                 try {
-                    Map<String, Object> requestBody = DocReader.readObject(body, xContentType);
+                    Map<String, Object> requestBody = DocReader.type(DocType.getByContentType(xContentType.mediaType()))
+                            .readObject(BytesReference.toBytes(body));
 
                     client.execute(UpdateAllAction.INSTANCE, new UpdateAllAction.Request(requestBody),
                             new RestStatusToXContentListener<UpdateAllAction.Response>(channel));

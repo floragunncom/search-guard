@@ -48,6 +48,8 @@ import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 
 public class OpenIdProviderClientTest {
@@ -89,8 +91,7 @@ public class OpenIdProviderClientTest {
             } catch (AuthenticatorUnavailableException e) {
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("HTTP/1.1 451"));
             }
-            Settings proxySettings = Settings.builder().put("proxy.host", "127.0.0.8").put("proxy.port", httpProxy.getPort())
-                    .put("proxy.scheme", "http").build();
+            Map<String, Object> proxySettings = ImmutableMap.of("proxy.host", "127.0.0.8", "proxy.port", httpProxy.getPort(), "proxy.scheme", "http");
 
             OpenIdProviderClient openIdProviderClient = new OpenIdProviderClient(proxyOnlyMockIdpServer.getDiscoverUri(), null,
                     ProxyConfig.parse(proxySettings, "proxy"), true);

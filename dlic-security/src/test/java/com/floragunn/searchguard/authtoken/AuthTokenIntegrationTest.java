@@ -145,7 +145,7 @@ public class AuthTokenIntegrationTest {
             Assert.assertEquals("HS512", getJwtHeaderValue(token, "alg"));
 
             String tokenPayload = getJwtPayload(token);
-            Map<String, Object> parsedTokenPayload = DocReader.readObject(tokenPayload);
+            Map<String, Object> parsedTokenPayload = DocReader.json().readObject(tokenPayload);
             Assert.assertEquals(tokenPayload, "spock", JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
             Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") != null);
 
@@ -207,7 +207,7 @@ public class AuthTokenIntegrationTest {
             Assert.assertEquals("HS512", getJwtHeaderValue(token, "alg"));
 
             String tokenPayload = getJwtPayload(token);
-            Map<String, Object> parsedTokenPayload = DocReader.readObject(tokenPayload);
+            Map<String, Object> parsedTokenPayload = DocReader.json().readObject(tokenPayload);
             Assert.assertEquals(tokenPayload, "spock", JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
             Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") == null);
 

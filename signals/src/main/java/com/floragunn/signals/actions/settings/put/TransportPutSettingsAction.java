@@ -9,7 +9,6 @@ import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
@@ -51,7 +50,7 @@ public class TransportPutSettingsAction extends HandledTransportAction<PutSettin
 
                 listener.onResponse(new PutSettingsResponse(Result.UPDATED, RestStatus.OK, null, null));
             } catch (ConfigValidationException e) {
-                listener.onResponse(new PutSettingsResponse(Result.NOOP, RestStatus.BAD_REQUEST, e.getMessage(), Strings.toString(e)));
+                listener.onResponse(new PutSettingsResponse(Result.NOOP, RestStatus.BAD_REQUEST, e.getMessage(), e.toJsonString()));
             } catch (Exception e) {
                 listener.onFailure(e);
             }

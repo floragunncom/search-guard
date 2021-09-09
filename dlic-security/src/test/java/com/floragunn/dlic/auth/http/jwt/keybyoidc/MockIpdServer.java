@@ -254,7 +254,7 @@ class MockIpdServer implements Closeable {
         Map<String, Object> responseBody = ImmutableMap.of("access_token", "totototototo", "token_type", "bearer", "expires_in", 3600, "scope",
                 "profile app:read app:write", "id_token", "kenkenken");
 
-        response.setEntity(new StringEntity(DocWriter.writeAsString(responseBody), ContentType.APPLICATION_JSON));
+        response.setEntity(new StringEntity(DocWriter.json().writeAsString(responseBody), ContentType.APPLICATION_JSON));
     }
 
     private SSLContext createSSLContext() {

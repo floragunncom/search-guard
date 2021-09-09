@@ -47,7 +47,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
 		<!-- Guava -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -79,9 +79,25 @@
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
-			<version>${elasticsearch.version}</version>
 			<scope>provided</scope>				
 		</dependency>
+		
+		<dependency>
+			<groupId>org.elasticsearch.client</groupId>
+			<artifactId>elasticsearch-rest-high-level-client</artifactId>
+			<version>${elasticsearch.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.elasticsearch</groupId>
+					<artifactId>elasticsearch</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>		
 		
 		<dependency>
     		<groupId>org.elasticsearch.plugin</groupId>
@@ -104,7 +120,6 @@
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-core</artifactId>
-			<version>${log4j.version}</version>
 			<scope>provided</scope>
 		</dependency>
 

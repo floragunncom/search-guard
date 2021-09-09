@@ -113,7 +113,7 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
             log.info("Error while parsing request body", e);
 
             return channel -> {
-                errorResponse(channel, RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJson());
+                errorResponse(channel, RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJsonString());
             };
         }
     }

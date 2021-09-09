@@ -65,7 +65,7 @@ public class TransportPutWatchAction extends HandledTransportAction<PutWatchRequ
                 } catch (ConfigValidationException e) {
                     log.info("Invalid watch supplied to PUT " + request.getWatchId() + ":\n" + e.toString(), e);
                     listener.onResponse(new PutWatchResponse(request.getWatchId(), -1, Result.NOOP, RestStatus.BAD_REQUEST,
-                            "Watch is invalid: " + e.getMessage(), e.getValidationErrors().toJson()));
+                            "Watch is invalid: " + e.getMessage(), e.getValidationErrors().toJsonString()));
                 } catch (Exception e) {
                     log.error("Error while saving watch: ", e);
                     listener.onFailure(e);

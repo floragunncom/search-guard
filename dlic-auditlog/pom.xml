@@ -52,6 +52,13 @@
 			<artifactId>codova-sg</artifactId>
 			<scope>provided</scope>
 		</dependency>
+		
+		<!-- provided scoped deps -->
+		<dependency>
+			<groupId>org.elasticsearch</groupId>
+			<artifactId>elasticsearch</artifactId>
+			<scope>provided</scope>				
+		</dependency>		
 
 		<!-- Security Test -->
 		<dependency>
@@ -109,6 +116,10 @@
 				<exclusion>
 					<groupId>org.apache.httpcomponents</groupId>
 					<artifactId>httpclient</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.elasticsearch</groupId>
+					<artifactId>elasticsearch</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

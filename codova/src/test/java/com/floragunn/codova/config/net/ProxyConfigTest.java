@@ -17,51 +17,51 @@
 
 package com.floragunn.codova.config.net;
 
+import java.util.Collections;
+import java.util.Map;
+
 import org.apache.http.HttpHost;
-import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.google.common.collect.ImmutableMap;
+
 public class ProxyConfigTest {
 
-    @Deprecated
     @Test
     public void testComplexSettings() throws Exception {
 
-        Settings proxySettings = Settings.builder().put("proxy.host", "127.0.0.8").put("proxy.port", 888).put("proxy.scheme", "http").build();
+        Map<String, Object> proxySettings = ImmutableMap.of("proxy.host", "127.0.0.8", "proxy.port", 888, "proxy.scheme", "http");
 
-        ProxyConfig proxConfig = ProxyConfig.parse(proxySettings, "proxy");
+        ProxyConfig proxyConfig = ProxyConfig.parse(proxySettings, "proxy");
 
-        Assert.assertEquals(HttpHost.create("http://127.0.0.8:888"), proxConfig.getHost());
+        Assert.assertEquals(HttpHost.create("http://127.0.0.8:888"), proxyConfig.getHost());
     }
 
-    @Deprecated
     @Test
     public void testComplexSettingWithSchemeDefault() throws Exception {
 
-        Settings proxySettings = Settings.builder().put("proxy.host", "127.0.0.8").put("proxy.port", 888).build();
+        Map<String, Object> proxySettings = ImmutableMap.of("proxy.host", "127.0.0.8", "proxy.port", 888);
 
         ProxyConfig proxConfig = ProxyConfig.parse(proxySettings, "proxy");
 
         Assert.assertEquals(HttpHost.create("https://127.0.0.8:888"), proxConfig.getHost());
     }
 
-    @Deprecated
     @Test
     public void testSimpleSettings() throws Exception {
 
-        Settings proxySettings = Settings.builder().put("proxy", "http://127.0.0.8:555").build();
+        Map<String, Object> proxySettings = ImmutableMap.of("proxy", "http://127.0.0.8:555");
 
         ProxyConfig proxConfig = ProxyConfig.parse(proxySettings, "proxy");
 
         Assert.assertEquals(HttpHost.create("http://127.0.0.8:555"), proxConfig.getHost());
     }
 
-    @Deprecated
     @Test
     public void testAbsentSettings() throws Exception {
 
-        Settings proxySettings = Settings.builder().build();
+        Map<String, Object> proxySettings = Collections.emptyMap();
 
         ProxyConfig proxConfig = ProxyConfig.parse(proxySettings, "proxy");
 
