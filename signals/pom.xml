@@ -19,8 +19,8 @@
 	<!-- provided scoped deps -->
 
 	<dependency>
-		<groupId>org.elasticsearch</groupId>
-		<artifactId>elasticsearch</artifactId>
+		<groupId>org.opensearch</groupId>
+		<artifactId>opensearch</artifactId>
 		<scope>provided</scope>
 	</dependency>
 
@@ -85,7 +85,7 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>lang-mustache-client</artifactId>
 			<scope>provided</scope>
 		</dependency>
@@ -102,7 +102,7 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.codelibs.elasticsearch.module</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>lang-painless</artifactId>
 			<scope>provided</scope>
 		</dependency>

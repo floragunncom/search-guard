@@ -18,10 +18,10 @@
 package com.floragunn.searchguard.tools.sgconf;
 
 import org.apache.commons.io.FileUtils;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.collect.Tuple;
 import org.junit.Assert;
 import org.junit.Test;
+import org.opensearch.common.Strings;
+import org.opensearch.common.collect.Tuple;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

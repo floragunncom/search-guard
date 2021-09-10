@@ -20,7 +20,7 @@ package com.floragunn.searchguard.test.helper.cluster;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.elasticsearch.common.transport.TransportAddress;
+import org.opensearch.common.transport.TransportAddress;
 
 public class ClusterInfo {
 	public int numNodes;

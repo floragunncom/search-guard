@@ -2,7 +2,7 @@ package com.floragunn.signals.watch.state;
 
 import java.util.Map;
 
-import org.elasticsearch.action.ActionListener;
+import org.opensearch.action.ActionListener;
 
 public interface WatchStateWriter<Response> {
     void put(String watchId, WatchState watchState);

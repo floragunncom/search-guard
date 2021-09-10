@@ -39,17 +39,17 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.cluster.metadata.IndexAbstraction.Type;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.opensearch.ExceptionsHelper;
+import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.cluster.metadata.IndexAbstraction.Type;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.collect.Tuple;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
@@ -331,7 +331,7 @@ public class ConfigModelV6 extends ConfigModel {
             return null;
         } catch (ExecutionException e) {
             log.error("Error while updating roles: {}", e.getCause(), e.getCause());
-            throw ExceptionsHelper.convertToElastic(e);
+            throw ExceptionsHelper.convertToOpenSearchException(e);
         }
     }
 

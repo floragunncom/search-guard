@@ -15,27 +15,35 @@
  * 
  */
 
-package org.elasticsearch.node;
+package org.opensearch.node;
 
 import java.util.Arrays;
 
 import java.util.Collections;
 
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.Plugin;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.plugins.Plugin;
 
 public class PluginAwareNode extends Node {
-    
+
     private final boolean masterEligible;
 
     @SafeVarargs
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings, final Class<? extends Plugin>... plugins) {
-    	super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, Collections.emptyMap(), null, () -> System.getenv("HOSTNAME")), Arrays.asList(plugins), true);
+        super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, Collections.emptyMap(), null, () -> System.getenv("HOSTNAME")),
+                Arrays.asList(plugins), true);
         this.masterEligible = masterEligible;
     }
 
     public boolean isMasterEligible() {
         return masterEligible;
+    }
+
+    @Override
+    protected void configureNodeAndClusterIdStateListener(ClusterService clusterService) {
+        // We override this by a noop to avoid problems with the NodeAndClusterIdStateListener.
+        // As this writes to a singleton, having several nodes per VM will make issues. It is only used for logging, thus not essential.
     }
 
 }

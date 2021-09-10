@@ -1,6 +1,6 @@
 package com.floragunn.signals.actions.settings.put;
 
-import org.elasticsearch.action.ActionType;
+import org.opensearch.action.ActionType;
 
 public class PutSettingsAction extends ActionType<PutSettingsResponse> {
 

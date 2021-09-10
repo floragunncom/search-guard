@@ -33,9 +33,9 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.common.xcontent.ToXContent;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.common.xcontent.ToXContent;
 
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 import com.floragunn.searchsupport.util.ImmutableSet;

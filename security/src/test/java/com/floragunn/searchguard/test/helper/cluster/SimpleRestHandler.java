@@ -5,14 +5,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
-import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.action.RestToXContentListener;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.action.ActionType;
+import org.opensearch.client.node.NodeClient;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.rest.BaseRestHandler;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.action.RestToXContentListener;
 
 public class SimpleRestHandler<Request extends ActionRequest, Response extends ActionResponse & ToXContentObject> extends BaseRestHandler {
 

@@ -19,8 +19,8 @@ package com.floragunn.searchguard.session;
 
 import java.util.function.Consumer;
 
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -44,7 +44,7 @@ public class SessionAuthenticationBackend implements AuthenticationBackend {
         try {
             sessionService.getByClaims(credentials.getClaims(), (sessionToken) -> {
                 if (sessionToken.isRevoked()) {
-                    onFailure.accept(new ElasticsearchSecurityException("Session " + sessionToken.getId() + " has been expired or deleted",
+                    onFailure.accept(new OpenSearchSecurityException("Session " + sessionToken.getId() + " has been expired or deleted",
                             RestStatus.UNAUTHORIZED));
                 } else {
                     sessionService.checkExpiryAndTrackAccess(sessionToken, (ok) -> {
@@ -53,7 +53,7 @@ public class SessionAuthenticationBackend implements AuthenticationBackend {
                                     .backendRoles(sessionToken.getBase().getBackendRoles()).searchGuardRoles(sessionToken.getBase().getSearchGuardRoles())
                                     .specialAuthzConfig(sessionToken.getId()).attributes(sessionToken.getBase().getAttributes()).authzComplete().build());
                         } else {
-                            onFailure.accept(new ElasticsearchSecurityException("Session " + sessionToken.getId() + " has been expired",
+                            onFailure.accept(new OpenSearchSecurityException("Session " + sessionToken.getId() + " has been expired",
                                     RestStatus.UNAUTHORIZED));
                         }
                     }, onFailure);
@@ -61,13 +61,13 @@ public class SessionAuthenticationBackend implements AuthenticationBackend {
 
             }, (noSuchAuthTokenException) -> {
                 onFailure.accept(
-                        new ElasticsearchSecurityException(noSuchAuthTokenException.getMessage(), RestStatus.UNAUTHORIZED, noSuchAuthTokenException));
+                        new OpenSearchSecurityException(noSuchAuthTokenException.getMessage(), RestStatus.UNAUTHORIZED, noSuchAuthTokenException));
             }, (e) -> {
                 onFailure.accept(e);
             });
 
         } catch (InvalidTokenException e) {
-            onFailure.accept(new ElasticsearchSecurityException(e.getMessage(), e));
+            onFailure.accept(new OpenSearchSecurityException(e.getMessage(), e));
         } catch (Exception e) {
             onFailure.accept(e);
         }

@@ -34,8 +34,8 @@ import javax.xml.xpath.XPathExpressionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.SpecialPermission;
+import org.opensearch.common.settings.Settings;
 import org.opensaml.core.config.InitializationException;
 import org.opensaml.core.config.InitializationService;
 import org.opensaml.core.xml.io.UnmarshallingException;
@@ -93,7 +93,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
     public SamlAuthenticator(Map<String, Object> config, AuthenticationFrontend.Context context) throws ConfigValidationException {
         ensureOpenSamlInitialization();
-
+        
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context.getConfigVariableProviders());
 

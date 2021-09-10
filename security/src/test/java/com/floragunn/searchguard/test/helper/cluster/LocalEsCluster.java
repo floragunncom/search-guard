@@ -42,27 +42,27 @@ import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchTimeoutException;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
-import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
-import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
-import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.health.ClusterHealthStatus;
-import org.elasticsearch.cluster.node.DiscoveryNodeRole;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.http.BindHttpException;
-import org.elasticsearch.http.HttpInfo;
-import org.elasticsearch.node.PluginAwareNode;
-import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.transport.BindTransportException;
-import org.elasticsearch.transport.TransportInfo;
+import org.opensearch.OpenSearchTimeoutException;
+import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.opensearch.action.admin.cluster.node.info.NodeInfo;
+import org.opensearch.action.admin.cluster.node.info.NodesInfoRequest;
+import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
+import org.opensearch.action.admin.indices.template.put.PutIndexTemplateRequest;
+import org.opensearch.action.support.master.AcknowledgedResponse;
+import org.opensearch.client.Client;
+import org.opensearch.cluster.health.ClusterHealthStatus;
+import org.opensearch.cluster.node.DiscoveryNodeRole;
+import org.opensearch.common.Strings;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.common.unit.TimeValue;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.http.BindHttpException;
+import org.opensearch.http.HttpInfo;
+import org.opensearch.node.PluginAwareNode;
+import org.opensearch.plugins.Plugin;
+import org.opensearch.transport.BindTransportException;
+import org.opensearch.transport.TransportInfo;
 
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
@@ -76,7 +76,7 @@ import com.google.common.net.InetAddresses;
 public class LocalEsCluster {
 
     static {
-        System.setProperty("es.enforce.bootstrap.checks", "true");
+        System.setProperty("opensearch.enforce.bootstrap.checks", "true");
     }
 
     private static final Logger log = LogManager.getLogger(LocalEsCluster.class);
@@ -383,7 +383,7 @@ public class LocalEsCluster {
             for (NodeInfo nodeInfo : nodes) {
                 clusterInfo.httpAdresses.add(nodeInfo.getInfo(HttpInfo.class).address().publishAddress());
             }
-        } catch (final ElasticsearchTimeoutException e) {
+        } catch (final OpenSearchTimeoutException e) {
             throw new IOException("timeout, cluster does not respond to health request, cowardly refusing to continue with operations");
         }
         return clusterInfo;

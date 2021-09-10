@@ -17,9 +17,9 @@
 
 package com.floragunn.searchguard.action.licenseinfo;
 
-import org.elasticsearch.action.support.nodes.NodesOperationRequestBuilder;
-import org.elasticsearch.client.ClusterAdminClient;
-import org.elasticsearch.client.ElasticsearchClient;
+import org.opensearch.action.support.nodes.NodesOperationRequestBuilder;
+import org.opensearch.client.ClusterAdminClient;
+import org.opensearch.client.OpenSearchClient;
 
 public class LicenseInfoRequestBuilder extends
 NodesOperationRequestBuilder<LicenseInfoRequest, LicenseInfoResponse, LicenseInfoRequestBuilder> {
@@ -27,7 +27,7 @@ NodesOperationRequestBuilder<LicenseInfoRequest, LicenseInfoResponse, LicenseInf
         this(client, LicenseInfoAction.INSTANCE);
     }
 
-    public LicenseInfoRequestBuilder(final ElasticsearchClient client, final LicenseInfoAction action) {
+    public LicenseInfoRequestBuilder(final OpenSearchClient client, final LicenseInfoAction action) {
         super(client, action, new LicenseInfoRequest());
     }
 }

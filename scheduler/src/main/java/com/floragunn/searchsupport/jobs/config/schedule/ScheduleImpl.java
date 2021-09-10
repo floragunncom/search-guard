@@ -7,7 +7,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.TimeZone;
 
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentBuilder;
 import org.quartz.CronTrigger;
 import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;

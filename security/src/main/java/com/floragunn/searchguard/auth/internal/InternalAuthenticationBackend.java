@@ -28,8 +28,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.auth.api.SyncAuthenticationBackend;
 import com.floragunn.searchguard.auth.api.SyncAuthorizationBackend;
@@ -89,17 +89,17 @@ public class InternalAuthenticationBackend implements SyncAuthenticationBackend,
     public User authenticate(AuthCredentials credentials) {
 
         if (internalUsersModel == null) {
-            throw new ElasticsearchSecurityException("Internal authentication backend not configured. May be Search Guard is not initialized. See https://docs.search-guard.com/latest/sgadmin");
+            throw new OpenSearchSecurityException("Internal authentication backend not configured. May be Search Guard is not initialized. See https://docs.search-guard.com/latest/sgadmin");
         }
                 
         if(!internalUsersModel.exists(credentials.getUsername())) {
-            throw new ElasticsearchSecurityException(credentials.getUsername() + " not found");
+            throw new OpenSearchSecurityException(credentials.getUsername() + " not found");
         }
         
         final byte[] password = credentials.getPassword();
         
         if(password == null || password.length == 0) {
-            throw new ElasticsearchSecurityException("empty passwords not supported");
+            throw new OpenSearchSecurityException("empty passwords not supported");
         }
 
         ByteBuffer wrap = ByteBuffer.wrap(password);
@@ -125,7 +125,7 @@ public class InternalAuthenticationBackend implements SyncAuthenticationBackend,
          
                 return user;
             } else {
-                throw new ElasticsearchSecurityException("password does not match");
+                throw new OpenSearchSecurityException("password does not match");
             }
         } finally {
             Arrays.fill(wrap.array(), (byte)0);
@@ -140,10 +140,10 @@ public class InternalAuthenticationBackend implements SyncAuthenticationBackend,
     }
 
     @Override
-    public void fillRoles(User user, AuthCredentials credentials) throws ElasticsearchSecurityException {
+    public void fillRoles(User user, AuthCredentials credentials) throws OpenSearchSecurityException {
         
         if (internalUsersModel == null) {
-            throw new ElasticsearchSecurityException("Internal authentication backend not configured. May be Search Guard is not initialized. See https://docs.search-guard.com/latest/sgadmin");
+            throw new OpenSearchSecurityException("Internal authentication backend not configured. May be Search Guard is not initialized. See https://docs.search-guard.com/latest/sgadmin");
 
         }
 

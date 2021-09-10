@@ -18,13 +18,13 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.compress.NotXContentException;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestRequest.Method;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.compress.NotXContentException;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestRequest.Method;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.searchguard.support.ConfigConstants;

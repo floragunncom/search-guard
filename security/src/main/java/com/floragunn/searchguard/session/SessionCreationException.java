@@ -14,7 +14,7 @@
 
 package com.floragunn.searchguard.session;
 
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.rest.RestStatus;
 
 public class SessionCreationException extends Exception {
 

@@ -2,9 +2,9 @@ package com.floragunn.signals.actions.settings.get;
 
 import java.io.IOException;
 
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.common.io.stream.StreamOutput;
 
 public class GetSettingsResponse extends ActionResponse {
 

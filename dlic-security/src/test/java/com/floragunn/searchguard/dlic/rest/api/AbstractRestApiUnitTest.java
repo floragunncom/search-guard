@@ -17,8 +17,8 @@ package com.floragunn.searchguard.dlic.rest.api;
 import java.io.FileNotFoundException;
 
 import org.apache.http.Header;
-import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.SingleClusterTest;

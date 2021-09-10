@@ -17,7 +17,7 @@ package com.floragunn.dlic.auth.ldap2;
 import java.util.ArrayList;
 import java.util.TreeSet;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;

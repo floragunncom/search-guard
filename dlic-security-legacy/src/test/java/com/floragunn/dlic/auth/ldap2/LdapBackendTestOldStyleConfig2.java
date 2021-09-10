@@ -20,8 +20,8 @@ import java.util.ArrayList;
 import java.util.TreeSet;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.settings.Settings;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
@@ -113,7 +113,7 @@ public class LdapBackendTestOldStyleConfig2 {
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapAuthenticationFakeLogin() throws Exception {
 
         final Settings settings = createBaseSettings()
@@ -125,7 +125,7 @@ public class LdapBackendTestOldStyleConfig2 {
                 .authenticate(AuthCredentials.forUser("unknown").password("unknown").build());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapInjection() throws Exception {
 
         final Settings settings = createBaseSettings()
@@ -173,7 +173,7 @@ public class LdapBackendTestOldStyleConfig2 {
         }
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapAuthenticationBindFail() throws Exception {
 
         final Settings settings = createBaseSettings()
@@ -184,7 +184,7 @@ public class LdapBackendTestOldStyleConfig2 {
                 .authenticate(AuthCredentials.forUser("jacksonm").password("wrong").build());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapAuthenticationNoUser() throws Exception {
 
         final Settings settings = createBaseSettings()
@@ -195,7 +195,7 @@ public class LdapBackendTestOldStyleConfig2 {
                 .authenticate(AuthCredentials.forUser("UNKNOWN").password("UNKNOWN").build());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapAuthenticationFail() throws Exception {
 
         final Settings settings = createBaseSettings()
@@ -206,7 +206,7 @@ public class LdapBackendTestOldStyleConfig2 {
                 .authenticate(AuthCredentials.forUser("jacksonm").password("xxxxx").build());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapAuthenticationFailWithHealthChecks() throws Exception {
 
         final Settings settings = createBaseSettings()

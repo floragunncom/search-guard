@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.rest.RestRequest;
 
 import com.floragunn.searchguard.user.AuthCredentials;
 

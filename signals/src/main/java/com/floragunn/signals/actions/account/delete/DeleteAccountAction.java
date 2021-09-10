@@ -1,6 +1,6 @@
 package com.floragunn.signals.actions.account.delete;
 
-import org.elasticsearch.action.ActionType;
+import org.opensearch.action.ActionType;
 
 public class DeleteAccountAction extends ActionType<DeleteAccountResponse> {
 

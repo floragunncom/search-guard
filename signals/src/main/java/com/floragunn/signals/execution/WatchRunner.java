@@ -10,11 +10,11 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.script.JodaCompatibleZonedDateTime;
-import org.elasticsearch.script.ScriptService;
+import org.opensearch.client.Client;
+import org.opensearch.common.Strings;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.script.JodaCompatibleZonedDateTime;
+import org.opensearch.script.ScriptService;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;

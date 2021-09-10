@@ -20,7 +20,7 @@ package com.floragunn.searchguard.support;
 import java.io.Serializable;
 import java.util.Map;
 
-import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.util.concurrent.ThreadContext;
 
 import com.google.common.base.Strings;
 

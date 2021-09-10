@@ -4,9 +4,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.elasticsearch.action.search.SearchType;
-import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.common.unit.TimeValue;
+import org.opensearch.action.search.SearchType;
+import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.common.unit.TimeValue;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

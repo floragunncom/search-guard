@@ -17,12 +17,12 @@
 
 package com.floragunn.searchguard.privileges.extended_action_handling;
 
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.tasks.Task;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.action.support.ActionFilterChain;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.tasks.Task;
 
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig.Resource;
 import com.floragunn.searchguard.user.User;

@@ -19,9 +19,9 @@ package com.floragunn.searchguard.action.whoami;
 
 import java.io.IOException;
 
-import org.elasticsearch.action.support.nodes.BaseNodesRequest;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
+import org.opensearch.action.support.nodes.BaseNodesRequest;
+import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.common.io.stream.StreamOutput;
 
 public class WhoAmIRequest extends BaseNodesRequest<WhoAmIRequest> {
 

@@ -17,8 +17,8 @@
 
 package com.floragunn.searchguard.configuration;
 
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.common.inject.Inject;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.common.inject.Inject;
 
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;

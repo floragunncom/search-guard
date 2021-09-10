@@ -19,7 +19,7 @@ package com.floragunn.searchguard.auth.api;
 
 import java.util.function.Consumer;
 
-import org.elasticsearch.ElasticsearchSecurityException;
+import org.opensearch.OpenSearchSecurityException;
 
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -31,7 +31,7 @@ import com.floragunn.searchguard.user.User;
  * <p/>
  * Implementation classes must provide a public constructor
  * <p/>
- * {@code public MyHTTPAuthenticator(org.elasticsearch.common.settings.Settings settings, java.nio.file.Path configPath)}
+ * {@code public MyHTTPAuthenticator(org.opensearch.common.settings.Settings settings, java.nio.file.Path configPath)}
  * <p/>
  * The constructor should not throw any exception in case of an initialization problem.
  * Instead catch all exceptions and log a appropriate error message. A logger can be instantiated like:
@@ -52,13 +52,13 @@ public interface AuthenticationBackend {
     String getType();
 
     /**
-     * Validate credentials and return an authenticated user (or throw an ElasticsearchSecurityException)
+     * Validate credentials and return an authenticated user (or throw an OpenSearchSecurityException)
      * <p/>
      * Results of this method are normally cached so that we not need to query the backend for every authentication attempt.
      * <p/> 
      * @param The credentials to be validated, never null
      * @return the authenticated User, never null
-     * @throws ElasticsearchSecurityException in case an authentication failure 
+     * @throws OpenSearchSecurityException in case an authentication failure 
      * (when credentials are incorrect, the user does not exist or the backend is not reachable)
      */
     void authenticate(AuthCredentials credentials, Consumer<User> onSuccess, Consumer<Exception> onFailure);

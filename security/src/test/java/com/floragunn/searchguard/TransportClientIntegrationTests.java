@@ -18,25 +18,25 @@
 package com.floragunn.searchguard;
 
 import org.apache.http.Header;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.DocWriteResponse.Result;
-import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.action.DocWriteResponse.Result;
+import org.opensearch.action.admin.cluster.node.info.NodesInfoRequest;
+import org.opensearch.action.admin.indices.create.CreateIndexRequest;
+import org.opensearch.action.admin.indices.create.CreateIndexResponse;
+import org.opensearch.action.get.GetResponse;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.index.IndexResponse;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.action.support.WriteRequest.RefreshPolicy;
+import org.opensearch.client.Client;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.unit.TimeValue;
+import org.opensearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.opensearch.common.xcontent.XContentType;
 
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
@@ -141,7 +141,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 					ctx.close();
 				}
 				Assert.fail();
-			} catch (ElasticsearchSecurityException e) {
+			} catch (OpenSearchSecurityException e) {
 				Assert.assertTrue(e.getMessage(), e.getMessage().startsWith("no permissions for [indices:data/read/get]"));
 			}
 
@@ -153,7 +153,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
 				gr = tc.prepareGet("vulcan", "secrets", "s1").get();
 				Assert.fail();
-			} catch (ElasticsearchSecurityException e) {
+			} catch (OpenSearchSecurityException e) {
 				Assert.assertTrue(e.getMessage().startsWith("no permissions for [indices:data/read/get]"));
 			} finally {
 				ctx.close();
@@ -166,7 +166,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
 				gr = tc.prepareGet("vulcan", "secrets", "s1").get();
 				Assert.fail();
-			} catch (ElasticsearchSecurityException e) {
+			} catch (OpenSearchSecurityException e) {
 				e.printStackTrace();
 				//Assert.assertTrue(e.getCause().getMessage().contains("password does not match"));
 			} finally {
@@ -186,7 +186,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 					ctx.close();
 				}
 
-			} catch (ElasticsearchSecurityException e) {
+			} catch (OpenSearchSecurityException e) {
 				Assert.assertEquals("'CN=spock,OU=client,O=client,L=Test,C=DE' is not allowed to impersonate as transport user 'gkar'", e.getMessage());
 			}
 
@@ -250,7 +250,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
 				gr = tc.prepareGet("vulcan", "secrets", "s1").get();
 				Assert.fail();
-			} catch (ElasticsearchSecurityException e) {
+			} catch (OpenSearchSecurityException e) {
 				Assert.assertTrue(e.getMessage().startsWith("no permissions for [indices:data/read/get]"));
 				Assert.assertTrue(ok);
 			} finally {
@@ -500,7 +500,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 					ctx.close();
 				}
 				Assert.fail();
-			} catch (ElasticsearchSecurityException e) {
+			} catch (OpenSearchSecurityException e) {
 				Assert.assertTrue(e.getMessage(), e.getMessage().startsWith("no permissions for [indices:data/read/get]"));
 			}
 
@@ -512,7 +512,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
 				gr = tc.prepareGet("vulcan", "secrets", "s1").get();
 				Assert.fail();
-			} catch (ElasticsearchSecurityException e) {
+			} catch (OpenSearchSecurityException e) {
 				Assert.assertTrue(e.getMessage().startsWith("no permissions for [indices:data/read/get]"));
 			} finally {
 				ctx.close();
@@ -525,7 +525,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
 				gr = tc.prepareGet("vulcan", "secrets", "s1").get();
 				Assert.fail();
-			} catch (ElasticsearchSecurityException e) {
+			} catch (OpenSearchSecurityException e) {
 				e.printStackTrace();
 				//Assert.assertTrue(e.getCause().getMessage().contains("password does not match"));
 			} finally {
@@ -545,7 +545,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 					ctx.close();
 				}
 
-			} catch (ElasticsearchSecurityException e) {
+			} catch (OpenSearchSecurityException e) {
 				Assert.assertEquals("'CN=spock,OU=client,O=client,L=Test,C=DE' is not allowed to impersonate as transport user 'gkar'", e.getMessage());
 			}
 
@@ -609,7 +609,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
 				gr = tc.prepareGet("vulcan", "secrets", "s1").get();
 				Assert.fail();
-			} catch (ElasticsearchSecurityException e) {
+			} catch (OpenSearchSecurityException e) {
 				Assert.assertTrue(e.getMessage().startsWith("no permissions for [indices:data/read/get]"));
 				Assert.assertTrue(ok);
 			} finally {

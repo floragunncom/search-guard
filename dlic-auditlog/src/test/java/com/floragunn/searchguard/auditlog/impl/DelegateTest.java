@@ -14,9 +14,9 @@
 
 package com.floragunn.searchguard.auditlog.impl;
 
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.Settings.Builder;
 import org.junit.Test;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings.Builder;
 
 import com.floragunn.searchguard.auditlog.helper.MyOwnAuditLog;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;

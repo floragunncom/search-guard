@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.auth.AuthenticationFrontend;

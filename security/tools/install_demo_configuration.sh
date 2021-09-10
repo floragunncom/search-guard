@@ -14,7 +14,7 @@ if ! [ -x "$(command -v realpath)" ]; then
 else
     DIR="$( cd "$( dirname "$(realpath "$SCRIPT_PATH")" )" && pwd -P)"
 fi
-echo "Search Guard 7 Demo Installer"
+echo "Search Guard Demo Installer"
 echo " ** Warning: Do not use on production or public reachable systems **"
 
 OPTIND=1
@@ -99,34 +99,34 @@ if [ -d "$BASE_DIR" ]; then
 else
     echo "DEBUG: basedir does not exist"
 fi
-ES_CONF_FILE="$BASE_DIR/config/elasticsearch.yml"
-ES_BIN_DIR="$BASE_DIR/bin"
-ES_PLUGINS_DIR="$BASE_DIR/plugins"
-ES_MODULES_DIR="$BASE_DIR/modules"
-ES_LIB_PATH="$BASE_DIR/lib"
+OS_CONF_FILE="$BASE_DIR/config/opensearch.yml"
+OS_BIN_DIR="$BASE_DIR/bin"
+OS_PLUGINS_DIR="$BASE_DIR/plugins"
+OS_MODULES_DIR="$BASE_DIR/modules"
+OS_LIB_PATH="$BASE_DIR/lib"
 SUDO_CMD=""
-ES_INSTALL_TYPE=".tar.gz"
+OS_INSTALL_TYPE=".tar.gz"
 
 #Check if its a rpm/deb install
-if [ -f /usr/share/elasticsearch/bin/elasticsearch ]; then
-    ES_CONF_FILE="/usr/share/elasticsearch/config/elasticsearch.yml"
+#if [ -f /usr/share/elasticsearch/bin/elasticsearch ]; then
+#    OS_CONF_FILE="/usr/share/elasticsearch/config/elasticsearch.yml"
 
-    if [ ! -f "$ES_CONF_FILE" ]; then
-        ES_CONF_FILE="/etc/elasticsearch/elasticsearch.yml"
-    fi
+#    if [ ! -f "$OS_CONF_FILE" ]; then
+#        OS_CONF_FILE="/etc/elasticsearch/elasticsearch.yml"
+#    fi
 
-    ES_BIN_DIR="/usr/share/elasticsearch/bin"
-    ES_PLUGINS_DIR="/usr/share/elasticsearch/plugins"
-    ES_MODULES_DIR="/usr/share/elasticsearch/modules"
-    ES_LIB_PATH="/usr/share/elasticsearch/lib"
+#    OS_BIN_DIR="/usr/share/elasticsearch/bin"
+#    OS_PLUGINS_DIR="/usr/share/elasticsearch/plugins"
+#    OS_MODULES_DIR="/usr/share/elasticsearch/modules"
+#    OS_LIB_PATH="/usr/share/elasticsearch/lib"
 
-    if [ -x "$(command -v sudo)" ]; then
-        SUDO_CMD="sudo"
-        echo "This script maybe require your root password for 'sudo' privileges"
-    fi
+#    if [ -x "$(command -v sudo)" ]; then
+#        SUDO_CMD="sudo"
+#        echo "This script maybe require your root password for 'sudo' privileges"
+#    fi
 
-    ES_INSTALL_TYPE="rpm/deb"
-fi
+#    OS_INSTALL_TYPE="rpm/deb"
+#fi
 
 if [ $SUDO_CMD ]; then
     if ! [ -x "$(command -v $SUDO_CMD)" ]; then
@@ -135,59 +135,61 @@ if [ $SUDO_CMD ]; then
     fi
 fi
 
-if $SUDO_CMD test -f "$ES_CONF_FILE"; then
+if $SUDO_CMD test -f "$OS_CONF_FILE"; then
     :
 else
-    echo "Unable to determine Elasticsearch config directory. Quit."
+    echo "Unable to determine Opensearch config directory. Quit."
     exit -1
 fi
 
-if [ ! -d "$ES_BIN_DIR" ]; then
-	echo "Unable to determine Elasticsearch bin directory. Quit."
+if [ ! -d "$OS_BIN_DIR" ]; then
+	echo "Unable to determine Opensearch bin directory. Quit."
 	exit -1
 fi
 
-if [ ! -d "$ES_PLUGINS_DIR" ]; then
-	echo "Unable to determine Elasticsearch plugins directory. Quit."
+if [ ! -d "$OS_PLUGINS_DIR" ]; then
+	echo "Unable to determine Opensearch plugins directory. Quit."
 	exit -1
 fi
 
-if [ ! -d "$ES_MODULES_DIR" ]; then
-	echo "Unable to determine Elasticsearch modules directory. Quit."
+if [ ! -d "$OS_MODULES_DIR" ]; then
+	echo "Unable to determine Opensearch modules directory. Quit."
 	#exit -1
 fi
 
-if [ ! -d "$ES_LIB_PATH" ]; then
-	echo "Unable to determine Elasticsearch lib directory. Quit."
+if [ ! -d "$OS_LIB_PATH" ]; then
+	echo "Unable to determine Opensearch lib directory. Quit."
 	exit -1
 fi
 
-ES_CONF_DIR=$(dirname "${ES_CONF_FILE}")
-ES_CONF_DIR=`cd "$ES_CONF_DIR" ; pwd`
+OS_CONF_DIR=$(dirname "${OS_CONF_FILE}")
+OS_CONF_DIR=`cd "$OS_CONF_DIR" ; pwd`
 
-if [ ! -d "$ES_PLUGINS_DIR/search-guard-7" ]; then
+if [ ! -d "$OS_PLUGINS_DIR/search-guard" ]; then
   echo "Search Guard plugin not installed. Quit."
   exit -1
 fi
 
-ES_VERSION=("$ES_LIB_PATH/elasticsearch-*.jar")
-ES_VERSION=$(echo $ES_VERSION | sed 's/.*elasticsearch-\(.*\)\.jar/\1/')
+# TODO: fix this
+OS_VERSION=("$OS_LIB_PATH/opensearch-*.jar")
+OS_VERSION=$(echo $OS_VERSION | sed 's/.*opensearch-\(.*\)\.jar/\1/')
 
-SG_VERSION=("$ES_PLUGINS_DIR/search-guard-7/search-guard-7-*.jar")
-SG_VERSION=$(echo $SG_VERSION | sed 's/.*search-guard-7-\(.*\)\.jar/\1/')
+# TODO: fix this
+SG_VERSION=("$OS_PLUGINS_DIR/search-guard/search-guard-*.jar")
+SG_VERSION=$(echo $SG_VERSION | sed 's/.*search-guard-\(.*\)\.jar/\1/')
 
 OS=$(sb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om)
-echo "Elasticsearch install type: $ES_INSTALL_TYPE on $OS"
-echo "Elasticsearch config dir: $ES_CONF_DIR"
-echo "Elasticsearch config file: $ES_CONF_FILE"
-echo "Elasticsearch bin dir: $ES_BIN_DIR"
-echo "Elasticsearch plugins dir: $ES_PLUGINS_DIR"
-echo "Elasticsearch lib dir: $ES_LIB_PATH"
-echo "Detected Elasticsearch Version: $ES_VERSION"
+echo "Opensearch install type: $OS_INSTALL_TYPE on $OS"
+echo "Opensearch config dir: $OS_CONF_DIR"
+echo "Opensearch config file: $OS_CONF_FILE"
+echo "Opensearch bin dir: $OS_BIN_DIR"
+echo "Opensearch plugins dir: $OS_PLUGINS_DIR"
+echo "Opensearch lib dir: $OS_LIB_PATH"
+echo "Detected Opensearch Version: $OS_VERSION"
 echo "Detected Search Guard Version: $SG_VERSION"
 
-if $SUDO_CMD grep --quiet -i searchguard "$ES_CONF_FILE"; then
-  echo "$ES_CONF_FILE seems to be already configured for Search Guard. Quit."
+if $SUDO_CMD grep --quiet -i searchguard "$OS_CONF_FILE"; then
+  echo "$OS_CONF_FILE seems to be already configured for Search Guard. Quit."
   exit -1
 fi
 
@@ -344,94 +346,94 @@ EOM
 
 set -e
 
-echo "$SG_ADMIN_CERT" | $SUDO_CMD tee "$ES_CONF_DIR/kirk.pem" > /dev/null
-echo "$NODE_CERT" | $SUDO_CMD tee "$ES_CONF_DIR/esnode.pem" > /dev/null 
-echo "$ROOT_CA" | $SUDO_CMD tee "$ES_CONF_DIR/root-ca.pem" > /dev/null
-echo "$NODE_KEY" | $SUDO_CMD tee "$ES_CONF_DIR/esnode-key.pem" > /dev/null
-echo "$SG_ADMIN_CERT_KEY" | $SUDO_CMD tee "$ES_CONF_DIR/kirk-key.pem" > /dev/null
+echo "$SG_ADMIN_CERT" | $SUDO_CMD tee "$OS_CONF_DIR/kirk.pem" > /dev/null
+echo "$NODE_CERT" | $SUDO_CMD tee "$OS_CONF_DIR/esnode.pem" > /dev/null 
+echo "$ROOT_CA" | $SUDO_CMD tee "$OS_CONF_DIR/root-ca.pem" > /dev/null
+echo "$NODE_KEY" | $SUDO_CMD tee "$OS_CONF_DIR/esnode-key.pem" > /dev/null
+echo "$SG_ADMIN_CERT_KEY" | $SUDO_CMD tee "$OS_CONF_DIR/kirk-key.pem" > /dev/null
 
-echo "" | $SUDO_CMD tee -a  "$ES_CONF_FILE"
-echo "######## Start Search Guard Demo Configuration ########" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
-echo "# WARNING: revise all the lines below before you go into production" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
-echo "searchguard.ssl.transport.pemcert_filepath: esnode.pem" | $SUDO_CMD tee -a  "$ES_CONF_FILE" > /dev/null 
-echo "searchguard.ssl.transport.pemkey_filepath: esnode-key.pem" | $SUDO_CMD tee -a  "$ES_CONF_FILE" > /dev/null 
-echo "searchguard.ssl.transport.pemtrustedcas_filepath: root-ca.pem" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
-echo "searchguard.ssl.transport.enforce_hostname_verification: false" | $SUDO_CMD tee -a  "$ES_CONF_FILE" > /dev/null 
-echo "searchguard.ssl.http.enabled: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
-echo "searchguard.ssl.http.pemcert_filepath: esnode.pem" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-echo "searchguard.ssl.http.pemkey_filepath: esnode-key.pem" | $SUDO_CMD tee -a  "$ES_CONF_FILE" > /dev/null 
-echo "searchguard.ssl.http.pemtrustedcas_filepath: root-ca.pem" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
-echo "searchguard.allow_unsafe_democertificates: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+echo "" | $SUDO_CMD tee -a  "$OS_CONF_FILE"
+echo "######## Start Search Guard Demo Configuration ########" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null 
+echo "# WARNING: revise all the lines below before you go into production" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null 
+echo "searchguard.ssl.transport.pemcert_filepath: esnode.pem" | $SUDO_CMD tee -a  "$OS_CONF_FILE" > /dev/null 
+echo "searchguard.ssl.transport.pemkey_filepath: esnode-key.pem" | $SUDO_CMD tee -a  "$OS_CONF_FILE" > /dev/null 
+echo "searchguard.ssl.transport.pemtrustedcas_filepath: root-ca.pem" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null 
+echo "searchguard.ssl.transport.enforce_hostname_verification: false" | $SUDO_CMD tee -a  "$OS_CONF_FILE" > /dev/null 
+echo "searchguard.ssl.http.enabled: true" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null 
+echo "searchguard.ssl.http.pemcert_filepath: esnode.pem" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
+echo "searchguard.ssl.http.pemkey_filepath: esnode-key.pem" | $SUDO_CMD tee -a  "$OS_CONF_FILE" > /dev/null 
+echo "searchguard.ssl.http.pemtrustedcas_filepath: root-ca.pem" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null 
+echo "searchguard.allow_unsafe_democertificates: true" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
 if [ "$initsg" == 1 ]; then
-    echo "searchguard.allow_default_init_sgindex: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+    echo "searchguard.allow_default_init_sgindex: true" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
 fi
-echo "searchguard.authcz.admin_dn:" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
-echo "  - CN=kirk,OU=client,O=client,L=test, C=de" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
-echo "" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
-echo "searchguard.audit.type: internal_elasticsearch" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-echo "searchguard.enable_snapshot_restore_privilege: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-echo "searchguard.check_snapshot_restore_write_privileges: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-echo 'searchguard.restapi.roles_enabled: ["SGS_ALL_ACCESS"]' | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+echo "searchguard.authcz.admin_dn:" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null 
+echo "  - CN=kirk,OU=client,O=client,L=test, C=de" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null 
+echo "" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null 
+echo "searchguard.audit.type: internal_elasticsearch" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
+echo "searchguard.enable_snapshot_restore_privilege: true" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
+echo "searchguard.check_snapshot_restore_write_privileges: true" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
+echo 'searchguard.restapi.roles_enabled: ["SGS_ALL_ACCESS"]' | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
 
 #cluster.routing.allocation.disk.threshold_enabled
-if $SUDO_CMD grep --quiet -i "^cluster.routing.allocation.disk.threshold_enabled" "$ES_CONF_FILE"; then
+if $SUDO_CMD grep --quiet -i "^cluster.routing.allocation.disk.threshold_enabled" "$OS_CONF_FILE"; then
 	: #already present
 else
-    echo 'cluster.routing.allocation.disk.threshold_enabled: false' | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+    echo 'cluster.routing.allocation.disk.threshold_enabled: false' | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
 fi
 
 #cluster.name
-if $SUDO_CMD grep --quiet -i "^cluster.name" "$ES_CONF_FILE"; then
+if $SUDO_CMD grep --quiet -i "^cluster.name" "$OS_CONF_FILE"; then
 	: #already present
 else
-    echo "cluster.name: searchguard_demo" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
+    echo "cluster.name: searchguard_demo" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null 
 fi
 
 #network.host
-if $SUDO_CMD grep --quiet -i "^network.host" "$ES_CONF_FILE"; then
+if $SUDO_CMD grep --quiet -i "^network.host" "$OS_CONF_FILE"; then
 	: #already present
 else
 	if [ "$cluster_mode" == 1 ]; then
-        echo "network.host: 0.0.0.0" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-        echo "node.name: smoketestnode" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-        echo "cluster.initial_master_nodes: smoketestnode" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+        echo "network.host: 0.0.0.0" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
+        echo "node.name: smoketestnode" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
+        echo "cluster.initial_master_nodes: smoketestnode" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
     fi
 fi
 
 #discovery.zen.minimum_master_nodes
-#if $SUDO_CMD grep --quiet -i "^discovery.zen.minimum_master_nodes" "$ES_CONF_FILE"; then
+#if $SUDO_CMD grep --quiet -i "^discovery.zen.minimum_master_nodes" "$OS_CONF_FILE"; then
 #	: #already present
 #else
-#    echo "discovery.zen.minimum_master_nodes: 1" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+#    echo "discovery.zen.minimum_master_nodes: 1" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
 #fi
 
 #node.max_local_storage_nodes
-if $SUDO_CMD grep --quiet -i "^node.max_local_storage_nodes" "$ES_CONF_FILE"; then
+if $SUDO_CMD grep --quiet -i "^node.max_local_storage_nodes" "$OS_CONF_FILE"; then
 	: #already present
 else
-    echo 'node.max_local_storage_nodes: 3' | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+    echo 'node.max_local_storage_nodes: 3' | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
 fi
 
 #xpack.security.enabled
-if $SUDO_CMD grep --quiet -i "^xpack.security.enabled" "$ES_CONF_FILE"; then
+if $SUDO_CMD grep --quiet -i "^xpack.security.enabled" "$OS_CONF_FILE"; then
 	: #already present
 else
-    if [ -d "$ES_MODULES_DIR/x-pack-security" ];then
-	    echo "xpack.security.enabled: false" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+    if [ -d "$OS_MODULES_DIR/x-pack-security" ];then
+	    echo "xpack.security.enabled: false" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null
     fi
 fi
 
-echo "######## End Search Guard Demo Configuration ########" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
+echo "######## End Search Guard Demo Configuration ########" | $SUDO_CMD tee -a "$OS_CONF_FILE" > /dev/null 
 
-$SUDO_CMD chmod +x "$ES_PLUGINS_DIR/search-guard-7/tools/sgadmin.sh"
+$SUDO_CMD chmod +x "$OS_PLUGINS_DIR/search-guard/tools/sgadmin.sh"
 
-ES_PLUGINS_DIR=`cd "$ES_PLUGINS_DIR" ; pwd`
+OS_PLUGINS_DIR=`cd "$OS_PLUGINS_DIR" ; pwd`
 
 echo "### Success"
 echo "### Execute this script now on all your nodes and then start all nodes"
 #Generate sgadmin_demo.sh
 echo "#!/bin/bash" | $SUDO_CMD tee sgadmin_demo.sh > /dev/null 
-echo $SUDO_CMD \""$ES_PLUGINS_DIR/search-guard-7/tools/sgadmin.sh"\" -cd \""$ES_PLUGINS_DIR/search-guard-7/sgconfig"\" -icl -key \""$ES_CONF_DIR/kirk-key.pem"\" -cert \""$ES_CONF_DIR/kirk.pem"\" -cacert \""$ES_CONF_DIR/root-ca.pem"\" -nhnv | $SUDO_CMD tee -a sgadmin_demo.sh > /dev/null
+echo $SUDO_CMD \""$OS_PLUGINS_DIR/search-guard/tools/sgadmin.sh"\" -cd \""$OS_PLUGINS_DIR/search-guard/sgconfig"\" -icl -key \""$OS_CONF_DIR/kirk-key.pem"\" -cert \""$OS_CONF_DIR/kirk.pem"\" -cacert \""$OS_CONF_DIR/root-ca.pem"\" -nhnv | $SUDO_CMD tee -a sgadmin_demo.sh > /dev/null
 $SUDO_CMD chmod +x sgadmin_demo.sh
 
 if [ "$initsg" == 0 ]; then

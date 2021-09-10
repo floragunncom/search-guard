@@ -16,8 +16,8 @@ package com.floragunn.searchguard.cache;
 
 import java.nio.file.Path;
 
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.auth.api.SyncAuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -37,7 +37,7 @@ public class DummyAuthenticationBackend implements SyncAuthenticationBackend {
     }
 
     @Override
-    public User authenticate(AuthCredentials credentials) throws ElasticsearchSecurityException {
+    public User authenticate(AuthCredentials credentials) throws OpenSearchSecurityException {
         authCount++;
         return new User(credentials.getUsername(), credentials.getAuthDomainInfo());
     }

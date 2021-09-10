@@ -24,18 +24,18 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.search.SearchPhaseExecutionException;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.TermQueryBuilder;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.metrics.TopHits;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.search.sort.SortOrder;
+import org.opensearch.action.search.SearchPhaseExecutionException;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.client.Client;
+import org.opensearch.index.query.BoolQueryBuilder;
+import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.index.query.TermQueryBuilder;
+import org.opensearch.search.SearchHit;
+import org.opensearch.search.aggregations.AggregationBuilders;
+import org.opensearch.search.aggregations.metrics.TopHits;
+import org.opensearch.search.builder.SearchSourceBuilder;
+import org.opensearch.search.sort.SortOrder;
 
 import com.floragunn.signals.watch.result.WatchLog;
 
@@ -136,7 +136,7 @@ public class WatchLogSearch {
             }
 
             return result;
-        } catch (org.elasticsearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
+        } catch (org.opensearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException("Error in getMostRecenWatchLog(" + tenantName + ", " + watchId + ")", e);
@@ -181,7 +181,7 @@ public class WatchLogSearch {
 
                     indexNotFoundException = null;
 
-                } catch (org.elasticsearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
+                } catch (org.opensearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
                     indexNotFoundException = e;
                 }
 

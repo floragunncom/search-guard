@@ -20,10 +20,10 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.tasks.Task;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.tasks.Task;
 
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.SearchGuardPlugin;

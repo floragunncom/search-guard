@@ -23,23 +23,23 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterChangedEvent;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.index.IndexNotFoundException;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
+import org.opensearch.OpenSearchException;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.client.Client;
+import org.opensearch.cluster.ClusterChangedEvent;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.unit.TimeValue;
+import org.opensearch.common.xcontent.ToXContent;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentFactory;
+import org.opensearch.index.IndexNotFoundException;
+import org.opensearch.index.query.QueryBuilder;
+import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.search.SearchHit;
 import org.quartz.Calendar;
 import org.quartz.DailyTimeIntervalTrigger;
 import org.quartz.Job;
@@ -1275,7 +1275,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             }
 
             return result;
-        } catch (ElasticsearchException e) {
+        } catch (OpenSearchException e) {
             log.info("loadJobs() failed after " + (System.currentTimeMillis() - start) + " ms", e);
             throw e;
         }
@@ -1765,7 +1765,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             return result;
         } catch (IndexNotFoundException e) {
             return Collections.emptyMap();
-        } catch (ElasticsearchException e) {
+        } catch (OpenSearchException e) {
             log.error("Error in loadTriggerStates()", e);
             throw e;
         }
@@ -1807,7 +1807,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
                 log.warn("Timeout while waiting for initialized cluster status. Will try to continue anyway. " + clusterHealthResponse);
             }
 
-        } catch (ElasticsearchException e) {
+        } catch (OpenSearchException e) {
             log.error("Error while getting cluster health ", e);
             throw e;
         }

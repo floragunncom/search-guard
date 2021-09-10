@@ -1,6 +1,6 @@
 package com.floragunn.searchsupport.jobs.actions;
 
-import org.elasticsearch.action.ActionType;
+import org.opensearch.action.ActionType;
 
 public class CheckForExecutingTriggerAction extends ActionType<CheckForExecutingTriggerResponse> {
 

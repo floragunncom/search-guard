@@ -61,10 +61,6 @@ import javax.naming.ldap.LdapName;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
 import org.ldaptive.BindConnectionInitializer;
 import org.ldaptive.BindRequest;
 import org.ldaptive.Connection;
@@ -86,6 +82,10 @@ import org.ldaptive.ssl.CredentialConfig;
 import org.ldaptive.ssl.CredentialConfigFactory;
 import org.ldaptive.ssl.SslConfig;
 import org.ldaptive.ssl.ThreadLocalTLSSocketFactory;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.SpecialPermission;
+import org.opensearch.common.Strings;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
@@ -666,7 +666,7 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
 
     @Override
     public void fillRoles(final User user, final AuthCredentials optionalAuthCreds)
-            throws ElasticsearchSecurityException {
+            throws OpenSearchSecurityException {
 
         if (user == null) {
             return;
@@ -738,7 +738,7 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
                     entry = LdapHelper.lookup(connection, authenticatedUser);
 
                     if (entry == null) {
-                        throw new ElasticsearchSecurityException("No user '" + authenticatedUser + "' found");
+                        throw new OpenSearchSecurityException("No user '" + authenticatedUser + "' found");
                     }
 
                 } else {
@@ -754,7 +754,7 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
                     }
 
                     if (entry == null || entry.getDn() == null) {
-                        throw new ElasticsearchSecurityException("No user " + authenticatedUser + " found");
+                        throw new OpenSearchSecurityException("No user " + authenticatedUser + " found");
                     }
                 }
 
@@ -952,7 +952,7 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
             if (log.isDebugEnabled()) {
                 log.debug("Unable to fill user roles due to ", e);
             }
-            throw new ElasticsearchSecurityException(e.toString(), e);
+            throw new OpenSearchSecurityException(e.toString(), e);
         } finally {
             Utils.unbindAndCloseSilently(connection);
         }
@@ -962,7 +962,7 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
     protected Set<LdapName> resolveNestedRoles(final LdapName roleDn, final Connection ldapConnection,
             String userRoleName, int depth, final boolean rolesearchEnabled,
             Set<Map.Entry<String, Settings>> roleSearchBaseSettingsSet, final List<String> roleFilter)
-            throws ElasticsearchSecurityException, LdapException {
+            throws OpenSearchSecurityException, LdapException {
 
         if (!roleFilter.isEmpty() && WildcardMatcher.matchAny(roleFilter, roleDn.toString())) {
 

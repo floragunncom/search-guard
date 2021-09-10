@@ -18,13 +18,13 @@
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>search-guard-elasticsearch-plugin</artifactId>
+	<artifactId>search-guard-opensearch-plugin</artifactId>
 	<packaging>pom</packaging>
 	<name>Search Guard Suite - Plugin</name>
 
 	<properties>
 		<!-- assembly descriptors -->
-		<elasticsearch.assembly.descriptor>${basedir}/src/main/assemblies/plugin.xml</elasticsearch.assembly.descriptor>
+		<opensearch.assembly.descriptor>${basedir}/src/main/assemblies/plugin.xml</opensearch.assembly.descriptor>
 		<sgstandalone.descriptor>${basedir}/src/main/assemblies/sgadmin-standalone.xml</sgstandalone.descriptor>
 		<veracode.descriptor>${basedir}/src/main/assemblies/veracode.xml</veracode.descriptor>
 	</properties>
@@ -106,7 +106,7 @@
 									<tarLongFileMode>posix</tarLongFileMode>
 									<outputDirectory>${project.build.directory}/releases/</outputDirectory>
 									<descriptors>
-										<descriptor>${elasticsearch.assembly.descriptor}</descriptor>
+										<descriptor>${opensearch.assembly.descriptor}</descriptor>
 									</descriptors>
 								</configuration>
 								<goals>
@@ -247,8 +247,8 @@
 				<!-- necessary for sgadmin-standalone. we should find a different solution 
 					for this -->
 				<dependency>
-					<groupId>org.elasticsearch</groupId>
-					<artifactId>elasticsearch</artifactId>
+					<groupId>org.opensearch</groupId>
+					<artifactId>opensearch</artifactId>
 					<scope>provided</scope>				
 				</dependency>			
 				
@@ -270,7 +270,7 @@
 									<tarLongFileMode>posix</tarLongFileMode>
 									<outputDirectory>${project.build.directory}/releases/</outputDirectory>
 									<descriptors>
-										<descriptor>${elasticsearch.assembly.descriptor}</descriptor>
+										<descriptor>${opensearch.assembly.descriptor}</descriptor>
 									</descriptors>
 								</configuration>
 								<goals>

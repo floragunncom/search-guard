@@ -3,8 +3,8 @@ package com.floragunn.signals.watch.action.invokers;
 import java.util.Collections;
 import java.util.List;
 
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.xcontent.ToXContent;
+import org.opensearch.common.Strings;
+import org.opensearch.common.xcontent.ToXContent;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.floragunn.codova.validation.ConfigValidationException;

@@ -21,12 +21,12 @@ import java.net.InetSocketAddress;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.http.netty4.Netty4HttpChannel;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.http.netty4.Netty4HttpChannel;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
@@ -46,7 +46,7 @@ public class XFFResolver implements DCFListener {
         this.threadContext = threadPool.getThreadContext();
     }
 
-    public TransportAddress resolve(final RestRequest request) throws ElasticsearchSecurityException {
+    public TransportAddress resolve(final RestRequest request) throws OpenSearchSecurityException {
         
         if(log.isTraceEnabled()) {
             log.trace("resolve {}", request.getHttpChannel().getRemoteAddress());
@@ -57,7 +57,7 @@ public class XFFResolver implements DCFListener {
             final InetSocketAddress isa = new InetSocketAddress(detector.detect(request, threadContext), ((InetSocketAddress)request.getHttpChannel().getRemoteAddress()).getPort());
         
             if(isa.isUnresolved()) {           
-                throw new ElasticsearchSecurityException("Cannot resolve address "+isa.getHostString());
+                throw new OpenSearchSecurityException("Cannot resolve address "+isa.getHostString());
             }
                 
              
@@ -77,7 +77,7 @@ public class XFFResolver implements DCFListener {
             }
             return new TransportAddress((InetSocketAddress)request.getHttpChannel().getRemoteAddress());
         } else {
-            throw new ElasticsearchSecurityException("Cannot handle this request. Remote address is "+request.getHttpChannel().getRemoteAddress()+" with request class "+request.getClass());
+            throw new OpenSearchSecurityException("Cannot handle this request. Remote address is "+request.getHttpChannel().getRemoteAddress()+" with request class "+request.getClass());
         }
     }
 

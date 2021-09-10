@@ -20,7 +20,7 @@ package com.floragunn.searchguard.auth.api;
 import java.util.Collection;
 import java.util.function.Consumer;
 
-import org.elasticsearch.ElasticsearchSecurityException;
+import org.opensearch.OpenSearchSecurityException;
 
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -32,7 +32,7 @@ import com.floragunn.searchguard.user.User;
  * <p/>
  * Implementation classes must provide a public constructor
  * <p/>
- * {@code public MyHTTPAuthenticator(org.elasticsearch.common.settings.Settings settings, java.nio.file.Path configPath)}
+ * {@code public MyHTTPAuthenticator(org.opensearch.common.settings.Settings settings, java.nio.file.Path configPath)}
  * <p/>
  * The constructor should not throw any exception in case of an initialization problem.
  * Instead catch all exceptions and log a appropriate error message. A logger can be instantiated like:
@@ -60,7 +60,7 @@ public interface AuthorizationBackend {
      * @param user The authenticated user to populate with backend roles, never null
      * @param credentials Credentials to authenticate to the authorization backend, maybe null.
      * <em>This parameter is for future usage, currently always empty credentials are passed!</em> 
-     * @throws ElasticsearchSecurityException in case when the authorization backend cannot be reached 
+     * @throws OpenSearchSecurityException in case when the authorization backend cannot be reached 
      * or the {@code credentials} are insufficient to authenticate to the authorization backend.
      */
     void retrieveRoles(User user, AuthCredentials credentials, Consumer<Collection<String>> onSuccess, Consumer<Exception> onFailure);

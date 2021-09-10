@@ -26,14 +26,14 @@ import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.SpecialPermission;
+import org.opensearch.common.Strings;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.rest.BytesRestResponse;
+import org.opensearch.rest.RestChannel;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -57,7 +57,7 @@ public class SessionAuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
     }
 
     @Override
-    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
+    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws OpenSearchSecurityException {
 
         // TODO check whether this is really necessary
         final SecurityManager sm = System.getSecurityManager();
@@ -69,7 +69,7 @@ public class SessionAuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
         return AccessController.doPrivileged((PrivilegedAction<AuthCredentials>) () -> extractCredentials0(request));
     }
 
-    private AuthCredentials extractCredentials0(RestRequest request) throws ElasticsearchSecurityException {
+    private AuthCredentials extractCredentials0(RestRequest request) throws OpenSearchSecurityException {
 
         String encodedJwt = getJwtTokenString(request);
 

@@ -14,7 +14,7 @@
 
 package com.floragunn.searchguard.authtoken;
 
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.rest.RestStatus;
 
 public class TokenCreationException extends Exception {
 

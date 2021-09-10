@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.test;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 
 @FunctionalInterface
 public interface NodeSettingsSupplier {

@@ -89,7 +89,6 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         this.clientSecret = vNode.get("client_secret").required().asString();
         this.scope = vNode.get("scope").withDefault("openid profile email address phone").asString();
         this.proxyConfig = vNode.get("idp.proxy").by(ProxyConfig::parse);
-
         jsonRolesPath = vNode.get("user_mapping.roles").required().asJsonPath();
         jsonSubjectPath = vNode.get("user_mapping.subject").asJsonPath();
         subjectPattern = vNode.get("user_mapping.subject_pattern").asPattern();

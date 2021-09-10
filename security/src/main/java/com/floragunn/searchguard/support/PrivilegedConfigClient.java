@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.support;
 
-import org.elasticsearch.client.Client;
+import org.opensearch.client.Client;
 
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;

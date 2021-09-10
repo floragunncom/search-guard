@@ -19,15 +19,15 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.cluster.ClusterName;
-import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.opensearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.cluster.ClusterName;
+import org.opensearch.cluster.node.DiscoveryNode;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.auditlog.helper.RetrySink;
 import com.floragunn.searchguard.auditlog.integration.TestAuditlogImpl;

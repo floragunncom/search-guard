@@ -19,8 +19,8 @@ package com.floragunn.searchguard;
 
 import java.security.cert.X509Certificate;
 
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.transport.TransportRequest;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 

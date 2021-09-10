@@ -22,7 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Consumer;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.auth.api.AuthorizationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;

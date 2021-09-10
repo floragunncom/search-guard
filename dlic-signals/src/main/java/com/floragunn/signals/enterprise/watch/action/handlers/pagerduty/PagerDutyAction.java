@@ -12,8 +12,8 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.Strings;
+import org.opensearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.validation.ConfigValidationException;

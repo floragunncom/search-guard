@@ -26,8 +26,8 @@ import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.opensearch.SpecialPermission;
+import org.opensearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.validation.ConfigValidationException;

@@ -26,10 +26,10 @@ import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
@@ -280,7 +280,7 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
             addDebugInfo(
                     new AuthczResult.DebugInfo(authenticationDomain.getId(), false, "Exception while authenticating " + ac.getUsername() + ": " + e));
 
-            if (e instanceof ElasticsearchSecurityException) {
+            if (e instanceof OpenSearchSecurityException) {
                 handleAuthFailure(ac, authenticationDomain, e);
             } else {
                 log.error("Error while authenticating " + ac, e);

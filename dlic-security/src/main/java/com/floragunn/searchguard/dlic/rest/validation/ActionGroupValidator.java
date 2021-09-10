@@ -14,20 +14,20 @@
 
 package com.floragunn.searchguard.dlic.rest.validation;
 
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.rest.RestRequest;
 
 public class ActionGroupValidator extends AbstractConfigurationValidator {
 
-	public ActionGroupValidator(final RestRequest request, BytesReference ref, final Settings esSettings, Object... param) {
-		super(request, ref, esSettings, param);
-		this.payloadMandatory = true;
-		allowedKeys.put("allowed_actions", DataType.ARRAY);
-	    allowedKeys.put("description", DataType.STRING);
-	    allowedKeys.put("type", DataType.STRING);
+    public ActionGroupValidator(final RestRequest request, BytesReference ref, final Settings esSettings, Object... param) {
+        super(request, ref, esSettings, param);
+        this.payloadMandatory = true;
+        allowedKeys.put("allowed_actions", DataType.ARRAY);
+        allowedKeys.put("description", DataType.STRING);
+        allowedKeys.put("type", DataType.STRING);
 
-		mandatoryKeys.add("allowed_actions");
-	}
+        mandatoryKeys.add("allowed_actions");
+    }
 
 }

@@ -23,26 +23,26 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.ConstantScoreQuery;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.RealtimeRequest;
-import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.index.query.ParsedQuery;
-import org.elasticsearch.search.aggregations.AggregationBuilder;
-import org.elasticsearch.search.aggregations.bucket.sampler.DiversifiedAggregationBuilder;
-import org.elasticsearch.search.aggregations.bucket.terms.SignificantTermsAggregationBuilder;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.search.internal.SearchContext;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.RealtimeRequest;
+import org.opensearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.client.Client;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.index.query.ParsedQuery;
+import org.opensearch.search.aggregations.AggregationBuilder;
+import org.opensearch.search.aggregations.bucket.sampler.DiversifiedAggregationBuilder;
+import org.opensearch.search.aggregations.bucket.terms.SignificantTermsAggregationBuilder;
+import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
+import org.opensearch.search.builder.SearchSourceBuilder;
+import org.opensearch.search.internal.SearchContext;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
@@ -199,7 +199,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
                 if (source != null) {
 
                     if (source.profile()) {
-                        listener.onFailure(new ElasticsearchSecurityException("Profiling is not supported when DLS is activated"));
+                        listener.onFailure(new OpenSearchSecurityException("Profiling is not supported when DLS is activated"));
                         return false;
                     }
 
@@ -266,7 +266,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
                 if (threadContext.getHeader(ConfigConstants.SG_DLS_QUERY_HEADER) != null) {
                     Object deserializedDlsQueries = Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_DLS_QUERY_HEADER));
                     if (!dlsQueries.equals(deserializedDlsQueries)) {                        
-                        throw new ElasticsearchSecurityException(ConfigConstants.SG_DLS_QUERY_HEADER + " does not match (SG 900D)");
+                        throw new OpenSearchSecurityException(ConfigConstants.SG_DLS_QUERY_HEADER + " does not match (SG 900D)");
                     }
                 } else {
                     threadContext.putHeader(ConfigConstants.SG_DLS_QUERY_HEADER, Base64Helper.serializeObject((Serializable) dlsQueries));
@@ -313,7 +313,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
                 if (threadContext.getHeader(ConfigConstants.SG_MASKED_FIELD_HEADER) != null) {
                     if (!maskedFieldsMap.equals(Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_MASKED_FIELD_HEADER)))) {
-                        throw new ElasticsearchSecurityException(ConfigConstants.SG_MASKED_FIELD_HEADER + " does not match (SG 901D)");
+                        throw new OpenSearchSecurityException(ConfigConstants.SG_MASKED_FIELD_HEADER + " does not match (SG 901D)");
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug(ConfigConstants.SG_MASKED_FIELD_HEADER + " already set");
@@ -339,7 +339,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             } else {
                 if (threadContext.getHeader(ConfigConstants.SG_FLS_FIELDS_HEADER) != null) {
                     if (!flsFields.equals(Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_FLS_FIELDS_HEADER)))) {
-                        throw new ElasticsearchSecurityException(ConfigConstants.SG_FLS_FIELDS_HEADER + " does not match (SG 901D) " + flsFields
+                        throw new OpenSearchSecurityException(ConfigConstants.SG_FLS_FIELDS_HEADER + " does not match (SG 901D) " + flsFields
                                 + "---" + Base64Helper.deserializeObject(threadContext.getHeader(ConfigConstants.SG_FLS_FIELDS_HEADER)));
                     } else {
                         if (log.isDebugEnabled()) {

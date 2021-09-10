@@ -6,7 +6,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 
-import org.elasticsearch.search.SearchHit;
+import org.opensearch.search.SearchHit;
 import org.junit.Assert;
 
 public class DlsTermsLookupAsserts {

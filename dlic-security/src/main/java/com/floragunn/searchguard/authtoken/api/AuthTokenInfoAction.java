@@ -14,7 +14,7 @@
 
 package com.floragunn.searchguard.authtoken.api;
 
-import org.elasticsearch.action.ActionType;
+import org.opensearch.action.ActionType;
 
 public class AuthTokenInfoAction extends ActionType<AuthTokenInfoResponse> {
 

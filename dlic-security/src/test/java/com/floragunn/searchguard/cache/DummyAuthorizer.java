@@ -16,8 +16,8 @@ package com.floragunn.searchguard.cache;
 
 import java.nio.file.Path;
 
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.auth.api.SyncAuthorizationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -36,7 +36,7 @@ public class DummyAuthorizer implements SyncAuthorizationBackend {
     }
 
     @Override
-    public void fillRoles(User user, AuthCredentials credentials) throws ElasticsearchSecurityException {
+    public void fillRoles(User user, AuthCredentials credentials) throws OpenSearchSecurityException {
         count++;
         user.addRole("role_" + user.getName() + "_" + System.currentTimeMillis() + "_" + count);
 

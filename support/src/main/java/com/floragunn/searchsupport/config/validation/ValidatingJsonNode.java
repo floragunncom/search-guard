@@ -15,8 +15,8 @@ import java.util.TimeZone;
 import java.util.function.Function;
 
 import org.apache.commons.validator.routines.EmailValidator;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.script.ScriptService;
+import org.opensearch.common.unit.TimeValue;
+import org.opensearch.script.ScriptService;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;

@@ -3,8 +3,8 @@ package com.floragunn.signals.watch.severity;
 import java.math.BigDecimal;
 import java.util.Map;
 
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.script.ScriptService;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.script.ScriptService;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
