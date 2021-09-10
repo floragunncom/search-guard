@@ -223,7 +223,7 @@ public class TLSConfig implements Document {
             ClientCertAuthConfig clientCertAuthConfig = new ClientCertAuthConfig();
             clientCertAuthConfig.alias = alias;
             clientCertAuthConfig.keyStore = keyStore;
-            clientCertAuthConfig.password = password;
+            clientCertAuthConfig.keyStorePassword = password;
 
             tlsConfig.clientCertAuthConfig = clientCertAuthConfig;
 
