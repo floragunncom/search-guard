@@ -127,7 +127,7 @@ public class OpenIdProviderClient {
                             throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": Empty response entity");
                         }
 
-                        return new OidcProviderConfig(DocReader.readObject(httpEntity.getContent()));
+                        return new OidcProviderConfig(DocReader.json().readObject(httpEntity.getContent()));
                     }
 
                 } catch (IOException e) {
@@ -234,7 +234,7 @@ public class OpenIdProviderClient {
                         }
 
                         try {
-                            Map<String, Object> responseJsonBody = DocReader.readObject(responseBody);
+                            Map<String, Object> responseJsonBody = DocReader.json().readObject(responseBody);
 
                             return new TokenResponse(responseJsonBody);
                         } catch (IOException e) {
