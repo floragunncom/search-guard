@@ -37,6 +37,7 @@ import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
 import com.floragunn.searchsupport.rest.Responses;
+import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
 @Deprecated
 public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthenticator {
@@ -52,7 +53,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
 
     protected KeyProvider initKeyProvider(Settings settings, Path configPath) throws Exception {
 
-        this.proxyConfig = ProxyConfig.parse(settings, "proxy");
+        this.proxyConfig = ProxyConfig.parse(ObjectTreeXContent.toMap(settings), "proxy");
 
         try {
             this.openIdProviderClient = new OpenIdProviderClient(URI.create(settings.get("openid_connect_url")), getSSLConfig(settings, configPath), proxyConfig,
