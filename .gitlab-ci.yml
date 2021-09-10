@@ -52,16 +52,16 @@ build_os:
     - git clone https://github.com/opensearch-project/OpenSearch.git
     - cd OpenSearch
     - ./gradlew publishToMavenLocal
+    - ls -la
+    - ls -la ..
+    - cd ~/.m2
+    - pwd
+    - ls -la
   artifacts:
     when: on_success
     paths:
-      - "*/target"
       - ".m2/repository/org/opensearch/*"
     expire_in: 12h
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
 
 build:
   stage: build
