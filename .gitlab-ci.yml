@@ -20,6 +20,7 @@ before_script:
   - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
 
 stages:
+  - build_os
   - build
   - test
   - package
@@ -38,6 +39,30 @@ workflow:
       when: never
     - when: always
 
+build_os:
+  stage: build_os
+  interruptible: true
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: never
+    - when: always
+  tags:
+    - openstack-runner
+  script:
+    - git clone https://github.com/opensearch-project/OpenSearch.git
+    - cd OpenSearch
+    - ./gradlew publishToMavenLocal
+  artifacts:
+    when: on_success
+    paths:
+      - "*/target"
+      - ".m2/repository/org/opensearch/*"
+    expire_in: 12h
+  cache:
+    key: mavenrepo
+    paths:
+      - .m2/repository
+
 build:
   stage: build
   interruptible: true
@@ -54,6 +79,7 @@ build:
     paths:
       - "*/target"
       - ".m2/repository/com/floragunn/*"
+      - ".m2/repository/org/opensearch/*"
     expire_in: 12h
   cache:
     key: mavenrepo
