@@ -195,7 +195,14 @@
 					<groupId>${project.groupId}</groupId>
 					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
 					<version>${project.version}</version>
-				</dependency>					
+				</dependency>		
+				
+				<!-- necessary for sgadmin-standalone. we should find a different solution for this -->
+				<dependency>
+					<groupId>org.elasticsearch</groupId>
+					<artifactId>elasticsearch</artifactId>
+					<scope>provided</scope>				
+				</dependency>			
 			</dependencies>
 		</profile>
 		<profile>

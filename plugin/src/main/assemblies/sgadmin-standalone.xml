@@ -37,6 +37,7 @@
     <dependencySet>
       <outputDirectory>${file.separator}deps</outputDirectory>
       <useProjectArtifact>false</useProjectArtifact>
+      <useTransitiveDependencies>true</useTransitiveDependencies>
       <unpack>false</unpack>
       <scope>provided</scope>
     </dependencySet>
