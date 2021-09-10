@@ -17,10 +17,10 @@
 
 package com.floragunn.searchguard.auth;
 
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.rest.RestChannel;
+import org.opensearch.rest.RestRequest;
 
 import com.floragunn.searchguard.user.AuthCredentials;
 
@@ -32,7 +32,7 @@ import com.floragunn.searchguard.user.AuthCredentials;
  * 
  * Implementation classes must provide a public constructor
  * <p/>
- * {@code public MyHTTPAuthenticator(org.elasticsearch.common.settings.Settings settings, java.nio.file.Path configPath)}
+ * {@code public MyHTTPAuthenticator(org.opensearch.common.settings.Settings settings, java.nio.file.Path configPath)}
  * <p/>
  * The constructor should not throw any exception in case of an initialization problem.
  * Instead catch all exceptions and log a appropriate error message. A logger can be instantiated like:
@@ -54,9 +54,9 @@ public interface HTTPAuthenticator extends AuthenticationFrontend {
      * <p>
      * When the credentials could be fully extracted from the request {@code .markComplete()} must be called on the {@link AuthCredentials} which are returned.
      * If the authentication flow needs another roundtrip with the request originator do not mark it as complete.
-     * @throws ElasticsearchSecurityException
+     * @throws OpenSearchSecurityException
      */
-    AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException;
+    AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws OpenSearchSecurityException;
     
     /**
      * If the {@code extractCredentials()} call was not successful or the authentication flow needs another roundtrip this method

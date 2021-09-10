@@ -16,7 +16,7 @@ package com.floragunn.searchguard.authtoken;
 
 import java.util.function.Consumer;
 
-import org.elasticsearch.ElasticsearchSecurityException;
+import org.opensearch.OpenSearchSecurityException;
 
 import com.floragunn.searchguard.auth.api.AuthenticationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -41,7 +41,7 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
             authTokenService.getByClaims(credentials.getClaims(), (authToken) -> {
                 
                 if (authToken.isRevoked()) {
-                    onFailure.accept(new ElasticsearchSecurityException("Auth token " + authToken.getId() + " has been revoked"));
+                    onFailure.accept(new OpenSearchSecurityException("Auth token " + authToken.getId() + " has been revoked"));
                 } else if (authToken.getBase().getConfigVersions() == null && authToken.getRequestedPrivileges().isTotalWildcard()) {
                     // This auth token has no restrictions and no snapshotted base. We can use the current roles. Thus, we can completely initialize the user
 
@@ -60,13 +60,13 @@ public class AuthTokenAuthenticationBackend implements AuthenticationBackend {
                             .specialAuthzConfig(authToken.getId()).attributes(authToken.getBase().getAttributes()).authzComplete().build());
                 }
             }, (noSuchAuthTokenException) -> {
-                onFailure.accept(new ElasticsearchSecurityException(noSuchAuthTokenException.getMessage(), noSuchAuthTokenException));
+                onFailure.accept(new OpenSearchSecurityException(noSuchAuthTokenException.getMessage(), noSuchAuthTokenException));
             }, (e) -> {
                 onFailure.accept(e);
             });
 
         } catch (InvalidTokenException e) {
-            onFailure.accept(new ElasticsearchSecurityException(e.getMessage(), e));
+            onFailure.accept(new OpenSearchSecurityException(e.getMessage(), e));
         } catch (Exception e) {
             onFailure.accept(e);
         }

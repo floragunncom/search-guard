@@ -4,7 +4,7 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
-import org.elasticsearch.SpecialPermission;
+import org.opensearch.SpecialPermission;
 import org.simplejavamail.MailException;
 import org.simplejavamail.email.Email;
 import org.simplejavamail.mailer.Mailer;

@@ -2,7 +2,7 @@ package com.floragunn.searchguard.privileges;
 
 import java.util.function.Consumer;
 
-import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.util.concurrent.ThreadContext;
 
 import com.floragunn.searchguard.user.User;
 

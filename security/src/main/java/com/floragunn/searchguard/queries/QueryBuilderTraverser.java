@@ -23,26 +23,26 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import org.elasticsearch.common.xcontent.DeprecationHandler;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.index.query.AbstractQueryBuilder;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.BoostingQueryBuilder;
-import org.elasticsearch.index.query.ConstantScoreQueryBuilder;
-import org.elasticsearch.index.query.DisMaxQueryBuilder;
-import org.elasticsearch.index.query.FieldMaskingSpanQueryBuilder;
-import org.elasticsearch.index.query.NestedQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.SpanContainingQueryBuilder;
-import org.elasticsearch.index.query.SpanFirstQueryBuilder;
-import org.elasticsearch.index.query.SpanMultiTermQueryBuilder;
-import org.elasticsearch.index.query.SpanNearQueryBuilder;
-import org.elasticsearch.index.query.SpanNotQueryBuilder;
-import org.elasticsearch.index.query.SpanOrQueryBuilder;
-import org.elasticsearch.index.query.SpanWithinQueryBuilder;
-import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
+import org.opensearch.common.xcontent.DeprecationHandler;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.common.xcontent.json.JsonXContent;
+import org.opensearch.index.query.AbstractQueryBuilder;
+import org.opensearch.index.query.BoolQueryBuilder;
+import org.opensearch.index.query.BoostingQueryBuilder;
+import org.opensearch.index.query.ConstantScoreQueryBuilder;
+import org.opensearch.index.query.DisMaxQueryBuilder;
+import org.opensearch.index.query.FieldMaskingSpanQueryBuilder;
+import org.opensearch.index.query.NestedQueryBuilder;
+import org.opensearch.index.query.QueryBuilder;
+import org.opensearch.index.query.SpanContainingQueryBuilder;
+import org.opensearch.index.query.SpanFirstQueryBuilder;
+import org.opensearch.index.query.SpanMultiTermQueryBuilder;
+import org.opensearch.index.query.SpanNearQueryBuilder;
+import org.opensearch.index.query.SpanNotQueryBuilder;
+import org.opensearch.index.query.SpanOrQueryBuilder;
+import org.opensearch.index.query.SpanWithinQueryBuilder;
+import org.opensearch.index.query.functionscore.FunctionScoreQueryBuilder;
 
 public abstract class QueryBuilderTraverser {
 

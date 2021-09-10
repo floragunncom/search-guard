@@ -2,7 +2,7 @@ package com.floragunn.searchsupport.jobs.cluster;
 
 import java.util.Comparator;
 
-import org.elasticsearch.cluster.service.ClusterService;
+import org.opensearch.cluster.service.ClusterService;
 
 public class NodeIdComparator implements NodeComparator<String> {
 

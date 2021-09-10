@@ -2,7 +2,7 @@ package com.floragunn.signals.script;
 
 import java.util.Map;
 
-import org.elasticsearch.script.JodaCompatibleZonedDateTime;
+import org.opensearch.script.JodaCompatibleZonedDateTime;
 
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionContextData;

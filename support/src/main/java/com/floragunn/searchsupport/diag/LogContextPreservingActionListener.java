@@ -1,8 +1,8 @@
 /*
  * Includes code from the following Apache 2 licensed files from Elasticsearch 7.10.2:
  * 
- * - /server/src/main/java/org/elasticsearch/action/support/ContextPreservingActionListener.java
- *    https://github.com/elastic/elasticsearch/blob/7.10/server/src/main/java/org/elasticsearch/action/support/ContextPreservingActionListener.java
+ * - /server/src/main/java/org.opensearch/action/support/ContextPreservingActionListener.java
+ *    https://github.com/elastic/elasticsearch/blob/7.10/server/src/main/java/org.opensearch/action/support/ContextPreservingActionListener.java
  * 
  * Original license notice for all of the noted files:
  *
@@ -30,12 +30,12 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.CloseableThreadContext;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.ContextPreservingActionListener;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.support.ContextPreservingActionListener;
+import org.opensearch.common.util.concurrent.ThreadContext;
 
 /**
- * Restores the given {@link org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext} and the given Log4j thread context
+ * Restores the given {@link org.opensearch.common.util.concurrent.ThreadContext.StoredContext} and the given Log4j thread context
  * once the listener is invoked
  */
 public final class LogContextPreservingActionListener<R> implements ActionListener<R> {

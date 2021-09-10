@@ -8,29 +8,29 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.DocWriteResponse;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.indices.ResizeRequest;
-import org.elasticsearch.client.indices.ResizeResponse;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.script.ScriptType;
-import org.elasticsearch.script.mustache.SearchTemplateRequest;
-import org.elasticsearch.script.mustache.SearchTemplateResponse;
+import org.opensearch.OpenSearchStatusException;
+import org.opensearch.action.DocWriteResponse;
+import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
+import org.opensearch.action.admin.indices.exists.indices.IndicesExistsRequest;
+import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.index.IndexResponse;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.action.support.WriteRequest.RefreshPolicy;
+import org.opensearch.client.Client;
+import org.opensearch.client.RequestOptions;
+import org.opensearch.client.RestHighLevelClient;
+import org.opensearch.client.indices.ResizeRequest;
+import org.opensearch.client.indices.ResizeResponse;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.rest.RestStatus;
+import org.opensearch.script.ScriptType;
+import org.opensearch.script.mustache.SearchTemplateRequest;
+import org.opensearch.script.mustache.SearchTemplateResponse;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -304,7 +304,7 @@ public class PrivilegesEvaluatorTest {
                 client.index(new IndexRequest("write_exclude_test_disallow_1").source("a", "b"), RequestOptions.DEFAULT);
 
                 Assert.fail();
-            } catch (ElasticsearchStatusException e) {
+            } catch (OpenSearchStatusException e) {
                 Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/write/index]"));
             }
@@ -383,7 +383,7 @@ public class PrivilegesEvaluatorTest {
                 client.index(new IndexRequest("write_exclude_test_disallow_1").source("a", "b"), RequestOptions.DEFAULT);
 
                 Assert.fail();
-            } catch (ElasticsearchStatusException e) {
+            } catch (OpenSearchStatusException e) {
                 Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/write/index]"));
             }
@@ -456,7 +456,7 @@ public class PrivilegesEvaluatorTest {
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
             client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT);
             Assert.fail();
-        } catch (ElasticsearchStatusException e) {
+        } catch (OpenSearchStatusException e) {
             // Expected
             Assert.assertTrue(e.toString(),
                     e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user_without_create_index_priv"));
@@ -465,7 +465,7 @@ public class PrivilegesEvaluatorTest {
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
             client.indices().shrink(new ResizeRequest(targetIndex, sourceIndex), RequestOptions.DEFAULT);
             Assert.fail();
-        } catch (ElasticsearchStatusException e) {
+        } catch (OpenSearchStatusException e) {
             // Expected
             Assert.assertTrue(e.toString(),
                     e.getMessage().contains("no permissions for [indices:admin/create] and User resize_user_without_create_index_priv"));
@@ -474,7 +474,7 @@ public class PrivilegesEvaluatorTest {
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
             client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT);
             Assert.fail();
-        } catch (ElasticsearchStatusException e) {
+        } catch (OpenSearchStatusException e) {
             // Expected
             Assert.assertTrue(e.toString(), e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user"));
         }
@@ -510,7 +510,7 @@ public class PrivilegesEvaluatorTest {
             SearchResponse searchResponse = searchTemplateResponse.getResponse();
 
             Assert.fail(searchResponse.toString());
-        } catch (ElasticsearchStatusException e) {
+        } catch (OpenSearchStatusException e) {
             Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
         }
     }
@@ -535,7 +535,7 @@ public class PrivilegesEvaluatorTest {
             SearchResponse searchResponse = searchTemplateResponse.getResponse();
 
             Assert.fail(searchResponse.toString());
-        } catch (ElasticsearchStatusException e) {
+        } catch (OpenSearchStatusException e) {
             Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
         }
     }

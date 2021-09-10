@@ -17,14 +17,14 @@
 
 package com.floragunn.searchguard.action.configupdate;
 
-import org.elasticsearch.action.ActionType;
-import org.elasticsearch.action.support.nodes.NodesOperationRequestBuilder;
-import org.elasticsearch.client.ElasticsearchClient;
+import org.opensearch.action.ActionType;
+import org.opensearch.action.support.nodes.NodesOperationRequestBuilder;
+import org.opensearch.client.OpenSearchClient;
 
 public class ConfigUpdateRequestBuilder extends
 NodesOperationRequestBuilder<ConfigUpdateRequest, ConfigUpdateResponse, ConfigUpdateRequestBuilder> {
 
-    protected ConfigUpdateRequestBuilder(ElasticsearchClient client, ActionType<ConfigUpdateResponse> action) {
+    protected ConfigUpdateRequestBuilder(OpenSearchClient client, ActionType<ConfigUpdateResponse> action) {
         super(client, action, new ConfigUpdateRequest());
     }
 

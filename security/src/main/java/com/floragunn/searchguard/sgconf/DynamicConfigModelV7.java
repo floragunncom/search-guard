@@ -17,8 +17,8 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.function.Supplier;
 
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentType;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.xcontent.XContentType;
 
 import com.floragunn.codova.validation.ConfigVariableProviders;
 import com.floragunn.searchguard.auth.AuthFailureListener;

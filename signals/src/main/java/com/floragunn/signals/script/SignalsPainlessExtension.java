@@ -7,10 +7,10 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.painless.spi.PainlessExtension;
-import org.elasticsearch.painless.spi.Whitelist;
-import org.elasticsearch.painless.spi.WhitelistLoader;
-import org.elasticsearch.script.ScriptContext;
+import org.opensearch.painless.spi.PainlessExtension;
+import org.opensearch.painless.spi.Whitelist;
+import org.opensearch.painless.spi.WhitelistLoader;
+import org.opensearch.script.ScriptContext;
 
 import com.floragunn.signals.SignalsModule;
 

@@ -40,11 +40,11 @@ import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.protocol.HttpContext;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.opensearch.client.Client;
+import org.opensearch.client.RestClient;
+import org.opensearch.client.RestClientBuilder;
+import org.opensearch.client.RestClientBuilder.HttpClientConfigCallback;
+import org.opensearch.client.RestHighLevelClient;
 
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 

@@ -1,6 +1,6 @@
 package com.floragunn.signals.actions.watch.get;
 
-import org.elasticsearch.action.ActionType;
+import org.opensearch.action.ActionType;
 
 public class GetWatchAction extends ActionType<GetWatchResponse> {
 

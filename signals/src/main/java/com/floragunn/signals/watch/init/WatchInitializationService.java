@@ -6,12 +6,12 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptContext;
-import org.elasticsearch.script.ScriptException;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.script.ScriptType;
-import org.elasticsearch.script.TemplateScript;
+import org.opensearch.script.Script;
+import org.opensearch.script.ScriptContext;
+import org.opensearch.script.ScriptException;
+import org.opensearch.script.ScriptService;
+import org.opensearch.script.ScriptType;
+import org.opensearch.script.TemplateScript;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.validation.ValidationErrors;

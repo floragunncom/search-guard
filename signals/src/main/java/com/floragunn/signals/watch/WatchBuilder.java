@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.opensearch.action.support.WriteRequest.RefreshPolicy;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.TimeOfDay;

@@ -1,7 +1,7 @@
 
 package com.floragunn.signals.actions.watch.state.get;
 
-import org.elasticsearch.action.ActionType;
+import org.opensearch.action.ActionType;
 
 public class GetWatchStateAction extends ActionType<GetWatchStateResponse> {
     public static final GetWatchStateAction INSTANCE = new GetWatchStateAction();

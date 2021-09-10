@@ -34,7 +34,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.ElasticsearchException;
+import org.opensearch.OpenSearchException;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer;
 import com.floragunn.searchguard.user.User;
@@ -55,7 +55,7 @@ public class Base64Helper {
             final byte[] bytes = bos.toByteArray();
             return BaseEncoding.base64().encode(bytes);
         } catch (final Exception e) {
-            throw new ElasticsearchException(e.toString());
+            throw new OpenSearchException(e.toString());
         }
     }
 
@@ -73,7 +73,7 @@ public class Base64Helper {
             in = new SafeObjectInputStream(bis); //NOSONAR
             return (Serializable) in.readObject();
         } catch (final Exception e) {
-            throw new ElasticsearchException(e);
+            throw new OpenSearchException(e);
         } finally {
             if (in != null) {
                 try {

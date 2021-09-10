@@ -1,6 +1,6 @@
 package com.floragunn.signals.support;
 
-import org.elasticsearch.common.xcontent.ToXContent;
+import org.opensearch.common.xcontent.ToXContent;
 
 import com.google.common.collect.ImmutableMap;
 

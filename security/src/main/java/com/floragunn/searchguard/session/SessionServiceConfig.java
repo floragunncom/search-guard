@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.elasticsearch.common.xcontent.XContentType;
+import org.opensearch.common.xcontent.XContentType;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;

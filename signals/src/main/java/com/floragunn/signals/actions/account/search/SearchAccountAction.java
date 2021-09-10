@@ -1,6 +1,6 @@
 package com.floragunn.signals.actions.account.search;
 
-import org.elasticsearch.action.ActionType;
+import org.opensearch.action.ActionType;
 
 public class SearchAccountAction extends ActionType<SearchAccountResponse> {
 

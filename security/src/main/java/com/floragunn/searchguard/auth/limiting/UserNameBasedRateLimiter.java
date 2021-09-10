@@ -20,7 +20,7 @@ package com.floragunn.searchguard.auth.limiting;
 import java.net.InetAddress;
 import java.nio.file.Path;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;

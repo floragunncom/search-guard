@@ -2,7 +2,7 @@ package com.floragunn.signals.script.types;
 
 import java.util.Map;
 
-import org.elasticsearch.script.ScriptContext;
+import org.opensearch.script.ScriptContext;
 
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.script.SignalsScript;

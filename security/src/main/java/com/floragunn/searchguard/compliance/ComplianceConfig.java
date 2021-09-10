@@ -30,14 +30,14 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
-import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.env.Environment;
+import org.opensearch.OpenSearchException;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
+import org.opensearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
+import org.opensearch.client.Client;
+import org.opensearch.common.Strings;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.env.Environment;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -116,7 +116,7 @@ public class ComplianceConfig implements LicenseChangeListener, DCFListener {
         }
         
         if(saltAsBytes.length < 16) {
-            throw new ElasticsearchException(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT+" must at least contain 16 bytes");
+            throw new OpenSearchException(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT+" must at least contain 16 bytes");
         }
         
         if(saltAsBytes.length > 16) {

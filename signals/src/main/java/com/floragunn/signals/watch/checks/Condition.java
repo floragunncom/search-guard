@@ -4,11 +4,11 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptContext;
-import org.elasticsearch.script.ScriptException;
-import org.elasticsearch.script.ScriptType;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.script.Script;
+import org.opensearch.script.ScriptContext;
+import org.opensearch.script.ScriptException;
+import org.opensearch.script.ScriptType;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.validation.ConfigValidationException;

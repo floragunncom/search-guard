@@ -22,40 +22,40 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.DocWriteRequest.OpType;
-import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.bulk.BulkItemRequest;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkShardRequest;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.MultiSearchRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
-import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.index.engine.VersionConflictEngineException;
-import org.elasticsearch.index.reindex.DeleteByQueryRequest;
-import org.elasticsearch.index.reindex.UpdateByQueryRequest;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.action.DocWriteRequest.OpType;
+import org.opensearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.opensearch.action.admin.indices.close.CloseIndexRequest;
+import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.opensearch.action.bulk.BulkItemRequest;
+import org.opensearch.action.bulk.BulkRequest;
+import org.opensearch.action.bulk.BulkShardRequest;
+import org.opensearch.action.delete.DeleteRequest;
+import org.opensearch.action.get.GetRequest;
+import org.opensearch.action.get.MultiGetRequest;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.search.MultiSearchRequest;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.support.ActionFilter;
+import org.opensearch.action.support.ActionFilterChain;
+import org.opensearch.action.support.master.MasterNodeRequest;
+import org.opensearch.action.update.UpdateRequest;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.collect.Tuple;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.index.engine.VersionConflictEngineException;
+import org.opensearch.index.reindex.DeleteByQueryRequest;
+import org.opensearch.index.reindex.UpdateByQueryRequest;
+import org.opensearch.rest.RestStatus;
+import org.opensearch.tasks.Task;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
@@ -130,11 +130,11 @@ public class SearchGuardFilter implements ActionFilter {
                         apply0(task, action, request, listener, chain, specialPrivilegesEvaluationContext);
                     } catch (Exception e) {
                         log.error(e);
-                        listener.onFailure(new ElasticsearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR, e));
+                        listener.onFailure(new OpenSearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR, e));
                     }
                 }, (e) -> {
                     log.error(e);
-                    listener.onFailure(new ElasticsearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR, e));
+                    listener.onFailure(new OpenSearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR, e));
                 });
     }
 
@@ -273,7 +273,7 @@ public class SearchGuardFilter implements ActionFilter {
                 log.error("No user found for " + action + " from " + request.remoteAddress() + " "
                         + threadContext.getTransient(ConfigConstants.SG_ORIGIN) + " via "
                         + threadContext.getTransient(ConfigConstants.SG_CHANNEL_TYPE) + " " + threadContext.getHeaders());
-                listener.onFailure(new ElasticsearchSecurityException("No user found for " + action, RestStatus.INTERNAL_SERVER_ERROR));
+                listener.onFailure(new OpenSearchSecurityException("No user found for " + action, RestStatus.INTERNAL_SERVER_ERROR));
                 return;
             }
 
@@ -281,7 +281,7 @@ public class SearchGuardFilter implements ActionFilter {
 
             if (!eval.isInitialized()) {
                 log.error("Search Guard not initialized (SG11) for {}", action);
-                listener.onFailure(new ElasticsearchSecurityException(
+                listener.onFailure(new OpenSearchSecurityException(
                         "Search Guard not initialized (SG11) for " + action + ". See https://docs.search-guard.com/latest/sgadmin",
                         RestStatus.SERVICE_UNAVAILABLE));
                 return;
@@ -324,13 +324,13 @@ public class SearchGuardFilter implements ActionFilter {
             } else {
                 auditLog.logMissingPrivileges(action, request, task);
                 log.debug("no permissions for {}", pres.getMissingPrivileges());
-                listener.onFailure(new ElasticsearchSecurityException("no permissions for " + pres.getMissingPrivileges() + " and " + user,
+                listener.onFailure(new OpenSearchSecurityException("no permissions for " + pres.getMissingPrivileges() + " and " + user,
                         RestStatus.FORBIDDEN));
                 return;
             }
         } catch (Throwable e) {
             log.error("Unexpected exception " + e, e);
-            listener.onFailure(new ElasticsearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR));
+            listener.onFailure(new OpenSearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR));
             return;
         }
     }
@@ -386,7 +386,7 @@ public class SearchGuardFilter implements ActionFilter {
 
             if (e instanceof VersionConflictEngineException) {
                 auditLog.logImmutableIndexAttempt(originalRequest, action, task);
-                originalListener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
+                originalListener.onFailure(new OpenSearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
             } else {
                 originalListener.onFailure(e);
             }
@@ -418,7 +418,7 @@ public class SearchGuardFilter implements ActionFilter {
 
                 auditLog.logImmutableIndexAttempt(originalRequest, action, task);
 
-                originalListener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
+                originalListener.onFailure(new OpenSearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
                 return new Tuple<ImmutableState, ActionListener>(ImmutableState.FAILURE, originalListener);
             }
         }

@@ -17,8 +17,8 @@
 
 package com.floragunn.searchguard.configuration;
 
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.Strings;
+import org.opensearch.common.xcontent.ToXContentObject;
 
 import com.floragunn.codova.documents.DocWriter;
 import com.google.common.collect.ImmutableMap;

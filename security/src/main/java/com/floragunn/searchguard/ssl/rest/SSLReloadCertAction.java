@@ -23,17 +23,17 @@ import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
-import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.rest.*;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.client.node.NodeClient;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.rest.*;
+import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.opensearch.rest.RestRequest.Method.POST;
 
 public class SSLReloadCertAction extends BaseRestHandler {
     private static final List<Route> routes = Collections.singletonList(new Route(POST, "_searchguard/api/ssl/{certType}/reloadcerts/"));

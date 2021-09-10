@@ -22,11 +22,11 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.transport.Netty4Plugin;
+import org.opensearch.client.transport.TransportClient;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.plugins.Plugin;
+import org.opensearch.transport.Netty4Plugin;
 
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.test.helper.file.FileHelper;

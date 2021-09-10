@@ -17,7 +17,7 @@ import javax.net.ssl.SSLSocketFactory;
 import com.unboundid.util.ssl.HostNameSSLSocketVerifier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;

@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.privileges;
 
-import org.elasticsearch.action.ActionRequest;
+import org.opensearch.action.ActionRequest;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.SgRoles;

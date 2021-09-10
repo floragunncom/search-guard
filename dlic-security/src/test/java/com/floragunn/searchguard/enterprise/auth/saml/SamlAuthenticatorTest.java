@@ -19,7 +19,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.elasticsearch.common.xcontent.XContentType;
+import org.opensearch.common.xcontent.XContentType;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;

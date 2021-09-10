@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.configuration;
 
-import org.elasticsearch.action.get.MultiGetResponse.Failure;
+import org.opensearch.action.get.MultiGetResponse.Failure;
 
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;

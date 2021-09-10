@@ -28,8 +28,8 @@
 	<!-- provided scoped deps -->
 
 	<dependency>
-		<groupId>org.elasticsearch</groupId>
-		<artifactId>elasticsearch</artifactId>
+		<groupId>org.opensearch</groupId>
+		<artifactId>opensearch</artifactId>
 		<scope>provided</scope>
 	</dependency>
 
@@ -40,7 +40,7 @@
 	</dependency>
 
 	<dependency>
-		<groupId>org.elasticsearch.plugin</groupId>
+		<groupId>org.opensearch.plugin</groupId>
 		<artifactId>lang-mustache-client</artifactId>
 		<scope>provided</scope>
 	</dependency>
@@ -99,13 +99,13 @@
 
 		<!--  only for LocalCluster. We should clean up the source code to have only one LocalCluster -->
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>transport-netty4-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<exclusions>
 				<exclusion>
 					<artifactId>jna</artifactId>
-					<groupId>org.elasticsearch</groupId>
+					<groupId>org.opensearch</groupId>
 				</exclusion>
 				<exclusion>
 					<artifactId>jts</artifactId>

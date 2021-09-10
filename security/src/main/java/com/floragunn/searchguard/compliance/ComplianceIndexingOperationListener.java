@@ -17,8 +17,8 @@
 
 package com.floragunn.searchguard.compliance;
 
-import org.elasticsearch.index.IndexService;
-import org.elasticsearch.index.shard.IndexingOperationListener;
+import org.opensearch.index.IndexService;
+import org.opensearch.index.shard.IndexingOperationListener;
 
 /**
  * noop impl

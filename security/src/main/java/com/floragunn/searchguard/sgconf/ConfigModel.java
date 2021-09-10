@@ -21,7 +21,7 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.Set;
 
-import org.elasticsearch.common.transport.TransportAddress;
+import org.opensearch.common.transport.TransportAddress;
 
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.user.User;

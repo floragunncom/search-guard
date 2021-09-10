@@ -20,9 +20,9 @@ package com.floragunn.searchguard;
 import java.io.File;
 
 import org.apache.commons.io.FileUtils;
-import org.elasticsearch.common.Strings;
 import org.junit.Assert;
 import org.junit.Test;
+import org.opensearch.common.Strings;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

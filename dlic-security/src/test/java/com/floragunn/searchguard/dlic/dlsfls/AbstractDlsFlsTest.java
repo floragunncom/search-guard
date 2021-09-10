@@ -14,8 +14,8 @@
 
 package com.floragunn.searchguard.dlic.dlsfls;
 
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.client.transport.TransportClient;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.DynamicSgConfig;

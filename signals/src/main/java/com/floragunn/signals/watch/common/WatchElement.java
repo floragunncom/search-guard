@@ -4,8 +4,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.script.TemplateScript;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.script.TemplateScript;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.signals.execution.WatchExecutionContext;

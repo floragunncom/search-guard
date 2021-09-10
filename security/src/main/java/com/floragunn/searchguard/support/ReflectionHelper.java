@@ -32,18 +32,18 @@ import java.util.jar.Manifest;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.index.IndexService;
-import org.elasticsearch.rest.RestController;
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.OpenSearchException;
+import org.opensearch.client.Client;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.index.IndexService;
+import org.opensearch.rest.RestController;
+import org.opensearch.rest.RestHandler;
+import org.opensearch.script.ScriptService;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -327,7 +327,7 @@ public class ReflectionHelper {
     public static <T> T instantiateAAA(final String clazz, final Settings settings, final Path configPath, final boolean checkEnterprise) throws ConfigValidationException {
 
         if (checkEnterprise && enterpriseModulesDisabled()) {
-            throw new ElasticsearchException("Can not load '{}' because enterprise modules are disabled", clazz);
+            throw new OpenSearchException("Can not load '{}' because enterprise modules are disabled", clazz);
         }
 
         try {
@@ -345,14 +345,14 @@ public class ReflectionHelper {
                 if (log.isDebugEnabled()) {
                     log.debug("Stacktrace: ", e);
                 }
-                throw new ElasticsearchException(e);
+                throw new OpenSearchException(e);
             }
         } catch (final Throwable e) {
             log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
             if (log.isDebugEnabled()) {
                 log.debug("Stacktrace: ", e);
             }
-            throw new ElasticsearchException(e);
+            throw new OpenSearchException(e);
         }
     }
     
@@ -360,7 +360,7 @@ public class ReflectionHelper {
     public static <T> T instantiateAAA(String clazz, Map<String, Object> config, AuthenticationFrontend.Context context, boolean checkEnterprise) throws ConfigValidationException, ClassNotFoundException {
 
         if (checkEnterprise && enterpriseModulesDisabled()) {
-            throw new ElasticsearchException("Can not load '{}' because enterprise modules are disabled", clazz);
+            throw new OpenSearchException("Can not load '{}' because enterprise modules are disabled", clazz);
         }
 
         try {
@@ -392,14 +392,14 @@ public class ReflectionHelper {
                 if (log.isDebugEnabled()) {
                     log.debug("Stacktrace: ", e);
                 }
-                throw new ElasticsearchException(e);
+                throw new OpenSearchException(e);
             }
         } catch (final Throwable e) {
             log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
             if (log.isDebugEnabled()) {
                 log.debug("Stacktrace: ", e);
             }
-            throw new ElasticsearchException(e);
+            throw new OpenSearchException(e);
         }
     }
 
