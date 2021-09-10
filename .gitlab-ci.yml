@@ -51,12 +51,7 @@ build_os:
   script:
     - git clone https://github.com/opensearch-project/OpenSearch.git
     - cd OpenSearch
-    - ./gradlew publishToMavenLocal
-    - ls -la
-    - ls -la ..
-    - cd ~/.m2
-    - pwd
-    - ls -la
+    - ./gradlew publishToMavenLocal -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository
   artifacts:
     when: on_success
     paths:
