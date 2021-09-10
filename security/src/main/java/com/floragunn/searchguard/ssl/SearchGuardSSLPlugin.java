@@ -113,7 +113,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             AccessController.doPrivileged(new PrivilegedAction<Object>() {
                 @Override
                 public Object run() {
-                    System.setProperty("es.set.netty.runtime.available.processors", "false");
+                    System.setProperty("opensearch.set.netty.runtime.available.processors", "false");
                     return null;
                 }
             });
@@ -173,7 +173,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
-                System.setProperty("es.set.netty.runtime.available.processors", "false");
+                System.setProperty("opensearch.set.netty.runtime.available.processors", "false");
                 PlatformDependent.newFixedMpscQueue(1);
                 return null;
             }
