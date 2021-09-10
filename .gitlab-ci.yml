@@ -49,7 +49,7 @@ build_os:
   tags:
     - openstack-runner
   script:
-    - git clone https://github.com/opensearch-project/OpenSearch.git
+    - git clone --depth 1 --branch 1.0.0 https://github.com/opensearch-project/OpenSearch.git
     - cd OpenSearch
     - ./gradlew publishToMavenLocal -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository
   artifacts:

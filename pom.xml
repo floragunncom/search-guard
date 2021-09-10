@@ -20,7 +20,7 @@
 	<name>Search Guard Suite - Parent</name>
 
 	<properties>
-		<opensearch.version>1.1.0-SNAPSHOT</opensearch.version>
+		<opensearch.version>1.0.0</opensearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
 		<revision>${opensearch.version}-${sg-suite.version}</revision>
 
