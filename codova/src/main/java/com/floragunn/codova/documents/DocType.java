@@ -24,6 +24,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -32,11 +34,21 @@ public class DocType {
     private static List<DocType> registeredDocTypes = new ArrayList<>();
     private static Map<String, DocType> registeredDocTypesByContentType = new HashMap<>();
 
-    public static DocType JSON = new DocType(new JsonFactory(), "application/json");
-    public static DocType YAML = new DocType(new YAMLFactory(), "application/x-yaml", "application/yaml", "text/yaml", "text/x-yaml",
+    public static DocType JSON = new DocType(new JsonFactory(), "json", "application/json");
+    public static DocType YAML = new DocType(new YAMLFactory(), "ya?ml", "application/x-yaml", "application/yaml", "text/yaml", "text/x-yaml",
             "text/vnd.yaml");
 
     public static DocType getByContentType(String contentType) throws UnknownContentTypeException {
+        DocType result = peekByContentType(contentType);
+
+        if (result != null) {
+            return result;
+        } else {
+            throw new UnknownContentTypeException(contentType);
+        }
+    }
+
+    public static DocType peekByContentType(String contentType) {
         int paramSeparator = contentType.indexOf(';');
 
         if (paramSeparator != -1) {
@@ -48,8 +60,24 @@ public class DocType {
         if (result != null) {
             return result;
         } else {
-            throw new UnknownContentTypeException(contentType);
+            return null;
         }
+    }
+    
+    public static DocType getByFileName(String fileName, DocType fallbackDocType) {
+        for (DocType docType : registeredDocTypes) {
+            if (docType.fileNamePattern == null) {
+                continue;
+            }
+            
+            Matcher matcher = docType.fileNamePattern.matcher(fileName);
+            
+            if (matcher.matches()) {
+                return docType;
+            }
+        }
+        
+        return fallbackDocType;
     }
 
     private static void register(DocType docType) {
@@ -64,11 +92,13 @@ public class DocType {
     private final String contentType;
     private final Set<String> contentTypeAliases;
     private final JsonFactory jsonFactory;
+    private final Pattern fileNamePattern;
 
-    public DocType(JsonFactory jsonFactory, String contentType, String... contentTypeAliases) {
+    public DocType(JsonFactory jsonFactory, String fileNameSuffixPattern, String contentType, String... contentTypeAliases) {
         this.contentType = contentType;
         this.jsonFactory = jsonFactory;
         this.contentTypeAliases = new HashSet<>(Arrays.asList(contentTypeAliases));
+        this.fileNamePattern = fileNameSuffixPattern != null ? Pattern.compile("\\." + fileNameSuffixPattern + "$", Pattern.CASE_INSENSITIVE) : null;
 
         register(this);
     }
