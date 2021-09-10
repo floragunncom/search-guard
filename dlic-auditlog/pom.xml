@@ -60,24 +60,25 @@
 			<scope>provided</scope>				
 		</dependency>		
 
-		<!-- Security Test -->
-		<dependency>
-			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
-			<classifier>tests</classifier>
-			<scope>test</scope>
-		</dependency>
-
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-slf4j-impl</artifactId>
 			<version>${log4j.version}</version>
+			<scope>provided</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.logging.log4j</groupId>
 					<artifactId>log4j-api</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!-- Security Test -->
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security</artifactId>
+			<classifier>tests</classifier>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>

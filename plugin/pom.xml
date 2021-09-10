@@ -190,6 +190,12 @@
 					<artifactId>dlic-search-guard-suite-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
+								
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
+					<version>${project.version}</version>
+				</dependency>					
 			</dependencies>
 		</profile>
 		<profile>
@@ -262,6 +268,12 @@
 					<artifactId>dlic-search-guard-suite-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
+				
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
+					<version>${project.version}</version>
+				</dependency>				
 			</dependencies>
 		</profile>
 	</profiles>
