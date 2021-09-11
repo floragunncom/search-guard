@@ -148,7 +148,7 @@ public class SgDynamicConfiguration<T> implements ToXContent {
         
         if(version >= 2 && sdc.get_sg_meta() == null) {
             throw new ConfigValidationException(
-                    new ValidationError("_sg_meta", "A version of " + version + " can not have a _sg_meta key for " + ctype));
+                    new ValidationError("_sg_meta", "A version of " + version + " must have a _sg_meta key for " + ctype));
         }
         
         if(version < 2 && ctype == CType.CONFIG && (sdc.getCEntries().size() != 1 || !sdc.getCEntries().keySet().contains("searchguard"))) {
