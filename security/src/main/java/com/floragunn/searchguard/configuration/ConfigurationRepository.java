@@ -98,6 +98,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public final static Map<String, ?> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap.of("encoded_config",
             ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
 
+    private final static Map<String, ?> SG_INDEX_SETTINGS = ImmutableMap.of("index.number_of_shards", 1, "index.auto_expand_replicas", "0-all");    
+    
     private ConfigurationRepository(Settings settings, final Path configPath, ThreadPool threadPool, 
             Client client, ClusterService clusterService, AuditLog auditLog, ComplianceConfig complianceConfig) {
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
@@ -137,12 +139,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
                                     threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
                                     LOGGER.info("Will create {} index so we can apply default config", searchguardIndex);
 
-                                    Map<String, Object> indexSettings = new HashMap<>();
-                                    indexSettings.put("index.number_of_shards", 1);
-                                    indexSettings.put("index.auto_expand_replicas", "0-all");
-
                                     boolean ok = client.admin().indices().create(
-                                            new CreateIndexRequest(searchguardIndex).settings(indexSettings).mapping("_doc", SG_INDEX_MAPPING))
+                                            new CreateIndexRequest(searchguardIndex).settings(SG_INDEX_SETTINGS).mapping("_doc", SG_INDEX_MAPPING))
                                             .actionGet().isAcknowledged();
 
                                     LOGGER.info("Index {} created?: {}", searchguardIndex, ok);
@@ -415,6 +413,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             
             return retVal;
     }
+
 
     private Map<CType, SgDynamicConfiguration<?>> validate(Map<CType, SgDynamicConfiguration<?>> conf, int expectedSize) throws InvalidConfigException {
 
