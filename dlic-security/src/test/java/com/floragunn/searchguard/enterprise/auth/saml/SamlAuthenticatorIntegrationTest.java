@@ -1,3 +1,17 @@
+/*
+ * Copyright 2016-2021 by floragunn GmbH - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
+
 package com.floragunn.searchguard.enterprise.auth.saml;
 
 import java.security.Security;
@@ -41,7 +55,7 @@ public class SamlAuthenticatorIntegrationTest {
         mockSamlIdpServer.setEndpointQueryString(null);
 
         TestSgConfig testSgConfig = new TestSgConfig().resources("saml")
-                .frontendAuthcz(new TestSgConfig.FrontendAuthcz("saml").label("SAML Label").config("roles_key", "roles", "idp.metadata_url",
+                .frontendAuthcz(new TestSgConfig.FrontendAuthcz("saml").label("SAML Label").config("user_mapping.roles", "roles", "idp.metadata_url",
                         mockSamlIdpServer.getMetadataUri(), "idp.entity_id", mockSamlIdpServer.getIdpEntityId()));
 
         cluster = new LocalCluster.Builder().sslEnabled().singleNode().resources("saml").sgConfig(testSgConfig).build();
@@ -75,7 +89,7 @@ public class SamlAuthenticatorIntegrationTest {
             HttpResponse response = client.get("/_searchguard/auth/config?next_url=/abc/def&frontend_base_url=" + FRONTEND_BASE_URL);
 
             System.out.println(response.getBody());
-            
+
             String ssoLocation = response.toJsonNode().path("auth_methods").path(0).path("sso_location").textValue();
             String ssoContext = response.toJsonNode().path("auth_methods").path(0).path("sso_context").textValue();
             String id = response.toJsonNode().path("auth_methods").path(0).path("id").textValue();

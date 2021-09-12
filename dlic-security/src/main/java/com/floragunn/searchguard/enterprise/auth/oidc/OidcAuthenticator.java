@@ -19,6 +19,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +44,6 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.Roles;
 import com.floragunn.searchguard.auth.AuthczResult;
@@ -75,9 +75,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
     private KeyProvider keyProvider;
     private JwtVerifier jwtVerifier;
-    private final String subjectKey;
     private final Pattern subjectPattern;
-    private final String rolesKey;
     private final JsonPath jsonSubjectPath;
     private final JsonPath jsonRolesPath;
     private final String logoutUrl;
@@ -99,27 +97,15 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             validationErrors.add(null, e);
         }
 
-        rolesKey = vNode.get("roles_key").asString();
-        subjectKey = vNode.get("subject_key").asString();
-        jsonRolesPath = vNode.get("roles_path").asJsonPath();
-        jsonSubjectPath = vNode.get("subject_path").asJsonPath();
+        jsonRolesPath = vNode.get("user_mapping.roles").required().asJsonPath();
+        jsonSubjectPath = vNode.get("user_mapping.subject").asJsonPath();
+        subjectPattern = vNode.get("user_mapping.subject_pattern").asPattern();
         logoutUrl = vNode.get("logout_url").asString();
-        subjectPattern = vNode.get("subject_pattern").asPattern();
-
-        if (subjectKey != null && jsonSubjectPath != null) {
-            validationErrors.add(
-                    new ValidationError("subject_key", "subject_key and subject_path have been both specified. Please specify only one of both."));
-        }
-
-        if (rolesKey != null && jsonRolesPath != null) {
-            validationErrors
-                    .add(new ValidationError("roles_key", "roles_key and roles_path have been both specified. Please specify only one of both."));
-        }
 
         try {
-            attributeMapping = UserAttributes.getAttributeMapping(vNode.get("map_claims_to_user_attrs").asMap());
+            attributeMapping = UserAttributes.getAttributeMapping(vNode.get("user_mapping.attrs").asMap());
         } catch (ConfigValidationException e) {
-            validationErrors.add("map_claims_to_user_attrs", e);
+            validationErrors.add("user_mapping.attrs", e);
         }
 
         validationErrors.throwExceptionForPresentErrors();
@@ -129,7 +115,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         } catch (ConfigValidationException e) {
             validationErrors.add(null, e);
         }
-        
+
         validationErrors.throwExceptionForPresentErrors();
 
         jwtVerifier = new JwtVerifier(keyProvider);
@@ -266,7 +252,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "No subject found in JWT token", debugDetails));
         }
 
-        List<String> roles = Arrays.asList(extractRoles(claims, debugDetails));
+        List<String> roles = extractRoles(claims, debugDetails);
 
         if (log.isTraceEnabled()) {
             log.trace("From JWT:\nSubject: " + subject + "\nRoles: " + roles);
@@ -397,24 +383,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
     protected String extractSubject(JwtClaims claims) {
         String subject = claims.getSubject();
 
-        if (subjectKey != null) {
-            Object subjectObject = claims.getClaim(subjectKey);
-
-            if (subjectObject == null) {
-                log.warn("Failed to get subject from JWT claims, check if subject_key '{}' is correct.", subjectKey);
-                return null;
-            }
-
-            // We expect a String. If we find something else, convert to String but issue a
-            // warning
-            if (!(subjectObject instanceof String)) {
-                log.warn("Expected type String for roles in the JWT for subject_key {}, but value was '{}' ({}). Will convert this value to String.",
-                        subjectKey, subjectObject, subjectObject.getClass());
-                subject = String.valueOf(subjectObject);
-            } else {
-                subject = (String) subjectObject;
-            }
-        } else if (jsonSubjectPath != null) {
+        if (jsonSubjectPath != null) {
             try {
                 subject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims.asMap()).read(jsonSubjectPath);
             } catch (PathNotFoundException e) {
@@ -453,28 +422,17 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         return subject;
     }
 
-    protected String[] extractRoles(JwtClaims claims, Map<String, Object> debugInfo) throws CredentialsException {
-        if (rolesKey == null && jsonRolesPath == null) {
-            return new String[0];
-        }
-
+    protected List<String> extractRoles(JwtClaims claims, Map<String, Object> debugInfo) throws CredentialsException {
         if (jsonRolesPath != null) {
             try {
-                return Roles.split(JsonPath.using(jsonPathConfig).parse(claims.asMap()).read(jsonRolesPath));
+                return Arrays.asList(Roles.split(JsonPath.using(jsonPathConfig).parse(claims.asMap()).read(jsonRolesPath)));
             } catch (PathNotFoundException e) {
                 throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
                         "The roles JSON path was not found in the Id token claims: " + jsonRolesPath, debugInfo));
             }
+        } else {
+            return Collections.emptyList();
         }
-
-        Object rolesObject = claims.getClaim(rolesKey);
-
-        if (rolesObject == null) {
-            throw new CredentialsException(
-                    new AuthczResult.DebugInfo(getType(), false, "The roles key was not found in the Id token claims: " + jsonRolesPath, debugInfo));
-        }
-
-        return Roles.split(rolesObject);
     }
 
     private String createNonce() {

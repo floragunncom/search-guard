@@ -23,6 +23,7 @@ import java.security.PrivateKey;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,8 +97,8 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context.getConfigVariableProviders());
 
-        rolesKey = vNode.get("roles_key").asString();
-        subjectKey = vNode.get("subject_key").asString();
+        rolesKey = vNode.get("user_mapping.roles").asString();
+        subjectKey = vNode.get("user_mapping.subject").asString();
         idpMetadataUrl = vNode.get("idp.metadata_url").asURI();
         idpMetadataXml = vNode.get("idp.metadata_xml").asString();
 
@@ -106,8 +107,8 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
         spSignaturePrivateKey = vNode.get("sp.signature_private_key").byString((pem) -> TLSConfig.toPrivateKey(pem, spSignaturePrivateKeyPassword));
         useForceAuthn = vNode.get("sp.forceAuthn").asBoolean();
         checkIssuer = vNode.get("check_issuer").withDefault(true).asBoolean();
-        subjectPattern = vNode.get("subject_pattern").asPattern();
-        rolesSeparator = vNode.get("roles_seperator").asString();
+        subjectPattern = vNode.get("user_mapping.subject_pattern").asPattern();
+        rolesSeparator = vNode.get("user_mapping.roles_seperator").asString();
 
         String idpEntityId = vNode.get("idp.entity_id").required().asString();
         String spEntityId = vNode.get("sp.entity_id").asString();
@@ -274,7 +275,8 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
                     SamlResponse samlResponse = new SamlResponse(saml2Settings, acsEndpoint, samlResponseBase64);
 
                     debugDetails.put("saml_response_attributes", samlResponse.getAttributes());
-                    debugDetails.put("saml_response_issuers", samlResponse.getIssuers());
+                    debugDetails.put("saml_response_issuer", samlResponse.getResponseIssuer());
+                    debugDetails.put("saml_response_assertion_issuer", samlResponse.getAssertionIssuer());
                     debugDetails.put("saml_response_audiences", samlResponse.getAudiences());
                     debugDetails.put("saml_response_name_id_data", samlResponse.getNameIdData());
 
@@ -289,7 +291,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
                     }
 
                     String subject = extractSubject(samlResponse);
-                    String[] roles = extractRoles(samlResponse);
+                    List<String> roles = extractRoles(samlResponse);
                     String sessionIndex = samlResponse.getSessionIndex();
                     String nameId = samlResponse.getNameId();
                     String nameIdFormat;
@@ -375,8 +377,8 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             throws CredentialsException {
 
         try {
-            List<String> issuers = samlResponse.getIssuers();
-            for (String issuer : issuers) {
+            String issuer = samlResponse.getResponseIssuer();
+            if (issuer != null) {
 
                 if (!issuer.equals(saml2Settings.getIdpEntityId())) {
                     if (log.isDebugEnabled()) {
@@ -478,9 +480,9 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
         return subject;
     }
 
-    private String[] extractRoles(SamlResponse samlResponse) throws XPathExpressionException, ValidationError {
+    private List<String> extractRoles(SamlResponse samlResponse) throws XPathExpressionException, ValidationError {
         if (this.rolesKey == null) {
-            return new String[0];
+            return Collections.emptyList();
         }
 
         List<String> values = samlResponse.getAttributes().get(this.rolesKey);
@@ -490,12 +492,10 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
         }
 
         if (rolesSeparator != null) {
-            values = splitRoles(values);
+            return splitRoles(values);
         } else {
-            values = trimRoles(values);
+            return trimRoles(values);
         }
-
-        return values.toArray(new String[values.size()]);
     }
 
     private List<String> splitRoles(List<String> values) {

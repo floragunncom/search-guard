@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2021 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -19,7 +19,6 @@ import java.util.Arrays;
 import java.util.Map;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.opensearch.common.xcontent.XContentType;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -61,7 +60,7 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer = new MockSamlIdpServer();
         mockSamlIdpServer.start();
         basicIdpConfig = ImmutableMap.of("metadata_url", mockSamlIdpServer.getMetadataUri(), "entity_id", mockSamlIdpServer.getIdpEntityId());
-        basicAuthenticatorSettings = ImmutableMap.of("idp", basicIdpConfig, "roles_key", "roles");
+        basicAuthenticatorSettings = ImmutableMap.of("idp", basicIdpConfig, "user_mapping.roles", "roles");
     }
 
     @AfterClass
@@ -106,7 +105,7 @@ public class SamlAuthenticatorTest {
 
         Map<String, Object> inlineMetadataIdpConfig = ImmutableMap.of("metadata_xml", " " + mockSamlIdpServer.createMetadata(), "entity_id",
                 mockSamlIdpServer.getIdpEntityId(), "frontend_base_url", FRONTEND_BASE_URL);
-        Map<String, Object> inlineMetadataAuthenticatorSettings = ImmutableMap.of("idp", inlineMetadataIdpConfig, "roles_key", "roles");
+        Map<String, Object> inlineMetadataAuthenticatorSettings = ImmutableMap.of("idp", inlineMetadataIdpConfig, "user_mapping.roles", "roles");
 
         System.out.println(inlineMetadataIdpConfig);
 
@@ -148,7 +147,7 @@ public class SamlAuthenticatorTest {
                 + "                <Attribute Name=\"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname\" NameFormat=\"urn:oasis:names:tc:SAML:2.0:attrname-format:uri\" FriendlyName=\"Surname\" xmlns=\"urn:oasis:names:tc:SAML:2.0:assertion\"/>\n"
                 + "                <Attribute Name=\"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier\" NameFormat=\"urn:oasis:names:tc:SAML:2.0:attrname-format:uri\" FriendlyName=\"Name ID\" xmlns=\"urn:oasis:names:tc:SAML:2.0:assertion\"/>\n"
                 + "              </IDPSSODescriptor>\n" + "            </EntityDescriptor>\n" + "        entity_id: urn:searchguard.eu.auth0.com\n"
-                + "      sp:\n" + "        entity_id: es-saml\n" + "      roles_key: http://schemas.auth0.com/https://kibana;example;com/roles";
+                + "      sp:\n" + "        entity_id: es-saml\n" + "      user_mapping.roles: http://schemas.auth0.com/https://kibana;example;com/roles";
 
         FrontendConfig frontendConfig = FrontendConfig.parse(DocReader.yaml().readObject(yml), StandardComponents.apiAuthenticationFrontends, null);
 
@@ -299,7 +298,7 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUserRoles(Arrays.asList("a,b"));
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Map<String, Object> config = ImmutableMap.of("idp", basicIdpConfig, "roles_key", "roles", "roles_seperator", ",");
+        Map<String, Object> config = ImmutableMap.of("idp", basicIdpConfig, "user_mapping.roles", "roles", "user_mapping.roles_seperator", ",");
 
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(config, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
@@ -320,7 +319,7 @@ public class SamlAuthenticatorTest {
         try (MockSamlIdpServer mockSamlIdpServer = new MockSamlIdpServer()) {
             Map<String, Object> idpConfig = ImmutableMap.of("metadata_url", mockSamlIdpServer.getMetadataUri(), "entity_id",
                     mockSamlIdpServer.getIdpEntityId());
-            Map<String, Object> config = ImmutableMap.of("idp", idpConfig, "roles_key", "roles", "idp.min_refresh_delay", 100);
+            Map<String, Object> config = ImmutableMap.of("idp", idpConfig, "user_mapping.roles", "roles", "idp.min_refresh_delay", 100);
 
             SamlAuthenticator samlAuthenticator = new SamlAuthenticator(config, testContext);
             ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
@@ -364,7 +363,7 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("leonard@example.com");
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Map<String, Object> config = ImmutableMap.of("idp", basicIdpConfig, "roles_key", "roles", "subject_pattern", "^(.+)@(?:.+)$");
+        Map<String, Object> config = ImmutableMap.of("idp", basicIdpConfig, "user_mapping.roles", "roles", "user_mapping.subject_pattern", "^(.+)@(?:.+)$");
 
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(config, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
