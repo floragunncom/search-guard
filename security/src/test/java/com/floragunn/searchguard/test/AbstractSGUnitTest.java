@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.test;
 
-import io.netty.handler.ssl.OpenSsl;
+import static com.floragunn.searchguard.support.ConfigConstants.SEARCHGUARD_AUTHCZ_ADMIN_DN;
 
 import java.io.FileNotFoundException;
 import java.net.InetSocketAddress;
@@ -63,8 +63,6 @@ import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 import com.floragunn.searchguard.test.helper.rules.SGTestWatcher;
 
-import static com.floragunn.searchguard.support.ConfigConstants.SEARCHGUARD_AUTHCZ_ADMIN_DN;
-
 public abstract class AbstractSGUnitTest {
 
     protected static final AtomicLong num = new AtomicLong();
@@ -78,8 +76,7 @@ public abstract class AbstractSGUnitTest {
 				"Java Version: " + System.getProperty("java.version") + " " + System.getProperty("java.vendor"));
 		System.out.println("JVM Impl.: " + System.getProperty("java.vm.version") + " "
 				+ System.getProperty("java.vm.vendor") + " " + System.getProperty("java.vm.name"));
-		System.out.println("Open SSL available: " + OpenSsl.isAvailable());
-		System.out.println("Open SSL version: " + OpenSsl.versionString());
+
 		withRemoteCluster = Boolean.parseBoolean(System.getenv("TESTARG_unittests_with_remote_cluster"));
 		System.out.println("With remote cluster: " + withRemoteCluster);
 	}
@@ -88,7 +85,6 @@ public abstract class AbstractSGUnitTest {
     public static final ThreadPool MOCK_POOL = new ThreadPool(Settings.builder().put("node.name",  "mock").build());
 
     //TODO Test Matrix
-    protected boolean allowOpenSSL = false; //disabled, we test this already in SSL Plugin
     //enable//disable enterprise modules
     //1node and 3 node
 
@@ -224,8 +220,7 @@ public abstract class AbstractSGUnitTest {
         try {
             final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 
-            Settings.Builder builder = Settings.builder().put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL);
+            Settings.Builder builder = Settings.builder();
 
             if (!hasCustomTransportSettings) {
                 builder.put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")

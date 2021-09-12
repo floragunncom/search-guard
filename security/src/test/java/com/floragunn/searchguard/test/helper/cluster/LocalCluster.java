@@ -51,7 +51,6 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.modules.SearchGuardModule;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
@@ -252,10 +251,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 
             Settings.Builder builder = Settings.builder()
-                    //.put("searchguard.ssl.transport.enabled", true)
-                    //.put("searchguard.no_default_init", true)
-                    .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, false)
-                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, false)
                     .put("searchguard.ssl.transport.keystore_alias", "node-0")
                     .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
                     .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))

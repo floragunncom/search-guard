@@ -122,7 +122,6 @@ import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
-import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.ssl.util.config.ClientAuthCredentials;
@@ -236,8 +235,6 @@ public class SearchGuardAdmin {
         options.addOption(Option.builder("key").hasArg().argName("file").desc("Path to the key of admin certificate").build());
         options.addOption(Option.builder("keypass").hasArg().argName("password").desc("Password of the key of admin certificate (optional)").build());
 
-        options.addOption(Option.builder("noopenssl").longOpt("no-openssl").desc("Do not use OpenSSL even if available (default: use it if available)").build());
-
         options.addOption(Option.builder("si").longOpt("show-info").desc("Show system and license info").build());
 
         options.addOption(Option.builder("w").longOpt("whoami").desc("Show information about the used admin certificate").build());
@@ -293,7 +290,6 @@ public class SearchGuardAdmin {
         boolean acceptRedCluster = false;
         
         String keypass = System.getenv(SG_KEYPASS);
-        boolean useOpenSSLIfAvailable = true;
         //boolean simpleAuth = false;
         String cacert = null;
         String cert = null;
@@ -384,9 +380,7 @@ public class SearchGuardAdmin {
             cert = line.getOptionValue("cert");
             key = line.getOptionValue("key");
             keypass = line.getOptionValue("keypass", keypass);
-            
-            useOpenSSLIfAvailable = !line.hasOption("noopenssl");
-            
+                        
             si = line.hasOption("si");
             
             whoami = line.hasOption("w");
@@ -544,7 +538,6 @@ public class SearchGuardAdmin {
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION, !nhnv)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME, !nrhn)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, SearchGuardSSLPlugin.OPENSSL_SUPPORTED && useOpenSSLIfAvailable)
                 .putList(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_CIPHERS, enabledCiphers)
                 .putList(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_PROTOCOLS, enabledProtocols)
                 
