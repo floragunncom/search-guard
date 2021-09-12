@@ -1,7 +1,6 @@
 package com.floragunn.searchguard.sgconf;
 
 import java.net.InetAddress;
-import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -232,7 +231,6 @@ public class DynamicConfigModelV7 extends DynamicConfigModel implements Componen
         }
 
         boolean hasBasicApiAuthenticationDomains = false;
-        URI kibanaUrl = null;
         
         final Authz authzDyn = config.dynamic.authz;
 
@@ -329,23 +327,21 @@ public class DynamicConfigModelV7 extends DynamicConfigModel implements Componen
                     }
 
                     if (sessionEnabled == null || sessionEnabled.booleanValue()) {
-                        if (!(httpAuthenticator instanceof ApiAuthenticationFrontend)) {
-                            if (sessionEnabled != null) {
-                                // Only log an error of this is explicitly enabled
-                                log.error("Cannot use authenticator " + httpAuthenticator.getType() + " for session auth. This type is not supported");
+                        if (httpAuthenticator instanceof ApiAuthenticationFrontend) {
+                            AuthenticationDomain<ApiAuthenticationFrontend> authDomain = new AuthenticationDomain<>(ad.getKey(),
+                                    authenticationBackend, (ApiAuthenticationFrontend) httpAuthenticator, ad.getValue().http_authenticator.challenge,
+                                    ad.getValue().order, ad.getValue().skip_users, enabledOnlyForHosts);
+
+                            if ("basic".equals(httpAuthenticator.getType())) {
+                                hasBasicApiAuthenticationDomains = true;
                             }
-                            continue;
+
+                            apiAuthenticationDomains.add(authDomain);
+                        } else if (sessionEnabled != null) {
+                            // Only log an error of this is explicitly enabled
+                            log.error("Cannot use authenticator " + httpAuthenticator.getType() + " for session auth. This type is not supported");
+                            domainState.setMessage("Cannot use authenticator for session auth. This type is not supported");
                         }
-
-                        AuthenticationDomain<ApiAuthenticationFrontend> authDomain = new AuthenticationDomain<>(ad.getKey(), authenticationBackend,
-                                (ApiAuthenticationFrontend) httpAuthenticator, ad.getValue().http_authenticator.challenge, ad.getValue().order,
-                                ad.getValue().skip_users, enabledOnlyForHosts);
-
-                        if ("basic".equals(httpAuthenticator.getType())) {
-                            hasBasicApiAuthenticationDomains = true;
-                        } 
-                        
-                        apiAuthenticationDomains.add(authDomain);
                     }
 
                     if (httpAuthenticator instanceof Destroyable) {
