@@ -17,8 +17,6 @@
 
 package com.floragunn.searchguard;
 
-import io.netty.handler.ssl.OpenSsl;
-
 import java.util.TreeSet;
 
 import org.apache.http.HttpStatus;
@@ -36,7 +34,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -223,12 +220,6 @@ public class IntegrationTests extends SingleClusterTest {
         
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("").getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("worf", "worf")).getStatusCode());
-    }
-
-    @Test
-    public void testEnsureOpenSSLAvailability() {
-        Assume.assumeTrue(allowOpenSSL);
-        Assert.assertTrue(String.valueOf(OpenSsl.unavailabilityCause()), OpenSsl.isAvailable());
     }
 
     @Test

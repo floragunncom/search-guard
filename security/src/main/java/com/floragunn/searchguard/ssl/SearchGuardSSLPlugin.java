@@ -17,9 +17,6 @@
 
 package com.floragunn.searchguard.ssl;
 
-import io.netty.handler.ssl.OpenSsl;
-import io.netty.util.internal.PlatformDependent;
-
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -81,10 +78,11 @@ import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLTransportInterceptor;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 
+import io.netty.util.internal.PlatformDependent;
+
 //For ES5 this class has only effect when SSL only plugin is installed
 public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, NetworkPlugin {
 
-    public static final boolean OPENSSL_SUPPORTED = false;
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected static final String CLIENT_TYPE = "client.type";
     protected final boolean client;
@@ -177,7 +175,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             public Object run() {
                 System.setProperty("es.set.netty.runtime.available.processors", "false");
                 PlatformDependent.newFixedMpscQueue(1);
-                OpenSsl.isAvailable();
                 return null;
             }
         });
@@ -285,7 +282,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             try {
                 log.debug("Try to load and instantiate '{}'", principalExtractorClass);
                 Class<?> principalExtractorClazz = Class.forName(principalExtractorClass);
-                principalExtractor = (PrincipalExtractor) principalExtractorClazz.newInstance();
+                principalExtractor = (PrincipalExtractor) principalExtractorClazz.getConstructor().newInstance();
             } catch (Exception e) {
                 log.error("Unable to load '{}' due to", principalExtractorClass, e);
                 throw new ElasticsearchException(e);
@@ -310,12 +307,8 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_PASSWORD, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_TYPE, Property.NodeScope, Property.Filtered));
-        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, false, Property.NodeScope,
-                Property.Filtered));
         settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED, SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_DEFAULT,
                 Property.NodeScope, Property.Filtered));
-        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, false, Property.NodeScope,
-                Property.Filtered));
         settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED,
                 SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_DEFAULT, Property.NodeScope, Property.Filtered));
         settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION, true, Property.NodeScope,

@@ -27,9 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.node.NodeClient;
@@ -43,13 +41,11 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
-import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
 import com.google.common.collect.ImmutableList;
-
-import io.netty.handler.ssl.OpenSsl;
+import com.google.common.collect.ImmutableMap;
 
 public class SearchGuardSSLInfoAction extends BaseRestHandler {
 
@@ -104,23 +100,13 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
 
                     builder.field("ssl_protocol", sslInfo == null?null:sslInfo.getProtocol());
                     builder.field("ssl_cipher", sslInfo == null?null:sslInfo.getCipher());
-                    
-                    if(SearchGuardSSLPlugin.OPENSSL_SUPPORTED) {
-                        builder.field("ssl_openssl_available", OpenSsl.isAvailable());
-                        builder.field("ssl_openssl_version", OpenSsl.version());
-                        builder.field("ssl_openssl_version_string", OpenSsl.versionString());
-                        Throwable openSslUnavailCause = OpenSsl.unavailabilityCause();
-                        builder.field("ssl_openssl_non_available_cause", openSslUnavailCause==null?"":openSslUnavailCause.toString());
-                        builder.field("ssl_openssl_supports_key_manager_factory", OpenSsl.supportsKeyManagerFactory());
-                        builder.field("ssl_openssl_supports_hostname_validation", OpenSsl.supportsHostnameValidation());
-                    } else {
-                        builder.field("ssl_openssl_available", false);
-                        builder.field("ssl_openssl_version", -1);
-                        builder.field("ssl_openssl_version_string", (String) null);
-                        builder.field("ssl_openssl_non_available_cause", "Not supported any longer");
-                        builder.field("ssl_openssl_supports_key_manager_factory", false);
-                        builder.field("ssl_openssl_supports_hostname_validation", false);
-                    }
+                                      
+                    builder.field("ssl_openssl_available", false);
+                    builder.field("ssl_openssl_version", -1);
+                    builder.field("ssl_openssl_version_string", (String) null);
+                    builder.field("ssl_openssl_non_available_cause", "Not supported any longer");
+                    builder.field("ssl_openssl_supports_key_manager_factory", false);
+                    builder.field("ssl_openssl_supports_hostname_validation", false);
 
                     if (showServerCerts == Boolean.TRUE || showFullServerCerts == Boolean.TRUE) {
                         if (sgks != null) {

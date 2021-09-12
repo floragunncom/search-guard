@@ -3,11 +3,9 @@ searchguard.ssl.transport.keystore_filepath: "transport.keystore_filepath"
 searchguard.ssl.transport.truststore_filepath: "transport.truststore_filepath"
 searchguard.ssl.transport.enforce_hostname_verification: true
 searchguard.ssl.transport.resolve_hostname: true
-searchguard.ssl.transport.enable_openssl_if_available: true
 searchguard.ssl.http.enabled: true
 searchguard.ssl.http.keystore_filepath: "http.keystore_filepath"
 searchguard.ssl.http.truststore_filepath: "http.truststore_filepath"
-searchguard.ssl.http.enable_openssl_if_available: true
 searchguard.ssl.http.clientauth_mode: OPTIONAL
 
 searchguard:

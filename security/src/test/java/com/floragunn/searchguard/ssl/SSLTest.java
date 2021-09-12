@@ -70,7 +70,7 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper;
 
 import io.netty.util.internal.PlatformDependent;
 
-@SuppressWarnings({"resource", "unchecked"})
+@SuppressWarnings({"resource"})
 public class SSLTest extends SingleClusterTest {
 
 
@@ -79,8 +79,6 @@ public class SSLTest extends SingleClusterTest {
     
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
-
-    protected boolean allowOpenSSL = false;
     
     @Test
     public void testHttps() throws Exception {
@@ -88,8 +86,6 @@ public class SSLTest extends SingleClusterTest {
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
                 .put("searchguard.ssl.http.enabled", true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
                 .putList(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_PROTOCOLS, "TLSv1.1","TLSv1.2")
                 .putList(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_CIPHERS, "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")
@@ -125,13 +121,10 @@ public class SSLTest extends SingleClusterTest {
         
         Security.setProperty("jdk.tls.disabledAlgorithms","");
         System.out.println("Disabled algos: "+Security.getProperty("jdk.tls.disabledAlgorithms"));
-        System.out.println("allowOpenSSL: "+allowOpenSSL);
 
         Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.http.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -147,22 +140,13 @@ public class SSLTest extends SingleClusterTest {
             String[] enabledCiphers = new DefaultSearchGuardKeyStore(settings, Paths.get(".")).createHTTPSSLEngine().getEnabledCipherSuites();
             String[] enabledProtocols = new DefaultSearchGuardKeyStore(settings, Paths.get(".")).createHTTPSSLEngine().getEnabledProtocols();
 
-            if(allowOpenSSL) {
-                Assert.assertEquals(2, enabledProtocols.length); //SSLv2Hello is always enabled when using openssl
-                Assert.assertTrue("Check SSLv3", "SSLv3".equals(enabledProtocols[0]) || "SSLv3".equals(enabledProtocols[1]));
-                Assert.assertEquals(1, enabledCiphers.length);
-                Assert.assertEquals("TLS_RSA_EXPORT_WITH_RC4_40_MD5",enabledCiphers[0]);
-            } else {
-                Assert.assertEquals(1, enabledProtocols.length);
-                Assert.assertEquals("SSLv3", enabledProtocols[0]);
-                Assert.assertEquals(1, enabledCiphers.length);
-                Assert.assertEquals("SSL_RSA_EXPORT_WITH_RC4_40_MD5",enabledCiphers[0]);
-            }
+            Assert.assertEquals(1, enabledProtocols.length);
+            Assert.assertEquals("SSLv3", enabledProtocols[0]);
+            Assert.assertEquals(1, enabledCiphers.length);
+            Assert.assertEquals("SSL_RSA_EXPORT_WITH_RC4_40_MD5", enabledCiphers[0]);
             
             settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                     .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                    .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                    .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                     .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                     .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
                      //WEAK and insecure cipher, do NOT use this, its here for unittesting only!!!
@@ -176,31 +160,18 @@ public class SSLTest extends SingleClusterTest {
             enabledCiphers = new DefaultSearchGuardKeyStore(settings, Paths.get(".")).createServerTransportSSLEngine().getEnabledCipherSuites();
             enabledProtocols = new DefaultSearchGuardKeyStore(settings, Paths.get(".")).createServerTransportSSLEngine().getEnabledProtocols();
 
-            if(allowOpenSSL) {
-                Assert.assertEquals(2, enabledProtocols.length); //SSLv2Hello is always enabled when using openssl
-                Assert.assertTrue("Check SSLv3", "SSLv3".equals(enabledProtocols[0]) || "SSLv3".equals(enabledProtocols[1]));
-                Assert.assertEquals(1, enabledCiphers.length);
-                Assert.assertEquals("TLS_RSA_EXPORT_WITH_RC4_40_MD5",enabledCiphers[0]);
-            } else {
-                Assert.assertEquals(1, enabledProtocols.length);
-                Assert.assertEquals("SSLv3", enabledProtocols[0]);
-                Assert.assertEquals(1, enabledCiphers.length);
-                Assert.assertEquals("SSL_RSA_EXPORT_WITH_RC4_40_MD5",enabledCiphers[0]);
-            }
+            Assert.assertEquals(1, enabledProtocols.length);
+            Assert.assertEquals("SSLv3", enabledProtocols[0]);
+            Assert.assertEquals(1, enabledCiphers.length);
+            Assert.assertEquals("SSL_RSA_EXPORT_WITH_RC4_40_MD5", enabledCiphers[0]);
+
             enabledCiphers = new DefaultSearchGuardKeyStore(settings, Paths.get(".")).createClientTransportSSLEngine(null, -1).getEnabledCipherSuites();
             enabledProtocols = new DefaultSearchGuardKeyStore(settings, Paths.get(".")).createClientTransportSSLEngine(null, -1).getEnabledProtocols();
 
-            if(allowOpenSSL) {
-                Assert.assertEquals(2, enabledProtocols.length); //SSLv2Hello is always enabled when using openssl
-                Assert.assertTrue("Check SSLv3","SSLv3".equals(enabledProtocols[0]) || "SSLv3".equals(enabledProtocols[1]));
-                Assert.assertEquals(1, enabledCiphers.length);
-                Assert.assertEquals("TLS_RSA_EXPORT_WITH_RC4_40_MD5",enabledCiphers[0]);
-            } else {
-                Assert.assertEquals(1, enabledProtocols.length);
-                Assert.assertEquals("SSLv3", enabledProtocols[0]);
-                Assert.assertEquals(1, enabledCiphers.length);
-                Assert.assertEquals("SSL_RSA_EXPORT_WITH_RC4_40_MD5",enabledCiphers[0]);
-            }
+            Assert.assertEquals(1, enabledProtocols.length);
+            Assert.assertEquals("SSLv3", enabledProtocols[0]);
+            Assert.assertEquals(1, enabledCiphers.length);
+            Assert.assertEquals("SSL_RSA_EXPORT_WITH_RC4_40_MD5", enabledCiphers[0]);
         } catch (ElasticsearchSecurityException e) {
             System.out.println("EXPECTED "+e.getClass().getSimpleName()+" for "+System.getProperty("java.specification.version")+": "+e.toString());
             e.printStackTrace();
@@ -209,7 +180,6 @@ public class SSLTest extends SingleClusterTest {
                     || e.toString().contains("Unable to configure permitted SSL ciphers")
                     || e.toString().contains("OPENSSL_internal:NO_CIPHER_MATCH")
                    );
-            Assert.assertTrue("Check if >= Java 8 and no openssl",allowOpenSSL?true:Constants.JRE_IS_MINIMUM_JAVA8 );        
         }
     }
     
@@ -219,8 +189,6 @@ public class SSLTest extends SingleClusterTest {
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.http.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks")).build();
 
@@ -243,8 +211,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -282,8 +248,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0.crt.pem"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0.key.pem"))
                 //.put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD, "changeit")
@@ -319,8 +283,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pem/node-4.crt.pem"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pem/node-4.key"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD, "changeit")
@@ -357,8 +319,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -391,8 +351,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "OPTIONAL")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -416,8 +374,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "NONE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -441,8 +397,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -473,8 +427,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "NONE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -498,8 +450,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -535,8 +485,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -602,8 +550,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -644,8 +590,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -702,8 +646,6 @@ public class SSLTest extends SingleClusterTest {
         
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -756,8 +698,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0.crt.pem"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0.key.pem"))
                 //.put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD, "changeit")
@@ -791,8 +731,6 @@ public class SSLTest extends SingleClusterTest {
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.http.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -816,12 +754,10 @@ public class SSLTest extends SingleClusterTest {
     public void testNodeClientSSLwithJavaTLSv13() throws Exception {
         
         //Java TLS 1.3 is available since Java 11
-        Assume.assumeTrue(!allowOpenSSL && PlatformDependent.javaVersion() >= 11);
+        Assume.assumeTrue(PlatformDependent.javaVersion() >= 11);
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -860,8 +796,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -888,8 +822,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -930,8 +862,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -964,8 +894,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLE_OPENSSL_IF_AVAILABLE, allowOpenSSL)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/tls.crt"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/tls.key"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/ca.crt"))

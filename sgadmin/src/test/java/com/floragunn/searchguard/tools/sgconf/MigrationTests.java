@@ -19,7 +19,7 @@ package com.floragunn.searchguard.tools.sgconf;
 
 import org.apache.commons.io.FileUtils;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.core.Tuple;
+import org.elasticsearch.common.collect.Tuple;
 import org.junit.Assert;
 import org.junit.Test;
 
