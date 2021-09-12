@@ -111,7 +111,6 @@ import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIRequest;
 import com.floragunn.searchguard.action.whoami.WhoAmIResponse;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.sgconf.Migration;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.Meta;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -135,6 +134,7 @@ import com.floragunn.searchguard.support.SgJsonNode;
 import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient.GenericResponse;
+import com.floragunn.searchguard.tools.sgconf.Migration;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 

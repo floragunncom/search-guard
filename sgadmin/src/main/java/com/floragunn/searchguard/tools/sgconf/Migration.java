@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.sgconf;
+package com.floragunn.searchguard.tools.sgconf;
 
 import java.util.HashSet;
 import java.util.List;
@@ -6,7 +6,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.core.Tuple;
 
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.Meta;

@@ -21,28 +21,14 @@ import java.io.File;
 
 import org.apache.commons.io.FileUtils;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.collect.Tuple;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.floragunn.searchguard.sgconf.Migration;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v6.ActionGroupsV6;
-import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6;
-import com.floragunn.searchguard.sgconf.impl.v6.InternalUserV6;
-import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
-import com.floragunn.searchguard.sgconf.impl.v6.RoleV6;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
-import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 
 public class ConfigTests {
     
@@ -51,26 +37,6 @@ public class ConfigTests {
     @Test
     public void testEmptyConfig() throws Exception {
         Assert.assertTrue(SgDynamicConfiguration.empty().deepClone() != SgDynamicConfiguration.empty());
-    }
-    
-    @Test
-    public void testMigrate() throws Exception {
-
-        Tuple<SgDynamicConfiguration<RoleV7>, SgDynamicConfiguration<TenantV7>> rolesResult = Migration.migrateRoles((SgDynamicConfiguration<RoleV6>)load("./legacy/sgconfig_v6/sg_roles.yml", CType.ROLES),
-                (SgDynamicConfiguration<RoleMappingsV6>)load("./legacy/sgconfig_v6/sg_roles_mapping.yml", CType.ROLESMAPPING));
-        
-        System.out.println(Strings.toString(rolesResult.v2(), true, false));
-        System.out.println(Strings.toString(rolesResult.v1(), true, false));
-        
-        
-        SgDynamicConfiguration<ActionGroupsV7> actionGroupsResult = Migration.migrateActionGroups((SgDynamicConfiguration<ActionGroupsV6>)load("./legacy/sgconfig_v6/sg_action_groups.yml", CType.ACTIONGROUPS));
-        System.out.println(Strings.toString(actionGroupsResult, true, false));
-        SgDynamicConfiguration<ConfigV7> configResult =Migration.migrateConfig((SgDynamicConfiguration<ConfigV6>)load("./legacy/sgconfig_v6/sg_config.yml", CType.CONFIG));
-        System.out.println(Strings.toString(configResult, true, false));
-        SgDynamicConfiguration<InternalUserV7> internalUsersResult = Migration.migrateInternalUsers((SgDynamicConfiguration<InternalUserV6>)load("./legacy/sgconfig_v6/sg_internal_users.yml", CType.INTERNALUSERS));
-        System.out.println(Strings.toString(internalUsersResult, true, false));
-        SgDynamicConfiguration<RoleMappingsV7> rolemappingsResult = Migration.migrateRoleMappings((SgDynamicConfiguration<RoleMappingsV6>)load("./legacy/sgconfig_v6/sg_roles_mapping.yml", CType.ROLESMAPPING));
-        System.out.println(Strings.toString(rolemappingsResult, true, false));
     }
     
     @Test
