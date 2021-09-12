@@ -447,7 +447,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             try {
                 SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype, null, null);
-                configInstance.removeStatic();
 
                 String id = ctype.toLCString();
 
