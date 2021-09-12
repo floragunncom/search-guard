@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.sgconf;
+package com.floragunn.searchguard.tools.sgconf;
 
 import java.util.HashSet;
 import java.util.List;
