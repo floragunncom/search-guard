@@ -85,6 +85,7 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.support.SgUtils;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableMap;
 
 public class ConfigurationRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(ConfigurationRepository.class);
@@ -107,6 +108,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final AtomicBoolean installDefaultConfig = new AtomicBoolean();
     private final ComponentState componentState = new ComponentState(1, null, "config_repository", ConfigurationRepository.class);
     private final PrivilegedConfigClient privilegedConfigClient;
+    public final static Map<String, ?> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap.of("encoded_config",
+            ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
 
     private ConfigurationRepository(Settings settings, final Path configPath, ThreadPool threadPool, 
             Client client, ClusterService clusterService, AuditLog auditLog, ComplianceConfig complianceConfig) {
@@ -152,9 +155,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
                                     indexSettings.put("index.number_of_shards", 1);
                                     indexSettings.put("index.auto_expand_replicas", "0-all");
 
-                                    boolean ok = client.admin().indices().create(new CreateIndexRequest(searchguardIndex)
-                                                .settings(indexSettings))
-                                                .actionGet().isAcknowledged();
+                                    boolean ok = client.admin().indices().create(
+                                            new CreateIndexRequest(searchguardIndex).settings(indexSettings).mapping("_doc", SG_INDEX_MAPPING))
+                                            .actionGet().isAcknowledged();
 
                                     LOGGER.info("Index {} created?: {}", searchguardIndex, ok);
                                     if(ok) {
@@ -249,7 +252,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         });
         
     }
-
+    
     public void initOnNodeStart() {
 
         LOGGER.info("Check if " + searchguardIndex + " index exists ...");

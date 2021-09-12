@@ -98,7 +98,6 @@ import org.elasticsearch.plugins.PluginInfo;
 import org.elasticsearch.transport.Netty4Plugin;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -111,6 +110,7 @@ import com.floragunn.searchguard.action.licenseinfo.LicenseInfoResponse;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIRequest;
 import com.floragunn.searchguard.action.whoami.WhoAmIResponse;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.sgconf.Migration;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.Meta;
@@ -1279,10 +1279,16 @@ public class SearchGuardAdmin {
             indexSettings.put("index.auto_expand_replicas", "0-all");
         }
 
-        final boolean indexCreated = tc.admin().indices().create(new CreateIndexRequest(index)
-        .settings(indexSettings))
-                .actionGet().isAcknowledged();
-
+        boolean indexCreated;
+        
+        if (CREATE_AS_LEGACY) {
+            indexCreated = tc.admin().indices().create(new CreateIndexRequest(index).settings(indexSettings)).actionGet().isAcknowledged();
+        } else {
+            indexCreated = tc.admin().indices()
+                    .create(new CreateIndexRequest(index).settings(indexSettings).mapping("_doc", ConfigurationRepository.SG_INDEX_MAPPING))
+                    .actionGet().isAcknowledged();
+        }
+        
         if (indexCreated) {
             System.out.println("done ("+(explicitReplicas!=null?explicitReplicas:"0-all")+" replicas)");
             return 0;
