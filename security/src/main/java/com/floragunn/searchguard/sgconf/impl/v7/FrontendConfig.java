@@ -17,20 +17,19 @@
 
 package com.floragunn.searchguard.sgconf.impl.v7;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ConfigVariableProviders;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -42,16 +41,18 @@ import com.floragunn.searchguard.modules.NoSuchComponentException;
 import com.floragunn.searchguard.modules.SearchGuardComponentRegistry;
 import com.google.common.hash.Hashing;
 
-public class FrontendConfig {
+public class FrontendConfig implements Document {
     private static final Logger log = LogManager.getLogger(FrontendConfig.class);
 
-    public static final Authcz DEFAULT_BASIC_AUTHCZ = new Authcz(null, "basic", "Login", "If you have forgotten your username or password, please ask your system administrator");
+    public static final Authcz DEFAULT_BASIC_AUTHCZ = new Authcz(null, "basic", "Login",
+            "If you have forgotten your username or password, please ask your system administrator");
     public static final FrontendConfig BASIC = new FrontendConfig(Collections.singletonList(DEFAULT_BASIC_AUTHCZ));
 
     private List<Authcz> authcz;
     private Multitenancy multitenancy;
     private LoginPage loginPage;
     private boolean debug;
+    private Map<String, Object> parsedJson;
 
     FrontendConfig() {
     }
@@ -76,6 +77,7 @@ public class FrontendConfig {
         ValidatingDocNode vNode = new ValidatingDocNode(parsedJson, validationErrors);
 
         FrontendConfig result = new FrontendConfig();
+        result.parsedJson = parsedJson;
 
         AuthenticationFrontend.Context context = new AuthenticationFrontend.Context(null, null, configVariableProviders);
 
@@ -89,7 +91,7 @@ public class FrontendConfig {
         return result;
     }
 
-    public static class Authcz {
+    public static class Authcz implements Document {
         private String type;
         private String label;
         private boolean enabled = true;
@@ -97,6 +99,7 @@ public class FrontendConfig {
         private boolean unavailable = false;
         private String message;
         private String id;
+        private Map<String, Object> parsedJson;
 
         public Authcz() {
 
@@ -107,7 +110,7 @@ public class FrontendConfig {
             this.type = type;
             this.label = label;
         }
-        
+
         public Authcz(String id, String type, String label, String message) {
             this.id = id;
             this.type = type;
@@ -128,6 +131,7 @@ public class FrontendConfig {
             ValidatingDocNode vNode = new ValidatingDocNode(documentNode, validationErrors);
 
             Authcz result = new Authcz();
+            result.parsedJson = documentNode.toMap();
             result.type = vNode.get("type").required().asString();
             result.label = vNode.get("label").withDefault(result.type).asString();
             result.enabled = vNode.get("enabled").withDefault(true).asBoolean();
@@ -190,7 +194,10 @@ public class FrontendConfig {
             return id;
         }
 
-
+        @Override
+        public Map<String, Object> toMap() {
+            return parsedJson;
+        }
     }
 
     public static class Multitenancy {
@@ -227,7 +234,7 @@ public class FrontendConfig {
         }
     }
 
-    public static class LoginPage implements ToXContentObject {
+    public static class LoginPage implements Document {
         public static final LoginPage DEFAULT = new LoginPage();
 
         private URI brandImage = URI.create("plugins/searchguard/assets/searchguard_logo.svg");
@@ -283,18 +290,13 @@ public class FrontendConfig {
         }
 
         @Override
-        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-            builder.startObject();
-            builder.field("brand_image", brandImage != null ? brandImage.toASCIIString() : null);
-            builder.field("show_brand_image", showBrandImage);
-            builder.field("title", title);
-            builder.field("button_style", buttonStyle);
-            builder.endObject();
-            return builder;
-        }
-
-        public String toJsonString() {
-            return Strings.toString(this);
+        public Map<String, Object> toMap() {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("brand_image", brandImage != null ? brandImage.toASCIIString() : null);
+            result.put("show_brand_image", showBrandImage);
+            result.put("title", title);
+            result.put("button_style", buttonStyle);
+            return result;
         }
     }
 
@@ -308,6 +310,23 @@ public class FrontendConfig {
 
     public void setDebug(boolean debug) {
         this.debug = debug;
+    }
+
+    @Override
+    public Map<String, Object> toMap() {
+        if (parsedJson != null) {
+            return parsedJson;
+        } else {
+            Map<String, Object> result = new LinkedHashMap<>();
+
+            if (loginPage != LoginPage.DEFAULT) {
+                result.put("login_page", loginPage.toMap());
+            }
+
+            result.put("authcz", authcz.stream().map(Authcz::toMap).collect(Collectors.toList()));
+
+            return result;
+        }
     }
 
 }

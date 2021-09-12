@@ -99,6 +99,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             return;
         }
 
+        existingConfiguration.resetUninterpolatedJson();
         JsonNode existingAsJsonNode = Utils.convertJsonToJackson(existingConfiguration, true);
 
         if (!(existingAsJsonNode instanceof ObjectNode)) {
