@@ -1,8 +1,12 @@
 package com.floragunn.searchguard.sgconf.impl;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-public class Meta {
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.floragunn.codova.documents.Document;
+
+public class Meta implements Document {
     
     
     private String type;
@@ -33,6 +37,14 @@ public class Meta {
     @Override
     public String toString() {
         return "Meta [type=" + type + ", config_version=" + config_version + ", cType=" + cType + "]";
+    }
+
+    @Override
+    public Map<String, Object> toMap() {
+        Map<String, Object> result = new LinkedHashMap<>(2);
+        result.put("type", type);
+        result.put("config_version", config_version);
+        return result;
     }
     
     

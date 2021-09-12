@@ -93,11 +93,11 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
     public SamlAuthenticator(Map<String, Object> config, AuthenticationFrontend.Context context) throws ConfigValidationException {
         ensureOpenSamlInitialization();
-
+        
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context.getConfigVariableProviders());
 
-        rolesKey = vNode.get("user_mapping.roles").asString();
+        rolesKey = vNode.get("user_mapping.roles").required().asString();
         subjectKey = vNode.get("user_mapping.subject").asString();
         idpMetadataUrl = vNode.get("idp.metadata_url").asURI();
         idpMetadataXml = vNode.get("idp.metadata_xml").asString();
@@ -112,11 +112,6 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
         String idpEntityId = vNode.get("idp.entity_id").required().asString();
         String spEntityId = vNode.get("sp.entity_id").asString();
-
-        if (rolesKey == null || rolesKey.length() == 0) {
-            log.warn("roles_key is not configured, will only extract subject from SAML");
-            rolesKey = null;
-        }
 
         if (subjectKey == null || subjectKey.length() == 0) {
             // If subjectKey == null, get subject from the NameID element.
