@@ -224,7 +224,19 @@ cluster.name: searchguard_demo
 cluster.routing.allocation.disk.threshold_enabled: false
 xpack.security.enabled: false
 EOM
-  
+
+cat >~/.searchguard/cluster_test.yml << EOM
+server: "localhost"
+port: 9200
+tls:
+  trusted_cas: "\${file:$INSTALL_DIR/config/root-ca.pem}"
+  client_auth:
+    certificate: "\${file:$INSTALL_DIR/config/kirk.pem}"
+    private_key: "\${file:$INSTALL_DIR/config/kirk-key.pem}"
+EOM
+
+echo >~/.searchguard/sgctl-selected-config.txt test
+
 echo "#!/bin/bash" >$INSTALL_DIR/sgadmin_demo.sh  
 echo \""$INSTALL_DIR/plugins/search-guard-7/tools/sgadmin.sh"\" -cd \""$INSTALL_DIR/plugins/search-guard-7/sgconfig"\" -icl -key \""$INSTALL_DIR/config/kirk-key.pem"\" -cert \""$INSTALL_DIR/config/kirk.pem"\" -cacert \""$INSTALL_DIR/config/root-ca.pem"\" -nhnv >> $INSTALL_DIR/sgadmin_demo.sh   
 chmod u+x $INSTALL_DIR/sgadmin_demo.sh    
