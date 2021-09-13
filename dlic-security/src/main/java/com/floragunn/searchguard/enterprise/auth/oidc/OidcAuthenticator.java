@@ -245,13 +245,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
         debugDetails.put("claims", claims.asMap());
 
-        final String subject = extractSubject(claims);
-
-        if (subject == null) {
-            log.error("No subject found in JWT token");
-            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "No subject found in JWT token", debugDetails));
-        }
-
+        String subject = extractSubject(claims);
         List<String> roles = extractRoles(claims, debugDetails);
 
         if (log.isTraceEnabled()) {
@@ -380,15 +374,19 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         return "oidc";
     }
 
-    protected String extractSubject(JwtClaims claims) {
+    protected String extractSubject(JwtClaims claims) throws CredentialsException {
         String subject = claims.getSubject();
+        Map<String, Object> debugDetails = new HashMap<>();
+
+        debugDetails.put("claims", claims.asMap());
 
         if (jsonSubjectPath != null) {
             try {
                 subject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims.asMap()).read(jsonSubjectPath);
             } catch (PathNotFoundException e) {
-                log.error("The provided JSON path {} could not be found ", jsonSubjectPath);
-                return null;
+                log.error("The provided JSON path {} could not be found ", jsonSubjectPath.getPath());
+                throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                        "The configured JSON Path " + jsonSubjectPath.getPath() + " could not be found in the JWT", debugDetails));
             }
         }
 
@@ -397,7 +395,8 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
             if (!matcher.matches()) {
                 log.warn("Subject " + subject + " does not match subject_pattern " + subjectPattern);
-                return null;
+                throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                        "Subject " + subject + " does not match subject_pattern " + subjectPattern, debugDetails));
             }
 
             if (matcher.groupCount() == 1) {
@@ -414,7 +413,8 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
                 if (subjectBuilder.length() != 0) {
                     subject = subjectBuilder.toString();
                 } else {
-                    subject = null;
+                    throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                            "subject_pattern " + subjectPattern + " extracted empty subject. Original subject: " + subject, debugDetails));
                 }
             }
         }
@@ -428,7 +428,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
                 return Arrays.asList(Roles.split(JsonPath.using(jsonPathConfig).parse(claims.asMap()).read(jsonRolesPath)));
             } catch (PathNotFoundException e) {
                 throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                        "The roles JSON path was not found in the Id token claims: " + jsonRolesPath, debugInfo));
+                        "The roles JSON path was not found in the Id token claims: " + jsonRolesPath.getPath(), debugInfo));
             }
         } else {
             return Collections.emptyList();
