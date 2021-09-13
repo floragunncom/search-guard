@@ -141,7 +141,7 @@ public class FrontendConfig implements Document {
                 if (result.message == null) {
                     result.message = DEFAULT_BASIC_AUTHCZ.getMessage();
                 }
-            } else if (authenticationFrontendRegistry != null) {
+            } else if (authenticationFrontendRegistry != null && result.enabled) {
                 result.id = Hashing.sha256().hashString(documentNode.toMap().toString(), StandardCharsets.UTF_8).toString();
 
                 try {

@@ -219,7 +219,7 @@ public class OidcAuthenticatorTest {
             AuthCredentials authCredentials = authenticator.extractCredentials(request);
             Assert.fail("Expected exception, got: " + authCredentials);
         } catch (CredentialsException e) {
-            Assert.assertTrue(e.getMessage(), e.getMessage().contains("No subject found in JWT token"));
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("The configured JSON Path $['subasd'] could not be found in the JWT"));
         }
     }
 

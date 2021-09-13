@@ -76,7 +76,7 @@ fe_saml_keycloak:
   extends:
   - .fe_integration_test
   variables:
-    TEST: "kibana_saml"
+    TEST: "kibana_saml_keycloak"
     TEST_ENVIRONMENT: "kibana_noxpack"
     TEST_KI_CONFIG: "saml"
 
