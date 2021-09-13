@@ -14,240 +14,186 @@
 
 package com.floragunn.searchguard.dlic.rest.api;
 
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
-public class BlocksApiTest extends AbstractRestApiUnitTest {
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
+
+public class BlocksApiTest {
+
+    @ClassRule
+    public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
+            .resources("restapi").sslEnabled().build();
 
     @Test
     public void testBlockByUserName() throws Exception {
-        setupWithRestRoles();
 
-        rh.sendHTTPClientCertificate = false;
+        try (GenericRestClient worfClient = cluster.getRestClient("worf", "worf");
+                GenericRestClient adminClient = cluster.getAdminCertRestClient().trackResources();
+                GenericRestClient sarekClient = cluster.getRestClient("sarek", "sarek")) {
+            // First, the user is not blocked and thus they can perform requests
+            GenericRestClient.HttpResponse response = worfClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-        // First, the user is not blocked and thus they can perform requests
-        HttpResponse response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("worf", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            // Now we will block the user
+            response = adminClient.putJson("_searchguard/api/blocks/a_block", FileHelper.loadFile("restapi/simple_blocks_username.json"));
+            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
 
-        rh.sendHTTPClientCertificate = true;
+            // Seeing if the blocks API confirms that the user is being blocked
+            response = adminClient.get("_searchguard/api/blocks/a_block");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("worf"));
 
-        // Now we will block the user
-        response = rh.executePutRequest("_searchguard/api/blocks/a_block", FileHelper.loadFile("restapi/simple_blocks_username.json"));
-        Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+            response = adminClient.get("_searchguard/api/blocks/");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("worf"));
 
-        // Seeing if the blocks API confirms that the user is being blocked
-        response = rh.executeGetRequest("_searchguard/api/blocks/a_block");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("worf"));
+            // Now the user shouldn't be able to perform requests anymore
+            response = worfClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
 
-        response = rh.executeGetRequest("_searchguard/api/blocks/");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("worf"));
-
-        rh.sendHTTPClientCertificate = false;
-
-        // Now the user shouldn't be able to perform requests anymore
-        response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("worf", "worf"));
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
-
-        // any other user should still be allowed to perform requests
-        response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("sarek", "sarek"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            // any other user should still be allowed to perform requests
+            response = sarekClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        }
     }
 
     @Test
     public void testAllowSingleUserName() throws Exception {
-        setupWithRestRoles();
+        try (GenericRestClient worfClient = cluster.getRestClient("worf", "worf");
+                GenericRestClient adminClient = cluster.getAdminCertRestClient().trackResources();
+                GenericRestClient sarekClient = cluster.getRestClient("sarek", "sarek");
+                GenericRestClient testClient = cluster.getRestClient("test", "test")) {
 
-        rh.sendHTTPClientCertificate = false;
+            HttpResponse response = worfClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-        HttpResponse response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("worf", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            response = sarekClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-        response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("sarek", "sarek"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            response = testClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-        response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("test", "test"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            // Now we will block the user
+            response = adminClient.putJson("_searchguard/api/blocks/a_block",
+                    FileHelper.loadFile("restapi/simple_blocks_single_allow_username.json"));
+            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
 
-        rh.sendHTTPClientCertificate = true;
+            // Seeing if the blocks API confirms that the user is being blocked
+            response = adminClient.get("_searchguard/api/blocks/a_block");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("worf"));
 
-        // Now we will block the user
-        response = rh.executePutRequest("_searchguard/api/blocks/a_block", FileHelper.loadFile("restapi/simple_blocks_single_allow_username.json"));
-        Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+            response = adminClient.get("_searchguard/api/blocks/");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("worf"));
 
-        // Seeing if the blocks API confirms that the user is being blocked
-        response = rh.executeGetRequest("_searchguard/api/blocks/a_block");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("worf"));
+            response = testClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
 
-        response = rh.executeGetRequest("_searchguard/api/blocks/");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("worf"));
+            response = adminClient.putJson("_searchguard/api/blocks/another_block",
+                    FileHelper.loadFile("restapi/simple_blocks_single_disallow_username.json"));
+            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
 
-        response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("test", "test"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            // Seeing if the blocks API confirms that the user is being blocked
+            response = adminClient.get("_searchguard/api/blocks/another_block");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("test"));
 
-        response = rh.executePutRequest("_searchguard/api/blocks/another_block", FileHelper.loadFile("restapi/simple_blocks_single_disallow_username.json"));
-        Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+            response = adminClient.get("_searchguard/api/blocks/");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("test"));
 
-        // Seeing if the blocks API confirms that the user is being blocked
-        response = rh.executeGetRequest("_searchguard/api/blocks/another_block");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("test"));
+            // Now the user should be the only user to have access
+            response = worfClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-        response = rh.executeGetRequest("_searchguard/api/blocks/");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("test"));
+            response = sarekClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
 
-        rh.sendHTTPClientCertificate = false;
-
-        // Now the user should be the only user to have access
-        response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("worf", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-
-        response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("sarek", "sarek"));
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
-
-        response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("test", "test"));
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
+            response = testClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
+        }
     }
 
     @Test
     public void testBlockByIp() throws Exception {
-        setupWithRestRoles();
+        try (GenericRestClient worfClient = cluster.getRestClient("worf", "worf");
+                GenericRestClient adminClient = cluster.getAdminCertRestClient().trackResources()) {
 
-        rh.sendHTTPClientCertificate = false;
+            // First, the user is not blocked and thus they can perform requests
+            HttpResponse response = worfClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-        // First, the user is not blocked and thus they can perform requests
-        HttpResponse response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("worf", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            // Now we will block the user
+            response = adminClient.putJson("_searchguard/api/blocks/a_block", FileHelper.loadFile("restapi/simple_blocks_ip.json"));
+            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
 
-        rh.sendHTTPClientCertificate = true;
+            // Seeing if the blocks API confirms that the user is being blocked
+            response = adminClient.get("_searchguard/api/blocks/a_block");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("127.0.0.1"));
 
-        // Now we will block the user
-        response = rh.executePutRequest("_searchguard/api/blocks/a_block", FileHelper.loadFile("restapi/simple_blocks_ip.json"));
-        Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+            response = adminClient.get("_searchguard/api/blocks/");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("127.0.0.1"));
 
-        // Seeing if the blocks API confirms that the user is being blocked
-        response = rh.executeGetRequest("_searchguard/api/blocks/a_block");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("127.0.0.1"));
-
-        response = rh.executeGetRequest("_searchguard/api/blocks/");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("127.0.0.1"));
-
-        rh.sendHTTPClientCertificate = false;
-
-        // Now the user shouldn't be able to perform requests anymore
-        response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("worf", "worf"));
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
+            // Now the user shouldn't be able to perform requests anymore
+            response = worfClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
+        }
     }
 
     @Test
     public void testBlockByNetmask() throws Exception {
-        setupWithRestRoles();
+        try (GenericRestClient worfClient = cluster.getRestClient("worf", "worf");
+                GenericRestClient adminClient = cluster.getAdminCertRestClient().trackResources()) {
 
-        rh.sendHTTPClientCertificate = false;
+            // First, the user is not blocked and thus they can perform requests
+            HttpResponse response = worfClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-        // First, the user is not blocked and thus they can perform requests
-        HttpResponse response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("worf", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            // Now we will block the user
+            response = adminClient.putJson("_searchguard/api/blocks/a_block", FileHelper.loadFile("restapi/simple_blocks_netmask.json"));
+            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
 
-        rh.sendHTTPClientCertificate = true;
+            // Seeing if the blocks API confirms that the user is being blocked
+            response = adminClient.get("_searchguard/api/blocks/a_block");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("127.0.0.0/8"));
 
-        // Now we will block the user
-        response = rh.executePutRequest("_searchguard/api/blocks/a_block", FileHelper.loadFile("restapi/simple_blocks_netmask.json"));
-        Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+            response = adminClient.get("_searchguard/api/blocks/");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("127.0.0.0/8"));
 
-        // Seeing if the blocks API confirms that the user is being blocked
-        response = rh.executeGetRequest("_searchguard/api/blocks/a_block");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("127.0.0.0/8"));
-
-        response = rh.executeGetRequest("_searchguard/api/blocks/");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("127.0.0.0/8"));
-
-        rh.sendHTTPClientCertificate = false;
-
-        // Now the user shouldn't be able to perform requests anymore
-        response = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("worf", "worf"));
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
+            // Now the user shouldn't be able to perform requests anymore
+            response = worfClient.get("_searchguard/authinfo?pretty");
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
+        }
     }
 
     @Test
     public void testDeleteBlocks() throws Exception {
-        setup();
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
+            HttpResponse response = adminClient.get("_searchguard/api/blocks/a_block");
+            boolean blocksExist = response.getBody().contains("Spock");
 
-        rh.keystore = "restapi/kirk-keystore.jks";
-        rh.sendHTTPClientCertificate = true;
+            if (!blocksExist) {
+                response = adminClient.putJson("_searchguard/api/blocks/a_block", FileHelper.loadFile("restapi/simple_blocks_username.json"));
+                Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+            }
 
-        HttpResponse response = rh.executeGetRequest("_searchguard/api/blocks/a_block");
-        boolean blocksExist = response.getBody().contains("Spock");
+            response = adminClient.delete("_searchguard/api/blocks/a_block");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
-        if (!blocksExist) {
-            response = rh.executePutRequest("_searchguard/api/blocks/a_block", FileHelper.loadFile("restapi/simple_blocks_username.json"));
-            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+            response = adminClient.get("_searchguard/api/blocks/a_block");
+            Assert.assertEquals(HttpStatus.SC_NOT_FOUND, response.getStatusCode());
         }
-
-        response = rh.executeDeleteRequest("_searchguard/api/blocks/a_block");
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-
-        response = rh.executeGetRequest("_searchguard/api/blocks/a_block");
-        Assert.assertEquals(HttpStatus.SC_NOT_FOUND, response.getStatusCode());
     }
 
-    @Test
-    public void testPutDuplicateKeys() throws Exception {
-        setup();
-
-        rh.keystore = "restapi/kirk-keystore.jks";
-        rh.sendHTTPClientCertificate = true;
-        HttpResponse response = rh.executePutRequest("_searchguard/api/blocks/a_block", "{\n" +
-                "\t\"type\": \"name\",\n" +
-                "\t\"value\": \"Spock\",\n" +
-                "\t\"value\": \"Spock\",\n" +
-                "\t\"description\": \"Demo user blocked by name\"\n" +
-                "}\n");
-        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("JsonParseException"));
-        assertHealthy();
-    }
-
-    @Test
-    public void testPutUnknownKey() throws Exception {
-        setup();
-
-        rh.keystore = "restapi/kirk-keystore.jks";
-        rh.sendHTTPClientCertificate = true;
-        HttpResponse response = rh.executePutRequest("_searchguard/api/blocks/a_block", "{\n" +
-                "\t\"type\": \"name\",\n" +
-                "\t\"lol\": \"Spock\",\n" +
-                "\t\"description\": \"Demo user blocked by name\"\n" +
-                "}\n");
-        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("invalid_keys"));
-        assertHealthy();
-    }
-
-    @Test
-    public void testPutInvalidJson() throws Exception {
-        setup();
-
-        rh.keystore = "restapi/kirk-keystore.jks";
-        rh.sendHTTPClientCertificate = true;
-        HttpResponse response = rh.executePutRequest("_searchguard/api/blocks/a_block", "{\n" +
-                "\t\"type\": \"name\",\n" +
-                "\t\"value\": \"Spock\",\n" +
-                "\tdescription & \"Demo user blocked by name\"\n" +
-                "}\n");
-        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("JsonParseException"));
-        assertHealthy();
-    }
 }

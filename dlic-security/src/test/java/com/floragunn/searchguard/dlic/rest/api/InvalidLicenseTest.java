@@ -46,8 +46,8 @@ public class InvalidLicenseTest extends LicenseTest {
 		 Assert.assertEquals(expiredStartDate.format(formatter), settingsAsMap.get("start_date"));
 		 Assert.assertEquals(expiredExpiryDate.format(formatter), settingsAsMap.get("expiry_date"));
 		 Assert.assertEquals("Purchase a license. Visit docs.search-guard.com/latest/search-guard-enterprise-edition or write to <sales@floragunn.com>", settingsAsMap.get("action"));
-		 Assert.assertEquals("License is expired", ((List)settingsAsMap.get("msgs")).get(0));
-		 Assert.assertEquals("Only 1 node(s) allowed but you run 3 node(s)", ((List)settingsAsMap.get("msgs")).get(1));
+		 Assert.assertEquals("License is expired", ((List<?>)settingsAsMap.get("msgs")).get(0));
+		 Assert.assertEquals("Only 1 node(s) allowed but you run 3 node(s)", ((List<?>)settingsAsMap.get("msgs")).get(1));
 	}
 
 	private final String createLicenseRequestBody(String licenseString) throws Exception {
