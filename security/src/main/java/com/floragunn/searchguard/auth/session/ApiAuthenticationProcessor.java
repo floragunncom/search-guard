@@ -35,6 +35,7 @@ import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.AuthczResult;
 import com.floragunn.searchguard.auth.AuthenticationDomain;
 import com.floragunn.searchguard.auth.AuthenticationProcessor;
+import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.auth.AuthorizationDomain;
 import com.floragunn.searchguard.auth.CredentialsException;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
@@ -89,22 +90,21 @@ public class ApiAuthenticationProcessor extends AuthenticationProcessor<ApiAuthe
 
             addDebugInfo(e.getDebugInfo());
             return AuthDomainState.SKIP;
-
         } catch (ConfigValidationException e) {
-            if (log.isDebugEnabled()) {
-                log.debug("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
-            }
+            log.error("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
 
             addDebugInfo(new AuthczResult.DebugInfo(authenticationFrontend.getType(), false, "Bad API request",
                     ImmutableMap.of("validation_errors", e.getValidationErrors())));
             return AuthDomainState.SKIP;
+        } catch (AuthenticatorUnavailableException e) {
+            log.warn("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
 
-        } catch (Exception e1) {
-            if (log.isDebugEnabled()) {
-                log.debug("'{}' extracting credentials from {} authentication frontend", e1.toString(), authenticationFrontend.getType(), e1);
-            }
+            addDebugInfo(new AuthczResult.DebugInfo(authenticationFrontend.getType(), false, e.getMessage()));
+            return AuthDomainState.SKIP;
+        } catch (Exception e) {
+            log.error("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
 
-            addDebugInfo(new AuthczResult.DebugInfo(authenticationFrontend.getType(), false, e1.toString()));
+            addDebugInfo(new AuthczResult.DebugInfo(authenticationFrontend.getType(), false, e.toString()));
             return AuthDomainState.SKIP;
         }
 
