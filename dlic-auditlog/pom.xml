@@ -81,6 +81,13 @@
 			<scope>test</scope>
 		</dependency>
 
+    	<dependency>
+	   		<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-support</artifactId>
+			<classifier>tests</classifier>
+			<scope>test</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.ldaptive</groupId>
 			<artifactId>ldaptive</artifactId>

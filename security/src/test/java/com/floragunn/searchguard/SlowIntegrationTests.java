@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard;
 
+import java.time.Duration;
+
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
@@ -35,6 +37,7 @@ import com.floragunn.searchguard.test.SingleClusterTest;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchsupport.junit.AsyncAssert;
 
 public class SlowIntegrationTests extends SingleClusterTest {
 
@@ -107,12 +110,10 @@ public class SlowIntegrationTests extends SingleClusterTest {
         log.debug("Start node client");
 
         try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardPlugin.class).start()) {
-            Thread.sleep(10000);
-            Assert.assertEquals(1, node.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
-        } catch (Exception e) {
-            Assert.fail(e.toString());
+            AsyncAssert.awaitAssert("Node has started",
+                    () -> node.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size() == 1,
+                    Duration.ofSeconds(10));
         }
-         
     }
     
     @SuppressWarnings("resource")
@@ -139,11 +140,10 @@ public class SlowIntegrationTests extends SingleClusterTest {
         log.debug("Start node client");
         
         try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardPlugin.class).start()) {
-            Thread.sleep(10000);
-            Assert.assertEquals(1, node.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());    
-        } catch (Exception e) {
-            Assert.fail(e.toString());
-        }
+            AsyncAssert.awaitAssert("Node has started",
+                    () -> node.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size() == 1,
+                    Duration.ofSeconds(10));
+        } 
     }
 
 }
