@@ -18,7 +18,6 @@
 package com.floragunn.signals;
 
 import java.time.Duration;
-import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,6 +35,7 @@ import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
+import com.floragunn.searchsupport.junit.AsyncAssert;
 import com.floragunn.searchsupport.junit.LoggingTestWatcher;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
@@ -92,7 +92,7 @@ public class SignalsStressTests {
 
             restClient.putJson(watchPath, watch.toJson());
 
-            awaitAssert("Watch did not get assigned a node", () -> {
+            AsyncAssert.awaitAssert("Watch did not get assigned a node", () -> {
                 try {
                     String node = restClient.get(watchPath + "/_state").toJsonNode().path("node").asText();
 
@@ -116,7 +116,7 @@ public class SignalsStressTests {
 
             Assert.assertEquals(200, restClient.put(watchPath + "/_ack").getStatusCode());
 
-            awaitAssert("Watch state contains acked date", () -> {
+            AsyncAssert.awaitAssert("Watch state contains acked date", () -> {
                 try {
                     String acked = restClient.get(watchPath + "/_state").toJsonNode().path("actions").path("testsink").path("acked").path("on")
                             .asText();
@@ -145,7 +145,7 @@ public class SignalsStressTests {
         Thread.sleep(500);
 
         try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
-            awaitAssert("Watch got assigned a different node", () -> {
+            AsyncAssert.awaitAssert("Watch got assigned a different node", () -> {
                 try {
                     String node = restClient.get(watchPath + "/_state").toJsonNode().path("node").asText();
 
@@ -172,27 +172,6 @@ public class SignalsStressTests {
             Assert.assertEquals(response.getBody(), ackedAt, newAckedAt);
         }
 
-    }
-
-    private static void sleep(long ms) {
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static void awaitAssert(String message, Supplier<Boolean> condition, Duration maxWaitingTime) {
-        long timeout = System.currentTimeMillis() + maxWaitingTime.toMillis();
-        while (!condition.get() && timeout >= System.currentTimeMillis()) {
-            sleep(50);
-        }
-
-        if (condition.get()) {
-            return;
-        } else {
-            Assert.fail(message);
-        }
     }
 
 }

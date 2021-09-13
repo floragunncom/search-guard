@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard;
 
+import java.time.Duration;
 import java.util.Iterator;
 
 import org.apache.http.Header;
@@ -26,7 +27,7 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -48,6 +49,7 @@ import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchsupport.junit.AsyncAssert;
 
 public class InitializationIntegrationTests extends SingleClusterTest {
     @ClassRule 
@@ -87,7 +89,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig().setSgInternalUsers("sg_internal_empty.yml")
                 .setSgRoles("sg_roles_deny.yml"), Settings.EMPTY, true);
         
-        try (TransportClient tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
+        try (Client tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
             WhoAmIResponse wres = tc.execute(WhoAmIAction.INSTANCE, new WhoAmIRequest()).actionGet();  
             System.out.println(wres);
             Assert.assertEquals(wres.toString(), "CN=spock,OU=client,O=client,L=Test,C=DE", wres.getDn());
@@ -97,7 +99,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
 
         }
         
-        try (TransportClient tc = getUserTransportClient(clusterInfo, "node-0-keystore.jks", Settings.EMPTY)) {  
+        try (Client tc = getUserTransportClient(clusterInfo, "node-0-keystore.jks", Settings.EMPTY)) {  
             WhoAmIResponse wres = tc.execute(WhoAmIAction.INSTANCE, new WhoAmIRequest()).actionGet();    
             System.out.println(wres);
             Assert.assertEquals(wres.toString(), "CN=node-0.example.com,OU=SSL,O=Test,L=Test,C=DE", wres.getDn());
@@ -123,7 +125,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
             Assert.assertTrue(res.getBody().contains("vulcan"));
         }
         
-        try (TransportClient tc = getInternalTransportClient()) {   
+        try (Client tc = getInternalTransportClient()) {   
             Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
             tc.index(new IndexRequest("searchguard").type(getType()).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("internalusers").source("internalusers", FileHelper.readYamlContent("sg_internal_users_spock_add_roles.yml"))).actionGet();
             ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
@@ -141,7 +143,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
             Assert.assertFalse(res.getBody().contains("starfleet"));
         }
         
-        try (TransportClient tc = getInternalTransportClient()) {    
+        try (Client tc = getInternalTransportClient()) {    
             Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
             tc.index(new IndexRequest("searchguard").type(getType()).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("config").source("config", FileHelper.readYamlContent("sg_config_anon.yml"))).actionGet();
             ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config"})).actionGet();
@@ -168,9 +170,9 @@ public class InitializationIntegrationTests extends SingleClusterTest {
                 .build();
         setup(Settings.EMPTY, null, settings, false);
         RestHelper rh = nonSslRestHelper();
-        Thread.sleep(15000);
         
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("admin", "admin")).getStatusCode());
+        AsyncAssert.awaitAssert("Index was initialized", () -> rh.executeGetRequest("", encodeBasicHeader("admin", "admin")).getStatusCode() == 200,
+                Duration.ofSeconds(15));
     }
 
     @Test
@@ -200,12 +202,18 @@ public class InitializationIntegrationTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig(), b, false);
         
         RestHelper rh = nonSslRestHelper();
-        HttpResponse res;
-        Thread.sleep(5000);
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/license?pretty")).getStatusCode());
-        System.out.println(res.getBody());
-        assertContains(res, "*TRIAL*");
-        assertNotContains(res, "*FULL*");
+        
+        AsyncAssert.awaitAssert("License present", () -> {
+            HttpResponse res;
+            Thread.sleep(5000);
+            Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/license?pretty")).getStatusCode());
+
+            assertContains(res, "*TRIAL*");
+            assertNotContains(res, "*FULL*");
+            
+            return true;            
+        }, Duration.ofSeconds(10));
     }
+
 
 }

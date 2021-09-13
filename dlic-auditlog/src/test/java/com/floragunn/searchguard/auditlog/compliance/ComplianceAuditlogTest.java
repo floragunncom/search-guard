@@ -14,6 +14,8 @@
 
 package com.floragunn.searchguard.auditlog.compliance;
 
+import java.time.Duration;
+
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -35,6 +37,7 @@ import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchsupport.junit.AsyncAssert;
 
 public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
@@ -85,9 +88,8 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executePostRequest("_search?pretty", search, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(response.getBody());
-        Thread.sleep(1500);
+        AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.messages.size() >= 1, Duration.ofSeconds(2));
         System.out.println(TestAuditlogImpl.sb.toString());
-        Assert.assertTrue(TestAuditlogImpl.messages.size() >= 1);
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_DOC_READ"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Designation"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Salary"));
@@ -154,9 +156,9 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executePostRequest("_msearch?pretty", search, encodeBasicHeader("admin", "admin"));
         assertNotContains(response, "*exception*");
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Thread.sleep(1500);
-        System.out.println(TestAuditlogImpl.sb.toString());
-        Assert.assertTrue("Was "+TestAuditlogImpl.messages.size(), TestAuditlogImpl.messages.size() == 2);
+        
+        AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.messages.size() == 2, Duration.ofSeconds(2));
+        System.out.println(TestAuditlogImpl.sb.toString());        
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_DOC_READ"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Salary"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("Gender"));
@@ -194,7 +196,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executeGetRequest("_search?pretty", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(response.getBody());
-        Thread.sleep(1500);
+        AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.messages.size() > 25, Duration.ofSeconds(2));
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.messages.size() > 25);
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
@@ -245,7 +247,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executeGetRequest("_search?pretty", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(response.getBody());
-        Thread.sleep(1500);
+        AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.messages.size() == 3, Duration.ofSeconds(2));
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(3, TestAuditlogImpl.messages.size());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("external_configuration"));
@@ -338,11 +340,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Thread.sleep(1500);
         Assert.assertTrue(TestAuditlogImpl.messages.isEmpty());
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));*/
-        
-        Thread.sleep(1500);
-        System.out.println("Messages: "+TestAuditlogImpl.messages.size());
-        //System.out.println(TestAuditlogImpl.sb.toString());
-        
+          
     }
     
     @Test
@@ -376,18 +374,16 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         HttpResponse response = rh.executePostRequest("humanresources/employees/100/_update?pretty", body, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(response.getBody());
-        Thread.sleep(1500);
+        AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.sb.toString().split(".*audit_compliance_diff_content.*replace.*").length == 2, Duration.ofSeconds(2));
         System.out.println(TestAuditlogImpl.sb.toString());
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().split(".*audit_compliance_diff_content.*replace.*").length == 2);
         
         body = "{\"Age\":555}";
         TestAuditlogImpl.clear();
         response = rh.executePostRequest("humanresources/employees/100?pretty", body, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(response.getBody());
-        Thread.sleep(1500);
+        AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.sb.toString().split(".*audit_compliance_diff_content.*replace.*").length == 2, Duration.ofSeconds(2));
         System.out.println(TestAuditlogImpl.sb.toString());
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().split(".*audit_compliance_diff_content.*replace.*").length == 2);
     }
     
     @Test
