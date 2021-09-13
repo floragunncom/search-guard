@@ -5,8 +5,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.collect.Tuple;
+import org.opensearch.common.collect.Tuple;
 
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.Meta;
@@ -22,6 +21,7 @@ import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
+import com.google.common.base.Strings;
 
 public class Migration {
     
