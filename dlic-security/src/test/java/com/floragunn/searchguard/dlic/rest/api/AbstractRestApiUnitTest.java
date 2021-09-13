@@ -15,23 +15,11 @@
 package com.floragunn.searchguard.dlic.rest.api;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.http.Header;
-import org.apache.http.HttpStatus;
-import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.Plugin;
 import org.junit.Assert;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.SingleClusterTest;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
@@ -122,23 +110,6 @@ public abstract class AbstractRestApiUnitTest extends SingleClusterTest {
 		rh.keystore = "restapi/kirk-keystore.jks";
 	}
 
-	protected void deleteUser(String username) throws Exception {
-		boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
-		rh.sendHTTPClientCertificate = true;
-		HttpResponse response = rh.executeDeleteRequest("/_searchguard/api/internalusers/" + username, new Header[0]);
-		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
-	}
-
-	protected void addUserWithPassword(String username, String password, int status) throws Exception {
-		boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
-		rh.sendHTTPClientCertificate = true;
-		HttpResponse response = rh.executePutRequest("/_searchguard/api/internalusers/" + username,
-				"{\"password\": \"" + password + "\"}", new Header[0]);
-		Assert.assertEquals(status, response.getStatusCode());
-		rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
-	}
-
 	protected void addUserWithPassword(String username, String password, String[] roles, int status) throws Exception {
 		boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
 		rh.sendHTTPClientCertificate = true;
@@ -152,45 +123,6 @@ public abstract class AbstractRestApiUnitTest extends SingleClusterTest {
 		payload += "]}";
 		HttpResponse response = rh.executePutRequest("/_searchguard/api/internalusers/" + username, payload, new Header[0]);
 		Assert.assertEquals(status, response.getStatusCode());
-		rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
-	}
-
-	protected void addUserWithoutPasswordOrHash(String username, String[] roles, int status) throws Exception {
-		boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
-		rh.sendHTTPClientCertificate = true;
-		String payload = "{ \"backend_roles\": [";
-		for (int i = 0; i < roles.length; i++) {
-			payload += "\" " + roles[i] + " \"";
-			if (i + 1 < roles.length) {
-				payload += ",";
-			}
-		}
-		payload += "]}";
-		HttpResponse response = rh.executePutRequest("/_searchguard/api/internalusers/" + username, payload, new Header[0]);
-		Assert.assertEquals(status, response.getStatusCode());
-		rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
-	}
-
-	protected void addUserWithHash(String username, String hash) throws Exception {
-		addUserWithHash(username, hash, HttpStatus.SC_OK);
-	}
-
-	protected void addUserWithHash(String username, String hash, int status) throws Exception {
-		boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
-		rh.sendHTTPClientCertificate = true;
-		HttpResponse response = rh.executePutRequest("/_searchguard/api/internalusers/" + username, "{\"hash\": \"" + hash + "\"}",
-				new Header[0]);
-		Assert.assertEquals(status, response.getStatusCode());
-		rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
-	}
-
-	protected void checkGeneralAccess(int status, String username, String password) throws Exception {
-		boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
-		rh.sendHTTPClientCertificate = false;
-		Assert.assertEquals(status,
-				rh.executeGetRequest("",
-						encodeBasicHeader(username, password))
-						.getStatusCode());
 		rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
 	}
 
@@ -231,12 +163,6 @@ public abstract class AbstractRestApiUnitTest extends SingleClusterTest {
 		rh.executePutRequest("sf/public/0", "{\"some\" : \"value\"}", new Header[0]);
 		rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
 	}
-	
-	protected void assertHealthy() throws Exception {
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_searchguard/health?pretty").getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("admin", "admin")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("*/_search?pretty", encodeBasicHeader("admin", "admin")).getStatusCode());
-	}
     
 	protected Settings defaultNodeSettings(boolean enableRestSSL) throws FileNotFoundException {
 		Settings.Builder builder = Settings.builder();
@@ -251,23 +177,5 @@ public abstract class AbstractRestApiUnitTest extends SingleClusterTest {
 		return builder.build();
 	}
 	
-	protected Map<String, String> jsonStringToMap(String json) throws JsonParseException, JsonMappingException, IOException {
-		TypeReference<HashMap<String, String>> typeRef = new TypeReference<HashMap<String, String>>() {};
-		return DefaultObjectMapper.objectMapper.readValue(json, typeRef);
-	}
-	
-	protected static class TransportClientImpl extends TransportClient {
 
-		public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {
-			super(settings, plugins);
-		}
-
-		public TransportClientImpl(Settings settings, Settings defaultSettings, Collection<Class<? extends Plugin>> plugins) {
-			super(settings, defaultSettings, plugins, null);
-		}
-	}
-
-	protected static Collection<Class<? extends Plugin>> asCollection(Class<? extends Plugin>... plugins) {
-		return Arrays.asList(plugins);
-	}
 }

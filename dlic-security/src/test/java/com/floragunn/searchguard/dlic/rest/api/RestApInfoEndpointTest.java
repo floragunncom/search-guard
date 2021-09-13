@@ -25,7 +25,6 @@ import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class RestApInfoEndpointTest extends AbstractRestApiUnitTest {
 
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testLicenseApiWithSettings() throws Exception {
 
@@ -50,7 +49,6 @@ public class RestApInfoEndpointTest extends AbstractRestApiUnitTest {
 		tearDown();
 	}
 
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testLicenseApiWithoutSettings() throws Exception {
 
