@@ -206,7 +206,7 @@ public interface ImmutableSet<E> extends Set<E> {
 
         @Override
         public boolean contains(Object o) {
-            return e1 == o;
+            return e1.equals(o);
         }
 
         @Override
@@ -239,7 +239,7 @@ public interface ImmutableSet<E> extends Set<E> {
 
         @Override
         public Object[] toArray() {
-            return new Object[] { e1, };
+            return new Object[] { e1 };
         }
 
         @Override
@@ -307,7 +307,7 @@ public interface ImmutableSet<E> extends Set<E> {
 
         @Override
         public boolean contains(Object o) {
-            return e1 == o || e2 == o;
+            return e1.equals(o) || e2.equals(o);
         }
 
         @Override
@@ -326,9 +326,11 @@ public interface ImmutableSet<E> extends Set<E> {
                     if (i == 0) {
                         i++;
                         return e1;
-                    } else {
+                    } else if (i == 1) {
                         i++;
                         return e2;
+                    } else {
+                        throw new NoSuchElementException();
                     }
                 }
             };
