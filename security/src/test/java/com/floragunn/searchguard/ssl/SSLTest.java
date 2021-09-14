@@ -35,7 +35,6 @@ import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.http.NoHttpResponseException;
-import org.apache.lucene.util.Constants;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
@@ -85,7 +84,6 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
                 .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
-                .put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
                 .putList(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_PROTOCOLS, "TLSv1.1","TLSv1.2")
                 .putList(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_CIPHERS, "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")
@@ -454,7 +452,9 @@ public class SSLTest extends SingleClusterTest {
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
                 .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                .put("searchguard.ssl.transport.resolve_hostname", false).build();
+                .put("searchguard.ssl.transport.resolve_hostname", false)
+                .put("searchguard.ssl.http.enabled", false)
+                .build();
 
         setupSslOnlyMode(settings);
         
@@ -489,7 +489,8 @@ public class SSLTest extends SingleClusterTest {
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
                 .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                .put("searchguard.ssl.transport.resolve_hostname", false).build();
+                .put("searchguard.ssl.transport.resolve_hostname", false)
+                .put("searchguard.ssl.http.enabled", false).build();
 
         setupSslOnlyMode(settings);
         
@@ -555,6 +556,7 @@ public class SSLTest extends SingleClusterTest {
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
                 .put("searchguard.ssl.transport.enforce_hostname_verification", false)
                 .put("searchguard.ssl.transport.resolve_hostname", false)
+                .put("searchguard.ssl.http.enabled", false)
                 .build();
 
         setupSslOnlyMode(settings);
@@ -594,7 +596,9 @@ public class SSLTest extends SingleClusterTest {
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
                 .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                .put("searchguard.ssl.transport.resolve_hostname", false).build();
+                .put("searchguard.ssl.transport.resolve_hostname", false)
+                .put("searchguard.ssl.http.enabled", false)
+                .build();
 
         setupSslOnlyMode(settings);
 
@@ -603,7 +607,9 @@ public class SSLTest extends SingleClusterTest {
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore_fail.jks"))
                 .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                .put("searchguard.ssl.transport.resolve_hostname", false).build();
+                .put("searchguard.ssl.transport.resolve_hostname", false)
+                .put("searchguard.ssl.http.enabled", false)
+                .build();
 
         try (TransportClient tc = new TransportClientImpl(tcSettings, asCollection(SearchGuardPlugin.class))) {
             tc.addTransportAddress(new TransportAddress(new InetSocketAddress(clusterInfo.nodeHost, clusterInfo.nodePort)));
@@ -764,7 +770,8 @@ public class SSLTest extends SingleClusterTest {
                 .put("searchguard.ssl.transport.enforce_hostname_verification", false)
                 .put("searchguard.ssl.transport.resolve_hostname", false)
                 .putList(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_PROTOCOLS, "TLSv1.3")
-                .putList(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_CIPHERS, "TLS_AES_128_GCM_SHA256")
+                .putList(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_CIPHERS, "TLS_AES_128_GCM_SHA256")                
+                .put("searchguard.ssl.http.enabled", false)
                 .build();
 
         setupSslOnlyMode(settings);
