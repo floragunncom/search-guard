@@ -36,7 +36,6 @@
 				<executions>
 					<execution>
 						<id>copy-resources</id>
-						<!-- here the phase you need -->
 						<phase>package</phase>
 						<goals>
 							<goal>copy-resources</goal>
@@ -46,6 +45,25 @@
 							<resources>
 								<resource>
 									<directory>src/main/descriptor</directory>
+									<filtering>true</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-test-instance-installer</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/releases/</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${basedir}/src/main/assemblies/</directory>
+									<includes>
+										<include>searchguard-test-instance-installer.sh</include>
+									</includes>
 									<filtering>true</filtering>
 								</resource>
 							</resources>
@@ -109,7 +127,30 @@
 								<goals>
 									<goal>single</goal>
 								</goals>
-							</execution>							
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<version>1.8</version>
+						<executions>
+							<execution>
+								<id>attach-artifacts</id>
+								<phase>package</phase>
+								<goals>
+									<goal>attach-artifact</goal>
+								</goals>
+								<configuration>
+									<artifacts>
+										<artifact>
+											<file>${basedir}/target/releases/searchguard-test-instance-installer.sh</file>
+											<type>sh</type>
+											<classifier>demo-installer</classifier>
+										</artifact>
+									</artifacts>
+								</configuration>
+							</execution>
 						</executions>
 					</plugin>
 					<plugin>
@@ -165,19 +206,19 @@
 					<artifactId>search-guard-suite-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
-				
+
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>search-guard-suite-support</artifactId>
 					<version>${project.version}</version>
 				</dependency>
-				
+
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>sgadmin</artifactId>
 					<version>${project.version}</version>
 				</dependency>
-				
+
 				<!-- DLIC -->
 				<dependency>
 					<groupId>${project.groupId}</groupId>
@@ -190,7 +231,7 @@
 					<artifactId>dlic-search-guard-suite-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
-								
+
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
@@ -203,7 +244,8 @@
 					<version>${project.version}</version>
 				</dependency>				
 				
-				<!-- necessary for sgadmin-standalone. we should find a different solution for this -->
+				<!-- necessary for sgadmin-standalone. we should find a different solution 
+					for this -->
 				<dependency>
 					<groupId>org.elasticsearch</groupId>
 					<artifactId>elasticsearch</artifactId>
@@ -234,7 +276,7 @@
 								<goals>
 									<goal>single</goal>
 								</goals>
-							</execution>							
+							</execution>
 						</executions>
 					</plugin>
 				</plugins>
@@ -257,7 +299,7 @@
 					<artifactId>search-guard-suite-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
-				
+
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>search-guard-suite-support</artifactId>
@@ -269,7 +311,7 @@
 					<artifactId>sgadmin</artifactId>
 					<version>${project.version}</version>
 				</dependency>
-								
+
 				<!-- DLIC -->
 				<dependency>
 					<groupId>${project.groupId}</groupId>
@@ -282,7 +324,7 @@
 					<artifactId>dlic-search-guard-suite-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
-				
+
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
