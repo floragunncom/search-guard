@@ -1,3 +1,20 @@
+/*
+ * Copyright 2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.privileges.extended_action_handling;
 
 import java.time.Instant;
@@ -71,7 +88,7 @@ public class ResourceOwnerService {
         this.refreshPolicy = WriteRequest.RefreshPolicy.parse(REFRESH_POLICY.get(settings));
 
         this.indexCleanupAgent = new IndexCleanupAgent(index, CLEANUP_INTERVAL.get(settings), privilegedConfigClient, clusterService, threadPool);
-        
+
         protectedIndices.add(index);
     }
 
@@ -177,8 +194,8 @@ public class ResourceOwnerService {
     }
 
     public <Request extends ActionRequest, Response extends ActionResponse> ActionFilterChain<Request, Response> applyOwnerCheckPreAction(
-            ActionConfig actionConfig, User currentUser, Task task, final String action, Request actionRequest, ActionListener<Response> listener,
-            ActionFilterChain<Request, Response> chain) {
+            ActionConfig<Request, ?, ?> actionConfig, User currentUser, Task task, final String action, Request actionRequest,
+            ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
 
         ActionFilterChain<Request, Response> extendedChain = chain;
 
@@ -191,7 +208,7 @@ public class ResourceOwnerService {
         return extendedChain;
     }
 
-    public <R extends ActionResponse> ActionListener<R> applyCreatePostAction(ActionConfig actionConfig, User currentUser,
+    public <R extends ActionResponse> ActionListener<R> applyCreatePostAction(ActionConfig<?, ?, ?> actionConfig, User currentUser,
             ActionListener<R> actionListener) {
 
         return new ActionListener<R>() {
@@ -244,7 +261,7 @@ public class ResourceOwnerService {
 
     }
 
-    public <Request extends ActionRequest, R extends ActionResponse> ActionListener<R> applyDeletePostAction(ActionConfig actionConfig,
+    public <Request extends ActionRequest, R extends ActionResponse> ActionListener<R> applyDeletePostAction(ActionConfig<?, ?, ?> actionConfig,
             Resource resource, User currentUser, Task task, final String action, Request actionRequest, ActionListener<R> actionListener) {
 
         return new ActionListener<R>() {
@@ -275,7 +292,7 @@ public class ResourceOwnerService {
     public void shutdown() {
         this.indexCleanupAgent.shutdown();
     }
-    
+
     static class CheckOwnerResponse {
         private GetResponse getResponse;
 

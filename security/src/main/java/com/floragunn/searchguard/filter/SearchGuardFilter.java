@@ -286,7 +286,7 @@ public class SearchGuardFilter implements ActionFilter {
                 return;
             }
 
-            ActionConfig actionConfig = ActionConfigRegistry.INSTANCE.get(action);
+            ActionConfig<Request, ?, ?> actionConfig = ActionConfigRegistry.INSTANCE.get(action, request);
 
             if (log.isTraceEnabled()) {
                 log.trace("Action config for " + action + ": " + actionConfig);
@@ -357,15 +357,15 @@ public class SearchGuardFilter implements ActionFilter {
         }
     }
 
-    private static class ImmutableIndexActionListener implements ActionListener {
+    private static class ImmutableIndexActionListener<Response> implements ActionListener<Response> {
 
-        private final ActionListener originalListener;
+        private final ActionListener<Response> originalListener;
         private final AuditLog auditLog;
         private TransportRequest originalRequest;
         private String action;
         private Task task;
 
-        public ImmutableIndexActionListener(ActionListener originalListener, AuditLog auditLog, TransportRequest originalRequest, String action,
+        public ImmutableIndexActionListener(ActionListener<Response> originalListener, AuditLog auditLog, TransportRequest originalRequest, String action,
                 Task task) {
             super();
             this.originalListener = originalListener;
@@ -376,7 +376,7 @@ public class SearchGuardFilter implements ActionFilter {
         }
 
         @Override
-        public void onResponse(Object response) {
+        public void onResponse(Response response) {
             originalListener.onResponse(response);
         }
 
