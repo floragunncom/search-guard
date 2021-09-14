@@ -40,7 +40,6 @@ import org.junit.Test;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
-import com.floragunn.searchguard.configuration.PrivilegesInterceptorImpl;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.DynamicSgConfig;

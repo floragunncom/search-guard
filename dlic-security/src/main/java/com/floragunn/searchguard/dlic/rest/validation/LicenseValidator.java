@@ -16,7 +16,6 @@ package com.floragunn.searchguard.dlic.rest.validation;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestRequest.Method;
 
 public class LicenseValidator extends AbstractConfigurationValidator {
 
