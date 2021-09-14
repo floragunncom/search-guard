@@ -119,7 +119,6 @@ import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.AuditLogSslExceptionHandler;
-import com.floragunn.searchguard.auditlog.NullAuditLog;
 import com.floragunn.searchguard.auth.AuthInfoService;
 import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.compliance.ComplianceConfig;

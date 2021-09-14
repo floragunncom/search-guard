@@ -1,7 +1,6 @@
 package com.floragunn.searchguard.sgconf.impl;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Meta {
     

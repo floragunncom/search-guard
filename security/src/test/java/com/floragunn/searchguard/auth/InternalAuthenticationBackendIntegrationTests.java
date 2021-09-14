@@ -1,7 +1,5 @@
 package com.floragunn.searchguard.auth;
 
-import java.io.IOException;
-
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;

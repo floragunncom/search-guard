@@ -17,7 +17,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.watch.common.Ack;
-import com.floragunn.signals.watch.result.WatchLog;
 
 public class ActionLog implements ToXContentObject {
 

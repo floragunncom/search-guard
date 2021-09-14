@@ -16,18 +16,15 @@ import java.util.List;
 
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
-import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.auditlog.sink.DebugSink;
 import com.floragunn.searchguard.auditlog.sink.ExternalESSink;
 import com.floragunn.searchguard.auditlog.sink.InternalESSink;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class RoutingConfigurationTest extends AbstractAuditlogiUnitTest{

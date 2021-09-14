@@ -1,17 +1,13 @@
 package com.floragunn.searchguard;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Supplier;
 
-import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;

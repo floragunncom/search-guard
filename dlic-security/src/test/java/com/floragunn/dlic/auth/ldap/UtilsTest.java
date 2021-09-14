@@ -20,8 +20,6 @@ import javax.naming.ldap.LdapName;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.dlic.auth.ldap.util.Utils;
-
 public class UtilsTest {
     
     @Test

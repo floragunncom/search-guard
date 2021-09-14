@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.elasticsearch.Version;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -122,7 +121,7 @@ public final class SearchGuardLicense implements Writeable {
         this(
                  (String) (map==null?null:map.get("uid")),
                  (Type)   (map==null?null:Type.valueOf(((String)map.get("type")).toUpperCase())),
-                 (map==null?null:parseFeatures((List<String>) map.get("features"))),
+                 (map==null?null:parseFeatures((List<?>) map.get("features"))),
                  (String) (map==null?null:map.get("issued_date")),
                  (String) (map==null?null:map.get("expiry_date")),
                  (String) (map==null?null:map.get("issued_to")),
@@ -135,24 +134,21 @@ public final class SearchGuardLicense implements Writeable {
         );
     }
     
-    private final static Feature[] parseFeatures(List<String> featuresAsString) {
-        if(featuresAsString == null || featuresAsString.isEmpty()) {
+    private final static Feature[] parseFeatures(List<?> featuresAsString) {
+        if (featuresAsString == null || featuresAsString.isEmpty()) {
             return new Feature[0];
         }
-        
+
         List<Feature> retVal = new ArrayList<SearchGuardLicense.Feature>();
-        
-        for(String feature: featuresAsString) {
-            if(feature != null && !feature.isEmpty()) {
-                try {
-                    retVal.add(Feature.valueOf(feature.toUpperCase()));
-                } catch (Exception e) {
-                    //no such feature
-                }
+
+        for (Object feature : featuresAsString) {
+            try {
+                retVal.add(Feature.valueOf(String.valueOf(feature).toUpperCase()));
+            } catch (Exception e) {
+                //no such feature
             }
-            
         }
-        
+
         return retVal.toArray(new Feature[0]);
     }
     
