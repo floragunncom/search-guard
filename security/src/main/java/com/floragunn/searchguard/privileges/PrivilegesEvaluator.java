@@ -32,30 +32,20 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
 import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkAction;
-import org.elasticsearch.action.bulk.BulkItemRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkShardRequest;
-import org.elasticsearch.action.delete.DeleteAction;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.MultiGetAction;
-import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.search.MultiSearchAction;
-import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
-import org.elasticsearch.action.update.UpdateAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -70,6 +60,7 @@ import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig;
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfigRegistry;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
@@ -82,6 +73,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.ReflectionHelper;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.base.Strings;
 
 public class PrivilegesEvaluator implements DCFListener {
@@ -335,8 +327,8 @@ public class PrivilegesEvaluator implements DCFListener {
             return presponse;
         }
 
-        final Set<String> allIndexPermsRequired = evaluateAdditionalIndexPermissions(request, action0);
-        final String[] allIndexPermsRequiredA = allIndexPermsRequired.toArray(new String[0]);
+        ImmutableSet<String> allIndexPermsRequired = expandPrivileges(request, action0);
+        String[] allIndexPermsRequiredA = allIndexPermsRequired.toArray(new String[0]);
 
         if (log.isDebugEnabled()) {
             log.debug("requested {} from {}", allIndexPermsRequired, caller);
@@ -522,71 +514,20 @@ public class PrivilegesEvaluator implements DCFListener {
         return false;
     }
     
-    private Set<String> evaluateAdditionalIndexPermissions(final ActionRequest request, final String originalAction) {
-        //--- check inner bulk requests
-        final Set<String> additionalPermissionsRequired = new HashSet<>();
+    private <Request extends ActionRequest> ImmutableSet<String> expandPrivileges(Request request, String originalAction) {
+        ActionConfig<Request, ?, ?> actionConfig = ActionConfigRegistry.INSTANCE.get(originalAction, request);
 
-        if (!isClusterPerm(originalAction)) {
-            additionalPermissionsRequired.add(originalAction);
+        if (actionConfig == null) {
+            return ImmutableSet.of(originalAction);
         }
-
-        if (request instanceof ClusterSearchShardsRequest) {
-            additionalPermissionsRequired.add(SearchAction.NAME);
+        
+        Set<String> additionalPrivileges = actionConfig.evaluateAdditionalPrivileges(request);
+        
+        if (additionalPrivileges == null || additionalPrivileges.isEmpty()) {
+            return ImmutableSet.of(originalAction);
+        } else {
+            return ImmutableSet.of(additionalPrivileges, originalAction);
         }
-
-        if (request instanceof BulkShardRequest) {
-            BulkShardRequest bsr = (BulkShardRequest) request;
-            for (BulkItemRequest bir : bsr.items()) {
-                switch (bir.request().opType()) {
-                case CREATE:
-                    additionalPermissionsRequired.add(IndexAction.NAME);
-                    break;
-                case INDEX:
-                    additionalPermissionsRequired.add(IndexAction.NAME);
-                    break;
-                case DELETE:
-                    additionalPermissionsRequired.add(DeleteAction.NAME);
-                    break;
-                case UPDATE:
-                    additionalPermissionsRequired.add(UpdateAction.NAME);
-                    break;
-                }
-            }
-        }
-
-        if (request instanceof IndicesAliasesRequest) {
-            IndicesAliasesRequest bsr = (IndicesAliasesRequest) request;
-            for (AliasActions bir : bsr.getAliasActions()) {
-                switch (bir.actionType()) {
-                case REMOVE_INDEX:
-                    additionalPermissionsRequired.add(DeleteIndexAction.NAME);
-                    break;
-                default:
-                    break;
-                }
-            }
-        }
-
-        if (request instanceof CreateIndexRequest) {
-            CreateIndexRequest cir = (CreateIndexRequest) request;
-            if (cir.aliases() != null && !cir.aliases().isEmpty()) {
-                additionalPermissionsRequired.add(IndicesAliasesAction.NAME);
-            }
-        }
-
-        if (request instanceof RestoreSnapshotRequest && checkSnapshotRestoreWritePrivileges) {
-            additionalPermissionsRequired.addAll(ConfigConstants.SG_SNAPSHOT_RESTORE_NEEDED_WRITE_PRIVILEGES);
-        }
-
-        if (actionTrace.isTraceEnabled() && additionalPermissionsRequired.size() > 1) {
-            actionTrace.trace(("Additional permissions required: " + additionalPermissionsRequired));
-        }
-
-        if (log.isDebugEnabled() && additionalPermissionsRequired.size() > 1) {
-            log.debug("Additional permissions required: " + additionalPermissionsRequired);
-        }
-
-        return Collections.unmodifiableSet(additionalPermissionsRequired);
     }
 
     public static boolean isClusterPerm(String action0) {

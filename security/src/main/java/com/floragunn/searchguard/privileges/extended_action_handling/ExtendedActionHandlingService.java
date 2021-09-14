@@ -1,3 +1,20 @@
+/*
+ * Copyright 2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.privileges.extended_action_handling;
 
 import org.elasticsearch.action.ActionListener;
@@ -17,16 +34,18 @@ public class ExtendedActionHandlingService {
         this.resourceOwnerService = resourceOwnerService;
     }
 
-    public <Request extends ActionRequest, Response extends ActionResponse> void apply(ActionConfig actionConfig, User currentUser, Task task,
-            final String action, Request actionRequest, ActionListener<Response> actionListener, ActionFilterChain<Request, Response> chain) {
+    public <Request extends ActionRequest, Response extends ActionResponse> void apply(ActionConfig<Request, ?, ?> actionConfig, User currentUser,
+            Task task, final String action, Request actionRequest, ActionListener<Response> actionListener,
+            ActionFilterChain<Request, Response> chain) {
 
         actionListener = applyPostAction(actionConfig, currentUser, task, action, actionRequest, actionListener);
 
         applyPreAction(actionConfig, currentUser, task, action, actionRequest, actionListener, chain);
     }
 
-    public <Request extends ActionRequest, Response extends ActionResponse> void applyPreAction(ActionConfig actionConfig, User currentUser,
-            Task task, final String action, Request actionRequest, ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
+    public <Request extends ActionRequest, Response extends ActionResponse> void applyPreAction(ActionConfig<Request, ?, ?> actionConfig,
+            User currentUser, Task task, final String action, Request actionRequest, ActionListener<Response> listener,
+            ActionFilterChain<Request, Response> chain) {
 
         ActionFilterChain<Request, Response> extendedChain = chain;
 
@@ -40,8 +59,8 @@ public class ExtendedActionHandlingService {
         extendedChain.proceed(task, action, actionRequest, listener);
     }
 
-    public <Request extends ActionRequest, R extends ActionResponse> ActionListener<R> applyPostAction(ActionConfig actionConfig, User currentUser,
-            Task task, final String action, Request actionRequest, ActionListener<R> actionListener) {
+    public <Request extends ActionRequest, R extends ActionResponse> ActionListener<R> applyPostAction(ActionConfig<Request, ?, ?> actionConfig,
+            User currentUser, Task task, final String action, Request actionRequest, ActionListener<R> actionListener) {
 
         if (actionConfig.getCreatesResource() != null) {
             actionListener = resourceOwnerService.applyCreatePostAction(actionConfig, currentUser, actionListener);
