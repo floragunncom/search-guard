@@ -539,7 +539,7 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
         //kibana special only, terms eval
-        public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
+        public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
                                                            ClusterService cs) {
             Set<String> retVal = new HashSet<>();
 
@@ -557,7 +557,7 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
         //dnfof only
-        public Set<String> reduce(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+        public Set<String> reduce(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
             Set<String> retVal = new HashSet<>();
             
             for (SgRole sgr : roles.values()) {
@@ -575,7 +575,7 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
         //return true on success
-        public boolean get(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+        public boolean get(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
             if (isIndexActionExcluded(resolved, user, actions, resolver, cs)) {
                 return false;
             }
@@ -605,7 +605,7 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
         //rolespan
-        public boolean impliesTypePermGlobal(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
+        public boolean impliesTypePermGlobal(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
                                              ClusterService cs) {
             if (isIndexActionExcluded(resolved, user, actions, resolver, cs)) {
                 return false;
@@ -717,7 +717,7 @@ public class ConfigModelV7 extends ConfigModel {
             return Collections.unmodifiableMap(result);
         }
         
-        private boolean isIndexActionExcluded(Resolved requestedResolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+        private boolean isIndexActionExcluded(Resolved requestedResolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
             for (SgRole sgRole : roles.values()) {
                 for (ExcludedIndexPermissions indexPattern : sgRole.indexPermissionExclusions) {
                     for (String requestedAction : actions) {
@@ -863,7 +863,7 @@ public class ConfigModelV7 extends ConfigModel {
 
         //dnfof + kibana special only
 
-        private Set<String> getAllResolvedPermittedIndices(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
+        private Set<String> getAllResolvedPermittedIndices(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
                                                            ClusterService cs) {
 
             final Set<String> retVal = new HashSet<>();
@@ -905,7 +905,7 @@ public class ConfigModelV7 extends ConfigModel {
             return Collections.unmodifiableSet(retVal);
         }
         
-        private void removeAllResolvedExcludedIndices(Set<String> indices, User user, String[] actions, IndexNameExpressionResolver resolver,
+        private void removeAllResolvedExcludedIndices(Set<String> indices, User user, Set<String> actions, IndexNameExpressionResolver resolver,
                 ClusterService cs) {
             
             for (ExcludedIndexPermissions excludedIndexPattern : indexPermissionExclusions) {
@@ -1624,7 +1624,7 @@ public class ConfigModelV7 extends ConfigModel {
         return orig;
     }
  
-    private static boolean impliesTypePerm(Set<IndexPattern> ipatterns, Resolved resolved, User user, String[] actions,
+    private static boolean impliesTypePerm(Set<IndexPattern> ipatterns, Resolved resolved, User user, Set<String> actions,
                                            IndexNameExpressionResolver resolver, ClusterService cs) {
         if (resolved.isLocalAll()) {
             // Only let localAll pass if there is an explicit privilege for a * index pattern
@@ -1632,7 +1632,7 @@ public class ConfigModelV7 extends ConfigModel {
             for (IndexPattern indexPattern : ipatterns) {
                 try {
                     if ("*".equals(indexPattern.getUnresolvedIndexPattern(user))) {
-                        Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
+                        Set<String> matchingActions = new HashSet<>(actions);
 
                         for (String action : actions) {
                             if (WildcardMatcher.matchAny(indexPattern.perms, action)) {
@@ -1656,7 +1656,7 @@ public class ConfigModelV7 extends ConfigModel {
 
             for (String in : resolved.getAllIndices()) {
                 //find index patterns who are matching
-                Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
+                Set<String> matchingActions = new HashSet<>(actions);
                 for (IndexPattern p : ipatterns) {
                     String[] resolvedIndexPatterns;
                     try {

@@ -69,7 +69,7 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public Set<String> reduce(Resolved requestedResolved, User user, String[] strings, IndexNameExpressionResolver resolver,
+    public Set<String> reduce(Resolved requestedResolved, User user, Set<String> strings, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
         Set<String> restrictedIndexes = restrictionSgRoles.reduce(requestedResolved, user, strings, resolver, clusterService);
 
@@ -84,7 +84,7 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public boolean impliesTypePermGlobal(Resolved requestedResolved, User user, String[] allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
+    public boolean impliesTypePermGlobal(Resolved requestedResolved, User user, Set<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
         boolean restrictedPermission = restrictionSgRoles.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver,
                 clusterService);
@@ -105,7 +105,7 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public boolean get(Resolved requestedResolved, User user, String[] allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
+    public boolean get(Resolved requestedResolved, User user, Set<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
         boolean restrictedPermission = restrictionSgRoles.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
 
@@ -127,7 +127,7 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
+    public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
             ClusterService cs) {
         Set<String> restrictedIndexes = restrictionSgRoles.getAllPermittedIndicesForKibana(resolved, user, actions, resolver, cs);
 

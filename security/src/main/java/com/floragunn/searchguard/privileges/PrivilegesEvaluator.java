@@ -280,7 +280,7 @@ public class PrivilegesEvaluator implements DCFListener {
                             return presponse;
                         }
 
-                        Set<String> reduced = sgRoles.reduce(requestedResolved, user, new String[] { action0 }, resolver, clusterService);
+                        Set<String> reduced = sgRoles.reduce(requestedResolved, user, ImmutableSet.of(action0), resolver, clusterService);
 
                         if (reduced.isEmpty()) {
                             presponse.allowed = false;
@@ -328,7 +328,6 @@ public class PrivilegesEvaluator implements DCFListener {
         }
 
         ImmutableSet<String> allIndexPermsRequired = expandPrivileges(request, action0);
-        String[] allIndexPermsRequiredA = allIndexPermsRequired.toArray(new String[0]);
 
         if (log.isDebugEnabled()) {
             log.debug("requested {} from {}", allIndexPermsRequired, caller);
@@ -373,7 +372,7 @@ public class PrivilegesEvaluator implements DCFListener {
                 return presponse;
             }
 
-            Set<String> reduced = sgRoles.reduce(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
+            Set<String> reduced = sgRoles.reduce(requestedResolved, user, allIndexPermsRequired, resolver, clusterService);
 
             if (reduced.isEmpty()) {
 
@@ -430,9 +429,9 @@ public class PrivilegesEvaluator implements DCFListener {
         }
 
         if (dcm.isMultiRolespanEnabled()) {
-            permGiven = sgRoles.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
+            permGiven = sgRoles.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequired, resolver, clusterService);
         } else {
-            permGiven = sgRoles.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
+            permGiven = sgRoles.get(requestedResolved, user, allIndexPermsRequired, resolver, clusterService);
 
         }
 
