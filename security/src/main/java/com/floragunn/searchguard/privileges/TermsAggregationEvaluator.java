@@ -33,19 +33,14 @@ import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilde
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class TermsAggregationEvaluator {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
 
-    private static final String[] READ_ACTIONS = new String[]{
-            "indices:data/read/msearch",
-            "indices:data/read/mget",
-            "indices:data/read/get",
-            "indices:data/read/search",
-            "indices:data/read/field_caps*"
-            //"indices:admin/mappings/fields/get*"
-            };
+    private static final ImmutableSet<String> READ_ACTIONS = ImmutableSet.of("indices:data/read/msearch", "indices:data/read/mget",
+            "indices:data/read/get", "indices:data/read/search", "indices:data/read/field_caps*");
     
     private static final QueryBuilder NONE_QUERY = new MatchNoneQueryBuilder();
     

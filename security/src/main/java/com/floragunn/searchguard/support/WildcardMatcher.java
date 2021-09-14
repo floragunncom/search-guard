@@ -116,6 +116,18 @@ public class WildcardMatcher {
         return true;
     }
 
+    public static boolean matchAll(final String[] pattern, Collection<String> candidate) {
+
+
+        for (String string : candidate) {
+            if (!matchAny(pattern, string)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    
     /**
      *
      * @param pattern

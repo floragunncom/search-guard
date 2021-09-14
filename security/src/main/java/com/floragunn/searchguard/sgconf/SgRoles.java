@@ -17,19 +17,20 @@ public abstract class SgRoles implements ToXContentObject {
 
     public abstract Set<String> getRoleNames();
 
-    public abstract Set<String> reduce(Resolved requestedResolved, User user, String[] strings, IndexNameExpressionResolver resolver,
+    public abstract Set<String> reduce(Resolved requestedResolved, User user, Set<String> requiredPrivileges, IndexNameExpressionResolver resolver,
             ClusterService clusterService);
 
-    public abstract boolean impliesTypePermGlobal(Resolved requestedResolved, User user, String[] allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
-            ClusterService clusterService);
+    public abstract boolean impliesTypePermGlobal(Resolved requestedResolved, User user, Set<String> requiredPrivileges,
+            IndexNameExpressionResolver resolver, ClusterService clusterService);
 
-    public abstract boolean get(Resolved requestedResolved, User user, String[] allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
+    public abstract boolean get(Resolved requestedResolved, User user, Set<String> requiredPrivileges, IndexNameExpressionResolver resolver,
             ClusterService clusterService);
 
     public abstract EvaluatedDlsFlsConfig getDlsFls(User user, IndexNameExpressionResolver resolver,
             ClusterService clusterService, NamedXContentRegistry namedXContentRegistry);
 
-    public abstract Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs);
+    public abstract Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, Set<String> actions,
+            IndexNameExpressionResolver resolver, ClusterService cs);
 
     public abstract SgRoles filter(Set<String> roles);
 

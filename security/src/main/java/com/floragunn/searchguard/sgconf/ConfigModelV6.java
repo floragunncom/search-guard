@@ -487,7 +487,7 @@ public class ConfigModelV6 extends ConfigModel {
         }
 
         //kibana special only, terms eval
-        public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
+        public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
                 ClusterService cs) {
             Set<String> retVal = new HashSet<>();
             for (SgRole sgr : roles.values()) {
@@ -498,7 +498,7 @@ public class ConfigModelV6 extends ConfigModel {
         }
 
         //dnfof only
-        public Set<String> reduce(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+        public Set<String> reduce(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
             Set<String> retVal = new HashSet<>();
             for (SgRole sgr : roles.values()) {
                 retVal.addAll(sgr.getAllResolvedPermittedIndices(resolved, user, actions, resolver, cs));
@@ -510,7 +510,7 @@ public class ConfigModelV6 extends ConfigModel {
         }
 
         //return true on success
-        public boolean get(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+        public boolean get(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
             for (SgRole sgr : roles.values()) {
                 if (ConfigModelV6.impliesTypePerm(sgr.getIpatterns(), resolved, user, actions, resolver, cs)) {
                     return true;
@@ -524,7 +524,7 @@ public class ConfigModelV6 extends ConfigModel {
         }
 
         //rolespan
-        public boolean impliesTypePermGlobal(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
+        public boolean impliesTypePermGlobal(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
                 ClusterService cs) {
             Set<IndexPattern> ipatterns = new HashSet<ConfigModelV6.IndexPattern>();
             roles.values().stream().forEach(p -> ipatterns.addAll(p.getIpatterns()));
@@ -646,7 +646,7 @@ public class ConfigModelV6 extends ConfigModel {
 
         //get indices which are permitted for the given types and actions
         //dnfof + kibana special only
-        private Set<String> getAllResolvedPermittedIndices(Resolved resolved, User user, String[] actions, IndexNameExpressionResolver resolver,
+        private Set<String> getAllResolvedPermittedIndices(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
                 ClusterService cs) {
 
             final Set<String> retVal = new HashSet<>();
@@ -1145,14 +1145,14 @@ public class ConfigModelV6 extends ConfigModel {
         }));
     }
 
-    private static boolean impliesTypePerm(Set<IndexPattern> ipatterns, Resolved resolved, User user, String[] actions,
+    private static boolean impliesTypePerm(Set<IndexPattern> ipatterns, Resolved resolved, User user, Set<String> actions,
             IndexNameExpressionResolver resolver, ClusterService cs) {
         if (resolved.isLocalAll()) {
             // Only let localAll pass if there is an explicit privilege for a * index pattern
             
             for (IndexPattern indexPattern : ipatterns) {                
                 if ("*".equals(indexPattern.getUnresolvedIndexPattern(user))) {
-                    Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
+                    Set<String> matchingActions = new HashSet<>(actions);
                     
                     for (TypePerm typePerm : indexPattern.typePerms) {
                         for (String action : actions) {
@@ -1174,7 +1174,7 @@ public class ConfigModelV6 extends ConfigModel {
 
             for (String in : resolved.getAllIndices()) {
                 //find index patterns who are matching
-                Set<String> matchingActions = new HashSet<>(Arrays.asList(actions));
+                Set<String> matchingActions = new HashSet<>(actions);
                 Set<String> matchingTypes = new HashSet<>(resolved.getTypes());
                 for (IndexPattern p : ipatterns) {
                     if (WildcardMatcher.matchAny(p.getResolvedIndexPattern(user, resolver, cs), in)) {
@@ -1183,7 +1183,7 @@ public class ConfigModelV6 extends ConfigModel {
                             for (TypePerm tp : p.typePerms) {
                                 if (WildcardMatcher.match(tp.typePattern, t)) {
                                     matchingTypes.remove(t);
-                                    for (String a : Arrays.asList(actions)) {
+                                    for (String a : actions) {
                                         if (WildcardMatcher.matchAny(tp.perms, a)) {
                                             matchingActions.remove(a);
                                         }
