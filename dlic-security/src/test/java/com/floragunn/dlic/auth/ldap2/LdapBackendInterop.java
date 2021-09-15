@@ -26,7 +26,7 @@ import org.junit.Test;
 import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend;
 import com.floragunn.dlic.auth.ldap.backend.LDAPAuthorizationBackend;
-import com.floragunn.dlic.auth.ldap.srv.EmbeddedLDAPServer;
+import com.floragunn.dlic.auth.ldap.srv.LdapServer;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 
@@ -39,18 +39,11 @@ public class LdapBackendInterop {
         //System.setProperty("com.unboundid.ldap.sdk.debug.level", "FINEST");
     }
 
-    private static EmbeddedLDAPServer ldapServer = null;
-
-    private static int ldapPort;
-    private static int ldapsPort;
+    private static LdapServer ldapServer = null;
     
     @BeforeClass
     public static void startLdapServer() throws Exception {
-        ldapServer = new EmbeddedLDAPServer();
-        ldapServer.start();
-        ldapServer.applyLdif("base.ldif","base2.ldif");
-        ldapPort = ldapServer.getLdapPort();
-        ldapsPort = ldapServer.getLdapsPort();
+        ldapServer = LdapServer.createPlainText("base.ldif","base2.ldif");
     }
 
     protected Settings.Builder createBaseSettings() {
@@ -61,7 +54,7 @@ public class LdapBackendInterop {
     public void testLdapAuthorizationInterop() throws Exception {
 
         final Settings settings = createBaseSettings()
-                .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapPort)
+                .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapServer.getPort())
                 .put("users.u1.search", "(uid={0})").put("users.u1.base", "ou=people,o=TEST")
                 .put("roles.g1.base", "ou=groups,o=TEST").put(ConfigConstants.LDAP_AUTHZ_ROLENAME, "cn")
                 .put("roles.g1.search", "(uniqueMember={0})")

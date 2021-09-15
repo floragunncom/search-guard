@@ -25,11 +25,13 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.net.BindException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
+
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocketFactory;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
@@ -38,7 +40,6 @@ import org.slf4j.LoggerFactory;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.google.common.io.CharStreams;
-import com.unboundid.ldap.listener.InMemoryDirectoryServer;
 import com.unboundid.ldap.listener.InMemoryDirectoryServerConfig;
 import com.unboundid.ldap.listener.InMemoryListenerConfig;
 import com.unboundid.ldap.sdk.DN;
@@ -50,7 +51,37 @@ import com.unboundid.util.ssl.KeyStoreKeyManager;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustStoreTrustManager;
 
-final class LdapServer {
+public abstract class LdapServer {
+    public static LdapServer createTls(String... ldifFiles) {
+        try {
+            LdapServer server = new TlsLdapServer();
+            server.start(ldifFiles);
+            return server;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    public static LdapServer createStartTls(String... ldifFiles) {
+        try {
+            LdapServer server = new StartTlsLdapServer();
+            server.start(ldifFiles);
+            return server;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    public static LdapServer createPlainText(String... ldifFiles) {
+        try {
+            LdapServer server = new PlainTextLdapServer();
+            server.start(ldifFiles);
+            return server;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private final static Logger LOG = LoggerFactory.getLogger(LdapServer.class);
 
     private static final int LOCK_TIMEOUT = 60;
@@ -61,13 +92,11 @@ final class LdapServer {
     private static final String SERVER_ALREADY_STARTED = "The LDAP server is already started.";
 
 
-    private InMemoryDirectoryServer server;
+    private RestrictedInMemoryDirectoryServer server;
     private final AtomicBoolean isStarted = new AtomicBoolean(Boolean.FALSE);
     private final ReentrantLock serverStateLock = new ReentrantLock();
     
-    private int ldapPort = -1;
-    private int ldapsPort = -1;
-
+    private int port = -1;
 
     public LdapServer() {
     }
@@ -76,14 +105,10 @@ final class LdapServer {
         return this.isStarted.get();
     }
 
-    public int getLdapPort() {
-        return ldapPort;
-    }
-
-    public int getLdapsPort() {
-        return ldapsPort;
-    }
-
+    public int getPort() {
+        return this.port;
+    }    
+    
     public int  start(String... ldifFiles) throws Exception {
         boolean hasLock = false;
         try {
@@ -113,23 +138,8 @@ final class LdapServer {
         }
         return configureAndStartServer(ldifFiles);
     }
-
-    private Collection<InMemoryListenerConfig> getInMemoryListenerConfigs() throws Exception {
-        Collection<InMemoryListenerConfig> listenerConfigs = new ArrayList<InMemoryListenerConfig>();
-
-        String serverKeyStorePath = FileHelper.getAbsoluteFilePathFromClassPath("ldap/node-0-keystore.jks").toFile().getAbsolutePath();
-        final SSLUtil serverSSLUtil = new SSLUtil(
-                new KeyStoreKeyManager(serverKeyStorePath, "changeit".toCharArray()), new TrustStoreTrustManager(serverKeyStorePath));
-        //final SSLUtil clientSSLUtil = new SSLUtil(new TrustStoreTrustManager(serverKeyStorePath));
-        
-        ldapPort = SocketUtils.findAvailableTcpPort();
-        ldapsPort = SocketUtils.findAvailableTcpPort();
-        
-        listenerConfigs.add(InMemoryListenerConfig.createLDAPConfig("ldap", null, ldapPort, serverSSLUtil.createSSLSocketFactory()));
-        listenerConfigs.add(InMemoryListenerConfig.createLDAPSConfig("ldaps", ldapsPort, serverSSLUtil.createSSLServerSocketFactory()));
-        
-        return listenerConfigs;
-    }
+    
+    abstract InMemoryListenerConfig getInMemoryListenerConfig() throws LDAPException;
     
     private final String loadFile(final String file) throws IOException {
         String ldif;
@@ -140,21 +150,23 @@ final class LdapServer {
         
 
         ldif = ldif.replace("${hostname}", "localhost");
-        ldif = ldif.replace("${port}", String.valueOf(ldapPort));
+        ldif = ldif.replace("${port}", String.valueOf(port));
         return ldif;
         
     }
 
     private synchronized int configureAndStartServer(String... ldifFiles) throws Exception {
-        Collection<InMemoryListenerConfig> listenerConfigs = getInMemoryListenerConfigs();
+        InMemoryListenerConfig listenerConfig = getInMemoryListenerConfig();
 
+        port = listenerConfig.getListenPort();
+        
         Schema schema = Schema.getDefaultStandardSchema();
 
         final String rootObjectDN = "o=TEST";
         InMemoryDirectoryServerConfig config = new InMemoryDirectoryServerConfig(new DN(rootObjectDN));
 
         config.setSchema(schema);  //schema can be set on the rootDN too, per javadoc.
-        config.setListenerConfigs(listenerConfigs);
+        config.setListenerConfigs(Collections.singletonList(listenerConfig));
         config.setEnforceAttributeSyntaxCompliance(false);
         config.setEnforceSingleStructuralObjectClass(false);
 
@@ -164,7 +176,7 @@ final class LdapServer {
         
         //config.setMaxConnections(1);
 
-        server = new InMemoryDirectoryServer(config);
+        server = new RestrictedInMemoryDirectoryServer(config);
         
         try {
             /* Clear entries from server. */
@@ -220,6 +232,8 @@ final class LdapServer {
         }
         return ldifLoadCount;
     }
+
+    
     
     /*private static class DebugHandler extends Handler {
         private final static Logger LOG = LoggerFactory.getLogger(DebugHandler.class);
@@ -241,4 +255,54 @@ final class LdapServer {
     }
     
     private static final DebugHandler DEBUG_HANDLER = new DebugHandler();*/
+    
+    
+}
+
+class TlsLdapServer extends LdapServer {
+
+    @Override
+    InMemoryListenerConfig getInMemoryListenerConfig() throws LDAPException {
+        return InMemoryListenerConfig.createLDAPSConfig("ldaps", SocketUtils.findAvailableTcpPort(), createSSLServerSocketFactory());
+    }
+
+    private SSLServerSocketFactory createSSLServerSocketFactory() {
+        try {
+            String serverKeyStorePath = FileHelper.getAbsoluteFilePathFromClassPath("ldap/node-0-keystore.jks").toFile().getAbsolutePath();
+            SSLUtil serverSSLUtil = new SSLUtil(new KeyStoreKeyManager(serverKeyStorePath, "changeit".toCharArray()),
+                    new TrustStoreTrustManager(serverKeyStorePath));
+
+            return serverSSLUtil.createSSLServerSocketFactory();
+        } catch (Exception e) {
+            throw new RuntimeException("Error while creating SSLServerSocketFactory");
+        }
+    }
+}
+
+class StartTlsLdapServer extends LdapServer {
+
+    @Override
+    InMemoryListenerConfig getInMemoryListenerConfig() throws LDAPException {
+        return InMemoryListenerConfig.createLDAPConfig("ldap", null, SocketUtils.findAvailableTcpPort(), createSSLSocketFactory());
+    }
+
+    private SSLSocketFactory createSSLSocketFactory() {
+        try {
+            String serverKeyStorePath = FileHelper.getAbsoluteFilePathFromClassPath("ldap/node-0-keystore.jks").toFile().getAbsolutePath();
+            SSLUtil serverSSLUtil = new SSLUtil(new KeyStoreKeyManager(serverKeyStorePath, "changeit".toCharArray()),
+                    new TrustStoreTrustManager(serverKeyStorePath));
+
+            return serverSSLUtil.createSSLSocketFactory();
+        } catch (Exception e) {
+            throw new RuntimeException("Error while creating SSLSocketFactory");
+        }
+    }
+}
+
+class PlainTextLdapServer extends LdapServer {
+
+    @Override
+    InMemoryListenerConfig getInMemoryListenerConfig() throws LDAPException {
+        return InMemoryListenerConfig.createLDAPConfig("ldap", null, SocketUtils.findAvailableTcpPort(), null);
+    }
 }
