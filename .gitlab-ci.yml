@@ -375,7 +375,7 @@ deploy_staging:
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
       SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-elasticsearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`      
       if [ -z "$IT_BRANCH" ]; then
-        if [ "$CI_COMMIT_REF_NAME" != "master" ] && [ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]; then
+        if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]]; then
           IT_BRANCH="$CI_COMMIT_REF_NAME"
         else
           IT_BRANCH="$MAJOR.x"
