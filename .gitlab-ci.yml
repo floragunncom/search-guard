@@ -1,6 +1,6 @@
 variables:
   SG_JAVA_BUILD_VERSION: "11"
-  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dmaven.artifact.threads=30 -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dmaven.artifact.threads=30"
   MAVEN_CLI_OPTS: "--batch-mode"
   DOCKER_DRIVER: overlay2
   #SG_KI_PLUGIN: ""
@@ -48,7 +48,7 @@ build:
   tags:
     - openstack-runner
   script:
-    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
+    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
   artifacts:
     when: on_success
     paths:
@@ -86,7 +86,7 @@ build_for_tag_version:
     - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
     - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:sg-suite.version" -v $SG_VERSION pom.xml
     - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:opensearch.version" -v $ES_VERSION pom.xml
-    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
+    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
   artifacts:
     when: on_success
     paths:
