@@ -22,7 +22,7 @@
 	<properties>
 		<elasticsearch.version>7.14.1</elasticsearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
-		<revision>${elasticsearch.version}-${sg-suite.version}</revision>
+		<revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
