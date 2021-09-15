@@ -200,6 +200,10 @@ public class GetFrontendConfigAction extends ActionType<GetFrontendConfigAction.
                 List<AuthMethod> result = new ArrayList<>(authMethods.size());
 
                 for (FrontendConfig.Authcz authMethod : authMethods) {
+                    if (!authMethod.isEnabled()) {
+                        continue;
+                    }
+                    
                     // Normalize the type to replace deprecated type ids by their replacement (openid -> oidc)
                     String type = authMethod.getAuthenticationFrontend() != null ? authMethod.getAuthenticationFrontend().getType()
                             : authMethod.getType();
