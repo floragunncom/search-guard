@@ -22,7 +22,7 @@
 	<properties>
 		<opensearch.version>1.0.0</opensearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
-		<revision>${opensearch.version}-${sg-suite.version}</revision>
+		<revision>${sg-suite.version}-os-${opensearch.version}</revision>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
