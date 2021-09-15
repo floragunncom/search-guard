@@ -90,6 +90,8 @@ ccs_3_roundtrips_true:
       when: always
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: always
   variables:
     TEST: "«TBD»"
     TEST_ENVIRONMENT: "default"
@@ -120,7 +122,11 @@ ccs_3_roundtrips_true:
        echo "export SG_SNAPSHOT=${TEST_SG_ES_PLUGIN}" >> environment.env
        echo "export SGADMIN_SNAPSHOT=${TEST_SG_ADMIN}" >> environment.env
        echo "export SG_VERSION=whatever" >> environment.env
-       echo "export SG_SOURCE=snapshot" >> environment.env
+       if [[ "$TEST_SG_ES_PLUGIN" =~ .*staging.* ]]; then
+         echo "export SG_SOURCE=staging" >> environment.env
+       else
+         echo "export SG_SOURCE=snapshot" >> environment.env
+       fi	
        echo "export BASEIMAGE=0.9.3-open-jdk-11" >> environment.env
        echo "export ES_VERSION=$TEST_ES_VERSION" >> environment.env
        echo "export KI_SOURCE=none" >> environment.env

@@ -22,7 +22,7 @@
 	<properties>
 		<elasticsearch.version>7.14.1</elasticsearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
-		<revision>${elasticsearch.version}-${sg-suite.version}</revision>
+		<revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -78,7 +78,7 @@
 		</repository>
 		<repository>
 			<id>release</id>
-			<url>https://maven.search-guard.com:443/search-guard-suite-release</url>
+			<url>https://maven.search-guard.com:443/search-guard-suite-alpha</url>
 			<releases>
 				<enabled>true</enabled>
 			</releases>
@@ -111,7 +111,7 @@
 		<repository>
 			<id>release</id>
 			<name>Release repository</name>
-			<url>https://maven.search-guard.com:443/search-guard-suite-release</url>
+			<url>https://maven.search-guard.com:443/search-guard-suite-alpha</url>
 		</repository>
 		<snapshotRepository>
 			<id>snapshot</id>
