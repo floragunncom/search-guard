@@ -11,6 +11,22 @@
  * from https://floragunn.com
  * 
  */
+/*
+ * Contains code from https://github.com/opensearch-project/security/commit/6483d39678c7fe4b16ecd912f07256455cbd22dc#diff-8dac203b4ca3f3a2a0519881f2cd57ece64d19a0945b26476d7ae24495b11515
+ *
+ * Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License").
+ *  You may not use this file except in compliance with the License.
+ *  A copy of the License is located at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  or in the "license" file accompanying this file. This file is distributed
+ *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ *  express or implied. See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
 
 package com.floragunn.dlic.auth.ldap.backend;
 
@@ -49,9 +65,11 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
+import org.ldaptive.BindConnectionInitializer;
 import org.ldaptive.BindRequest;
 import org.ldaptive.Connection;
 import org.ldaptive.ConnectionConfig;
+import org.ldaptive.Credential;
 import org.ldaptive.DefaultConnectionFactory;
 import org.ldaptive.LdapAttribute;
 import org.ldaptive.LdapEntry;
@@ -190,8 +208,7 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
         return Collections.singletonList(result.entrySet().iterator().next());
     }
     
-    @SuppressWarnings("unchecked")
-    private static void checkConnection0(final ConnectionConfig connectionConfig, String bindDn, byte[] password, final ClassLoader cl,
+    private static void checkConnection0(ConnectionConfig connectionConfig, String bindDn, byte[] password, final ClassLoader cl,
             final boolean needRestore) throws KeyStoreException, NoSuchAlgorithmException, CertificateException,
             FileNotFoundException, IOException, LdapException {
 
@@ -206,15 +223,11 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
             if (bindDn != null && (password == null || password.length == 0)) {
                 throw new LdapException("no bindDn or no Password");
             }
-
-            final Map<String, Object> props = new HashMap<>();
-
-            props.put(JndiConnection.AUTHENTICATION, "simple");
-            props.put(JndiConnection.PRINCIPAL, bindDn);
-            props.put(JndiConnection.CREDENTIALS, password);
-
+            
+            connectionConfig = ConnectionConfig.newConnectionConfig(connectionConfig);
+            connectionConfig.setConnectionInitializer(new BindConnectionInitializer(bindDn, new Credential(password)));
+           
             DefaultConnectionFactory connFactory = new DefaultConnectionFactory(connectionConfig);
-            connFactory.getProvider().getProviderConfig().setProperties(props);
             connection = connFactory.getConnection();
 
             connection.open();
@@ -305,9 +318,7 @@ public class LDAPAuthorizationBackend implements SyncAuthorizationBackend {
                 }
                 
                 if (bindDn != null && password != null && password.length() > 0) {
-                    props.put(JndiConnection.AUTHENTICATION, "simple");
-                    props.put(JndiConnection.PRINCIPAL, bindDn);
-                    props.put(JndiConnection.CREDENTIALS, password.getBytes(StandardCharsets.UTF_8));
+                    config.setConnectionInitializer(new BindConnectionInitializer(bindDn, new Credential(password)));
                 } else if (enableClientAuth) {
                     props.put(JndiConnection.AUTHENTICATION, "EXTERNAL");
                 } else {
