@@ -18,7 +18,7 @@
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>search-guard-suite-plugin</artifactId>
+	<artifactId>search-guard-elasticsearch-plugin</artifactId>
 	<packaging>pom</packaging>
 	<name>Search Guard Suite - Plugin</name>
 
