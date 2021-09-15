@@ -1,6 +1,6 @@
 variables:
   SG_JAVA_BUILD_VERSION: "11"
-  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dmaven.artifact.threads=30 -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
   MAVEN_CLI_OPTS: "--batch-mode"
   DOCKER_DRIVER: overlay2
   #SG_KI_PLUGIN: ""
@@ -58,7 +58,19 @@ build:
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+      - .m2/repository/commons*
+      - .m2/repository/org
+      - .m2/repository/io
+      - .m2/repository/info
+      - .m2/repository/com/[a-e]*
+      - .m2/repository/com/[g-z]*
+      - .m2/repository/com/fasterxml
+      - .m2/repository/junit
+      - .m2/repository/javax
+      - .m2/repository/biz
+      - .m2/repository/joda-time
+      - .m2/repository/net
+      - .m2/repository/xerxes
 
 build_for_tag_version:
   stage: build
