@@ -23,35 +23,29 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.dlic.auth.ldap.srv.EmbeddedLDAPServer;
+import com.floragunn.dlic.auth.ldap.srv.LdapServer;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.DynamicSgConfig;
 import com.floragunn.searchguard.test.SingleClusterTest;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class LdapBackendIntegTest2 extends SingleClusterTest {
-
-    private static EmbeddedLDAPServer ldapServer = null;
-
-    private static int ldapsPort;
     
-    @BeforeClass
-    public static void startLdapServer() throws Exception {
-        ldapServer = new EmbeddedLDAPServer();
-        ldapServer.start();
-        ldapServer.applyLdif("base.ldif");
-        ldapsPort = ldapServer.getLdapsPort();
-    }
+    @ClassRule 
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+    
+    private static LdapServer tlsLdapServer = LdapServer.createTls("base.ldif"); 
 
     @AfterClass
     public static void tearDownLdap() throws Exception {
-        if (ldapServer != null) {
-            ldapServer.stop();
+        if (tlsLdapServer != null) {
+            tlsLdapServer.stop();
         }
     }
 
@@ -63,7 +57,7 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
     @Test
     public void testIntegLdapAuthenticationSSL() throws Exception {
         String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_ldap2.yml");
-        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(ldapsPort));
+        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(tlsLdapServer.getPort()));
         System.out.println(sgConfigAsYamlString);
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfigAsYamlString(sgConfigAsYamlString), Settings.EMPTY);
         final RestHelper rh = nonSslRestHelper();
@@ -73,7 +67,7 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
     @Test
     public void testIntegLdapAuthenticationSSLFail() throws Exception {
         String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_ldap2.yml");
-        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(ldapsPort));
+        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(tlsLdapServer.getPort()));
         System.out.println(sgConfigAsYamlString);
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfigAsYamlString(sgConfigAsYamlString), Settings.EMPTY);
         final RestHelper rh = nonSslRestHelper();
@@ -83,7 +77,7 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
     @Test
     public void testAttributesWithImpersonation() throws Exception {
         String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_ldap2.yml");
-        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(ldapsPort));
+        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(tlsLdapServer.getPort()));
         final Settings settings = Settings.builder()
                 .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".cn=Captain Spock,ou=people,o=TEST", "*")
                 .build();
@@ -101,7 +95,7 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
     @Test
     public void testSkipUser() throws Exception {
         String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_skip_users.yml");
-        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(ldapsPort));
+        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(tlsLdapServer.getPort()));
         final Settings settings = Settings.builder()
                 .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".cn=Captain Spock,ou=people,o=TEST", "*")
                 .build();
@@ -116,7 +110,7 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
     @Test
     public void ldapDlsIntegrationTest() throws Exception {
         String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_ldap2.yml");
-        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(ldapsPort));
+        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(tlsLdapServer.getPort()));
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfigAsYamlString(sgConfigAsYamlString), Settings.EMPTY);
         
         RestHelper rh = nonSslRestHelper();
