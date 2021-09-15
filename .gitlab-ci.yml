@@ -1,6 +1,6 @@
 variables:
   SG_JAVA_BUILD_VERSION: "11"
-  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dmaven.artifact.threads=30"
   MAVEN_CLI_OPTS: "--batch-mode"
   DOCKER_DRIVER: overlay2
   #SG_KI_PLUGIN: ""
@@ -48,7 +48,8 @@ build:
   tags:
     - openstack-runner
   script:
-    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
+    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
+    - du --summarize -h .m2/repository
   artifacts:
     when: on_success
     paths:
@@ -74,7 +75,8 @@ build_for_tag_version:
     - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
     - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:sg-suite.version" -v $SG_VERSION pom.xml
     - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:elasticsearch.version" -v $ES_VERSION pom.xml
-    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
+    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
+    - du --summarize -h .m2/repository
   artifacts:
     when: on_success
     paths:
@@ -83,7 +85,7 @@ build_for_tag_version:
       - ".m2/repository/com/floragunn/*"
     expire_in: 12h
   cache:
-    key: mavenrepo
+    key: release_$CI_COMMIT_SHA
     paths:
       - .m2/repository
   allow_failure: false
@@ -393,8 +395,8 @@ deploy_snapshot:
     - |
       set -x
       mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml deploy | tee deploy.out
-      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`
+      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
+      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-elasticsearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`
       ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       if [ -z "$IT_BRANCH" ]; then
@@ -448,24 +450,25 @@ deploy_staging:
   script:
     - |
       ./dev/setup_gpg.sh
-      SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
+      SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)
       ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
       echo "Deploying Release to Staging repo"
-      mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging -DskipTests -B -Penterprise -Prelease -Drevision=$ES_VERSION-$SG_VERSION | tee deploy.out
-      SG_ES_PLUGIN_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`      
+      mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging -DskipTests -B -Penterprise -Prelease -Drevision=$DEPLOY_VERSION | tee deploy.out
+      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
+      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-elasticsearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`      
       if [ -z "$IT_BRANCH" ]; then
-        if [ "$CI_COMMIT_REF_NAME" != "master" ] && [ -n $(git ls-remote --heads git@git.floragunn.com:private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]; then
+        if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]]; then
           IT_BRANCH="$CI_COMMIT_REF_NAME"
         else
           IT_BRANCH="$MAJOR.x"
         fi
       fi
-      echo "SG_ES_PLUGIN_URI=$SG_ES_PLUGIN_URI" >> build.env
-      echo "SG_ADMIN_URI=$SG_ADMIN_URI" >> build.env
+      echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
+      echo "SG_ADMIN=$SG_ADMIN" >> build.env
       echo "ES_VERSION=$ES_VERSION" >>build.env
-      echo "SG_KI_PLUGIN_URI=$SG_KI_PLUGIN_URI" >>build.env
+      echo "SG_KI_PLUGIN=$SG_KI_PLUGIN" >>build.env
       echo "KI_VERSION=$KI_VERSION" >>build.env
       echo "IT_BRANCH=$IT_BRANCH" >>build.env
       cat build.env
@@ -478,7 +481,7 @@ deploy_staging:
     reports:
       dotenv: build.env
   cache:
-    key: mavenrepopackage
+    key: release_$CI_COMMIT_SHA
     paths:
       - .m2/repository
 
@@ -503,12 +506,13 @@ deploy_release:
   script:
     - ./dev/setup_gpg.sh
     - |
-      export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
+      export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)
       export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
       export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
 
       echo "Removing current release from Staging"
-      curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-suite-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
+      curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-suite-staging/com/floragunn/search-guard-suite-signals/$DEPLOY_VERSION" || true
 
       cd search-guard-integration-tests
       git tag $CI_COMMIT_TAG || true
