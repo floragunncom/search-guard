@@ -29,8 +29,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingFunction;
@@ -40,7 +40,7 @@ import com.google.common.collect.Maps;
 import com.jayway.jsonpath.JsonPath;
 
 public abstract class DocNode implements Map<String, Object> {
-    private static final Logger log = LogManager.getLogger(DocNode.class);
+    private static final Logger log = LoggerFactory.getLogger(DocNode.class);
 
     public static final DocNode EMPTY = new PlainJavaObjectAdapter(Collections.EMPTY_MAP);
 
