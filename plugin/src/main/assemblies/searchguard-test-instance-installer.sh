@@ -419,6 +419,8 @@ fi
 # sgtcl.
 # ------------------------------------------------------------------------
 
+mkdir -p ~/.searchguard/
+
 cat >~/.searchguard/cluster_demo.yml << EOM
 server: "localhost"
 port: 9200
