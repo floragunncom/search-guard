@@ -63,8 +63,6 @@ import org.apache.http.ssl.PrivateKeyDetails;
 import org.apache.http.ssl.PrivateKeyStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.openssl.PEMDecryptorProvider;
 import org.bouncycastle.openssl.PEMEncryptedKeyPair;
@@ -77,6 +75,8 @@ import org.bouncycastle.operator.InputDecryptorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.bouncycastle.pkcs.PKCSException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -92,7 +92,7 @@ import com.google.common.io.Files;
 
 
 public class TLSConfig implements Document {
-    private static final Logger log = LogManager.getLogger(TLSConfig.class);
+    private static final Logger log = LoggerFactory.getLogger(TLSConfig.class);
 
     public static TLSConfig parse(Map<String, Object> config) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();

@@ -41,7 +41,7 @@ public class ConfigValidationException extends Exception implements Document {
     }
 
     public ConfigValidationException(ValidationError validationError) {
-        this(ImmutableListMultimap.of(validationError.getAttribute(), validationError));
+        this(ImmutableListMultimap.of(validationError.getAttribute(), validationError));        
     }
 
     public ValidationErrors getValidationErrors() {
@@ -77,5 +77,7 @@ public class ConfigValidationException extends Exception implements Document {
     public Map<String, Object> toMap() {
         return validationErrors.toMap();
     }
+    
+    
 
 }
