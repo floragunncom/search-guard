@@ -91,7 +91,6 @@ public class OidcAuthenticatorTest {
 		AuthCredentials authCredentials = authenticator.extractCredentials(request);
 
 		Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
-		Assert.assertEquals(TestJwts.TEST_AUDIENCE, authCredentials.getAttributes().get("attr.jwt.aud"));
 	}
 
 	@Test
@@ -112,7 +111,6 @@ public class OidcAuthenticatorTest {
 		AuthCredentials authCredentials = authenticator.extractCredentials(request);
 
 		Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
-		Assert.assertEquals(TestJwts.TEST_AUDIENCE, authCredentials.getAttributes().get("attr.jwt.aud"));
 	}
 
 	@Test
@@ -140,7 +138,6 @@ public class OidcAuthenticatorTest {
 
 			Assert.assertNotNull(authCredentials);
 			Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
-			Assert.assertEquals(TestJwts.TEST_AUDIENCE, authCredentials.getAttributes().get("attr.jwt.aud"));
 		}
 	}
 
@@ -308,9 +305,7 @@ public class OidcAuthenticatorTest {
 
 		Assert.assertNotNull(authCredentials);
 		Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
-		Assert.assertEquals(TestJwts.TEST_AUDIENCE, authCredentials.getAttributes().get("attr.jwt.aud"));
 		Assert.assertEquals(2, authCredentials.getBackendRoles().size());
-		Assert.assertEquals(3, authCredentials.getAttributes().size());
 	}
 
 	@Test
@@ -351,9 +346,7 @@ public class OidcAuthenticatorTest {
 
 		Assert.assertNotNull(authCredentials);
 		Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
-		Assert.assertEquals(TestJwts.TEST_AUDIENCE, authCredentials.getAttributes().get("attr.jwt.aud"));
 		Assert.assertEquals(2, authCredentials.getBackendRoles().size());
-		Assert.assertEquals(3, authCredentials.getAttributes().size());
 	}
 
 	@Test
@@ -376,8 +369,6 @@ public class OidcAuthenticatorTest {
 
 		Assert.assertNotNull(authCredentials);
 		Assert.assertEquals(TestJwts.MCCOY_SUBJECT.substring(0, 1), authCredentials.getUsername());
-		Assert.assertEquals(TestJwts.TEST_AUDIENCE, authCredentials.getAttributes().get("attr.jwt.aud"));
 		Assert.assertEquals(2, authCredentials.getBackendRoles().size());
-		Assert.assertEquals(3, authCredentials.getAttributes().size());
 	}
 }
