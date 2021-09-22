@@ -126,8 +126,7 @@ public class SamlAuthenticatorTest {
 
     @Test
     public void inlineXmlParsingTest() throws Exception {
-        String yml = "  base_url: \"https://kibana.example.com:5601/\"\n" + "  authcz:\n" + "    - type: saml\n" + "      label: \"SAML Login\"\n"
-                + "      idp:\n" + "        metadata_xml: | \n"
+        String yml = "  authcz:\n" + "    - type: saml\n" + "      label: \"SAML Login\"\n" + "      idp:\n" + "        metadata_xml: | \n"
                 + "            <EntityDescriptor entityID=\"urn:searchguard.eu.auth0.com\" xmlns=\"urn:oasis:names:tc:SAML:2.0:metadata\">\n"
                 + "              <IDPSSODescriptor protocolSupportEnumeration=\"urn:oasis:names:tc:SAML:2.0:protocol\">\n"
                 + "                <KeyDescriptor use=\"signing\">\n" + "                  <KeyInfo xmlns=\"http://www.w3.org/2000/09/xmldsig#\">\n"
@@ -147,11 +146,12 @@ public class SamlAuthenticatorTest {
                 + "                <Attribute Name=\"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname\" NameFormat=\"urn:oasis:names:tc:SAML:2.0:attrname-format:uri\" FriendlyName=\"Surname\" xmlns=\"urn:oasis:names:tc:SAML:2.0:assertion\"/>\n"
                 + "                <Attribute Name=\"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier\" NameFormat=\"urn:oasis:names:tc:SAML:2.0:attrname-format:uri\" FriendlyName=\"Name ID\" xmlns=\"urn:oasis:names:tc:SAML:2.0:assertion\"/>\n"
                 + "              </IDPSSODescriptor>\n" + "            </EntityDescriptor>\n" + "        entity_id: urn:searchguard.eu.auth0.com\n"
-                + "      sp:\n" + "        entity_id: es-saml\n" + "      user_mapping.roles: http://schemas.auth0.com/https://kibana;example;com/roles";
+                + "      sp:\n" + "        entity_id: es-saml\n"
+                + "      user_mapping.roles: http://schemas.auth0.com/https://kibana;example;com/roles";
 
         FrontendConfig frontendConfig = FrontendConfig.parse(DocReader.yaml().readObject(yml), StandardComponents.apiAuthenticationFrontends, null);
 
-        System.out.println(frontendConfig.getAuthcz());
+        Assert.assertTrue(frontendConfig.toString(), frontendConfig.getAuthcz().get(0).getAuthenticationFrontend() instanceof SamlAuthenticator);
     }
 
     @Test
@@ -363,7 +363,8 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("leonard@example.com");
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Map<String, Object> config = ImmutableMap.of("idp", basicIdpConfig, "user_mapping.roles", "roles", "user_mapping.subject_pattern", "^(.+)@(?:.+)$");
+        Map<String, Object> config = ImmutableMap.of("idp", basicIdpConfig, "user_mapping.roles", "roles", "user_mapping.subject_pattern",
+                "^(.+)@(?:.+)$");
 
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(config, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
