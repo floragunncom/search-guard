@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.dlic.auth.http.jwt.keybyoidc;
+package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import java.util.Arrays;
 import java.util.Set;

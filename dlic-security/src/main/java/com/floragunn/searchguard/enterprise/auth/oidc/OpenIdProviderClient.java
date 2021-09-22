@@ -63,7 +63,7 @@ public class OpenIdProviderClient {
     private static final long CACHE_STATUS_LOG_INTERVAL_MS = 60L * 60L * 1000L;
 
     private URI openIdConnectEndpoint;
-    private  TLSConfig tlsConfig;
+    private TLSConfig tlsConfig;
     private ProxyConfig proxyConfig;
     private int requestTimeoutMs = 10000;
     private CacheConfig cacheConfig;
@@ -75,7 +75,7 @@ public class OpenIdProviderClient {
     private long oidcRequests = 0;
     private long lastCacheStatusLog = 0;
 
-    public OpenIdProviderClient(URI openIdConnectEndpoint,  TLSConfig tlsConfig, ProxyConfig proxyConfig, boolean useCacheForOidConnectEndpoint) {
+    public OpenIdProviderClient(URI openIdConnectEndpoint, TLSConfig tlsConfig, ProxyConfig proxyConfig, boolean useCacheForOidConnectEndpoint) {
         this.openIdConnectEndpoint = openIdConnectEndpoint;
         this.tlsConfig = tlsConfig;
         this.proxyConfig = proxyConfig;
@@ -118,7 +118,8 @@ public class OpenIdProviderClient {
                         StatusLine statusLine = response.getStatusLine();
 
                         if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-                            throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + statusLine);
+                            throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + statusLine
+                                    + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""));
                         }
 
                         HttpEntity httpEntity = response.getEntity();
