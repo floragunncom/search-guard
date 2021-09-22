@@ -1,0 +1,24 @@
+default:
+- type: kerberos
+  enabled: false
+  krb.strip_realm_from_principal: true
+- type: basic/ldap
+  enabled: true
+  ldap.hosts: localhost:8389
+  ldap.userbase: 'ou=people,dc=example,dc=com'
+  ldap.usersearch: '(sAMAccountName={0})'
+  user_mapping.subject: name
+  user_mapping.roles: 
+  - type: ldap
+    ldap.rolebase: 'ou=groups,dc=example,dc=com'
+    ldap.rolesearch: '(member={0})'
+    ldap.rolename: cn
+    ldap.resolve_nested_roles: true
+- type: clientcert
+  enabled: false
+  user_mapping.subject: cn
+- type: jwt
+  enabled: false
+  
+  
+  

@@ -1,3 +1,4 @@
+package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 /*
  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  * 
@@ -12,7 +13,7 @@
  * 
  */
 
-package com.floragunn.dlic.auth.http.jwt.keybyoidc;
+
 
 import java.util.Arrays;
 
