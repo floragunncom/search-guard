@@ -93,7 +93,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
     public SamlAuthenticator(Map<String, Object> config, AuthenticationFrontend.Context context) throws ConfigValidationException {
         ensureOpenSamlInitialization();
-        
+
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context.getConfigVariableProviders());
 
@@ -160,6 +160,8 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             }
         }
 
+        vNode.used("validator");
+        vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         this.saml2SettingsProvider = new Saml2SettingsProvider(idpEntityId, spEntityId,

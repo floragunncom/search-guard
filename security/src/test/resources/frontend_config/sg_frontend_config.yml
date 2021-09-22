@@ -3,7 +3,6 @@ _sg_meta:
   config_version: 2
     
 default:
-  base_url: https://kibana.example.com:5601/
   authcz: 
   - type: basic
     label: "Login"

@@ -832,6 +832,30 @@ public abstract class DocNode implements Map<String, Object>, Document {
     public abstract boolean isList(String attribute);
 
     public abstract List<Object> toList();
+        
+    public boolean hasAny(String... keys) {
+        for (String key : keys) {
+            if (containsKey(key)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+        
+    public DocNode without(String... attrs) {
+        Set<String> attrsSet = new HashSet<>(Arrays.asList(attrs));
+        
+        LinkedHashMap<String, Object> newMap = new LinkedHashMap<>(size());
+        
+        for (Map.Entry<String, Object> entry : entrySet()) {
+            if (!attrsSet.contains(entry.getKey())) {
+                newMap.put(entry.getKey(), entry.getValue());
+            }
+        }
+        
+        return new PlainJavaObjectAdapter(newMap);
+    }
 
     public Object get() {
         return get(null);
