@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.net.ssl.SSLHandshakeException;
+
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.http.HttpEntity;
@@ -57,13 +59,14 @@ import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchsupport.tls.SSLExceptions;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(KeySetRetriever.class);
     private static final long CACHE_STATUS_LOG_INTERVAL_MS = 60L * 60L * 1000L;
 
     private URI openIdConnectEndpoint;
-    private  TLSConfig tlsConfig;
+    private TLSConfig tlsConfig;
     private ProxyConfig proxyConfig;
     private int requestTimeoutMs = 10000;
     private CacheConfig cacheConfig;
@@ -75,7 +78,7 @@ public class OpenIdProviderClient {
     private long oidcRequests = 0;
     private long lastCacheStatusLog = 0;
 
-    public OpenIdProviderClient(URI openIdConnectEndpoint,  TLSConfig tlsConfig, ProxyConfig proxyConfig, boolean useCacheForOidConnectEndpoint) {
+    public OpenIdProviderClient(URI openIdConnectEndpoint, TLSConfig tlsConfig, ProxyConfig proxyConfig, boolean useCacheForOidConnectEndpoint) {
         this.openIdConnectEndpoint = openIdConnectEndpoint;
         this.tlsConfig = tlsConfig;
         this.proxyConfig = proxyConfig;
@@ -118,7 +121,8 @@ public class OpenIdProviderClient {
                         StatusLine statusLine = response.getStatusLine();
 
                         if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-                            throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + statusLine);
+                            throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + statusLine
+                                    + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""));
                         }
 
                         HttpEntity httpEntity = response.getEntity();
@@ -129,7 +133,8 @@ public class OpenIdProviderClient {
 
                         return new OidcProviderConfig(DocReader.json().readObject(httpEntity.getContent()));
                     }
-
+                } catch (SSLHandshakeException e) {
+                    throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + SSLExceptions.toHumanReadableError(e), e);
                 } catch (IOException e) {
                     throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + e, e);
                 }

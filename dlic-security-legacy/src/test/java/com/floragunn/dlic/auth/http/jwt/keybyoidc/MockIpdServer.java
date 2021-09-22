@@ -1,3 +1,4 @@
+package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 /*
  * Copyright 2016-2020 by floragunn GmbH - All rights reserved
  * 
@@ -12,7 +13,7 @@
  * 
  */
 
-package com.floragunn.dlic.auth.http.jwt.keybyoidc;
+
 
 import static com.floragunn.dlic.auth.http.jwt.keybyoidc.CxfTestTools.toJson;
 
@@ -77,6 +78,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 
 import com.floragunn.codova.documents.DocWriter;
+
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.google.common.collect.ImmutableMap;

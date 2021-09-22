@@ -12,7 +12,7 @@
  * 
  */
 
-package com.floragunn.dlic.auth.http.jwt.keybyoidc;
+package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import org.apache.cxf.jaxrs.json.basic.JsonMapObject;
 import org.apache.cxf.jaxrs.json.basic.JsonMapObjectReaderWriter;
