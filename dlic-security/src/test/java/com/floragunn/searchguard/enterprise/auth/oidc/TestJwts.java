@@ -31,7 +31,7 @@ import com.google.common.collect.ImmutableSet;
 
 public class TestJwts {
     public static final String ROLES_CLAIM = "roles";
-    public static final Set<String> TEST_ROLES = ImmutableSet.of("role1", "role2");
+    public static final Set<String> TEST_ROLES = ImmutableSet.of("role1", "kibana_user");
     public static final String TEST_ROLES_STRING = Strings.join(TEST_ROLES, ',');
 
     public static final String TEST_AUDIENCE = "TestAudience";

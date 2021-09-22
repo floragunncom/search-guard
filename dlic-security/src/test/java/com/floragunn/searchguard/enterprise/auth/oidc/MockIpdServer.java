@@ -224,7 +224,7 @@ public class MockIpdServer implements Closeable {
         response.setHeader("Cache-Control", "public, max-age=31536000");
         response.setEntity(new StringEntity("{\"jwks_uri\": \"" + uri + CTX_KEYS + "\",\n" + "\"issuer\": \"" + uri
                 + "\", \"unknownPropertyToBeIgnored\": 42, \"token_endpoint\": \"" + uri + CTX_TOKEN + "\", \"authorization_endpoint\": \"" + uri
-                + "/auth\"}"));
+                + "/auth\", \"end_session_endpoint\": \"" + uri + "/logout\"}"));
     }
 
     protected void handleKeysRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {

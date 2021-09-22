@@ -158,8 +158,9 @@ public class OidcAuthenticatorTest {
             Map<String, Object> config = DocNode.of("idp.openid_configuration_url", proxyOnlyMockIdpServer.getDiscoverUri().toString(),
                     "idp.proxy.host", "127.0.0.8", "idp.proxy.port", httpProxy.getPort(), "idp.proxy.scheme", "http", 
                     "client_id", "x",
-                    "client_secret", "x", "user_mapping.roles", "roles", "idp.tls.trusted_cas",
-                    "${file:" + FileHelper.getAbsoluteFilePathFromClassPath("oidc/idp/root-ca.pem") + "}", "idp.tls.verify_hostnames", false);
+                    "client_secret", "x", "user_mapping.roles", "roles",
+                 //   "idp.tls.trusted_cas",                     "${file:" + FileHelper.getAbsoluteFilePathFromClassPath("oidc/idp/root-ca.pem") + "}", 
+                    "idp.tls.verify_hostnames", false);
 
             OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
             ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);

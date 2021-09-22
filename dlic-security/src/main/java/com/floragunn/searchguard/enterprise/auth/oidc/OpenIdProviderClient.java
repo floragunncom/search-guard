@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.net.ssl.SSLHandshakeException;
+
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.http.HttpEntity;
@@ -57,6 +59,7 @@ import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchsupport.tls.SSLExceptions;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(KeySetRetriever.class);
@@ -130,7 +133,8 @@ public class OpenIdProviderClient {
 
                         return new OidcProviderConfig(DocReader.json().readObject(httpEntity.getContent()));
                     }
-
+                } catch (SSLHandshakeException e) {
+                    throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + SSLExceptions.toHumanReadableError(e), e);
                 } catch (IOException e) {
                     throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + e, e);
                 }
