@@ -156,11 +156,9 @@ public class OidcAuthenticatorTest {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL)
                 .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9")).useCustomTlsConfig(IDP_TLS_CONFIG).start()) {
             Map<String, Object> config = DocNode.of("idp.openid_configuration_url", proxyOnlyMockIdpServer.getDiscoverUri().toString(),
-                    "idp.proxy.host", "127.0.0.8", "idp.proxy.port", httpProxy.getPort(), "idp.proxy.scheme", "http", 
-                    "client_id", "x",
-                    "client_secret", "x", "user_mapping.roles", "roles",
-                 //   "idp.tls.trusted_cas",                     "${file:" + FileHelper.getAbsoluteFilePathFromClassPath("oidc/idp/root-ca.pem") + "}", 
-                    "idp.tls.verify_hostnames", false);
+                    "idp.proxy.host", "127.0.0.8", "idp.proxy.port", httpProxy.getPort(), "idp.proxy.scheme", "http", "client_id", "x",
+                    "client_secret", "x", "user_mapping.roles", "roles", "idp.tls.trusted_cas",
+                    "${file:" + FileHelper.getAbsoluteFilePathFromClassPath("oidc/idp/root-ca.pem") + "}", "idp.tls.verify_hostnames", false);
 
             OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
             ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
@@ -205,7 +203,7 @@ public class OidcAuthenticatorTest {
     @Test
     public void testRolesJsonPath() throws Exception {
         Map<String, Object> config = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "user_mapping.roles",
-                "$." + TestJwts.ROLES_CLAIM, "subject_path", "$.sub", "client_id", "Der Klient", "client_secret", "Das Geheimnis");
+                "$." + TestJwts.ROLES_CLAIM, "user_mapping.subject", "$.sub", "client_id", "Der Klient", "client_secret", "Das Geheimnis");
 
         OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);

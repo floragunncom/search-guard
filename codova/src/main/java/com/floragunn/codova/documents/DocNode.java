@@ -846,7 +846,7 @@ public abstract class DocNode implements Map<String, Object>, Document<Object> {
     public abstract boolean isList(String attribute);
 
     public abstract List<Object> toList();
-    
+
     public Object toBasicObject() {
         return get(null);
     }
