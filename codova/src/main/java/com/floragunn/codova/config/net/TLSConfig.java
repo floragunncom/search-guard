@@ -108,6 +108,7 @@ public class TLSConfig implements Document<TLSConfig> {
         }
         tlsConfig.clientCertAuthConfig = vNode.get("client_auth").by(ClientCertAuthConfig::parse);
 
+        vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         tlsConfig.sslContext = tlsConfig.buildSSLContext();
