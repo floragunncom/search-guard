@@ -20,6 +20,7 @@ package com.floragunn.searchguard.auth.frontend;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +29,8 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+
+import com.floragunn.codova.documents.Document;
 
 public class ActivatedFrontendConfig {
     private List<AuthMethod> authMethods;
@@ -40,7 +43,7 @@ public class ActivatedFrontendConfig {
         return authMethods;
     }
 
-    public static class AuthMethod implements ToXContentObject, Writeable {
+    public static class AuthMethod implements ToXContentObject, Writeable, Document<AuthMethod> {
 
         private final String id;
         private final String method;
@@ -210,6 +213,47 @@ public class ActivatedFrontendConfig {
 
         public String getId() {
             return id;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            Map<String, Object> result = new LinkedHashMap<>();
+                        
+            result.put("method", method);
+
+            if (id != null) {
+                result.put("id", id);
+            }
+
+            result.put("session", session);
+            result.put("label", label);
+
+            if (unavailable) {
+                result.put("unavailable", unavailable);
+            }
+
+            if (message != null) {
+                result.put("message", message);
+            }
+
+            if (ssoLocation != null) {
+                result.put("sso_location", ssoLocation);
+            }
+
+            if (ssoContext != null) {
+                result.put("sso_context", ssoContext);
+            }
+
+            if (config.size() > 0) {
+                result.put("config", config);
+            }
+
+            return result;
+        }
+        
+        @Override
+        public String toString() {
+            return toJsonString();
         }
 
     }

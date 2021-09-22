@@ -14,11 +14,11 @@
 
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.MCCOY_SUBJECT;
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.ROLES_CLAIM;
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.TEST_AUDIENCE;
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.create;
-import static com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts.createSigned;
+import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.MCCOY_SUBJECT;
+import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.ROLES_CLAIM;
+import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.TEST_AUDIENCE;
+import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.create;
+import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.createSigned;
 
 import java.io.IOException;
 import java.net.InetAddress;
