@@ -1,3 +1,4 @@
+package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 /*
  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  * 
@@ -12,7 +13,7 @@
  * 
  */
 
-package com.floragunn.dlic.auth.http.jwt.keybyoidc;
+
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,9 +25,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.enterprise.auth.oidc.BadCredentialsException;
-import com.floragunn.searchguard.enterprise.auth.oidc.KeySetProvider;
-import com.floragunn.searchguard.enterprise.auth.oidc.SelfRefreshingKeySet;
 
 public class SelfRefreshingKeySetTest {
 

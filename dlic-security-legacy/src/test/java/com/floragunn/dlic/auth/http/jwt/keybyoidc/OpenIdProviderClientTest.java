@@ -14,8 +14,12 @@
 
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.Socket;
+import java.security.KeyStore;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.Map;
@@ -26,20 +30,23 @@ import org.apache.http.HttpResponse;
 import org.apache.http.entity.ContentType;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpCoreContext;
+import org.apache.http.ssl.PrivateKeyDetails;
+import org.apache.http.ssl.PrivateKeyStrategy;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.config.net.ProxyConfig;
-import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
+import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
 import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.enterprise.auth.oidc.KeySetRetriever;
-import com.floragunn.searchguard.enterprise.auth.oidc.OpenIdProviderClient;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.google.common.collect.ImmutableMap;
@@ -54,7 +61,6 @@ public class OpenIdProviderClientTest {
         mockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL);
         httpProxy = new BrowserUpProxyServer();
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
-        mockIdpServer.setRequireValidCodes(false);
     }
 
     @AfterClass
@@ -72,14 +78,13 @@ public class OpenIdProviderClientTest {
         }
     }
 
+    @Ignore
     @Test
     public void proxyTest() throws Exception {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL)
                 .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"))) {
             OpenIdProviderClient openIdProviderClientWithoutProxySettings = new OpenIdProviderClient(proxyOnlyMockIdpServer.getDiscoverUri(), null,
                     null, true);
-
-            proxyOnlyMockIdpServer.setRequireValidCodes(false);
 
             try {
                 openIdProviderClientWithoutProxySettings.getOidcConfiguration();
@@ -100,9 +105,10 @@ public class OpenIdProviderClientTest {
 
             HttpResponse response = openIdProviderClient.callTokenEndpoint(tokenEndpointRequest.getBytes(),
                     ContentType.create("application/x-www-form-urlencoded"));
-            String entity = EntityUtils.toString(response.getEntity());
 
-            Assert.assertEquals(entity, 200, response.getStatusLine().getStatusCode());
+            Assert.assertEquals(response.toString(), 200, response.getStatusLine().getStatusCode());
+
+            String entity = EntityUtils.toString(response.getEntity());
 
             Assert.assertTrue(entity, entity.contains("access_token"));
         }
@@ -147,11 +153,30 @@ public class OpenIdProviderClientTest {
                 super.handleDiscoverRequest(request, response, context);
             }
         }) {
-            TLSConfig tlsConfig = new TLSConfig.Builder()
-                    .trustJks(FileHelper.getAbsoluteFilePathFromClassPath("jwt/truststore.jks").toFile(), "changeit")
-                    .clientCertJks(FileHelper.getAbsoluteFilePathFromClassPath("jwt/spock-keystore.jks").toFile(), "changeit", "spock").build();
+            SSLContextBuilder sslContextBuilder = SSLContexts.custom();
 
-            OpenIdProviderClient openIdProviderClient = new OpenIdProviderClient(mockIdpServer.getDiscoverUri(), tlsConfig, null, true);
+            KeyStore trustStore = KeyStore.getInstance("JKS");
+            InputStream trustStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("jwt/truststore.jks").toFile());
+            trustStore.load(trustStream, "changeit".toCharArray());
+
+            KeyStore keyStore = KeyStore.getInstance("JKS");
+            InputStream keyStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("jwt/spock-keystore.jks").toFile());
+
+            keyStore.load(keyStream, "changeit".toCharArray());
+
+            sslContextBuilder.loadTrustMaterial(trustStore, null);
+
+            sslContextBuilder.loadKeyMaterial(keyStore, "changeit".toCharArray(), new PrivateKeyStrategy() {
+
+                @Override
+                public String chooseAlias(Map<String, PrivateKeyDetails> aliases, Socket socket) {
+                    return "spock";
+                }
+            });
+
+            SettingsBasedSSLConfigurator.SSLConfig sslConfig = new SettingsBasedSSLConfigurator.SSLConfig(sslContextBuilder.build(),
+                    new String[] { "TLSv1.2", "TLSv1.1" }, null, null, false, false, false, trustStore, null, keyStore, null, null, false);
+            OpenIdProviderClient openIdProviderClient = new OpenIdProviderClient(mockIdpServer.getDiscoverUri(), sslConfig, null, true);
 
             KeySetRetriever keySetRetriever = new KeySetRetriever(openIdProviderClient);
 
