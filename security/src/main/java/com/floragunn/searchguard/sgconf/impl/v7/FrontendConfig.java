@@ -86,6 +86,7 @@ public class FrontendConfig implements Document {
         result.loginPage = vNode.get("login_page").withDefault(LoginPage.DEFAULT).parse(LoginPage::parse);
         result.debug = vNode.get("debug").withDefault(false).asBoolean();
 
+        vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         return result;
@@ -145,7 +146,8 @@ public class FrontendConfig implements Document {
                 result.id = Hashing.sha256().hashString(documentNode.toMap().toString(), StandardCharsets.UTF_8).toString();
 
                 try {
-                    result.authenticationFrontend = authenticationFrontendRegistry.getInstance(result.type, documentNode.toMap(), context);
+                    result.authenticationFrontend = authenticationFrontendRegistry.getInstance(result.type,
+                            documentNode.without("type", "label", "enabled", "message"), context);
                 } catch (ConfigValidationException e) {
                     log.warn("Invalid config for authentication frontend " + result, e);
 

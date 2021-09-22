@@ -107,6 +107,7 @@ public class TLSConfig implements Document {
         tlsConfig.trustedCas = vNode.get("trusted_cas").asListOfStrings();
         tlsConfig.clientCertAuthConfig = vNode.get("client_auth").by(ClientCertAuthConfig::parse);
 
+        vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         tlsConfig.sslContext = tlsConfig.buildSSLContext();
