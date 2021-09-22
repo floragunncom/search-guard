@@ -6,7 +6,7 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.dlic.auth.http.jwt.keybyoidc.TestJwts;
+import com.floragunn.searchguard.enterprise.auth.oidc.TestJwts;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
