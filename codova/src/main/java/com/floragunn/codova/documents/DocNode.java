@@ -721,7 +721,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
                 String firstPart = attribute.substring(0, dot);
 
                 if (rootKeyNames().contains(firstPart)) {
-                    return getSubTree(attribute).getAsNode(attribute.substring(dot + 1));
+                    return getSubTree(firstPart).getAsNode(attribute.substring(dot + 1));
                 } else {
                     return null;
                 }
