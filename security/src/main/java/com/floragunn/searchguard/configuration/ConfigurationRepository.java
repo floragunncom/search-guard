@@ -110,6 +110,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final AtomicBoolean installDefaultConfig = new AtomicBoolean();
     private final ComponentState componentState = new ComponentState(1, null, "config_repository", ConfigurationRepository.class);
     private final PrivilegedConfigClient privilegedConfigClient;
+    private final SearchGuardModulesRegistry searchGuardModulesRegistry;
+    private final ConfigVariableProviders configVariableProviders;
+    
     public final static Map<String, ?> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap.of("encoded_config",
             ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
 
@@ -128,6 +131,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.configurationChangedListener = new ArrayList<>();
         this.licenseChangeListener = new ArrayList<LicenseChangeListener>();
         this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
+        this.searchGuardModulesRegistry = searchGuardModulesRegistry;
+        this.configVariableProviders = configVariableProviders;
+        
         this.componentState.setMandatory(true);
         cl = new ConfigurationLoaderSG7(client, threadPool, settings, clusterService, componentState, searchGuardModulesRegistry, configVariableProviders);
         
@@ -428,6 +434,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
     
     public void update(Map<CType, Map<String, Object>> configTypeToConfigMap) throws ConfigUpdateException, ConfigValidationException {
+        LOGGER.info("Updating configuration " + configTypeToConfigMap.keySet());
+        
         ValidationErrors validationErrors = new ValidationErrors();
         BulkRequest bulkRequest = new BulkRequest();
 
@@ -447,7 +455,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
 
             try {
-                SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype, null, null);
+                SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype, searchGuardModulesRegistry,
+                        configVariableProviders);
 
                 String id = ctype.toLCString();
 
@@ -475,6 +484,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
         try {
 
             BulkResponse bulkResponse = privilegedConfigClient.bulk(bulkRequest).actionGet();
+            
+            LOGGER.info("Index update done: " + bulkResponse);
 
             if (bulkResponse.hasFailures()) {
                 throw new ConfigUpdateException("Updating the config failed", bulkResponse);
