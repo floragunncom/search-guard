@@ -523,6 +523,10 @@ public class PrivilegesEvaluator implements DCFListener {
     }
 
     public Set<String> mapSgRoles(final User user, final TransportAddress caller) {
+        if (this.configModel == null) {
+            throw new ElasticsearchSecurityException("SearchGuard is not yet initialized");
+        }
+        
         return this.configModel.mapSgRoles(user, caller);
     }
 
