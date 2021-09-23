@@ -58,7 +58,7 @@ public class SecretsConfigApiTest {
             Assert.assertEquals(response.getBody(), secretContent, DocReader.json().read(response.getBody()));
 
             response = client.get("/_searchguard/secrets");
-            DocNode responseDoc = new DocNode.PlainJavaObjectAdapter(DocReader.json().read(response.getBody()));
+            DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
 
             Assert.assertEquals(response.getBody(), secretContent, responseDoc.get(secretId));
 

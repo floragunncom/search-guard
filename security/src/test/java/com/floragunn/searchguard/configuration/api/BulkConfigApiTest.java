@@ -47,7 +47,7 @@ public class BulkConfigApiTest {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 
             HttpResponse response = client.get("/_searchguard/config");
-            DocNode responseDoc = new DocNode.PlainJavaObjectAdapter(DocReader.json().read(response.getBody()));
+            DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
 
             System.out.println(response.getBody());
 
@@ -62,7 +62,7 @@ public class BulkConfigApiTest {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 
             HttpResponse response = client.get("/_searchguard/config");
-            DocNode responseDoc = new DocNode.PlainJavaObjectAdapter(DocReader.json().read(response.getBody()));
+            DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
 
             Map<String, Object> tenants = new LinkedHashMap<>(responseDoc.getAsNode("tenants").getAsNode("content"));
 
@@ -77,7 +77,7 @@ public class BulkConfigApiTest {
             Thread.sleep(300);
 
             HttpResponse newGetResponse = client.get("/_searchguard/config");
-            DocNode newGetResponseDoc = new DocNode.PlainJavaObjectAdapter(DocReader.json().read(newGetResponse.getBody()));
+            DocNode newGetResponseDoc = DocNode.wrap(DocReader.json().read(newGetResponse.getBody()));
 
             Assert.assertTrue(newGetResponse.getBody(),
                     newGetResponseDoc.getAsNode("tenants").getAsNode("content").get("my_new_test_tenant") != null);
@@ -92,7 +92,7 @@ public class BulkConfigApiTest {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 
             HttpResponse response = client.get("/_searchguard/config");
-            DocNode responseDoc = new DocNode.PlainJavaObjectAdapter(DocReader.json().read(response.getBody()));
+            DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
 
             Map<String, Object> tenants = new LinkedHashMap<>(responseDoc.getAsNode("tenants").getAsNode("content"));
 
@@ -104,7 +104,7 @@ public class BulkConfigApiTest {
 
             Assert.assertEquals(updateResponse.getBody(), 400, updateResponse.getStatusCode());
 
-            DocNode updateResponseDoc = new DocNode.PlainJavaObjectAdapter(DocReader.json().read(updateResponse.getBody()));
+            DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
 
             Assert.assertEquals(updateResponse.getBody(), "'tenants.my_new_test_tenant.xxx': Unsupported attribute", updateResponseDoc.get("error"));
         }
@@ -115,7 +115,7 @@ public class BulkConfigApiTest {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 
             HttpResponse response = client.get("/_searchguard/config");
-            DocNode responseDoc = new DocNode.PlainJavaObjectAdapter(DocReader.json().read(response.getBody()));
+            DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
 
             Map<String, Object> tenants = new LinkedHashMap<>(responseDoc.getAsNode("tenants").getAsNode("content"));
 
@@ -127,7 +127,7 @@ public class BulkConfigApiTest {
 
             Assert.assertEquals(updateResponse.getBody(), 400, updateResponse.getStatusCode());
 
-            DocNode updateResponseDoc = new DocNode.PlainJavaObjectAdapter(DocReader.json().read(updateResponse.getBody()));
+            DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
 
             Assert.assertEquals(updateResponse.getBody(), "'foo': Invalid config type: foo", updateResponseDoc.get("error"));
         }
