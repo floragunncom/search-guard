@@ -200,6 +200,11 @@ public class FrontendConfig implements Document<FrontendConfig> {
         public Object toBasicObject() {
             return parsedJson;
         }
+
+        @Override
+        public String toString() {
+            return "Authcz [type=" + type + ", authenticationFrontend=" + authenticationFrontend + ", id=" + id + "]";
+        }
     }
 
     public static class Multitenancy {
