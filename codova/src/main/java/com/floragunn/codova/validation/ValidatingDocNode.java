@@ -120,7 +120,14 @@ public class ValidatingDocNode {
 
         if (dot == -1) {
             used(attribute);
+            String attributeWithDot = attribute + ".";
 
+            for (String docAttribute : this.documentNode.keySet()) {
+                if (docAttribute.startsWith(attributeWithDot)) {
+                    used(docAttribute);
+                }
+            }
+            
             return new Attribute(attribute, attribute, documentNode);
         } else {
             String[] parts = attribute.split("\\.");
