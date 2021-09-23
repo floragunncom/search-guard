@@ -105,6 +105,19 @@ public class ValidatingDocNode {
     private void used(String attribute) {
         this.unconsumedAttributes.remove(attribute);
         this.consumedAttributes.add(attribute);
+
+        int dot = attribute.lastIndexOf('.');
+
+        if (dot != -1) {
+            String parentAttribute = attribute.substring(0, dot);
+
+            used(parentAttribute);
+        }
+    }
+
+    private void usedNonRecursive(String attribute) {
+        this.unconsumedAttributes.remove(attribute);
+        this.consumedAttributes.add(attribute);
     }
 
     public Attribute get(String attribute) {
@@ -127,7 +140,7 @@ public class ValidatingDocNode {
                     used(docAttribute);
                 }
             }
-            
+
             return new Attribute(attribute, attribute, documentNode);
         } else {
             String[] parts = attribute.split("\\.");
@@ -142,7 +155,7 @@ public class ValidatingDocNode {
 
                 path.append(parts[i]);
                 currentDocumentNode = currentDocumentNode.getAsNode(parts[i]);
-                used(path.toString());
+                usedNonRecursive(path.toString());
             }
 
             String subAttribute = parts[parts.length - 1];
@@ -581,12 +594,12 @@ public class ValidatingDocNode {
                 return null;
             }
 
-            try {
-                return value.toMap();
-            } catch (ConfigValidationException e) {
+            if (!value.isMap()) {
                 validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), value, "JSON object"));
-                return null;
+
             }
+
+            return value.toMap();
         }
 
         public TemporalAmount asTemporalAmount() {
