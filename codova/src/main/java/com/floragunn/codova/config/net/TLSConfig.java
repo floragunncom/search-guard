@@ -90,7 +90,6 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.io.Files;
 
-
 public class TLSConfig implements Document {
     private static final Logger log = LoggerFactory.getLogger(TLSConfig.class);
 
@@ -104,7 +103,9 @@ public class TLSConfig implements Document {
         tlsConfig.hostnameVerificationEnabled = vNode.get("verify_hostnames").withDefault(true).asBoolean();
         tlsConfig.trustAll = vNode.get("trust_all").withDefault(false).asBoolean();
         tlsConfig.truststore = vNode.get("trusted_cas").by(TLSConfig::toTruststore);
-        tlsConfig.trustedCas = vNode.get("trusted_cas").asListOfStrings();
+        if (tlsConfig.truststore != null) {
+            tlsConfig.trustedCas = vNode.get("trusted_cas").asListOfStrings();
+        }
         tlsConfig.clientCertAuthConfig = vNode.get("client_auth").by(ClientCertAuthConfig::parse);
 
         validationErrors.throwExceptionForPresentErrors();
@@ -262,6 +263,10 @@ public class TLSConfig implements Document {
     }
 
     private static KeyStore toTruststore(String certificateString) throws ConfigValidationException {
+        if (certificateString == null) {
+            return null;
+        }
+
         CertificateFactory certificateFactory;
         try {
             certificateFactory = CertificateFactory.getInstance("X.509");
@@ -397,6 +402,37 @@ public class TLSConfig implements Document {
 
     public ClientCertAuthConfig getClientCertAuthConfig() {
         return clientCertAuthConfig;
+    }
+
+    public static PrivateKey toPrivateKey(String string, String keyPassword) throws ConfigValidationException {
+
+        JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
+
+        try (PEMParser pemParser = new PEMParser(new StringReader(string))) {
+
+            Object object = pemParser.readObject();
+
+            if (object == null) {
+                return null;
+            } else if (object instanceof PEMKeyPair) {
+                return converter.getKeyPair((PEMKeyPair) object).getPrivate();
+            } else if (object instanceof PEMEncryptedKeyPair) {
+                PEMDecryptorProvider pdp = new BcPEMDecryptorProvider(keyPassword == null ? null : keyPassword.toCharArray());
+                PEMKeyPair kp = ((PEMEncryptedKeyPair) object).decryptKeyPair(pdp);
+                return converter.getKeyPair(kp).getPrivate();
+            } else if (object instanceof PrivateKeyInfo) {
+                return converter.getPrivateKey((PrivateKeyInfo) object);
+            } else if (object instanceof PKCS8EncryptedPrivateKeyInfo) {
+                InputDecryptorProvider pdp = new JceOpenSSLPKCS8DecryptorProviderBuilder()
+                        .build(keyPassword == null ? null : keyPassword.toCharArray());
+                return converter.getPrivateKey(((PKCS8EncryptedPrivateKeyInfo) object).decryptPrivateKeyInfo(pdp));
+            } else {
+                throw new ConfigValidationException(new ValidationError(null, "Unknown object type: " + object.getClass()));
+            }
+        } catch (IOException | OperatorCreationException | PKCSException e) {
+            log.info("Error while parsing private key", e);
+            throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
+        }
     }
 
     private static class OverlyTrustfulSSLContextBuilder extends SSLContextBuilder {

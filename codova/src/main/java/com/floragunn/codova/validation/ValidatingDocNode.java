@@ -180,7 +180,7 @@ public class ValidatingDocNode {
         return false;
     }
 
-    public void validateUnusedAttributes() {
+    public void checkForUnusedAttributes() {
         for (String attribute : this.unconsumedAttributes) {
             validationErrors.add(
                     new UnsupportedAttribute(attribute, documentNode.get(attribute) != null ? documentNode.get(attribute).toString() : null, null));

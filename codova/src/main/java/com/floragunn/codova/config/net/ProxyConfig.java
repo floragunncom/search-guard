@@ -22,6 +22,7 @@ import java.util.Map;
 import org.apache.http.HttpHost;
 import org.apache.http.impl.client.HttpClientBuilder;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -64,6 +65,32 @@ public class ProxyConfig {
             return new ProxyConfig(new HttpHost(hostName, port, scheme));
         } else {
             return new ProxyConfig(null);
+        }
+    }
+
+    public static ProxyConfig parse(DocNode docNode) throws ConfigValidationException {
+
+        if (docNode.get() instanceof String) {
+            String simpleString = (String) docNode.get();
+
+            try {
+                return new ProxyConfig(HttpHost.create(simpleString));
+            } catch (IllegalArgumentException e) {
+                throw new ConfigValidationException(new InvalidAttributeValue(null, "HTTP host URL", simpleString).cause(e));
+            }
+        } else {
+            ValidationErrors validationErrors = new ValidationErrors();
+            ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors);
+
+            String hostName = vNode.get("host").required().asString();
+            int port = vNode.get("port").withDefault(80).allowingNumericStrings().asInt();
+            String scheme = vNode.get("scheme").withDefault("https").asString();
+
+            vNode.checkForUnusedAttributes();
+                        
+            validationErrors.throwExceptionForPresentErrors();
+            
+            return new ProxyConfig(new HttpHost(hostName, port, scheme));
         }
     }
 
