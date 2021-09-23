@@ -52,7 +52,7 @@ public class ValidatingDocNode {
     private DocNode documentNode;
     private Set<String> unconsumedAttributes;
     private Set<String> consumedAttributes = new HashSet<>();
-    private Map<String, Function<String, ?>> variableProviders = new HashMap<>();
+    private Map<String, ValidatingFunction<String, ?>> variableProviders = new HashMap<>();
 
     public ValidatingDocNode(Map<String, Object> document, ValidationErrors validationErrors) {
         this(DocNode.wrap(document), validationErrors);
@@ -71,12 +71,12 @@ public class ValidatingDocNode {
         this.consumedAttributes = vJsonNode.consumedAttributes;
     }
 
-    public ValidatingDocNode expandVariables(String name, Function<String, ?> variableProvider) {
+    public ValidatingDocNode expandVariables(String name, ValidatingFunction<String, ?> variableProvider) {
         this.variableProviders.put(name, variableProvider);
         return this;
     }
 
-    public ValidatingDocNode expandVariables(Map<String, Function<String, ?>> variableProviders) {
+    public ValidatingDocNode expandVariables(Map<String, ValidatingFunction<String, ?>> variableProviders) {
         this.variableProviders.putAll(variableProviders);
         return this;
     }
@@ -90,19 +90,19 @@ public class ValidatingDocNode {
 
     public void used(String... attributes) {
         for (String attribute : attributes) {
-            consume(attribute);
+            used(attribute);
         }
     }
 
     public void used(Set<String> attributes) {
         if (attributes != null) {
             for (String attribute : attributes) {
-                consume(attribute);
+                used(attribute);
             }
         }
     }
 
-    private void consume(String attribute) {
+    private void used(String attribute) {
         this.unconsumedAttributes.remove(attribute);
         this.consumedAttributes.add(attribute);
     }
@@ -112,14 +112,14 @@ public class ValidatingDocNode {
             // YAML documents which have attributes specified like "a.b.c" won't be mapped to an object tree by BasicJsonReader.
             // This is actually okay, because this is error tolerant to invalid tree structures which can be defined in a YAML file.
             // Thus, we treat such attributes as special case here.
-            consume(attribute);
+            used(attribute);
             return new Attribute(attribute, attribute, documentNode);
         }
 
         int dot = attribute.indexOf('.');
 
         if (dot == -1) {
-            consume(attribute);
+            used(attribute);
 
             return new Attribute(attribute, attribute, documentNode);
         } else {
@@ -135,13 +135,23 @@ public class ValidatingDocNode {
 
                 path.append(parts[i]);
                 currentDocumentNode = currentDocumentNode.getAsNode(parts[i]);
-                consume(path.toString());
+                used(path.toString());
             }
 
+            String subAttribute = parts[parts.length - 1];
+
             if (currentDocumentNode != null) {
-                return new Attribute(parts[parts.length - 1], attribute, currentDocumentNode);
+                String subAttributeWithDot = subAttribute + ".";
+
+                for (String docAttribute : currentDocumentNode.keySet()) {
+                    if (docAttribute.equals(subAttribute) || docAttribute.startsWith(subAttributeWithDot)) {
+                        used(path + "." + docAttribute);
+                    }
+                }
+
+                return new Attribute(subAttribute, attribute, currentDocumentNode);
             } else {
-                return new Attribute(parts[parts.length - 1], attribute, DocNode.EMPTY);
+                return new Attribute(subAttribute, attribute, DocNode.EMPTY);
             }
         }
     }
@@ -150,7 +160,7 @@ public class ValidatingDocNode {
         if (this.documentNode.get(attribute) != null) {
             return true;
         }
-        
+
         int dot = attribute.indexOf('.');
 
         if (dot != -1) {
@@ -161,12 +171,12 @@ public class ValidatingDocNode {
             for (int i = 0; i < parts.length - 1 && currentDocumentNode != null; i++) {
                 currentDocumentNode = currentDocumentNode.getAsNode(parts[i]);
             }
-            
+
             if (currentDocumentNode != null) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -208,7 +218,7 @@ public class ValidatingDocNode {
                 return fullAttributePath + "." + expandedVariable;
             }
         }
-        
+
         protected Object expandVariable(Object value) {
             if (value == null) {
                 return null;
@@ -217,7 +227,7 @@ public class ValidatingDocNode {
             if (variableProviders.isEmpty()) {
                 return value;
             }
-            
+
             if (value instanceof List) {
                 return expandVariables((List<?>) value);
             }
@@ -230,7 +240,7 @@ public class ValidatingDocNode {
 
             if (string.startsWith("${") && string.endsWith("}")) {
                 String name = string.substring(2, string.length() - 1);
-                Function<String, ?> variableProvider;
+                ValidatingFunction<String, ?> variableProvider;
 
                 int colon = name.indexOf(':');
 
@@ -246,16 +256,26 @@ public class ValidatingDocNode {
                     return value;
                 }
 
-                Object newValue = variableProvider.apply(name);
+                try {
+                    Object newValue = variableProvider.apply(name);
+                    if (newValue == null) {
+                        validationErrors.add(
+                                new InvalidAttributeValue(getAttributePathForValidationError(), value, "The variable " + value + " does not exist"));
+                        return null;
+                    }
 
-                if (newValue == null) {
-                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), value, "The variable " + value + " does not exist"));
+                    this.expandedVariable = string;
+
+                    return newValue;
+
+                } catch (ConfigValidationException e) {
+                    validationErrors.add(getAttributePathForValidationError(), e);
+                    return null;
+                } catch (Exception e) {
+                    validationErrors
+                            .add(new InvalidAttributeValue(getAttributePathForValidationError(), value, "Error while retrieving variable: " + e));
                     return null;
                 }
-                
-                this.expandedVariable = string;
-
-                return newValue;
 
             } else {
                 return value;
@@ -295,7 +315,7 @@ public class ValidatingDocNode {
 
             return result;
         }
-        
+
         protected List<String> expandVariablesForStrings(List<String> values) {
             if (values == null || values.isEmpty() || variableProviders.isEmpty()) {
                 return values;
@@ -480,17 +500,18 @@ public class ValidatingDocNode {
             if (uri != null) {
                 try {
                     if (!uri.isAbsolute()) {
-                        validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "Base URL").message("Must be an absolute URL"));
+                        validationErrors.add(
+                                new InvalidAttributeValue(getAttributePathForValidationError(), uri, "Base URL").message("Must be an absolute URL"));
                     }
 
                     if (uri.getRawQuery() != null) {
-                        validationErrors.add(
-                                new InvalidAttributeValue(getAttributePathForValidationError(), uri, "Base URL").message("Cannot use query parameters for base URLs"));
+                        validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "Base URL")
+                                .message("Cannot use query parameters for base URLs"));
                     }
 
                     if (uri.getRawFragment() != null) {
-                        validationErrors
-                                .add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "Base URL").message("Cannot use fragments for base URLs"));
+                        validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "Base URL")
+                                .message("Cannot use fragments for base URLs"));
                     }
 
                     String path = uri.getRawPath();
@@ -732,7 +753,7 @@ public class ValidatingDocNode {
             this.defaultValue = defaultValue;
             return this;
         }
-        
+
         public NumberAttribute allowingNumericStrings() {
             this.allowNumericStrings = true;
             return this;
@@ -746,7 +767,7 @@ public class ValidatingDocNode {
             } else if (object instanceof Number) {
                 return (Number) object;
             } else if (allowNumericStrings && object instanceof String) {
-               return parseString((String) object);
+                return parseString((String) object);
             } else {
                 validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A numeric value"));
                 return defaultValue;
@@ -804,20 +825,20 @@ public class ValidatingDocNode {
                 return 0;
             }
         }
-        
+
         private Number parseString(String string) {
             Number result = Longs.tryParse(string);
-            
+
             if (result != null) {
                 return result;
             }
-            
+
             result = Doubles.tryParse(string);
-            
+
             if (result != null) {
                 return result;
             }
-            
+
             validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), string, "A numeric value"));
             return defaultValue;
         }
@@ -881,7 +902,8 @@ public class ValidatingDocNode {
 
             if (uri != defaultValue) {
                 if (!uri.isAbsolute()) {
-                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "URI").message("Must be an absolute URI"));
+                    validationErrors
+                            .add(new InvalidAttributeValue(getAttributePathForValidationError(), uri, "URI").message("Must be an absolute URI"));
                 }
             }
 
@@ -1045,8 +1067,8 @@ public class ValidatingDocNode {
             List<String> list = documentNode.getAsListOfStrings(name);
 
             if (list != null && list.size() < minElements) {
-                validationErrors
-                        .add(new InvalidAttributeValue(getAttributePathForValidationError(), list, "The list must contain at least " + minElements + " elements"));
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), list,
+                        "The list must contain at least " + minElements + " elements"));
             }
 
             return this;

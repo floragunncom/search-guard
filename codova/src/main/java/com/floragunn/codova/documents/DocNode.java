@@ -18,10 +18,13 @@
 package com.floragunn.codova.documents;
 
 import java.math.BigDecimal;
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -45,81 +48,60 @@ public abstract class DocNode implements Map<String, Object> {
     public static final DocNode EMPTY = new PlainJavaObjectAdapter(Collections.EMPTY_MAP);
 
     public static DocNode of(String key, Object value) {
-        HashMap<String, Object> map = new LinkedHashMap<>(1);
-        add(map, key, value);
-        return new PlainJavaObjectAdapter(map);
+        return new AttributeNormalizingAdapter(new PlainJavaObjectAdapter(Collections.singletonMap(key, value)));
     }
 
     public static DocNode of(String k1, Object v1, String k2, Object v2) {
         HashMap<String, Object> map = new LinkedHashMap<>(2);
-        add(map, k1, v1);
-        add(map, k2, v2);
-        return new PlainJavaObjectAdapter(map);
+        map.put(k1, v1);
+        map.put(k2, v2);
+        return new AttributeNormalizingAdapter(new PlainJavaObjectAdapter(map));
     }
 
     public static DocNode of(String k1, Object v1, String k2, Object v2, String k3, Object v3) {
-        HashMap<String, Object> map = new LinkedHashMap<>(4);
-        add(map, k1, v1);
-        add(map, k2, v2);
-        add(map, k3, v3);
+        HashMap<String, Object> map = new LinkedHashMap<>(3);
+        map.put(k1, v1);
+        map.put(k2, v2);
+        map.put(k3, v3);
 
-        return new PlainJavaObjectAdapter(map);
+        return new AttributeNormalizingAdapter(new PlainJavaObjectAdapter(map));
     }
 
     public static DocNode of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4) {
-        HashMap<String, Object> map = new LinkedHashMap<>(8);
-        add(map, k1, v1);
-        add(map, k2, v2);
-        add(map, k3, v3);
-        add(map, k4, v4);
+        HashMap<String, Object> map = new LinkedHashMap<>(4);
+        map.put(k1, v1);
+        map.put(k2, v2);
+        map.put(k3, v3);
+        map.put(k4, v4);
 
-        return new PlainJavaObjectAdapter(map);
+        return new AttributeNormalizingAdapter(new PlainJavaObjectAdapter(map));
     }
 
     public static DocNode of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, Object... more) {
         HashMap<String, Object> map = new LinkedHashMap<>();
-        add(map, k1, v1);
-        add(map, k2, v2);
-        add(map, k3, v3);
-        add(map, k4, v4);
+        map.put(k1, v1);
+        map.put(k2, v2);
+        map.put(k3, v3);
+        map.put(k4, v4);
 
         if (more != null) {
             for (int i = 0; i < more.length; i += 2) {
-                add(map, String.valueOf(more[i]), more[i + 1]);
+                map.put(String.valueOf(more[i]), more[i + 1]);
             }
         }
 
-        return new PlainJavaObjectAdapter(map);
+        return new AttributeNormalizingAdapter(new PlainJavaObjectAdapter(map));
     }
 
     public static DocNode wrap(Object object) {
         if (object instanceof DocNode) {
             return (DocNode) object;
         } else {
-            return new PlainJavaObjectAdapter(object);
-        }
-    }
-    
-    private static void add(Map<String, Object> map, String key, Object value) {
-        int dot = key.indexOf('.');
-
-        if (dot == -1) {
-            map.put(key, value);
-        } else {
-            String base = key.substring(0, dot);
-            String rest = key.substring(dot + 1);
-
-            Object object = map.computeIfAbsent(base, (k) -> new LinkedHashMap<>());
-
-            if (object instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> subMap = (Map<String, Object>) object;
-                add(subMap, rest, value);
-            }
+            return new AttributeNormalizingAdapter(new PlainJavaObjectAdapter(object));
         }
     }
 
-    public static class PlainJavaObjectAdapter extends DocNode {
+    private static class PlainJavaObjectAdapter extends DocNode {
         private final Object object;
 
         public PlainJavaObjectAdapter(Object object) {
@@ -151,10 +133,8 @@ public abstract class DocNode implements Map<String, Object> {
         public DocNode getAsNode(String attribute) {
             Object object = get(attribute);
 
-            if (object instanceof DocNode) {
-                return (DocNode) object;
-            } else if (object != null) {
-                return new PlainJavaObjectAdapter(object);
+            if (object != null) {
+                return DocNode.wrap(object);
             } else {
                 return null;
             }
@@ -168,8 +148,8 @@ public abstract class DocNode implements Map<String, Object> {
                 object = this.object;
             } else if (this.object instanceof Map) {
                 object = ((Map<?, ?>) this.object).get(attribute);
-            } 
-            
+            }
+
             if (object == null) {
                 return null;
             }
@@ -239,8 +219,7 @@ public abstract class DocNode implements Map<String, Object> {
             } else if (object instanceof DocNode) {
                 return object;
             } else if (object instanceof Map) {
-                return new PlainJavaObjectAdapter(object);
-                //return toStringKeyedMap((Map<?, ?>) object);
+                return (Map<?, ?>) object;
             } else {
                 throw new RuntimeException("Unexpected type: " + object);
             }
@@ -421,7 +400,391 @@ public abstract class DocNode implements Map<String, Object> {
         }
     }
 
+    static class SubTreeView extends DocNode {
+        private final DocNode delegate;
+        private final String viewAttributeWithDot;
+        private DocNode simpleMap;
+        private final int size;
+        private Set<String> keySet;
+        private Set<Entry<String, Object>> entrySet;
+
+        static DocNode getSubTree(DocNode docNode, String viewAttribute) {
+            String viewAttributeWithDot = viewAttribute + ".";
+            int keysWithDot = 0;
+            int actualObjectSize = 0;
+
+            for (String key : docNode.keySet()) {
+                if (key.startsWith(viewAttributeWithDot)) {
+                    keysWithDot++;
+                } else if (key.equals(viewAttribute)) {
+                    Object o = docNode.get(key);
+
+                    if (o instanceof Map) {
+                        actualObjectSize += ((Map<?, ?>) o).size();
+                    } else {
+                        actualObjectSize++;
+                    }
+                }
+            }
+
+            if (keysWithDot != 0) {
+                return new SubTreeView(docNode, viewAttribute, viewAttributeWithDot, actualObjectSize + keysWithDot);
+            } else if (actualObjectSize != 0) {
+                return docNode.getAsNode(viewAttribute);
+            } else {
+                return EMPTY;
+            }
+        }
+
+        private SubTreeView(DocNode delegate, String viewAttribute, String viewAttributeWithDot, int size) {
+            this.delegate = delegate;
+            this.viewAttributeWithDot = viewAttributeWithDot;
+            this.size = size;
+
+            Object simpleInDelegate = delegate.get(viewAttribute);
+
+            if (simpleInDelegate instanceof Map) {
+                this.simpleMap = DocNode.wrap((Map<?, ?>) simpleInDelegate);
+            }
+        }
+
+        @Override
+        public int size() {
+            return this.size;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return false;
+        }
+
+        @Override
+        public boolean containsKey(Object key) {
+            if (key == null) {
+                return !isEmpty();
+            } else if (simpleMap != null && simpleMap.containsKey(key)) {
+                return true;
+            } else {
+                return delegate.containsKey(viewAttributeWithDot + key);
+            }
+        }
+
+        @Override
+        public Set<String> keySet() {
+            if (keySet == null) {
+                HashSet<String> temp = new HashSet<>();
+                for (String key : delegate.keySet()) {
+                    if (key.startsWith(viewAttributeWithDot)) {
+                        temp.add(key.substring(viewAttributeWithDot.length()));
+                    }
+                }
+
+                if (simpleMap != null) {
+                    temp.addAll(simpleMap.keySet());
+                }
+
+                this.keySet = temp;
+            }
+
+            return keySet;
+        }
+
+        @Override
+        public Collection<Object> values() {
+            Collection<Object> result = new ArrayList<>();
+
+            for (String key : delegate.keySet()) {
+                if (key.startsWith(viewAttributeWithDot)) {
+                    result.add(delegate.get(key));
+                }
+            }
+
+            if (simpleMap != null) {
+                result.addAll(simpleMap.values());
+            }
+
+            return result;
+        }
+
+        @Override
+        public Set<Entry<String, Object>> entrySet() {
+            if (entrySet == null) {
+                HashSet<Entry<String, Object>> temp = new HashSet<>();
+                for (Entry<String, Object> entry : delegate.entrySet()) {
+                    String key = entry.getKey();
+
+                    if (key.startsWith(viewAttributeWithDot)) {
+                        temp.add(new AbstractMap.SimpleImmutableEntry<>(key.substring(viewAttributeWithDot.length()), entry.getValue()));
+                    }
+                }
+
+                if (simpleMap != null) {
+                    temp.addAll(simpleMap.entrySet());
+                }
+
+                this.entrySet = temp;
+            }
+
+            return entrySet;
+        }
+
+        @Override
+        public Object get(String attribute) {
+            if (simpleMap != null && simpleMap.containsKey(attribute)) {
+                return simpleMap.get(attribute);
+            } else {
+                return delegate.get(viewAttributeWithDot + attribute);
+            }
+        }
+
+        @Override
+        public List<DocNode> getListOfNodes(String attribute) throws ConfigValidationException {
+            if (simpleMap != null && simpleMap.containsKey(attribute)) {
+                return simpleMap.getListOfNodes(attribute);
+            } else {
+                return delegate.getListOfNodes(viewAttributeWithDot + attribute);
+            }
+        }
+
+        @Override
+        public DocNode getAsNode(String attribute) {
+            if (simpleMap != null && simpleMap.containsKey(attribute)) {
+                return simpleMap.getAsNode(attribute);
+            } else {
+                return delegate.getAsNode(viewAttributeWithDot + attribute);
+            }
+        }
+
+        @Override
+        public Map<String, Object> toMap() throws ConfigValidationException {
+            Map<String, Object> result = new LinkedHashMap<>(this.size);
+            
+            for (Map.Entry<String, Object> entry : entrySet()) {
+                result.put(entry.getKey(), entry.getValue());
+            }
+            
+            return result;
+        }
+
+        @Override
+        public boolean isMap() {
+            return true;
+        }
+
+        @Override
+        public boolean isList() {
+            return false;
+        }
+
+        @Override
+        public boolean isList(String attribute) {
+            if (simpleMap != null && simpleMap.containsKey(attribute)) {
+                return simpleMap.isList(attribute);
+            } else {
+                return delegate.isList(viewAttributeWithDot + attribute);
+            }
+        }
+
+        @Override
+        public List<Object> toList() {
+            try {
+                return Collections.singletonList(toMap());
+            } catch (ConfigValidationException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+    }
+
+    static class AttributeNormalizingAdapter extends DocNode {
+
+        private final DocNode delegate;
+        private Set<String> rootKeyNames;
+
+        AttributeNormalizingAdapter(DocNode delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public int size() {
+            return rootKeyNames().size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return delegate.isEmpty();
+        }
+
+        @Override
+        public boolean containsKey(Object keyObject) {
+            if (delegate.containsKey(keyObject)) {
+                return true;
+            }
+
+            if (!(keyObject instanceof String)) {
+                return false;
+            }
+
+            String key = (String) keyObject;
+
+            int dot = key.indexOf('.');
+
+            if (dot == -1) {
+                return rootKeyNames().contains(key);
+            } else {
+                String firstPart = key.substring(0, dot);
+
+                if (rootKeyNames().contains(firstPart)) {
+                    return getAsNode(firstPart).containsKey(key.substring(dot + 1));
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        @Override
+        public Set<String> keySet() {
+            return delegate.keySet();
+        }
+
+        @Override
+        public Collection<Object> values() {
+            return delegate.values();
+        }
+
+        @Override
+        public Set<Entry<String, Object>> entrySet() {
+            return delegate.entrySet();
+        }
+
+        @Override
+        public Object get(String attribute) {
+            if (attribute == null) {
+                return delegate.get(null);
+            }
+
+            if (delegate.containsKey(attribute)) {
+                return delegate.get(attribute);
+            }
+
+            int dot = attribute.indexOf('.');
+
+            if (dot == -1) {
+                return delegate.get(attribute);
+            } else {
+                String firstPart = attribute.substring(0, dot);
+
+                if (rootKeyNames().contains(firstPart)) {
+                    return getAsNode(firstPart).get(attribute.substring(dot + 1));
+                } else {
+                    return null;
+                }
+            }
+        }
+
+        @Override
+        public List<DocNode> getListOfNodes(String attribute) throws ConfigValidationException {
+            if (delegate.containsKey(attribute)) {
+                return delegate.getListOfNodes(attribute);
+            }
+
+            int dot = attribute.indexOf('.');
+
+            if (dot == -1) {
+                if (rootKeyNames().contains(attribute)) {
+                    return getSubTree(attribute).getListOfNodes(null);
+                } else {
+                    return null;
+                }
+            } else {
+                String firstPart = attribute.substring(0, dot);
+
+                if (rootKeyNames().contains(firstPart)) {
+                    return getAsNode(firstPart).getListOfNodes(attribute.substring(dot + 1));
+                } else {
+                    return null;
+                }
+            }
+        }
+
+        @Override
+        public DocNode getAsNode(String attribute) {
+            if (delegate.containsKey(attribute)) {
+                return delegate.getAsNode(attribute);
+            }
+
+            int dot = attribute.indexOf('.');
+                        
+            if (dot == -1) {
+                if (rootKeyNames().contains(attribute)) {
+                    return getSubTree(attribute);
+                } else {
+                    return null;
+                }
+            } else {
+                String firstPart = attribute.substring(0, dot);
+
+                if (rootKeyNames().contains(firstPart)) {
+                    return getSubTree(attribute).getAsNode(attribute.substring(dot + 1));
+                } else {
+                    return null;
+                }
+            }
+        }
+
+        @Override
+        public Map<String, Object> toMap() throws ConfigValidationException {
+            return delegate.toMap();
+        }
+
+        @Override
+        public boolean isMap() {
+            return delegate.isMap();
+        }
+
+        @Override
+        public boolean isList() {
+            return delegate.isList();
+        }
+
+        @Override
+        public boolean isList(String attribute) {
+            return get(attribute) instanceof List;
+        }
+
+        @Override
+        public List<Object> toList() {
+            return delegate.toList();
+        }
+
+        private Set<String> rootKeyNames() {
+            if (this.rootKeyNames == null) {
+                Set<String> rootKeyNames = new HashSet<>();
+
+                for (String key : keySet()) {
+                    int dot = key.indexOf('.');
+                    if (dot == -1) {
+                        rootKeyNames.add(key);
+                    } else {
+                        rootKeyNames.add(key.substring(0, dot));
+                    }
+                }
+
+                this.rootKeyNames = rootKeyNames;
+            }
+
+            return this.rootKeyNames;
+        }
+
+        @Override
+        protected DocNode createSubTree(String attribute) {
+            return new AttributeNormalizingAdapter(delegate.getSubTree(attribute));
+        }
+
+    }
+
     protected String key;
+    private Map<String, DocNode> subTreeCache = new HashMap<>();
 
     public abstract Object get(String attribute);
 
@@ -438,6 +801,34 @@ public abstract class DocNode implements Map<String, Object> {
     public abstract boolean isList(String attribute);
 
     public abstract List<Object> toList();
+
+    public Object get() {
+        return get(null);
+    }
+
+    public boolean hasAny(String... keys) {
+        for (String key : keys) {
+            if (containsKey(key)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public DocNode without(String... attrs) {
+        Set<String> attrsSet = new HashSet<>(Arrays.asList(attrs));
+
+        LinkedHashMap<String, Object> newMap = new LinkedHashMap<>(size());
+
+        for (Map.Entry<String, Object> entry : entrySet()) {
+            if (!attrsSet.contains(entry.getKey())) {
+                newMap.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return new AttributeNormalizingAdapter(new PlainJavaObjectAdapter(newMap));
+    }
 
     public List<String> toListOfStrings() {
         List<Object> list = toList();
@@ -664,18 +1055,12 @@ public abstract class DocNode implements Map<String, Object> {
             List<DocNode> result = new ArrayList<>(((List<?>) object).size());
 
             for (Object subObject : (List<?>) object) {
-                if (subObject instanceof DocNode) {
-                    result.add((DocNode) subObject);
-                } else {
-                    result.add(new PlainJavaObjectAdapter(subObject));
-                }
+                result.add(DocNode.wrap(subObject));
             }
 
             return result;
-        } else if (object instanceof DocNode) {
-            return Collections.singletonList((DocNode) object);
         } else if (object != null) {
-            return Collections.singletonList(new PlainJavaObjectAdapter(object));
+            return Collections.singletonList(DocNode.wrap(object));
         } else {
             return Collections.emptyList();
         }
@@ -688,10 +1073,8 @@ public abstract class DocNode implements Map<String, Object> {
     public DocNode findSingleNodeByJsonPath(String jsonPath) {
         Object object = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(this).read(jsonPath);
 
-        if (object instanceof DocNode) {
-            return (DocNode) object;
-        } else if (object != null) {
-            return new PlainJavaObjectAdapter(object);
+        if (object != null) {
+            return DocNode.wrap(object);
         } else {
             return null;
         }
@@ -715,5 +1098,23 @@ public abstract class DocNode implements Map<String, Object> {
     @Override
     public void clear() {
         throw new UnsupportedOperationException("DocumentNode instances cannot be modified");
+    }
+
+    protected DocNode getSubTree(String attribute) {
+        DocNode result = subTreeCache.get(attribute);
+
+        if (result != null) {
+            return result;
+        }
+
+        result = createSubTree(attribute);
+
+        subTreeCache.put(attribute, result);
+
+        return result;
+    }
+
+    protected DocNode createSubTree(String attribute) {
+        return SubTreeView.getSubTree(this, attribute);
     }
 }
