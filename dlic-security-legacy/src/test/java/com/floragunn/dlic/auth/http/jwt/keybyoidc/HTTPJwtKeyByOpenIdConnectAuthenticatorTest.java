@@ -45,6 +45,7 @@ import org.junit.Test;
 
 import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
+import com.floragunn.codova.documents.DocParseException;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.util.FakeRestRequest;
@@ -95,7 +96,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    public void proxyTest() throws UnknownHostException, IOException {
+    public void proxyTest() throws UnknownHostException, IOException, DocParseException {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL)
                 .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"))) {
             proxyOnlyMockIdpServer.setRequireValidCodes(false);

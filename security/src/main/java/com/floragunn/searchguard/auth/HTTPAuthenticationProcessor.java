@@ -32,6 +32,7 @@ import org.elasticsearch.rest.RestRequest;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.filter.TenantAwareRestHandler;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -181,6 +182,15 @@ public class HTTPAuthenticationProcessor extends AuthenticationProcessor<HTTPAut
         }
 
         return null;
+    }
+    
+    @Override
+    protected String getRequestedTenant() {
+        if (restHandler instanceof TenantAwareRestHandler) {
+            return ((TenantAwareRestHandler) restHandler).getTenantName(restRequest);
+        } else {
+            return restRequest.header("sgtenant") != null ? restRequest.header("sgtenant") : restRequest.header("sg_tenant");
+        }
     }
     
     @Override

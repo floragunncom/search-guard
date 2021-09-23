@@ -88,12 +88,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         this.clientId = vNode.get("client_id").required().asString();
         this.clientSecret = vNode.get("client_secret").required().asString();
         this.scope = vNode.get("scope").withDefault("openid profile email address phone").asString();
-
-        try {
-            this.proxyConfig = ProxyConfig.parse(config, "idp.proxy");
-        } catch (ConfigValidationException e) {
-            validationErrors.add(null, e);
-        }
+        this.proxyConfig = vNode.get("idp.proxy").by(ProxyConfig::parse);
 
         jsonRolesPath = vNode.get("user_mapping.roles").required().asJsonPath();
         jsonSubjectPath = vNode.get("user_mapping.subject").asJsonPath();
@@ -131,7 +126,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         selfRefreshingKeySet.setQueuedThreadTimeoutMs(idpQueuedThreadTimeoutMs);
         selfRefreshingKeySet.setRefreshRateLimitTimeWindowMs(refreshRateLimitTimeWindowMs);
         selfRefreshingKeySet.setRefreshRateLimitCount(refreshRateLimitCount);
-        
+
         jwtVerifier = new JwtVerifier(selfRefreshingKeySet);
 
         jsonPathConfig = BasicJsonPathDefaultConfiguration.builder().options(Option.ALWAYS_RETURN_LIST).build();

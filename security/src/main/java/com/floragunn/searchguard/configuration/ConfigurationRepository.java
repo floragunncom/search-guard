@@ -115,6 +115,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final AtomicBoolean installDefaultConfig = new AtomicBoolean();
     private final ComponentState componentState = new ComponentState(1, null, "config_repository", ConfigurationRepository.class);
     private final PrivilegedConfigClient privilegedConfigClient;
+    
     public final static Map<String, ?> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap.of("encoded_config",
             ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
 
@@ -131,7 +132,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.clusterService = clusterService;
         this.configurationChangedListener = new ArrayList<>();
         this.licenseChangeListener = new ArrayList<LicenseChangeListener>();
-        this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
+        this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);        
         this.componentState.setMandatory(true);
         this.mainConfigLoader = new ConfigurationLoader(client, settings, clusterService, componentState, this);
         this.externalUseConfigLoader = new ConfigurationLoader(client, settings, null, null, this);
@@ -566,7 +567,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
     }
 
-
     public void update(Map<CType<?>, Map<String, ?>> configTypeToConfigMap) throws ConfigUpdateException, ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         BulkRequest bulkRequest = new BulkRequest();
@@ -587,7 +587,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
 
             try {
-                SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype, null);
+                SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype, parserContext);
                 configInstance.removeStatic();
 
                 String id = ctype.toLCString();
@@ -616,6 +616,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
         try {
 
             BulkResponse bulkResponse = privilegedConfigClient.bulk(bulkRequest).actionGet();
+            
+            LOGGER.info("Index update done: " + bulkResponse);
 
             if (bulkResponse.hasFailures()) {
                 throw new ConfigUpdateException("Updating the config failed", bulkResponse);

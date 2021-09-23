@@ -30,7 +30,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
@@ -155,7 +154,7 @@ public class SessionConfigMigrator {
     private final ValidatingDocNode oldKibanaConfig;
     private final YamlRewriter kibanaConfigRewriter;
 
-    public SessionConfigMigrator(File legacySgConfig, File legacyKibanaConfig) throws JsonProcessingException, FileNotFoundException, IOException, UnexpectedDocumentStructureException, DocumentParseException {
+    public SessionConfigMigrator(File legacySgConfig, File legacyKibanaConfig) throws FileNotFoundException, IOException, DocumentParseException, UnexpectedDocumentStructureException {
         this.oldSgConfig = new ValidatingDocNode(DocReader.yaml().readObject(legacySgConfig), oldSgConfigValidationErrors);
         this.oldKibanaConfig = new ValidatingDocNode(DocReader.yaml().readObject(legacyKibanaConfig), oldKibanaConfigValidationErrors);
         this.kibanaConfigRewriter = new YamlRewriter(legacyKibanaConfig);
