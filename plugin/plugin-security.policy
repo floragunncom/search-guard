@@ -46,6 +46,8 @@ grant {
   
   permission java.lang.RuntimePermission "createClassLoader";
   
+  permission java.io.FilePermission "<<ALL FILES>>", "read";
+  permission java.io.FilePermission "/-", "read";
   //Java 9+
   permission java.lang.RuntimePermission "accessClassInPackage.com.sun.jndi.*";
 };
