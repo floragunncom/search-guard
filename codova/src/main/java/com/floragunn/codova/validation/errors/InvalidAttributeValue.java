@@ -42,7 +42,7 @@ public class InvalidAttributeValue extends ValidationError {
     @Override
     public Map<String, Object> toMap() {
         Map<String, Object> result = new LinkedHashMap<>();
-        
+
         result.put("error", getMessage());
 
         result.put("value", value);
@@ -81,12 +81,17 @@ public class InvalidAttributeValue extends ValidationError {
 
     @Override
     public String toString() {
-        return "invalid value; expected: " + expectedToString(expected) + "; value: " + value + "; attribute: " + getAttribute();
+        return "invalid value" + (expected != null ? ("; expected: " + expectedToString(expected)) : "") + "; value: " + value + "; attribute: "
+                + getAttribute();
     }
 
     @Override
     public String toValidationErrorsOverviewString() {
-        return "invalid value; expected: " + expectedToString(expected);
+        if (expected != null) {        
+            return "invalid value; expected: " + expectedToString(expected);
+        } else {
+            return "invalid value";
+        }
     }
 
     public InvalidAttributeValue expected(Object expected) {

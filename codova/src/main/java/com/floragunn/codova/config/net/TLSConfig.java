@@ -90,7 +90,6 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.io.Files;
 
-
 public class TLSConfig implements Document {
     private static final Logger log = LogManager.getLogger(TLSConfig.class);
 
@@ -104,7 +103,9 @@ public class TLSConfig implements Document {
         tlsConfig.hostnameVerificationEnabled = vNode.get("verify_hostnames").withDefault(true).asBoolean();
         tlsConfig.trustAll = vNode.get("trust_all").withDefault(false).asBoolean();
         tlsConfig.truststore = vNode.get("trusted_cas").by(TLSConfig::toTruststore);
-        tlsConfig.trustedCas = vNode.get("trusted_cas").asListOfStrings();
+        if (tlsConfig.truststore != null) {
+            tlsConfig.trustedCas = vNode.get("trusted_cas").asListOfStrings();
+        }
         tlsConfig.clientCertAuthConfig = vNode.get("client_auth").by(ClientCertAuthConfig::parse);
 
         vNode.checkForUnusedAttributes();
@@ -263,6 +264,10 @@ public class TLSConfig implements Document {
     }
 
     private static KeyStore toTruststore(String certificateString) throws ConfigValidationException {
+        if (certificateString == null) {
+            return null;
+        }
+
         CertificateFactory certificateFactory;
         try {
             certificateFactory = CertificateFactory.getInstance("X.509");
@@ -430,7 +435,7 @@ public class TLSConfig implements Document {
             throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
         }
     }
-    
+
     private static class OverlyTrustfulSSLContextBuilder extends SSLContextBuilder {
         @Override
         protected void initSSLContext(SSLContext sslContext, Collection<KeyManager> keyManagers, Collection<TrustManager> trustManagers,
@@ -573,7 +578,6 @@ public class TLSConfig implements Document {
             }
         }
 
-   
         public Collection<? extends Certificate> getCertificateChain() {
             return certificateChain;
         }
