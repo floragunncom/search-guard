@@ -42,7 +42,7 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.google.common.collect.Maps;
 import com.jayway.jsonpath.JsonPath;
 
-public abstract class DocNode implements Map<String, Object> {
+public abstract class DocNode implements Map<String, Object>, Document {
     private static final Logger log = LogManager.getLogger(DocNode.class);
 
     public static final DocNode EMPTY = new PlainJavaObjectAdapter(Collections.EMPTY_MAP);
@@ -246,11 +246,11 @@ public abstract class DocNode implements Map<String, Object> {
         }
 
         @Override
-        public Map<String, Object> toMap() throws ConfigValidationException {
+        public Map<String, Object> toMap() {
             if (this.object instanceof Map) {
                 return DocUtils.toStringKeyedMap((Map<?, ?>) this.object);
             } else {
-                throw new ConfigValidationException(new InvalidAttributeValue(null, object, "An object"));
+                return Collections.singletonMap("_", this.object);
             }
         }
 
@@ -556,13 +556,13 @@ public abstract class DocNode implements Map<String, Object> {
         }
 
         @Override
-        public Map<String, Object> toMap() throws ConfigValidationException {
+        public Map<String, Object> toMap() {
             Map<String, Object> result = new LinkedHashMap<>(this.size);
-            
+
             for (Map.Entry<String, Object> entry : entrySet()) {
                 result.put(entry.getKey(), entry.getValue());
             }
-            
+
             return result;
         }
 
@@ -587,11 +587,7 @@ public abstract class DocNode implements Map<String, Object> {
 
         @Override
         public List<Object> toList() {
-            try {
-                return Collections.singletonList(toMap());
-            } catch (ConfigValidationException e) {
-                throw new RuntimeException(e);
-            }
+            return Collections.singletonList(toMap());
         }
 
     }
@@ -714,7 +710,7 @@ public abstract class DocNode implements Map<String, Object> {
             }
 
             int dot = attribute.indexOf('.');
-                        
+
             if (dot == -1) {
                 if (rootKeyNames().contains(attribute)) {
                     return getSubTree(attribute);
@@ -733,7 +729,7 @@ public abstract class DocNode implements Map<String, Object> {
         }
 
         @Override
-        public Map<String, Object> toMap() throws ConfigValidationException {
+        public Map<String, Object> toMap() {
             return delegate.toMap();
         }
 
@@ -755,6 +751,33 @@ public abstract class DocNode implements Map<String, Object> {
         @Override
         public List<Object> toList() {
             return delegate.toList();
+        }
+        
+        @Override
+        public Map<String, Object> toNormalizedMap() {
+            Map<String, Object> baseMap = toMap();
+            
+            boolean baseMapIsTree = baseMap.entrySet().stream().anyMatch(e -> e.getKey().indexOf('.') != -1 || e.getValue() instanceof Map);
+            
+            if (!baseMapIsTree) {
+                return baseMap;
+            }
+            
+            Set<String> rootKeyNames = rootKeyNames();
+            
+            Map<String, Object> result = new LinkedHashMap<>(rootKeyNames.size());
+            
+            for (String key : rootKeyNames) {
+                DocNode subNode = getAsNode(key);
+                
+                if (subNode.isMap()) {
+                    result.put(key, subNode.toNormalizedMap());
+                } else {
+                    result.put(key, subNode.get());
+                }
+            }
+            
+            return result;            
         }
 
         private Set<String> rootKeyNames() {
@@ -792,7 +815,7 @@ public abstract class DocNode implements Map<String, Object> {
 
     public abstract DocNode getAsNode(String attribute);
 
-    public abstract Map<String, Object> toMap() throws ConfigValidationException;
+    public abstract Map<String, Object> toMap();
 
     public abstract boolean isMap();
 
@@ -805,7 +828,7 @@ public abstract class DocNode implements Map<String, Object> {
     public Object get() {
         return get(null);
     }
-
+    
     public boolean hasAny(String... keys) {
         for (String key : keys) {
             if (containsKey(key)) {
@@ -1099,6 +1122,10 @@ public abstract class DocNode implements Map<String, Object> {
     public void clear() {
         throw new UnsupportedOperationException("DocumentNode instances cannot be modified");
     }
+    
+    public Map<String, Object> toNormalizedMap() {
+        return toMap();
+    }
 
     protected DocNode getSubTree(String attribute) {
         DocNode result = subTreeCache.get(attribute);
@@ -1116,5 +1143,19 @@ public abstract class DocNode implements Map<String, Object> {
 
     protected DocNode createSubTree(String attribute) {
         return SubTreeView.getSubTree(this, attribute);
+    }
+
+    @Override
+    public String toString(DocType docType) {
+        if (docType.equals(DocType.JSON)) {
+            return DocWriter.json().writeAsString(this.toNormalizedMap());            
+        } else {
+            return DocWriter.type(docType).writeAsString(this.toMap());
+        }
+    }
+
+    @Override
+    public String toJsonString() {
+        return DocWriter.json().writeAsString(this.toNormalizedMap());
     }
 }
