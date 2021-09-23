@@ -530,6 +530,10 @@ public abstract class DocNode implements Map<String, Object> {
 
         @Override
         public Object get(String attribute) {
+            if (attribute == null) {
+                return toMap();
+            }
+            
             if (simpleMap != null && simpleMap.containsKey(attribute)) {
                 return simpleMap.get(attribute);
             } else {
@@ -670,7 +674,11 @@ public abstract class DocNode implements Map<String, Object> {
             int dot = attribute.indexOf('.');
 
             if (dot == -1) {
-                return delegate.get(attribute);
+                if (rootKeyNames().contains(attribute)) {
+                    return getAsNode(attribute).get();
+                } else {
+                    return null;
+                }
             } else {
                 String firstPart = attribute.substring(0, dot);
 
@@ -725,7 +733,7 @@ public abstract class DocNode implements Map<String, Object> {
                 String firstPart = attribute.substring(0, dot);
 
                 if (rootKeyNames().contains(firstPart)) {
-                    return getSubTree(attribute).getAsNode(attribute.substring(dot + 1));
+                    return getSubTree(firstPart).getAsNode(attribute.substring(dot + 1));
                 } else {
                     return null;
                 }
