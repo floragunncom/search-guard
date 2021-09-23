@@ -262,7 +262,7 @@ public class ValidationErrors implements Document {
         ValidationErrors result = new ValidationErrors();
 
         for (Map.Entry<String, Object> entry : document.entrySet()) {
-            result.add(ValidationError.parseArray(entry.getKey(), new DocNode.PlainJavaObjectAdapter(entry.getValue())));
+            result.add(ValidationError.parseArray(entry.getKey(), DocNode.wrap(entry.getValue())));
         }
 
         return result;
