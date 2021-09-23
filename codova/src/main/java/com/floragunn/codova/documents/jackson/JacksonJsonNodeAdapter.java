@@ -209,7 +209,7 @@ public class JacksonJsonNodeAdapter extends DocNode {
     }
 
     @Override
-    public Map<String, Object> toMap() throws ConfigValidationException {
+    public Map<String, Object> toMap() {
         return toMap(this.jsonNode);
     }
 

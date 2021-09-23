@@ -70,7 +70,7 @@ public class BulkConfigApiTest {
 
             DocNode updateRequestDoc = DocNode.of("tenants.content", tenants);
 
-            HttpResponse updateResponse = client.putJson("/_searchguard/config", DocWriter.json().writeAsString(updateRequestDoc));
+            HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc.toJsonString());
 
             Assert.assertEquals(updateResponse.getBody(), 200, updateResponse.getStatusCode());
 
@@ -100,7 +100,7 @@ public class BulkConfigApiTest {
 
             DocNode updateRequestDoc = DocNode.of("tenants.content", tenants);
 
-            HttpResponse updateResponse = client.putJson("/_searchguard/config", DocWriter.json().writeAsString(updateRequestDoc));
+            HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc.toJsonString());
 
             Assert.assertEquals(updateResponse.getBody(), 400, updateResponse.getStatusCode());
 
@@ -123,7 +123,7 @@ public class BulkConfigApiTest {
 
             DocNode updateRequestDoc = DocNode.of("tenants.content", tenants, "foo.content", ImmutableMap.of("yyy", "Bla"));
 
-            HttpResponse updateResponse = client.putJson("/_searchguard/config", DocWriter.json().writeAsString(updateRequestDoc));
+            HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc.toJsonString());
 
             Assert.assertEquals(updateResponse.getBody(), 400, updateResponse.getStatusCode());
 
