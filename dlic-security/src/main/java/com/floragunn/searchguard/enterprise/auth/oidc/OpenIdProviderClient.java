@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2021 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -59,7 +59,6 @@ import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
-import com.floragunn.searchsupport.tls.SSLExceptions;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(KeySetRetriever.class);
@@ -134,7 +133,7 @@ public class OpenIdProviderClient {
                         return new OidcProviderConfig(DocReader.json().readObject(httpEntity.getContent()));
                     }
                 } catch (SSLHandshakeException e) {
-                    throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + SSLExceptions.toHumanReadableError(e), e);
+                    throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + e, e);
                 } catch (IOException e) {
                     throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + e, e);
                 }
