@@ -533,7 +533,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
             if (attribute == null) {
                 return toMap();
             }
-            
+
             if (simpleMap != null && simpleMap.containsKey(attribute)) {
                 return simpleMap.get(attribute);
             } else {
@@ -760,32 +760,32 @@ public abstract class DocNode implements Map<String, Object>, Document {
         public List<Object> toList() {
             return delegate.toList();
         }
-        
+
         @Override
         public Map<String, Object> toNormalizedMap() {
             Map<String, Object> baseMap = toMap();
-            
+
             boolean baseMapIsTree = baseMap.entrySet().stream().anyMatch(e -> e.getKey().indexOf('.') != -1 || e.getValue() instanceof Map);
-            
+
             if (!baseMapIsTree) {
                 return baseMap;
             }
-            
+
             Set<String> rootKeyNames = rootKeyNames();
-            
+
             Map<String, Object> result = new LinkedHashMap<>(rootKeyNames.size());
-            
+
             for (String key : rootKeyNames) {
                 DocNode subNode = getAsNode(key);
-                
+
                 if (subNode.isMap()) {
                     result.put(key, subNode.toNormalizedMap());
                 } else {
                     result.put(key, subNode.get());
                 }
             }
-            
-            return result;            
+
+            return result;
         }
 
         private Set<String> rootKeyNames() {
@@ -836,7 +836,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
     public Object get() {
         return get(null);
     }
-    
+
     public boolean hasAny(String... keys) {
         for (String key : keys) {
             if (containsKey(key)) {
@@ -1130,7 +1130,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
     public void clear() {
         throw new UnsupportedOperationException("DocumentNode instances cannot be modified");
     }
-    
+
     public Map<String, Object> toNormalizedMap() {
         return toMap();
     }
@@ -1155,15 +1155,79 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
     @Override
     public String toString(DocType docType) {
-        if (docType.equals(DocType.JSON)) {
-            return DocWriter.json().writeAsString(this.toNormalizedMap());            
+        Object value = get();
+
+        if (value instanceof Map && docType.equals(DocType.JSON)) {
+            return DocWriter.json().writeAsString(this.toNormalizedMap());
         } else {
-            return DocWriter.type(docType).writeAsString(this.toMap());
+            return DocWriter.type(docType).writeAsString(value);
         }
     }
 
     @Override
     public String toJsonString() {
-        return DocWriter.json().writeAsString(this.toNormalizedMap());
+        return toString(DocType.JSON);
+    }
+
+    @Override
+    public String toYamlString() {
+        return toString(DocType.YAML);
+    }
+    
+    @Override
+    public String toString() {
+        return toString(60);
+    }
+
+    protected String toString(int maxChars) {
+        Object value = get();
+
+        if (value instanceof Map) {
+            Map<?,?> map = (Map<?,?>) value;
+            StringBuilder result = new StringBuilder("{");
+            int count = 0;
+            
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (count != 0) {
+                    result.append(", ");
+                }
+                
+                if (result.length() >= maxChars) {
+                    result.append(map.size() - count).append(" more ...");
+                    break;
+                }
+                
+                result.append(DocWriter.json().writeAsString(entry.getKey()));
+                result.append(": ");
+                result.append(DocNode.wrap(entry.getValue()).toString(maxChars / 2));
+                count++;
+            }
+            
+            result.append("}");
+            return result.toString();           
+        } else if (value instanceof Collection) {
+            Collection<?> collection = (Collection<?>) value;
+            StringBuilder result = new StringBuilder("[");
+            int count = 0;
+            
+            for (Object element : collection) {
+                if (count != 0) {
+                    result.append(", ");
+                }
+                
+                if (result.length() >= maxChars) {
+                    result.append(collection.size() - count).append(" more ...");
+                    break;
+                }
+                
+                result.append(DocNode.wrap(element).toString(maxChars / 2));
+                count++;
+            }
+            
+            result.append("]");
+            return result.toString();            
+        } else {
+            return DocWriter.json().writeAsString(value);
+        }
     }
 }
