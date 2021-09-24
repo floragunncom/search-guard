@@ -34,6 +34,5 @@ public class DocNodeTest {
         Assert.assertEquals(ImmutableMap.of("a", 10, "b", 11), docNode.get("b"));
         Assert.assertEquals(20, docNode.get("c.a"));
         Assert.assertEquals(ImmutableMap.of("a", 20, "b", 21, "c", 22), docNode.get("c"));
-
     }
 }
