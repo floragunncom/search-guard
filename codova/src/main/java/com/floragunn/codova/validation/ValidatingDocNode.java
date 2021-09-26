@@ -113,6 +113,14 @@ public class ValidatingDocNode {
 
             used(parentAttribute);
         }
+        
+        String attributeWithDot = attribute + ".";
+        
+        for (String unconsumed : new HashSet<>(unconsumedAttributes)) {
+            if (unconsumed.startsWith(attributeWithDot)) {
+                usedNonRecursive(unconsumed);
+            }
+        }
     }
 
     private void usedNonRecursive(String attribute) {
