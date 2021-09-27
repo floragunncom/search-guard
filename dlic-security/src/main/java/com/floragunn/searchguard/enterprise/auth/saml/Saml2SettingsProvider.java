@@ -22,6 +22,7 @@ import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -69,27 +70,53 @@ public class Saml2SettingsProvider {
         this.validatorSettings = validatorSettings;
     }
 
-    public Saml2Settings get(URI frontendBaseUrl) throws SamlConfigException, AuthenticatorUnavailableException {
+    public Saml2Settings get(URI frontendBaseUrl) throws AuthenticatorUnavailableException {
         try {
             HashMap<String, Object> configProperties = new HashMap<>();
-
+            Map<String, Object> details = new LinkedHashMap<>();
+            
+            if (this.metadataResolver instanceof ExtendedRefreshableMetadataResolver) {
+                details.put("last_successful_refresh", ((ExtendedRefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh());
+            }
+            
             if (this.metadataResolver instanceof ExtendedRefreshableMetadataResolver
                     && ((ExtendedRefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh() == null) {
                 // SAML resolver has not yet been initialized
-                throw new AuthenticatorUnavailableException("SAML authentication is currently unavailable");
+                ResolverException lastRefreshException = null;
+                
+                if (this.metadataResolver instanceof SamlHTTPMetadataResolver) {
+                    lastRefreshException = ((SamlHTTPMetadataResolver) this.metadataResolver).getLastRefreshException();
+                }
+                
+                if (lastRefreshException != null) {
+                   if (lastRefreshException.getCause() instanceof ResolverException) {
+                       lastRefreshException = (ResolverException) lastRefreshException.getCause();
+                   }
+                   
+                   if (lastRefreshException.getCause() != null) {
+                       details.put("cause", lastRefreshException.getCause().toString());
+                   }
+                   
+                   throw new AuthenticatorUnavailableException("Error retrieving SAML metadata", lastRefreshException.getMessage(),
+                           lastRefreshException).details(details);
+                } else {                
+                    throw new AuthenticatorUnavailableException("SAML metadata is not yet available", "");
+                }
             }
-            
+
             EntityDescriptor entityDescriptor = this.metadataResolver.resolveSingle(new CriteriaSet(new EntityIdCriterion(this.idpEntityId)));
 
             if (entityDescriptor == null) {
-                throw new SamlConfigException("Could not find entity descriptor for " + this.idpEntityId);
+                throw new AuthenticatorUnavailableException("IdP configuration error", "Could not find entity descriptor for " + this.idpEntityId).details(details);
             }
+            
+            details.put("role_descriptors", entityDescriptor.getRoleDescriptors().toString());
 
             IDPSSODescriptor idpSsoDescriptor = entityDescriptor.getIDPSSODescriptor("urn:oasis:names:tc:SAML:2.0:protocol");
 
             if (idpSsoDescriptor == null) {
-                throw new SamlConfigException("Could not find IDPSSODescriptor supporting SAML 2.0 in " + this.idpEntityId + "; role descriptors: "
-                        + entityDescriptor.getRoleDescriptors());
+                throw new AuthenticatorUnavailableException("IdP configuration error", "Could not find IDPSSODescriptor supporting SAML 2.0 in " + this.idpEntityId)
+                        .details(details);
             }
 
             initIdpEndpoints(idpSsoDescriptor, configProperties);
@@ -112,11 +139,11 @@ public class Saml2SettingsProvider {
 
             return AccessController.doPrivileged((PrivilegedAction<Saml2Settings>) () -> settingsBuilder.build());
         } catch (ResolverException e) {
-            throw new AuthenticatorUnavailableException(e);
+            throw new AuthenticatorUnavailableException("Error retrieving SAML metadata", e);
         }
     }
 
-    public Saml2Settings getCached(URI frontendBaseUrl) throws SamlConfigException, AuthenticatorUnavailableException {
+    public Saml2Settings getCached(URI frontendBaseUrl) throws AuthenticatorUnavailableException {
         Entry entry = settingsCache.getIfPresent(frontendBaseUrl);
         DateTime tempLastUpdate = null;
 
@@ -164,7 +191,8 @@ public class Saml2SettingsProvider {
         configProperties.put(SettingsBuilder.SP_ENTITYID_PROPERTY_KEY, this.spEntityId);
     }
 
-    private void initIdpEndpoints(IDPSSODescriptor idpSsoDescriptor, HashMap<String, Object> configProperties) throws SamlConfigException {
+    private void initIdpEndpoints(IDPSSODescriptor idpSsoDescriptor, HashMap<String, Object> configProperties)
+            throws AuthenticatorUnavailableException {
         SingleSignOnService singleSignOnService = this.findSingleSignOnService(idpSsoDescriptor,
                 "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect");
 
@@ -198,18 +226,18 @@ public class Saml2SettingsProvider {
         }
     }
 
-    private SingleSignOnService findSingleSignOnService(IDPSSODescriptor idpSsoDescriptor, String binding) throws SamlConfigException {
+    private SingleSignOnService findSingleSignOnService(IDPSSODescriptor idpSsoDescriptor, String binding) throws AuthenticatorUnavailableException {
         for (SingleSignOnService singleSignOnService : idpSsoDescriptor.getSingleSignOnServices()) {
             if (binding.equals(singleSignOnService.getBinding())) {
                 return singleSignOnService;
             }
         }
 
-        throw new SamlConfigException("Could not find SingleSignOnService endpoint for binding " + binding + "; available services: "
-                + idpSsoDescriptor.getSingleSignOnServices());
+        throw new AuthenticatorUnavailableException("IdP configuration error", "Could not find SingleSignOnService endpoint for binding " + binding
+                + "; available services: " + idpSsoDescriptor.getSingleSignOnServices());
     }
 
-    private SingleLogoutService findSingleLogoutService(IDPSSODescriptor idpSsoDescriptor, String binding) throws SamlConfigException {
+    private SingleLogoutService findSingleLogoutService(IDPSSODescriptor idpSsoDescriptor, String binding) throws AuthenticatorUnavailableException {
         for (SingleLogoutService singleLogoutService : idpSsoDescriptor.getSingleLogoutServices()) {
             if (binding.equals(singleLogoutService.getBinding())) {
                 return singleLogoutService;
