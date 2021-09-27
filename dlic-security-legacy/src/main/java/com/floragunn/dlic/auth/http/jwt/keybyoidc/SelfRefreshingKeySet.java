@@ -66,7 +66,7 @@ public class SelfRefreshingKeySet implements KeyProvider {
 		if (result != null) {
 			return result;
 		} else if (jsonWebKeys.getKeys().size() == 0) {
-			throw new AuthenticatorUnavailableException("No JWK are available from IdP");
+			throw new AuthenticatorUnavailableException("IdP error", "No JWK are available from IdP");
 		} else {
 			throw new BadCredentialsException("JWT did not contain KID which is required if IdP provides multiple JWK");
 		}
@@ -89,7 +89,7 @@ public class SelfRefreshingKeySet implements KeyProvider {
 			if (result != null) {
 				return result;
 			} else {
-				throw new AuthenticatorUnavailableException("No JWK are available from IdP");
+				throw new AuthenticatorUnavailableException("IdP error", "No JWK are available from IdP");
 			}
 		} else if (keys.size() == 1) {
 			return keys.get(0);
@@ -170,7 +170,7 @@ public class SelfRefreshingKeySet implements KeyProvider {
 
 		if (refreshInProgress && currentRefreshCount == refreshCount) {
 			// The wait() call returned due to the timeout.
-			throw new AuthenticatorUnavailableException("Authentication backend timed out");
+			throw new AuthenticatorUnavailableException("IdP error", "Authentication backend timed out");
 		} else if (lastRefreshFailure != null) {
 			throw new AuthenticatorUnavailableException("Authentication backend failed", lastRefreshFailure);
 		} else {
@@ -191,7 +191,7 @@ public class SelfRefreshingKeySet implements KeyProvider {
 			recentRefresh = true;
 
 			if (recentRefreshCount > refreshRateLimitCount) {
-				throw new AuthenticatorUnavailableException("Too many unknown kids recently: " + recentRefreshCount);
+				throw new AuthenticatorUnavailableException("Rate limiting error", "Too many unknown kids recently: " + recentRefreshCount);
 			}
 		} else {
 			recentRefresh = false;
@@ -260,9 +260,9 @@ public class SelfRefreshingKeySet implements KeyProvider {
 					future.cancel(true);
 				}
 
-				lastRefreshFailure = new AuthenticatorUnavailableException("Authentication backend timed out");
+				lastRefreshFailure = new AuthenticatorUnavailableException("IdP error", "Authentication backend timed out");
 
-				throw new AuthenticatorUnavailableException("Authentication backend timed out");
+				throw new AuthenticatorUnavailableException("IdP error", "Authentication backend timed out");
 			}
 
 			if (lastRefreshFailure != null) {

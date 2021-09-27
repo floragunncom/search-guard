@@ -120,22 +120,26 @@ public class OpenIdProviderClient {
                         StatusLine statusLine = response.getStatusLine();
 
                         if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-                            throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + statusLine
-                                    + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""));
+                            throw new AuthenticatorUnavailableException("Error while retrieving OIDC config",
+                                    statusLine + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""))
+                                            .details("openid_configuration_url", openIdConnectEndpoint);
                         }
 
                         HttpEntity httpEntity = response.getEntity();
 
                         if (httpEntity == null) {
-                            throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": Empty response entity");
+                            throw new AuthenticatorUnavailableException("Error while retrieving OIDC config", "Empty response")
+                                    .details("openid_configuration_url", openIdConnectEndpoint);
                         }
 
                         return new OidcProviderConfig(DocReader.json().readObject(httpEntity.getContent()));
                     }
                 } catch (SSLHandshakeException e) {
-                    throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + e, e);
+                    throw new AuthenticatorUnavailableException("Error while retrieving OIDC config", e).details("openid_configuration_url",
+                            openIdConnectEndpoint);
                 } catch (IOException e) {
-                    throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + e, e);
+                    throw new AuthenticatorUnavailableException("Error while retrieving OIDC config", e).details("openid_configuration_url",
+                            openIdConnectEndpoint);
                 }
             });
         } catch (PrivilegedActionException e) {
@@ -174,13 +178,16 @@ public class OpenIdProviderClient {
                         StatusLine statusLine = response.getStatusLine();
 
                         if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-                            throw new AuthenticatorUnavailableException("Error while getting " + uri + ": " + statusLine);
+                            throw new AuthenticatorUnavailableException("Error while retrieving JWKS OIDC config",
+                                    statusLine + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""))
+                                            .details("openid_configuration_url", openIdConnectEndpoint, "jwks_uri", uri);
                         }
 
                         HttpEntity httpEntity = response.getEntity();
 
                         if (httpEntity == null) {
-                            throw new AuthenticatorUnavailableException("Error while getting " + uri + ": Empty response entity");
+                            throw new AuthenticatorUnavailableException("Error while retrieving JWKS OIDC config", "Empty response")
+                                    .details("openid_configuration_url", openIdConnectEndpoint, "jwks_uri", uri);
                         }
 
                         JsonWebKeys keySet = JwkUtils.readJwkSet(httpEntity.getContent());
@@ -188,7 +195,8 @@ public class OpenIdProviderClient {
                         return keySet;
                     }
                 } catch (IOException e) {
-                    throw new AuthenticatorUnavailableException("Error while getting " + uri + ": " + e, e);
+                    throw new AuthenticatorUnavailableException("Error while retrieving JWKS OIDC config", e).details("openid_configuration_url",
+                            openIdConnectEndpoint, "jwks_uri", uri);
                 }
             });
         } catch (PrivilegedActionException e) {
@@ -231,10 +239,12 @@ public class OpenIdProviderClient {
 
                     try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
                         String responseBody = EntityUtils.toString(response.getEntity());
+                        StatusLine statusLine = response.getStatusLine();
 
                         if (response.getStatusLine().getStatusCode() >= 300 || response.getStatusLine().getStatusCode() < 200) {
-                            throw new AuthenticatorUnavailableException(
-                                    "Error response from token endpoint:\n" + response.getStatusLine() + "\n" + responseBody);
+                            throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code",
+                                    statusLine + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""))
+                                            .details("openid_configuration_url", openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
                         }
 
                         Map<String, Object> responseJsonBody = DocReader.json().readObject(responseBody);
@@ -242,7 +252,8 @@ public class OpenIdProviderClient {
                         return new TokenResponse(responseJsonBody);
                     }
                 } catch (IOException e) {
-                    throw new AuthenticatorUnavailableException("Error while calling " + tokenEndpoint, e);
+                    throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code", e).details("openid_configuration_url",
+                            openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
                 }
             });
         } catch (PrivilegedActionException e) {
@@ -286,7 +297,8 @@ public class OpenIdProviderClient {
                         return copiedResponse;
                     }
                 } catch (IOException e) {
-                    throw new AuthenticatorUnavailableException("Error while calling " + tokenEndpoint, e);
+                    throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code", e).details("openid_configuration_url",
+                            openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
                 }
             });
         } catch (PrivilegedActionException e) {
