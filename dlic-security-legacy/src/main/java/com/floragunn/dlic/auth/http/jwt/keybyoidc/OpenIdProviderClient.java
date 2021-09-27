@@ -118,13 +118,13 @@ public class OpenIdProviderClient {
                         StatusLine statusLine = response.getStatusLine();
 
                         if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-                            throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + statusLine);
+                            throw new AuthenticatorUnavailableException("IdP error", "Error while getting " + openIdConnectEndpoint + ": " + statusLine);
                         }
 
                         HttpEntity httpEntity = response.getEntity();
 
                         if (httpEntity == null) {
-                            throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": Empty response entity");
+                            throw new AuthenticatorUnavailableException("IdP error", "Error while getting " + openIdConnectEndpoint + ": Empty response entity");
                         }
 
                         return new OidcProviderConfig(DocReader.json().readObject(httpEntity.getContent()));
@@ -170,13 +170,13 @@ public class OpenIdProviderClient {
                         StatusLine statusLine = response.getStatusLine();
 
                         if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-                            throw new AuthenticatorUnavailableException("Error while getting " + uri + ": " + statusLine);
+                            throw new AuthenticatorUnavailableException("IdP error", "Error while getting " + uri + ": " + statusLine);
                         }
 
                         HttpEntity httpEntity = response.getEntity();
 
                         if (httpEntity == null) {
-                            throw new AuthenticatorUnavailableException("Error while getting " + uri + ": Empty response entity");
+                            throw new AuthenticatorUnavailableException("IdP error", "Error while getting " + uri + ": Empty response entity");
                         }
 
                         JsonWebKeys keySet = JwkUtils.readJwkSet(httpEntity.getContent());
@@ -229,7 +229,7 @@ public class OpenIdProviderClient {
                         String responseBody = EntityUtils.toString(response.getEntity());
 
                         if (response.getStatusLine().getStatusCode() >= 300 || response.getStatusLine().getStatusCode() < 200) {
-                            throw new AuthenticatorUnavailableException(
+                            throw new AuthenticatorUnavailableException("IdP error", 
                                     "Error response from token endpoint:\n" + response.getStatusLine() + "\n" + responseBody);
                         }
 
