@@ -801,4 +801,8 @@ public class BackendRegistry implements DCFListener {
         return frontendConfig;
     }
 
+    public boolean isDebugEnabled() {
+        return debug;
+    }
+
 }

@@ -33,7 +33,9 @@ import net.shibboleth.utilities.java.support.xml.BasicParserPool;
 
 public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
     private static int componentIdCounter = 0;
-
+    private volatile ResolverException lastRefreshException;
+    
+    
     public SamlHTTPMetadataResolver(URI metadataUrl, TLSConfig tlsConfig) throws ResolverException {
         super(createHttpClient(tlsConfig), metadataUrl.toString());
         setId(SamlAuthenticator.class.getName() + "_" + (++componentIdCounter));
@@ -54,12 +56,15 @@ public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
             return AccessController.doPrivileged(new PrivilegedExceptionAction<byte[]>() {
                 @Override
                 public byte[] run() throws ResolverException {
-                    return SamlHTTPMetadataResolver.super.fetchMetadata();
+                    byte [] result = SamlHTTPMetadataResolver.super.fetchMetadata();
+                    lastRefreshException = null;
+                    return result;
                 }
             });
         } catch (PrivilegedActionException e) {
 
             if (e.getCause() instanceof ResolverException) {
+                lastRefreshException = (ResolverException) e.getCause();
                 throw (ResolverException) e.getCause();
             } else {
                 throw new RuntimeException(e);
@@ -127,6 +132,10 @@ public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
         }
 
         return builder.build();
+    }
+
+    public ResolverException getLastRefreshException() {
+        return lastRefreshException;
     }
 
 }
