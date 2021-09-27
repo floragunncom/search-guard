@@ -168,9 +168,11 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         }
         
         if(config.getImplementingClass() == ConfigV6.class) {
+            @SuppressWarnings("unchecked")
             SgDynamicConfiguration<ConfigV6> c = (SgDynamicConfiguration<ConfigV6>) config;
             return c.getCEntry("searchguard").dynamic.license;
         } else {
+            @SuppressWarnings("unchecked")
             SgDynamicConfiguration<ConfigV7> c = (SgDynamicConfiguration<ConfigV7>) config;
             return c.getCEntry("sg_config").dynamic.license;
         }

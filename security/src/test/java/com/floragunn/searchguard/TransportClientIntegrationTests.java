@@ -29,7 +29,7 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -63,7 +63,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				.build();
 		setup(settings);
 
-		try (TransportClient tc = getInternalTransportClient()) {                    
+		try (Client tc = getInternalTransportClient()) {                    
 			tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 		}
 
@@ -76,7 +76,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 
 		System.out.println("------- 0 ---------");
 
-		try (TransportClient tc = getInternalTransportClient(clusterInfo, tcSettings)) {         
+		try (Client tc = getInternalTransportClient(clusterInfo, tcSettings)) {         
 
 			Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
 
@@ -362,7 +362,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 
 		setup(settings);
 
-		try (TransportClient tc = getInternalTransportClient()) {
+		try (Client tc = getInternalTransportClient()) {
 			tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
 			ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
@@ -378,7 +378,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				.put("request.headers.sg_impersonate_as", "worf")
 				.build();
 
-		try (TransportClient tc = getInternalTransportClient(clusterInfo, tcSettings)) {            
+		try (Client tc = getInternalTransportClient(clusterInfo, tcSettings)) {            
 			NodesInfoRequest nir = new NodesInfoRequest();
 			Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(nir).actionGet().getNodes().size());
 		}
@@ -401,7 +401,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				.put("request.headers.sg_impersonate_as", "worf")
 				.build();
 
-		try (TransportClient tc = getInternalTransportClient(clusterInfo, tcSettings)) {
+		try (Client tc = getInternalTransportClient(clusterInfo, tcSettings)) {
 			NodesInfoRequest nir = new NodesInfoRequest();
 			Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(nir).actionGet().getNodes().size());
 		}        
@@ -422,7 +422,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				.setSgInternalUsers("sg_internal_users_transport_username.yml")
 				, settings);
 		
-		try (TransportClient tc = getInternalTransportClient()) {                    
+		try (Client tc = getInternalTransportClient()) {                    
 			tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 		}
 
@@ -435,7 +435,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 
 		System.out.println("------- 0 ---------");
 
-		try (TransportClient tc = getInternalTransportClient(clusterInfo, tcSettings)) {         
+		try (Client tc = getInternalTransportClient(clusterInfo, tcSettings)) {         
 
 			Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
 
@@ -738,7 +738,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				.setSgInternalUsers("sg_internal_users_transport_username.yml")
 				, settings);
 
-		try (TransportClient tc = getInternalTransportClient()) {
+		try (Client tc = getInternalTransportClient()) {
 			tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
 			ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
@@ -754,7 +754,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				.put("request.headers.sg_impersonate_as", "worf")
 				.build();
 
-		try (TransportClient tc = getInternalTransportClient(clusterInfo, tcSettings)) {            
+		try (Client tc = getInternalTransportClient(clusterInfo, tcSettings)) {            
 			NodesInfoRequest nir = new NodesInfoRequest();
 			Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(nir).actionGet().getNodes().size());
 		}
@@ -779,7 +779,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				.put("request.headers.sg_impersonate_as", "worf")
 				.build();
 
-		try (TransportClient tc = getInternalTransportClient(clusterInfo, tcSettings)) {
+		try (Client tc = getInternalTransportClient(clusterInfo, tcSettings)) {
 			NodesInfoRequest nir = new NodesInfoRequest();
 			Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(nir).actionGet().getNodes().size());
 		}        

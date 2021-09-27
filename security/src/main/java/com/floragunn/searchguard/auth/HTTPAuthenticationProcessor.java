@@ -34,7 +34,6 @@ import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.filter.TenantAwareRestHandler;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
-import com.floragunn.searchguard.ssl.util.Utils;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -190,7 +189,7 @@ public class HTTPAuthenticationProcessor extends AuthenticationProcessor<HTTPAut
         if (restHandler instanceof TenantAwareRestHandler) {
             return ((TenantAwareRestHandler) restHandler).getTenantName(restRequest);
         } else {
-            return Utils.coalesce(restRequest.header("sgtenant"), restRequest.header("sg_tenant"));
+            return restRequest.header("sgtenant") != null ? restRequest.header("sgtenant") : restRequest.header("sg_tenant");
         }
     }
     

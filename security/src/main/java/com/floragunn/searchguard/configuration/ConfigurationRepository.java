@@ -173,12 +173,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
                                         ConfigHelper.uploadFile(client, cd+"sg_roles_mapping.yml", searchguardIndex, CType.ROLESMAPPING, configVersion);
                                         ConfigHelper.uploadFile(client, cd+"sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS, configVersion);
                                         ConfigHelper.uploadFile(client, cd+"sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS, configVersion);
-                                        if(configVersion == 2) {
-                                            ConfigHelper.uploadFile(client, cd+"sg_tenants.yml", searchguardIndex, CType.TENANTS, configVersion);
-                                            ConfigHelper.uploadFile(client, cd+"sg_blocks.yml", searchguardIndex, CType.BLOCKS, configVersion);
-                                            ConfigHelper.uploadFile(client, cd+"sg_frontend_config.yml", searchguardIndex, CType.FRONTEND_CONFIG, configVersion);
-
-                                        }
+                                        ConfigHelper.uploadFile(client, cd + "sg_tenants.yml", searchguardIndex, CType.TENANTS, configVersion);
+                                        ConfigHelper.uploadFile(client, cd + "sg_blocks.yml", searchguardIndex, CType.BLOCKS, configVersion);
+                                        ConfigHelper.uploadFile(client, cd + "sg_frontend_config.yml", searchguardIndex, CType.FRONTEND_CONFIG,
+                                                configVersion);
                                         LOGGER.info("Default config applied");
                                     } else {
                                         LOGGER.error("Can not create {} index", searchguardIndex);

@@ -28,7 +28,6 @@ import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import org.junit.Assert;
 
 public abstract class SingleClusterTest extends AbstractSGUnitTest {
         
