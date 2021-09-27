@@ -24,6 +24,8 @@ import org.elasticsearch.common.io.stream.StreamInput;
 
 public class ConfigUpdateAlreadyInProgressException extends ElasticsearchException {
 
+    private static final long serialVersionUID = 2305746004953146245L;
+
     public ConfigUpdateAlreadyInProgressException(StreamInput in) throws IOException {
         super(in);
     }

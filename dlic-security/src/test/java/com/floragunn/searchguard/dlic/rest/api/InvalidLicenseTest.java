@@ -39,7 +39,7 @@ public class InvalidLicenseTest extends LicenseTest {
 		HttpResponse response = rh.executePutRequest("/_searchguard/api/license", createLicenseRequestBody(license), new Header[0]);
 		Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 		
-		 Map<String, Object> settingsAsMap = getCurrentLicense();
+		 Map<?, ?> settingsAsMap = getCurrentLicense();
 		 Assert.assertEquals(SearchGuardLicense.Type.SINGLE.name(), settingsAsMap.get("type"));
 		 Assert.assertEquals("1", settingsAsMap.get("allowed_node_count_per_cluster"));
 		 Assert.assertEquals(Boolean.FALSE.toString(), String.valueOf(settingsAsMap.get("is_valid")));

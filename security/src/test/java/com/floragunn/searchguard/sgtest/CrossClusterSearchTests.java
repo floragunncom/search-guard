@@ -22,7 +22,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.After;
@@ -97,7 +97,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl1BodyMain = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("nagilum","nagilum")).getBody();
         Assert.assertTrue(cl1BodyMain.contains("crl1"));
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -107,7 +107,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("nagilum","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -155,7 +155,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl1BodyMain = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl1BodyMain.contains("crl1"));
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -167,7 +167,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -326,7 +326,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl1BodyMain = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl1BodyMain.contains("crl1"));
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -338,7 +338,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -507,7 +507,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
         }
@@ -535,7 +535,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("coordinating").type("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("abc").type("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -543,7 +543,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         }
         
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("remote").type("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
         }
@@ -615,7 +615,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("coordinating").type("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("abc").type("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -625,7 +625,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         }
         
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("remote").type("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             
@@ -705,7 +705,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("coordinating").type("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("abc").type("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -713,7 +713,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         }
         
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("remote").type("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
         }
@@ -770,7 +770,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("coordinating").type("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("abc").type("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
@@ -780,7 +780,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         }
         
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
+        try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("remote").type("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
             

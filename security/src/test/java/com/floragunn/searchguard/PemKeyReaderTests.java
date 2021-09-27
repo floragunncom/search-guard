@@ -23,7 +23,6 @@ import java.security.Security;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.EncryptionException;
 import org.bouncycastle.openssl.PasswordException;
-import org.bouncycastle.pkcs.PKCSException;
 import org.junit.Assert;
 import org.junit.Test;
 

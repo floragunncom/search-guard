@@ -37,7 +37,6 @@ import com.floragunn.searchguard.auth.api.AuthenticationBackend.UserCachingPolic
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.filter.TenantAwareRestHandler;
-import com.floragunn.searchguard.ssl.util.Utils;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -468,7 +467,7 @@ public class RestAuthenticationProcessor {
         if (restHandler instanceof TenantAwareRestHandler) {
             return ((TenantAwareRestHandler) restHandler).getTenantName(request);
         } else {
-            return Utils.coalesce(request.header("sgtenant"), request.header("sg_tenant"));
+            return request.header("sgtenant") != null ? request.header("sgtenant") : request.header("sg_tenant");
         }
     }
 

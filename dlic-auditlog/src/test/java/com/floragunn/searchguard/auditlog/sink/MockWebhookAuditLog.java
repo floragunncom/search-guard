@@ -16,8 +16,6 @@ package com.floragunn.searchguard.auditlog.sink;
 
 import org.elasticsearch.common.settings.Settings;
 
-import com.floragunn.searchguard.auditlog.sink.WebhookSink;
-
 public class MockWebhookAuditLog extends WebhookSink {
 	
 	public String payload = null;
