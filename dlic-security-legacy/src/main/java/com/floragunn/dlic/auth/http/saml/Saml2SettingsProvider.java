@@ -103,7 +103,7 @@ public class Saml2SettingsProvider {
 
             return AccessController.doPrivileged((PrivilegedAction<Saml2Settings>) () -> settingsBuilder.build());
         } catch (ResolverException e) {
-            throw new AuthenticatorUnavailableException(e);
+            throw new AuthenticatorUnavailableException("Error while retrieving SAML metadata", e);
         } 
     }
 

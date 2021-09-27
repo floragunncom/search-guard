@@ -134,16 +134,18 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
     @Override
     public ActivatedFrontendConfig.AuthMethod activateFrontendConfig(ActivatedFrontendConfig.AuthMethod frontendConfig,
-            GetFrontendConfigAction.Request request) {
+            GetFrontendConfigAction.Request request) throws AuthenticatorUnavailableException {
         try {
             OidcProviderConfig oidcProviderConfig = openIdProviderClient.getOidcConfiguration();
 
             if (oidcProviderConfig.getAuthorizationEndpoint() == null) {
-                throw new Exception("authorization_endpoint missing from OIDC metadata: " + oidcProviderConfig);
+                throw new AuthenticatorUnavailableException("Invalid OIDC metadata", "authorization_endpoint missing from OIDC metadata").details("oidc_metadata",
+                        oidcProviderConfig.getParsedJson());
             }
 
             if (request.getFrontendBaseUrl() == null) {
-                throw new Exception("frontend_base_url is required for OIDC authentication");
+                throw new AuthenticatorUnavailableException("Invalid configuration", "frontend_base_url is required for OIDC authentication").details("request",
+                        request.toMap());
             }
 
             URI frontendBaseUrl = new URI(request.getFrontendBaseUrl());
@@ -157,12 +159,10 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             String ssoContext = SSO_CONTEXT_PREFIX + nonce;
 
             return frontendConfig.ssoLocation(ssoLocation).ssoContext(ssoContext);
-        } catch (AuthenticatorUnavailableException e) {
-            log.error("Error while activating OIDC authenticator", e);
-            return frontendConfig.temporarilyUnavailable();
-        } catch (Exception e) {
-            log.error("Error while activating OIDC authenticator", e);
-            return frontendConfig.unavailableDueToConfigurationError();
+
+        } catch (URISyntaxException e) {
+            log.error("Error while activating SAML authenticator", e);
+            throw new AuthenticatorUnavailableException("Invalid configuration", "frontend_base_url is not a valid URL", e).details("request", request.toMap());
         }
     }
 

@@ -27,6 +27,7 @@ import org.opensaml.core.config.InitializationService;
 
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.searchguard.auth.AuthenticationFrontend;
+import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.auth.CredentialsException;
 import com.floragunn.searchguard.auth.frontend.ActivatedFrontendConfig;
 import com.floragunn.searchguard.auth.frontend.GetFrontendConfigAction;
@@ -323,7 +324,13 @@ public class SamlAuthenticatorTest {
 
             SamlAuthenticator samlAuthenticator = new SamlAuthenticator(config, testContext);
             ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-            authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+
+            try {
+                authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+                Assert.fail(authMethod.toString());
+            } catch (AuthenticatorUnavailableException e) {
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("Error retrieving SAML metadata"));
+            }
 
             String encodedSamlResponse = "whatever";
             Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "frontend_base_url", FRONTEND_BASE_URL);
@@ -332,7 +339,7 @@ public class SamlAuthenticatorTest {
                 samlAuthenticator.extractCredentials(request);
                 Assert.fail();
             } catch (Exception e) {
-                Assert.assertEquals(e.toString(), "SAML authentication is currently unavailable", e.getMessage());
+                Assert.assertTrue(e.toString(), e.getMessage().contains("Error retrieving SAML metadata"));
             }
 
             mockSamlIdpServer.start();

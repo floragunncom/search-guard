@@ -35,7 +35,7 @@ public interface ApiAuthenticationFrontend extends AuthenticationFrontend {
             throws CredentialsException, ConfigValidationException, AuthenticatorUnavailableException;
 
     default ActivatedFrontendConfig.AuthMethod activateFrontendConfig(ActivatedFrontendConfig.AuthMethod frontendConfig,
-            GetFrontendConfigAction.Request request) {
+            GetFrontendConfigAction.Request request) throws AuthenticatorUnavailableException {
         return frontendConfig;
     }
 
