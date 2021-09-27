@@ -63,7 +63,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		originalConfig = getCurrentConfig();
 		
 		// check license exists - has to be trial license
-		 Map<String, Object> settingsAsMap = getCurrentLicense();
+		 Map<?, ?> settingsAsMap = getCurrentLicense();
 		 Assert.assertEquals(SearchGuardLicense.Type.TRIAL.name(), settingsAsMap.get("type"));
 		 Assert.assertEquals("unlimited", settingsAsMap.get("allowed_node_count_per_cluster"));
 		 Assert.assertEquals("true", String.valueOf(settingsAsMap.get("is_valid")));
@@ -147,7 +147,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 	}
 	
 	protected final void checkCurrentLicenseProperties(SearchGuardLicense.Type type, Boolean isValid, String nodeCount,LocalDate startDate, LocalDate expiryDate ) throws Exception {
-	     Map<String, Object> settingsAsMap = getCurrentLicense();
+	     Map<?, ?> settingsAsMap = getCurrentLicense();
 		 Assert.assertEquals(type.name(), settingsAsMap.get("type"));
 		 Assert.assertEquals(nodeCount, settingsAsMap.get("allowed_node_count_per_cluster"));
 		 Assert.assertEquals(isValid.toString(), String.valueOf(settingsAsMap.get("is_valid")));
@@ -178,10 +178,10 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals(expectectConfig.build(), config); 
 	}
 	
-	protected final Map<String, Object> getCurrentLicense() throws Exception {
+	protected final Map<?, ?> getCurrentLicense() throws Exception {
 		HttpResponse response = rh.executeGetRequest("_searchguard/api/license");
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		return (Map)DefaultObjectMapper.objectMapper.readValue(response.getBody(), Map.class).get("sg_license");
+		return (Map<?, ?>)DefaultObjectMapper.objectMapper.readValue(response.getBody(), Map.class).get("sg_license");
 	}
 
 	protected final Settings getCurrentConfig() throws Exception {

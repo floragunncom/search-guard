@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.compress.NotXContentException;
 import org.elasticsearch.common.settings.Settings;
@@ -27,7 +26,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 
-import com.floragunn.searchguard.ssl.util.Utils;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class InternalUsersValidator extends AbstractConfigurationValidator {
@@ -77,7 +76,11 @@ public class InternalUsersValidator extends AbstractConfigurationValidator {
                         return false;
                     }
 
-                    final String username = Utils.coalesce(request.param("name"), hasParams()?(String)param[0]:null);
+                    String username = request.param("name");
+                    
+                    if (username == null && hasParams()) {
+                        username = (String) param[0];
+                    }
                     
                     if(username == null || username.isEmpty()) {
                         if(log.isDebugEnabled()) {
@@ -113,6 +116,8 @@ public class InternalUsersValidator extends AbstractConfigurationValidator {
     }
 
     private static class SensitiveDataException extends Exception {
+
+        private static final long serialVersionUID = 7279592878585611145L;
 
         public SensitiveDataException(String message) {
             super(message);

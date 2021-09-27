@@ -16,14 +16,13 @@ package com.floragunn.searchguard.auditlog.impl;
 
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
-import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.helper.MyOwnAuditLog;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.auditlog.sink.DebugSink;
-import com.floragunn.searchguard.auditlog.sink.InternalESSink;
 import com.floragunn.searchguard.auditlog.sink.ExternalESSink;
+import com.floragunn.searchguard.auditlog.sink.InternalESSink;
 
 public class DelegateTest {
 	@Test

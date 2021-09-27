@@ -14,7 +14,6 @@
 
 package com.floragunn.searchguard.dlic.dlsfls;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;

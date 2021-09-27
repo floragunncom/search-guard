@@ -173,7 +173,9 @@ public class ConfigModelV6 extends ConfigModel {
 
                 if (actionGroupAsObject != null && actionGroupAsObject instanceof List) {
 
-                    for (final String perm : ((List<String>) actionGroupAsObject)) {
+                    for (Object permObject : ((List<?>) actionGroupAsObject)) {
+                        String perm = String.valueOf(permObject);
+                        
                         if (actionGroups.getCEntries().keySet().contains(perm)) {
                             ret.addAll(resolve(actionGroups, perm));
                         } else {

@@ -376,7 +376,7 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertEquals("Michael Jackson", user.getOriginalUsername());
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getUserEntry().getDN());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
+        Assert.assertEquals("ceo", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(0));
         Assert.assertEquals(user.getName(), user.getUserEntry().getDN());
     }
 
@@ -396,7 +396,7 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertNotNull(user);
         Assert.assertEquals("jacksonm", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
+        Assert.assertEquals("ceo", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(0));
     }
 
     @Test
@@ -416,7 +416,7 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(4, user.getRoles().size());
-        Assert.assertEquals("nested1", new ArrayList(new TreeSet(user.getRoles())).get(1));
+        Assert.assertEquals("nested1", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(1));
     }
 
     @Test
@@ -437,8 +437,8 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
-        Assert.assertEquals("nested2", new ArrayList(new TreeSet(user.getRoles())).get(1));
+        Assert.assertEquals("ceo", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(0));
+        Assert.assertEquals("nested2", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(1));
     }
 
     @Test
@@ -458,7 +458,7 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(4, user.getRoles().size());
-        Assert.assertEquals("cn=nested1,ou=groups,o=TEST", new ArrayList(new TreeSet(user.getRoles())).get(1));
+        Assert.assertEquals("cn=nested1,ou=groups,o=TEST", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(1));
     }
 
     @Test
@@ -480,7 +480,7 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertNotNull(user);
         Assert.assertEquals("jacksonm", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("cn=ceo,ou=groups,o=TEST", new ArrayList(new TreeSet(user.getRoles())).get(0));
+        Assert.assertEquals("cn=ceo,ou=groups,o=TEST", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(0));
     }
 
     @Test
@@ -553,8 +553,8 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(8, user.getRoles().size());
-        Assert.assertEquals("nested3", new ArrayList(new TreeSet(user.getRoles())).get(4));
-        Assert.assertEquals("rolemo4", new ArrayList(new TreeSet(user.getRoles())).get(7));
+        Assert.assertEquals("nested3", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(4));
+        Assert.assertEquals("rolemo4", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(7));
     }
 
     @Test
@@ -577,8 +577,8 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(6, user.getRoles().size());
-        Assert.assertEquals("role2", new ArrayList(new TreeSet(user.getRoles())).get(4));
-        Assert.assertEquals("nested1", new ArrayList(new TreeSet(user.getRoles())).get(2));
+        Assert.assertEquals("role2", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(4));
+        Assert.assertEquals("nested1", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(2));
 
     }
 
@@ -647,8 +647,8 @@ public class LdapBackendTestNewStyleConfig {
         Assert.assertNotNull(user);
         Assert.assertEquals("spock", user.getName());
         Assert.assertEquals(3, user.getRoles().size());
-        Assert.assertEquals("nested3", new ArrayList(new TreeSet(user.getRoles())).get(1));
-        Assert.assertEquals("rolemo4", new ArrayList(new TreeSet(user.getRoles())).get(2));
+        Assert.assertEquals("nested3", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(1));
+        Assert.assertEquals("rolemo4", new ArrayList<String>(new TreeSet<String>(user.getRoles())).get(2));
     }
 
     @Test

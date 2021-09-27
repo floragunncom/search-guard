@@ -4,6 +4,8 @@ import java.io.IOException;
 
 public class MigrationException extends IOException {
 
+    private static final long serialVersionUID = 2258907671386141632L;
+
     public MigrationException() {
         super();
         // TODO Auto-generated constructor stub

@@ -25,7 +25,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -126,7 +126,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         TestAuditlogImpl.clear();
         
         System.out.println("#### testSimpleAuthenticated");        
-        try (TransportClient tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
+        try (Client tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
             StoredContext ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 Header header = encodeBasicHeader("admin", "admin");
@@ -165,7 +165,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         setupStarfleetIndex();
         TestAuditlogImpl.clear();
                
-        try (TransportClient tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
+        try (Client tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
             StoredContext ctx = tc.threadPool().getThreadContext().stashContext();
             try {
                 Header header = encodeBasicHeader("admin", "admin");
@@ -519,7 +519,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         
         setup(additionalSettings);
         
-        try (TransportClient tc = getInternalTransportClient()) {                    
+        try (Client tc = getInternalTransportClient()) {                    
             tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();         
             tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
             tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
@@ -564,7 +564,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         
         setup(additionalSettings);
         
-        try (TransportClient tc = getInternalTransportClient()) {                    
+        try (Client tc = getInternalTransportClient()) {                    
             for(int i=0; i<3; i++)
             tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
         }
@@ -607,7 +607,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         setup(additionalSettings);
       
        
-        try (TransportClient tc = getInternalTransportClient()) {                    
+        try (Client tc = getInternalTransportClient()) {                    
             for(int i=0; i<3; i++)
             tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("thealias").index("vulcangov"))).actionGet();
@@ -666,7 +666,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         
         setup(additionalSettings);
         
-        try (TransportClient tc = getInternalTransportClient()) {
+        try (Client tc = getInternalTransportClient()) {
             tc.admin().indices().create(new CreateIndexRequest("index1")).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("index2")).actionGet();
         }
@@ -697,7 +697,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
                 .build();
         setup(settings);
 
-        try (TransportClient tc = getInternalTransportClient()) {                    
+        try (Client tc = getInternalTransportClient()) {                    
             for(int i=0; i<3; i++)
             tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
         }

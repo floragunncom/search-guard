@@ -37,7 +37,6 @@ import com.floragunn.searchguard.resolver.IndexResolverReplacer;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
-import com.google.common.base.Objects;
 import com.google.common.collect.ObjectArrays;
 
 public class SearchGuardIndexAccessEvaluator {
