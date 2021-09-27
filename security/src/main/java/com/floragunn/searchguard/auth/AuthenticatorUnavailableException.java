@@ -17,23 +17,78 @@
 
 package com.floragunn.searchguard.auth;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 public class AuthenticatorUnavailableException extends Exception {
-	private static final long serialVersionUID = -7007025852090301416L;
+    private static final long serialVersionUID = -7007025852090301416L;
+    private Map<String, Object> details;
+    private String messageTitle;
+    private String messageBody;
 
-	public AuthenticatorUnavailableException() {
-		super();
-	}
+    public AuthenticatorUnavailableException() {
+        super();
+    }
 
-	public AuthenticatorUnavailableException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public AuthenticatorUnavailableException(String messageTitle, Throwable cause) {
+        super(messageTitle + "\n" + cause.toString(), cause);
+        this.messageTitle = messageTitle;
+        this.messageBody = cause.toString();
+    }
 
-	public AuthenticatorUnavailableException(String message) {
-		super(message);
-	}
+    public AuthenticatorUnavailableException(String messageTitle, String messageBody, Throwable cause) {
+        super(messageTitle + "\n" + messageBody, cause);
+        this.messageTitle = messageTitle;
+        this.messageBody = messageBody;
+    }
 
-	public AuthenticatorUnavailableException(Throwable cause) {
-		super(cause);
-	}
+    public AuthenticatorUnavailableException(String messageTitle, String messageBody) {
+        super(messageTitle + "\n" + messageBody);
+        this.messageTitle = messageTitle;
+        this.messageBody = messageBody;
+    }
+
+    public AuthenticatorUnavailableException details(Map<String, Object> details) {
+        this.details = details;
+        return this;
+    }
+
+    public AuthenticatorUnavailableException details(String key, Object value, Object... moreDetails) {
+        if (moreDetails == null || moreDetails.length == 0) {
+            this.details = Collections.singletonMap(key, convertToSimpleObject(value));
+        } else {
+            Map<String, Object> details = new LinkedHashMap<>(moreDetails.length + 1);
+            details.put(key, value);
+
+            for (int i = 0; i < moreDetails.length; i += 2) {
+                details.put(String.valueOf(moreDetails[i]), convertToSimpleObject(moreDetails[i + 1]));
+            }
+
+            this.details = details;
+        }
+
+        return this;
+    }
+
+    public Map<String, Object> getDetails() {
+        return details;
+    }
+
+    public String getMessageTitle() {
+        return messageTitle;
+    }
+
+    public String getMessageBody() {
+        return messageBody;
+    }
+    
+    private Object convertToSimpleObject(Object o) {        
+        if (o instanceof Number || o instanceof Boolean || o instanceof String || o == null) {
+            return o;
+        } else {
+            return o.toString();
+        }
+    }
 
 }

@@ -177,10 +177,11 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
     @Override
     public ActivatedFrontendConfig.AuthMethod activateFrontendConfig(ActivatedFrontendConfig.AuthMethod frontendConfig,
-            GetFrontendConfigAction.Request request) {
+            GetFrontendConfigAction.Request request) throws AuthenticatorUnavailableException {
         try {
             if (request.getFrontendBaseUrl() == null) {
-                return frontendConfig.unavailable("frontend_base_url is required for SAML authentication");
+                throw new AuthenticatorUnavailableException("Configuration error", "frontend_base_url is required for SAML authentication")
+                        .details("request", request.toMap());
             }
 
             URI frontendBaseUrl = new URI(request.getFrontendBaseUrl());
@@ -188,20 +189,21 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             Saml2Settings saml2Settings = this.saml2SettingsProvider.getCached(frontendBaseUrl);
             AuthnRequest authnRequest = this.buildAuthnRequest(saml2Settings);
 
-            String ssoLocation = getSamlRequestRedirectBindingLocation(IdpEndpointType.SSO, saml2Settings, authnRequest.getEncodedAuthnRequest(true),
-                    request.getNextURL());
+            String samlRequest;
+
+            try {
+                samlRequest = authnRequest.getEncodedAuthnRequest(true);
+            } catch (IOException e) {
+                throw new AuthenticatorUnavailableException("Internal error while creating SAML request", e);
+            }
+
+            String ssoLocation = getSamlRequestRedirectBindingLocation(IdpEndpointType.SSO, saml2Settings, samlRequest, request.getNextURL());
             String ssoContext = SSO_CONTEXT_PREFIX + authnRequest.getId();
 
             return frontendConfig.ssoLocation(ssoLocation).ssoContext(ssoContext);
-        } catch (AuthenticatorUnavailableException e) {
-            log.error("Error while activating SAML authenticator", e);
-            return frontendConfig.temporarilyUnavailable();
         } catch (URISyntaxException e) {
             log.error("Error while activating SAML authenticator", e);
-            return frontendConfig.unavailable("frontend_base_url is not a valid URL");
-        } catch (Exception e) {
-            log.error("Error while activating SAML authenticator", e);
-            return frontendConfig.unavailableDueToConfigurationError();
+            throw new AuthenticatorUnavailableException("frontend_base_url is not a valid URL", e).details("request", request.toMap());
         }
     }
 
@@ -236,12 +238,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
         debugDetails.put("saml_response", samlResponseBase64);
         debugDetails.put("sso_context", ssoContext);
 
-        Saml2Settings saml2Settings;
-        try {
-            saml2Settings = this.saml2SettingsProvider.getCached(frontendBaseUrl);
-        } catch (SamlConfigException e) {
-            throw new AuthenticatorUnavailableException(e);
-        }
+        Saml2Settings saml2Settings = this.saml2SettingsProvider.getCached(frontendBaseUrl);
 
         if (ssoContext != null) {
             log.debug("Detected IdP initiated SSO; ssoContext: " + ssoContext);
@@ -359,7 +356,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
             return getSamlRequestRedirectBindingLocation(IdpEndpointType.SLO, saml2Settings, logoutRequest.getEncodedLogoutRequest(true), null);
 
-        } catch (SamlConfigException | IOException e) {
+        } catch (IOException e) {
             log.error("Error while building logout URL for " + this, e);
             return null;
         }

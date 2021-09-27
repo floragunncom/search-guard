@@ -51,8 +51,10 @@ public class ActivatedFrontendConfig {
         private final boolean unavailable;
         private final String label;
         private final String message;
+        private final String messageTitle;
         private final String ssoLocation;
         private final String ssoContext;
+        private final Map<String, Object> details;
         private final Map<String, Object> config;
 
         public AuthMethod(String method, String label, String id) {
@@ -62,34 +64,55 @@ public class ActivatedFrontendConfig {
             this.session = true;
             this.unavailable = false;
             this.message = null;
+            this.messageTitle = null;
             this.config = Collections.emptyMap();
             this.ssoLocation = null;
             this.ssoContext = null;
+            this.details = Collections.emptyMap();
         }
 
-        public AuthMethod(String method, String label, String id, boolean session, boolean unavailable, String message) {
+        public AuthMethod(String method, String label, String id, boolean session, boolean unavailable, String messageTitle, String message) {
             this.method = method;
             this.label = label;
             this.id = id;
             this.session = session;
             this.unavailable = unavailable;
+            this.messageTitle = messageTitle;
             this.message = message;
             this.config = Collections.emptyMap();
             this.ssoLocation = null;
             this.ssoContext = null;
+            this.details = Collections.emptyMap();
         }
 
-        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, String message, String ssoLocation,
-                String ssoContext, Map<String, Object> config) {
+        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, String messageTitle, String message,
+                String ssoLocation, String ssoContext, Map<String, Object> config) {
             this.method = method;
             this.id = id;
             this.session = session;
             this.unavailable = unavailable;
             this.label = label;
+            this.messageTitle = messageTitle;
             this.message = message;
             this.ssoLocation = ssoLocation;
             this.ssoContext = ssoContext;
             this.config = Collections.unmodifiableMap(new HashMap<>(config));
+            this.details = Collections.emptyMap();
+        }
+
+        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, String messageTitle, String message,
+                String ssoLocation, String ssoContext, Map<String, Object> config, Map<String, Object> details) {
+            this.method = method;
+            this.id = id;
+            this.session = session;
+            this.unavailable = unavailable;
+            this.label = label;
+            this.messageTitle = messageTitle;
+            this.message = message;
+            this.ssoLocation = ssoLocation;
+            this.ssoContext = ssoContext;
+            this.config = Collections.unmodifiableMap(new HashMap<>(config));
+            this.details = details != null ? Collections.unmodifiableMap(new HashMap<>(details)) : Collections.emptyMap();
         }
 
         public AuthMethod(StreamInput in) throws IOException {
@@ -97,11 +120,13 @@ public class ActivatedFrontendConfig {
             this.id = in.readOptionalString();
             this.session = in.readBoolean();
             this.label = in.readString();
+            this.messageTitle = in.readOptionalString();
             this.message = in.readOptionalString();
             this.unavailable = in.readBoolean();
             this.ssoLocation = in.readOptionalString();
             this.ssoContext = in.readOptionalString();
             this.config = in.readMap();
+            this.details = in.readMap();
         }
 
         @Override
@@ -120,8 +145,12 @@ public class ActivatedFrontendConfig {
                 builder.field("unavailable", unavailable);
             }
 
+            if (messageTitle != null) {
+                builder.field("message_title", messageTitle);
+            }
+
             if (message != null) {
-                builder.field("message", message);
+                builder.field("message_body", message);
             }
 
             if (ssoLocation != null) {
@@ -136,6 +165,10 @@ public class ActivatedFrontendConfig {
                 builder.field("config", config);
             }
 
+            if (details.size() > 0) {
+                builder.field("details", details);
+            }
+
             builder.endObject();
             return builder;
         }
@@ -146,41 +179,39 @@ public class ActivatedFrontendConfig {
             out.writeOptionalString(id);
             out.writeBoolean(session);
             out.writeString(label);
+            out.writeOptionalString(messageTitle);
             out.writeOptionalString(message);
             out.writeBoolean(unavailable);
             out.writeOptionalString(ssoLocation);
             out.writeOptionalString(ssoContext);
             out.writeMap(config);
+            out.writeMap(details);
         }
 
-        public AuthMethod unavailable(String message) {
-            return new AuthMethod(method, label, id, session, true, message, ssoLocation, ssoContext, config);
+        public AuthMethod unavailable(String messageTitle, String message) {
+            return new AuthMethod(method, label, id, session, true, messageTitle, message, ssoLocation, ssoContext, config);
         }
 
-        public AuthMethod unavailableDueToConfigurationError() {
-            return unavailable("Unavailable due to configuration error. Please contact your system administrator");
-        }
-
-        public AuthMethod temporarilyUnavailable() {
-            return unavailable("Temporarily unavailable due to configuration error. Please try again later or contact your system administrator");
+        public AuthMethod unavailable(String messageTitle, String message, Map<String, Object> details) {
+            return new AuthMethod(method, label, id, session, true, messageTitle, message, ssoLocation, ssoContext, config, details);
         }
 
         public AuthMethod ssoLocation(String ssoLocation) {
-            return new AuthMethod(method, label, id, session, unavailable, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, unavailable, messageTitle, message, ssoLocation, ssoContext, config);
         }
 
         public AuthMethod ssoContext(String ssoContext) {
-            return new AuthMethod(method, label, id, session, unavailable, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, unavailable, messageTitle, message, ssoLocation, ssoContext, config);
         }
 
         public AuthMethod config(Map<String, Object> config) {
-            return new AuthMethod(method, label, id, session, unavailable, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, unavailable, messageTitle, message, ssoLocation, ssoContext, config);
         }
 
         public AuthMethod config(String key, Object value) {
             HashMap<String, Object> newConfig = new HashMap<>(this.config);
             newConfig.put(key, value);
-            return new AuthMethod(method, label, id, session, unavailable, message, ssoLocation, ssoContext, newConfig);
+            return new AuthMethod(method, label, id, session, unavailable, messageTitle, message, ssoLocation, ssoContext, newConfig);
         }
 
         public String getMethod() {
@@ -204,7 +235,7 @@ public class ActivatedFrontendConfig {
         }
 
         public AuthMethod clone() {
-            return new AuthMethod(method, label, id, session, unavailable, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, unavailable, messageTitle, message, ssoLocation, ssoContext, config, details);
         }
 
         public Map<String, Object> getConfig() {
@@ -218,7 +249,7 @@ public class ActivatedFrontendConfig {
         @Override
         public Map<String, Object> toMap() {
             Map<String, Object> result = new LinkedHashMap<>();
-                        
+
             result.put("method", method);
 
             if (id != null) {
@@ -232,8 +263,12 @@ public class ActivatedFrontendConfig {
                 result.put("unavailable", unavailable);
             }
 
+            if (messageTitle != null) {
+                result.put("message_title", messageTitle);
+            }
+
             if (message != null) {
-                result.put("message", message);
+                result.put("message_body", message);
             }
 
             if (ssoLocation != null) {
@@ -248,9 +283,13 @@ public class ActivatedFrontendConfig {
                 result.put("config", config);
             }
 
+            if (details.size() > 0) {
+                result.put("details", details);
+            }
+
             return result;
         }
-        
+
         @Override
         public String toString() {
             return toJsonString();

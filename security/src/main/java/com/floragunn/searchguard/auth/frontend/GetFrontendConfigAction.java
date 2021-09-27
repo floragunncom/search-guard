@@ -23,6 +23,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -50,12 +51,14 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.auth.frontend.ActivatedFrontendConfig.AuthMethod;
 import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.sgconf.impl.v7.FrontendConfig;
 import com.floragunn.searchsupport.client.rest.Responses;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 public class GetFrontendConfigAction extends ActionType<GetFrontendConfigAction.Response> {
     protected final static Logger log = LogManager.getLogger(GetFrontendConfigAction.class);
@@ -112,9 +115,13 @@ public class GetFrontendConfigAction extends ActionType<GetFrontendConfigAction.
         public String getConfigId() {
             return configId;
         }
-        
+
         public String getFrontendBaseUrl() {
             return frontendBaseUrl;
+        }
+
+        public Map<String, Object> toMap() {
+            return ImmutableMap.of("next_url", nextURL, "config_id", configId, "frontend_base_url", frontendBaseUrl);
         }
     }
 
@@ -203,22 +210,44 @@ public class GetFrontendConfigAction extends ActionType<GetFrontendConfigAction.
                     if (!authMethod.isEnabled()) {
                         continue;
                     }
-                    
+
                     // Normalize the type to replace deprecated type ids by their replacement (openid -> oidc)
                     String type = authMethod.getAuthenticationFrontend() != null ? authMethod.getAuthenticationFrontend().getType()
                             : authMethod.getType();
 
                     ActivatedFrontendConfig.AuthMethod activatedAuthMethod = new ActivatedFrontendConfig.AuthMethod(type, authMethod.getLabel(),
-                            authMethod.getId(), true, authMethod.isUnavailable(), authMethod.getMessage());
+                            authMethod.getId(), true, authMethod.isUnavailable(), null, authMethod.getMessage());
 
                     if (authMethod.getAuthenticationFrontend() instanceof ApiAuthenticationFrontend) {
                         try {
                             activatedAuthMethod = ((ApiAuthenticationFrontend) authMethod.getAuthenticationFrontend())
                                     .activateFrontendConfig(activatedAuthMethod, request);
+                        } catch (AuthenticatorUnavailableException e) {
+                            log.error("Error while activating " + authMethod + "\n" + e.getDetails(), e);
+                            String messageTitle = "Temporarily Unavailable";
+                            String messageBody = "Please try again later or contact your administrator.";
+                            Map<String, Object> details = null;
+
+                            if (backendRegistry.isDebugEnabled()) {
+                                messageTitle = e.getMessageTitle();
+                                messageBody = e.getMessageBody();
+                                details = e.getDetails();
+                            }
+
+                            activatedAuthMethod = activatedAuthMethod.unavailable(messageTitle, messageBody, details);
+
                         } catch (Exception e) {
                             log.error("Error while activating " + authMethod, e);
-                            activatedAuthMethod = activatedAuthMethod.unavailable(
-                                    "This auth method is temporarily unavailable. Please try again later or contact your administrator.");
+                            Map<String, Object> details = null;
+                            String messageTitle = "Temporarily Unavailable";
+                            String messageBody = "Please try again later or contact your administrator.";
+
+                            if (backendRegistry.isDebugEnabled()) {
+                                messageTitle = "Unexpected error while " + type + " login";
+                                messageBody = e.toString();
+                            }
+
+                            activatedAuthMethod = activatedAuthMethod.unavailable(messageTitle, messageBody, details);
                         }
                     }
 
