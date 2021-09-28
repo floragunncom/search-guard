@@ -2,13 +2,29 @@
 
 set -e
 
+echo "Welcome to the Search Guard demo instance installation tool!"
+echo ""
+echo "This tool will download Search Guard and OpenSearch or Elasticsearch to the current directory on your computer and create a demo instance."
+echo "All files downloaded here can be found on https://docs.search-guard.com/latest/search-guard-versions or on the websites of Elastic or OpenSearch."
+echo ""
+
+# ------------------------------------------------------------------------
+# Set up variables identifying the components to be used and the 
+# installation directories
+# ------------------------------------------------------------------------
+# Mnemomic: 
+# - SG: Search Guard
+# - SB: Search Backend (i.e., OpenSearch/Elasticsearch)
+# - SF: Search Frontend (i.e., OpenSearch Dashboards/Kibana)
+# ------------------------------------------------------------------------
+
 BASE_DIR=$(pwd)
 SG_VERSION_PRE="${project.version}"
 SG_VERSION="${1:-$SG_VERSION_PRE}"
 SGSF_VERSION="${2:-$SG_VERSION_PRE}"
 SG_REPOSITORY="${3:-search-guard-suite-alpha}"
 SG_PLUGIN_NAME="search-guard"
-SGCTL_VERSION="0.1.0"
+SGCTL_VERSION="0.1.1"
 
 if [[ $SG_VERSION =~ .*-os-.* ]]; then
   OS_VERSION=$(echo $SG_VERSION | cut -d- -f3)
@@ -53,24 +69,17 @@ SG_LINK="https://maven.search-guard.com/$SG_REPOSITORY/com/floragunn/search-guar
 SGSF_LINK="https://maven.search-guard.com/$SG_REPOSITORY/com/floragunn/search-guard-$SF_LC_NAME-plugin/$SGSF_VERSION/$SGSF_PLUGIN_FILE_NAME"
 SGCTL_LINK="https://maven.search-guard.com/search-guard-suite-release/com/floragunn/sgctl/$SGCTL_VERSION/sgctl-$SGCTL_VERSION.sh"
 
-echo "Welcome to the Search Guard test instance installation tool!"
-echo ""
-echo "This tool will download Search Guard and OpenSearch or Elasticsearch to the current directory on your computer and create a test instance."
-echo "All files downloaded here can be found on https://docs.search-guard.com/latest/search-guard-versions or on the websites of Elastic or OpenSearch."
-echo ""
-
 # ------------------------------------------------------------------------
 # Download all necessary components
 # ------------------------------------------------------------------------
 
-
-echo "Downloading Search Guard $SG_VERSION from $SG_LINK ... "
-curl --fail "$SG_LINK" -o $SG_PLUGIN_FILE_NAME
-echo
-
 if [[ $SG_VERSION =~ .*-os-.* ]]; then
  
-  echo "Downloading the Search Guard Search Frontend plugin for OpenSearch Dashboards $SGSF_LINK ... "  
+  echo "Downloading the Search Guard OpenSearch plugin $SG_VERSION from $SG_LINK ... "
+  curl --fail "$SG_LINK" -o $SG_PLUGIN_FILE_NAME
+  echo
+ 
+  echo "Downloading the Search Guard Search OpenSearch Dashboards plugin from $SGSF_LINK ... "  
   curl --fail "$SGSF_LINK" -o $SGSF_PLUGIN_FILE_NAME
   echo
   
@@ -83,7 +92,11 @@ if [[ $SG_VERSION =~ .*-os-.* ]]; then
 
 else
   
-  echo "Downloading the Search Guard Search Frontend plugin for Kibana from $SGSF_LINK ... "
+  echo "Downloading the Search Guard Elasticsearch plugin $SG_VERSION from $SG_LINK ... "
+  curl --fail "$SG_LINK" -o $SG_PLUGIN_FILE_NAME
+  echo  
+  
+  echo "Downloading the Search Guard Kibana plugin from $SGSF_LINK ... "
   curl --fail "$SGSF_LINK" -o $SGSF_PLUGIN_FILE_NAME
   echo
     
@@ -427,8 +440,8 @@ port: 9200
 tls:
   trusted_cas: "\${file:$SB_INSTALL_DIR/config/root-ca.pem}"
   client_auth:
-    certificate: "\${file:$SB_INSTALL_DIR/admin.pem}"
-    private_key: "\${file:$SB_INSTALL_DIR/admin-key.pem}"
+    certificate: "\${file:$BASE_DIR/admin.pem}"
+    private_key: "\${file:$BASE_DIR/admin-key.pem}"
 EOM
 
 echo >~/.searchguard/sgctl-selected-config.txt demo
@@ -525,7 +538,7 @@ echo "$SF_LC_NAME/bin/$SF_LC_NAME"
 echo
 echo "Note that $SB_NAME must be already running before you can start $SF_NAME. Upon the first start, $SF_NAME will take some time to build browser bundles before it is available."
 echo
-echo "In order to change the Search Guard configuration while $SB_NAME is running, edit one of the YML files in sgconfig and upload it using sgctl.sh update-config my-sg-config"
+echo "In order to change the Search Guard configuration while $SB_NAME is running, edit one of the YML files in my-sg-config and upload it using sgctl.sh update-config my-sg-config"
 echo
 echo "You might also want to review the generated configration file at:"
 echo "$SB_LC_NAME/config/$SB_LC_NAME.yml"
