@@ -198,7 +198,7 @@ public class ConfigurationLoaderSG7 {
             @Override
             public void onResponse(MultiGetResponse response) {
                 if (log.isTraceEnabled()) {
-                    log.trace("Response for " + mget + ": " + Strings.toString(response));
+                    log.trace("Response for " + mget.getItems());
                 }
                 
                 MultiGetItemResponse[] responses = response.getResponses();
