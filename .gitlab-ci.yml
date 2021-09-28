@@ -214,7 +214,7 @@ test_dlic_security:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+    - aws-runner
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-security test
   artifacts:
