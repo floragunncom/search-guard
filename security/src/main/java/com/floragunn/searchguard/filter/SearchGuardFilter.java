@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.filter;
 
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -27,6 +28,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.DocWriteRequest.OpType;
+import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
@@ -44,9 +46,11 @@ import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
@@ -79,7 +83,6 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 
 public class SearchGuardFilter implements ActionFilter {
-    
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
@@ -97,9 +100,9 @@ public class SearchGuardFilter implements ActionFilter {
     private final NamedXContentRegistry namedXContentRegistry;
 
     public SearchGuardFilter(final PrivilegesEvaluator evalp, final AdminDNs adminDns, DlsFlsRequestValve dlsFlsValve, AuditLog auditLog,
-            ThreadPool threadPool, ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, final CompatConfig compatConfig,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ExtendedActionHandlingService extendedActionHandlingService,
-            NamedXContentRegistry namedXContentRegistry) {
+            ThreadPool threadPool, ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig,
+            final CompatConfig compatConfig, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
+            ExtendedActionHandlingService extendedActionHandlingService, NamedXContentRegistry namedXContentRegistry) {
         this.evalp = evalp;
         this.adminDns = adminDns;
         this.dlsFlsValve = dlsFlsValve;
@@ -122,9 +125,9 @@ public class SearchGuardFilter implements ActionFilter {
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, final String action, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
-        
+
         specialPrivilegesEvaluationContextProviderRegistry.provide(threadContext.getTransient(ConfigConstants.SG_USER), threadContext,
-                (specialPrivilegesEvaluationContext) -> {                    
+                (specialPrivilegesEvaluationContext) -> {
                     try (StoredContext ctx = threadContext.newStoredContext(true)) {
                         apply0(task, action, request, listener, chain, specialPrivilegesEvaluationContext);
                     } catch (Exception e) {
@@ -138,19 +141,19 @@ public class SearchGuardFilter implements ActionFilter {
     }
 
     private <Request extends ActionRequest, Response extends ActionResponse> void apply0(Task task, final String action, Request request,
-            ActionListener<Response> listener, ActionFilterChain<Request, Response> chain, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext ) {
+            ActionListener<Response> listener, ActionFilterChain<Request, Response> chain,
+            SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
 
         try {
 
             if (threadContext.getTransient(ConfigConstants.SG_ORIGIN) == null) {
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.LOCAL.toString());
             }
-            
+
             if (complianceConfig != null && complianceConfig.isEnabled()) {
                 attachSourceFieldContext(request);
             }
 
-            
             User user = threadContext.getTransient(ConfigConstants.SG_USER);
             final boolean userIsAdmin = isUserAdmin(user, adminDns);
             final boolean interClusterRequest = HeaderHelper.isInterClusterRequest(threadContext);
@@ -161,25 +164,41 @@ public class SearchGuardFilter implements ActionFilter {
 
             final boolean internalRequest = (interClusterRequest || HeaderHelper.isDirectRequest(threadContext)) && action.startsWith("internal:")
                     && !action.startsWith("internal:transport/proxy");
-            
+
             diagnosticContext.addHeadersToLogContext(cs, threadContext);
+
+            if (user != null && (user.getName().equals("kibanaserver") || user.getName().equals("admin"))
+                    && !(action.equals("indices:data/read/search") || action.equals("indices:data/read/scroll/clear")
+                            || action.equals("cluster:admin/xpack/monitoring/bulk") || action.equals("cluster:monitor/nodes/info")
+                            || action.contains("[s]") || action.equals("cluster:monitor/xpack/info") || request.toString().contains("task_manager")
+                            || action.equals("indices:admin/refresh"))) {
+                log.warn("\n----------------------------------------------------------\n" + user.getName() + "\n" + action + " "
+                        + (request.toString().endsWith("/unset") ? "" : "\n" + request.toString()) + "\n"
+                        + (request instanceof IndicesRequest && ((IndicesRequest) request).indices() != null
+                                ? Arrays.asList(((IndicesRequest) request).indices()).toString() + "\n"
+                                : "")
+                        + (request instanceof BulkRequest ? ((BulkRequest) request).requests().toString() : "")
+                        + (request instanceof ToXContent ? Strings.toString((ToXContent) request, true, true) + "\n " : "")
+                        + "----------------------------------------------");
+            }
 
             if (specialPrivilegesEvaluationContext != null) {
                 if (log.isDebugEnabled()) {
                     log.debug("userIsAdmin: " + userIsAdmin + "\n" + "interClusterRequest: " + interClusterRequest + "\ntrustedClusterRequest: "
                             + trustedClusterRequest + "\nconfRequest: " + confRequest + "\npassThroughRequest: " + passThroughRequest);
-                    log.debug("Getting auth from specialPrivilegesEvaluationContext.\nOld user: " + user + "\nNew auth: " + specialPrivilegesEvaluationContext);
+                    log.debug("Getting auth from specialPrivilegesEvaluationContext.\nOld user: " + user + "\nNew auth: "
+                            + specialPrivilegesEvaluationContext);
                     log.debug(threadContext.getHeaders());
                 }
 
                 user = specialPrivilegesEvaluationContext.getUser();
-                
+
                 if (user != null && threadContext.getTransient(ConfigConstants.SG_USER) == null) {
                     threadContext.putTransient(ConfigConstants.SG_USER, user);
                 }
             }
 
-             org.apache.logging.log4j.ThreadContext.put("user", user != null ? user.getName() : "n/a");
+            org.apache.logging.log4j.ThreadContext.put("user", user != null ? user.getName() : "n/a");
 
             if (actionTrace.isTraceEnabled()) {
 
@@ -365,8 +384,8 @@ public class SearchGuardFilter implements ActionFilter {
         private String action;
         private Task task;
 
-        public ImmutableIndexActionListener(ActionListener<Response> originalListener, AuditLog auditLog, TransportRequest originalRequest, String action,
-                Task task) {
+        public ImmutableIndexActionListener(ActionListener<Response> originalListener, AuditLog auditLog, TransportRequest originalRequest,
+                String action, Task task) {
             super();
             this.originalListener = originalListener;
             this.auditLog = auditLog;
@@ -432,6 +451,5 @@ public class SearchGuardFilter implements ActionFilter {
 
         return null;
     }
-    
 
 }
