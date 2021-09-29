@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,21 +25,17 @@ import org.quartz.Job;
 import org.quartz.JobKey;
 import org.quartz.Trigger;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.config.temporal.DurationExpression;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.jobs.config.AbstractJobConfigFactory;
 import com.floragunn.searchsupport.jobs.config.JobConfig;
 import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.searchsupport.jobs.config.schedule.Schedule;
-import com.floragunn.searchsupport.json.JacksonTools;
-import com.floragunn.searchsupport.xcontent.JacksonXContent;
 import com.floragunn.signals.execution.WatchRunner;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.handlers.AutoResolveActionHandler;
@@ -371,29 +368,29 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     }
 
     public static Watch parse(WatchInitializationService ctx, String tenant, String id, String json, long version) throws ConfigValidationException {
-        return parse(ctx, tenant, id, ValidatingJsonParser.readTree(json), version);
+        return parse(ctx, tenant, id, DocNode.parse(DocType.JSON).from(json), version);
     }
 
     public static Watch parseFromElasticDocument(WatchInitializationService ctx, String tenant, String id, String json, long version)
             throws ConfigValidationException {
 
-        JsonNode jsonNode = ValidatingJsonParser.readTree(json);
+        DocNode jsonNode = DocNode.parse(DocType.JSON).from(json);
 
         if (jsonNode.hasNonNull("_source")) {
-            return parse(ctx, tenant, id, jsonNode.get("_source"), version);
+            return parse(ctx, tenant, id, jsonNode.getAsNode("_source"), version);
         } else {
             throw new ConfigValidationException(new MissingAttribute("_source", jsonNode));
         }
     }
 
-    public static Watch parse(WatchInitializationService ctx, String tenant, String id, JsonNode jsonNode) throws ConfigValidationException {
+    public static Watch parse(WatchInitializationService ctx, String tenant, String id, DocNode jsonNode) throws ConfigValidationException {
         return parse(ctx, tenant, id, jsonNode, -1);
     }
 
-    public static Watch parse(WatchInitializationService ctx, String tenant, String id, JsonNode jsonNode, long version)
+    public static Watch parse(WatchInitializationService ctx, String tenant, String id, DocNode jsonNode, long version)
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
         boolean severityHasErrors = false;
 
         vJsonNode.used("trigger", "_tenant", "_name");
@@ -405,24 +402,16 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         result.tenant = tenant;
 
         if (vJsonNode.hasNonNull("description")) {
-            result.description = vJsonNode.get("description").asText();
+            result.description = vJsonNode.get("description").asString();
         }
 
+        result.schedule = vJsonNode.get("trigger").by((triggerNode) -> DefaultScheduleFactory.INSTANCE.create(jobKey, triggerNode));
+        
         try {
-            ObjectNode triggerNode = vJsonNode.getObjectNode("trigger");
-
-            if (triggerNode != null) {
-                result.schedule = DefaultScheduleFactory.INSTANCE.create(jobKey, triggerNode);
-            }
-        } catch (ConfigValidationException e) {
-            validationErrors.add("trigger", e);
-        }
-
-        try {
-            if (vJsonNode.hasNonNull("inputs")) {
-                result.checks = Check.create(ctx, (ArrayNode) vJsonNode.get("inputs"));
-            } else if (vJsonNode.hasNonNull("checks")) {
-                result.checks = Check.create(ctx, (ArrayNode) vJsonNode.get("checks"));
+            if (vJsonNode.get("inputs").asAnything() instanceof List) {
+                result.checks = Check.create(ctx, (List<?>) jsonNode.get("inputs"));
+            } else if (vJsonNode.get("checks").asAnything() instanceof List) {
+                result.checks = Check.create(ctx, (List<?>) jsonNode.get("checks"));
             } else {
                 result.checks = Collections.emptyList();
             }
@@ -432,7 +421,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
         try {
             if (vJsonNode.hasNonNull("severity")) {
-                result.severityMapping = SeverityMapping.create(ctx, vJsonNode.get("severity"));
+                result.severityMapping = SeverityMapping.create(ctx, jsonNode.getAsNode("severity"));
             }
         } catch (ConfigValidationException e) {
             validationErrors.add("severity", e);
@@ -441,7 +430,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
         try {
             if (vJsonNode.hasNonNull("actions")) {
-                result.actions = AlertAction.createFromArray(ctx, (ArrayNode) vJsonNode.get("actions"),
+                result.actions = AlertAction.createFromArray(ctx, jsonNode.getAsList("actions"),
                         !severityHasErrors ? result.severityMapping : SeverityMapping.DUMMY_MAPPING);
             } else {
                 result.actions = Collections.emptyList();
@@ -452,7 +441,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
         try {
             if (vJsonNode.hasNonNull("resolve_actions")) {
-                result.resolveActions = ResolveAction.createFromArray(ctx, (ArrayNode) vJsonNode.get("resolve_actions"),
+                result.resolveActions = ResolveAction.createFromArray(ctx, jsonNode.getAsList("resolve_actions"),
                         !severityHasErrors ? result.severityMapping : SeverityMapping.DUMMY_MAPPING);
             } else {
                 result.resolveActions = Collections.emptyList();
@@ -461,16 +450,16 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             validationErrors.add("resolve_actions", e);
         }
 
-        result.throttlePeriod = vJsonNode.durationExpression("throttle_period");
+        result.throttlePeriod = vJsonNode.get("throttle_period").byString(DurationExpression::parse);
 
         if (vJsonNode.hasNonNull("active")) {
-            result.active = vJsonNode.get("active").booleanValue();
+            result.active = vJsonNode.get("active").asBoolean();
         } else {
             result.active = true;
         }
 
         if (vJsonNode.hasNonNull("log_runtime_data")) {
-            result.logRuntimeData = vJsonNode.get("log_runtime_data").booleanValue();
+            result.logRuntimeData = vJsonNode.get("log_runtime_data").asBoolean();
         } else {
             result.logRuntimeData = false;
         }
@@ -481,16 +470,14 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         result.version = version;
 
         if (vJsonNode.hasNonNull("_meta")) {
-            result.meta = Meta.parseMeta(vJsonNode.get("_meta"));
+            result.meta = Meta.parseMeta(vJsonNode.get("_meta").asDocNode());
         }
 
         if (vJsonNode.hasNonNull("_ui")) {
-            JsonNode ui = vJsonNode.get("_ui");
-
-            result.ui = JacksonTools.toMap(ui);
+            result.ui = vJsonNode.get("_ui").asMap();
         }
 
-        vJsonNode.validateUnusedAttributes();
+        vJsonNode.checkForUnusedAttributes();
 
         validationErrors.throwExceptionForPresentErrors();
 
@@ -519,26 +506,26 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         private String lastEditByUser;
         private Date lastEditByDate;
 
-        static Meta parseMeta(JsonNode metaNode) {
+        static Meta parseMeta(DocNode metaNode) {
 
             Meta result = new Meta();
 
             if (metaNode.hasNonNull("auth_token")) {
-                result.authToken = metaNode.get("auth_token").asText();
+                result.authToken = metaNode.getAsString("auth_token");
             }
 
             if (metaNode.hasNonNull("last_edit")) {
-                JsonNode lastEditNode = metaNode.get("last_edit");
+                DocNode lastEditNode = metaNode.getAsNode("last_edit");
 
                 if (lastEditNode.hasNonNull("user")) {
-                    result.lastEditByUser = lastEditNode.get("user").asText();
+                    result.lastEditByUser = lastEditNode.getAsString("user");
                 }
 
                 if (lastEditNode.hasNonNull("date")) {
                     // XXX not nice
                     try {
                         result.lastEditByDate = Date.from(
-                                ZonedDateTime.from(DateFieldMapper.DEFAULT_DATE_TIME_FORMATTER.parse(lastEditNode.get("date").asText())).toInstant());
+                                ZonedDateTime.from(DateFieldMapper.DEFAULT_DATE_TIME_FORMATTER.parse(lastEditNode.getAsString("date"))).toInstant());
                     } catch (Exception e) {
                         log.warn("Error while parsing last edit date: " + lastEditNode + " for " + result, e);
                     }
@@ -571,8 +558,18 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             return builder;
         }
 
-        public JsonNode toJsonNode() throws IOException {
-            return JacksonXContent.toJsonNode(this);
+        public Map<String, Object> toMap() throws IOException {
+            LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+
+            if (authToken != null) {
+                result.put("auth_token", authToken);
+            }
+
+            if (lastEditByUser != null) {
+                result.put("last_edit", ImmutableMap.of("user", lastEditByUser, "date", lastEditByDate));
+            }
+
+            return result;
         }
 
         public String getAuthToken() {
@@ -614,8 +611,8 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         }
 
         @Override
-        protected Watch createFromJsonNode(String id, JsonNode jsonNode, long version) throws ConfigValidationException {
-            String tenant = jsonNode.get("_tenant").asText();
+        protected Watch createFromJsonNode(String id, DocNode jsonNode, long version) throws ConfigValidationException {
+            String tenant = jsonNode.getAsString("_tenant");
 
             if (this.tenant != null && !this.tenant.equals(tenant)) {
                 throw new IllegalStateException("Watch " + id + " has unexpected tenant: " + tenant + "; expected: " + this.tenant);
@@ -627,7 +624,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         }
 
         @Override
-        protected JobKey getJobKey(String id, JsonNode jsonNode) {
+        protected JobKey getJobKey(String id, DocNode jsonNode) {
             return createJobKey(getWatchId(id));
         }
 

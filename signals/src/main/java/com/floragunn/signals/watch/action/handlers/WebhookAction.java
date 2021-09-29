@@ -14,9 +14,9 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.SimulationMode;
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -97,14 +97,14 @@ public class WebhookAction extends ActionHandler {
         }
 
         @Override
-        protected WebhookAction create(WatchInitializationService watchInitService, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors)
+        protected WebhookAction create(WatchInitializationService watchInitService, ValidatingDocNode vJsonNode, ValidationErrors validationErrors)
                 throws ConfigValidationException {
             HttpClientConfig httpClientConfig = null;
             HttpRequestConfig request = null;
 
             if (vJsonNode.hasNonNull("request")) {
                 try {
-                    request = HttpRequestConfig.create(watchInitService, vJsonNode.get("request"));
+                    request = HttpRequestConfig.create(watchInitService, vJsonNode.getDocumentNode().getAsNode("request"));
                 } catch (ConfigValidationException e) {
                     validationErrors.add("request", e);
                 }

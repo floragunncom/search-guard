@@ -23,7 +23,10 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAccessor;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -57,6 +60,7 @@ public class DocWriter {
 
     private JsonFactory jsonFactory;
     private int maxDepth = 20;
+    private DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ISO_INSTANT;
 
     public DocWriter(JsonFactory jsonFactory) {
         this.jsonFactory = jsonFactory;
@@ -149,10 +153,14 @@ public class DocWriter {
             generator.writeBoolean(((Boolean) object).booleanValue());
         } else if (object instanceof Enum) {
             generator.writeString(((Enum<?>) object).name());
+        } else if (object instanceof Date) {
+            generator.writeString(dateTimeFormatter.format(((Date) object).toInstant()));
+        } else if (object instanceof TemporalAccessor) {
+            generator.writeString(dateTimeFormatter.format((TemporalAccessor) object));
         } else if (object == null) {
             generator.writeNull();
         } else {
-            throw new JsonGenerationException("Unsupported object type: " + object, generator);
+            throw new JsonGenerationException("Unsupported object type: " + object.getClass(), generator);
         }
     }
 }

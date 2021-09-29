@@ -10,11 +10,10 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptException;
 import org.elasticsearch.script.ScriptType;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.CheckExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.script.SignalsScript;
@@ -38,20 +37,19 @@ public class Condition extends Check {
         script = new Script(ScriptType.INLINE, lang != null ? lang : "painless", source, this.params);
     }
 
-    static Condition create(WatchInitializationService watchInitService, ObjectNode jsonObject) throws ConfigValidationException {
+    static Condition create(WatchInitializationService watchInitService, DocNode jsonObject) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonObject, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonObject, validationErrors);
 
         vJsonNode.used("type");
 
-        String name = vJsonNode.string("name");
-        String source = vJsonNode.string("source");
-        String lang = vJsonNode.string("lang");
+        String name = vJsonNode.get("name").asString();
+        String source = vJsonNode.get("source").asString();
+        String lang = vJsonNode.get("lang").asString();
 
-        Map<String, Object> params = JacksonTools.toMap(vJsonNode.get("params"));
+        Map<String, Object> params = jsonObject.getAsNode("params") != null ? jsonObject.getAsNode("params").toMap() : null;
 
-        vJsonNode.validateUnusedAttributes();
-
+        vJsonNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         Condition result = new Condition(name, source, lang, params);
@@ -68,7 +66,6 @@ public class Condition extends Check {
 
         validationErrors.throwExceptionForPresentErrors();
     }
-
 
     public String getSource() {
         return source;

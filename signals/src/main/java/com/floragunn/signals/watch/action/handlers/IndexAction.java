@@ -20,9 +20,9 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.SimulationMode;
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -72,7 +72,7 @@ public class IndexAction extends ActionHandler {
 
             if (ctx.getSimulationMode() == SimulationMode.FOR_REAL) {
                 IndexResponse indexResponse = ctx.getClient().index(indexRequest).get();
-                
+
                 if (log.isDebugEnabled()) {
                     log.debug("Result of " + this + ":\n" + Strings.toString(indexResponse));
                 }
@@ -107,7 +107,7 @@ public class IndexAction extends ActionHandler {
                 if (log.isDebugEnabled()) {
                     log.debug("Result of " + this + ":\n" + Strings.toString(response));
                 }
-                
+
                 if (response.hasFailures()) {
                     throw new ActionExecutionException(this, "BulkRequest contains failures: " + response.buildFailureMessage());
                 }
@@ -185,15 +185,15 @@ public class IndexAction extends ActionHandler {
         }
 
         @Override
-        protected IndexAction create(WatchInitializationService watchInitService, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors)
+        protected IndexAction create(WatchInitializationService watchInitService, ValidatingDocNode vJsonNode, ValidationErrors validationErrors)
                 throws ConfigValidationException {
-            String index = vJsonNode.string("index");
-            RefreshPolicy refreshPolicy = vJsonNode.value("refresh", (s) -> RefreshPolicy.parse(s), "true|false|wait_for", null);
+            String index = vJsonNode.get("index").asString();
+            RefreshPolicy refreshPolicy = vJsonNode.get("refresh").expected("true|false|wait_for").byString((s) -> RefreshPolicy.parse(s));
 
             IndexAction result = new IndexAction(index, refreshPolicy);
 
             if (vJsonNode.hasNonNull("doc_id")) {
-                result.docId = vJsonNode.template("doc_id");
+                result.docId = vJsonNode.get("doc_id").byString((s) -> InlineMustacheTemplate.parse(watchInitService.getScriptService(), s));
             }
 
             if (vJsonNode.hasNonNull("timeout")) {

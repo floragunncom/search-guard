@@ -34,8 +34,8 @@ public class DocType {
     private static List<DocType> registeredDocTypes = new ArrayList<>();
     private static Map<String, DocType> registeredDocTypesByContentType = new HashMap<>();
 
-    public static DocType JSON = new DocType(new JsonFactory(), "json", "application/json");
-    public static DocType YAML = new DocType(new YAMLFactory(), "ya?ml", "application/x-yaml", "application/yaml", "text/yaml", "text/x-yaml",
+    public static DocType JSON = new DocType("JSON", new JsonFactory(), "json", "application/json");
+    public static DocType YAML = new DocType("YAML", new YAMLFactory(), "ya?ml", "application/x-yaml", "application/yaml", "text/yaml", "text/x-yaml",
             "text/vnd.yaml");
 
     public static DocType getByContentType(String contentType) throws UnknownContentTypeException {
@@ -63,20 +63,20 @@ public class DocType {
             return null;
         }
     }
-    
+
     public static DocType getByFileName(String fileName, DocType fallbackDocType) {
         for (DocType docType : registeredDocTypes) {
             if (docType.fileNamePattern == null) {
                 continue;
             }
-            
+
             Matcher matcher = docType.fileNamePattern.matcher(fileName);
-            
+
             if (matcher.matches()) {
                 return docType;
             }
         }
-        
+
         return fallbackDocType;
     }
 
@@ -89,12 +89,14 @@ public class DocType {
         }
     }
 
+    private final String name;
     private final String contentType;
     private final Set<String> contentTypeAliases;
     private final JsonFactory jsonFactory;
     private final Pattern fileNamePattern;
 
-    public DocType(JsonFactory jsonFactory, String fileNameSuffixPattern, String contentType, String... contentTypeAliases) {
+    public DocType(String name, JsonFactory jsonFactory, String fileNameSuffixPattern, String contentType, String... contentTypeAliases) {
+        this.name = name;
         this.contentType = contentType;
         this.jsonFactory = jsonFactory;
         this.contentTypeAliases = new HashSet<>(Arrays.asList(contentTypeAliases));
@@ -113,6 +115,15 @@ public class DocType {
 
     public Set<String> getContentTypeAliases() {
         return contentTypeAliases;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String toString() {
+        return name;
     }
 
     public static class UnknownContentTypeException extends Exception {

@@ -16,11 +16,10 @@ import org.quartz.ScheduleBuilder;
 import org.quartz.TimeOfDay;
 import org.quartz.impl.triggers.CronTriggerImpl;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.codova.validation.errors.MissingAttribute;
 
 public class WeeklyTrigger extends HumanReadableCronTrigger<WeeklyTrigger> {
 
@@ -105,47 +104,12 @@ public class WeeklyTrigger extends HumanReadableCronTrigger<WeeklyTrigger> {
         return builder;
     }
 
-    public static WeeklyTrigger create(JsonNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
+    public static WeeklyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
+        ValidatingDocNode vDocNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        List<DayOfWeek> on = null;
-        List<TimeOfDay> at = null;
-
-        try {
-            JsonNode onNode = jsonNode.get("on");
-
-            if (onNode != null && onNode.isArray()) {
-                on = new ArrayList<>(onNode.size());
-
-                for (JsonNode onNodeElement : onNode) {
-                    on.add(getDayOfWeek(onNodeElement.textValue()));
-                }
-            } else if (onNode != null && onNode.isTextual()) {
-                on = Collections.singletonList(getDayOfWeek(onNode.textValue()));
-            } else {
-                on = Collections.emptyList();
-            }
-        } catch (ConfigValidationException e) {
-            validationErrors.add("on", e);
-        }
-
-        try {
-            JsonNode atNode = jsonNode.get("at");
-
-            if (atNode != null && atNode.isArray()) {
-                at = new ArrayList<>(atNode.size());
-
-                for (JsonNode atNodeElement : atNode) {
-                    at.add(parseTimeOfDay(atNodeElement.textValue()));
-                }
-            } else if (atNode != null && atNode.isTextual()) {
-                at = Collections.singletonList(parseTimeOfDay(atNode.textValue()));
-            } else {
-                validationErrors.add(new MissingAttribute("at", jsonNode));
-            }
-        } catch (ConfigValidationException e) {
-            validationErrors.add("at", e);
-        }
+        List<DayOfWeek> on = vDocNode.get("on").asList().ofDayOfWeek();
+        List<TimeOfDay> at = vDocNode.get("at").required().viaStringsAsList((s) -> parseTimeOfDay(s));
 
         validationErrors.throwExceptionForPresentErrors();
 
@@ -191,34 +155,6 @@ public class WeeklyTrigger extends HumanReadableCronTrigger<WeeklyTrigger> {
         }
     }
 
-    private static DayOfWeek getDayOfWeek(String string) throws ConfigValidationException {
-        switch (string) {
-        case "sunday":
-        case "sun":
-            return DayOfWeek.SUNDAY;
-        case "monday":
-        case "mon":
-            return DayOfWeek.MONDAY;
-        case "tuesday":
-        case "tue":
-            return DayOfWeek.TUESDAY;
-        case "wednesday":
-        case "wed":
-            return DayOfWeek.WEDNESDAY;
-        case "thursday":
-        case "thu":
-            return DayOfWeek.THURSDAY;
-        case "friday":
-        case "fri":
-            return DayOfWeek.FRIDAY;
-        case "saturday":
-        case "sat":
-            return DayOfWeek.SATURDAY;
-        default:
-            throw new ConfigValidationException(new InvalidAttributeValue("on", string, "mon|tue|wed|thu|fri|sat|sun"));
-        }
-    }
-
     public static final TriggerFactory<WeeklyTrigger> FACTORY = new TriggerFactory<WeeklyTrigger>() {
 
         @Override
@@ -227,7 +163,7 @@ public class WeeklyTrigger extends HumanReadableCronTrigger<WeeklyTrigger> {
         }
 
         @Override
-        public WeeklyTrigger create(JsonNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
+        public WeeklyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
             return WeeklyTrigger.create(jsonNode, timeZone);
         }
     };

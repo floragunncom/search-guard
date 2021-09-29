@@ -5,12 +5,13 @@ import java.util.Collections;
 
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.script.ScriptService;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.watch.init.WatchInitializationService;
@@ -25,8 +26,7 @@ public class JiraIssueConfig implements ToXContentObject {
 
     private String issueType;
 
-    public JiraIssueConfig(String issueType, InlineMustacheTemplate<String> summaryTemplate,
-            InlineMustacheTemplate<String> descriptionTemplate) {
+    public JiraIssueConfig(String issueType, InlineMustacheTemplate<String> summaryTemplate, InlineMustacheTemplate<String> descriptionTemplate) {
         this.issueType = issueType;
         this.summaryTemplate = summaryTemplate;
         this.descriptionTemplate = descriptionTemplate;
@@ -110,20 +110,23 @@ public class JiraIssueConfig implements ToXContentObject {
         this.priorityTemplate = priorityTemplate;
     }
 
-    static JiraIssueConfig create(WatchInitializationService watchInitializationService, JsonNode jsonNode) throws ConfigValidationException {
+    static JiraIssueConfig create(WatchInitializationService watchInitializationService, DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors).with(watchInitializationService.getScriptService());
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
+        ScriptService scriptService = watchInitializationService.getScriptService();
 
-        String issueType = vJsonNode.requiredString("type");
-        InlineMustacheTemplate<String> summaryTemplate = vJsonNode.requiredTemplate("summary");
-        InlineMustacheTemplate<String> descriptionTemplate = vJsonNode.requiredTemplate("description");
+        String issueType = vJsonNode.get("type").required().asString();
+        InlineMustacheTemplate<String> summaryTemplate = vJsonNode.get("summary").required()
+                .byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
+        InlineMustacheTemplate<String> descriptionTemplate = vJsonNode.get("description").required()
+                .byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
 
         JiraIssueConfig result = new JiraIssueConfig(issueType, summaryTemplate, descriptionTemplate);
 
-        result.priorityTemplate = vJsonNode.template("priority");
-        result.parentIssueTemplate = vJsonNode.template("parent");
-        result.componentTemplate = vJsonNode.template("component");
-        result.labelTemplate = vJsonNode.template("label");
+        result.priorityTemplate = vJsonNode.get("priority").byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
+        result.parentIssueTemplate = vJsonNode.get("parent").byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
+        result.componentTemplate = vJsonNode.get("component").byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
+        result.labelTemplate = vJsonNode.get("label").byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
 
         validationErrors.throwExceptionForPresentErrors();
 

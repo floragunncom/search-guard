@@ -8,14 +8,16 @@ import java.util.Map;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.ScriptException;
+import org.elasticsearch.script.ScriptService;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.searchsupport.config.elements.EnumValueParser;
 import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
 import com.floragunn.searchsupport.config.validation.ScriptExecutionError;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
@@ -71,18 +73,20 @@ public class PagerDutyEventConfig implements ToXContent {
         return builder;
     }
 
-    static PagerDutyEventConfig create(WatchInitializationService watchInitializationService, JsonNode jsonNode) throws ConfigValidationException {
+    static PagerDutyEventConfig create(WatchInitializationService watchInitializationService, DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors).with(watchInitializationService.getScriptService());
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
+        ScriptService scriptService = watchInitializationService.getScriptService();
 
         PagerDutyEventConfig result = new PagerDutyEventConfig();
 
-        result.eventAction = vJsonNode.template("event_action", PagerDutyEvent.EventAction.class);
-        result.dedupKey = vJsonNode.template("dedup_key");
+        result.eventAction = vJsonNode.get("event_action").byString((s) -> InlineMustacheTemplate.parse(scriptService, s,
+                new EnumValueParser<>(PagerDutyEvent.EventAction.class), PagerDutyEvent.EventAction.class));
+        result.dedupKey = vJsonNode.get("dedup_key").byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
 
         if (vJsonNode.hasNonNull("payload")) {
             try {
-                result.payload = Payload.create(watchInitializationService, vJsonNode.get("payload"));
+                result.payload = Payload.create(watchInitializationService, jsonNode.getAsNode("payload"));
             } catch (ConfigValidationException e) {
                 validationErrors.add("payload", e);
             }
@@ -170,20 +174,22 @@ public class PagerDutyEventConfig implements ToXContent {
             return builder;
         }
 
-        static Payload create(WatchInitializationService watchInitializationService, JsonNode jsonNode) throws ConfigValidationException {
+        static Payload create(WatchInitializationService watchInitializationService, DocNode jsonNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors).with(watchInitializationService.getScriptService());
+            ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
+            ScriptService scriptService = watchInitializationService.getScriptService();
 
             Payload result = new Payload();
 
-            result.summary = vJsonNode.requiredTemplate("summary");
-            result.source = vJsonNode.requiredTemplate("source");
-            result.severity = vJsonNode.template("severity", PagerDutyEvent.Payload.Severity.class);
-            result.component = vJsonNode.template("component");
-            result.group = vJsonNode.template("group");
-            result.eventClass = vJsonNode.template("class");
-            result.customDetails = vJsonNode.value("custom_details", new InlinePainlessScript.Parser<SignalsObjectFunctionScript.Factory>(
-                    SignalsObjectFunctionScript.CONTEXT, watchInitializationService), null);
+            result.summary = vJsonNode.get("summary").required().byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
+            result.source = vJsonNode.get("source").required().byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
+            result.severity = vJsonNode.get("severity").byString((s) -> InlineMustacheTemplate.parse(scriptService, s,
+                    new EnumValueParser<>(PagerDutyEvent.Payload.Severity.class), PagerDutyEvent.Payload.Severity.class));
+            result.component = vJsonNode.get("component").byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
+            result.group = vJsonNode.get("group").byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
+            result.eventClass = vJsonNode.get("class").byString((s) -> InlineMustacheTemplate.parse(scriptService, s));
+            result.customDetails = vJsonNode.get("custom_details")
+                    .byString((s) -> InlinePainlessScript.parse(s, SignalsObjectFunctionScript.CONTEXT, watchInitializationService));
 
             validationErrors.throwExceptionForPresentErrors();
 

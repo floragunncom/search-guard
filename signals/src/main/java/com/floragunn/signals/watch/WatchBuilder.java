@@ -28,8 +28,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.config.temporal.DurationFormat;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleImpl;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.WeeklyTrigger;
 import com.floragunn.signals.support.NestedValueMap;
@@ -263,14 +264,10 @@ public class WatchBuilder {
                 propertyMap.put(Path.parse(String.valueOf(properties[i])), properties[i + 1]);
             }
 
-            try {
-                ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(new WatchInitializationService(null, null),
-                        DefaultObjectMapper.objectMapper.readTree(propertyMap.toJsonString()));
+            ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(new WatchInitializationService(null, null),
+                    DocNode.parse(DocType.JSON).from(propertyMap.toJsonString()));
 
-                return new GenericActionBuilder(this, actionHandler);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            return new GenericActionBuilder(this, actionHandler);
         }
 
         protected abstract void addActionHandler(ActionHandler actionHandler, AbstractActionBuilder abstractActionBuilder);
@@ -433,7 +430,7 @@ public class WatchBuilder {
             }
             return this;
         }
-        
+
         protected ActionHandler finish() {
             return new WebhookAction(new HttpRequestConfig(method, uri, null, null, body, headers, auth, null),
                     new HttpClientConfig(null, null, null, proxy));

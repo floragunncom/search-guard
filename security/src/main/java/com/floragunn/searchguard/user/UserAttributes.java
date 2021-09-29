@@ -35,7 +35,9 @@ import org.elasticsearch.common.settings.Settings;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.codova.documents.DocParseException;
 import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.documents.DocWriter;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
@@ -364,7 +366,7 @@ public class UserAttributes {
             try {
                 JsonParser parser = JSON_FACTORY.createParser(string.substring(start));
 
-                Object result = new DocReader(parser).read();
+                Object result = new DocReader(DocType.JSON, parser).read();
 
                 i = start + (int) parser.getTokenLocation().getCharOffset() + parser.getLastClearedToken().asString().length();
 
@@ -373,7 +375,7 @@ public class UserAttributes {
                 }
                 return result;
 
-            } catch (IOException e) {
+            } catch (DocParseException | IOException e) {
                 throw new StringInterpolationException("Invalid JSON block at " + start + ": " + string, e);
             }
         }

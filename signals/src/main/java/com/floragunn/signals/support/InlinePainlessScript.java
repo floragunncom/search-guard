@@ -11,7 +11,6 @@ import org.elasticsearch.script.ScriptType;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValueParser;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
 public class InlinePainlessScript<Factory> implements ToXContentFragment {
@@ -41,29 +40,14 @@ public class InlinePainlessScript<Factory> implements ToXContentFragment {
         return scriptFactory;
     }
 
-    public static class Parser<Factory> implements ValueParser<InlinePainlessScript<Factory>> {
-        private final WatchInitializationService watchInitializationService;
-        private final ScriptContext<Factory> scriptContext;
+    public static <Factory> InlinePainlessScript<Factory> parse(String string, ScriptContext<Factory> scriptContext,
+            WatchInitializationService watchInitializationService) throws ConfigValidationException {
+        ValidationErrors validationErrors = new ValidationErrors();
+        InlinePainlessScript<Factory> result = new InlinePainlessScript<Factory>(scriptContext, string);
 
-        public Parser(ScriptContext<Factory> scriptContext, WatchInitializationService watchInitializationService) {
-            this.watchInitializationService = watchInitializationService;
-            this.scriptContext = scriptContext;
-        }
-
-        @Override
-        public InlinePainlessScript<Factory> parse(String string) throws ConfigValidationException {
-            ValidationErrors validationErrors = new ValidationErrors();
-            InlinePainlessScript<Factory> result = new InlinePainlessScript<Factory>(scriptContext, string);
-
-            result.compile(watchInitializationService, validationErrors);
-            validationErrors.throwExceptionForPresentErrors();
-            return result;
-        }
-
-        @Override
-        public String getExpectedValue() {
-            return "Painless script";
-        }
+        result.compile(watchInitializationService, validationErrors);
+        validationErrors.throwExceptionForPresentErrors();
+        return result;
     }
 
 }

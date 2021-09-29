@@ -36,6 +36,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
+import com.floragunn.codova.validation.errors.ValidationError;
 
 /**
  * A lightweight, reflection-less way of parsing JSON. Parses JSON to these basic Java types:
@@ -49,7 +50,7 @@ import com.fasterxml.jackson.core.JsonToken;
 public class DocReader {
 
     public static DocReaderBuilder type(DocType docType) {
-        return new DocReaderBuilder(docType.getJsonFactory());
+        return new DocReaderBuilder(docType, docType.getJsonFactory());
     }
 
     public static DocReaderBuilder json() {
@@ -61,89 +62,103 @@ public class DocReader {
     }
 
     private JsonParser parser;
+    private DocType docType;
     private LinkedList<Object> nodeStack = new LinkedList<>();
     private Object currentNode;
     private Object topNode;
     private String currentAttributeName = null;
 
-    public DocReader(JsonParser parser) {
+    public DocReader(DocType docType, JsonParser parser) {
+        this.docType = docType;
         this.parser = parser;
     }
 
-    public Object read() throws IOException, JsonProcessingException {
+    public Object read() throws IOException, DocParseException {
 
-        for (JsonToken token = parser.currentToken() != null ? parser.currentToken() : parser.nextToken(); token != null; token = parser
-                .nextToken()) {
+        int tokenCount = 0;
 
-            switch (token) {
+        try {
+            for (JsonToken token = parser.currentToken() != null ? parser.currentToken() : parser.nextToken(); token != null; token = parser
+                    .nextToken()) {
 
-            case START_OBJECT:
-                if (currentNode != null) {
-                    nodeStack.add(currentNode);
+                tokenCount++;
+
+                switch (token) {
+
+                case START_OBJECT:
+                    if (currentNode != null) {
+                        nodeStack.add(currentNode);
+                    }
+
+                    currentNode = addNode(new LinkedHashMap<String, Object>());
+                    break;
+
+                case START_ARRAY:
+                    if (currentNode != null) {
+                        nodeStack.add(currentNode);
+                    }
+
+                    currentNode = addNode(new ArrayList<Object>());
+                    break;
+
+                case END_OBJECT:
+                case END_ARRAY:
+                    if (nodeStack.isEmpty()) {
+                        currentNode = null;
+                    } else {
+                        currentNode = nodeStack.removeLast();
+                    }
+                    break;
+
+                case FIELD_NAME:
+                    currentAttributeName = parser.currentName();
+                    break;
+
+                case VALUE_TRUE:
+                    addNode(Boolean.TRUE);
+                    break;
+
+                case VALUE_FALSE:
+                    addNode(Boolean.FALSE);
+                    break;
+
+                case VALUE_NULL:
+                    addNode(null);
+                    break;
+
+                case VALUE_NUMBER_FLOAT:
+                case VALUE_NUMBER_INT:
+                    addNode(parser.getNumberValue());
+                    break;
+
+                case VALUE_STRING:
+                    addNode(parser.getText());
+                    break;
+
+                case VALUE_EMBEDDED_OBJECT:
+                    addNode(parser.getEmbeddedObject());
+                    break;
+
+                default:
+                    throw new IllegalStateException("Unexpected token: " + token);
+
                 }
 
-                currentNode = addNode(new LinkedHashMap<String, Object>());
-                break;
-
-            case START_ARRAY:
-                if (currentNode != null) {
-                    nodeStack.add(currentNode);
+                if (nodeStack.isEmpty() && currentNode == null) {
+                    break;
                 }
-
-                currentNode = addNode(new ArrayList<Object>());
-                break;
-
-            case END_OBJECT:
-            case END_ARRAY:
-                if (nodeStack.isEmpty()) {
-                    currentNode = null;
-                } else {
-                    currentNode = nodeStack.removeLast();
-                }
-                break;
-
-            case FIELD_NAME:
-                currentAttributeName = parser.currentName();
-                break;
-
-            case VALUE_TRUE:
-                addNode(Boolean.TRUE);
-                break;
-
-            case VALUE_FALSE:
-                addNode(Boolean.FALSE);
-                break;
-
-            case VALUE_NULL:
-                addNode(null);
-                break;
-
-            case VALUE_NUMBER_FLOAT:
-            case VALUE_NUMBER_INT:
-                addNode(parser.getNumberValue());
-                break;
-
-            case VALUE_STRING:
-                addNode(parser.getText());
-                break;
-
-            case VALUE_EMBEDDED_OBJECT:
-                addNode(parser.getEmbeddedObject());
-                break;
-
-            default:
-                throw new JsonParseException(parser, "Unexpected token: " + token);
-
             }
 
-            if (nodeStack.isEmpty() && currentNode == null) {
-                break;
+            parser.clearCurrentToken();
+
+            if (tokenCount == 0) {
+                throw new DocParseException(new ValidationError(null, "The document is empty").expected(docType.getName() + " document"));
             }
+
+            return topNode;
+        } catch (JsonProcessingException e) {
+            throw new DocParseException(e, docType);
         }
-
-        parser.clearCurrentToken();
-
-        return topNode;
     }
 
     private Object addNode(Object newNode) throws JsonProcessingException {
@@ -176,57 +191,55 @@ public class DocReader {
 
     public static class DocReaderBuilder {
         private JsonFactory jsonFactory;
+        private DocType docType;
 
-        DocReaderBuilder(JsonFactory jsonFactory) {
+        DocReaderBuilder(DocType docType, JsonFactory jsonFactory) {
+            this.docType = docType;
             this.jsonFactory = jsonFactory;
         }
 
-        public Object read(Reader in) throws JsonProcessingException, IOException {
+        public Object read(Reader in) throws DocParseException, IOException {
             try (JsonParser parser = jsonFactory.createParser(in)) {
-                return new DocReader(parser).read();
+                return new DocReader(docType, parser).read();
             }
         }
 
-        public Object read(String string) throws JsonProcessingException {
+        public Object read(String string) throws DocParseException {
             try (JsonParser parser = jsonFactory.createParser(string)) {
-                return new DocReader(parser).read();
-            } catch (JsonProcessingException e) {
-                throw e;
+                return new DocReader(docType, parser).read();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
 
-        public Object read(byte[] bytes) throws JsonProcessingException {
+        public Object read(byte[] bytes) throws DocParseException {
             try {
                 return read(new ByteArrayInputStream(bytes));
-            } catch (JsonProcessingException e) {
-                throw e;
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
 
-        private Object read(InputStream in) throws JsonProcessingException, IOException {
+        private Object read(InputStream in) throws DocParseException, IOException {
             try (JsonParser parser = jsonFactory.createParser(in)) {
-                return new DocReader(parser).read();
+                return new DocReader(docType, parser).read();
             }
         }
 
-        public Map<String, Object> readObject(InputStream in) throws JsonProcessingException, IOException {
+        public Map<String, Object> readObject(InputStream in) throws DocParseException, IOException {
             return toJsonObject(read(in));
         }
 
-        public Map<String, Object> readObject(String string) throws JsonProcessingException {
+        public Map<String, Object> readObject(String string) throws DocParseException, UnexpectedDocumentStructureException {
             return toJsonObject(read(string));
         }
 
-        public Map<String, Object> readObject(byte[] bytes) throws JsonProcessingException {
+        public Map<String, Object> readObject(byte[] bytes) throws DocParseException, UnexpectedDocumentStructureException {
             return toJsonObject(read(bytes));
         }
 
         public Map<String, Object> readObject(File file)
-                throws UnexpectedDocumentStructureException, JsonProcessingException, FileNotFoundException, IOException {
+                throws UnexpectedDocumentStructureException, DocParseException, FileNotFoundException, IOException {
             return toJsonObject(read(new FileInputStream(file)));
         }
 

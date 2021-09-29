@@ -6,11 +6,10 @@ import java.util.List;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.ToXContent;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
@@ -57,13 +56,13 @@ public abstract class ActionInvoker implements ToXContent {
         return Strings.toString(this);
     }
 
-    protected static List<Check> createNestedChecks(WatchInitializationService watchInitService, ValidatingJsonNode vJsonNode,
+    protected static List<Check> createNestedChecks(WatchInitializationService watchInitService, ValidatingDocNode vJsonNode,
             ValidationErrors validationErrors) {
         if (vJsonNode.hasNonNull("checks")) {
-            if (vJsonNode.get("checks").isArray()) {
+            if (vJsonNode.getDocumentNode().get("checks") instanceof List) {
 
                 try {
-                    return Check.create(watchInitService, (ArrayNode) vJsonNode.get("checks"));
+                    return Check.create(watchInitService, (List<?>) vJsonNode.getDocumentNode().get("checks"));
                 } catch (ConfigValidationException e) {
                     validationErrors.add("checks", e);
                 }

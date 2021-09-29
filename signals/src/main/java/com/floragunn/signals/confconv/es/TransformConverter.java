@@ -11,6 +11,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.floragunn.codova.documents.jackson.JacksonJsonNodeAdapter;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
@@ -86,7 +87,7 @@ public class TransformConverter {
 
         if (requestNode.hasNonNull("indices_options")) {
             try {
-                indicesOptions = AbstractSearchInput.parseIndicesOptions(requestNode.get("indices_options"));
+                indicesOptions = AbstractSearchInput.parseIndicesOptions(new JacksonJsonNodeAdapter(requestNode.get("indices_options")));
             } catch (ConfigValidationException e) {
                 requestValidationErrors.add("indices_options", e);
             }
@@ -142,9 +143,8 @@ public class TransformConverter {
             if (jsonNode.hasNonNull("id")) {
                 validationErrors.add(new ValidationError("id", "Script references are not supported"));
             }
-            
-            ConversionResult<String> convertedScript = new PainlessScriptConverter(vJsonNode.string("source", "")).convertToSignals();
 
+            ConversionResult<String> convertedScript = new PainlessScriptConverter(vJsonNode.string("source", "")).convertToSignals();
 
             result.add(new Transform(null, null, convertedScript.getElement(), vJsonNode.string("lang"), null));
             validationErrors.add(null, convertedScript.getSourceValidationErrors());

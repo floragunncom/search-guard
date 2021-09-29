@@ -61,6 +61,7 @@ public class RestApiTest {
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
                     .act("jira", "project", "Test", "issue.type", "Bug", "issue.summary", "Bla", "issue.description", "Blub").name("testsink")
                     .build();
+            
             response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());

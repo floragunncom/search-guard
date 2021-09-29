@@ -112,9 +112,7 @@ public class RestApiTest {
         httpProxy = new BrowserUpProxyServer();
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
-    
 
-   
     @AfterClass
     public static void tearDown() {
         if (httpProxy != null) {
@@ -161,6 +159,24 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
 
+        }
+    }
+
+    @Test
+    public void testPutWatchWithInvalidTrigger() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_test_invalid_trigger";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String watchJson = "{ \"trigger\": {\"schedule\": {\"daily\": {\"at\": \"\"} } }, \"checks\":[], \"actions\":[], \"active\":false, \"log_runtime_data\":false }";
+
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+            HttpResponse response = restClient.putJson(watchPath, watchJson);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Invalid value"));
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Time of day"));
         }
     }
 
@@ -615,23 +631,22 @@ public class RestApiTest {
                 response = restClient.get("/_signals/settings/http.proxy");
 
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-                Assert.assertEquals(response.getBody(), "\"http://127.0.0.8:" + httpProxy.getPort()+ "\"");
+                Assert.assertEquals(response.getBody(), "\"http://127.0.0.8:" + httpProxy.getPort() + "\"");
 
-                
                 Thread.sleep(600);
 
                 Assert.assertTrue(webhookProvider.getRequestCount() > 0);
 
                 response = restClient.delete("/_signals/settings/http.proxy");
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-                
+
             } finally {
                 restClient.delete(watchPath);
                 restClient.delete("/_signals/settings/http.proxy");
             }
         }
     }
-    
+
     @Test
     public void testHttpExplicitProxy() throws Exception {
 
@@ -660,7 +675,7 @@ public class RestApiTest {
                         .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri())
                         .proxy("http://127.0.0.8:" + httpProxy.getPort()).throttledFor("0").name("testhook").build();
                 response = restClient.putJson(watchPath, watch.toJson());
-                
+
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
                 Thread.sleep(600);
@@ -690,8 +705,8 @@ public class RestApiTest {
                 Thread.sleep(200);
 
                 Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).proxy("none").throttledFor("0")
-                        .name("testhook").build();
+                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).proxy("none")
+                        .throttledFor("0").name("testhook").build();
                 response = restClient.putJson(watchPath, watch.toJson());
 
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
@@ -699,15 +714,14 @@ public class RestApiTest {
                 Thread.sleep(600);
 
                 Assert.assertTrue(webhookProvider.getRequestCount() > 0);
-                Assert.assertEquals(webhookProvider.getLastRequestClientAddress(), InetAddress.getByName("127.0.0.1"));                
+                Assert.assertEquals(webhookProvider.getLastRequestClientAddress(), InetAddress.getByName("127.0.0.1"));
             } finally {
                 restClient.delete(watchPath);
                 restClient.delete("/_signals/settings/http.proxy");
             }
         }
     }
-    
-    
+
     @Ignore
     @Test
     public void testPutWatchWithCredentials() throws Exception {

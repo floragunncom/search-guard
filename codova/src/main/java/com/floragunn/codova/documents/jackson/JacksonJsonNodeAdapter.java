@@ -83,7 +83,7 @@ public class JacksonJsonNodeAdapter extends DocNode {
     }
 
     @Override
-    public List<DocNode> getListOfNodes(String attribute) throws ConfigValidationException {
+    public List<DocNode> getListOfNodes(String attribute) {
         JsonNode jsonNode;
 
         if (attribute == null) {
@@ -96,17 +96,18 @@ public class JacksonJsonNodeAdapter extends DocNode {
             return null;
         }
 
-        if (!jsonNode.isArray()) {
-            throw new ConfigValidationException(new InvalidAttributeValue(attribute, jsonNode, "A list of values"));
+        if (jsonNode.isArray()) {
+            List<DocNode> list = new ArrayList<>(jsonNode.size());
+
+            for (JsonNode subNode : jsonNode) {
+                list.add(new JacksonJsonNodeAdapter(subNode));
+            }
+
+            return list;
+        } else {
+            return Collections.singletonList(new JacksonJsonNodeAdapter(jsonNode, attribute));
         }
 
-        List<DocNode> list = new ArrayList<>(jsonNode.size());
-
-        for (JsonNode subNode : jsonNode) {
-            list.add(new JacksonJsonNodeAdapter(subNode));
-        }
-
-        return list;
     }
 
     @Override

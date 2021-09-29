@@ -1,13 +1,13 @@
 package com.floragunn.signals.watch.severity;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Map;
 
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
@@ -181,12 +181,12 @@ public enum SeverityLevel implements Comparable<SeverityLevel> {
             return false;
         }
 
-        public static Set createWithNoneDisallowed(JsonNode jsonNode) throws ConfigValidationException {
+        public static Set createWithNoneDisallowed(Object jsonNode) throws ConfigValidationException {
             if (jsonNode == null) {
                 return null;
             }
 
-            if (!jsonNode.isArray()) {
+            if (!(jsonNode instanceof Collection)) {
                 throw new ConfigValidationException(new InvalidAttributeValue(null, jsonNode, "Array of severities", jsonNode));
             }
 
@@ -196,18 +196,21 @@ public enum SeverityLevel implements Comparable<SeverityLevel> {
 
             int i = 0;
 
-            for (JsonNode severityLevelNode : jsonNode) {
+            for (Object severityLevelObject : ((Collection<?>) jsonNode)) {
+                String severityLevelString = String.valueOf(severityLevelObject);
+
                 try {
-                    if (severityLevelNode.asText().equalsIgnoreCase("none")) {
+                    
+                    if (severityLevelString.equalsIgnoreCase("none")) {
                         throw new IllegalArgumentException();
                     }
 
-                    SeverityLevel severityLevel = SeverityLevel.valueOf(severityLevelNode.asText().toUpperCase());
+                    SeverityLevel severityLevel = SeverityLevel.valueOf(severityLevelString.toUpperCase());
 
                     result.add(severityLevel);
                 } catch (IllegalArgumentException e) {
                     validationErrors.add(
-                            new InvalidAttributeValue(i + "", severityLevelNode.asText(), "info|warning|error|critical", severityLevelNode).cause(e));
+                            new InvalidAttributeValue(i + "", severityLevelString, "info|warning|error|critical", severityLevelString).cause(e));
                 }
 
                 i++;
