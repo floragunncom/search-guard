@@ -1,6 +1,7 @@
 package com.floragunn.signals.watch.severity;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Map;
 
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
@@ -11,15 +12,14 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionContextData;
-import com.floragunn.signals.support.JsonBuilder;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.init.WatchInitializationService;
@@ -29,9 +29,9 @@ public class SeverityMappingTest {
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
 
-    @ClassRule 
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .nodeSettings("signals.enabled", true, "signals.enterprise.enabled", false).resources("sg_config/signals").build();
@@ -46,10 +46,8 @@ public class SeverityMappingTest {
     public void basicTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);
 
-        JsonNode config = new JsonBuilder.Object().attr("value", "x")
-                .attr("mapping", new JsonBuilder.Array(new JsonBuilder.Object().attr("threshold", 1).attr("level", "info"),
-                        new JsonBuilder.Object().attr("threshold", 2).attr("level", "error")))
-                .getNode();
+        DocNode config = DocNode.of("value", "x", "mapping",
+                Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 2, "level", "error")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
 
@@ -63,10 +61,8 @@ public class SeverityMappingTest {
     public void reorderTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);
 
-        JsonNode config = new JsonBuilder.Object().attr("value", "x")
-                .attr("mapping", new JsonBuilder.Array(new JsonBuilder.Object().attr("threshold", 2).attr("level", "error"),
-                        new JsonBuilder.Object().attr("threshold", 1).attr("level", "info")))
-                .getNode();
+        DocNode config = DocNode.of("value", "x", "mapping",
+                Arrays.asList(DocNode.of("threshold", 2, "level", "error"), DocNode.of("threshold", 1, "level", "info")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
 
@@ -80,10 +76,8 @@ public class SeverityMappingTest {
     public void descendingOrderTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);
 
-        JsonNode config = new JsonBuilder.Object().attr("value", "x").attr("order", "descending")
-                .attr("mapping", new JsonBuilder.Array(new JsonBuilder.Object().attr("threshold", 2).attr("level", "info"),
-                        new JsonBuilder.Object().attr("threshold", 1).attr("level", "error")))
-                .getNode();
+        DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
+                Arrays.asList(DocNode.of("threshold", 2, "level", "info"), DocNode.of("threshold", 1, "level", "error")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
 
@@ -97,10 +91,8 @@ public class SeverityMappingTest {
     public void descendingReOrderTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);
 
-        JsonNode config = new JsonBuilder.Object().attr("value", "x").attr("order", "descending")
-                .attr("mapping", new JsonBuilder.Array(new JsonBuilder.Object().attr("threshold", 1).attr("level", "error"),
-                        new JsonBuilder.Object().attr("threshold", 2).attr("level", "info")))
-                .getNode();
+        DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
+                Arrays.asList(DocNode.of("threshold", 1, "level", "error"), DocNode.of("threshold", 2, "level", "info")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
 
@@ -114,10 +106,8 @@ public class SeverityMappingTest {
     public void duplicateTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);
 
-        JsonNode config = new JsonBuilder.Object().attr("value", "x")
-                .attr("mapping", new JsonBuilder.Array(new JsonBuilder.Object().attr("threshold", 1).attr("level", "info"),
-                        new JsonBuilder.Object().attr("threshold", 1).attr("level", "error")))
-                .getNode();
+        DocNode config = DocNode.of("value", "x", "mapping",
+                Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 1, "level", "error")));
 
         try {
             SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
@@ -131,10 +121,8 @@ public class SeverityMappingTest {
     public void findValueTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);
 
-        JsonNode config = new JsonBuilder.Object().attr("value", "x")
-                .attr("mapping", new JsonBuilder.Array(new JsonBuilder.Object().attr("threshold", 1).attr("level", "info"),
-                        new JsonBuilder.Object().attr("threshold", 2).attr("level", "error")))
-                .getNode();
+        DocNode config = DocNode.of("value", "x", "mapping",
+                Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 2, "level", "error")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
 
@@ -154,7 +142,7 @@ public class SeverityMappingTest {
 
         String configJson = "{\"value\": \"data.x\", \"mapping\": [{\"threshold\": 123456789999, \"level\": \"info\"}, {\"threshold\": 223456789999, \"level\": \"error\"}]}";
 
-        JsonNode config = DefaultObjectMapper.readTree(configJson);
+        DocNode config = DocNode.parse(DocType.JSON).from(configJson);
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
 
@@ -172,10 +160,8 @@ public class SeverityMappingTest {
     public void descendingFindValueTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, null);
 
-        JsonNode config = new JsonBuilder.Object().attr("value", "x").attr("order", "descending")
-                .attr("mapping", new JsonBuilder.Array(new JsonBuilder.Object().attr("threshold", 1).attr("level", "error"),
-                        new JsonBuilder.Object().attr("threshold", 2).attr("level", "info")))
-                .getNode();
+        DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
+                Arrays.asList(DocNode.of("threshold", 1, "level", "error"), DocNode.of("threshold", 2, "level", "info")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
 
@@ -200,7 +186,7 @@ public class SeverityMappingTest {
                 + "        \"level\": \"critical\",\n" + "        \"threshold\": 400\n" + "      }\n" + "    ],\n" + "    \"value\": \"data.a\",\n"
                 + "    \"order\": \"ascending\"\n" + "  }";
 
-        JsonNode config = DefaultObjectMapper.readTree(configJson);
+        DocNode config = DocNode.parse(DocType.JSON).from(configJson);
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
 
@@ -213,19 +199,18 @@ public class SeverityMappingTest {
         EvaluationResult evaluationResult = severityMapping.execute(ctx);
         Map<String, Object> evaluationResultMap = evaluationResult.toMap();
 
-
         Assert.assertNull(evaluationResult.getMappingElement());
         Assert.assertEquals(SeverityLevel.NONE, evaluationResult.getLevel());
         Assert.assertEquals(evaluationResult.getLevel().toMap(), evaluationResultMap.get("level"));
-        
+
         runtimeData.put("a", 150);
 
-        ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+        ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT,
+                new WatchExecutionContextData(runtimeData));
 
         evaluationResult = severityMapping.execute(ctx);
         evaluationResultMap = evaluationResult.toMap();
-        
+
         Assert.assertEquals(evaluationResult.getMappingElement().toMap(), evaluationResultMap.get("mapping_element"));
         Assert.assertEquals(SeverityLevel.INFO, evaluationResult.getLevel());
         Assert.assertEquals(evaluationResult.getLevel().toMap(), evaluationResultMap.get("level"));

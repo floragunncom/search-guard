@@ -6,14 +6,13 @@ import java.util.TreeSet;
 
 import org.elasticsearch.common.Strings;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.watch.action.handlers.email.EmailAction;
@@ -35,12 +34,12 @@ public abstract class ActionHandler extends WatchElement {
         return Strings.toString(this);
     }
 
-    public static ActionHandler create(WatchInitializationService watchInitService, ValidatingJsonNode jsonNode) throws ConfigValidationException {
+    public static ActionHandler create(WatchInitializationService watchInitService, ValidatingDocNode jsonNode) throws ConfigValidationException {
 
         String type = null;
 
         if (jsonNode.hasNonNull("type")) {
-            type = jsonNode.get("type").textValue();
+            type = jsonNode.get("type").asString();
         } else {
             throw new ConfigValidationException(new MissingAttribute("type", jsonNode));
         }
@@ -54,12 +53,12 @@ public abstract class ActionHandler extends WatchElement {
         }
     }
 
-    public static ActionHandler create(WatchInitializationService watchInitService, JsonNode jsonNode) throws ConfigValidationException {
+    public static ActionHandler create(WatchInitializationService watchInitService, DocNode jsonNode) throws ConfigValidationException {
 
         String type = null;
 
         if (jsonNode.hasNonNull("type")) {
-            type = jsonNode.get("type").textValue();
+            type = jsonNode.getAsString("type");
         } else {
             throw new ConfigValidationException(new MissingAttribute("type", jsonNode));
         }
@@ -74,9 +73,9 @@ public abstract class ActionHandler extends WatchElement {
     }
 
     public static ActionHandler parseJson(WatchInitializationService ctx, String json) throws ConfigValidationException {
-        JsonNode jsonNode = ValidatingJsonParser.readTree(json);
+        DocNode jsonNode = DocNode.parse(DocType.JSON).from(json);
 
-        return create(ctx, (ObjectNode) jsonNode);
+        return create(ctx, jsonNode);
     }
 
     public static abstract class Factory<A extends ActionHandler> {
@@ -86,9 +85,9 @@ public abstract class ActionHandler extends WatchElement {
             this.type = type;
         }
 
-        public final A create(WatchInitializationService watchInitService, JsonNode jsonNode) throws ConfigValidationException {
+        public final A create(WatchInitializationService watchInitService, DocNode jsonNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+            ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
             A result = create(watchInitService, vJsonNode, validationErrors);
 
@@ -97,9 +96,9 @@ public abstract class ActionHandler extends WatchElement {
             return result;
         }
 
-        public final A create(WatchInitializationService watchInitService, ValidatingJsonNode vJsonNode) throws ConfigValidationException {
+        public final A create(WatchInitializationService watchInitService, ValidatingDocNode vJsonNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            vJsonNode = new ValidatingJsonNode(vJsonNode, validationErrors);
+            vJsonNode = new ValidatingDocNode(vJsonNode, validationErrors);
 
             A result = create(watchInitService, vJsonNode, validationErrors);
 
@@ -108,7 +107,7 @@ public abstract class ActionHandler extends WatchElement {
             return result;
         }
 
-        protected abstract A create(WatchInitializationService watchInitService, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors)
+        protected abstract A create(WatchInitializationService watchInitService, ValidatingDocNode vJsonNode, ValidationErrors validationErrors)
                 throws ConfigValidationException;
 
         public String getType() {

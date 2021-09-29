@@ -19,10 +19,9 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.accounts.NoSuchAccountException;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.SimulationMode;
@@ -99,7 +98,8 @@ public class JiraAction extends ActionHandler {
         }
     }
 
-    private void callJiraApi(JiraAccount account, JiraIssueApiCall call, HttpProxyConfig httpProxyConfig) throws ActionExecutionException, IOException {
+    private void callJiraApi(JiraAccount account, JiraIssueApiCall call, HttpProxyConfig httpProxyConfig)
+            throws ActionExecutionException, IOException {
         HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
         try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient(httpProxyConfig)) {
@@ -148,22 +148,22 @@ public class JiraAction extends ActionHandler {
         }
 
         @Override
-        protected JiraAction create(WatchInitializationService watchInitializationService, ValidatingJsonNode vJsonNode,
+        protected JiraAction create(WatchInitializationService watchInitializationService, ValidatingDocNode vJsonNode,
                 ValidationErrors validationErrors) throws ConfigValidationException {
 
-            String account = vJsonNode.string("account");
+            String account = vJsonNode.get("account").asString();
 
-            watchInitializationService.verifyAccount(account, JiraAccount.class, validationErrors, (ObjectNode) vJsonNode.getDelegate());
+            watchInitializationService.verifyAccount(account, JiraAccount.class, validationErrors, vJsonNode.getDocumentNode());
 
             JiraIssueConfig issueConfig = null;
 
             try {
-                issueConfig = JiraIssueConfig.create(watchInitializationService, vJsonNode.get("issue"));
+                issueConfig = JiraIssueConfig.create(watchInitializationService, vJsonNode.get("issue").asDocNode());
             } catch (ConfigValidationException e) {
                 validationErrors.add("issue", e);
             }
 
-            String project = vJsonNode.requiredString("project");
+            String project = vJsonNode.get("project").required().asString();
 
             validationErrors.throwExceptionForPresentErrors();
 

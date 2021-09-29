@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
@@ -39,17 +37,17 @@ public abstract class Check extends WatchElement {
 
     public abstract boolean execute(WatchExecutionContext ctx) throws CheckExecutionException;
 
-    static Check create(WatchInitializationService watchInitService, ObjectNode jsonNode) throws ConfigValidationException {
+    static Check create(WatchInitializationService watchInitService, DocNode jsonNode) throws ConfigValidationException {
 
         if (!jsonNode.hasNonNull("type")) {
             throw new ConfigValidationException(new MissingAttribute("type", jsonNode));
         }
 
-        String type = jsonNode.get("type").textValue();
+        String type = jsonNode.getAsString("type");
 
         switch (type) {
         case "search":
-            if (jsonNode.has("template")) {
+            if (jsonNode.hasNonNull("template")) {
                 return SearchTemplateInput.create(watchInitService, jsonNode);
             } else {
                 return SearchInput.create(watchInitService, jsonNode);
@@ -66,8 +64,7 @@ public abstract class Check extends WatchElement {
         case "transform":
             return Transform.create(watchInitService, jsonNode);
         default:
-            throw new ConfigValidationException(
-                    new InvalidAttributeValue("type", type, "search|static|http|condition|calc|transform", jsonNode));
+            throw new ConfigValidationException(new InvalidAttributeValue("type", type, "search|static|http|condition|calc|transform", jsonNode));
         }
     }
 
@@ -84,18 +81,17 @@ public abstract class Check extends WatchElement {
         return result;
     }
 
-    public static List<Check> create(WatchInitializationService watchInitService, ArrayNode arrayNode) throws ConfigValidationException {
-        ArrayList<Check> result = new ArrayList<>(arrayNode.size());
+    public static List<Check> create(WatchInitializationService watchInitService, List<?> checkNodes) throws ConfigValidationException {
+        ArrayList<Check> result = new ArrayList<>(checkNodes.size());
 
         ValidationErrors validationErrors = new ValidationErrors();
 
-        for (JsonNode member : arrayNode) {
-            if (member instanceof ObjectNode) {
-                try {
-                    result.add(create(watchInitService, (ObjectNode) member));
-                } catch (ConfigValidationException e) {
-                    validationErrors.add(member.hasNonNull("name") ? "[" + member.get("name").asText() + "]" : "[]", e);
-                }
+        for (Object o : checkNodes) {
+            DocNode member = DocNode.wrap(o);
+            try {
+                result.add(create(watchInitService, member));
+            } catch (ConfigValidationException e) {
+                validationErrors.add(member.hasNonNull("name") ? "[" + member.getAsString("name") + "]" : "[]", e);
             }
         }
 

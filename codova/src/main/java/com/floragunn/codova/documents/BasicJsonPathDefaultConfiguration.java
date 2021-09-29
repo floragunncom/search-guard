@@ -27,7 +27,6 @@ import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.InvalidJsonException;
 import com.jayway.jsonpath.Option;
@@ -62,7 +61,7 @@ public class BasicJsonPathDefaultConfiguration implements com.jayway.jsonpath.Co
         public Object parse(InputStream jsonStream, String charset) throws InvalidJsonException {
             try {
                 return DocReader.json().read(new InputStreamReader(jsonStream, charset));
-            } catch (IOException e) {
+            } catch (DocParseException | IOException e) {
                 throw new InvalidJsonException(e);
             }
         }
@@ -71,7 +70,7 @@ public class BasicJsonPathDefaultConfiguration implements com.jayway.jsonpath.Co
         public Object parse(String json) throws InvalidJsonException {
             try {
                 return DocReader.json().read(json);
-            } catch (JsonProcessingException e) {
+            } catch (DocParseException e) {
                 throw new InvalidJsonException(e);
             }
         }

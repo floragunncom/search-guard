@@ -14,7 +14,7 @@ import org.quartz.ScheduleBuilder;
 import org.quartz.TimeOfDay;
 import org.quartz.impl.triggers.CronTriggerImpl;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
@@ -80,22 +80,22 @@ public class DailyTrigger extends HumanReadableCronTrigger<DailyTrigger> {
         return builder;
     }
 
-    public static DailyTrigger create(JsonNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
+    public static DailyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
 
         List<TimeOfDay> at = null;
 
         try {
-            JsonNode atNode = jsonNode.get("at");
+            DocNode atNode = jsonNode.getAsNode("at");
 
-            if (atNode != null && atNode.isArray()) {
+            if (atNode != null && atNode.isList()) {
                 at = new ArrayList<>(atNode.size());
 
-                for (JsonNode atNodeElement : atNode) {
-                    at.add(parseTimeOfDay(atNodeElement.textValue()));
+                for (Object atNodeElement : atNode.toList()) {
+                    at.add(parseTimeOfDay(String.valueOf(atNodeElement)));
                 }
-            } else if (atNode != null && atNode.isTextual()) {
-                at = Collections.singletonList(parseTimeOfDay(atNode.textValue()));
+            } else if (atNode != null) {
+                at = Collections.singletonList(parseTimeOfDay(atNode.toString()));
             } else {
                 validationErrors.add(new MissingAttribute("at", jsonNode));
             }
@@ -116,7 +116,7 @@ public class DailyTrigger extends HumanReadableCronTrigger<DailyTrigger> {
         }
 
         @Override
-        public DailyTrigger create(JsonNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
+        public DailyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
             return DailyTrigger.create(jsonNode, timeZone);
         }
     };

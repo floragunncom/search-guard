@@ -4,10 +4,10 @@ import java.io.IOException;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 
 public class BasicAuth extends Auth {
     private String username;
@@ -18,20 +18,12 @@ public class BasicAuth extends Auth {
         this.password = password;
     }
 
-    public static BasicAuth create(JsonNode jsonObject) throws ConfigValidationException {
+    public static BasicAuth create(DocNode jsonObject) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonObject, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonObject, validationErrors);
 
-        String username = vJsonNode.requiredString("username");
-        String password = null;
-
-        if (jsonObject.hasNonNull("username")) {
-            username = jsonObject.get("username").asText();
-        }
-
-        if (jsonObject.hasNonNull("password")) {
-            password = jsonObject.get("password").asText();
-        }
+        String username = vJsonNode.get("username").required().asString();
+        String password = vJsonNode.get("password").asString();
 
         validationErrors.throwExceptionForPresentErrors();
 

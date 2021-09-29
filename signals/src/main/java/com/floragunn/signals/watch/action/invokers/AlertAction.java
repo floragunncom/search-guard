@@ -7,14 +7,12 @@ import java.util.Set;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.config.temporal.DurationExpression;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
 import com.floragunn.signals.support.InlinePainlessScript;
 import com.floragunn.signals.watch.action.handlers.ActionHandler;
@@ -83,20 +81,20 @@ public class AlertAction extends ActionInvoker {
         return builder;
     }
 
-    public static AlertAction create(WatchInitializationService watchInitService, ObjectNode jsonObject, SeverityMapping severityMapping)
+    public static AlertAction create(WatchInitializationService watchInitService, DocNode jsonObject, SeverityMapping severityMapping)
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonObject, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonObject, validationErrors);
 
-        String name = vJsonNode.requiredString("name");
+        String name = vJsonNode.get("name").required().asString();
         List<Check> checks = createNestedChecks(watchInitService, vJsonNode, validationErrors);
-        DurationExpression throttlePeriod = vJsonNode.durationExpression("throttle_period");
+        DurationExpression throttlePeriod = vJsonNode.get("throttle_period").byString(DurationExpression::parse);
         SeverityLevel.Set severityLevels = null;
         ActionHandler handler = null;
         Integer foreachLimit = null;
 
         try {
-            severityLevels = SeverityLevel.Set.createWithNoneDisallowed(vJsonNode.get("severity"));
+            severityLevels = SeverityLevel.Set.createWithNoneDisallowed(vJsonNode.get("severity").asAnything());
 
             if (severityLevels != null) {
                 validateSeverityLevelsAgainstSeverityMapping(severityLevels, severityMapping);
@@ -111,12 +109,12 @@ public class AlertAction extends ActionInvoker {
             validationErrors.add(null, e);
         }
 
-        InlinePainlessScript<SignalsObjectFunctionScript.Factory> foreach = vJsonNode.value("foreach",
-                new InlinePainlessScript.Parser<SignalsObjectFunctionScript.Factory>(SignalsObjectFunctionScript.CONTEXT, watchInitService), null);
+        InlinePainlessScript<SignalsObjectFunctionScript.Factory> foreach = vJsonNode.get("foreach")
+                .byString((s) -> InlinePainlessScript.parse(s, SignalsObjectFunctionScript.CONTEXT, watchInitService));
 
-        foreachLimit = vJsonNode.intNumber("foreach_limit", null);
+        foreachLimit = vJsonNode.get("foreach_limit").asInteger();
 
-        vJsonNode.validateUnusedAttributes();
+        vJsonNode.checkForUnusedAttributes();
 
         validationErrors.throwExceptionForPresentErrors();
 
@@ -124,18 +122,18 @@ public class AlertAction extends ActionInvoker {
 
     }
 
-    public static List<AlertAction> createFromArray(WatchInitializationService ctx, ArrayNode arrayNode, SeverityMapping severityMapping)
+    public static List<AlertAction> createFromArray(WatchInitializationService ctx, List<DocNode> arrayNode, SeverityMapping severityMapping)
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
 
         ArrayList<AlertAction> result = new ArrayList<>(arrayNode.size());
 
-        for (JsonNode member : arrayNode) {
-            if (member instanceof ObjectNode) {
+        for (DocNode member : arrayNode) {
+            if (member.isMap()) {
                 try {
-                    result.add(create(ctx, (ObjectNode) member, severityMapping));
+                    result.add(create(ctx, member, severityMapping));
                 } catch (ConfigValidationException e) {
-                    validationErrors.add(member.hasNonNull("name") ? "[" + member.get("name").asText() + "]" : "[]", e);
+                    validationErrors.add(member.hasNonNull("name") ? "[" + member.get("name") + "]" : "[]", e);
                 }
             }
         }

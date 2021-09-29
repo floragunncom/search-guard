@@ -15,11 +15,10 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.accounts.NoSuchAccountException;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.SimulationMode;
@@ -146,18 +145,18 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
         }
 
         @Override
-        protected PagerDutyAction create(WatchInitializationService watchInitializationService, ValidatingJsonNode vJsonNode,
+        protected PagerDutyAction create(WatchInitializationService watchInitializationService, ValidatingDocNode vJsonNode,
                 ValidationErrors validationErrors) throws ConfigValidationException {
 
-            String account = vJsonNode.string("account");
+            String account = vJsonNode.get("account").asString();
 
-            watchInitializationService.verifyAccount(account, PagerDutyAccount.class, validationErrors, (ObjectNode) vJsonNode.getDelegate());
+            watchInitializationService.verifyAccount(account, PagerDutyAccount.class, validationErrors, vJsonNode.getDocumentNode());
 
             PagerDutyEventConfig eventConfig = null;
 
             if (vJsonNode.hasNonNull("event")) {
                 try {
-                    eventConfig = PagerDutyEventConfig.create(watchInitializationService, vJsonNode.get("event"));
+                    eventConfig = PagerDutyEventConfig.create(watchInitializationService, vJsonNode.getDocumentNode().getAsNode("event"));
                 } catch (ConfigValidationException e) {
                     validationErrors.add("event", e);
                 }
@@ -165,7 +164,7 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
                 validationErrors.add(new MissingAttribute("event", vJsonNode));
             }
 
-            boolean autoResolve = vJsonNode.booleanAttribute("auto_resolve", Boolean.TRUE);
+            boolean autoResolve = vJsonNode.get("auto_resolve").withDefault(true).asBoolean();
 
             validationErrors.throwExceptionForPresentErrors();
 

@@ -16,6 +16,7 @@ import org.quartz.TriggerBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.config.temporal.DurationFormat;
+import com.floragunn.codova.documents.jackson.JacksonJsonNodeAdapter;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
@@ -28,7 +29,6 @@ import com.floragunn.searchsupport.jobs.config.schedule.elements.MonthlyTrigger;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.WeeklyTrigger;
 import com.floragunn.signals.confconv.ConversionResult;
 import com.google.common.primitives.Ints;
-
 
 // TODO convert template variables
 public class ScheduleConverter {
@@ -46,7 +46,7 @@ public class ScheduleConverter {
         if (scheduleJsonNode.hasNonNull("hourly")) {
             if (scheduleJsonNode.get("hourly").hasNonNull("minute")) {
                 try {
-                    triggers.add(HourlyTrigger.create(scheduleJsonNode.get("hourly"), null));
+                    triggers.add(HourlyTrigger.create(new JacksonJsonNodeAdapter(scheduleJsonNode.get("hourly")), null));
                 } catch (ConfigValidationException e) {
                     validationErrors.add("hourly", e);
                 }

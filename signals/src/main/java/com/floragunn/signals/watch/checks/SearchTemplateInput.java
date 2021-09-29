@@ -11,54 +11,51 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
 public class SearchTemplateInput extends AbstractSearchInput {
 
-    static Check create(WatchInitializationService watchInitService, ObjectNode jsonObject) throws ConfigValidationException {
+    static Check create(WatchInitializationService watchInitService, DocNode jsonObject) throws ConfigValidationException {
 
         ValidationErrors validationErrors = new ValidationErrors();
-
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonObject, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonObject, validationErrors);
 
         vJsonNode.used("type", "request");
 
-        String name = vJsonNode.string("name");
-        String target = vJsonNode.string("target");
-        String id = vJsonNode.requiredString("id");
+        String name = vJsonNode.get("name").asString();
+        String target = vJsonNode.get("target").asString();
+        String id = vJsonNode.get("id").required().asString();
 
-        List<String> indices = JacksonTools.toStringArray(jsonObject.at("/request/indices"));
-        JsonNode template = jsonObject.at("/request/template");
+        List<String> indices = vJsonNode.get("request.indices").asListOfStrings();
+        DocNode template = jsonObject.getAsNode("request.template");
 
         if (template == null) {
             validationErrors.add(new MissingAttribute("request.template", jsonObject));
         }
 
-        TimeValue timeout = vJsonNode.timeValue("timeout");
-        SearchType searchType = vJsonNode.caseInsensitiveEnum("search_type", SearchType.class, null);
+        TimeValue timeout = vJsonNode.get("timeout").byString((v) -> TimeValue.parseTimeValue(v, "timeout"));
+        SearchType searchType = vJsonNode.get("search_type").asEnum(SearchType.class);
         IndicesOptions indicesOptions = null;
 
         if (vJsonNode.hasNonNull("indices_options")) {
             try {
-                indicesOptions = parseIndicesOptions(vJsonNode.get("indices_options"));
+                indicesOptions = parseIndicesOptions(jsonObject.getAsNode("indices_options"));
             } catch (ConfigValidationException e) {
                 validationErrors.add("indices_options", e);
             }
         }
 
-        vJsonNode.validateUnusedAttributes();
-
+        vJsonNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
-        SearchTemplateInput result = new SearchTemplateInput(name, target, indices, id, JacksonTools.toMap(template.get("params")));
+        SearchTemplateInput result = new SearchTemplateInput(name, target, indices, id,
+                template.get("params") != null ? template.getAsNode("params").toMap() : null);
 
         result.timeout = timeout;
         result.searchType = searchType;

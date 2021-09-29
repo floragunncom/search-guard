@@ -20,8 +20,10 @@ import org.elasticsearch.script.ScriptException;
 import org.elasticsearch.script.ScriptType;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.jackson.JacksonJsonNodeAdapter;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
@@ -173,16 +175,16 @@ public class SeverityMapping implements ToXContentObject {
             return ObjectTreeXContent.toMap(this);
         }
 
-        static List<Element> createList(ArrayNode arrayNode, Order order) throws ConfigValidationException {
+        static List<Element> createList(List<DocNode> docNodes, Order order) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
 
-            if (arrayNode == null) {
+            if (docNodes == null) {
                 return null;
             }
 
-            ArrayList<Element> result = new ArrayList<>(arrayNode.size());
+            ArrayList<Element> result = new ArrayList<>(docNodes.size());
 
-            for (JsonNode jsonNode : arrayNode) {
+            for (DocNode jsonNode : docNodes) {
                 try {
                     result.add(create(jsonNode));
                 } catch (ConfigValidationException e) {
@@ -249,14 +251,14 @@ public class SeverityMapping implements ToXContentObject {
             }
         }
 
-        static Element create(JsonNode jsonNode) throws ConfigValidationException {
+        static Element create(DocNode jsonNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+            ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-            BigDecimal threshold = vJsonNode.requiredBigDecimal("threshold");
-            SeverityLevel level = vJsonNode.requiredCaseInsensitiveEnum("level", SeverityLevel.class);
+            BigDecimal threshold = vJsonNode.get("threshold").required().asBigDecimal();
+            SeverityLevel level = vJsonNode.get("level").required().asEnum(SeverityLevel.class);
 
-            vJsonNode.validateUnusedAttributes();
+            vJsonNode.checkForUnusedAttributes();
             validationErrors.throwExceptionForPresentErrors();
 
             return new Element(threshold, level);
@@ -324,19 +326,18 @@ public class SeverityMapping implements ToXContentObject {
         }
     }
 
-    public static SeverityMapping create(WatchInitializationService watchInitService, JsonNode jsonNode) throws ConfigValidationException {
+    public static SeverityMapping create(WatchInitializationService watchInitService, DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        String value = vJsonNode.requiredString("value");
-        String lang = vJsonNode.string("lang");
-        ArrayNode mappingArray = vJsonNode.requiredArray("mapping");
-        Order order = vJsonNode.caseInsensitiveEnum("order", Order.class, Order.ASCENDING);
+        String value = vJsonNode.get("value").required().asString();
+        String lang = vJsonNode.get("lang").asString();
+        Order order = vJsonNode.get("order").withDefault(Order.ASCENDING).asEnum(Order.class);
 
         List<Element> mapping = null;
 
         try {
-            mapping = Element.createList(mappingArray, order);
+            mapping = Element.createList(jsonNode.getAsList("mapping"), order);
         } catch (ConfigValidationException e) {
             validationErrors.add("mapping", e);
         }
@@ -457,7 +458,7 @@ public class SeverityMapping implements ToXContentObject {
 
             if (jsonNode.hasNonNull("mapping_element")) {
                 try {
-                    mappingElement = Element.create(jsonNode.get("mapping_element"));
+                    mappingElement = Element.create(new JacksonJsonNodeAdapter(jsonNode.get("mapping_element")));
                 } catch (ConfigValidationException e) {
                     validationErrors.add("mapping_element", e);
                 }

@@ -33,13 +33,13 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.google.common.collect.ImmutableList;
 
 public class TlsConfig implements ToXContentObject {
@@ -61,23 +61,14 @@ public class TlsConfig implements ToXContentObject {
 
     }
 
-    public void init(JsonNode jsonNode) throws ConfigValidationException {
+    public void init(DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        this.inlineTruststorePem = vJsonNode.string("trusted_certs");
-        this.verifyHostnames = vJsonNode.booleanAttribute("verify_hostnames", true);
-        this.trustAll = vJsonNode.booleanAttribute("trust_all", false);
-
-        JsonNode clientAuthJsonNode = vJsonNode.get("client_auth");
-
-        if (clientAuthJsonNode != null) {
-            try {
-                clientAuthConfig = TlsClientAuthConfig.create(clientAuthJsonNode);
-            } catch (ConfigValidationException e) {
-                validationErrors.add("client_auth", e);
-            }
-        }
+        this.inlineTruststorePem = vJsonNode.get("trusted_certs").asString();
+        this.verifyHostnames = vJsonNode.get("verify_hostnames").withDefault(true).asBoolean();
+        this.trustAll = vJsonNode.get("trust_all").withDefault(false).asBoolean();
+        this.clientAuthConfig = vJsonNode.get("client_auth").by(TlsClientAuthConfig::create);
 
         init(validationErrors);
 
@@ -219,16 +210,14 @@ public class TlsConfig implements ToXContentObject {
         return new SSLConnectionSocketFactory(sslContext, getSupportedProtocols(), getSupportedCipherSuites(), getHostnameVerifier());
     }
 
-    public static TlsConfig create(JsonNode jsonNode) throws ConfigValidationException {
+    public static TlsConfig create(DocNode jsonNode) throws ConfigValidationException {
         TlsConfig result = new TlsConfig();
         result.init(jsonNode);
         return result;
     }
 
     public static TlsConfig parseJson(String json) throws ConfigValidationException {
-        JsonNode jsonNode = ValidatingJsonParser.readTree(json);
-
-        return create(jsonNode);
+        return create(DocNode.parse(DocType.JSON).from(json));
     }
 
     private static class OverlyTrustfulSSLContextBuilder extends SSLContextBuilder {

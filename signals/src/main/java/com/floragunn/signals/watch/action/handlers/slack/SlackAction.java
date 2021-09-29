@@ -3,9 +3,9 @@ package com.floragunn.signals.watch.action.handlers.slack;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -13,19 +13,17 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.TemplateScript;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.SimulationMode;
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -62,7 +60,8 @@ public class SlackAction extends ActionHandler {
 
         if (slackActionConf.getBlocks() != null) {
             try {
-                this.blocksScript = watchInitService.compileTemplate("blocks", DefaultObjectMapper.writeValueAsString(slackActionConf.getBlocks(), false), validationErrors);
+                this.blocksScript = watchInitService.compileTemplate("blocks",
+                        DefaultObjectMapper.writeValueAsString(slackActionConf.getBlocks(), false), validationErrors);
             } catch (JsonProcessingException e) {
                 validationErrors.add(new ValidationError("blocks", "Reading blocks failed with " + e));
             }
@@ -70,7 +69,8 @@ public class SlackAction extends ActionHandler {
 
         if (slackActionConf.getAttachments() != null) {
             try {
-                this.attachmentScript = watchInitService.compileTemplate("attachments", DefaultObjectMapper.writeValueAsString(slackActionConf.getAttachments(), false), validationErrors);
+                this.attachmentScript = watchInitService.compileTemplate("attachments",
+                        DefaultObjectMapper.writeValueAsString(slackActionConf.getAttachments(), false), validationErrors);
             } catch (JsonProcessingException e) {
                 validationErrors.add(new ValidationError("attachments", "Reading attachments failed with " + e));
             }
@@ -189,45 +189,33 @@ public class SlackAction extends ActionHandler {
     }
 
     public static class Factory extends ActionHandler.Factory<SlackAction> {
-        private static final Logger log = LogManager.getLogger(Factory.class);
-
         public Factory() {
             super(SlackAction.TYPE);
         }
 
-        @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
-        protected SlackAction create(WatchInitializationService watchInitService, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors)
+        protected SlackAction create(WatchInitializationService watchInitService, ValidatingDocNode vJsonNode, ValidationErrors validationErrors)
                 throws ConfigValidationException {
 
             SlackActionConf slackActionConf = new SlackActionConf();
 
-            slackActionConf.setAccount(vJsonNode.string("account"));
-            slackActionConf.setFrom(vJsonNode.string("from"));
-            slackActionConf.setChannel(vJsonNode.string("channel"));
-            slackActionConf.setText(vJsonNode.string("text"));
+            slackActionConf.setAccount(vJsonNode.get("account").asString());
+            slackActionConf.setFrom(vJsonNode.get("from").asString());
+            slackActionConf.setChannel(vJsonNode.get("channel").asString());
+            slackActionConf.setText(vJsonNode.get("text").asString());
 
             if (vJsonNode.hasNonNull("blocks")) {
-                try {
-                    List blocks = DefaultObjectMapper.readTree(vJsonNode.get("blocks"), List.class);
-                    slackActionConf.setBlocks(blocks);
-                } catch (IOException e) {
-                    log.info("Error while parsing json: " + vJsonNode, e);
-                    validationErrors.add(new ValidationError("blocks", "Failed to parse blocks"));
-                }
+                slackActionConf
+                        .setBlocks(vJsonNode.getDocumentNode().getAsList("blocks").stream().map((b) -> b.toMap()).collect(Collectors.toList()));
+
             }
 
             if (vJsonNode.hasNonNull("attachments")) {
-                try {
-                    List attachments = DefaultObjectMapper.readTree(vJsonNode.get("attachments"), List.class);
-                    slackActionConf.setAttachments(attachments);
-                } catch (IOException e) {
-                    log.info("Error while parsing json: " + vJsonNode, e);
-                    validationErrors.add(new ValidationError("attachments", "Failed to parse attachments"));
-                }
+                slackActionConf.setAttachments(
+                        vJsonNode.getDocumentNode().getAsList("attachments").stream().map((b) -> b.toMap()).collect(Collectors.toList()));
             }
 
-            slackActionConf.setIconEmoji(vJsonNode.string("icon_emoji"));
+            slackActionConf.setIconEmoji(vJsonNode.get("icon_emoji").asString());
 
             if (!vJsonNode.hasNonNull("text") && !vJsonNode.hasNonNull("blocks") && !vJsonNode.hasNonNull("attachments")) {
                 validationErrors.add(new MissingAttribute("text", vJsonNode));
@@ -235,7 +223,7 @@ public class SlackAction extends ActionHandler {
 
             validationErrors.throwExceptionForPresentErrors();
 
-            watchInitService.verifyAccount(slackActionConf.getAccount(), SlackAccount.class, validationErrors, (ObjectNode) vJsonNode.getDelegate());
+            watchInitService.verifyAccount(slackActionConf.getAccount(), SlackAccount.class, validationErrors, vJsonNode.getDocumentNode());
 
             SlackAction result = new SlackAction(slackActionConf);
             result.compileScripts(watchInitService);

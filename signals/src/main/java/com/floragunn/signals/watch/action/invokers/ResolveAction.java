@@ -7,13 +7,11 @@ import java.util.Set;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.watch.action.handlers.ActionHandler;
 import com.floragunn.signals.watch.checks.Check;
 import com.floragunn.signals.watch.init.WatchInitializationService;
@@ -61,18 +59,18 @@ public class ResolveAction extends ActionInvoker {
         return builder;
     }
 
-    public static ResolveAction create(WatchInitializationService watchInitService, ObjectNode jsonObject, SeverityMapping severityMapping)
+    public static ResolveAction create(WatchInitializationService watchInitService, DocNode jsonObject, SeverityMapping severityMapping)
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonObject, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonObject, validationErrors);
 
-        String name = vJsonNode.requiredString("name");
+        String name = vJsonNode.get("name").required().asString();
         List<Check> checks = createNestedChecks(watchInitService, vJsonNode, validationErrors);
         SeverityLevel.Set severityLevels = null;
         ActionHandler handler = null;
 
         try {
-            severityLevels = SeverityLevel.Set.createWithNoneDisallowed(vJsonNode.requiredArray("resolves_severity"));
+            severityLevels = SeverityLevel.Set.createWithNoneDisallowed(vJsonNode.get("resolves_severity").asAnything());
             validateSeverityLevelsAgainstSeverityMapping(severityLevels, severityMapping);
         } catch (ConfigValidationException e) {
             validationErrors.add("resolves_severity", e);
@@ -84,7 +82,7 @@ public class ResolveAction extends ActionInvoker {
             validationErrors.add(null, e);
         }
 
-        vJsonNode.validateUnusedAttributes();
+        vJsonNode.checkForUnusedAttributes();
 
         validationErrors.throwExceptionForPresentErrors();
 
@@ -92,18 +90,18 @@ public class ResolveAction extends ActionInvoker {
 
     }
 
-    public static List<ResolveAction> createFromArray(WatchInitializationService ctx, ArrayNode arrayNode, SeverityMapping severityMapping)
+    public static List<ResolveAction> createFromArray(WatchInitializationService ctx, List<DocNode> arrayNode, SeverityMapping severityMapping)
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
 
         ArrayList<ResolveAction> result = new ArrayList<>(arrayNode.size());
 
-        for (JsonNode member : arrayNode) {
-            if (member instanceof ObjectNode) {
+        for (DocNode member : arrayNode) {
+            if (member.isMap()) {
                 try {
-                    result.add(create(ctx, (ObjectNode) member, severityMapping));
+                    result.add(create(ctx, member, severityMapping));
                 } catch (ConfigValidationException e) {
-                    validationErrors.add(member.hasNonNull("name") ? "[" + member.get("name").asText() + "]" : "[]", e);
+                    validationErrors.add(member.hasNonNull("name") ? "[" + member.get("name") + "]" : "[]", e);
                 }
             }
         }
@@ -114,7 +112,7 @@ public class ResolveAction extends ActionInvoker {
     }
 
     private static void validateSeverityLevelsAgainstSeverityMapping(SeverityLevel.Set severityLevels, SeverityMapping severityMapping)
-            throws ConfigValidationException {        
+            throws ConfigValidationException {
 
         if (severityMapping == null) {
             throw new ConfigValidationException(new ValidationError(null, "A severity mapping is required to use resolve actions"));

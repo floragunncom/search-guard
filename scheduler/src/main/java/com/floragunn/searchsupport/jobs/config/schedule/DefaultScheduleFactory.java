@@ -1,7 +1,25 @@
+/*
+ * Copyright 2019-2021 floragunn GmbH
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
+
 package com.floragunn.searchsupport.jobs.config.schedule;
 
 import java.text.ParseException;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TimeZone;
@@ -15,15 +33,12 @@ import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
 import org.quartz.impl.triggers.AbstractTrigger;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import com.floragunn.codova.config.temporal.DurationFormat;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.TriggerFactory;
 
 public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
@@ -32,122 +47,50 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
     protected String group = "main";
 
     @Override
-    public ScheduleImpl create(JobKey jobKey, ObjectNode objectNode) throws ConfigValidationException {
+    public ScheduleImpl create(JobKey jobKey, DocNode objectNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(objectNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(objectNode, validationErrors);
         List<Trigger> result = new ArrayList<Trigger>();
 
         if (vJsonNode.hasNonNull("schedule")) {
             try {
-                result.addAll(createScheduleTriggers(jobKey, vJsonNode.get("schedule")));
+                result.addAll(createScheduleTriggers(jobKey, vJsonNode.get("schedule").asDocNode()));
             } catch (ConfigValidationException e) {
                 validationErrors.add("schedule", e);
             }
         }
 
-        vJsonNode.validateUnusedAttributes();
+        vJsonNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         return new ScheduleImpl(result);
     }
 
-    protected List<Trigger> createScheduleTriggers(JobKey jobKey, JsonNode jsonNode) throws ConfigValidationException {
+    protected List<Trigger> createScheduleTriggers(JobKey jobKey, DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
         ArrayList<Trigger> triggers = new ArrayList<>();
 
-        TimeZone timeZone = vJsonNode.timeZone("timezone");
+        ZoneId timeZoneId = vJsonNode.get("timezone").asTimeZoneId();
+        TimeZone timeZone = timeZoneId != null ? TimeZone.getTimeZone(timeZoneId) : null;
 
-        JsonNode cronScheduleTriggers = vJsonNode.get("cron");
+        triggers.addAll(
+                vJsonNode.get("cron").asList().withEmptyListAsDefault().ofObjectsParsedByString((s) -> createCronTrigger(jobKey, s, timeZone)));
 
-        if (cronScheduleTriggers != null) {
-            try {
-                triggers.addAll(getCronScheduleTriggers(jobKey, cronScheduleTriggers, timeZone));
-            } catch (ConfigValidationException e) {
-                validationErrors.add("cron", e);
-            }
-        }
-
-        JsonNode intervalScheduleTriggers = vJsonNode.get("interval");
-
-        if (intervalScheduleTriggers != null) {
-            try {
-                triggers.addAll(getIntervalScheduleTriggers(jobKey, intervalScheduleTriggers));
-            } catch (ConfigValidationException e) {
-                validationErrors.add("interval", e);
-            }
-        }
+        triggers.addAll(
+                vJsonNode.get("interval").asList().withEmptyListAsDefault().ofObjectsParsedByString((s) -> createIntervalScheduleTrigger(jobKey, s)));
 
         for (TriggerFactory<?> scheduleFactory : TriggerFactory.FACTORIES) {
-            JsonNode triggerNode = vJsonNode.get(scheduleFactory.getType());
-
-            if (triggerNode != null) {
-                try {
-                    triggers.addAll(getTriggers(jobKey, triggerNode, timeZone, scheduleFactory));
-                } catch (ConfigValidationException e) {
-                    validationErrors.add(scheduleFactory.getType(), e);
-                }
-            }
+            triggers.addAll(vJsonNode.get(scheduleFactory.getType()).asList().withEmptyListAsDefault()
+                    .ofObjectsParsedBy((n) -> createTrigger(jobKey, n, timeZone, scheduleFactory)));
         }
 
-        vJsonNode.validateUnusedAttributes();
-
+        vJsonNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         return triggers;
 
-    }
-
-    protected List<Trigger> getCronScheduleTriggers(JobKey jobKey, Object scheduleTriggers, TimeZone timeZone) throws ConfigValidationException {
-        List<Trigger> result = new ArrayList<>();
-
-        if (scheduleTriggers instanceof TextNode) {
-            result.add(createCronTrigger(jobKey, ((TextNode) scheduleTriggers).textValue(), timeZone));
-        } else if (scheduleTriggers instanceof ArrayNode) {
-            for (JsonNode trigger : (ArrayNode) scheduleTriggers) {
-                String triggerDef = trigger.textValue();
-
-                if (triggerDef != null) {
-                    result.add(createCronTrigger(jobKey, triggerDef, timeZone));
-                }
-            }
-        }
-
-        return result;
-    }
-
-    protected List<Trigger> getIntervalScheduleTriggers(JobKey jobKey, Object scheduleTriggers) throws ConfigValidationException {
-        List<Trigger> result = new ArrayList<>();
-
-        if (scheduleTriggers instanceof TextNode) {
-            result.add(createIntervalScheduleTrigger(jobKey, ((TextNode) scheduleTriggers).textValue()));
-        } else if (scheduleTriggers instanceof ArrayNode) {
-            for (JsonNode trigger : (ArrayNode) scheduleTriggers) {
-                String triggerDef = trigger.textValue();
-
-                if (triggerDef != null) {
-                    result.add(createIntervalScheduleTrigger(jobKey, triggerDef));
-                }
-            }
-        }
-
-        return result;
-    }
-
-    protected List<Trigger> getTriggers(JobKey jobKey, JsonNode scheduleTriggers, TimeZone timeZone, TriggerFactory<?> scheduleFactory)
-            throws ConfigValidationException {
-        List<Trigger> result = new ArrayList<>();
-
-        if (scheduleTriggers instanceof ObjectNode) {
-            result.add(createTrigger(jobKey, (ObjectNode) scheduleTriggers, timeZone, scheduleFactory));
-        } else if (scheduleTriggers instanceof ArrayNode) {
-            for (JsonNode trigger : (ArrayNode) scheduleTriggers) {
-                result.add(createTrigger(jobKey, trigger, timeZone, scheduleFactory));
-            }
-        }
-
-        return result;
     }
 
     protected String getTriggerKey(String trigger) {
@@ -175,7 +118,7 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
                 .withSchedule(SimpleScheduleBuilder.simpleSchedule().repeatForever().withIntervalInMilliseconds(duration.toMillis())).build();
     }
 
-    protected Trigger createTrigger(JobKey jobKey, JsonNode jsonNode, TimeZone timeZone, TriggerFactory<?> scheduleFactory)
+    protected Trigger createTrigger(JobKey jobKey, DocNode jsonNode, TimeZone timeZone, TriggerFactory<?> scheduleFactory)
             throws ConfigValidationException {
         String triggerKey = getTriggerKey(jsonNode.toString());
 

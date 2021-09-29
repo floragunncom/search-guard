@@ -21,12 +21,13 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.support.PemKeyReader;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 
 public class TlsClientAuthConfig implements ToXContentObject {
     private String inlineAuthCertsPem;
@@ -38,13 +39,13 @@ public class TlsClientAuthConfig implements ToXContentObject {
     private char[] effectiveKeyPassword;
     private String alias = "alias";
 
-    void init(JsonNode jsonNode) throws ConfigValidationException {
+    void init(DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        this.inlineAuthCertsPem = vJsonNode.requiredString("certs");
-        this.inlineAuthKeyPassword = vJsonNode.string("private_key_password");
-        this.inlineAuthKey = vJsonNode.requiredString("private_key");
+        this.inlineAuthCertsPem = vJsonNode.get("certs").required().asString();
+        this.inlineAuthKeyPassword = vJsonNode.get("private_key_password").asString();
+        this.inlineAuthKey = vJsonNode.get("private_key").asString();
 
         init(validationErrors);
 
@@ -116,7 +117,7 @@ public class TlsClientAuthConfig implements ToXContentObject {
         }
     }
 
-    static TlsClientAuthConfig create(JsonNode jsonNode) throws ConfigValidationException {
+    static TlsClientAuthConfig create(DocNode jsonNode) throws ConfigValidationException {
         TlsClientAuthConfig result = new TlsClientAuthConfig();
         result.init(jsonNode);
         return result;

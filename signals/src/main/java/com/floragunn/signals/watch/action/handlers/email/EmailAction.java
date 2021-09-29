@@ -43,7 +43,9 @@ import org.simplejavamail.email.Recipient;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
@@ -296,26 +298,26 @@ public class EmailAction extends ActionHandler {
         }
 
         @Override
-        protected EmailAction create(WatchInitializationService watchInitService, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors)
+        protected EmailAction create(WatchInitializationService watchInitService, ValidatingDocNode vJsonNode, ValidationErrors validationErrors)
                 throws ConfigValidationException {
 
-            List<String> to = vJsonNode.stringList("to");
-            List<String> cc = vJsonNode.stringList("cc");
-            List<String> bcc = vJsonNode.stringList("bcc");
-            String subject = vJsonNode.requiredString("subject");
-            String account = vJsonNode.string("account");
-            String replyTo = vJsonNode.string("reply_to");
+            List<String> to = vJsonNode.get("to").asListOfStrings();
+            List<String> cc = vJsonNode.get("cc").asListOfStrings();
+            List<String> bcc = vJsonNode.get("bcc").asListOfStrings();
+            String subject = vJsonNode.get("subject").required().asString();
+            String account = vJsonNode.get("account").asString();
+            String replyTo = vJsonNode.get("reply_to").asString();
 
-            watchInitService.verifyAccount(account, EmailAccount.class, validationErrors, (ObjectNode) vJsonNode.getDelegate());
+            watchInitService.verifyAccount(account, EmailAccount.class, validationErrors, vJsonNode.getDocumentNode());
 
-            String body = vJsonNode.requiredString("text_body");
-            String htmlBody = vJsonNode.string("html_body");
-            String from = vJsonNode.string("from");
+            String body = vJsonNode.get("text_body").required().asString();
+            String htmlBody = vJsonNode.get("html_body").asString();
+            String from = vJsonNode.get("from").asString();
 
             Map<String, Attachment> attachments = Collections.emptyMap();
 
-            if (vJsonNode.hasNonNull("attachments") && vJsonNode.get("attachments") instanceof ObjectNode) {
-                attachments = Attachment.create((ObjectNode) vJsonNode.get("attachments"), watchInitService, validationErrors);
+            if (vJsonNode.hasNonNull("attachments") && vJsonNode.getDocumentNode().get("attachments") instanceof Map) {
+                attachments = Attachment.create(vJsonNode.getDocumentNode().getAsNode("attachments"), watchInitService, validationErrors);
             }
 
             validationErrors.throwExceptionForPresentErrors();
@@ -395,17 +397,16 @@ public class EmailAction extends ActionHandler {
             this.type = type;
         }
 
-        static Map<String, Attachment> create(ObjectNode objectNode, WatchInitializationService watchInitService, ValidationErrors validationErrors) {
+        static Map<String, Attachment> create(DocNode objectNode, WatchInitializationService watchInitService, ValidationErrors validationErrors) {
             Map<String, Attachment> result = new HashMap<>();
 
-            for (Iterator<Map.Entry<String, JsonNode>> iter = objectNode.fields(); iter.hasNext();) {
-                Map.Entry<String, JsonNode> entry = iter.next();
-                ValidatingJsonNode element = new ValidatingJsonNode(entry.getValue(), validationErrors);
+            for (Map.Entry<String, Object> entry : objectNode.entrySet()) {
+                ValidatingDocNode element = new ValidatingDocNode(DocNode.wrap(entry.getValue()), validationErrors);
 
                 Attachment attachment = new Attachment();
 
                 if (element.hasNonNull("type")) {
-                    Optional<AttachmentType> type = AttachmentType.of(element.get("type").asText());
+                    Optional<AttachmentType> type = AttachmentType.of(element.get("type").asString());
                     type.ifPresent(t -> {
                         attachment.setType(t);
 
@@ -418,7 +419,8 @@ public class EmailAction extends ActionHandler {
                                     validationErrors.add(null, e);
                                 }
                                 try {
-                                    HttpRequestConfig requestConfig = HttpRequestConfig.create(watchInitService, element.get("request"));
+                                    HttpRequestConfig requestConfig = HttpRequestConfig.create(watchInitService,
+                                            element.getDocumentNode().getAsNode("request"));
                                     attachment.setRequestConfig(requestConfig);
                                 } catch (ConfigValidationException e) {
                                     validationErrors.add("request", e);

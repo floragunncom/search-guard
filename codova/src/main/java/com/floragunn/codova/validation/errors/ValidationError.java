@@ -20,6 +20,7 @@ package com.floragunn.codova.validation.errors;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,7 +31,6 @@ import com.fasterxml.jackson.core.JsonLocation;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.google.common.collect.ImmutableMap;
 
 public class ValidationError implements Document {
     private static final Logger log = LoggerFactory.getLogger(ValidationError.class);
@@ -39,6 +39,7 @@ public class ValidationError implements Document {
     private String message;
     private Exception cause;
     private Object docNode;
+    private Object expected;
 
     public ValidationError(String attribute, String message) {
         this.attribute = attribute != null ? attribute : "_";
@@ -69,13 +70,23 @@ public class ValidationError implements Document {
         return this;
     }
 
+    public ValidationError expected(Object expected) {
+        this.expected = expected;
+        return this;
+    }
+
     public Exception getCause() {
         return cause;
     }
 
     @Override
     public Map<String, Object> toMap() {
-        return ImmutableMap.of("error", message);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("error", message);
+        if (expected != null) {
+            result.put("expected", getExpectedAsString());
+        }
+        return result;
     }
 
     public void setAttribute(String attribute) {
@@ -84,11 +95,15 @@ public class ValidationError implements Document {
 
     @Override
     public String toString() {
-        return "ValidationError [message=" + message + ", cause=" + cause + "]";
+        return message + (getExpected() != null ? ("; expected: " + getExpectedAsString()) : "") + "; attribute: " + getAttribute();
     }
 
     public String toValidationErrorsOverviewString() {
-        return message;
+        if (getExpected() != null) {
+            return message + "; expected: " + getExpectedAsString();
+        } else {
+            return message;
+        }
     }
 
     public static List<ValidationError> parseArray(String attribute, DocNode docNode) {
@@ -97,12 +112,8 @@ public class ValidationError implements Document {
         } else {
             ArrayList<ValidationError> result = new ArrayList<>(docNode.size());
 
-            try {
-                for (DocNode subDocNode : docNode.getListOfNodes(null)) {
-                    result.add(parse(attribute, subDocNode));
-                }
-            } catch (ConfigValidationException e) {
-                throw new RuntimeException(e);
+            for (DocNode subDocNode : docNode.getListOfNodes(null)) {
+                result.add(parse(attribute, subDocNode));
             }
 
             return result;
@@ -162,4 +173,38 @@ public class ValidationError implements Document {
     protected ValidationError clone() {
         return new ValidationError(attribute, message).cause(cause).docNode(docNode);
     }
+
+    public Object getExpected() {
+        return expected;
+    }
+
+    public String getExpectedAsString() {
+        return expectedToString(getExpected());
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private static String expectedToString(Object expected) {
+        if (expected == null) {
+            return null;
+        } else if (expected instanceof Class<?> && ((Class<?>) expected).isEnum()) {
+            return getEnumValues((Class<Enum>) expected);
+        } else {
+            return expected.toString();
+        }
+    }
+
+    private static <E extends Enum<E>> String getEnumValues(Class<E> enumClass) {
+        StringBuilder result = new StringBuilder();
+
+        for (E e : enumClass.getEnumConstants()) {
+            if (result.length() > 0) {
+                result.append("|");
+            }
+
+            result.append(e.name());
+        }
+
+        return result.toString();
+    }
+
 }

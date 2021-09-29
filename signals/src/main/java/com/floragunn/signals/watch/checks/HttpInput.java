@@ -18,12 +18,11 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.CheckExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -148,35 +147,24 @@ public class HttpInput extends AbstractInput {
         return builder;
     }
 
-    static HttpInput create(WatchInitializationService watchInitService, ObjectNode jsonObject) throws ConfigValidationException {
+    static HttpInput create(WatchInitializationService watchInitService, DocNode jsonObject) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonObject, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonObject, validationErrors);
 
         vJsonNode.used("type");
 
-        String name = vJsonNode.string("name");
-        String target = vJsonNode.string("target");
-        HttpRequestConfig request = null;
+        String name = vJsonNode.get("name").asString();
+        String target = vJsonNode.get("target").asString();
+        HttpRequestConfig request = vJsonNode.get("request").required().by((n) -> HttpRequestConfig.create(watchInitService, n));
         HttpClientConfig httpClientConfig = null;
-
-        if (jsonObject.hasNonNull("request")) {
-            try {
-                request = HttpRequestConfig.create(watchInitService, vJsonNode.get("request"));
-            } catch (ConfigValidationException e) {
-                validationErrors.add("request", e);
-            }
-        } else {
-            validationErrors.add(new MissingAttribute("request", jsonObject));
-        }
-
+        
         try {
             httpClientConfig = HttpClientConfig.create(vJsonNode);
         } catch (ConfigValidationException e) {
             validationErrors.add(null, e);
         }
 
-        vJsonNode.validateUnusedAttributes();
-
+        vJsonNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         HttpInput result = new HttpInput(name, target, request, httpClientConfig);

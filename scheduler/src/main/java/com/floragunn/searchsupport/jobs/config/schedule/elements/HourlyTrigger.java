@@ -2,7 +2,6 @@ package com.floragunn.searchsupport.jobs.config.schedule.elements;
 
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.TimeZone;
@@ -14,12 +13,10 @@ import org.quartz.CronScheduleBuilder;
 import org.quartz.ScheduleBuilder;
 import org.quartz.impl.triggers.CronTriggerImpl;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 
 public class HourlyTrigger extends HumanReadableCronTrigger<HourlyTrigger> {
 
@@ -65,47 +62,16 @@ public class HourlyTrigger extends HumanReadableCronTrigger<HourlyTrigger> {
         return builder;
     }
 
-    public static HourlyTrigger create(JsonNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
+    public static HourlyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        List<Integer> minute = null;
+        List<Integer> minute = vJsonNode.get("minute").required().asList().inRange(0, 59).ofIntegers();
 
-        try {
-            JsonNode minuteNode = vJsonNode.get("minute");
-
-            if (minuteNode != null && minuteNode.isArray()) {
-                minute = new ArrayList<>(minuteNode.size());
-
-                for (JsonNode minuteNodeElement : minuteNode) {
-                    minute.add(parseMinute(minuteNodeElement));
-                }
-            } else if (minuteNode != null) {
-                minute = Collections.singletonList(parseMinute(minuteNode));
-            } else {
-                validationErrors.add(new MissingAttribute("minute", jsonNode));
-            }
-        } catch (ConfigValidationException e) {
-            validationErrors.add("minute", e);
-        }
-
-        vJsonNode.validateUnusedAttributes();
+        vJsonNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         return new HourlyTrigger(minute, timeZone);
-    }
-
-    private static int parseMinute(JsonNode minuteNode) throws ConfigValidationException {
-        if (!minuteNode.isNumber()) {
-            throw new ConfigValidationException(new InvalidAttributeValue(null, minuteNode.textValue(), "number between 0 and 59"));
-        }
-        int result = minuteNode.asInt();
-
-        if (result < 0 || result > 59) {
-            throw new ConfigValidationException(new InvalidAttributeValue(null, minuteNode.textValue(), "number between 0 and 59"));
-        }
-
-        return result;
     }
 
     private static CronExpression createCronExpression(List<Integer> minutes) {
@@ -138,7 +104,7 @@ public class HourlyTrigger extends HumanReadableCronTrigger<HourlyTrigger> {
         }
 
         @Override
-        public HourlyTrigger create(JsonNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
+        public HourlyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
             return HourlyTrigger.create(jsonNode, timeZone);
         }
     };

@@ -16,13 +16,13 @@ import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.ScriptService;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.filter.TenantAwareRestHandler;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
-import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchAction;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchRequest;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchResponse;
@@ -161,41 +161,42 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
                 return new RequestBody();
             }
 
-            JsonNode rootNode = ValidatingJsonParser.readTree(requestBody);
+            DocNode rootNode = DocNode.parse(DocType.JSON).from(requestBody);
             RequestBody result = new RequestBody();
 
             ValidationErrors validationErrors = new ValidationErrors();
+            ValidatingDocNode vNode = new ValidatingDocNode(rootNode, validationErrors);
 
             if (rootNode.hasNonNull("watch")) {
                 try {
-                    result.watch = Watch.parse(initContext, "anon", "anon_" + UUID.randomUUID(), rootNode.get("watch"));
+                    result.watch = Watch.parse(initContext, "anon", "anon_" + UUID.randomUUID(), rootNode.getAsNode("watch"));
                 } catch (ConfigValidationException e) {
                     validationErrors.add("watch", e);
                 }
             }
 
             if (rootNode.hasNonNull("input")) {
-                result.input = JacksonTools.toMap(rootNode.get("input"));
+                result.input = rootNode.getAsNode("input").toMap();
             }
 
             if (rootNode.hasNonNull("record_execution")) {
-                result.recordExecution = rootNode.get("record_execution").asBoolean();
+                result.recordExecution = vNode.get("record_execution").asBoolean();
             }
 
             if (rootNode.hasNonNull("simulate")) {
-                result.simulate = rootNode.get("simulate").asBoolean();
+                result.simulate = vNode.get("simulate").asBoolean();
             }
 
             if (rootNode.hasNonNull("skip_actions")) {
-                result.skipActions = rootNode.get("skip_actions").asBoolean();
+                result.skipActions = vNode.get("skip_actions").asBoolean();
             }
 
             if (rootNode.hasNonNull("goto")) {
-                result.goTo = rootNode.get("goto").asText();
+                result.goTo = rootNode.getAsString("goto");
             }
 
             if (rootNode.hasNonNull("show_all_runtime_attributes")) {
-                result.showAllRuntimeAttributes = rootNode.get("show_all_runtime_attributes").asBoolean();
+                result.showAllRuntimeAttributes = vNode.get("show_all_runtime_attributes").asBoolean();
             }
 
             validationErrors.throwExceptionForPresentErrors();

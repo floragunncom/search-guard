@@ -17,12 +17,17 @@
 
 package com.floragunn.codova.validation;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.DateTimeException;
+import java.time.DayOfWeek;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,7 +46,6 @@ import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.UnsupportedAttribute;
-import com.floragunn.codova.validation.errors.ValidationError;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Longs;
 import com.jayway.jsonpath.InvalidPathException;
@@ -113,9 +117,9 @@ public class ValidatingDocNode {
 
             used(parentAttribute);
         }
-        
+
         String attributeWithDot = attribute + ".";
-        
+
         for (String unconsumed : new HashSet<>(unconsumedAttributes)) {
             if (unconsumed.startsWith(attributeWithDot)) {
                 usedNonRecursive(unconsumed);
@@ -186,12 +190,15 @@ public class ValidatingDocNode {
 
     public boolean hasNonNull(String attribute) {
         if (this.documentNode.get(attribute) != null) {
+            used(attribute);
             return true;
         }
 
         int dot = attribute.indexOf('.');
 
         if (dot != -1) {
+            used(attribute);
+
             String[] parts = attribute.split("\\.");
 
             DocNode currentDocumentNode = this.documentNode;
@@ -439,8 +446,22 @@ public class ValidatingDocNode {
             return expandVariable(documentNode.get(name));
         }
 
+        public DocNode asDocNode() {
+            Object object = asAnything();
+
+            if (object != null) {
+                return DocNode.wrap(object);
+            } else {
+                return null;
+            }
+        }
+
         public List<String> asListOfStrings() {
-            return expandVariablesForStrings(documentNode.getAsListOfStrings(name));
+            if (hasNonNull(name)) {            
+                return expandVariablesForStrings(documentNode.getAsListOfStrings(name));
+            } else {
+                return null;
+            }
         }
 
         public Number asNumber() {
@@ -474,6 +495,30 @@ public class ValidatingDocNode {
             } else if (number != null) {
                 return number.intValue();
             } else {
+                return null;
+            }
+        }
+
+        public BigDecimal asBigDecimal() {
+            Object object = expandVariable(documentNode.get(name));
+
+            if (object == null) {
+                return null;
+            } else if (object instanceof BigDecimal) {
+                return (BigDecimal) object;
+            } else if (object instanceof Integer || object instanceof Long) {
+                return new BigDecimal(((Number) object).longValue());
+            } else if (object instanceof Number) {
+                return new BigDecimal(((Number) object).doubleValue());
+            } else if (object instanceof String) {
+                try {
+                    return new BigDecimal((String) object);
+                } catch (NumberFormatException e) {
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "number"));
+                    return null;
+                }
+            } else {
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "number"));
                 return null;
             }
         }
@@ -563,7 +608,9 @@ public class ValidatingDocNode {
         public <E extends Enum<E>> E asEnum(Class<E> enumClass) {
             Object object = expandVariable(documentNode.get(name));
 
-            if (object instanceof String) {
+            if (object == null) {
+                return null;
+            } else if (object instanceof String) {
                 String value = (String) object;
                 for (E e : enumClass.getEnumConstants()) {
                     if (value.equalsIgnoreCase(e.name())) {
@@ -575,6 +622,24 @@ public class ValidatingDocNode {
             validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, enumClass));
 
             return null;
+        }
+
+        public DayOfWeek asDayOfWeek() {
+            Object object = expandVariable(documentNode.get(name));
+
+            if (object instanceof String) {
+                try {
+                    return getDayOfWeek((String) object);
+                } catch (ConfigValidationException e) {
+                    validationErrors.add(getAttributePathForValidationError(), e);
+                    return null;
+                }
+            } else if (object != null) {
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "mon|tue|wed|thu|fri|sat|sun"));
+                return null;
+            } else {
+                return null;
+            }
         }
 
         public Pattern asPattern() {
@@ -655,11 +720,30 @@ public class ValidatingDocNode {
                 try {
                     return JsonPath.compile((String) object);
                 } catch (InvalidPathException e) {
-                    validationErrors.add(new ValidationError(getAttributePathForValidationError(), e.getMessage()));
+                    validationErrors.add(
+                            new InvalidAttributeValue(getAttributePathForValidationError(), object, "JSON Path").message(e.getMessage()).cause(e));
                     return null;
                 }
             } else if (object != null) {
                 validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "JSON Path"));
+                return null;
+            } else {
+                return null;
+            }
+        }
+
+        public ZoneId asTimeZoneId() {
+            Object object = expandVariable(documentNode.get(name));
+
+            if (object instanceof String) {
+                try {
+                    return ZoneId.of((String) object);
+                } catch (DateTimeException e) {
+                    validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A time zone ID").cause(e));
+                    return null;
+                }
+            } else if (object != null) {
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A time zone ID"));
                 return null;
             } else {
                 return null;
@@ -992,7 +1076,7 @@ public class ValidatingDocNode {
 
         }
 
-        public T as(ValidatingFunction<String, T> parser) {
+        public T byString(ValidatingFunction<String, T> parser) {
             Object object = expandVariable(documentNode.getAsString(name));
 
             if (object != null) {
@@ -1021,7 +1105,7 @@ public class ValidatingDocNode {
             }
         }
 
-        public T parse(ValidatingFunction<DocNode, T> parser) {
+        public T by(ValidatingFunction<DocNode, T> parser) {
             DocNode value = documentNode.getAsNode(name);
 
             if (value != null) {
@@ -1087,6 +1171,8 @@ public class ValidatingDocNode {
     }
 
     public class ListAttribute extends AbstractAttribute<ListAttribute> {
+        private boolean emptyListAsDefault = false;
+
         ListAttribute(String name, String fullAttributePath, DocNode documentNode) {
             super(name, fullAttributePath, documentNode);
         }
@@ -1102,16 +1188,105 @@ public class ValidatingDocNode {
             return this;
         }
 
+        public ListAttribute withEmptyListAsDefault() {
+            emptyListAsDefault = true;
+            return this;
+        }
+
         public StringListAttribute withDefault(String... defaultValue) {
             return new StringListAttribute(name, fullAttributePath, documentNode).withDefault(Arrays.asList(defaultValue));
         }
 
         public StringListAttribute validatedBy(Predicate<String> validationPredicate) {
-            return new StringListAttribute(name, fullAttributePath, documentNode).validatedBy(validationPredicate);
+            return new StringListAttribute(name, fullAttributePath, documentNode).withDefault(getDefault()).validatedBy(validationPredicate);
+        }
+
+        public IntegerListAttribute inRange(int min, int max) {
+            return new IntegerListAttribute(name, fullAttributePath, documentNode).withDefault(getDefault()).inRange(min, max);
         }
 
         public List<String> ofStrings() {
-            return new StringListAttribute(name, fullAttributePath, documentNode).ofStrings();
+            return new StringListAttribute(name, fullAttributePath, documentNode).withDefault(getDefault()).ofStrings();
+        }
+
+        public List<Integer> ofIntegers() {
+            return new IntegerListAttribute(name, fullAttributePath, documentNode).withDefault(getDefault()).ofIntegers();
+        }
+
+        public List<DayOfWeek> ofDayOfWeek() {
+            List<String> values = expandVariablesForStrings(documentNode.getAsListOfStrings(name));
+
+            if (values != null) {
+                List<DayOfWeek> result = new ArrayList<>(values.size());
+
+                for (int i = 0; i < values.size(); i++) {
+                    try {
+                        result.add(getDayOfWeek(values.get(i)));
+                    } catch (ConfigValidationException e) {
+                        validationErrors.add(getAttributePathForValidationError() + "." + i, e);
+                    }
+                }
+
+                return result;
+            } else {
+                return getDefault();
+            }
+        }
+
+        public <T> List<T> ofObjectsParsedByString(ValidatingFunction<String, T> parser) {
+            List<String> values = expandVariablesForStrings(documentNode.getAsListOfStrings(name));
+
+            if (values != null) {
+                List<T> result = new ArrayList<>(values.size());
+
+                for (int i = 0; i < values.size(); i++) {
+                    try {
+                        result.add(parser.apply(values.get(i)));
+                    } catch (ConfigValidationException e) {
+                        validationErrors.add(getAttributePathForValidationError() + "." + i, e);
+                    } catch (Exception e) {
+                        validationErrors
+                                .add(new InvalidAttributeValue(getAttributePathForValidationError() + "." + i, values.get(i), expected).cause(e));
+                    }
+                }
+
+                return result;
+            } else {
+                return getDefault();
+            }
+        }
+
+        public <T> List<T> ofObjectsParsedBy(ValidatingFunction<DocNode, T> parser) {
+            List<DocNode> values = documentNode.getAsList(name);
+
+            if (values != null) {
+                List<T> result = new ArrayList<>(values.size());
+
+                for (int i = 0; i < values.size(); i++) {
+                    try {
+                        result.add(parser.apply(values.get(i)));
+                    } catch (ConfigValidationException e) {
+                        validationErrors.add(getAttributePathForValidationError() + "." + i, e);
+                    } catch (Exception e) {
+                        validationErrors
+                                .add(new InvalidAttributeValue(getAttributePathForValidationError() + "." + i, values.get(i), expected).cause(e));
+                    }
+                }
+
+                return result;
+            } else {
+                return getDefault();
+            }
+        }
+
+        
+        private <T> List<T> getDefault() {
+            if (emptyListAsDefault) {
+                return Collections.emptyList();
+            } else {
+                return null;
+            }
+
         }
     }
 
@@ -1157,4 +1332,137 @@ public class ValidatingDocNode {
         }
     }
 
+    public abstract class NumberListAttribute<T extends Number> extends AbstractAttribute<NumberListAttribute<T>> {
+        private List<T> defaultValue;
+
+        NumberListAttribute(String name, String fullAttributePath, DocNode documentNode) {
+            super(name, fullAttributePath, documentNode);
+        }
+
+        public NumberListAttribute<T> withDefault(List<T> defaultValue) {
+            this.defaultValue = defaultValue;
+            return this;
+        }
+
+        public NumberListAttribute<T> validatedBy(Predicate<T> validationPredicate) {
+            List<T> list = ofNumbers();
+
+            if (list != null) {
+                for (int i = 0; i < list.size(); i++) {
+                    T number = list.get(i);
+                    if (!validationPredicate.test(number)) {
+                        validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError() + "." + i, number, expected));
+                    }
+
+                }
+            }
+
+            return this;
+        }
+
+        public NumberListAttribute<T> inRange(T min, T max) {
+            List<T> list = ofNumbers();
+
+            if (list != null) {
+                for (int i = 0; i < list.size(); i++) {
+                    T number = list.get(i);
+                    if (number.longValue() < min.longValue() || number.longValue() > max.longValue()) {
+                        validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError() + "." + i, number,
+                                "A number between " + min + " and " + max));
+                    }
+                }
+            }
+
+            return this;
+        }
+
+        protected abstract T convertFromNumber(Number number);
+
+        protected List<T> ofNumbers() {
+            Object value = documentNode.get(name);
+
+            if (value instanceof Collection) {
+                Collection<?> collection = (Collection<?>) value;
+                List<T> result = new ArrayList<>(collection.size());
+
+                int i = 0;
+
+                for (Object o : collection) {
+                    if (o instanceof Number) {
+                        result.add(convertFromNumber((Number) o));
+                    } else {
+                        validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError() + "." + i, o, "A number"));
+                    }
+
+                    i++;
+                }
+
+                return result;
+            } else if (value instanceof Number) {
+                return Collections.singletonList(convertFromNumber((Number) value));
+            } else if (value != null) {
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), value, "A number"));
+                return defaultValue;
+            } else {
+                return defaultValue;
+            }
+        }
+    }
+
+    public class IntegerListAttribute extends NumberListAttribute<Integer> {
+        IntegerListAttribute(String name, String fullAttributePath, DocNode documentNode) {
+            super(name, fullAttributePath, documentNode);
+        }
+
+        @Override
+        public IntegerListAttribute withDefault(List<Integer> defaultValue) {
+            super.withDefault(defaultValue);
+            return this;
+        }
+
+        @Override
+        protected Integer convertFromNumber(Number number) {
+            if (number instanceof Integer) {
+                return (Integer) number;
+            } else {
+                return number.intValue();
+            }
+        }
+
+        public IntegerListAttribute inRange(int min, int max) {
+            return (IntegerListAttribute) super.inRange(min, max);
+        }
+
+        public List<Integer> ofIntegers() {
+            return ofNumbers();
+        }
+    }
+
+    private static DayOfWeek getDayOfWeek(String string) throws ConfigValidationException {
+        switch (string) {
+        case "sunday":
+        case "sun":
+            return DayOfWeek.SUNDAY;
+        case "monday":
+        case "mon":
+            return DayOfWeek.MONDAY;
+        case "tuesday":
+        case "tue":
+            return DayOfWeek.TUESDAY;
+        case "wednesday":
+        case "wed":
+            return DayOfWeek.WEDNESDAY;
+        case "thursday":
+        case "thu":
+            return DayOfWeek.THURSDAY;
+        case "friday":
+        case "fri":
+            return DayOfWeek.FRIDAY;
+        case "saturday":
+        case "sat":
+            return DayOfWeek.SATURDAY;
+        default:
+            throw new ConfigValidationException(new InvalidAttributeValue(null, string, "mon|tue|wed|thu|fri|sat|sun"));
+        }
+    }
 }

@@ -19,7 +19,6 @@ package com.floragunn.codova.documents;
 
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.codova.documents.DocType.UnknownContentTypeException;
 
 public class UnparsedDoc {
@@ -31,11 +30,11 @@ public class UnparsedDoc {
         this.docType = docType;
     }
 
-    public Map<String, Object> parseAsMap() throws JsonProcessingException {
+    public Map<String, Object> parseAsMap() throws DocParseException, UnexpectedDocumentStructureException {
         return DocReader.type(docType).readObject(source);
     }
 
-    public Object parse() throws JsonProcessingException {
+    public Object parse() throws DocParseException {
         return DocReader.type(docType).read(source);
     }
 

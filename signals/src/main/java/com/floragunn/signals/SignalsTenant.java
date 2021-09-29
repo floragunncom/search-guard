@@ -3,6 +3,7 @@ package com.floragunn.signals;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -37,15 +38,15 @@ import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.spi.JobFactory;
 import org.quartz.spi.TriggerFiredBundle;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.searchsupport.jobs.JobConfigListener;
 import com.floragunn.searchsupport.jobs.SchedulerBuilder;
@@ -291,9 +292,9 @@ public class SignalsTenant implements Closeable {
             log.info("addWatch(" + watchId + ") on " + this);
         }
 
-        ObjectNode watchJson = ValidatingJsonParser.readObject(watchJsonString);
+        Map<String, Object> watchJson = new LinkedHashMap<>(DocReader.json().readObject(watchJsonString));
 
-        Watch watch = Watch.parse(new WatchInitializationService(accountRegistry, scriptService), getName(), watchId, watchJson, -1);
+        Watch watch = Watch.parse(new WatchInitializationService(accountRegistry, scriptService), getName(), watchId, DocNode.wrap(watchJson), -1);
 
         watch.setTenant(name);
         watch.getMeta().setLastEditByUser(user.getName());
@@ -301,10 +302,10 @@ public class SignalsTenant implements Closeable {
         watch.getMeta().setAuthToken(internalAuthTokenProvider.getJwt(user, watch.getIdAndHash()));
 
         watchJson.put("_tenant", watch.getTenant());
-        watchJson.set("_meta", watch.getMeta().toJsonNode());
+        watchJson.put("_meta", watch.getMeta().toMap());
         watchJson.put("_name", watchId);
 
-        String newWatchJsonString = DefaultObjectMapper.writeJsonTree(watchJson);
+        String newWatchJsonString = DocWriter.json().writeAsString(watchJson);
 
         IndexResponse indexResponse = privilegedConfigClient.prepareIndex(getConfigIndexName(), null, getWatchIdForConfigIndex(watch.getId()))
                 .setSource(newWatchJsonString, XContentType.JSON).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute().actionGet();

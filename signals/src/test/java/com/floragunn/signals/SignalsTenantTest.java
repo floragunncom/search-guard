@@ -27,12 +27,12 @@ import org.mockito.Mockito;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -53,7 +53,7 @@ public class SignalsTenantTest {
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/no-tenants")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "searchguard.enterprise_modules_enabled", false)
             .build();
- 
+
     private static ClusterService clusterService;
     private static NodeEnvironment nodeEnvironment;
     private static NamedXContentRegistry xContentRegistry;
@@ -297,10 +297,10 @@ public class SignalsTenantTest {
             }
 
             @Override
-            protected SleepAction create(WatchInitializationService watchInitService, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors)
+            protected SleepAction create(WatchInitializationService watchInitService, ValidatingDocNode vJsonNode, ValidationErrors validationErrors)
                     throws ConfigValidationException {
 
-                return new SleepAction(vJsonNode.duration("duration"));
+                return new SleepAction(vJsonNode.get("duration").asDuration());
             }
         }
     }

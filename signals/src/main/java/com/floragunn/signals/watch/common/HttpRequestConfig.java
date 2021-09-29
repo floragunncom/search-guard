@@ -23,11 +23,10 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.TemplateScript;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionException;
 import com.floragunn.signals.watch.common.HttpEndpointWhitelist.NotWhitelistedException;
@@ -271,7 +270,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         return builder;
     }
 
-    public static HttpRequestConfig create(WatchInitializationService watchInitService, JsonNode objectNode)
+    public static HttpRequestConfig create(WatchInitializationService watchInitService, DocNode objectNode)
             throws ConfigValidationException {
         HttpRequestConfig result = createWithoutCompilation(objectNode);
 
@@ -281,32 +280,24 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
 
     }
 
-    public static HttpRequestConfig createWithoutCompilation(JsonNode objectNode) throws ConfigValidationException {
+    public static HttpRequestConfig createWithoutCompilation(DocNode objectNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(objectNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(objectNode, validationErrors);
 
-        Method method = vJsonNode.caseInsensitiveEnum("method", Method.class, Method.POST);
-        URI uri = vJsonNode.requiredURI("url");
-        String body = vJsonNode.string("body");
-        String path = vJsonNode.string("path");
-        String queryParams = vJsonNode.string("query_params");
-        String accept = vJsonNode.string("accept");
+        Method method = vJsonNode.get("method").withDefault(Method.POST).asEnum(Method.class);
+        URI uri = vJsonNode.get("url").required().asURI();
+        String body = vJsonNode.get("body").asString();
+        String path = vJsonNode.get("path").asString();
+        String queryParams = vJsonNode.get("query_params").asString();
+        String accept = vJsonNode.get("accept").asString();
         Map<String, Object> headers = null;
-        Auth auth = null;
+        Auth auth = vJsonNode.get("auth").by(Auth::create);
 
         if (vJsonNode.hasNonNull("headers")) {
-            headers = JacksonTools.toMap(vJsonNode.get("headers"));
+            headers = objectNode.getAsNode("headers").toMap();
         }
 
-        if (vJsonNode.hasNonNull("auth")) {
-            try {
-                auth = Auth.create(vJsonNode.get("auth"));
-            } catch (ConfigValidationException e) {
-                validationErrors.add("auth", e);
-            }
-        }
-
-        vJsonNode.validateUnusedAttributes();
+        vJsonNode.checkForUnusedAttributes();
 
         validationErrors.throwExceptionForPresentErrors();
 

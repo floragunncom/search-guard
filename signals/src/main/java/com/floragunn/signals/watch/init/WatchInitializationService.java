@@ -13,7 +13,7 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.script.TemplateScript;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchsupport.config.validation.ScriptValidationError;
@@ -110,7 +110,7 @@ public class WatchInitializationService {
         }
     }
 
-    public <T extends Account> boolean verifyAccount(String id, Class<T> accountType, ValidationErrors validationErrors, ObjectNode jsonObject) {
+    public <T extends Account> boolean verifyAccount(String id, Class<T> accountType, ValidationErrors validationErrors, DocNode jsonObject) {
         if (accountRegistry == null) {
             return true;
         }

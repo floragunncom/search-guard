@@ -6,33 +6,31 @@ import java.util.Map;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.WatchExecutionContext;
 
 public class StaticInput extends AbstractInput {
     private Map<String, Object> value;
 
-    static Check create(ObjectNode jsonObject) throws ConfigValidationException {
+    static Check create(DocNode jsonObject) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonObject, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonObject, validationErrors);
 
         vJsonNode.used("type");
 
-        String name = vJsonNode.string("name");
-        String target = vJsonNode.string("target");
+        String name = vJsonNode.get("name").asString();
+        String target = vJsonNode.get("target").asString();
 
         Map<String, Object> value = Collections.emptyMap();
 
         if (vJsonNode.hasNonNull("value")) {
-            value = JacksonTools.toMap(vJsonNode.get("value"));
+            value = jsonObject.getAsNode("value").toMap();
         }
 
-        vJsonNode.validateUnusedAttributes();
-
+        vJsonNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         StaticInput result = new StaticInput(name, target, value);

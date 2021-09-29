@@ -23,10 +23,10 @@ import org.elasticsearch.script.Script;
 import org.elasticsearch.script.TemplateScript;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.floragunn.signals.execution.CheckExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -126,15 +126,15 @@ public abstract class AbstractSearchInput extends AbstractInput {
         }
     }
 
-    public static IndicesOptions parseIndicesOptions(JsonNode jsonNode) throws ConfigValidationException {
+    public static IndicesOptions parseIndicesOptions(DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        EnumSet<WildcardStates> wildcards = vJsonNode.value("expand_wildcards", (s) -> WildcardStates.parseParameter(s, null), "all|open|none|closed",
-                EnumSet.of(WildcardStates.OPEN));
+        EnumSet<WildcardStates> wildcards = vJsonNode.get("expand_wildcards").expected("all|open|none|closed")
+                .withDefault(EnumSet.of(WildcardStates.OPEN)).by((s) -> WildcardStates.parseParameter(s, null));
 
-        IndicesOptions result = IndicesOptions.fromOptions(vJsonNode.booleanAttribute("ignore_unavailable", false),
-                vJsonNode.booleanAttribute("allow_no_indices", false), wildcards.contains(WildcardStates.OPEN),
+        IndicesOptions result = IndicesOptions.fromOptions(vJsonNode.get("ignore_unavailable").withDefault(false).asBoolean(),
+                vJsonNode.get("allow_no_indices").withDefault(false).asBoolean(), wildcards.contains(WildcardStates.OPEN),
                 wildcards.contains(WildcardStates.CLOSED), false, false, false, false);
 
         validationErrors.throwExceptionForPresentErrors();

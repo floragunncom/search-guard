@@ -21,22 +21,17 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class InvalidAttributeValue extends ValidationError {
-    private Object expected;
     private final Object value;
 
     public InvalidAttributeValue(String attribute, Object value, Object expected, Object jsonNode) {
         super(attribute, "Invalid value");
-        this.expected = expected;
+        this.expected(expected);
         this.value = value;
         this.docNode(jsonNode);
     }
 
     public InvalidAttributeValue(String attribute, Object value, Object expected) {
         this(attribute, value, expected, null);
-    }
-
-    public Object getExpected() {
-        return expected;
     }
 
     @Override
@@ -47,62 +42,37 @@ public class InvalidAttributeValue extends ValidationError {
 
         result.put("value", value);
 
-        if (expected != null) {
-            result.put("expected", expectedToString(expected));
+        if (getExpected() != null) {
+            result.put("expected", getExpectedAsString());
         }
 
         return result;
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    private static String expectedToString(Object expected) {
-        if (expected == null) {
-            return null;
-        } else if (expected instanceof Class<?> && ((Class<?>) expected).isEnum()) {
-            return getEnumValues((Class<Enum>) expected);
-        } else {
-            return expected.toString();
-        }
-    }
-
-    private static <E extends Enum<E>> String getEnumValues(Class<E> enumClass) {
-        StringBuilder result = new StringBuilder();
-
-        for (E e : enumClass.getEnumConstants()) {
-            if (result.length() > 0) {
-                result.append("|");
-            }
-
-            result.append(e.name());
-        }
-
-        return result.toString();
-    }
-
     @Override
     public String toString() {
-        return "invalid value" + (expected != null ? ("; expected: " + expectedToString(expected)) : "") + "; value: " + value + "; attribute: "
+        return "invalid value" + (getExpected() != null ? ("; expected: " + getExpectedAsString()) : "") + "; value: " + value + "; attribute: "
                 + getAttribute();
     }
 
     @Override
     public String toValidationErrorsOverviewString() {
-        if (expected != null) {        
-            return "invalid value; expected: " + expectedToString(expected);
+        if (getExpected() != null) {
+            return "invalid value; expected: " + getExpectedAsString();
         } else {
             return "invalid value";
         }
     }
 
     public InvalidAttributeValue expected(Object expected) {
-        this.expected = expected;
+        super.expected(expected);
         return this;
     }
 
     @Override
     protected InvalidAttributeValue clone() {
         // TODO introduce generic base class to make casting not necessary
-        return (InvalidAttributeValue) new InvalidAttributeValue(getAttribute(), value, expected).cause(getCause()).docNode(getDocNode())
+        return (InvalidAttributeValue) new InvalidAttributeValue(getAttribute(), value, getExpected()).cause(getCause()).docNode(getDocNode())
                 .message(getMessage());
     }
 }

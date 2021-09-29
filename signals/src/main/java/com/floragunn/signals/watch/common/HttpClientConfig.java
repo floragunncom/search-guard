@@ -29,9 +29,8 @@ import org.apache.http.impl.client.HttpClients;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
+import com.floragunn.codova.validation.ValidatingDocNode;
 
 public class HttpClientConfig extends WatchElement {
     private final Integer connectionTimeoutSecs;
@@ -131,7 +130,7 @@ public class HttpClientConfig extends WatchElement {
         return builder;
     }
 
-    public static HttpClientConfig create(ValidatingJsonNode jsonObject) throws ConfigValidationException {
+    public static HttpClientConfig create(ValidatingDocNode jsonObject) throws ConfigValidationException {
         Integer connectionTimeout = null;
         Integer readTimeout = null;
         TlsConfig tlsConfig = null;
@@ -140,24 +139,15 @@ public class HttpClientConfig extends WatchElement {
         // TODO support units
 
         if (jsonObject.hasNonNull("read_timeout")) {
-            readTimeout = jsonObject.get("read_timeout").intValue();
+            readTimeout = jsonObject.get("read_timeout").asInteger();
         }
 
         if (jsonObject.hasNonNull("connection_timeout")) {
-            connectionTimeout = jsonObject.get("connection_timeout").intValue();
-        }
-
-        JsonNode tlsJsonNode = jsonObject.get("tls");
-
-        if (tlsJsonNode != null) {
-            tlsConfig = TlsConfig.create(tlsJsonNode);
+            connectionTimeout = jsonObject.get("connection_timeout").asInteger();
         }
         
-        JsonNode proxyJsonNode = jsonObject.get("proxy");
-        
-        if (proxyJsonNode != null) {
-            proxyConfig = HttpProxyConfig.create(proxyJsonNode);
-        }
+        tlsConfig = jsonObject.get("tls").by(TlsConfig::create);
+        proxyConfig = jsonObject.get("proxy").byString(HttpProxyConfig::create);
 
         return new HttpClientConfig(connectionTimeout, readTimeout, tlsConfig, proxyConfig);
     }

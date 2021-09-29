@@ -284,6 +284,8 @@ public abstract class HumanReadableCronTrigger<T extends Trigger> extends Abstra
     }
 
     protected static TimeOfDay parseTimeOfDay(String string) throws ConfigValidationException {
+        final String expected = "Time of day: <HH>:<MM>:<SS>?";
+
         try {
 
             int colon = string.indexOf(':');
@@ -292,7 +294,7 @@ public abstract class HumanReadableCronTrigger<T extends Trigger> extends Abstra
                 int hour = Integer.parseInt(string);
 
                 if (hour < 0 || hour >= 24) {
-                    throw new ConfigValidationException(new InvalidAttributeValue("at", string, "Hour must be between 0 and 23"));
+                    throw new ConfigValidationException(new InvalidAttributeValue(null, string, expected).message("Hour must be between 0 and 23"));
                 }
 
                 return new TimeOfDay(hour, 0);
@@ -313,15 +315,15 @@ public abstract class HumanReadableCronTrigger<T extends Trigger> extends Abstra
                 ValidationErrors validationErrors = new ValidationErrors();
 
                 if (hour < 0 || hour >= 24) {
-                    throw new ConfigValidationException(new InvalidAttributeValue("at", string, "Hour must be between 0 and 23"));
+                    throw new ConfigValidationException(new InvalidAttributeValue(null, string, expected).message("Hour must be between 0 and 23"));
                 }
 
                 if (minute < 0 || minute >= 60) {
-                    throw new ConfigValidationException(new InvalidAttributeValue("at", string, "Minute must be between 0 and 59"));
+                    throw new ConfigValidationException(new InvalidAttributeValue(null, string, expected).message("Minute must be between 0 and 59"));
                 }
 
                 if (second < 0 || second >= 60) {
-                    throw new ConfigValidationException(new InvalidAttributeValue("at", string, "Second must be between 0 and 59"));
+                    throw new ConfigValidationException(new InvalidAttributeValue(null, string, expected).message("Second must be between 0 and 59"));
                 }
 
                 validationErrors.throwExceptionForPresentErrors();
@@ -330,7 +332,7 @@ public abstract class HumanReadableCronTrigger<T extends Trigger> extends Abstra
             }
 
         } catch (NumberFormatException e) {
-            throw new ConfigValidationException(new InvalidAttributeValue("at", string, "Time of day: <HH>:<MM>:<SS>?").cause(e));
+            throw new ConfigValidationException(new InvalidAttributeValue(null, string, expected).cause(e));
         }
     }
 

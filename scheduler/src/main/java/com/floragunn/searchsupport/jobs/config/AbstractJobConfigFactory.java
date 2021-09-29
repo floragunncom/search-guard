@@ -12,11 +12,10 @@ import org.quartz.JobDetail;
 import org.quartz.JobKey;
 import org.quartz.Trigger;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleFactory;
 import com.jayway.jsonpath.TypeRef;
@@ -40,7 +39,7 @@ public abstract class AbstractJobConfigFactory<JobConfigType extends JobConfig> 
 
     @Override
     public JobConfigType createFromBytes(String id, BytesReference source, long version) throws ConfigValidationException {
-        JsonNode jsonNode = ValidatingJsonParser.readTree(source.utf8ToString());
+        DocNode jsonNode = DocNode.parse(DocType.JSON).from(source.utf8ToString());
 
         return createFromJsonNode(id, jsonNode, version);
     }
@@ -60,35 +59,35 @@ public abstract class AbstractJobConfigFactory<JobConfigType extends JobConfig> 
         return jobBuilder.build();
     }
 
-    abstract protected JobConfigType createFromJsonNode(String id, JsonNode jsonNode, long version) throws ConfigValidationException;
+    abstract protected JobConfigType createFromJsonNode(String id, DocNode jsonNode, long version) throws ConfigValidationException;
 
-    protected JobKey getJobKey(String id, JsonNode jsonNode) {
+    protected JobKey getJobKey(String id, DocNode jsonNode) {
         return new JobKey(id, group);
     }
 
-    protected String getDescription(JsonNode jsonNode) {
+    protected String getDescription(DocNode jsonNode) {
         if (jsonNode.hasNonNull("description")) {
-            return jsonNode.get("description").asText();
+            return jsonNode.getAsString("description");
         } else {
             return null;
         }
     }
 
-    protected Map<String, Object> getJobDataMap(JsonNode jsonNode) {
+    protected Map<String, Object> getJobDataMap(DocNode jsonNode) {
         return Collections.emptyMap();
     }
 
-    protected Boolean getDurability(JsonNode jsonNode) {
+    protected Boolean getDurability(DocNode jsonNode) {
         return Boolean.TRUE;
     }
 
-    protected List<Trigger> getTriggers(JobKey jobKey, JsonNode jsonNode) throws ConfigValidationException {
+    protected List<Trigger> getTriggers(JobKey jobKey, DocNode jsonNode) throws ConfigValidationException {
 
-        JsonNode triggerNode = jsonNode.get("trigger");
+        DocNode triggerNode = jsonNode.getAsNode("trigger");
 
-        if (triggerNode instanceof ObjectNode) {
+        if (triggerNode != null && triggerNode.isMap()) {
             try {
-                return triggerFactory.create(jobKey, (ObjectNode) triggerNode).getTriggers();
+                return triggerFactory.create(jobKey, triggerNode).getTriggers();
             } catch (ConfigValidationException e) {
                 ValidationErrors validationErrors = new ValidationErrors();
                 validationErrors.add("trigger", e);
@@ -99,16 +98,16 @@ public abstract class AbstractJobConfigFactory<JobConfigType extends JobConfig> 
         return Collections.emptyList();
     }
 
-    protected String getAuthToken(JsonNode jsonNode) {
-        JsonNode authTokenNode = jsonNode.at("/meta/auth_token");
-        if (authTokenNode != null && !authTokenNode.isMissingNode()) {
-            return authTokenNode.asText();
+    protected String getAuthToken(DocNode jsonNode) {
+        DocNode authTokenNode = jsonNode.getAsNode("meta.auth_token");
+        if (authTokenNode != null) {
+            return authTokenNode.toString();
         } else {
             return null;
         }
     }
 
-    protected Class<? extends Job> getJobClass(JsonNode jsonNode) {
+    protected Class<? extends Job> getJobClass(DocNode jsonNode) {
         return jobClass;
     }
 

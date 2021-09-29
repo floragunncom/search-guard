@@ -17,6 +17,13 @@
 
 package com.floragunn.codova.documents;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
 import java.math.BigDecimal;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -35,10 +42,13 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingFunction;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.google.common.collect.Maps;
 import com.jayway.jsonpath.JsonPath;
 
@@ -46,6 +56,14 @@ public abstract class DocNode implements Map<String, Object>, Document {
     private static final Logger log = LoggerFactory.getLogger(DocNode.class);
 
     public static final DocNode EMPTY = new PlainJavaObjectAdapter(Collections.EMPTY_MAP);
+
+    public static DocNodeParserBuilder parse(DocType docType) {
+        return new DocNodeParserBuilder(docType);
+    }
+
+    public static DocNode parse(UnparsedDoc unparsedDoc) throws DocParseException {
+        return wrap(unparsedDoc.parse());
+    }
 
     public static DocNode of(String key, Object value) {
         return new AttributeNormalizingAdapter(new PlainJavaObjectAdapter(Collections.singletonMap(key, value)));
@@ -141,7 +159,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
         }
 
         @Override
-        public List<DocNode> getListOfNodes(String attribute) throws ConfigValidationException {
+        public List<DocNode> getListOfNodes(String attribute) {
             Object object = null;
 
             if (attribute == null) {
@@ -154,11 +172,11 @@ public abstract class DocNode implements Map<String, Object>, Document {
                 return null;
             }
 
-            if (!(object instanceof Collection)) {
-                throw new ConfigValidationException(new InvalidAttributeValue(attribute, object, "A list of values"));
+            if (object instanceof Collection) {
+                return toListOfDocumentNode((Collection<?>) object);
+            } else {
+                return Collections.singletonList(wrap(object));
             }
-
-            return toListOfDocumentNode((Collection<?>) object);
         }
 
         @Override
@@ -542,7 +560,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
         }
 
         @Override
-        public List<DocNode> getListOfNodes(String attribute) throws ConfigValidationException {
+        public List<DocNode> getListOfNodes(String attribute) {
             if (simpleMap != null && simpleMap.containsKey(attribute)) {
                 return simpleMap.getListOfNodes(attribute);
             } else {
@@ -687,7 +705,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
         }
 
         @Override
-        public List<DocNode> getListOfNodes(String attribute) throws ConfigValidationException {
+        public List<DocNode> getListOfNodes(String attribute) {
             if (delegate.containsKey(attribute)) {
                 return delegate.getListOfNodes(attribute);
             }
@@ -819,7 +837,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
     public abstract Object get(String attribute);
 
-    public abstract List<DocNode> getListOfNodes(String attribute) throws ConfigValidationException;
+    public abstract List<DocNode> getListOfNodes(String attribute);
 
     public abstract DocNode getAsNode(String attribute);
 
@@ -1006,11 +1024,17 @@ public abstract class DocNode implements Map<String, Object>, Document {
         return result;
     }
 
-    public List<DocNode> getAsList(String attribute) throws ConfigValidationException {
+    public List<DocNode> getAsList(String attribute) {
         if (isList(attribute)) {
             return getListOfNodes(attribute);
         } else {
-            return Collections.singletonList(getAsNode(attribute));
+            DocNode docNode = getAsNode(attribute);
+
+            if (docNode != null) {
+                return Collections.singletonList(docNode);
+            } else {
+                return null;
+            }
         }
     }
 
@@ -1173,61 +1197,119 @@ public abstract class DocNode implements Map<String, Object>, Document {
     public String toYamlString() {
         return toString(DocType.YAML);
     }
-    
+
     @Override
     public String toString() {
-        return toString(60);
+        Object value = get();
+
+        if (value instanceof String) {
+            return (String) value;
+        } else if (value instanceof Number || value instanceof Boolean || value instanceof Character) {
+            return value.toString();
+        } else {
+            return toString(60);
+        }
     }
 
     protected String toString(int maxChars) {
         Object value = get();
 
         if (value instanceof Map) {
-            Map<?,?> map = (Map<?,?>) value;
+            Map<?, ?> map = (Map<?, ?>) value;
             StringBuilder result = new StringBuilder("{");
             int count = 0;
-            
+
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 if (count != 0) {
                     result.append(", ");
                 }
-                
+
                 if (result.length() >= maxChars) {
                     result.append(map.size() - count).append(" more ...");
                     break;
                 }
-                
+
                 result.append(DocWriter.json().writeAsString(entry.getKey()));
                 result.append(": ");
                 result.append(DocNode.wrap(entry.getValue()).toString(maxChars / 2));
                 count++;
             }
-            
+
             result.append("}");
-            return result.toString();           
+            return result.toString();
         } else if (value instanceof Collection) {
             Collection<?> collection = (Collection<?>) value;
             StringBuilder result = new StringBuilder("[");
             int count = 0;
-            
+
             for (Object element : collection) {
                 if (count != 0) {
                     result.append(", ");
                 }
-                
+
                 if (result.length() >= maxChars) {
                     result.append(collection.size() - count).append(" more ...");
                     break;
                 }
-                
+
                 result.append(DocNode.wrap(element).toString(maxChars / 2));
                 count++;
             }
-            
+
             result.append("]");
-            return result.toString();            
+            return result.toString();
         } else {
             return DocWriter.json().writeAsString(value);
+        }
+    }
+
+    public static class DocNodeParserBuilder {
+        private final DocType docType;
+        private final JsonFactory jsonFactory;
+
+        private DocNodeParserBuilder(DocType docType) {
+            this.docType = docType;
+            this.jsonFactory = docType.getJsonFactory();
+        }
+
+        public DocNode from(Reader in) throws DocParseException, IOException {
+            try (JsonParser parser = jsonFactory.createParser(in)) {
+                return wrap(new DocReader(docType, parser).read());
+            }
+        }
+
+        public DocNode from(String string) throws DocParseException {
+            if (string == null || string.length() == 0) {
+                throw new DocParseException(new ValidationError(null, "The document is empty").expected(docType.getName() + " document"));
+            }
+
+            try (JsonParser parser = jsonFactory.createParser(string)) {
+                return wrap(new DocReader(docType, parser).read());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public DocNode from(byte[] bytes) throws DocParseException {
+            if (bytes == null || bytes.length == 0) {
+                throw new DocParseException(new ValidationError(null, "The document is empty").expected(docType.getName() + " document"));
+            }
+
+            try {
+                return from(new ByteArrayInputStream(bytes));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public DocNode from(InputStream in) throws DocParseException, IOException {
+            try (JsonParser parser = jsonFactory.createParser(in)) {
+                return wrap(new DocReader(docType, parser).read());
+            }
+        }
+
+        public DocNode from(File file) throws DocParseException, FileNotFoundException, IOException {
+            return from(new FileInputStream(file));
         }
     }
 }
