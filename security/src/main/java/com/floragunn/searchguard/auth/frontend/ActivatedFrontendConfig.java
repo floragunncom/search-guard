@@ -17,21 +17,15 @@
 
 package com.floragunn.searchguard.auth.frontend;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
-import org.elasticsearch.xcontent.ToXContent.Params;
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
-
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.validation.ConfigValidationException;
 
 public class ActivatedFrontendConfig {
     private List<AuthMethod> authMethods;
@@ -44,7 +38,7 @@ public class ActivatedFrontendConfig {
         return authMethods;
     }
 
-    public static class AuthMethod implements ToXContentObject, Writeable, Document<AuthMethod> {
+    public static class AuthMethod implements Document<AuthMethod> {
 
         private final String id;
         private final String method;
@@ -116,77 +110,18 @@ public class ActivatedFrontendConfig {
             this.details = details != null ? Collections.unmodifiableMap(new HashMap<>(details)) : Collections.emptyMap();
         }
 
-        public AuthMethod(StreamInput in) throws IOException {
-            this.method = in.readString();
-            this.id = in.readOptionalString();
-            this.session = in.readBoolean();
-            this.label = in.readString();
-            this.messageTitle = in.readOptionalString();
-            this.message = in.readOptionalString();
-            this.unavailable = in.readBoolean();
-            this.ssoLocation = in.readOptionalString();
-            this.ssoContext = in.readOptionalString();
-            this.config = in.readMap();
-            this.details = in.readMap();
-        }
-
-        @Override
-        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-            builder.startObject();
-            builder.field("method", method);
-
-            if (id != null) {
-                builder.field("id", id);
-            }
-
-            builder.field("session", session);
-            builder.field("label", label);
-
-            if (unavailable) {
-                builder.field("unavailable", unavailable);
-            }
-
-            if (messageTitle != null) {
-                builder.field("message_title", messageTitle);
-            }
-
-            if (message != null) {
-                builder.field("message_body", message);
-            }
-
-            if (ssoLocation != null) {
-                builder.field("sso_location", ssoLocation);
-            }
-
-            if (ssoContext != null) {
-                builder.field("sso_context", ssoContext);
-            }
-
-            if (config.size() > 0) {
-                builder.field("config", config);
-            }
-
-            if (details.size() > 0) {
-                builder.field("details", details);
-            }
-
-            builder.endObject();
-            return builder;
-        }
-
-        @Override
-        public void writeTo(StreamOutput out) throws IOException {
-            out.writeString(method);
-            out.writeOptionalString(id);
-            out.writeBoolean(session);
-            out.writeString(label);
-            out.writeOptionalString(messageTitle);
-            out.writeOptionalString(message);
-            out.writeBoolean(unavailable);
-            out.writeOptionalString(ssoLocation);
-            out.writeOptionalString(ssoContext);
-            out.writeMap(config);
-            out.writeMap(details);
+        public AuthMethod(DocNode docNode) throws ConfigValidationException {
+            this.method = docNode.getAsString("method");
+            this.id = docNode.getAsString("id");
+            this.session = docNode.getBoolean("session") != null ? docNode.getBoolean("session") : false;
+            this.label = docNode.getAsString("label");
+            this.messageTitle = docNode.getAsString("message_title");
+            this.message = docNode.getAsString("message_body");
+            this.unavailable = docNode.getBoolean("unavailable") != null ? docNode.getBoolean("unavailable") : false;
+            this.ssoLocation = docNode.getAsString("sso_location");
+            this.ssoContext = docNode.getAsString("sso_context");
+            this.config = docNode.hasNonNull("config") ? docNode.getAsNode("config").toMap() : null;
+            this.details = docNode.hasNonNull("details") ? docNode.getAsNode("details").toMap() : null;
         }
 
         public AuthMethod unavailable(String messageTitle, String message) {

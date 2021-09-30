@@ -81,7 +81,6 @@ import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.session.PushSessionTokenUpdateAction.Request.UpdateType;
-import com.floragunn.searchguard.session.api.StartSessionResponse;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
