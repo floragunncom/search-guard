@@ -145,7 +145,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
             if (request.getFrontendBaseUrl() == null) {
                 throw new AuthenticatorUnavailableException("Invalid configuration", "frontend_base_url is required for OIDC authentication").details("request",
-                        request.toMap());
+                        request.toBasicObject());
             }
 
             URI frontendBaseUrl = new URI(request.getFrontendBaseUrl());
@@ -162,7 +162,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
         } catch (URISyntaxException e) {
             log.error("Error while activating SAML authenticator", e);
-            throw new AuthenticatorUnavailableException("Invalid configuration", "frontend_base_url is not a valid URL", e).details("request", request.toMap());
+            throw new AuthenticatorUnavailableException("Invalid configuration", "frontend_base_url is not a valid URL", e).details("request", request.toBasicObject());
         }
     }
 

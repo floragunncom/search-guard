@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.session.api;
+package com.floragunn.searchguard.session;
 
 import java.io.IOException;
 

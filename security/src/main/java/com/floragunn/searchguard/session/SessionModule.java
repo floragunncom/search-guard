@@ -45,15 +45,13 @@ import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.modules.SearchGuardModule;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
-import com.floragunn.searchguard.session.api.DeleteSessionAction;
-import com.floragunn.searchguard.session.api.SessionRestAction;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 
 public class SessionModule implements SearchGuardModule<SessionServiceConfig>, ComponentStateProvider {
 
     private SessionService sessionService;
-    private SessionRestAction sessionRestAction = new SessionRestAction();
+    private SessionApi.Rest sessionRestAction = new SessionApi.Rest();
     private ConfigVarService secretsStorageService;
     private SessionAuthenticationBackend sessionAuthenticationBackend;
     private SessionAuthTokenHttpJwtAuthenticator sessionHttpAuthenticator;
@@ -68,7 +66,7 @@ public class SessionModule implements SearchGuardModule<SessionServiceConfig>, C
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return Arrays.asList(new ActionHandler<>(DeleteSessionAction.INSTANCE, DeleteSessionAction.TransportAction.class),
+        return Arrays.asList(new ActionHandler<>(SessionApi.DeleteAction.INSTANCE, SessionApi.DeleteAction.Handler.class),
                 new ActionHandler<>(PushSessionTokenUpdateAction.INSTANCE, PushSessionTokenUpdateAction.TransportAction.class));
     }
 
