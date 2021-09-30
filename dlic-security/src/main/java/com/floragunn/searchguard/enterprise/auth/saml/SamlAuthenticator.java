@@ -181,7 +181,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
         try {
             if (request.getFrontendBaseUrl() == null) {
                 throw new AuthenticatorUnavailableException("Configuration error", "frontend_base_url is required for SAML authentication")
-                        .details("request", request.toMap());
+                        .details("request", request.toBasicObject());
             }
 
             URI frontendBaseUrl = new URI(request.getFrontendBaseUrl());
@@ -203,7 +203,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             return frontendConfig.ssoLocation(ssoLocation).ssoContext(ssoContext);
         } catch (URISyntaxException e) {
             log.error("Error while activating SAML authenticator", e);
-            throw new AuthenticatorUnavailableException("frontend_base_url is not a valid URL", e).details("request", request.toMap());
+            throw new AuthenticatorUnavailableException("frontend_base_url is not a valid URL", e).details("request", request.toBasicObject());
         }
     }
 
