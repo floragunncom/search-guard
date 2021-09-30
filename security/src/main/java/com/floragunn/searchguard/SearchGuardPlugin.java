@@ -501,7 +501,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(ConfigVarApi.REST_API);
                 handlers.add(InternalUsersConfigApi.REST_API);
 
-                handlers.add(new GetFrontendConfigAction.RestAction());
+                handlers.add(GetFrontendConfigAction.REST_API);
 
             }
 
@@ -542,8 +542,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(InternalUsersConfigApi.DeleteAction.INSTANCE, InternalUsersConfigApi.DeleteAction.Handler.class));
             actions.add(new ActionHandler<>(InternalUsersConfigApi.PutAction.INSTANCE, InternalUsersConfigApi.PutAction.Handler.class));
             actions.add(new ActionHandler<>(InternalUsersConfigApi.PatchAction.INSTANCE, InternalUsersConfigApi.PatchAction.Handler.class));
-
-            actions.add(new ActionHandler<>(GetFrontendConfigAction.INSTANCE, GetFrontendConfigAction.TransportAction.class));
+            actions.add(new ActionHandler<>(GetFrontendConfigAction.INSTANCE, GetFrontendConfigAction.Handler.class));
         }
 
         actions.addAll(moduleRegistry.getActions());

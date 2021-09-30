@@ -15,12 +15,12 @@
  * 
  */
 
-package com.floragunn.searchguard.session.api;
+package com.floragunn.searchguard.session;
 
 import java.io.IOException;
 
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 
 public class StartSessionResponse implements ToXContentObject {
     private String token;
