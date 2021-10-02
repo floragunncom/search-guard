@@ -22,7 +22,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
@@ -51,23 +50,23 @@ public class SecretsConfigApiTest {
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
             Thread.sleep(50);
-            
+
             response = client.get(secretPath);
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), secretContent, DocReader.json().read(response.getBody()));
+            Assert.assertEquals(response.getBody(), secretContent, response.getBodyAsDocNode().get("data"));
 
             response = client.get("/_searchguard/secrets");
-            DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
+            DocNode responseDoc = response.getBodyAsDocNode();
 
-            Assert.assertEquals(response.getBody(), secretContent, responseDoc.get(secretId));
+            Assert.assertEquals(response.getBody(), secretContent, responseDoc.getAsNode("data").get(secretId));
 
             response = client.delete(secretPath);
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
             Thread.sleep(50);
-            
+
             response = client.get(secretPath);
 
             Assert.assertEquals(response.getBody(), 404, response.getStatusCode());

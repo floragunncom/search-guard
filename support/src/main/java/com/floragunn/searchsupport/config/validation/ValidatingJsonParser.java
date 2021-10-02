@@ -28,14 +28,13 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.XContentType;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocType;
-import com.floragunn.codova.documents.DocType.UnknownContentTypeException;
+import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.JsonValidationError;
@@ -92,8 +91,6 @@ public class ValidatingJsonParser {
             return DocReader.json().readObject(string);
         } catch (UnexpectedDocumentStructureException e) {
             throw new ConfigValidationException(new ValidationError(null, "The JSON root node must be an object").cause(e));
-        } catch (JsonProcessingException e) {
-            throw new ConfigValidationException(new JsonValidationError(null, e));
         }
     }
 
@@ -102,9 +99,7 @@ public class ValidatingJsonParser {
             return DocReader.type(DocType.getByContentType(contentType.mediaType())).readObject(string);
         } catch (UnexpectedDocumentStructureException e) {
             throw new ConfigValidationException(new ValidationError(null, "The JSON root node must be an object").cause(e));
-        } catch (JsonProcessingException e) {
-            throw new ConfigValidationException(new JsonValidationError(null, e));
-        } catch (UnknownContentTypeException e) {
+        } catch (UnknownDocTypeException e) {
             throw new ConfigValidationException(new ValidationError(null, "Unsupported content type: " + contentType.mediaType()).cause(e));
         }
     }

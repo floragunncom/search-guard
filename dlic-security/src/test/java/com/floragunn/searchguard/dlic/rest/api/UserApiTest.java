@@ -49,7 +49,7 @@ public class UserApiTest {
             HttpResponse response = adminClient.get("_searchguard/api/" + CType.INTERNALUSERS.toLCString());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertTrue(settings.size() >= 35);
+            Assert.assertTrue(response.getBody(), settings.size() >= 35);
 
             response = adminClient.patch("/_searchguard/api/internalusers",
                     "[{ \"op\": \"add\", \"path\": \"/newuser\", \"value\": {\"password\": \"newuser\", \"search_guard_roles\": [\"sg_all_access\"] } }]");
@@ -72,7 +72,7 @@ public class UserApiTest {
             HttpResponse response = adminClient.get("_searchguard/api/" + CType.INTERNALUSERS.toLCString());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertTrue(settings.size() >= 35);
+            Assert.assertTrue(response.getBody(), settings.size() >= 35);
 
             // --- GET
 
@@ -403,7 +403,7 @@ public class UserApiTest {
             HttpResponse response = adminClient.get("_searchguard/api/" + CType.INTERNALUSERS.toLCString());
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertTrue(settings.size() >= 35);
+            Assert.assertTrue(response.getBody(), settings.size() >= 35);
 
             addUserWithPassword(adminClient, ".my.dotuser0", "$2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m", HttpStatus.SC_CREATED);
 

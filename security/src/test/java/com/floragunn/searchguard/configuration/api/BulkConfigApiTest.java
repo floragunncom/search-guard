@@ -49,8 +49,6 @@ public class BulkConfigApiTest {
             HttpResponse response = client.get("/_searchguard/config");
             DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
 
-            System.out.println(response.getBody());
-
             Assert.assertEquals(response.getBody(), "config", responseDoc.getAsNode("config").getAsNode("content").getAsNode("_sg_meta").get("type"));
             Assert.assertEquals(response.getBody(), "internalusers",
                     responseDoc.getAsNode("internalusers").getAsNode("content").getAsNode("_sg_meta").get("type"));
@@ -92,6 +90,7 @@ public class BulkConfigApiTest {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 
             HttpResponse response = client.get("/_searchguard/config");
+            System.out.println(response.toString());
             DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
 
             Map<String, Object> tenants = new LinkedHashMap<>(responseDoc.getAsNode("tenants").getAsNode("content"));
@@ -106,7 +105,7 @@ public class BulkConfigApiTest {
 
             DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
 
-            Assert.assertEquals(updateResponse.getBody(), "'tenants.my_new_test_tenant.xxx': Unsupported attribute", updateResponseDoc.get("error"));
+            Assert.assertEquals(updateResponse.getBody(), "'tenants.my_new_test_tenant.xxx': Unsupported attribute", updateResponseDoc.get("error.message"));
         }
     }
 
@@ -129,7 +128,7 @@ public class BulkConfigApiTest {
 
             DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
 
-            Assert.assertEquals(updateResponse.getBody(), "'foo': Invalid config type: foo", updateResponseDoc.get("error"));
+            Assert.assertEquals(updateResponse.getBody(), "'foo': Invalid config type: foo", updateResponseDoc.get("error.message"));
         }
     }
 

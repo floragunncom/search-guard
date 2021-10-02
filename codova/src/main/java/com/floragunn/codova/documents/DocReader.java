@@ -61,6 +61,10 @@ public class DocReader {
         return type(DocType.YAML);
     }
 
+    public static DocReaderBuilder smile() {
+        return type(DocType.SMILE);
+    }
+
     private JsonParser parser;
     private DocType docType;
     private LinkedList<Object> nodeStack = new LinkedList<>();

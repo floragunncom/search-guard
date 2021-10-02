@@ -17,17 +17,18 @@
 
 package com.floragunn.searchguard.configuration;
 
-import org.elasticsearch.common.Strings;
+import java.util.Map;
+
 import org.elasticsearch.common.xcontent.ToXContentObject;
 
-import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.google.common.collect.ImmutableMap;
 
 public class ConfigUpdateException extends Exception {
 
     private static final long serialVersionUID = -8627848154509219672L;
     private Object details;
-    
+
     public ConfigUpdateException(String message, Throwable cause) {
         super(message, cause);
     }
@@ -35,12 +36,12 @@ public class ConfigUpdateException extends Exception {
     public ConfigUpdateException(String message) {
         super(message);
     }
-    
+
     public ConfigUpdateException(String message, Object details) {
         super(message);
         this.details = details;
     }
-    
+
     public ConfigUpdateException(Throwable cause) {
         super(cause);
     }
@@ -48,12 +49,12 @@ public class ConfigUpdateException extends Exception {
     public Object getDetails() {
         return details;
     }
-    
-    public String getDetailsAsJson() {
+
+    public Map<String, Object> getDetailsAsMap() {
         if (details instanceof ToXContentObject) {
-            return Strings.toString((ToXContentObject) details);
+            return ObjectTreeXContent.toMap((ToXContentObject) details);
         } else if (details != null) {
-            return DocWriter.json().writeAsString(ImmutableMap.of("object", details.toString()));
+            return ImmutableMap.of("object", details.toString());
         } else {
             return null;
         }

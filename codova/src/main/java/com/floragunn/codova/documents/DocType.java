@@ -17,6 +17,7 @@
 
 package com.floragunn.codova.documents;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -28,23 +29,27 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.base.Charsets;
 
 public class DocType {
     private static List<DocType> registeredDocTypes = new ArrayList<>();
     private static Map<String, DocType> registeredDocTypesByContentType = new HashMap<>();
 
-    public static DocType JSON = new DocType("JSON", new JsonFactory(), "json", "application/json");
-    public static DocType YAML = new DocType("YAML", new YAMLFactory(), "ya?ml", "application/x-yaml", "application/yaml", "text/yaml", "text/x-yaml",
-            "text/vnd.yaml");
+    public static DocType JSON = new DocType("JSON", Encoding.TEXT, new JsonFactory(), "json", "application/json", "text/x-json");
+    public static DocType YAML = new DocType("YAML", Encoding.TEXT, new YAMLFactory(), "ya?ml", "application/x-yaml", "application/yaml", "text/yaml",
+            "text/x-yaml", "text/vnd.yaml");
+    public static DocType SMILE = new DocType("SMILE", Encoding.BINARY, new SmileFactory(), "sml", "application/x-jackson-smile",
+            "application/smile");
 
-    public static DocType getByContentType(String contentType) throws UnknownContentTypeException {
+    public static DocType getByContentType(String contentType) throws UnknownDocTypeException {
         DocType result = peekByContentType(contentType);
 
         if (result != null) {
             return result;
         } else {
-            throw new UnknownContentTypeException(contentType);
+            throw new UnknownDocTypeException(contentType);
         }
     }
 
@@ -80,6 +85,16 @@ public class DocType {
         return fallbackDocType;
     }
 
+    public static DocType getByMimeType(String mimeType) throws UnknownDocTypeException {
+        DocType result = registeredDocTypesByContentType.get(mimeType);
+
+        if (result != null) {
+            return result;
+        } else {
+            throw new UnknownDocTypeException(mimeType);
+        }
+    }
+
     private static void register(DocType docType) {
         registeredDocTypes.add(docType);
         registeredDocTypesByContentType.put(docType.getContentType().toLowerCase(), docType);
@@ -94,13 +109,18 @@ public class DocType {
     private final Set<String> contentTypeAliases;
     private final JsonFactory jsonFactory;
     private final Pattern fileNamePattern;
+    private final Encoding encoding;
+    private final Charset defaultCharset;
 
-    public DocType(String name, JsonFactory jsonFactory, String fileNameSuffixPattern, String contentType, String... contentTypeAliases) {
+    public DocType(String name, Encoding encoding, JsonFactory jsonFactory, String fileNameSuffixPattern, String contentType,
+            String... contentTypeAliases) {
         this.name = name;
+        this.encoding = encoding;
         this.contentType = contentType;
         this.jsonFactory = jsonFactory;
         this.contentTypeAliases = new HashSet<>(Arrays.asList(contentTypeAliases));
         this.fileNamePattern = fileNameSuffixPattern != null ? Pattern.compile("\\." + fileNameSuffixPattern + "$", Pattern.CASE_INSENSITIVE) : null;
+        this.defaultCharset = encoding == Encoding.TEXT ? Charsets.UTF_8 : null;
 
         register(this);
     }
@@ -126,13 +146,25 @@ public class DocType {
         return name;
     }
 
-    public static class UnknownContentTypeException extends Exception {
+    public boolean isBinary() {
+        return encoding == Encoding.BINARY;
+    }
+
+    public static class UnknownDocTypeException extends Exception {
 
         private static final long serialVersionUID = -3964199452899731782L;
 
-        public UnknownContentTypeException(String contentType) {
+        public UnknownDocTypeException(String contentType) {
             super("Unknown content type: " + contentType);
         }
+    }
+
+    public static enum Encoding {
+        TEXT, BINARY;
+    }
+
+    public Charset getDefaultCharset() {
+        return defaultCharset;
     }
 
 }

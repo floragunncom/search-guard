@@ -60,8 +60,12 @@ public abstract class DocNode implements Map<String, Object>, Document {
     public static DocNodeParserBuilder parse(DocType docType) {
         return new DocNodeParserBuilder(docType);
     }
+    
+    public static DocNodeParserBuilder parse(ContentType contentType) {
+        return new DocNodeParserBuilder(contentType.getDocType());
+    }
 
-    public static DocNode parse(UnparsedDoc unparsedDoc) throws DocParseException {
+    public static DocNode parse(UnparsedDoc<?> unparsedDoc) throws DocParseException {
         return wrap(unparsedDoc.parse());
     }
 
@@ -855,6 +859,10 @@ public abstract class DocNode implements Map<String, Object>, Document {
         return get(null);
     }
 
+    public Object toBasicObject() {
+        return get();
+    }
+
     public boolean hasAny(String... keys) {
         for (String key : keys) {
             if (containsKey(key)) {
@@ -1047,6 +1055,10 @@ public abstract class DocNode implements Map<String, Object>, Document {
         } else {
             return Collections.singletonList(get(attribute, conversionFunction, expected));
         }
+    }
+
+    public <R> List<R> getAsListFromNodes(String attribute, ValidatingFunction<DocNode, R> conversionFunction) throws ConfigValidationException {
+        return getAsListFromNodes(attribute, conversionFunction, null);
     }
 
     public <R> List<R> getAsListFromNodes(String attribute, ValidatingFunction<DocNode, R> conversionFunction, Object expected)

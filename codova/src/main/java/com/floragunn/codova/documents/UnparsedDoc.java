@@ -17,47 +17,195 @@
 
 package com.floragunn.codova.documents;
 
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-import com.floragunn.codova.documents.DocType.UnknownContentTypeException;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
 
-public class UnparsedDoc {
-    private final String source;
-    private final DocType docType;
+public abstract class UnparsedDoc<Doc> implements Document {
 
-    public UnparsedDoc(String source, DocType docType) {
-        this.source = source;
+    public static UnparsedDoc<String> from(String source, DocType docType) {
+        return new StringDoc(source, docType);
+    }
+
+    public static UnparsedDoc<byte[]> from(byte[] source, ContentType contentType) {
+        return new BytesDoc(source, contentType.getDocType(), contentType.getCharset());
+    }
+
+    public static UnparsedDoc<byte[]> from(byte[] source, DocType docType, Charset charset) {
+        return new BytesDoc(source, docType, charset);
+    }
+
+    public static UnparsedDoc<byte[]> from(byte[] source, DocType docType) {
+        return new BytesDoc(source, docType, null);
+    }
+
+    public static UnparsedDoc<String> fromJson(String json) {
+        return new StringDoc(json, DocType.JSON);
+    }
+
+    protected final DocType docType;
+
+    private UnparsedDoc(DocType docType) {
         this.docType = docType;
     }
 
-    public Map<String, Object> parseAsMap() throws DocParseException, UnexpectedDocumentStructureException {
-        return DocReader.type(docType).readObject(source);
-    }
+    public abstract Map<String, Object> parseAsMap() throws DocParseException, UnexpectedDocumentStructureException;
 
-    public Object parse() throws DocParseException {
-        return DocReader.type(docType).read(source);
-    }
+    public abstract DocNode parseAsDocNode() throws DocParseException;
 
-    public String getSource() {
-        return source;
-    }
+    public abstract Object parse() throws DocParseException;
+
+    public abstract Doc getSource();
+
+    public abstract String getSourceAsString();
+
+    public abstract JsonParser createParser() throws JsonParseException, IOException;
 
     public DocType getDocType() {
         return docType;
     }
 
     @Override
-    public String toString() {
-        return docType.getContentType() + ":\n" + source;
+    public Object toBasicObject() {
+        return this;
     }
 
-    public static UnparsedDoc fromString(String string) throws IllegalArgumentException, UnknownContentTypeException {
-        int sep = string.indexOf(":\n");
+    private static class StringDoc extends UnparsedDoc<String> {
+        private final String source;
 
-        if (sep == -1) {
-            throw new IllegalArgumentException("Invalid string: " + string);
+        public StringDoc(String source, DocType docType) {
+            super(docType);
+            this.source = source;
         }
 
-        return new UnparsedDoc(string.substring(sep + 2), DocType.getByContentType(string.substring(0, sep)));
+        public Map<String, Object> parseAsMap() throws DocParseException, UnexpectedDocumentStructureException {
+            return DocReader.type(docType).readObject(source);
+        }
+
+        public DocNode parseAsDocNode() throws DocParseException {
+            return DocNode.parse(docType).from(source);
+        }
+
+        public Object parse() throws DocParseException {
+            return DocReader.type(docType).read(source);
+        }
+
+        public String getSource() {
+            return source;
+        }
+
+        public DocType getDocType() {
+            return docType;
+        }
+
+        @Override
+        public String toString() {
+            return docType.getContentType() + ":\n" + source;
+        }
+
+        @Override
+        public String getSourceAsString() {
+            return source;
+        }
+
+        @Override
+        public JsonParser createParser() throws JsonParseException, IOException {
+            return docType.getJsonFactory().createParser(source);
+        }
     }
+
+    private static class BytesDoc extends UnparsedDoc<byte[]> {
+        private final byte[] source;
+        private String sourceAsString;
+        private final Charset charset;
+
+        BytesDoc(byte[] source, DocType docType, Charset charset) {
+            super(docType);
+            this.source = source;
+            this.charset = charset;
+        }
+
+        public Map<String, Object> parseAsMap() throws DocParseException, UnexpectedDocumentStructureException {
+            return DocReader.type(docType).readObject(source);
+        }
+
+        public DocNode parseAsDocNode() throws DocParseException {
+            return DocNode.parse(docType).from(source);
+        }
+
+        public Object parse() throws DocParseException {
+            return DocReader.type(docType).read(source);
+        }
+
+        public byte[] getSource() {
+            return source;
+        }
+
+        public DocType getDocType() {
+            return docType;
+        }
+
+        @Override
+        public String toString() {
+            if (docType.isBinary()) {
+                return docType.getContentType() + ": " + source.length + " bytes";
+            } else {
+                return docType.getContentType() + ":\n" + getSourceAsString();
+            }
+        }
+
+        @Override
+        public String getSourceAsString() {
+            if (sourceAsString == null) {
+                sourceAsString = createSourceString();
+            }
+
+            return sourceAsString;
+        }
+
+        @Override
+        public JsonParser createParser() throws JsonParseException, IOException {
+            return docType.getJsonFactory().createParser(source);
+        }
+
+        private String createSourceString() {
+            if (docType.isBinary()) {
+                throw new IllegalStateException("Cannot encode " + docType + " as string");
+            }
+
+            if (charset != null) {
+                return new String(source, charset);
+            } else if (checkBom(0xff, 0xfe, 0x0, 0x0)) {
+                return new String(source, 4, source.length - 4, Charset.forName("UTF-32LE"));
+            } else if (checkBom(0x0, 0x0, 0xff, 0xfe)) {
+                return new String(source, 4, source.length - 4, Charset.forName("UTF-32BE"));
+            } else if (checkBom(0xef, 0xbb, 0xbf)) {
+                return new String(source, 3, source.length - 3, StandardCharsets.UTF_8);
+            } else if (checkBom(0xfe, 0xff)) {
+                return new String(source, 2, source.length - 2, StandardCharsets.UTF_16BE);
+            } else if (checkBom(0xff, 0xfe)) {
+                return new String(source, 2, source.length - 2, StandardCharsets.UTF_16LE);
+            } else {
+                return new String(source, docType.getDefaultCharset());
+            }
+        }
+
+        private boolean checkBom(int b1, int b2) {
+            return source.length >= 2 && source[0] == b1 && source[1] == b2;
+        }
+
+        private boolean checkBom(int b1, int b2, int b3) {
+            return source.length >= 3 && source[0] == b1 && source[1] == b2 && source[2] == b3;
+        }
+
+        private boolean checkBom(int b1, int b2, int b3, int b4) {
+            return source.length >= 4 && source[0] == b1 && source[1] == b2 && source[2] == b3 && source[3] == b4;
+        }
+
+    }
+
 }

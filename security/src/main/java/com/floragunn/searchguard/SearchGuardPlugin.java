@@ -208,14 +208,14 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private volatile NamedXContentRegistry namedXContentRegistry = null;
     private volatile DlsFlsRequestValve dlsFlsValve = null;
     private SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry = new SpecialPrivilegesEvaluationContextProviderRegistry();
-       
+
     private SearchGuardModulesRegistry moduleRegistry;
     private StaticSgConfig staticSgConfig;
     private AuthInfoService authInfoService;
     private DiagnosticContext diagnosticContext;
     private SecretsService secretsStorageService;
     private ConfigVariableProviders configVariableProviders = ConfigVariableProviders.ALL_PRIVILEGED;
-    
+
     @Override
     public void close() throws IOException {
         if (auditLog != null) {
@@ -279,7 +279,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             log.warn("Search Guard plugin run in ssl only mode. No authentication or authorization is performed");
             return;
         }
-        
+
         SearchGuardPlugin.protectedIndices = new ProtectedIndices(settings);
         staticSgConfig = new StaticSgConfig(settings);
 
@@ -398,7 +398,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (enterpriseModulesEnabled) {
             moduleRegistry.add("com.floragunn.searchguard.authtoken.AuthTokenModule");
         }
-        
+
         moduleRegistry.add("com.floragunn.signals.SignalsModule");
     }
 
@@ -480,8 +480,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     indexNameExpressionResolver, nodesInCluster));
 
             if (!sslOnly) {
-                handlers.add(
-                        new SearchGuardInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
+                handlers.add(new SearchGuardInfoAction(settings, restController, Objects.requireNonNull(evaluator),
+                        Objects.requireNonNull(threadPool)));
                 handlers.add(new KibanaInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
                 handlers.add(new SearchGuardLicenseAction(settings, restController));
                 handlers.add(new SearchGuardHealthAction(settings, restController, Objects.requireNonNull(backendRegistry)));
@@ -495,8 +495,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
                 handlers.add(new ComponentStateRestAction());
-                handlers.add(new BulkConfigApi.RestAction());
-                handlers.add(new SecretsConfigApi.RestAction());
+                handlers.add(BulkConfigApi.REST_API);
+                handlers.add(SecretsConfigApi.REST_API);
 
             }
 
@@ -525,14 +525,14 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(LicenseInfoAction.INSTANCE, TransportLicenseInfoAction.class));
             actions.add(new ActionHandler<>(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));
             actions.add(new ActionHandler<>(GetComponentStateAction.INSTANCE, GetComponentStateAction.TransportAction.class));
-            actions.add(new ActionHandler<>(BulkConfigApi.GetAction.INSTANCE, BulkConfigApi.GetAction.TransportAction.class));
-            actions.add(new ActionHandler<>(BulkConfigApi.UpdateAction.INSTANCE, BulkConfigApi.UpdateAction.TransportAction.class));
+            actions.add(new ActionHandler<>(BulkConfigApi.GetAction.INSTANCE, BulkConfigApi.GetAction.Handler.class));
+            actions.add(new ActionHandler<>(BulkConfigApi.UpdateAction.INSTANCE, BulkConfigApi.UpdateAction.Handler.class));
             actions.add(new ActionHandler<>(SecretsRefreshAction.INSTANCE, SecretsRefreshAction.TransportAction.class));
-            actions.add(new ActionHandler<>(SecretsConfigApi.GetAction.INSTANCE, SecretsConfigApi.GetAction.TransportAction.class));
-            actions.add(new ActionHandler<>(SecretsConfigApi.UpdateAction.INSTANCE, SecretsConfigApi.UpdateAction.TransportAction.class));
-            actions.add(new ActionHandler<>(SecretsConfigApi.DeleteAction.INSTANCE, SecretsConfigApi.DeleteAction.TransportAction.class));
-            actions.add(new ActionHandler<>(SecretsConfigApi.GetAllAction.INSTANCE, SecretsConfigApi.GetAllAction.TransportAction.class));
-            actions.add(new ActionHandler<>(SecretsConfigApi.UpdateAllAction.INSTANCE, SecretsConfigApi.UpdateAllAction.TransportAction.class));
+            actions.add(new ActionHandler<>(SecretsConfigApi.GetAction.INSTANCE, SecretsConfigApi.GetAction.Handler.class));
+            actions.add(new ActionHandler<>(SecretsConfigApi.UpdateAction.INSTANCE, SecretsConfigApi.UpdateAction.Handler.class));
+            actions.add(new ActionHandler<>(SecretsConfigApi.DeleteAction.INSTANCE, SecretsConfigApi.DeleteAction.Handler.class));
+            actions.add(new ActionHandler<>(SecretsConfigApi.GetAllAction.INSTANCE, SecretsConfigApi.GetAllAction.Handler.class));
+            actions.add(new ActionHandler<>(SecretsConfigApi.UpdateAllAction.INSTANCE, SecretsConfigApi.UpdateAllAction.Handler.class));
 
         }
 
@@ -542,7 +542,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public List<ScriptContext<?>> getContexts() {        
+    public List<ScriptContext<?>> getContexts() {
         return moduleRegistry.getContexts();
     }
 
@@ -674,7 +674,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                             throw new ElasticsearchSecurityException("No user in scroll context", RestStatus.FORBIDDEN);
                         }
                     }
-                }                
+                }
             });
         }
     }
@@ -684,9 +684,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         List<ActionFilter> filters = new ArrayList<>(1);
         if (!client && !disabled && !sslOnly) {
             filters.add(Objects.requireNonNull(sgf));
-            
+
             ActionFilter actionTraceFilter = diagnosticContext.getActionTraceFilter();
-            
+
             if (actionTraceFilter != null) {
                 filters.add(actionTraceFilter);
             }
@@ -797,10 +797,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (client || disabled) {
             return components;
         }
-        
+
         GuiceDependencies guiceDependencies = new GuiceDependencies();
         components.add(guiceDependencies);
-        
+
         final ClusterInfoHolder cih = new ClusterInfoHolder();
         this.cs.addListener(cih);
 
@@ -809,9 +809,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         irr = new IndexResolverReplacer(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
         auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService);
-        complianceConfig = dlsFlsAvailable 
-                ? new ComplianceConfig(environment, Objects.requireNonNull(irr), auditLog, localClient)
-                : null;
+        complianceConfig = dlsFlsAvailable ? new ComplianceConfig(environment, Objects.requireNonNull(irr), auditLog, localClient) : null;
         log.debug("Compliance config is " + complianceConfig + " because of dlsFlsAvailable: " + dlsFlsAvailable + " and auditLog="
                 + auditLog.getClass());
         auditLog.setComplianceConfig(complianceConfig);
@@ -849,6 +847,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, staticSgConfig, settings, configPath, localClient, threadPool, cih, moduleRegistry, secretsStorageService);
 
+
         dcf.registerDCFListener(backendRegistry);
         dcf.registerDCFListener(compatConfig);
         dcf.registerDCFListener(irr);
@@ -864,7 +863,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(dcf);
         specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);
         authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
-        
+
         ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, settings);
         ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
         diagnosticContext = new DiagnosticContext(settings, threadPool.getThreadContext());
@@ -886,7 +885,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         sgi = new SearchGuardInterceptor(settings, threadPool, backendRegistry, auditLog, principalExtractor, interClusterRequestEvaluator, cs,
                 Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), guiceDependencies, diagnosticContext);
-        components.add(principalExtractor);        
+        components.add(principalExtractor);
         components.add(adminDns);
         components.add(cr);
         components.add(xffResolver);
@@ -901,12 +900,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(authInfoService);
         components.add(diagnosticContext);
         components.add(secretsStorageService);
-        
+
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
-                
+
         components.addAll(moduleComponents);
 
-        sgRestHandler = new SearchGuardRestFilter(backendRegistry, auditLog, threadPool, principalExtractor, settings, configPath, compatConfig, diagnosticContext);
+        sgRestHandler = new SearchGuardRestFilter(backendRegistry, auditLog, threadPool, principalExtractor, settings, configPath, compatConfig,
+                diagnosticContext);
 
         return components;
 
@@ -958,8 +958,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DISABLED, false, Property.NodeScope, Property.Filtered));
 
             settings.add(Setting.intSetting(ConfigConstants.SEARCHGUARD_CACHE_TTL_MINUTES, 60, 0, Property.NodeScope, Property.Filtered));
-            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY, Collections.emptyList(), Function.identity(), Property.NodeScope));
-            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_EXCEPTIONS, Collections.emptyList(), Function.identity(), Property.NodeScope));
+            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY, Collections.emptyList(), Function.identity(),
+                    Property.NodeScope));
+            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_EXCEPTIONS, Collections.emptyList(), Function.identity(),
+                    Property.NodeScope));
 
             //SG6
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true, Property.NodeScope, Property.Filtered));
@@ -1109,8 +1111,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false, Property.NodeScope,
                     Property.Filtered));
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENV_VARS_ENABLED, true, Property.NodeScope,
-                    Property.Filtered));
+            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENV_VARS_ENABLED, true,
+                    Property.NodeScope, Property.Filtered));
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_IGNORE_USERS, Collections.emptyList(),
                     Function.identity(), Property.NodeScope)); //not filtered here
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_IGNORE_USERS, Collections.emptyList(),
@@ -1128,7 +1130,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
             settings.add(
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_FILTER_SGINDEX_FROM_ALL_REQUESTS, false, Property.NodeScope, Property.Filtered));
-            
+
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, Collections.emptyList(), Function.identity(),
                     Property.NodeScope));
             //compat
@@ -1154,14 +1156,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true, Property.NodeScope, Property.Filtered));
 
-            settings.add(
-                    Setting.simpleString(ConfigConstants.SEARCHGUARD_DLS_MODE, Property.NodeScope, Property.Filtered));
+            settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_DLS_MODE, Property.NodeScope, Property.Filtered));
 
-            
             settings.addAll(ResourceOwnerService.SUPPORTED_SETTINGS);
 
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false, Property.NodeScope, Property.Filtered));
-            
+
             settings.add(SearchGuardModulesRegistry.DISABLED_MODULES);
             settings.addAll(moduleRegistry.getSettings());
             settings.addAll(DiagnosticContext.SETTINGS);
@@ -1203,7 +1203,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (client || disabled || sslOnly) {
             return Collections.emptyList();
         }
-        
+
         return Arrays.asList(GuiceDependencies.GuiceRedirector.class);
     }
 

@@ -121,7 +121,7 @@ public class TLSConfig implements Document {
         return tlsConfig;
     }
 
-    public Map<String, Object> toMap() {
+    public Map<String, Object> toBasicObject() {
         Map<String, Object> result = new LinkedHashMap<>();
 
         if (trustedCas != null && !trustedCas.isEmpty()) {
@@ -129,7 +129,7 @@ public class TLSConfig implements Document {
         }
 
         if (clientCertAuthConfig != null) {
-            result.put("client_auth", clientCertAuthConfig.toMap());
+            result.put("client_auth", clientCertAuthConfig.toBasicObject());
         }
 
         result.put("trust_all", trustAll);
@@ -492,7 +492,7 @@ public class TLSConfig implements Document {
 
         }
 
-        public Map<String, Object> toMap() {
+        public Map<String, Object> toBasicObject() {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("certificate", certficate);
             result.put("private_key", privateKey);

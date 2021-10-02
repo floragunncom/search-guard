@@ -179,12 +179,11 @@ public class ValidationErrors implements Document {
         return null;
     }
 
-    @Override
     public Map<String, Object> toMap() {
         Map<String, Object> result = new LinkedHashMap<>();
 
         for (Map.Entry<String, Collection<ValidationError>> entry : attributeToErrorMap.asMap().entrySet()) {
-            result.put(entry.getKey() != null ? entry.getKey() : "_", entry.getValue().stream().map(ValidationError::toMap).collect(toList()));
+            result.put(entry.getKey() != null ? entry.getKey() : "_", entry.getValue().stream().map(ValidationError::toBasicObject).collect(toList()));
         }
 
         return result;
@@ -277,6 +276,11 @@ public class ValidationErrors implements Document {
             this.key = key;
         }
 
+    }
+
+    @Override
+    public Object toBasicObject() {
+        return toMap();
     }
 
 }

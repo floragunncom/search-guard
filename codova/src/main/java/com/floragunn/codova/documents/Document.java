@@ -17,21 +17,33 @@
 
 package com.floragunn.codova.documents;
 
-import java.util.Map;
-
 public interface Document {
-    Map<String, Object> toMap();
+    Object toBasicObject();
 
     default String toString(DocType docType) {
-        return DocWriter.type(docType).writeAsString(this.toMap());
+        return DocWriter.type(docType).writeAsString(this.toBasicObject());
     }
 
     default String toJsonString() {
-        return DocWriter.json().writeAsString(this.toMap());
+        return DocWriter.json().writeAsString(this.toBasicObject());
     }
 
     default String toYamlString() {
-        return DocWriter.yaml().writeAsString(this.toMap());
+        return DocWriter.yaml().writeAsString(this.toBasicObject());
+    }
+
+    default byte[] toSmile() {
+        return DocWriter.smile().writeAsBytes(this.toBasicObject());
+    }
+
+    default DocNode toDocNode() {
+        Object basicObject = toBasicObject();
+
+        if (basicObject != null) {
+            return DocNode.wrap(basicObject);
+        } else {
+            return null;
+        }
     }
 
 }
