@@ -73,9 +73,13 @@ public class ConfigValidationException extends Exception implements Document {
         return "ConfigValidationException: " + this.getMessage() + "\n" + this.validationErrors.toDebugString();
     }
 
-    @Override
     public Map<String, Object> toMap() {
         return validationErrors.toMap();
+    }
+
+    @Override
+    public Object toBasicObject() {
+        return validationErrors.toBasicObject();
     }
     
     

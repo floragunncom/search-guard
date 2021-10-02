@@ -17,6 +17,7 @@
 
 package com.floragunn.codova.documents;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -32,6 +33,8 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 
 /**
  * A lightweight, reflection-less way of serializing JSON. Is capable of handling these basic Java types:
@@ -58,22 +61,54 @@ public class DocWriter {
         return type(DocType.YAML);
     }
 
+    public static DocWriter smile() {
+        return type(DocType.SMILE);
+    }
+
     private JsonFactory jsonFactory;
     private int maxDepth = 20;
     private DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ISO_INSTANT;
+    private boolean pretty;
 
     public DocWriter(JsonFactory jsonFactory) {
         this.jsonFactory = jsonFactory;
     }
 
+    public DocWriter pretty() {
+        this.pretty = true;
+        return this;
+    }
+
+    public DocWriter pretty(boolean pretty) {
+        this.pretty = pretty;
+        return this;
+    }
+
     public String writeAsString(Object object) {
         try (StringWriter writer = new StringWriter(); JsonGenerator generator = jsonFactory.createGenerator(writer)) {
+            if (pretty) {
+                generator.useDefaultPrettyPrinter();
+            }
+
             write(generator, object);
 
             generator.flush();
             writer.flush();
 
             return writer.toString();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public byte[] writeAsBytes(Object object) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream(); JsonGenerator generator = jsonFactory.createGenerator(out)) {
+            write(generator, object);
+
+            generator.flush();
+            out.flush();
+
+            return out.toByteArray();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -89,11 +124,15 @@ public class DocWriter {
     }
 
     public String writeAsString(Document document) {
-        return writeAsString(document != null ? document.toMap() : (Object) null);
+        return writeAsString(document != null ? document.toBasicObject() : (Object) null);
+    }
+
+    public byte[] writeAsBytes(Document document) {
+        return writeAsBytes(document != null ? document.toBasicObject() : (Object) null);
     }
 
     public void write(File file, Document document) throws IOException {
-        write(file, document.toMap());
+        write(file, document.toBasicObject());
     }
 
     private void write(JsonGenerator generator, Object object) throws IOException {
@@ -103,6 +142,10 @@ public class DocWriter {
     private void write(JsonGenerator generator, Object object, int depth) throws IOException {
         if (depth > maxDepth) {
             throw new JsonGenerationException("Max JSON depth exceeded", generator);
+        }
+
+        if (object instanceof Document && !(object instanceof UnparsedDoc)) {
+            object = ((Document) object).toBasicObject();
         }
 
         if (object instanceof Collection) {
@@ -157,10 +200,74 @@ public class DocWriter {
             generator.writeString(dateTimeFormatter.format(((Date) object).toInstant()));
         } else if (object instanceof TemporalAccessor) {
             generator.writeString(dateTimeFormatter.format((TemporalAccessor) object));
+        } else if (object instanceof UnparsedDoc) {
+            copy(((UnparsedDoc<?>) object).createParser(), generator);
         } else if (object == null) {
             generator.writeNull();
         } else {
             throw new JsonGenerationException("Unsupported object type: " + object.getClass(), generator);
+        }
+    }
+
+    private void copy(JsonParser parser, JsonGenerator generator) throws IOException {
+        for (JsonToken token = parser.currentToken() != null ? parser.currentToken() : parser.nextToken(); token != null; token = parser
+                .nextToken()) {
+
+            switch (token) {
+
+            case START_OBJECT:
+                generator.writeStartObject();
+                break;
+
+            case START_ARRAY:
+                generator.writeStartArray();
+                break;
+
+            case END_OBJECT:
+                generator.writeEndObject();
+                break;
+
+            case END_ARRAY:
+                generator.writeEndArray();
+                break;
+
+            case FIELD_NAME:
+                generator.writeFieldName(parser.currentName());
+                break;
+
+            case VALUE_TRUE:
+                generator.writeBoolean(Boolean.TRUE);
+                break;
+
+            case VALUE_FALSE:
+                generator.writeBoolean(Boolean.FALSE);
+                break;
+
+            case VALUE_NULL:
+                generator.writeNull();
+                break;
+
+            case VALUE_NUMBER_FLOAT:
+                generator.writeNumber(parser.getFloatValue());
+                break;
+
+            case VALUE_NUMBER_INT:
+                generator.writeNumber(parser.getIntValue());
+                break;
+
+            case VALUE_STRING:
+                generator.writeString(parser.getText());
+                break;
+
+            case VALUE_EMBEDDED_OBJECT:
+                generator.writeEmbeddedObject(parser.getEmbeddedObject());
+                break;
+
+            default:
+                throw new IllegalStateException("Unexpected token: " + token);
+
+            }
+
         }
     }
 }

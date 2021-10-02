@@ -39,7 +39,7 @@ public class ScriptValidationError extends ValidationError {
     }
 
     @Override
-    public Map<String, Object> toMap() {
+    public Map<String, Object> toBasicObject() {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("error", getMessage());
 

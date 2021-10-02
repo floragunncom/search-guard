@@ -63,6 +63,10 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.ContentType;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
@@ -156,8 +160,8 @@ public class GenericRestClient implements AutoCloseable {
     public HttpResponse postJson(String path, ToXContentObject body) throws Exception {
         return postJson(path, Strings.toString(body));
     }
-    
-    public HttpResponse postJson(String path, Map<String, Object> body, Header...headers) throws Exception {
+
+    public HttpResponse postJson(String path, Map<String, Object> body, Header... headers) throws Exception {
         return postJson(path, DocWriter.json().writeAsString(body), headers);
     }
 
@@ -331,6 +335,10 @@ public class GenericRestClient implements AutoCloseable {
 
         public String getBody() {
             return body;
+        }
+
+        public DocNode getBodyAsDocNode() throws DocParseException, UnknownDocTypeException {
+            return DocNode.parse(ContentType.parseHeader(getContentType())).from(body);
         }
 
         public Header[] getHeader() {

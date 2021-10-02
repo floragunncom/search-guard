@@ -35,7 +35,7 @@ public class FileDoesNotExist extends ValidationError {
     }
 
     @Override
-    public Map<String, Object> toMap() {
+    public Map<String, Object> toBasicObject() {
         return ImmutableMap.of("error", getMessage(), "value", file.getAbsolutePath());
     }
     

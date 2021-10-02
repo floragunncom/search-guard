@@ -287,7 +287,7 @@ public class SgDynamicConfiguration<T> implements ToXContent {
         final boolean omitDefaults = params != null && params.paramAsBoolean("omit_defaults", false);
         return builder.map(DefaultObjectMapper.readValue(DefaultObjectMapper.writeValueAsString(this, omitDefaults), typeRefMSO));
     }
-    
+
     @Override
     @JsonIgnore
     public boolean isFragment() {
