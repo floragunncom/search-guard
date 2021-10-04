@@ -46,6 +46,14 @@ import com.fasterxml.jackson.core.JsonToken;
  * - Boolean
  * - Number
  * - Enum
+ * - Date
+ * - Instant
+ * - LocalDateTime/OffsetDateTime
+ * 
+ * Additionally, it handles these codova types:
+ * 
+ * - Document (and thus DocNode)
+ * - UnparsedDoc
  */
 public class DocWriter {
 

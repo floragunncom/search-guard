@@ -35,7 +35,7 @@ public class SearchTemplateInput extends AbstractSearchInput {
         List<String> indices = vJsonNode.get("request.indices").asListOfStrings();
         DocNode template = jsonObject.getAsNode("request.template");
 
-        if (template == null) {
+        if (template == null || template.isNull()) {
             validationErrors.add(new MissingAttribute("request.template", jsonObject));
         }
 

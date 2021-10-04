@@ -19,6 +19,8 @@ package com.floragunn.codova.documents;
 
 import static org.junit.Assert.assertEquals;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 
 import org.junit.Test;
@@ -78,6 +80,14 @@ public class BasicDocWriterTest {
         Object value = ImmutableMap.of("x", "u", "y", 42, "z", true, "a", Arrays.asList(1, 2, 3), "b", ImmutableMap.of("foo", "bar", "bla", true));
 
         assertEquals(value, DocReader.json().read(DocWriter.json().writeAsString(value)));
+    }
+
+    @Test
+    public void instantTest() throws DocParseException {
+        Object value = ImmutableMap.of("instant", ZonedDateTime.of(2000, 1, 1, 12, 34, 56, 0, ZoneId.of("Europe/Berlin")));
+
+        assertEquals("2000-01-01T11:34:56Z", DocNode.parse(DocType.JSON).from(DocWriter.json().writeAsString(value)).get("instant"));
+
     }
 
 }

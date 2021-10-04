@@ -94,7 +94,7 @@ public class DailyTrigger extends HumanReadableCronTrigger<DailyTrigger> {
                 for (Object atNodeElement : atNode.toList()) {
                     at.add(parseTimeOfDay(String.valueOf(atNodeElement)));
                 }
-            } else if (atNode != null) {
+            } else if (atNode != null && !atNode.isNull()) {
                 at = Collections.singletonList(parseTimeOfDay(atNode.toString()));
             } else {
                 validationErrors.add(new MissingAttribute("at", jsonNode));

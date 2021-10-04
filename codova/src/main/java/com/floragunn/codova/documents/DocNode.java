@@ -56,11 +56,12 @@ public abstract class DocNode implements Map<String, Object>, Document {
     private static final Logger log = LoggerFactory.getLogger(DocNode.class);
 
     public static final DocNode EMPTY = new PlainJavaObjectAdapter(Collections.EMPTY_MAP);
+    public static final DocNode NULL = new PlainJavaObjectAdapter(null);
 
     public static DocNodeParserBuilder parse(DocType docType) {
         return new DocNodeParserBuilder(docType);
     }
-    
+
     public static DocNodeParserBuilder parse(ContentType contentType) {
         return new DocNodeParserBuilder(contentType.getDocType());
     }
@@ -118,8 +119,10 @@ public abstract class DocNode implements Map<String, Object>, Document {
     public static DocNode wrap(Object object) {
         if (object instanceof DocNode) {
             return (DocNode) object;
-        } else {
+        } else if (object instanceof Map) {
             return new AttributeNormalizingAdapter(new PlainJavaObjectAdapter(object));
+        } else {
+            return new PlainJavaObjectAdapter(object);
         }
     }
 
@@ -153,17 +156,11 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
         @Override
         public DocNode getAsNode(String attribute) {
-            Object object = get(attribute);
-
-            if (object != null) {
-                return DocNode.wrap(object);
-            } else {
-                return null;
-            }
+            return DocNode.wrap(get(attribute));
         }
 
         @Override
-        public List<DocNode> getListOfNodes(String attribute) {
+        public List<DocNode> getAsListOfNodes(String attribute) {
             Object object = null;
 
             if (attribute == null) {
@@ -173,7 +170,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
             }
 
             if (object == null) {
-                return null;
+                return Collections.emptyList();
             }
 
             if (object instanceof Collection) {
@@ -269,7 +266,9 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
         @Override
         public Map<String, Object> toMap() {
-            if (this.object instanceof Map) {
+            if (this.object == null) {
+                return null;
+            } else if (this.object instanceof Map) {
                 return DocUtils.toStringKeyedMap((Map<?, ?>) this.object);
             } else {
                 return Collections.singletonMap("_", this.object);
@@ -395,8 +394,10 @@ public abstract class DocNode implements Map<String, Object>, Document {
         public List<Object> toList() {
             if (object instanceof Collection) {
                 return toListOfBaseType((Collection<?>) object);
-            } else {
+            } else if (object != null) {
                 return Collections.singletonList(toBaseType(object));
+            } else {
+                return Collections.emptyList();
             }
         }
 
@@ -564,11 +565,11 @@ public abstract class DocNode implements Map<String, Object>, Document {
         }
 
         @Override
-        public List<DocNode> getListOfNodes(String attribute) {
+        public List<DocNode> getAsListOfNodes(String attribute) {
             if (simpleMap != null && simpleMap.containsKey(attribute)) {
-                return simpleMap.getListOfNodes(attribute);
+                return simpleMap.getAsListOfNodes(attribute);
             } else {
-                return delegate.getListOfNodes(viewAttributeWithDot + attribute);
+                return delegate.getAsListOfNodes(viewAttributeWithDot + attribute);
             }
         }
 
@@ -685,15 +686,11 @@ public abstract class DocNode implements Map<String, Object>, Document {
                 return delegate.get(null);
             }
 
-            if (delegate.containsKey(attribute)) {
-                return delegate.get(attribute);
-            }
-
             int dot = attribute.indexOf('.');
 
             if (dot == -1) {
                 if (rootKeyNames().contains(attribute)) {
-                    return getAsNode(attribute).get();
+                    return getAsNode(attribute).toBasicObject();
                 } else {
                     return null;
                 }
@@ -709,43 +706,39 @@ public abstract class DocNode implements Map<String, Object>, Document {
         }
 
         @Override
-        public List<DocNode> getListOfNodes(String attribute) {
+        public List<DocNode> getAsListOfNodes(String attribute) {
             if (delegate.containsKey(attribute)) {
-                return delegate.getListOfNodes(attribute);
+                return delegate.getAsListOfNodes(attribute);
             }
 
             int dot = attribute.indexOf('.');
 
             if (dot == -1) {
                 if (rootKeyNames().contains(attribute)) {
-                    return getSubTree(attribute).getListOfNodes(null);
+                    return getSubTree(attribute).getAsListOfNodes(null);
                 } else {
-                    return null;
+                    return Collections.emptyList();
                 }
             } else {
                 String firstPart = attribute.substring(0, dot);
 
                 if (rootKeyNames().contains(firstPart)) {
-                    return getAsNode(firstPart).getListOfNodes(attribute.substring(dot + 1));
+                    return getAsNode(firstPart).getAsListOfNodes(attribute.substring(dot + 1));
                 } else {
-                    return null;
+                    return Collections.emptyList();
                 }
             }
         }
 
         @Override
         public DocNode getAsNode(String attribute) {
-            if (delegate.containsKey(attribute)) {
-                return delegate.getAsNode(attribute);
-            }
-
             int dot = attribute.indexOf('.');
 
             if (dot == -1) {
                 if (rootKeyNames().contains(attribute)) {
                     return getSubTree(attribute);
                 } else {
-                    return null;
+                    return DocNode.NULL;
                 }
             } else {
                 String firstPart = attribute.substring(0, dot);
@@ -753,7 +746,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
                 if (rootKeyNames().contains(firstPart)) {
                     return getSubTree(firstPart).getAsNode(attribute.substring(dot + 1));
                 } else {
-                    return null;
+                    return DocNode.NULL;
                 }
             }
         }
@@ -803,7 +796,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
                 if (subNode.isMap()) {
                     result.put(key, subNode.toNormalizedMap());
                 } else {
-                    result.put(key, subNode.get());
+                    result.put(key, subNode.toBasicObject());
                 }
             }
 
@@ -831,7 +824,13 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
         @Override
         protected DocNode createSubTree(String attribute) {
-            return new AttributeNormalizingAdapter(delegate.getSubTree(attribute));
+            DocNode subTree = delegate.getSubTree(attribute);
+
+            if (subTree.isMap()) {
+                return new AttributeNormalizingAdapter(subTree);
+            } else {
+                return subTree;
+            }
         }
 
     }
@@ -841,7 +840,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
     public abstract Object get(String attribute);
 
-    public abstract List<DocNode> getListOfNodes(String attribute);
+    public abstract List<DocNode> getAsListOfNodes(String attribute);
 
     public abstract DocNode getAsNode(String attribute);
 
@@ -855,12 +854,12 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
     public abstract List<Object> toList();
 
-    public Object get() {
+    public Object toBasicObject() {
         return get(null);
     }
 
-    public Object toBasicObject() {
-        return get();
+    public boolean isNull() {
+        return toBasicObject() == null;
     }
 
     public boolean hasAny(String... keys) {
@@ -884,7 +883,31 @@ public abstract class DocNode implements Map<String, Object>, Document {
             }
         }
 
-        return new AttributeNormalizingAdapter(new PlainJavaObjectAdapter(newMap));
+        return wrap(newMap);
+    }
+
+    public Object get(String attribute, String... attributePath) {
+        DocNode docNode = getAsNode(attribute);
+
+        for (int i = 0; i < attributePath.length - 1 && docNode != null; i++) {
+            docNode = docNode.getAsNode(attributePath[i]);
+        }
+
+        if (docNode != null) {
+            return docNode.get(attributePath[attributePath.length - 1]);
+        } else {
+            return null;
+        }
+    }
+
+    public DocNode getAsNode(String attribute, String... moreAttributes) {
+        DocNode docNode = getAsNode(attribute);
+
+        for (int i = 0; i < moreAttributes.length && docNode != null && !docNode.isNull(); i++) {
+            docNode = docNode.getAsNode(moreAttributes[i]);
+        }
+
+        return docNode;
     }
 
     public List<String> toListOfStrings() {
@@ -989,7 +1012,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
     public <R> List<R> getList(String attribute, ValidatingFunction<String, R> conversionFunction, Object expected) throws ConfigValidationException {
 
-        List<DocNode> nodeList = getListOfNodes(attribute);
+        List<DocNode> nodeList = getAsListOfNodes(attribute);
         List<R> result = new ArrayList<>(nodeList.size());
         ValidationErrors validationErrors = new ValidationErrors();
 
@@ -1012,7 +1035,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
     public <R> List<R> getListFromNodes(String attribute, ValidatingFunction<DocNode, R> conversionFunction, Object expected)
             throws ConfigValidationException {
 
-        List<DocNode> nodeList = getListOfNodes(attribute);
+        List<DocNode> nodeList = getAsListOfNodes(attribute);
         List<R> result = new ArrayList<>(nodeList.size());
         ValidationErrors validationErrors = new ValidationErrors();
 
@@ -1030,20 +1053,6 @@ public abstract class DocNode implements Map<String, Object>, Document {
         validationErrors.throwExceptionForPresentErrors();
 
         return result;
-    }
-
-    public List<DocNode> getAsList(String attribute) {
-        if (isList(attribute)) {
-            return getListOfNodes(attribute);
-        } else {
-            DocNode docNode = getAsNode(attribute);
-
-            if (docNode != null) {
-                return Collections.singletonList(docNode);
-            } else {
-                return null;
-            }
-        }
     }
 
     public <R> List<R> getAsList(String attribute, ValidatingFunction<String, R> conversionFunction, Object expected)
@@ -1191,7 +1200,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
     @Override
     public String toString(DocType docType) {
-        Object value = get();
+        Object value = toBasicObject();
 
         if (value instanceof Map && docType.equals(DocType.JSON)) {
             return DocWriter.json().writeAsString(this.toNormalizedMap());
@@ -1212,7 +1221,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
     @Override
     public String toString() {
-        Object value = get();
+        Object value = toBasicObject();
 
         if (value instanceof String) {
             return (String) value;
@@ -1224,7 +1233,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
     }
 
     protected String toString(int maxChars) {
-        Object value = get();
+        Object value = toBasicObject();
 
         if (value instanceof Map) {
             Map<?, ?> map = (Map<?, ?>) value;

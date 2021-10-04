@@ -112,7 +112,7 @@ public class ValidationError implements Document {
         } else {
             ArrayList<ValidationError> result = new ArrayList<>(docNode.size());
 
-            for (DocNode subDocNode : docNode.getListOfNodes(null)) {
+            for (DocNode subDocNode : docNode.getAsListOfNodes(null)) {
                 result.add(parse(attribute, subDocNode));
             }
 

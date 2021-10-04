@@ -337,7 +337,7 @@ public class SeverityMapping implements ToXContentObject {
         List<Element> mapping = null;
 
         try {
-            mapping = Element.createList(jsonNode.getAsList("mapping"), order);
+            mapping = Element.createList(jsonNode.getAsListOfNodes("mapping"), order);
         } catch (ConfigValidationException e) {
             validationErrors.add("mapping", e);
         }

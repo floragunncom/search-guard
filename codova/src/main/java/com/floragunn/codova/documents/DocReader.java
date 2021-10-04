@@ -24,10 +24,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -67,7 +68,7 @@ public class DocReader {
 
     private JsonParser parser;
     private DocType docType;
-    private LinkedList<Object> nodeStack = new LinkedList<>();
+    private Deque<Object> nodeStack = new ArrayDeque<>();
     private Object currentNode;
     private Object topNode;
     private String currentAttributeName = null;

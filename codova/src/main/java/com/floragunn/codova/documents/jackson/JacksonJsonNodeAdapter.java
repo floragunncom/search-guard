@@ -75,7 +75,7 @@ public class JacksonJsonNodeAdapter extends DocNode {
             JsonNode subNode = this.jsonNode.get(attribute);
 
             if (subNode == null || subNode.isNull()) {
-                return null;
+                return DocNode.NULL;
             } else {
                 return new JacksonJsonNodeAdapter(subNode, attribute);
             }
@@ -83,7 +83,7 @@ public class JacksonJsonNodeAdapter extends DocNode {
     }
 
     @Override
-    public List<DocNode> getListOfNodes(String attribute) {
+    public List<DocNode> getAsListOfNodes(String attribute) {
         JsonNode jsonNode;
 
         if (attribute == null) {
@@ -93,7 +93,7 @@ public class JacksonJsonNodeAdapter extends DocNode {
         }
 
         if (jsonNode == null || jsonNode.isNull() || jsonNode.isMissingNode()) {
-            return null;
+            return Collections.emptyList();
         }
 
         if (jsonNode.isArray()) {
