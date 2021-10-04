@@ -430,7 +430,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
         try {
             if (vJsonNode.hasNonNull("actions")) {
-                result.actions = AlertAction.createFromArray(ctx, jsonNode.getAsList("actions"),
+                result.actions = AlertAction.createFromArray(ctx, jsonNode.getAsListOfNodes("actions"),
                         !severityHasErrors ? result.severityMapping : SeverityMapping.DUMMY_MAPPING);
             } else {
                 result.actions = Collections.emptyList();
@@ -441,7 +441,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
         try {
             if (vJsonNode.hasNonNull("resolve_actions")) {
-                result.resolveActions = ResolveAction.createFromArray(ctx, jsonNode.getAsList("resolve_actions"),
+                result.resolveActions = ResolveAction.createFromArray(ctx, jsonNode.getAsListOfNodes("resolve_actions"),
                         !severityHasErrors ? result.severityMapping : SeverityMapping.DUMMY_MAPPING);
             } else {
                 result.resolveActions = Collections.emptyList();

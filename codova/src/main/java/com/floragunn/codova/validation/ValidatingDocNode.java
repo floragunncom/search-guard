@@ -115,7 +115,7 @@ public class ValidatingDocNode {
         if (dot != -1) {
             String parentAttribute = attribute.substring(0, dot);
 
-            used(parentAttribute);
+            usedRecursiveUp(parentAttribute);
         }
 
         String attributeWithDot = attribute + ".";
@@ -124,6 +124,19 @@ public class ValidatingDocNode {
             if (unconsumed.startsWith(attributeWithDot)) {
                 usedNonRecursive(unconsumed);
             }
+        }
+    }
+
+    private void usedRecursiveUp(String attribute) {
+        this.unconsumedAttributes.remove(attribute);
+        this.consumedAttributes.add(attribute);
+
+        int dot = attribute.lastIndexOf('.');
+
+        if (dot != -1) {
+            String parentAttribute = attribute.substring(0, dot);
+
+            usedRecursiveUp(parentAttribute);
         }
     }
 
@@ -145,13 +158,6 @@ public class ValidatingDocNode {
 
         if (dot == -1) {
             used(attribute);
-            String attributeWithDot = attribute + ".";
-
-            for (String docAttribute : this.documentNode.keySet()) {
-                if (docAttribute.startsWith(attributeWithDot)) {
-                    used(docAttribute);
-                }
-            }
 
             return new Attribute(attribute, attribute, documentNode);
         } else {
@@ -160,7 +166,7 @@ public class ValidatingDocNode {
             DocNode currentDocumentNode = this.documentNode;
             StringBuilder path = new StringBuilder();
 
-            for (int i = 0; i < parts.length - 1 && currentDocumentNode != null; i++) {
+            for (int i = 0; i < parts.length - 1 && currentDocumentNode != null && !currentDocumentNode.isNull(); i++) {
                 if (i != 0) {
                     path.append('.');
                 }
@@ -172,7 +178,7 @@ public class ValidatingDocNode {
 
             String subAttribute = parts[parts.length - 1];
 
-            if (currentDocumentNode != null) {
+            if (currentDocumentNode != null && !currentDocumentNode.isNull()) {
                 String subAttributeWithDot = subAttribute + ".";
 
                 for (String docAttribute : currentDocumentNode.keySet()) {
@@ -186,6 +192,29 @@ public class ValidatingDocNode {
                 return new Attribute(subAttribute, attribute, DocNode.EMPTY);
             }
         }
+    }
+
+    public Attribute get(String attribute, String... moreAttributes) {
+        DocNode docNode;
+        String lastAttribute;
+        String path;
+
+        if (moreAttributes.length == 0) {
+            return get(attribute);
+        } else if (moreAttributes.length == 1) {
+            docNode = this.documentNode.getAsNode(attribute);
+            lastAttribute = moreAttributes[0];
+            path = attribute;
+        } else {
+            String[] moreAttributesButLast = Arrays.copyOfRange(moreAttributes, 0, moreAttributes.length - 1);
+            docNode = this.documentNode.getAsNode(attribute, moreAttributesButLast);
+            lastAttribute = moreAttributes[moreAttributes.length - 1];
+            path = attribute + "." + String.join(".", moreAttributesButLast);
+        }
+
+        used(path);
+
+        return new Attribute(lastAttribute, path, docNode);
     }
 
     public boolean hasNonNull(String attribute) {
@@ -207,7 +236,7 @@ public class ValidatingDocNode {
                 currentDocumentNode = currentDocumentNode.getAsNode(parts[i]);
             }
 
-            if (currentDocumentNode != null) {
+            if (currentDocumentNode != null && !currentDocumentNode.isNull()) {
                 return true;
             }
         }
@@ -457,7 +486,7 @@ public class ValidatingDocNode {
         }
 
         public List<String> asListOfStrings() {
-            if (hasNonNull(name)) {            
+            if (hasNonNull(name)) {
                 return expandVariablesForStrings(documentNode.getAsListOfStrings(name));
             } else {
                 return null;
@@ -663,7 +692,7 @@ public class ValidatingDocNode {
         public Map<String, Object> asMap() {
             DocNode value = documentNode.getAsNode(name);
 
-            if (value == null) {
+            if (value == null || value.isNull()) {
                 return null;
             }
 
@@ -781,7 +810,7 @@ public class ValidatingDocNode {
         public <T> T by(ValidatingFunction<DocNode, T> parser) {
             DocNode value = expandVariable(documentNode.getAsNode(name));
 
-            if (value != null) {
+            if (value != null && !value.isNull()) {
                 try {
                     return parser.apply(value);
                 } catch (ConfigValidationException e) {
@@ -1108,7 +1137,7 @@ public class ValidatingDocNode {
         public T by(ValidatingFunction<DocNode, T> parser) {
             DocNode value = documentNode.getAsNode(name);
 
-            if (value != null) {
+            if (value != null && !value.isNull()) {
                 try {
                     T result = parser.apply(value);
 
@@ -1257,9 +1286,8 @@ public class ValidatingDocNode {
         }
 
         public <T> List<T> ofObjectsParsedBy(ValidatingFunction<DocNode, T> parser) {
-            List<DocNode> values = documentNode.getAsList(name);
-
-            if (values != null) {
+            if (documentNode.hasNonNull(name)) {
+                List<DocNode> values = documentNode.getAsListOfNodes(name);
                 List<T> result = new ArrayList<>(values.size());
 
                 for (int i = 0; i < values.size(); i++) {
@@ -1279,7 +1307,6 @@ public class ValidatingDocNode {
             }
         }
 
-        
         private <T> List<T> getDefault() {
             if (emptyListAsDefault) {
                 return Collections.emptyList();

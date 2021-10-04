@@ -40,7 +40,7 @@ public class SecretsConfigApi {
             .handlesGet("/_searchguard/secrets/{id}").with(GetAction.INSTANCE, (params, body) -> new IdRequest(params.get("id")))
             .handlesPut("/_searchguard/secrets").with(UpdateAllAction.INSTANCE)//
             .handlesPut("/_searchguard/secrets/{id}")
-            .with(UpdateAction.INSTANCE, (params, body) -> new UpdateAction.Request(params.get("id"), body.get()))//
+            .with(UpdateAction.INSTANCE, (params, body) -> new UpdateAction.Request(params.get("id"), body.toBasicObject()))//
             .handlesDelete("/_searchguard/secrets/{id}").with(DeleteAction.INSTANCE, (params, body) -> new IdRequest(params.get("id")))
             .name("Search Guard Secrets");
 

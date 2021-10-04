@@ -20,8 +20,12 @@ package com.floragunn.codova.validation;
 import java.util.Arrays;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocType;
 import com.google.common.collect.ImmutableMap;
 
 public class ValidatingDocumentNodeTest {
@@ -100,6 +104,62 @@ public class ValidatingDocumentNodeTest {
         Assert.assertEquals("E1|E2", validationErrors.getOnlyValidationError().getExpectedAsString());
 
         Assert.assertNull(vNode.get("d").asEnum(TestEnum.class));
+    }
+
+    @Test
+    public void usedAttrTest() throws DocParseException {
+        String doc = "" //
+                + "a: 42\n"//
+                + "b: x\n"//
+                + "e:\n"//
+                + "  ea: 43\n"//
+                + "  eb: y\n"//
+                + "  ee:\n"//
+                + "    eea: 44\n"//
+                + "    eeb: z\n"//
+                + "e.ff.fff: 99";
+
+        ValidationErrors validationErrors = new ValidationErrors();
+        ValidatingDocNode vNode = new ValidatingDocNode(DocNode.parse(DocType.YAML).from(doc), validationErrors);
+
+        vNode.get("a").asString();
+        vNode.get("e").asString();
+
+        vNode.checkForUnusedAttributes();
+
+        Assert.assertEquals(1, validationErrors.size());
+        Assert.assertEquals("Unsupported attribute", validationErrors.getOnlyValidationError().getMessage());
+        Assert.assertEquals("b", validationErrors.getOnlyValidationError().getAttribute());
+    }
+
+    @Ignore // Unused attributes right now only work well on attributes on the top level of ValidatingDocNode
+    @Test
+    public void usedAttrTest2() throws DocParseException {
+        String doc = "" //
+                + "a: 42\n"//
+                + "b: x\n"//
+                + "e:\n"//
+                + "  ea: 43\n"//
+                + "  eb: y\n"//
+                + "  ee:\n"//
+                + "    eea: 44\n"//
+                + "    eeb: z\n"//
+                + "e.ff.fff: 99";
+
+        ValidationErrors validationErrors = new ValidationErrors();
+        ValidatingDocNode vNode = new ValidatingDocNode(DocNode.parse(DocType.YAML).from(doc), validationErrors);
+
+        vNode.get("a").asString();
+        vNode.get("b").asString();
+        vNode.get("e", "ff").asString();
+        vNode.get("e", "ea").asString();
+        vNode.get("e", "ee").asString();
+
+        vNode.checkForUnusedAttributes();
+
+        Assert.assertEquals(1, validationErrors.size());
+        Assert.assertEquals("Unsupported attribute", validationErrors.getOnlyValidationError().getMessage());
+        Assert.assertEquals("b", validationErrors.getOnlyValidationError().getAttribute());
     }
 
     public static enum TestEnum {

@@ -70,8 +70,8 @@ public class ProxyConfig {
 
     public static ProxyConfig parse(DocNode docNode) throws ConfigValidationException {
 
-        if (docNode.get() instanceof String) {
-            String simpleString = (String) docNode.get();
+        if (docNode.toBasicObject() instanceof String) {
+            String simpleString = (String) docNode.toBasicObject();
 
             try {
                 return new ProxyConfig(HttpHost.create(simpleString));

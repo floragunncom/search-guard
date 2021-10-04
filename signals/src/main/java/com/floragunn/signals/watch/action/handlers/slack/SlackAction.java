@@ -206,13 +206,13 @@ public class SlackAction extends ActionHandler {
 
             if (vJsonNode.hasNonNull("blocks")) {
                 slackActionConf
-                        .setBlocks(vJsonNode.getDocumentNode().getAsList("blocks").stream().map((b) -> b.toMap()).collect(Collectors.toList()));
+                        .setBlocks(vJsonNode.getDocumentNode().getAsListOfNodes("blocks").stream().map((b) -> b.toMap()).collect(Collectors.toList()));
 
             }
 
             if (vJsonNode.hasNonNull("attachments")) {
                 slackActionConf.setAttachments(
-                        vJsonNode.getDocumentNode().getAsList("attachments").stream().map((b) -> b.toMap()).collect(Collectors.toList()));
+                        vJsonNode.getDocumentNode().getAsListOfNodes("attachments").stream().map((b) -> b.toMap()).collect(Collectors.toList()));
             }
 
             slackActionConf.setIconEmoji(vJsonNode.get("icon_emoji").asString());

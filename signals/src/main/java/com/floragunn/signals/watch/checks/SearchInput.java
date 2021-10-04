@@ -92,7 +92,7 @@ public class SearchInput extends AbstractSearchInput {
         List<String> indices = vJsonNode.get("request.indices").asListOfStrings();
         DocNode body = jsonObject.getAsNode("request.body");
 
-        if (body == null) {
+        if (body == null || body.isNull()) {
             validationErrors.add(new MissingAttribute("request.body", jsonObject));
         }
 
