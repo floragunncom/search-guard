@@ -254,7 +254,7 @@ public class DlsTermsLookupCrossClusterTest {
     @Test
     public void testSimpleSearch_Coordinating_To_Remote_Multiple_Indices_AccessCodes_1337() throws Exception {
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
-            SearchRequest request = new SearchRequest("my_remote:tlqdummy,my_remote:tlqdocuments,my_remote:user_access_codes");
+            SearchRequest request = new SearchRequest("my_remote:tlqdummy,my_remote:tlqdocuments");
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().from(0).size(100);
             request.source(searchSourceBuilder);
             SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);

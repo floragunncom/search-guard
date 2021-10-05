@@ -61,9 +61,9 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.searchguard.dlsfls.DlsQueryParser;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.privileges.DocumentWhitelist;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.SgUtils;
@@ -76,7 +76,7 @@ public class DlsFilterLevelActionHandler {
             .protectedObjectAttr("localClusterAlias", String.class);
 
     public static boolean handle(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
-            Resolved resolved, Client nodeClient, ClusterService clusterService, IndicesService indicesService, IndexNameExpressionResolver resolver,
+            ResolvedIndices resolved, Client nodeClient, ClusterService clusterService, IndicesService indicesService, IndexNameExpressionResolver resolver,
             DlsQueryParser dlsQueryParser, ThreadContext threadContext) {
 
         if (threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE) != null) {
@@ -110,20 +110,19 @@ public class DlsFilterLevelActionHandler {
     private final ActionRequest request;
     private final ActionListener<?> listener;
     private final EvaluatedDlsFlsConfig evaluatedDlsFlsConfig;
-    private final Resolved resolved;
+    private final ResolvedIndices resolved;
     private final boolean requiresIndexScoping;
     private final Client nodeClient;
     private final DlsQueryParser dlsQueryParser;
     private final ClusterService clusterService;
     private final IndicesService indicesService;
     private final ThreadContext threadContext;
-    private final IndexNameExpressionResolver resolver;
 
     private BoolQueryBuilder filterLevelQueryBuilder;
     private DocumentWhitelist documentWhitelist;
 
     DlsFilterLevelActionHandler(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
-            Resolved resolved, Client nodeClient, ClusterService clusterService, IndicesService indicesService, IndexNameExpressionResolver resolver,
+            ResolvedIndices resolved, Client nodeClient, ClusterService clusterService, IndicesService indicesService, IndexNameExpressionResolver resolver,
             DlsQueryParser dlsQueryParser, ThreadContext threadContext) {
         this.action = action;
         this.request = request;
@@ -135,9 +134,8 @@ public class DlsFilterLevelActionHandler {
         this.indicesService = indicesService;
         this.dlsQueryParser = dlsQueryParser;
         this.threadContext = threadContext;
-        this.resolver = resolver;
 
-        this.requiresIndexScoping = resolved.isLocalAll() || resolved.getAllIndices().size() != 1;
+        this.requiresIndexScoping = resolved.isLocalAll() || resolved.getLocalAndRemoteIndices().size() != 1;
     }
 
     private boolean handle() {
@@ -382,7 +380,7 @@ public class DlsFilterLevelActionHandler {
 
         int queryCount = 0;
         
-        Set<String> indices = resolved.getAllIndicesResolved(clusterService, resolver);
+        Set<String> indices = resolved.getLocalAndRemoteIndices();
 
         for (String index : indices) {
             String dlsEval = SgUtils.evalMap(filterLevelQueries, index);

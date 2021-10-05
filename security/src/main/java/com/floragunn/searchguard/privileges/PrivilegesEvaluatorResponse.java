@@ -25,7 +25,8 @@ import java.util.Set;
 
 import org.elasticsearch.action.support.ActionFilter;
 
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 
 public class PrivilegesEvaluatorResponse {
@@ -35,10 +36,14 @@ public class PrivilegesEvaluatorResponse {
     List<ActionFilter> additionalActionFilters;
 
     PrivilegesEvaluatorResponseState state = PrivilegesEvaluatorResponseState.PENDING;
-    Resolved resolved;
+    ActionRequestInfo actionRequestInfo;
 
-    public Resolved getResolved() {
-        return resolved;
+    public ActionRequestInfo getActionRequestInfo() {
+        return actionRequestInfo;
+    }
+    
+    public ResolvedIndices getResolvedIndices() {
+        return actionRequestInfo != null ? actionRequestInfo.getResolvedIndices() : null;
     }
 
     public boolean isAllowed() {

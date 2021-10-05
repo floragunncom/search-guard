@@ -19,7 +19,7 @@ package com.floragunn.searchguard.privileges;
 
 import org.elasticsearch.action.ActionRequest;
 
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
 
@@ -28,7 +28,7 @@ public class PrivilegesInterceptor {
     public PrivilegesInterceptor() {
     }
 
-    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user, final Resolved requestedResolved,
+    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user, final ResolvedIndices requestedResolved,
             SgRoles sgRoles) {
         return InterceptionResult.NORMAL;
     }

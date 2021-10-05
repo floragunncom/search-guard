@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public interface ImmutableMap<K, V> extends Map<K, V> {
@@ -272,6 +273,14 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         return (ImmutableMap<K, V>) EMPTY_MAP;
     }
 
+    ImmutableMap<K, V> without(K key);
+
+    ImmutableMap<K, V> with(K key, V value);
+
+    ImmutableMap<K, V> with(ImmutableMap<K, V> other);
+
+    ImmutableMap<K, V> withComputed(K key, Function<V, V> f);
+
     static class SingleElementMap<K, V> extends AbstractImmutableMap<K, V> {
         private final K key;
         private final V value;
@@ -356,6 +365,20 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
 
             return Objects.equals(key, entry.getKey()) && Objects.equals(value, entry.getValue());
         }
+
+        @Override
+        public ImmutableMap<K, V> with(K key, V value) {
+            if (this.key.equals(key)) {
+                if (Objects.equals(this.value, value)) {
+                    return this;
+                } else {
+                    return new SingleElementMap<>(key, value);
+                }
+            } else {
+                return new TwoElementMap<>(this.key, this.value, key, value);
+            }
+        }
+
     }
 
     static class TwoElementMap<K, V> extends AbstractImmutableMap<K, V> {
@@ -446,6 +469,25 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
 
             return Objects.equals(value1, otherMap.get(key1)) && Objects.equals(value2, otherMap.get(key2));
         }
+
+        @Override
+        public ImmutableMap<K, V> with(K key, V value) {
+            if (Objects.equals(this.key1, key)) {
+                if (Objects.equals(this.value1, value)) {
+                    return this;
+                } else {
+                    return new TwoElementMap<>(key1, value, key2, value2);
+                }
+            } else if (Objects.equals(this.key2, key)) {
+                if (Objects.equals(this.value2, value)) {
+                    return this;
+                } else {
+                    return new TwoElementMap<>(key1, value1, key2, value);
+                }
+            } else {
+                return new ArrayBackedMap<>(key1, value1, key2, value2, key, value);
+            }
+        }
     }
 
     static class ArrayBackedMap<K, V> extends AbstractImmutableMap<K, V> {
@@ -476,6 +518,11 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 this.values[i] = entry.getValue();
                 i++;
             }
+        }
+
+        ArrayBackedMap(Object[] keys, Object[] values) {
+            this.keys = keys;
+            this.values = values;
         }
 
         @Override
@@ -645,6 +692,40 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             return true;
         }
 
+        @Override
+        public ImmutableMap<K, V> with(K key, V value) {
+
+            for (int i = 0; i < keys.length; i++) {
+                if (Objects.equals(keys[i], key)) {
+                    if (Objects.equals(values[i], value)) {
+                        return this;
+                    } else {
+                        Object[] values = this.values.clone();
+                        values[i] = value;
+                        return new ArrayBackedMap<>(keys, values);
+                    }
+                }
+            }
+
+            int l = this.keys.length;
+
+            if (l < 4) {
+                Object[] keys = new Object[l + 1];
+                Object[] values = new Object[l + 1];
+                System.arraycopy(this.keys, 0, keys, 0, l);
+                System.arraycopy(this.values, 0, values, 0, l);
+
+                keys[l] = key;
+                values[l] = values;
+
+                return new ArrayBackedMap<>(keys, values);
+            } else {
+                Map<K, V> map = new LinkedHashMap<>(this);
+                map.put(key, value);
+                return new MapBackedMap<>(map);
+            }
+        }
+
     }
 
     static class MapBackedMap<K, V> extends AbstractImmutableMap<K, V> {
@@ -708,6 +789,17 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         @Override
         public String toString() {
             return delegate.toString();
+        }
+
+        @Override
+        public ImmutableMap<K, V> with(K key, V value) {
+            if (Objects.equals(delegate.get(key), value)) {
+                return this;
+            } else {
+                Map<K, V> map = new LinkedHashMap<>(this);
+                map.put(key, value);
+                return new MapBackedMap<>(map);
+            }
         }
     }
 
@@ -959,6 +1051,17 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
 
             };
         }
+
+        @Override
+        public ImmutableMap<K, V> with(K key, V value) {
+            if (Objects.equals(delegate.get(key), value)) {
+                return this;
+            } else {
+                Map<K, V> map = new LinkedHashMap<>(this);
+                map.put(key, value);
+                return new MapBackedMap<>(map);
+            }
+        }
     }
 
     static final Map<?, ?> EMPTY_MAP = new AbstractImmutableMap<Object, Object>() {
@@ -1018,28 +1121,75 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         public String toString() {
             return "{}";
         }
+
+        @Override
+        public ImmutableMap<Object, Object> with(Object key, Object value) {
+            return ImmutableMap.of(key, value);
+        }
     };
 
     abstract static class AbstractImmutableMap<K, V> extends AbstractMap<K, V> implements ImmutableMap<K, V> {
 
+        @Deprecated
         @Override
         public V put(K key, V value) {
             throw new UnsupportedOperationException();
         }
 
+        @Deprecated
         @Override
         public V remove(Object key) {
             throw new UnsupportedOperationException();
         }
 
+        @Deprecated
         @Override
         public void putAll(Map<? extends K, ? extends V> m) {
             throw new UnsupportedOperationException();
         }
 
+        @Deprecated
         @Override
         public void clear() {
             throw new UnsupportedOperationException();
         }
+
+        public ImmutableMap<K, V> without(K key) {
+            if (containsKey(key)) {
+                if (size() == 1) {
+                    return empty();
+                } else {
+                    return new WithoutMap<K, V>(this, key);
+                }
+            } else {
+                return this;
+            }
+        }
+
+        @Override
+        public ImmutableMap<K, V> withComputed(K key, Function<V, V> f) {
+            V oldValue = this.get(key);
+            V newValue = f.apply(oldValue);
+
+            if (Objects.equals(oldValue, newValue)) {
+                return this;
+            } else {
+                return with(key, newValue);
+            }
+        }
+
+        @Override
+        public ImmutableMap<K, V> with(ImmutableMap<K, V> other) {
+            if (this.size() == 0) {
+                return other;
+            } else if (other.size() == 0) {
+                return this;
+            } else {
+                Map<K, V> map = new LinkedHashMap<>(this);
+                map.putAll(other);
+                return new MapBackedMap<>(map);
+            }
+        }
+
     }
 }

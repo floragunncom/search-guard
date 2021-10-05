@@ -56,7 +56,6 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -146,12 +145,11 @@ import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.api.ComponentStateRestAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
 import com.floragunn.searchguard.privileges.extended_action_handling.ResourceOwnerService;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.rest.KibanaInfoAction;
 import com.floragunn.searchguard.rest.PermissionAction;
 import com.floragunn.searchguard.rest.SearchGuardHealthAction;
@@ -177,6 +175,7 @@ import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.SearchGuardInterceptor;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
+import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
@@ -203,7 +202,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private final List<String> demoCertHashes = new ArrayList<String>(3);
     private volatile SearchGuardFilter sgf;
     private volatile ComplianceConfig complianceConfig;
-    private volatile IndexResolverReplacer irr;
+    private volatile ActionRequestIntrospector actionRequestIntrospector;
     private ScriptService scriptService;
 
     private static ProtectedIndices protectedIndices;
@@ -815,9 +814,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         dlsFlsValve = ReflectionHelper.instantiateDlsFlsValve(settings, localClient, clusterService, indexNameExpressionResolver, guiceDependencies,
                 xContentRegistry, threadPool.getThreadContext());
 
-        irr = new IndexResolverReplacer(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
+        actionRequestIntrospector = new ActionRequestIntrospector(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
         auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService);
-        complianceConfig = dlsFlsAvailable ? new ComplianceConfig(environment, Objects.requireNonNull(irr), auditLog, localClient) : null;
+        complianceConfig = dlsFlsAvailable ? new ComplianceConfig(environment, actionRequestIntrospector, auditLog, localClient) : null;
         log.debug("Compliance config is " + complianceConfig + " because of dlsFlsAvailable: " + dlsFlsAvailable + " and auditLog="
                 + auditLog.getClass());
         auditLog.setComplianceConfig(complianceConfig);
@@ -850,7 +849,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, auditLog, threadPool);
         final CompatConfig compatConfig = new CompatConfig(environment);
 
-        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih, irr,
+        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih, actionRequestIntrospector,
                 specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry, enterpriseModulesEnabled);
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, staticSgConfig, settings, configPath, localClient, threadPool, cih, moduleRegistry, secretsService);
@@ -858,7 +857,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         dcf.registerDCFListener(backendRegistry);
         dcf.registerDCFListener(compatConfig);
-        dcf.registerDCFListener(irr);
         dcf.registerDCFListener(xffResolver);
         dcf.registerDCFListener(evaluator);
         if (complianceConfig != null) {
@@ -1274,6 +1272,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public static final class ProtectedIndices {
         final Set<String> protectedPatterns;
 
+
         private ProtectedIndices() {
             protectedPatterns = null;
         }
@@ -1302,27 +1301,24 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             return protectedPatterns == null ? "" : Joiner.on(',').join(protectedPatterns);
         }
 
-        public String[] getProtectedIndicesAsMinusPattern(IndexResolverReplacer irr, Object request) {
+        public ImmutableSet<String> getProtectedIndicesAsMinusPattern() {
             if (protectedPatterns == null) {
-                return new String[0];
+                return ImmutableSet.empty();
             }
 
-            final Resolved resolved = irr.resolveIndexPatterns(IndicesOptions.lenientExpandOpen(), request, protectedPatterns.toArray(new String[0]));
-
-            String[] res = new String[resolved.getAllIndices().size()];
-            int i = 0;
-            for (String p : resolved.getAllIndices()) {
-                res[i++] = "-" + p;
-            }
-
-            return res.clone();
-        }
-
-        public void filterIndices(Set<String> indices) {
+            Set<String> result = new HashSet<>();
+            
             for (String p : protectedPatterns) {
-                WildcardMatcher.wildcardRemoveFromSet(indices, p);
+                result.add( "-" + p);
             }
 
+            return ImmutableSet.of(result);
         }
+        
+
+        public Set<String> getProtectedPatterns() {
+            return protectedPatterns;
+        }
+
     }
 }

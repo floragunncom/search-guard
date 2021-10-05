@@ -60,7 +60,9 @@ import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.auth.blocking.IpRangeVerdictBasedBlockRegistry;
 import com.floragunn.searchguard.auth.blocking.VerdictBasedBlockRegistry;
 import com.floragunn.searchguard.auth.blocking.WildcardVerdictBasedBlockRegistry;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
@@ -75,8 +77,8 @@ import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.StringInterpolationException;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserAttributes;
+import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Sets;
 
@@ -537,43 +539,49 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
         //kibana special only, terms eval
-        public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
-                                                           ClusterService cs) {
-            Set<String> retVal = new HashSet<>();
+        public ImmutableSet<String> getAllPermittedIndicesForKibana(ActionRequestInfo requestInfo, User user, Set<String> actions, IndexNameExpressionResolver resolver,
+                                                           ClusterService cs, ActionRequestIntrospector actionRequestIntrospector) {
+            ImmutableSet.Builder<String> resultBuilder = new ImmutableSet.Builder<String>();
 
             for (SgRole sgr : roles.values()) {
-                retVal.addAll(sgr.getAllResolvedPermittedIndices(Resolved._LOCAL_ALL, user, actions, resolver, cs));
+                sgr.getAllResolvedPermittedIndices(resultBuilder,
+                        actionRequestIntrospector.create("*", IndicesOptions.LENIENT_EXPAND_OPEN).getResolvedIndices(), user, actions, resolver, cs);
             }
-                        
+            
+            ImmutableSet<String> result = resultBuilder.build();
+            
             for (SgRole sgRole : roles.values()) {
-                sgRole.removeAllResolvedExcludedIndices(retVal, user, actions, resolver, cs);
+                result = sgRole.removeAllResolvedExcludedIndices(result, user, actions, resolver, cs);
             }
             
-            retVal.addAll(resolved.getRemoteIndices());
+            result = result.with(requestInfo.getResolvedIndices().getRemoteIndices());
             
-            return Collections.unmodifiableSet(retVal);
+            return result;
         }
 
         //dnfof only
-        public Set<String> reduce(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
-            Set<String> retVal = new HashSet<>();
+        public ImmutableSet<String> reduce(ResolvedIndices resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+            ImmutableSet.Builder<String> resultBuilder = new ImmutableSet.Builder<String>();
             
             for (SgRole sgr : roles.values()) {
-                retVal.addAll(sgr.getAllResolvedPermittedIndices(resolved, user, actions, resolver, cs));
+                sgr.getAllResolvedPermittedIndices(resultBuilder, resolved, user, actions, resolver, cs);
             }
+
             
+            ImmutableSet<String> result = resultBuilder.build();
+
             for (SgRole sgRole : roles.values()) {
-                sgRole.removeAllResolvedExcludedIndices(retVal, user, actions, resolver, cs);
+                result = sgRole.removeAllResolvedExcludedIndices(result, user, actions, resolver, cs);
             }
-                        
+     
             if (log.isDebugEnabled()) {
-                log.debug("Reduced requested resolved indices {} to permitted indices {}.", resolved, retVal);
+                log.debug("Reduced requested resolved indices {} to permitted indices {}.", resolved, result);
             }
-            return Collections.unmodifiableSet(retVal);
+            return result;
         }
 
         //return true on success
-        public boolean get(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+        public boolean get(ResolvedIndices resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
             if (isIndexActionExcluded(resolved, user, actions, resolver, cs)) {
                 return false;
             }
@@ -603,7 +611,7 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
         //rolespan
-        public boolean impliesTypePermGlobal(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
+        public boolean impliesTypePermGlobal(ResolvedIndices resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
                                              ClusterService cs) {
             if (isIndexActionExcluded(resolved, user, actions, resolver, cs)) {
                 return false;
@@ -715,13 +723,13 @@ public class ConfigModelV7 extends ConfigModel {
             return Collections.unmodifiableMap(result);
         }
         
-        private boolean isIndexActionExcluded(Resolved requestedResolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+        private boolean isIndexActionExcluded(ResolvedIndices requestedResolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
             for (SgRole sgRole : roles.values()) {
                 for (ExcludedIndexPermissions indexPattern : sgRole.indexPermissionExclusions) {
                     for (String requestedAction : actions) {
                         if (WildcardMatcher.matchAny(indexPattern.perms, requestedAction)) {
                             try {
-                                if (requestedResolved.isLocalAll() || indexPattern.matches(requestedResolved.getAllIndices(), user, resolver, cs)) {
+                                if (requestedResolved.isLocalAll() || indexPattern.matches(requestedResolved.getLocalIndices(), user, resolver, cs)) {
                                     return true;
                                 }
                             } catch (StringInterpolationException e) {
@@ -861,49 +869,34 @@ public class ConfigModelV7 extends ConfigModel {
 
         //dnfof + kibana special only
 
-        private Set<String> getAllResolvedPermittedIndices(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
-                                                           ClusterService cs) {
-
-            final Set<String> retVal = new HashSet<>();
+        private void getAllResolvedPermittedIndices(ImmutableSet.Builder<String> result, ResolvedIndices resolved, User user, Set<String> actions,
+                IndexNameExpressionResolver resolver, ClusterService cs) {
+            
             for (IndexPattern p : ipatterns) {
                 //what if we cannot resolve one (for create purposes)
                 final boolean patternMatch = WildcardMatcher.matchAll(p.getPerms().toArray(new String[0]), actions);
 
                 if (patternMatch) {
                     //resolved but can contain patterns for nonexistent indices
-                    String[] permitted;
                     try {
-                        permitted = p.getResolvedIndexPatterns(user, resolver, cs, true); 
-                        //maybe they do not exist
+                        String[] permitted = p.getResolvedIndexPatterns(user, resolver, cs, true);
+
+                        result.with(resolved.getLocalIndices().matching((i) -> WildcardMatcher.matchAny(permitted, i)));
+                        
+                        if (result.size() == resolved.getLocalIndices().size()) {
+                            // We have already reached the maximum set. No need for further tests
+                            break;
+                        }
                     } catch (StringInterpolationException e) {
                         log.warn("Invalid index pattern " + p.indexPattern, e);
-                        continue;
-                    } 
-                    final Set<String> res = new HashSet<>();
-                    if (!resolved.isLocalAll() && !resolved.getAllIndicesOrPattern().contains("*") && !resolved.getAllIndicesOrPattern().contains("_all")) {
-                        final Set<String> wanted = new HashSet<>(resolved.getAllIndices());
-                        //resolved but can contain patterns for nonexistent indices
-                        WildcardMatcher.wildcardRetainInSet(wanted, permitted);
-                        res.addAll(wanted);
-                    } else {
-                        //we want all indices so just return what's permitted
-
-                        //#557
-                        //final String[] allIndices = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), "*");
-                        final String[] allIndices = cs.state().getMetadata().getConcreteAllOpenIndices();
-                        final Set<String> wanted = new HashSet<>(Arrays.asList(allIndices));
-                        WildcardMatcher.wildcardRetainInSet(wanted, permitted);
-                        res.addAll(wanted);
                     }
-                    retVal.addAll(res);
                 }
             }
 
             //all that we want and all thats permitted of them
-            return Collections.unmodifiableSet(retVal);
         }
         
-        private void removeAllResolvedExcludedIndices(Set<String> indices, User user, Set<String> actions, IndexNameExpressionResolver resolver,
+        private ImmutableSet<String> removeAllResolvedExcludedIndices(ImmutableSet<String> indices, User user, Set<String> actions, IndexNameExpressionResolver resolver,
                 ClusterService cs) {
             
             for (ExcludedIndexPermissions excludedIndexPattern : indexPermissionExclusions) {
@@ -913,21 +906,20 @@ public class ConfigModelV7 extends ConfigModel {
                 
                 if (WildcardMatcher.matchAll(excludedIndexPattern.getPerms().toArray(new String[0]), actions)) {
                     if (excludedIndexPattern.indexPattern.equals("*")) {
-                        indices.clear();
-                        break;
+                        return ImmutableSet.empty();
                     }
                     
                     try {
-                        excludedIndexPattern.removeMatches(indices, user, resolver, cs);
+                        indices = excludedIndexPattern.removeMatches(indices, user, resolver, cs);
                     } catch (StringInterpolationException e) {
                         log.warn("Invalid index pattern " + excludedIndexPattern.indexPattern + " in permission exclusion.\n"
                                 + "In order to fail safely, the requested actions will be denied for all indices.", e);
-                        indices.clear();
-                        break;
+                        return ImmutableSet.empty();
                     } 
                 }
             }
 
+            return indices;
         }
         
         
@@ -1359,7 +1351,7 @@ public class ConfigModelV7 extends ConfigModel {
             }            
         }
         
-        public void removeMatches(Set<String> indices, User user, IndexNameExpressionResolver resolver, ClusterService cs)
+        public ImmutableSet<String> removeMatches(ImmutableSet<String> indices, User user, IndexNameExpressionResolver resolver, ClusterService cs)
                 throws StringInterpolationException {
             // Note: This does not process the obsolete user attributes any more
             String indexPattern = UserAttributes.replaceAttributes(this.indexPattern, user);
@@ -1369,19 +1361,18 @@ public class ConfigModelV7 extends ConfigModel {
             }
             
             if (indexPattern.equals("*")) {
-                indices.clear();
-                return;
+                return ImmutableSet.empty();
             }
 
-            if (WildcardMatcher.containsWildcard(indexPattern)) {               
-                indices.removeIf((index) -> WildcardMatcher.match(indexPattern, index));
-
+            if (WildcardMatcher.containsWildcard(indexPattern)) { 
+                indices = indices.withoutMatching((index) -> WildcardMatcher.match(indexPattern, index));
+                
                 if (log.isTraceEnabled()) {
                     log.trace("remaining indices after removing matches: " + indices);
                 }
 
                 if (indices.isEmpty()) {
-                    return;
+                    return ImmutableSet.empty();
                 }
 
                 String[] aliasesForPermittedPattern = cs.state().getMetadata().getIndicesLookup().entrySet().stream()
@@ -1393,9 +1384,7 @@ public class ConfigModelV7 extends ConfigModel {
                     String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(),
                             aliasesForPermittedPattern);
 
-                    for (String resolvedAlias : resolvedAliases) {
-                        indices.remove(resolvedAlias);
-                    }
+                    indices = indices.without(Arrays.asList(resolvedAliases));
                     
                     if (log.isTraceEnabled()) {
                         log.trace("remaining indices after removing matching aliases (" + Arrays.asList(resolvedAliases) + "): " + indices);
@@ -1405,27 +1394,27 @@ public class ConfigModelV7 extends ConfigModel {
             } else {
                 // No wildcard
 
-                indices.remove(indexPattern);
-
+                indices = indices.without(indexPattern);
+                
                 if (log.isTraceEnabled()) {
                     log.trace("remaining indices after removing matches: " + indices);
                 }
 
                 if (indices.isEmpty()) {
-                    return;
+                    return ImmutableSet.empty();
                 }
 
                 String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), indexPattern);
 
-                for (String resolvedAlias : resolvedAliases) {
-                    indices.remove(resolvedAlias);
-                }
+                indices = indices.without(Arrays.asList(resolvedAliases));
 
                 if (log.isTraceEnabled()) {
                     log.trace("remaining indices after removing matching aliases (" + Arrays.asList(resolvedAliases) + "): " + indices);
                 }
 
             }            
+            
+            return indices;
         }
 
         public Set<String> getPerms() {
@@ -1622,7 +1611,7 @@ public class ConfigModelV7 extends ConfigModel {
         return orig;
     }
  
-    private static boolean impliesTypePerm(Set<IndexPattern> ipatterns, Resolved resolved, User user, Set<String> actions,
+    private static boolean impliesTypePerm(Set<IndexPattern> ipatterns, ResolvedIndices resolved, User user, Set<String> actions,
                                            IndexNameExpressionResolver resolver, ClusterService cs) {
         if (resolved.isLocalAll()) {
             // Only let localAll pass if there is an explicit privilege for a * index pattern
@@ -1650,9 +1639,9 @@ public class ConfigModelV7 extends ConfigModel {
 
             return false;
         } else {
-            Set<String> matchingIndex = new HashSet<>(resolved.getAllIndices());
+            Set<String> matchingIndex = new HashSet<>(resolved.getLocalIndices());
 
-            for (String in : resolved.getAllIndices()) {
+            for (String in : resolved.getLocalIndices()) {
                 //find index patterns who are matching
                 Set<String> matchingActions = new HashSet<>(actions);
                 for (IndexPattern p : ipatterns) {

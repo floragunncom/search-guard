@@ -348,7 +348,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         }
         
         HttpResponse ccs = null;
-        
+
         System.out.println("###################### query 1");
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:*/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("twitter","nagilum"));
         System.out.println(ccs.getBody());
@@ -363,7 +363,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
 
         
         System.out.println("###################### query 3");
-        ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:twitter,twitter,twutter/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("twitter","nagilum"));
+        ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:twitter,twitter,twutter*/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("twitter","nagilum"));
         System.out.println(ccs.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
         Assert.assertFalse(ccs.getBody().contains("twutter"));
@@ -795,7 +795,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:notfound,*/_search?pretty", agg, encodeBasicHeader("twitter","nagilum"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:notfound*,*/_search?pretty", agg, encodeBasicHeader("twitter","nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
+        Assert.assertEquals(ccs.getBody(), HttpStatus.SC_OK, ccs.getStatusCode());
         Assert.assertFalse(ccs.getBody().contains("security_exception"));
         Assert.assertTrue(ccs.getBody().contains("\"timed_out\" : false"));
         Assert.assertTrue(ccs.getBody().contains("crl1"));
@@ -803,7 +803,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         Assert.assertFalse(ccs.getBody().contains("\"doc_count\" : 2"));
         Assert.assertTrue(ccs.getBody().contains("\"doc_count\" : 1"));
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:*,notfound/_search?pretty", agg, encodeBasicHeader("twitter","nagilum"));
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
+        Assert.assertEquals(ccs.getBody(), HttpStatus.SC_OK, ccs.getStatusCode());
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:notfound,notfound/_search?pretty", agg, encodeBasicHeader("twitter","nagilum"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:notfou*,*/_search?pretty", agg, encodeBasicHeader("twitter","nagilum"));

@@ -61,9 +61,9 @@ import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 
 public class DlsTermsLookupTest2 {
 
-    @ClassRule 
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled()
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", true)
@@ -507,7 +507,6 @@ public class DlsTermsLookupTest2 {
             request.add("tlqdocuments", "17");
             request.add("tlqdocuments", "18");
             request.add("tlqdummy", "101");
-            request.add("user_access_codes", "tlq_1337");
 
             MultiGetResponse searchResponse = client.mget(request, RequestOptions.DEFAULT);
 
@@ -525,6 +524,23 @@ public class DlsTermsLookupTest2 {
                     Assert.fail("Index " + response.getIndex() + " present in mget response, but should not");
                 }
 
+            }
+
+            request = new MultiGetRequest();
+            request.add("tlqdocuments", "1");
+            request.add("tlqdocuments", "2");
+            request.add("tlqdocuments", "3");
+            request.add("tlqdocuments", "16");
+            request.add("tlqdocuments", "17");
+            request.add("tlqdocuments", "18");
+            request.add("tlqdummy", "101");
+            request.add("user_access_codes", "tlq_1337");
+
+            try {
+                searchResponse = client.mget(request, RequestOptions.DEFAULT);
+                Assert.fail(searchResponse.toString());
+            } catch (ElasticsearchStatusException e) {
+                Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
             }
 
         }

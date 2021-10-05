@@ -18,10 +18,7 @@
 package com.floragunn.searchguard.privileges;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,28 +30,29 @@ import org.elasticsearch.tasks.Task;
 
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
-import com.google.common.collect.ObjectArrays;
+import com.floragunn.searchsupport.util.ImmutableList;
+import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class SearchGuardIndexAccessEvaluator {
-    
+
     protected final Logger log = LogManager.getLogger(this.getClass());
-    
+
     private final AuditLog auditLog;
     private final String[] sgDeniedActionPatterns;
-    private final IndexResolverReplacer irr;
+    private final ActionRequestIntrospector actionRequestIntrospector;
     private final boolean filterSgIndex;
-    
-    public SearchGuardIndexAccessEvaluator(final Settings settings, AuditLog auditLog, IndexResolverReplacer irr) {
+
+    public SearchGuardIndexAccessEvaluator(final Settings settings, AuditLog auditLog, ActionRequestIntrospector actionRequestIntrospector) {
         this.auditLog = auditLog;
-        this.irr = irr;
+        this.actionRequestIntrospector = actionRequestIntrospector;
         this.filterSgIndex = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_FILTER_SGINDEX_FROM_ALL_REQUESTS, false);
-        
+
         final boolean restoreSgIndexEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTORE_SGINDEX_ENABLED, false);
-        
+
         final List<String> sgIndexDeniedActionPatternsList = new ArrayList<String>();
         sgIndexDeniedActionPatternsList.add("indices:data/write*");
         sgIndexDeniedActionPatternsList.add("indices:admin/delete*");
@@ -69,23 +67,33 @@ public class SearchGuardIndexAccessEvaluator {
         sgIndexDeniedActionPatternsListNoSnapshot.add("indices:admin/close*");
         sgIndexDeniedActionPatternsListNoSnapshot.add("cluster:admin/snapshot/restore*");
 
-        sgDeniedActionPatterns = (restoreSgIndexEnabled?sgIndexDeniedActionPatternsList:sgIndexDeniedActionPatternsListNoSnapshot).toArray(new String[0]);
+        sgDeniedActionPatterns = (restoreSgIndexEnabled ? sgIndexDeniedActionPatternsList : sgIndexDeniedActionPatternsListNoSnapshot)
+                .toArray(new String[0]);
     }
-    
-    public PrivilegesEvaluatorResponse evaluate(final ActionRequest request, final Task task, final String action, final Resolved requestedResolved,
-            final PrivilegesEvaluatorResponse presponse)  {
 
+    public PrivilegesEvaluatorResponse evaluate(final ActionRequest request, final Task task, final String action,
+            ActionRequestInfo actionRequestInfo, final PrivilegesEvaluatorResponse presponse) {
+        if (!actionRequestInfo.isIndexRequest()) {
+            return presponse;
+        }
+        
+        ResolvedIndices requestedResolved = actionRequestInfo.getResolvedIndices();
+        
         if (WildcardMatcher.matchAny(sgDeniedActionPatterns, action)) {
+
 
             if (requestedResolved.isLocalAll()) {
 
                 if (filterSgIndex) {
-                    final String[] resolvedProtectedIndices = SearchGuardPlugin.getProtectedIndices().getProtectedIndicesAsMinusPattern(irr, request);
-                    irr.replace(request, false, ObjectArrays.concat("*", resolvedProtectedIndices));
+                    ImmutableSet<String> resolvedProtectedIndices = SearchGuardPlugin.getProtectedIndices().getProtectedIndicesAsMinusPattern();
+                    actionRequestIntrospector.replaceIndices(request,
+                            (r) -> r.isLocalAll() ? ImmutableList.of("*").with(resolvedProtectedIndices)
+                                    : ImmutableList.of(r.getLocalIndices()).with(resolvedProtectedIndices).with(r.getRemoteIndices()),
+                            actionRequestInfo);
+
                     if (log.isDebugEnabled()) {
                         log.debug("Filtered '{}'from {}, resulting list with *,-{} is {}",
-                                SearchGuardPlugin.getProtectedIndices().printProtectedIndices(), requestedResolved,
-                                Arrays.toString(resolvedProtectedIndices), irr.resolveRequest(request));
+                                SearchGuardPlugin.getProtectedIndices().printProtectedIndices(), requestedResolved, resolvedProtectedIndices);
                     }
                     return presponse;
                 } else {
@@ -94,23 +102,20 @@ public class SearchGuardIndexAccessEvaluator {
                     presponse.allowed = false;
                     return presponse.markComplete();
                 }
-            } else if (SearchGuardPlugin.getProtectedIndices().containsProtected(requestedResolved.getAllIndices())) {
+            } else if (SearchGuardPlugin.getProtectedIndices().containsProtected(requestedResolved.getLocalIndices())) {
 
                 if (filterSgIndex) {
-                    Set<String> allWithoutProtected = new HashSet<>(requestedResolved.getAllIndices());
-                    SearchGuardPlugin.getProtectedIndices().filterIndices(allWithoutProtected);
-                    if (allWithoutProtected.isEmpty()) {
+                    if (!actionRequestIntrospector.replaceIndices(
+                            request, (r) -> ImmutableList.of(r.getLocalIndices())
+                                    .without(SearchGuardPlugin.getProtectedIndices().getProtectedPatterns()).with(r.getRemoteIndices()),
+                            actionRequestInfo)) {
                         if (log.isDebugEnabled()) {
                             log.debug("Filtered '{}' but resulting list is empty", SearchGuardPlugin.getProtectedIndices().printProtectedIndices());
                         }
                         presponse.allowed = false;
-                        return presponse.markComplete();
+                        return presponse.markComplete();                        
                     }
-                    irr.replace(request, false, allWithoutProtected.toArray(new String[0]));
-                    if (log.isDebugEnabled()) {
-                        log.debug("Filtered '{}', resulting list is {}", SearchGuardPlugin.getProtectedIndices().printProtectedIndices(),
-                                allWithoutProtected);
-                    }
+                    
                     return presponse;
                 } else {
                     auditLog.logSgIndexAttempt(request, action, task);
@@ -122,18 +127,18 @@ public class SearchGuardIndexAccessEvaluator {
             }
         }
 
-        if(requestedResolved.isLocalAll() || SearchGuardPlugin.getProtectedIndices().containsProtected(requestedResolved.getAllIndices())) {
+        if (requestedResolved.isLocalAll() || SearchGuardPlugin.getProtectedIndices().containsProtected(requestedResolved.getLocalIndices())) {
 
-            if(request instanceof SearchRequest) {
-                ((SearchRequest)request).requestCache(Boolean.FALSE);
-                if(log.isDebugEnabled()) {
+            if (request instanceof SearchRequest) {
+                ((SearchRequest) request).requestCache(Boolean.FALSE);
+                if (log.isDebugEnabled()) {
                     log.debug("Disable search request cache for this request");
                 }
             }
 
-            if(request instanceof RealtimeRequest) {
+            if (request instanceof RealtimeRequest) {
                 ((RealtimeRequest) request).realtime(Boolean.FALSE);
-                if(log.isDebugEnabled()) {
+                if (log.isDebugEnabled()) {
                     log.debug("Disable realtime for this request");
                 }
             }
