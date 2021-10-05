@@ -20,7 +20,8 @@ package com.floragunn.searchguard.privileges;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 
 public class PrivilegesEvaluatorResponse {
@@ -29,12 +30,17 @@ public class PrivilegesEvaluatorResponse {
     EvaluatedDlsFlsConfig evaluatedDlsFlsConfig;
     
     PrivilegesEvaluatorResponseState state = PrivilegesEvaluatorResponseState.PENDING;
-    Resolved resolved;
+    ActionRequestInfo actionRequestInfo;
+
+    public ActionRequestInfo getActionRequestInfo() {
+        return actionRequestInfo;
+    }
     
-    public Resolved getResolved() {
-		return resolved;
-	}
-	public boolean isAllowed() {
+    public ResolvedIndices getResolvedIndices() {
+        return actionRequestInfo != null ? actionRequestInfo.getResolvedIndices() : null;
+    }
+
+    public boolean isAllowed() {
         return allowed;
     }
     public Set<String> getMissingPrivileges() {

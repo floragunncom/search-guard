@@ -36,7 +36,6 @@ import java.util.Map;
 
 import org.elasticsearch.ElasticsearchException;
 
-import com.floragunn.searchguard.resolver.IndexResolverReplacer;
 import com.floragunn.searchguard.user.User;
 import com.google.common.io.BaseEncoding;
 
@@ -118,7 +117,6 @@ public class Base64Helper {
                     Map.class.isAssignableFrom(clazz) ||
                     Enum.class.isAssignableFrom(clazz) ||
                     clazz.equals(User.class) ||
-                    clazz.equals(IndexResolverReplacer.Resolved.class) ||
                     clazz.equals(SourceFieldsContext.class) ||
                     SAFE_CLASSES.contains(clazz.getName())
                ) {

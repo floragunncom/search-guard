@@ -47,7 +47,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.dlsfls.filter.DlsFilterLevelActionHandler;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -85,7 +85,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
      * @return false on error
      */
     public boolean invoke(String action, ActionRequest request, final ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
-            final boolean localHashingEnabled, final Resolved resolved) {
+            final boolean localHashingEnabled, final ResolvedIndices resolved) {
 
         if (log.isDebugEnabled()) {
             log.debug("DlsFlsValveImpl.invoke()\nrequest: " + request + "\nevaluatedDlsFlsConfig: " + evaluatedDlsFlsConfig + "\nresolved: "

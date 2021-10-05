@@ -23,7 +23,7 @@ import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 
 public interface DlsFlsRequestValve {
@@ -36,7 +36,7 @@ public interface DlsFlsRequestValve {
      * @return false to stop
      */
     boolean invoke(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, boolean localHasingEnabled,
-            Resolved resolved);
+            ResolvedIndices resolved);
 
     void handleSearchContext(SearchContext context, ThreadPool threadPool, NamedXContentRegistry namedXContentRegistry);
 
@@ -44,7 +44,7 @@ public interface DlsFlsRequestValve {
 
         @Override
         public boolean invoke(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
-                boolean localHasingEnabled, Resolved resolved) {
+                boolean localHasingEnabled, ResolvedIndices resolved) {
             return true;
         }
 

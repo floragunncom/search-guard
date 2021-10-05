@@ -505,16 +505,19 @@ public class IntegrationTests extends SingleClusterTest {
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted"))).actionGet();
 
         }
+        
+        HttpResponse resc = rh.executeGetRequest("indexa,indexb/_search?pretty", encodeBasicHeader("user_a", "user_a"));
+        Assert.assertEquals(resc.getBody(), HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
 
-        HttpResponse resc;
-        Assert.assertEquals(HttpStatus.SC_OK, (resc=rh.executeGetRequest("indexa,indexb/_search?pretty", encodeBasicHeader("user_a", "user_a"))).getStatusCode());
+        resc = rh.executeGetRequest("indexa,indexb*/_search?pretty", encodeBasicHeader("user_a", "user_a"));
+        Assert.assertEquals(resc.getBody(), HttpStatus.SC_OK, resc.getStatusCode());
         System.out.println(resc.getBody());
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("indexa"));
         Assert.assertFalse(resc.getBody(), resc.getBody().contains("indexb"));
         Assert.assertFalse(resc.getBody(), resc.getBody().contains("exception"));
         Assert.assertFalse(resc.getBody(), resc.getBody().contains("permission"));
 
-        Assert.assertEquals(HttpStatus.SC_OK, (resc=rh.executeGetRequest("indexa,indexb/_search?pretty", encodeBasicHeader("user_b", "user_b"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, (resc=rh.executeGetRequest("indexa,indexb*/_search?pretty", encodeBasicHeader("user_b", "user_b"))).getStatusCode());
         System.out.println(resc.getBody());
         Assert.assertFalse(resc.getBody(), resc.getBody().contains("indexa"));
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("indexb"));
@@ -554,9 +557,19 @@ public class IntegrationTests extends SingleClusterTest {
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator()+
                 "{\"index\":\"indexd\", \"type\":\"doc\", \"ignore_unavailable\": true}"+System.lineSeparator()+
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator();
+        
+        resc = rh.executePostRequest("_msearch?pretty", msearchBody, encodeBasicHeader("user_b", "user_b"));
+        // TODO assert that only empty search responses are returned
+        Assert.assertTrue(resc.getBody(), resc.getBody().contains("\"value\" : 0"));
+        
+        msearchBody =
+                "{\"index\":\"indexc\", \"type\":\"doc\", \"ignore_unavailable\": false}"+System.lineSeparator()+
+                "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator()+
+                "{\"index\":\"indexd\", \"type\":\"doc\", \"ignore_unavailable\": false}"+System.lineSeparator()+
+                "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator();
 
         resc = rh.executePostRequest("_msearch?pretty", msearchBody, encodeBasicHeader("user_b", "user_b"));
-        Assert.assertEquals(403, resc.getStatusCode());
+        Assert.assertTrue(resc.getBody(), resc.getBody().contains("no permissions for [indices:data/read/search]"));
 
         String mgetBody = "{"+
                 "\"docs\" : ["+
@@ -581,6 +594,7 @@ public class IntegrationTests extends SingleClusterTest {
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("exception"));
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("permission"));
 
+        /*
         mgetBody = "{"+
                 "\"docs\" : ["+
                 "{"+
@@ -597,7 +611,8 @@ public class IntegrationTests extends SingleClusterTest {
                 "}";
 
         resc = rh.executePostRequest("_mget?pretty",  mgetBody, encodeBasicHeader("user_b", "user_b"));
-        Assert.assertEquals(403, resc.getStatusCode());
+        Assert.assertEquals(resc.getBody(), 403, resc.getStatusCode());
+        */
 
         Assert.assertEquals(HttpStatus.SC_OK, (resc=rh.executeGetRequest("_search?pretty", encodeBasicHeader("user_a", "user_a"))).getStatusCode());
         System.out.println(resc.getBody());
@@ -629,7 +644,8 @@ public class IntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_NOT_FOUND, (resc=rh.executeGetRequest("permitnotexistentindex/_search?pretty", encodeBasicHeader("user_a", "user_a"))).getStatusCode());
         System.out.println(resc.getBody());
         
-        Assert.assertEquals(HttpStatus.SC_OK, (resc=rh.executeGetRequest("permitnotexistentindex*/_search?pretty", encodeBasicHeader("user_a", "user_a"))).getStatusCode());
+        resc=rh.executeGetRequest("permitnotexistentindex*/_search?pretty", encodeBasicHeader("user_a", "user_a"));        
+        Assert.assertEquals(resc.getBody(), HttpStatus.SC_OK, resc.getStatusCode());
         System.out.println(resc.getBody());
 
         Assert.assertEquals(HttpStatus.SC_NOT_FOUND, (resc=rh.executeGetRequest("indexanbh,indexabb*/_search?pretty", encodeBasicHeader("user_a", "user_a"))).getStatusCode());
@@ -642,7 +658,8 @@ public class IntegrationTests extends SingleClusterTest {
         System.out.println(resc.getBody());
 
         System.out.println("#### _all/_mapping/field/*");
-        Assert.assertEquals(HttpStatus.SC_OK, (resc=rh.executeGetRequest("_all/_mapping/field/*", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
+        resc=rh.executeGetRequest("_all/_mapping/field/*", encodeBasicHeader("nagilum", "nagilum"));
+        Assert.assertEquals(resc.getBody(), HttpStatus.SC_OK, resc.getStatusCode());
         System.out.println(resc.getBody());
     }
 
@@ -712,9 +729,9 @@ public class IntegrationTests extends SingleClusterTest {
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("permission"));
 
         msearchBody =
-                "{\"index\":\"indexc\", \"type\":\"doc\", \"ignore_unavailable\": true}"+System.lineSeparator()+
+                "{\"index\":\"indexc\", \"type\":\"doc\", \"ignore_unavailable\": false}"+System.lineSeparator()+
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator()+
-                "{\"index\":\"indexd\", \"type\":\"doc\", \"ignore_unavailable\": true}"+System.lineSeparator()+
+                "{\"index\":\"indexd\", \"type\":\"doc\", \"ignore_unavailable\": false}"+System.lineSeparator()+
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator();
 
         System.out.println("#### msearch b2");
@@ -865,7 +882,7 @@ public class IntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());
         res = rh.executePutRequest("*,-searchguard/_settings", "{\"index\" : {\"number_of_replicas\" : 2}}",
                 encodeBasicHeader("nagilum", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());
         res = rh.executePutRequest("*,-searchguard,-index*/_settings", "{\"index\" : {\"number_of_replicas\" : 2}}",
                 encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_NOT_FOUND, res.getStatusCode());
@@ -915,7 +932,7 @@ public class IntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());
         res = rh.executePutRequest("*/_mapping?pretty", "{\"properties\": {\"name\":{\"type\":\"text\"}}}",
                 encodeBasicHeader("nagilum", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());
         res = rh.executePutRequest("_all/_mapping?pretty", "{\"properties\": {\"name\":{\"type\":\"text\"}}}",
                 encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());

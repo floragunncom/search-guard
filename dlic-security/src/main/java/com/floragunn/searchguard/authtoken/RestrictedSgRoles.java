@@ -15,7 +15,6 @@
 package com.floragunn.searchguard.authtoken;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -26,11 +25,14 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.ConfigModel.ActionGroupResolver;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.collect.Sets;
 
 public class RestrictedSgRoles extends SgRoles {
@@ -69,22 +71,22 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public Set<String> reduce(Resolved requestedResolved, User user, Set<String> strings, IndexNameExpressionResolver resolver,
+    public ImmutableSet<String> reduce(ResolvedIndices requestedResolved, User user, Set<String> strings, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
-        Set<String> restrictedIndexes = restrictionSgRoles.reduce(requestedResolved, user, strings, resolver, clusterService);
+        ImmutableSet<String> restrictedIndexes = restrictionSgRoles.reduce(requestedResolved, user, strings, resolver, clusterService);
 
         if (restrictedIndexes.isEmpty()) {
             // Don't calculate base indexes if we already know we will get an empty set
-            return Collections.emptySet();
+            return ImmutableSet.empty();
         }
 
-        Set<String> baseIndexes = base.reduce(requestedResolved, user, strings, resolver, clusterService);
+        ImmutableSet<String> baseIndexes = base.reduce(requestedResolved, user, strings, resolver, clusterService);
 
-        return Sets.intersection(baseIndexes, restrictedIndexes);
+        return baseIndexes.intersection(restrictedIndexes);
     }
 
     @Override
-    public boolean impliesTypePermGlobal(Resolved requestedResolved, User user, Set<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
+    public boolean impliesTypePermGlobal(ResolvedIndices requestedResolved, User user, Set<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
         boolean restrictedPermission = restrictionSgRoles.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver,
                 clusterService);
@@ -105,7 +107,7 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public boolean get(Resolved requestedResolved, User user, Set<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
+    public boolean get(ResolvedIndices requestedResolved, User user, Set<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
         boolean restrictedPermission = restrictionSgRoles.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
 
@@ -127,18 +129,18 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
-            ClusterService cs) {
-        Set<String> restrictedIndexes = restrictionSgRoles.getAllPermittedIndicesForKibana(resolved, user, actions, resolver, cs);
+    public ImmutableSet<String> getAllPermittedIndicesForKibana(ActionRequestInfo resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
+            ClusterService cs,  ActionRequestIntrospector actionRequestIntrospector) {
+        ImmutableSet<String> restrictedIndexes = restrictionSgRoles.getAllPermittedIndicesForKibana(resolved, user, actions, resolver, cs, actionRequestIntrospector);
 
         if (restrictedIndexes.isEmpty()) {
             // Don't calculate base indexes if we already know we will get an empty set
-            return Collections.emptySet();
+            return ImmutableSet.empty();
         }
 
-        Set<String> baseIndexes = base.getAllPermittedIndicesForKibana(resolved, user, actions, resolver, cs);
+        ImmutableSet<String> baseIndexes = base.getAllPermittedIndicesForKibana(resolved, user, actions, resolver, cs, actionRequestIntrospector);
 
-        return Sets.intersection(baseIndexes, restrictedIndexes);
+        return restrictedIndexes.intersection(baseIndexes);
     }
 
     @Override

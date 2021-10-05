@@ -580,7 +580,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
         
         resc = rh.executeGetRequest("/_all,-searchg*/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
+        Assert.assertEquals(resc.getBody(), HttpStatus.SC_BAD_REQUEST, resc.getStatusCode());
         
         resc = rh.executeGetRequest("/_all,-searchg*/_search", encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, resc.getStatusCode());

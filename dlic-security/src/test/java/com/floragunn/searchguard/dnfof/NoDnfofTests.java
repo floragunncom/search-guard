@@ -121,9 +121,9 @@ public class NoDnfofTests extends SingleClusterTest {
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("exception"));
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("permission"));
 
-        msearchBody = "{\"index\":\"indexc\", \"type\":\"doc\", \"ignore_unavailable\": true}" + System.lineSeparator()
+        msearchBody = "{\"index\":\"indexc\", \"type\":\"doc\", \"ignore_unavailable\": false}" + System.lineSeparator()
                 + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}" + System.lineSeparator()
-                + "{\"index\":\"indexd\", \"type\":\"doc\", \"ignore_unavailable\": true}" + System.lineSeparator()
+                + "{\"index\":\"indexd\", \"type\":\"doc\", \"ignore_unavailable\": false}" + System.lineSeparator()
                 + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}" + System.lineSeparator();
 
         System.out.println("#### msearch b2");

@@ -23,7 +23,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.support.WildcardMatcher;
 
 public class EvaluatedDlsFlsConfig {
@@ -86,13 +86,13 @@ public class EvaluatedDlsFlsConfig {
         return fieldMaskingByIndex.isEmpty() && flsByIndex.isEmpty() && dlsQueriesByIndex.isEmpty();
     }
 
-    public EvaluatedDlsFlsConfig filter(Resolved indices) {
-        if (indices.isAllIndicesEmpty()) {
+    public EvaluatedDlsFlsConfig filter(ResolvedIndices indices) {
+        if (indices.isLocalIndicesEmpty()) {
             return EMPTY;
         } else if (this.isEmpty() || indices.isLocalAll()) {
             return this;
         } else {
-            Set<String> allIndices = indices.getAllIndices();
+            Set<String> allIndices = indices.getLocalAndRemoteIndices();
             
             return new EvaluatedDlsFlsConfig(filter(dlsQueriesByIndex, allIndices), filter(flsByIndex, allIndices),
                     filter(fieldMaskingByIndex, allIndices));

@@ -47,8 +47,8 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.LicenseChangeListener;
 import com.floragunn.searchguard.configuration.SearchGuardLicense;
 import com.floragunn.searchguard.configuration.SearchGuardLicense.Feature;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
 import com.floragunn.searchguard.sgconf.DynamicConfigModel;
@@ -77,7 +77,7 @@ public class ComplianceConfig implements LicenseChangeListener, DCFListener {
     private final Set<String> immutableIndicesPatterns;
     private final byte[] salt16;
     private final String searchguardIndex;
-    private final IndexResolverReplacer irr;
+    private final ActionRequestIntrospector actionRequestIntrospector;
     private final Environment environment;
     private final AuditLog auditLog;
     private volatile boolean enabled = true;
@@ -87,11 +87,11 @@ public class ComplianceConfig implements LicenseChangeListener, DCFListener {
     private final Client client;
     private final byte[] maskPrefix;
     
-    public ComplianceConfig(final Environment environment, final IndexResolverReplacer irr, final AuditLog auditLog, final Client client) {
+    public ComplianceConfig(final Environment environment, ActionRequestIntrospector actionRequestIntrospector, final AuditLog auditLog, final Client client) {
         super();
         this.settings = environment.settings();
         this.environment = environment;
-        this.irr = irr;
+        this.actionRequestIntrospector = actionRequestIntrospector;
         this.auditLog = auditLog;
         this.client = client;
         this.localHashingEnabled = this.settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED, false);
@@ -322,12 +322,12 @@ public class ComplianceConfig implements LicenseChangeListener, DCFListener {
             return false;
         }
         
-        final Resolved resolved = irr.resolveRequest(request);
+        ResolvedIndices resolved = actionRequestIntrospector.getActionRequestInfo(request).getResolvedIndices();
         
         if (resolved.isLocalAll()) {
             return true;
         } else {        
-            final Set<String> allIndices = resolved.getAllIndices();
+            final Set<String> allIndices = resolved.getLocalIndices();
 
             return WildcardMatcher.matchAny(immutableIndicesPatterns, allIndices);
         }

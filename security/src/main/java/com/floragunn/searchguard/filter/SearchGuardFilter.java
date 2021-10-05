@@ -311,7 +311,7 @@ public class SearchGuardFilter implements ActionFilter {
                 }
 
                 if (!dlsFlsValve.invoke(action, request, listener, pres.getEvaluatedDlsFlsConfig(),
-                        complianceConfig != null && complianceConfig.isLocalHashingEnabled(), pres.getResolved())) {
+                        complianceConfig != null && complianceConfig.isLocalHashingEnabled(), pres.getResolvedIndices())) {
                     return;
                 }
 
@@ -328,10 +328,12 @@ public class SearchGuardFilter implements ActionFilter {
                         RestStatus.FORBIDDEN));
                 return;
             }
+        } catch (Exception e) {
+            log.error("Exception while handling " + action + "; " + request, e);
+            listener.onFailure(e);
         } catch (Throwable e) {
-            log.error("Unexpected exception " + e, e);
-            listener.onFailure(new ElasticsearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR));
-            return;
+            log.error("Throwable while handling " + action + "; " + request, e);
+            listener.onFailure(new RuntimeException(e));
         }
     }
 

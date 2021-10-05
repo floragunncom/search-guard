@@ -8,8 +8,11 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.util.ImmutableSet;
 
 public abstract class SgRoles implements ToXContentObject {
 
@@ -17,20 +20,20 @@ public abstract class SgRoles implements ToXContentObject {
 
     public abstract Set<String> getRoleNames();
 
-    public abstract Set<String> reduce(Resolved requestedResolved, User user, Set<String> requiredPrivileges, IndexNameExpressionResolver resolver,
+    public abstract ImmutableSet<String> reduce(ResolvedIndices requestedResolved, User user, Set<String> requiredPrivileges, IndexNameExpressionResolver resolver,
             ClusterService clusterService);
 
-    public abstract boolean impliesTypePermGlobal(Resolved requestedResolved, User user, Set<String> requiredPrivileges,
+    public abstract boolean impliesTypePermGlobal(ResolvedIndices requestedResolved, User user, Set<String> requiredPrivileges,
             IndexNameExpressionResolver resolver, ClusterService clusterService);
 
-    public abstract boolean get(Resolved requestedResolved, User user, Set<String> requiredPrivileges, IndexNameExpressionResolver resolver,
+    public abstract boolean get(ResolvedIndices requestedResolved, User user, Set<String> requiredPrivileges, IndexNameExpressionResolver resolver,
             ClusterService clusterService);
 
     public abstract EvaluatedDlsFlsConfig getDlsFls(User user, IndexNameExpressionResolver resolver,
             ClusterService clusterService, NamedXContentRegistry namedXContentRegistry);
 
-    public abstract Set<String> getAllPermittedIndicesForKibana(Resolved resolved, User user, Set<String> actions,
-            IndexNameExpressionResolver resolver, ClusterService cs);
+    public abstract ImmutableSet<String> getAllPermittedIndicesForKibana(ActionRequestInfo requestInfo, User user, Set<String> actions,
+            IndexNameExpressionResolver resolver, ClusterService cs, ActionRequestIntrospector actionRequestIntrospector);
 
     public abstract SgRoles filter(Set<String> roles);
 

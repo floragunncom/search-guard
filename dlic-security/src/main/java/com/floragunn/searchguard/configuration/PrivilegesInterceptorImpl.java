@@ -18,8 +18,12 @@ import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.Interce
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.DENY;
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,12 +31,14 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.IndicesRequest.Replaceable;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -48,13 +54,14 @@ import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.rest.RestStatus;
 
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
@@ -111,8 +118,8 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
     }
 
     @Override
-    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user, final Resolved requestedResolved,
-            SgRoles sgRoles) {
+    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user,
+            final ResolvedIndices requestedResolved, SgRoles sgRoles) {
 
         if (!enabled) {
             return NORMAL;
@@ -126,7 +133,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
             log.debug("replaceKibanaIndex(" + action + ", " + user + ")\nrequestedResolved: " + requestedResolved);
         }
 
-        IndexInfo kibanaIndexInfo = checkForExclusivelyUsedKibanaIndexOrAlias(requestedResolved);
+        IndexInfo kibanaIndexInfo = checkForExclusivelyUsedKibanaIndexOrAlias(request, requestedResolved);
 
         if (kibanaIndexInfo == null) {
             // This is not about the .kibana index: Nothing to do here, get out early!
@@ -184,7 +191,6 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         //if (request instanceof CompositeIndicesRequest) {
         String[] newIndexNames = new String[] { newIndexName };
 
-        // CreateIndexRequest
         if (request instanceof CreateIndexRequest) {
             ((CreateIndexRequest) request).index(newIndexName);
             kibOk = true;
@@ -292,12 +298,12 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
                     aliasActions.aliases(newAliases);
                 }
-                
+
                 if (log.isDebugEnabled()) {
                     log.debug("Rewritten IndicesAliasesRequest: " + indicesAliasesRequest.getAliasActions());
                 }
             }
-            
+
             kibOk = true;
         } else {
             log.warn("Dont know what to do (1) with {}", request.getClass());
@@ -308,20 +314,18 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         }
     }
 
-    private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(Resolved requestedResolved) {
-        String aliasOrIndex;
-
+    private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(ActionRequest request, ResolvedIndices requestedResolved) {
         if (requestedResolved.isLocalAll()) {
-            return null;
-        } else if (requestedResolved.getAliases().size() == 1) {
-            aliasOrIndex = requestedResolved.getAliases().iterator().next();
-        } else if (requestedResolved.getAllIndices().size() == 1) {
-            aliasOrIndex = requestedResolved.getAllIndices().iterator().next();
-        } else {
             return null;
         }
 
-        return checkForExclusivelyUsedKibanaIndexOrAlias(aliasOrIndex);
+        Set<String> indices = getIndices(request);
+
+        if (indices.size() == 1) {
+            return checkForExclusivelyUsedKibanaIndexOrAlias(indices.iterator().next());
+        } else {
+            return null;
+        }
     }
 
     private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(String aliasOrIndex) {
@@ -358,6 +362,35 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
         }
 
         return null;
+    }
+
+    private Set<String> getIndices(ActionRequest request) {
+        if (request instanceof PutMappingRequest) {
+            PutMappingRequest putMappingRequest = (PutMappingRequest) request;
+
+            return ImmutableSet.of(putMappingRequest.getConcreteIndex() != null ? putMappingRequest.getConcreteIndex().getName() : null,
+                    putMappingRequest.indices());
+        } else if (request instanceof IndicesRequest) {
+            if (((IndicesRequest) request).indices() != null) {
+                return ImmutableSet.of(Arrays.asList(((IndicesRequest) request).indices()));
+            } else {
+                return Collections.emptySet();
+            }
+        } else if (request instanceof BulkRequest) {
+            return ((BulkRequest) request).getIndices();
+        } else if (request instanceof MultiGetRequest) {
+            return ((MultiGetRequest) request).getItems().stream().map(item -> item.index()).collect(Collectors.toSet());
+        } else if (request instanceof MultiSearchRequest) {
+            return ((MultiSearchRequest) request).requests().stream().flatMap(r -> Arrays.stream(r.indices())).collect(Collectors.toSet());
+        } else if (request instanceof MultiTermVectorsRequest) {
+            return ((MultiTermVectorsRequest) request).getRequests().stream().flatMap(r -> Arrays.stream(r.indices())).collect(Collectors.toSet());
+        } else {
+            if (log.isTraceEnabled()) {
+                log.trace("Not supported for multi tenancy: " + request);
+            }
+
+            return Collections.emptySet();
+        }
     }
 
     private class IndexInfo {

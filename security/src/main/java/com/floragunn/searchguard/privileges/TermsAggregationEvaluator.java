@@ -30,7 +30,7 @@ import org.elasticsearch.index.query.TermsQueryBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.util.ImmutableSet;
@@ -47,7 +47,7 @@ public class TermsAggregationEvaluator {
     public TermsAggregationEvaluator() {
     }
     
-    public PrivilegesEvaluatorResponse evaluate(final Resolved resolved, final ActionRequest request, ClusterService clusterService, User user, SgRoles sgRoles,  IndexNameExpressionResolver resolver, PrivilegesEvaluatorResponse presponse) {
+    public PrivilegesEvaluatorResponse evaluate(ActionRequestInfo requestInfo, final ActionRequest request, ClusterService clusterService, User user, SgRoles sgRoles,  IndexNameExpressionResolver resolver, PrivilegesEvaluatorResponse presponse, ActionRequestIntrospector actionRequestIntrospector) {
         try {
             
             if(request instanceof SearchRequest) {
@@ -67,7 +67,7 @@ public class TermsAggregationEvaluator {
                                && ab.getPipelineAggregations().isEmpty()
                                && ab.getSubAggregations().isEmpty()) {
 
-                           final Set<String> allPermittedIndices = sgRoles.getAllPermittedIndicesForKibana(resolved, user, READ_ACTIONS, resolver, clusterService);
+                           final Set<String> allPermittedIndices = sgRoles.getAllPermittedIndicesForKibana(requestInfo, user, READ_ACTIONS, resolver, clusterService, actionRequestIntrospector);
                            if(allPermittedIndices == null || allPermittedIndices.isEmpty()) {
                                sr.source().query(NONE_QUERY);
                            } else {
