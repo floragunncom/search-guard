@@ -822,7 +822,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         backendRegistry = new BackendRegistry(settings, adminDns, xffResolver, auditLog, threadPool);
         final CompatConfig compatConfig = new CompatConfig(environment);
 
-        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih, irr,
+        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih, irr,
                 specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry, enterpriseModulesEnabled);
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, staticSgConfig, settings, configPath, localClient, threadPool, cih, moduleRegistry);
