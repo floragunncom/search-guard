@@ -17,8 +17,13 @@
 
 package com.floragunn.searchguard.privileges;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+
+import org.elasticsearch.action.support.ActionFilter;
 
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
@@ -27,16 +32,19 @@ public class PrivilegesEvaluatorResponse {
     boolean allowed = false;
     Set<String> missingPrivileges = new HashSet<String>();
     EvaluatedDlsFlsConfig evaluatedDlsFlsConfig;
-    
+    List<ActionFilter> additionalActionFilters;
+
     PrivilegesEvaluatorResponseState state = PrivilegesEvaluatorResponseState.PENDING;
     Resolved resolved;
-    
+
     public Resolved getResolved() {
-		return resolved;
-	}
-	public boolean isAllowed() {
+        return resolved;
+    }
+
+    public boolean isAllowed() {
         return allowed;
     }
+
     public Set<String> getMissingPrivileges() {
         return new HashSet<String>(missingPrivileges);
     }
@@ -58,22 +66,39 @@ public class PrivilegesEvaluatorResponse {
     public boolean isPending() {
         return this.state == PrivilegesEvaluatorResponseState.PENDING;
     }
-    
+
     @Override
     public String toString() {
         return "PrivEvalResponse [allowed=" + allowed + ", missingPrivileges=" + missingPrivileges + ", evaluatedDlsFlsConfig="
                 + evaluatedDlsFlsConfig + "]";
     }
-    
+
     public static enum PrivilegesEvaluatorResponseState {
-        PENDING,
-        COMPLETE;
+        PENDING, COMPLETE;
     }
 
     public EvaluatedDlsFlsConfig getEvaluatedDlsFlsConfig() {
         return evaluatedDlsFlsConfig;
     }
 
-  
+    void addAdditionalActionFilter(ActionFilter actionFilter) {
+        if (this.additionalActionFilters == null) {
+            this.additionalActionFilters = new ArrayList<>(4);
+        }
+
+        this.additionalActionFilters.add(actionFilter);
+    }
     
+    public boolean hasAdditionalActionFilters() {
+        return additionalActionFilters != null && additionalActionFilters.size() > 0;
+    }
+
+    public List<ActionFilter> getAdditionalActionFilters() {
+        if (additionalActionFilters != null) {
+            return additionalActionFilters;
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
 }

@@ -31,7 +31,9 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
@@ -39,6 +41,7 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
 import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
+import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.get.GetRequest;
@@ -46,11 +49,16 @@ import org.elasticsearch.action.get.MultiGetAction;
 import org.elasticsearch.action.search.MultiSearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchScrollAction;
+import org.elasticsearch.action.support.ActionFilter;
+import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
@@ -108,8 +116,14 @@ public class PrivilegesEvaluator implements DCFListener {
     private final NamedXContentRegistry namedXContentRegistry;
     private final List<String> adminOnlyActions;
     private final List<String> adminOnlyActionExceptions;
+    private final Client localClient;
+    
+    // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
+    private String kibanaServerUsername;
+    private String kibanaIndexName;
+    private volatile boolean kibanaIndexTemplateFixApplied = false;
 
-    public PrivilegesEvaluator(final ClusterService clusterService, final ThreadPool threadPool,
+    public PrivilegesEvaluator(Client localClient, final ClusterService clusterService, final ThreadPool threadPool,
             final ConfigurationRepository configurationRepository, final IndexNameExpressionResolver resolver, AuditLog auditLog,
             final Settings settings, final ClusterInfoHolder clusterInfoHolder,
             final IndexResolverReplacer irr, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
@@ -118,6 +132,7 @@ public class PrivilegesEvaluator implements DCFListener {
         this.clusterService = clusterService;
         this.resolver = resolver;
         this.auditLog = auditLog;
+        this.localClient = localClient;
 
         this.threadContext = threadPool.getThreadContext();
 
@@ -143,6 +158,9 @@ public class PrivilegesEvaluator implements DCFListener {
         this.configModel = cm;
         
         this.privilegesInterceptor = ReflectionHelper.instantiatePrivilegesInterceptorImpl(cm, dcm);
+        
+        this.kibanaServerUsername = dcm.getKibanaServerUsername();
+        this.kibanaIndexName = dcm.getKibanaIndexname();
     }
 
     private SgRoles getSgRoles(Set<String> roles) {
@@ -347,8 +365,47 @@ public class PrivilegesEvaluator implements DCFListener {
             log.debug("sgr: {}", sgRoles.getRoleNames());
         }
 
-        //TODO exclude sg index
-
+        // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
+        if (!kibanaIndexTemplateFixApplied && user.getName().equals(kibanaServerUsername)) {
+            if ((request instanceof ResizeRequest && ((ResizeRequest) request).getSourceIndex().startsWith(kibanaIndexName)
+                    && ((ResizeRequest) request).getSourceIndex().endsWith("_reindex_temp"))
+                    || (request instanceof CreateIndexRequest && ((CreateIndexRequest) request).index().startsWith(kibanaIndexName))) {
+                
+                kibanaIndexTemplateFixApplied = true;
+                
+                IndexTemplateMetadata template = clusterService.state().getMetadata().getTemplates().get("tenant_template");
+                                
+                if (template != null && template.patterns().size() > 0 && template.patterns().get(0).startsWith(kibanaIndexName)) {
+                    presponse.addAdditionalActionFilter(new ActionFilter() {
+                        
+                        @Override
+                        public int order() {
+                            return 0;
+                        }
+                        
+                        @Override
+                        public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, String action, Request request,
+                                ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
+                            localClient.admin().indices().deleteTemplate(new DeleteIndexTemplateRequest("tenant_template"), new ActionListener<AcknowledgedResponse>() {
+                                
+                                @Override
+                                public void onResponse(AcknowledgedResponse response) {
+                                    log.info("Deleted obsolete tenant_template");
+                                    chain.proceed(task, action, request, listener);
+                                }
+                                
+                                @Override
+                                public void onFailure(Exception e) {
+                                    log.error("Error while deleting tenant_template. Ignoring.", e);
+                                    chain.proceed(task, action, request, listener);
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        }
+        
         if (privilegesInterceptor != null) {
 
             PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user, requestedResolved, sgRoles);
