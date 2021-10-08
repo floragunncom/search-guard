@@ -314,7 +314,11 @@ public class SearchGuardFilter implements ActionFilter {
                         complianceConfig != null && complianceConfig.isLocalHashingEnabled(), pres.getResolved())) {
                     return;
                 }
-
+                
+                if (pres.hasAdditionalActionFilters()) {
+                    chain = new ExtendedActionFilterChain<Request, Response>(pres.getAdditionalActionFilters(), chain);
+                }
+                
                 if (actionConfig != null) {
                     extendedActionHandlingService.apply(actionConfig, user, task, action, request, listener, chain);
                 } else {
