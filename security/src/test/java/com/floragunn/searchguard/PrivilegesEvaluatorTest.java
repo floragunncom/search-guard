@@ -1,13 +1,13 @@
 package com.floragunn.searchguard;
 
-import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
-import static com.floragunn.searchguard.test.RestMatchers.isOk;
-import static com.floragunn.searchguard.test.RestMatchers.json;
-import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
+import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
+import com.google.common.collect.ImmutableMap;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -36,13 +36,9 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
-import com.google.common.collect.ImmutableMap;
+import static com.floragunn.searchguard.test.RestMatchers.*;
+import static com.floragunn.searchguard.test.helper.certificate.NodeCertificateType.transport_and_rest;
+import static org.hamcrest.Matchers.*;
 
 public class PrivilegesEvaluatorTest {
 
@@ -70,17 +66,28 @@ public class PrivilegesEvaluatorTest {
             .roles(new Role("search_template_legacy_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ")
                     .on("resolve_test_*").indexPermissions("indices:data/read/search/template").on("*"));
 
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+    public static TestCertificates certificatesContext = TestCertificates.builder().defaults(
+                    defaults -> defaults.setValidityDays(30).setNodeOid("1.2.3.4.5.5").setNodeIpList().setNodeDnsList()
+                            .setNodeCertificateType(transport_and_rest)).ca("CN=root.ca.example.com,OU=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard").build();
+
     @ClassRule
-    public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled()
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+
+    @ClassRule
+    public static LocalCluster anotherCluster = new LocalCluster.Builder()
+            .singleNode()
+            .sslEnabled(certificatesContext)
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")
             .user("resolve_test_user", "secret", new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*"))//
             .build();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().remote("my_remote", anotherCluster)
+    public static LocalCluster cluster = new LocalCluster.Builder()
+            .singleNode()
+            .sslEnabled(certificatesContext)
+            .remote("my_remote", anotherCluster)
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")
             .user("resolve_test_user", "secret",
                     new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*").indexPermissions("*")
@@ -108,7 +115,10 @@ public class PrivilegesEvaluatorTest {
             .users(SEARCH_TEMPLATE_USER, SEARCH_NO_TEMPLATE_USER, SEARCH_TEMPLATE_LEGACY_USER).build();
 
     @ClassRule
-    public static LocalCluster clusterFof = new LocalCluster.Builder().singleNode().sslEnabled().remote("my_remote", anotherCluster)
+    public static LocalCluster clusterFof = new LocalCluster.Builder()
+            .singleNode()
+            .sslEnabled(certificatesContext)
+            .remote("my_remote", anotherCluster)
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "false")
             .user("exclusion_test_user_basic", "secret",
                     new Role("exclusion_test_user_role").clusterPermissions("*").indexPermissions("*").on("exclude_test_*")
@@ -151,7 +161,7 @@ public class PrivilegesEvaluatorTest {
             client.index(new IndexRequest("alias_resolve_test_index_allow_aliased_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(XContentType.JSON, "index", "alias_resolve_test_index_allow_aliased_2", "b", "y", "date", "1985/01/01")).actionGet();
             client.admin().indices().aliases(
-                    new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("alias_resolve_test_alias_1").index("alias_resolve_test_*")))
+                            new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("alias_resolve_test_alias_1").index("alias_resolve_test_*")))
                     .actionGet();
 
             client.index(new IndexRequest("exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
@@ -288,7 +298,7 @@ public class PrivilegesEvaluatorTest {
                     "index", "write_exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
         }
         try (GenericRestClient restClient = cluster.getRestClient("exclusion_test_user_write", "secret");
-                RestHighLevelClient client = cluster.getRestHighLevelClient("exclusion_test_user_write", "secret")) {
+             RestHighLevelClient client = cluster.getRestHighLevelClient("exclusion_test_user_write", "secret")) {
 
             HttpResponse httpResponse = restClient.get("/write_exclude_test_*/_search");
 
@@ -367,7 +377,7 @@ public class PrivilegesEvaluatorTest {
         }
 
         try (GenericRestClient restClient = cluster.getRestClient("exclusion_test_user_write", "secret");
-                RestHighLevelClient client = clusterFof.getRestHighLevelClient("exclusion_test_user_write", "secret")) {
+             RestHighLevelClient client = clusterFof.getRestHighLevelClient("exclusion_test_user_write", "secret")) {
 
             HttpResponse httpResponse = restClient.get("/write_exclude_test_*/_search");
 
@@ -393,7 +403,7 @@ public class PrivilegesEvaluatorTest {
     @Test
     public void excludeClusterPermission() throws Exception {
         try (GenericRestClient basicCestClient = cluster.getRestClient("exclusion_test_user_basic", "secret");
-                GenericRestClient clusterPermissionCestClient = cluster.getRestClient("exclusion_test_user_cluster_permission", "secret")) {
+             GenericRestClient clusterPermissionCestClient = cluster.getRestClient("exclusion_test_user_cluster_permission", "secret")) {
 
             HttpResponse httpResponse = basicCestClient.get("/exclude_test_*/_search");
 
@@ -421,7 +431,7 @@ public class PrivilegesEvaluatorTest {
     @Test
     public void evaluateClusterAndTenantPrivileges() throws Exception {
         try (GenericRestClient adminRestClient = cluster.getRestClient("admin", "admin");
-                GenericRestClient permissionRestClient = cluster.getRestClient("permssion_rest_api_user", "secret")) {
+             GenericRestClient permissionRestClient = cluster.getRestClient("permssion_rest_api_user", "secret")) {
             HttpResponse httpResponse = adminRestClient.get("/_searchguard/permission?permissions=indices:data/read/mtv,indices:data/read/viva");
 
             Assert.assertThat(httpResponse, isOk());
@@ -548,7 +558,7 @@ public class PrivilegesEvaluatorTest {
             HttpResponse httpResponse = restClient.get("*/_search");
 
             Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
-            
+
             httpResponse = restClient.get("r*/_search");
 
             Assert.assertEquals(httpResponse.getBody(), 200, httpResponse.getStatusCode());
@@ -563,7 +573,7 @@ public class PrivilegesEvaluatorTest {
             HttpResponse httpResponse = restClient.get("*/_search");
 
             Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
-            
+
             httpResponse = restClient.get("r*/_search");
 
             Assert.assertEquals(httpResponse.getBody(), 200, httpResponse.getStatusCode());

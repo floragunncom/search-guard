@@ -1,41 +1,8 @@
 package com.floragunn.signals;
 
-import java.net.InetAddress;
-import java.net.URI;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.http.HttpStatus;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchPhaseExecutionException;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.query.MatchAllQueryBuilder;
-import org.elasticsearch.index.query.MatchQueryBuilder;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.search.sort.SortOrder;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
@@ -59,8 +26,38 @@ import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.result.Status;
 import com.floragunn.signals.watch.result.WatchLog;
-
 import net.jcip.annotations.NotThreadSafe;
+import org.apache.http.HttpStatus;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchPhaseExecutionException;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.MatchAllQueryBuilder;
+import org.elasticsearch.index.query.MatchQueryBuilder;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.SortOrder;
+import org.junit.*;
+
+import java.net.InetAddress;
+import java.net.URI;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+import static com.floragunn.searchguard.test.helper.certificate.NodeCertificateType.transport_and_rest;
+import static com.floragunn.searchguard.test.helper.certificate.TestCertificateFactory.rsaBaseCertificateFactory;
 
 @NotThreadSafe
 public class CheckTest {
@@ -70,15 +67,27 @@ public class CheckTest {
     private static ScriptService scriptService;
     private static BrowserUpProxy httpProxy;
 
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+    public static TestCertificates certificatesContext = TestCertificates.builder()
+            .defaults(defaults -> defaults.setValidityDays(30)
+                    .setNodeOid("1.2.3.4.5.5")
+                    .setNodeIpList()
+                    .setNodeDnsList()
+                    .setNodeCertificateType(transport_and_rest))
+            .ca("CN=root.ca.example.com,OU=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
     @ClassRule
-    public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+
+    @ClassRule
+    public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).resources("sg_config/signals")
             .nodeSettings("signals.enabled", false, "searchguard.enterprise_modules_enabled", false).build();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).remote("my_remote", anotherCluster).build();
 
     @BeforeClass
@@ -106,7 +115,7 @@ public class CheckTest {
         httpProxy = new BrowserUpProxyServer();
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
-    
+
     @AfterClass
     public static void tearDown() {
         if (httpProxy != null) {
@@ -343,12 +352,12 @@ public class CheckTest {
             Assert.assertEquals(text, runtimeData.get("test"));
         }
     }
-    
+
 
     @Test
     public void httpInputProxyTest() throws Exception {
         try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
-            
+
             webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
             webserviceProvider.setResponseContentType("text/json");
             webserviceProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
@@ -369,21 +378,21 @@ public class CheckTest {
             } catch (CheckExecutionException e) {
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("We are not accepting connections from"));
             }
-            
+
             httpInput = new HttpInput("test", "test", httpRequestConfig,
                     new HttpClientConfig(null, null, null, HttpProxyConfig.create("http://127.0.0.8:" + httpProxy.getPort())));
 
             boolean result = httpInput.execute(ctx);
 
             Assert.assertTrue(result);
-            
+
             Map<?, ?> inputResult = (Map<?, ?>) runtimeData.get("test");
 
             Assert.assertEquals("bar", inputResult.get("foo"));
             Assert.assertEquals(55, inputResult.get("x"));
         }
     }
-    
+
     @Test(expected = CheckExecutionException.class)
     public void httpWrongContentTypeTest() throws Exception {
         try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
@@ -575,7 +584,7 @@ public class CheckTest {
     private WatchLog getMostRecentWatchLog(Client client, String tenantName, String watchName) {
         try {
             SearchResponse searchResponse = client.search(new SearchRequest(".signals_log_*").source(
-                    new SearchSourceBuilder().size(1).sort("execution_end", SortOrder.DESC).query(new MatchQueryBuilder("watch_id", watchName))))
+                            new SearchSourceBuilder().size(1).sort("execution_end", SortOrder.DESC).query(new MatchQueryBuilder("watch_id", watchName))))
                     .actionGet();
 
             if (searchResponse.getHits().getHits().length == 0) {
