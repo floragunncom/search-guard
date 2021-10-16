@@ -20,6 +20,7 @@ package com.floragunn.searchguard;
 import java.net.InetAddress;
 import java.util.Arrays;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
@@ -67,13 +68,13 @@ public class BackendRegistryTests {
 
             try (GenericRestClient restClient = cluster.getRestClient("any_name", "any_password")) {
                 // This request is answered by the first authc backend, namely the noop backend. Any non-skipped user is authenticated at this point
-                GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
+                HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
                 Assert.assertEquals(response.toString(), HttpStatus.SC_OK, response.getStatusCode());
             }
 
             try (GenericRestClient restClient = cluster.getRestClient("skipped_user", "any_password")) {
                 // The first backend (noop) skips over for this given user=peter, the second backend doesn't know this user, thus leading to a HTTP 401 response
-                GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
+                HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
                 Assert.assertEquals(response.toString(), HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
             }
         }
@@ -82,7 +83,7 @@ public class BackendRegistryTests {
     @Test
     public void when_user_is_blocked_then_authentication_should_fail() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(BLOCK_TEST_USER)) {
-            GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
+            HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
 
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
@@ -97,7 +98,7 @@ public class BackendRegistryTests {
     @Test
     public void when_user_is_blocked_then_authentication_should_fail_wildcard() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(BLOCK_WILDCARD_TEST_USER)) {
-            GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
+            HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
 
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
@@ -114,7 +115,7 @@ public class BackendRegistryTests {
         try (GenericRestClient restClient = cluster.getRestClient(TEST_USER)) {
             restClient.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 99 }));
 
-            GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
+            HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
             cluster.updateSgConfig(CType.BLOCKS, "block_ip",
@@ -130,7 +131,7 @@ public class BackendRegistryTests {
         try (GenericRestClient restClient = cluster.getRestClient(TEST_USER)) {
             restClient.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 90 }));
 
-            GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
+            HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
             cluster.updateSgConfig(CType.BLOCKS, "block_ip",
@@ -146,7 +147,7 @@ public class BackendRegistryTests {
         try (GenericRestClient restClient = cluster.getRestClient(TEST_USER, new BasicHeader("X-Forwarded-For", "10.11.12.13"))) {
             restClient.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 44 }));
 
-            GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
+            HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
             cluster.updateSgConfig(CType.BLOCKS, "block_ip",
@@ -171,7 +172,7 @@ public class BackendRegistryTests {
 
             try (GenericRestClient authRestClient = cluster.getRestClient(TEST_USER, xffHeader);
                     GenericRestClient unauthRestClient = cluster.getRestClient("any_name", "any_password", xffHeader)) {
-                GenericRestClient.HttpResponse response = authRestClient.get("_searchguard/authinfo?pretty");
+                HttpResponse response = authRestClient.get("_searchguard/authinfo?pretty");
                 Assert.assertEquals(response.toString(), HttpStatus.SC_OK, response.getStatusCode());
 
                 response = unauthRestClient.get("_searchguard/authinfo?pretty");
@@ -194,7 +195,7 @@ public class BackendRegistryTests {
     @Test
     public void testEnabledOnlyForHosts() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient("any_name", "any_password")) {
-            GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
+            HttpResponse response = restClient.get("_searchguard/authinfo?pretty");
             Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
 
             restClient.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 2 }));

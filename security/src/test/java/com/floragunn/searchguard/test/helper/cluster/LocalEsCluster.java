@@ -395,6 +395,8 @@ public class LocalEsCluster {
                 + "\n";
     }
 
+
+    //todo fix also here!
     private SSLContext getSSLContext() {
         try {
             String truststoreType = "JKS";

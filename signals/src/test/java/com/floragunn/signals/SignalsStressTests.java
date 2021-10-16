@@ -19,6 +19,7 @@ package com.floragunn.signals;
 
 import java.time.Duration;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
@@ -161,7 +162,7 @@ public class SignalsStressTests {
 
             }, Duration.ofSeconds(80));
 
-            com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse response = restClient.get(watchPath + "/_state");
+            HttpResponse response = restClient.get(watchPath + "/_state");
 
             String watchRunsOnNodeNow = response.toJsonNode().path("node").asText();
 

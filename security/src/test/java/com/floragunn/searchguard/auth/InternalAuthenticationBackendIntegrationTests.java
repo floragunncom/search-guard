@@ -1,5 +1,6 @@
 package com.floragunn.searchguard.auth;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -17,7 +18,6 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 
 public class InternalAuthenticationBackendIntegrationTests {
     @ClassRule

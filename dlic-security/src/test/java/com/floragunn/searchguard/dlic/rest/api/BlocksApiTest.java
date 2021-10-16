@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.dlic.rest.api;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -22,7 +23,6 @@ import org.junit.Test;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 
 public class BlocksApiTest {
 
@@ -37,7 +37,7 @@ public class BlocksApiTest {
                 GenericRestClient adminClient = cluster.getAdminCertRestClient().trackResources();
                 GenericRestClient sarekClient = cluster.getRestClient("sarek", "sarek")) {
             // First, the user is not blocked and thus they can perform requests
-            GenericRestClient.HttpResponse response = worfClient.get("_searchguard/authinfo?pretty");
+            HttpResponse response = worfClient.get("_searchguard/authinfo?pretty");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
             // Now we will block the user

@@ -17,21 +17,9 @@
 
 package com.floragunn.searchguard.test.helper.cluster;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-
-import org.apache.http.Header;
-import org.apache.http.HttpException;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpRequestInterceptor;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.StaticCertificatesBasedSSLContextProvider;
+import org.apache.http.*;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
@@ -46,32 +34,33 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
 import org.elasticsearch.client.RestHighLevelClient;
 
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public interface EsClientProvider {
-    default GenericRestClient getRestClient(TestSgConfig.User user) {
-        return getRestClient(user.getName(), user.getPassword());
+
+    default GenericRestClient createGenericClientRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers) {
+        return new GenericRestClient(nodeHttpAddress, headers, new StaticCertificatesBasedSSLContextProvider(getResourceFolder(), "node-0-keystore.jks", "truststore.jks", false, true));
+    }
+
+    default GenericRestClient createGenericAdminRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers) {
+        return new GenericRestClient(nodeHttpAddress, headers, new StaticCertificatesBasedSSLContextProvider(getResourceFolder(), "kirk-keystore.jks", "truststore.jks", true, true));
     }
 
     default GenericRestClient getRestClient(TestSgConfig.User user, Header... headers) {
         return getRestClient(user.getName(), user.getPassword(), headers);
     }
 
-    default public GenericRestClient getRestClient(String user, String password, String tenant) {
+    default GenericRestClient getRestClient(String user, String password, String tenant) {
         BasicHeader basicAuthHeader = new BasicHeader("Authorization",
                 "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
 
-        return new GenericRestClient(getHttpAddress(), Arrays.asList(basicAuthHeader, new BasicHeader("sgtenant", tenant)), getResourceFolder());
+        return createGenericClientRestClient(getHttpAddress(), Arrays.asList(basicAuthHeader, new BasicHeader("sgtenant", tenant)));
     }
 
-    default public GenericRestClient getRestClient(String user, String password) {
-        BasicHeader basicAuthHeader = new BasicHeader("Authorization",
-                "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-
-        return new GenericRestClient(getHttpAddress(), Collections.singletonList(basicAuthHeader), getResourceFolder());
-    }
-
-    default public GenericRestClient getRestClient(String user, String password, Header... headers) {
+    default GenericRestClient getRestClient(String user, String password, Header... headers) {
         BasicHeader basicAuthHeader = new BasicHeader("Authorization",
                 "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
 
@@ -81,20 +70,15 @@ public interface EsClientProvider {
             headersList.addAll(Arrays.asList(headers));
         }
 
-        return new GenericRestClient(getHttpAddress(), headersList, getResourceFolder());
+        return createGenericClientRestClient(getHttpAddress(), headersList);
     }
 
-    default public GenericRestClient getRestClient(Header... headers) {
-        return new GenericRestClient(getHttpAddress(), Arrays.asList(headers), getResourceFolder());
+    default GenericRestClient getRestClient(Header... headers) {
+        return createGenericClientRestClient(getHttpAddress(), Arrays.asList(headers));
     }
 
-    default public GenericRestClient getAdminCertRestClient() {
-        GenericRestClient result = new GenericRestClient(getHttpAddress(), Collections.emptyList(), getResourceFolder());
-
-        result.setKeystore("kirk-keystore.jks");
-        result.setSendHTTPClientCertificate(true);
-
-        return result;
+    default GenericRestClient getAdminCertRestClient() {
+        return createGenericAdminRestClient(getHttpAddress(), Collections.emptyList());
     }
 
     default RestHighLevelClient getRestHighLevelClient(TestSgConfig.User user) {
@@ -105,6 +89,7 @@ public interface EsClientProvider {
         return getRestHighLevelClient(user, password, null);
     }
 
+    //todo
     default RestHighLevelClient getRestHighLevelClient(String user, String password, String tenant) {
         CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
@@ -137,6 +122,7 @@ public interface EsClientProvider {
         return new RestHighLevelClient(builder);
     }
 
+    //todo
     default RestHighLevelClient getRestHighLevelClient(Header... headers) {
         RestClientBuilder builder = RestClient.builder(new HttpHost(getHttpAddress().getHostString(), getHttpAddress().getPort(), "https"))
                 .setDefaultHeaders(headers)

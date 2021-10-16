@@ -17,35 +17,16 @@
 
 package com.floragunn.searchguard.test.helper.rest;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyStore;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.net.ssl.SSLContext;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.*;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
+import com.google.common.collect.Lists;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpHead;
-import org.apache.http.client.methods.HttpOptions;
-import org.apache.http.client.methods.HttpPatch;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.*;
 import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
@@ -54,55 +35,44 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.codova.documents.ContentType;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocParseException;
-import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.google.common.collect.Lists;
+import javax.net.ssl.SSLContext;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public class GenericRestClient implements AutoCloseable {
     private static final Logger log = LogManager.getLogger(RestHelper.class);
 
     public boolean enableHTTPClientSSL = true;
     public boolean enableHTTPClientSSLv3Only = false;
-    private boolean sendHTTPClientCertificate = false;
-    public boolean trustHTTPServerCertificate = true;
-    private String keystore = "node-0-keystore.jks";
-    public final String prefix;
-    private InetSocketAddress nodeHttpAddress;
+    private final InetSocketAddress nodeHttpAddress;
     private GenericSSLConfig sslConfig;
     private RequestConfig requestConfig;
-    private List<Header> headers = new ArrayList<>();
-    private Header CONTENT_TYPE_JSON = new BasicHeader("Content-Type", "application/json");
+    private final List<Header> headers = new ArrayList<>();
+    private final Header CONTENT_TYPE_JSON = new BasicHeader("Content-Type", "application/json");
     private boolean trackResources = false;
 
-    private Set<String> puttedResourcesSet = new HashSet<>();
-    private List<String> puttedResourcesList = new ArrayList<>();
+    private final Set<String> puttedResourcesSet = new HashSet<>();
+    private final List<String> puttedResourcesList = new ArrayList<>();
+    private final SSLContextProvider sslContextProvider;
 
-    public GenericRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers, String prefix) {
+    public GenericRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers, SSLContextProvider sslContextProvider) {
         this.nodeHttpAddress = nodeHttpAddress;
         this.headers.addAll(headers);
-        this.prefix = prefix;
+        this.sslContextProvider = sslContextProvider;
     }
 
-    public GenericRestClient(InetSocketAddress nodeHttpAddress, boolean enableHTTPClientSSL, boolean trustHTTPServerCertificate, String prefix) {
+    public GenericRestClient(InetSocketAddress nodeHttpAddress, boolean enableHTTPClientSSL, SSLContextProvider sslContextProvider) {
         this.nodeHttpAddress = nodeHttpAddress;
         this.enableHTTPClientSSL = enableHTTPClientSSL;
-        this.trustHTTPServerCertificate = trustHTTPServerCertificate;
-        this.prefix = prefix;
+        this.sslContextProvider = sslContextProvider;
     }
 
     public HttpResponse get(String path, Header... headers) throws Exception {
@@ -177,7 +147,6 @@ public class GenericRestClient implements AutoCloseable {
     }
 
     public HttpResponse executeRequest(HttpUriRequest uriRequest, Header... requestSpecificHeaders) throws Exception {
-
         CloseableHttpClient httpClient = null;
         try {
 
@@ -238,31 +207,14 @@ public class GenericRestClient implements AutoCloseable {
 
             log.debug("Configure HTTP client with SSL");
 
-            final KeyStore myTrustStore = KeyStore.getInstance("JKS");
-            myTrustStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix, "truststore.jks").toFile()),
-                    "changeit".toCharArray());
-
-            final KeyStore keyStore = KeyStore.getInstance("JKS");
-            keyStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix, keystore).toFile()), "changeit".toCharArray());
-
-            final SSLContextBuilder sslContextbBuilder = SSLContexts.custom();
-
-            if (trustHTTPServerCertificate) {
-                sslContextbBuilder.loadTrustMaterial(myTrustStore, null);
-            }
-
-            if (sendHTTPClientCertificate) {
-                sslContextbBuilder.loadKeyMaterial(keyStore, "changeit".toCharArray());
-            }
-
-            final SSLContext sslContext = sslContextbBuilder.build();
+            final SSLContext sslContext = sslContextProvider.getSslContext();
 
             String[] protocols = null;
 
             if (enableHTTPClientSSLv3Only) {
-                protocols = new String[] { "SSLv3" };
+                protocols = new String[]{"SSLv3"};
             } else {
-                protocols = new String[] { "TLSv1", "TLSv1.1", "TLSv1.2" };
+                protocols = new String[]{"TLSv1", "TLSv1.1", "TLSv1.2"};
             }
 
             final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sslContext, protocols, null, NoopHostnameVerifier.INSTANCE);
@@ -279,16 +231,51 @@ public class GenericRestClient implements AutoCloseable {
         return hcb.build();
     }
 
+
     private Header[] mergeHeaders(Header header, Header... headers) {
 
         if (headers == null || headers.length == 0) {
-            return new Header[] { header };
+            return new Header[]{header};
         } else {
             Header[] result = new Header[headers.length + 1];
             result[0] = header;
             System.arraycopy(headers, 0, result, 1, headers.length);
             return result;
         }
+    }
+
+    public GenericSSLConfig getSslConfig() {
+        return sslConfig;
+    }
+
+    public void setSslConfig(GenericSSLConfig sslConfig) {
+        this.sslConfig = sslConfig;
+    }
+
+    @Override
+    public String toString() {
+        return "RestHelper [server=" + getHttpServerUri() + ", node=" + nodeHttpAddress + ", sslConfig=" + sslConfig + "]";
+    }
+
+    public RequestConfig getRequestConfig() {
+        return requestConfig;
+    }
+
+    public void setRequestConfig(RequestConfig requestConfig) {
+        this.requestConfig = requestConfig;
+    }
+
+    public void setLocalAddress(InetAddress inetAddress) {
+        if (requestConfig == null) {
+            requestConfig = RequestConfig.custom().setLocalAddress(inetAddress).build();
+        } else {
+            requestConfig = RequestConfig.copy(requestConfig).setLocalAddress(inetAddress).build();
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        cleanupResources();
     }
 
     public static class HttpResponse {
@@ -337,7 +324,7 @@ public class GenericRestClient implements AutoCloseable {
             return body;
         }
 
-        public DocNode getBodyAsDocNode() throws DocParseException, UnknownDocTypeException {
+        public DocNode getBodyAsDocNode() throws DocParseException, DocType.UnknownDocTypeException {
             return DocNode.parse(ContentType.parseHeader(getContentType())).from(body);
         }
 
@@ -357,7 +344,7 @@ public class GenericRestClient implements AutoCloseable {
             return header == null ? Collections.emptyList() : Arrays.asList(header);
         }
 
-        public JsonNode toJsonNode() throws JsonProcessingException, IOException {
+        public JsonNode toJsonNode() throws IOException {
             return DefaultObjectMapper.objectMapper.readTree(getBody());
         }
 
@@ -367,55 +354,5 @@ public class GenericRestClient implements AutoCloseable {
                     + ", statusReason=" + statusReason + "]";
         }
 
-    }
-
-    public GenericSSLConfig getSslConfig() {
-        return sslConfig;
-    }
-
-    public void setSslConfig(GenericSSLConfig sslConfig) {
-        this.sslConfig = sslConfig;
-    }
-
-    @Override
-    public String toString() {
-        return "RestHelper [server=" + getHttpServerUri() + ", node=" + nodeHttpAddress + ", sslConfig=" + sslConfig + "]";
-    }
-
-    public RequestConfig getRequestConfig() {
-        return requestConfig;
-    }
-
-    public void setRequestConfig(RequestConfig requestConfig) {
-        this.requestConfig = requestConfig;
-    }
-
-    public void setLocalAddress(InetAddress inetAddress) {
-        if (requestConfig == null) {
-            requestConfig = RequestConfig.custom().setLocalAddress(inetAddress).build();
-        } else {
-            requestConfig = RequestConfig.copy(requestConfig).setLocalAddress(inetAddress).build();
-        }
-    }
-
-    @Override
-    public void close() throws IOException {
-        cleanupResources();
-    }
-
-    public boolean isSendHTTPClientCertificate() {
-        return sendHTTPClientCertificate;
-    }
-
-    public void setSendHTTPClientCertificate(boolean sendHTTPClientCertificate) {
-        this.sendHTTPClientCertificate = sendHTTPClientCertificate;
-    }
-
-    public String getKeystore() {
-        return keystore;
-    }
-
-    public void setKeystore(String keystore) {
-        this.keystore = keystore;
     }
 }

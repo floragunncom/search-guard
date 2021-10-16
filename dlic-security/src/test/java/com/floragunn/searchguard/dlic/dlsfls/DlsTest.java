@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.dlic.dlsfls;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -27,7 +28,6 @@ import org.junit.Test;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 
 public class DlsTest {
 
@@ -70,7 +70,7 @@ public class DlsTest {
 
         try (GenericRestClient client = cluster.getRestClient("dept_manager", "password")) {
 
-            GenericRestClient.HttpResponse response = client.postJson("/deals/_search?pretty", query);
+            HttpResponse response = client.postJson("/deals/_search?pretty", query);
 
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             Assert.assertTrue(response.getBody().contains("\"value\" : 1,\n      \"relation"));
@@ -80,7 +80,7 @@ public class DlsTest {
 
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
 
-            GenericRestClient.HttpResponse response = client.postJson("/deals/_search?pretty", query);
+            HttpResponse response = client.postJson("/deals/_search?pretty", query);
 
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             Assert.assertTrue(response.getBody().contains("\"value\" : 2,\n      \"relation"));
@@ -93,12 +93,12 @@ public class DlsTest {
     public void testDlsTermVectors() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient("dept_manager", "password")) {
-            GenericRestClient.HttpResponse response = client.get("/deals/_doc/0/_termvectors?pretty=true");
+            HttpResponse response = client.get("/deals/_doc/0/_termvectors?pretty=true");
             Assert.assertTrue(response.getBody().contains("\"found\" : false"));
         }
 
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
-            GenericRestClient.HttpResponse response = client.get("/deals/_doc/0/_termvectors?pretty=true");
+            HttpResponse response = client.get("/deals/_doc/0/_termvectors?pretty=true");
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"found\" : true"));
         }
     }
@@ -108,7 +108,7 @@ public class DlsTest {
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
                 GenericRestClient adminClient = cluster.getRestClient("admin", "admin")) {
-            GenericRestClient.HttpResponse res;
+            HttpResponse res;
 
             Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.get("/deals/_search?pretty&size=0")).getStatusCode());
             Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));

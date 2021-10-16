@@ -23,12 +23,12 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.modules.SearchGuardModule;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.test.NodeSettingsSupplier;
-import com.floragunn.searchguard.test.helper.certificate.CertificateType;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.TestCertificateBasedSSLContextProvider;
+import org.apache.http.Header;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -47,11 +47,13 @@ import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
@@ -69,19 +71,20 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     private final TestSgConfig testSgConfig;
     private final Settings nodeOverride;
     private final String clusterName;
-    private final TestCertificates certificatesContext;
+    private final TestCertificates testCertificates;
+    private final MinimumSearchGuardSettingsSupplierFactory minimumSearchGuardSettingsSupplierFactory;
     private LocalEsCluster localCluster;
 
     private LocalCluster(String clusterName, String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride,
-                         ClusterConfiguration clusterConfiguration, List<Class<? extends Plugin>> plugins, TestCertificates certificatesContext) {
+                         ClusterConfiguration clusterConfiguration, List<Class<? extends Plugin>> plugins, TestCertificates testCertificates) {
         this.resourceFolder = resourceFolder;
         this.plugins = plugins;
         this.clusterConfiguration = clusterConfiguration;
         this.testSgConfig = testSgConfig;
         this.nodeOverride = nodeOverride;
         this.clusterName = clusterName;
-        this.certificatesContext = certificatesContext;
-
+        this.testCertificates = testCertificates;
+        this.minimumSearchGuardSettingsSupplierFactory = new MinimumSearchGuardSettingsSupplierFactory(resourceFolder, testCertificates);
         painlessWhitelistKludge();
 
         start();
@@ -175,8 +178,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     private void start() {
         try {
-            this.localCluster = new LocalEsCluster(clusterName, clusterConfiguration, minimumSearchGuardSettings(ccs(nodeOverride)), resourceFolder,
-                    plugins);
+            this.localCluster = new LocalEsCluster(clusterName, clusterConfiguration,
+                    minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride),
+                    resourceFolder, plugins);
             localCluster.start();
         } catch (RuntimeException e) {
             throw e;
@@ -194,7 +198,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             // TODO make this optional
 
             /*
-              
              
             final ClassLoader classLoader = getClass().getClassLoader();
             
@@ -223,8 +226,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
     }
 
-    protected void initSearchGuardIndex(TestSgConfig testSgConfig) {
-
+    private void initSearchGuardIndex(TestSgConfig testSgConfig) {
         log.info("Initializing Search Guard index");
 
         try (Client client = getAdminCertClient()) {
@@ -243,108 +245,59 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     @Override
     public Client getAdminCertClient() {
-        if (certificatesContext != null) {
-            return new LocalEsClusterTransportClient(getClusterName(), getTransportAddress(), certificatesContext.getAdminClientCertificateContext(),
-                    certificatesContext.getCaCertFile().toPath());
+        if (testCertificates != null) {
+            return new LocalEsClusterTransportClient(getClusterName(), getTransportAddress(), testCertificates.getAdminCertificate(),
+                    testCertificates.getCaCertFile().toPath());
         }
 
         return EsClientProvider.super.getAdminCertClient();
     }
 
-    private Settings ccs(Settings nodeOverride) {
-
-        return nodeOverride;
-    }
-
-    private Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly) {
-        if (certificatesContext != null) {
-            TestCertificate certificateWithKeyPairAndPrivateKeyPassword = certificatesContext.getNodeCertificateContexts().get(node);
-
-            Settings.Builder builder = Settings.builder();
-
-            if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_transport) {
-                builder.put("searchguard.ssl.transport.pemcert_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
-                        .put("searchguard.ssl.transport.pemkey_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
-                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
-                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
-            } else if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_rest) {
-                builder.put("searchguard.ssl.http.pemcert_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
-                        .put("searchguard.ssl.http.pemkey_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
-                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
-                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.http.pemkey_password", privateKeyPassword));
-            } else if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_transport_rest) {
-                builder.put("searchguard.ssl.transport.pemcert_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
-                        .put("searchguard.ssl.transport.pemkey_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
-                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
-                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
-
-                builder.put("searchguard.ssl.http.pemcert_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
-                        .put("searchguard.ssl.http.pemkey_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
-                Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
-                        .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.http.pemkey_password", privateKeyPassword));
-            }
-
-            builder.put("searchguard.ssl.transport.enforce_hostname_verification", false);
-
-            if (!sslOnly) {
-
-                String adminClientDn = certificatesContext.getAdminClientCertificateContext().getCertificate().getSubject().toString();
-                builder.putList("searchguard.authcz.admin_dn", adminClientDn);
-                builder.put("searchguard.background_init_if_sgindex_not_exist", false);
-            }
-
-            return builder;
-
-        } else {
-            try {
-                final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-                Settings.Builder builder = Settings.builder().put("searchguard.ssl.transport.keystore_alias", "node-0")
-                        .put("searchguard.ssl.transport.keystore_filepath",
-                                FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
-                        .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
-                        .put("searchguard.ssl.transport.enforce_hostname_verification", false);
-
-                if (!sslOnly) {
-                    builder.putList("searchguard.authcz.admin_dn", "CN=kirk,OU=client,O=client,l=tEst, C=De");
-                    builder.put("searchguard.background_init_if_sgindex_not_exist", false);
-                }
-
-                return builder;
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    protected NodeSettingsSupplier minimumSearchGuardSettings(Settings other) {
-        return new NodeSettingsSupplier() {
-            @Override
-            public Settings get(int i) {
-                return minimumSearchGuardSettingsBuilder(i, false).put(other).build();
-            }
-        };
-    }
-
-    protected NodeSettingsSupplier minimumSearchGuardSettingsSslOnly(Settings other) {
-        return new NodeSettingsSupplier() {
-            @Override
-            public Settings get(int i) {
-                return minimumSearchGuardSettingsBuilder(i, true).put(other).build();
-            }
-        };
-    }
-
     @Override
     public String getResourceFolder() {
         return resourceFolder;
+    }
+
+    @Override
+    public InetSocketAddress getHttpAddress() {
+        return localCluster.clientNode().getHttpAddress();
+    }
+
+    @Override
+    public InetSocketAddress getTransportAddress() {
+        return localCluster.clientNode().getTransportAddress();
+    }
+
+    @Override
+    public String getClusterName() {
+        return localCluster.getClusterName();
+    }
+
+    @Override
+    public SSLIOSessionStrategy getSSLIOSessionStrategy() {
+        return localCluster.getSSLIOSessionStrategy();
+    }
+
+    @Override
+    public Client getInternalNodeClient() {
+        return localCluster.clientNode().getInternalNodeClient();
+    }
+
+    @Override
+    public GenericRestClient createGenericClientRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers) {
+        if (testCertificates != null) {
+            return new GenericRestClient(nodeHttpAddress, headers, new TestCertificateBasedSSLContextProvider(testCertificates.getCaCertificate(), testCertificates.getNodeCertificate(), false, true));
+
+        }
+        return EsClientProvider.super.createGenericClientRestClient(nodeHttpAddress, headers);
+    }
+
+    @Override
+    public GenericRestClient createGenericAdminRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers) {
+        if (testCertificates != null) {
+            return new GenericRestClient(nodeHttpAddress, headers, new TestCertificateBasedSSLContextProvider(testCertificates.getCaCertificate(), testCertificates.getAdminCertificate(), true, true));
+        }
+        return EsClientProvider.super.createGenericAdminRestClient(nodeHttpAddress, headers);
     }
 
     public static class Builder {
@@ -358,7 +311,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         private List<Class<? extends Plugin>> plugins = new ArrayList<>();
         private TestSgConfig testSgConfig = new TestSgConfig().resources("/");
         private String clusterName = "local_cluster";
-        private TestCertificates certificatesContext;
+        private TestCertificates testCertificates;
 
         public Builder sslEnabled() {
             this.sslEnabled = true;
@@ -366,7 +319,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
 
         public Builder sslEnabled(TestCertificates certificatesContext) {
-            this.certificatesContext = certificatesContext;
+            this.testCertificates = certificatesContext;
             this.sslEnabled = true;
             return this;
         }
@@ -472,14 +425,15 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         public LocalCluster build() {
             try {
-                if (certificatesContext != null) {
-                    File caCertFile = certificatesContext.getCaCertFile();
+                if (testCertificates != null) {
+                    File caCertFile = testCertificates.getCaCertFile();
                     nodeOverrideSettingsBuilder.put("searchguard.ssl.http.enabled", true)
                             .put("searchguard.ssl.transport.pemtrustedcas_filepath", caCertFile.getPath())
                             .put("searchguard.ssl.http.pemtrustedcas_filepath", caCertFile.getPath());
 
                 } else if (sslEnabled) {
-                    nodeOverrideSettingsBuilder.put("searchguard.ssl.http.enabled", true).put("searchguard.ssl.http.keystore_filepath",
+                    nodeOverrideSettingsBuilder.put("searchguard.ssl.http.enabled", true)
+                            .put("searchguard.ssl.http.keystore_filepath",
                                     FileHelper.getAbsoluteFilePathFromClassPath(
                                             resourceFolder != null ? (resourceFolder + "/" + httpKeystoreFilepath) : httpKeystoreFilepath))
                             .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(
@@ -493,38 +447,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 clusterName += "_" + num.incrementAndGet();
 
                 return new LocalCluster(clusterName, resourceFolder, testSgConfig, nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins,
-                        certificatesContext);
+                        testCertificates);
             } catch (Exception e) {
                 log.error("Failed to build LocalCluster", e);
                 throw new RuntimeException(e);
             }
 
         }
-    }
-
-    @Override
-    public InetSocketAddress getHttpAddress() {
-        return localCluster.clientNode().getHttpAddress();
-    }
-
-    @Override
-    public InetSocketAddress getTransportAddress() {
-        return localCluster.clientNode().getTransportAddress();
-    }
-
-    @Override
-    public String getClusterName() {
-        return localCluster.getClusterName();
-    }
-
-    @Override
-    public SSLIOSessionStrategy getSSLIOSessionStrategy() {
-        return localCluster.getSSLIOSessionStrategy();
-    }
-
-    @Override
-    public Client getInternalNodeClient() {
-        return localCluster.clientNode().getInternalNodeClient();
     }
 
 }

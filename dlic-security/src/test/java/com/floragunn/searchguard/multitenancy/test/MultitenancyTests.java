@@ -17,6 +17,7 @@ package com.floragunn.searchguard.multitenancy.test;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.DocWriteResponse;
@@ -65,7 +66,7 @@ public class MultitenancyTests {
         try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee")) {
             String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
 
-            GenericRestClient.HttpResponse response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "blafasel"));
+            HttpResponse response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "blafasel"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
             response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "business_intelligence"));
@@ -104,7 +105,7 @@ public class MultitenancyTests {
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
 
             System.out.println("#### search");
-            GenericRestClient.HttpResponse res;
+            HttpResponse res;
             String body = "{\"query\" : {\"term\" : { \"_id\" : \"index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b\"}}}";
             Assert.assertEquals(HttpStatus.SC_OK,
                     (res = client.postJson(".kibana/_search/?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
@@ -186,7 +187,7 @@ public class MultitenancyTests {
             }
 
             try (GenericRestClient client = cluster.getRestClient("kibanaro", "kibanaro")) {
-                GenericRestClient.HttpResponse res;
+                HttpResponse res;
                 Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana-6/_doc/6.2.2?pretty")).getStatusCode());
                 Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana/_doc/6.2.2?pretty")).getStatusCode());
 
@@ -220,7 +221,7 @@ public class MultitenancyTests {
 
             try (GenericRestClient client = cluster.getRestClient("kibanaro", "kibanaro")) {
 
-                GenericRestClient.HttpResponse res;
+                HttpResponse res;
                 Assert.assertEquals(HttpStatus.SC_OK,
                         (res = client.get(".kibana/_doc/6.2.2?pretty", new BasicHeader("sgtenant", "__user__"))).getStatusCode());
                 System.out.println(res.getBody());
@@ -253,7 +254,7 @@ public class MultitenancyTests {
 
             try (GenericRestClient client = cluster.getRestClient("admin", "admin", "kibana_7_12_alias_test")) {
 
-                GenericRestClient.HttpResponse response = client.get(".kibana_7.12.0/_doc/test");
+                HttpResponse response = client.get(".kibana_7.12.0/_doc/test");
 
                 Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
                 Assert.assertEquals(response.getBody(), ".kibana_-815674808_kibana712aliastest_7.12.0_001",
@@ -344,7 +345,7 @@ public class MultitenancyTests {
 
         try {
             try (GenericRestClient restClient = cluster.getRestClient(USER_DEPT_01)) {
-                GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo");
+                HttpResponse response = restClient.get("_searchguard/authinfo");
 
                 Assert.assertEquals("true", response.toJsonNode().path("sg_tenants").path("dept_01").asText());
                 Assert.assertEquals("", response.toJsonNode().path("sg_tenants").path("dept_02").asText());
@@ -361,7 +362,7 @@ public class MultitenancyTests {
             }
 
             try (GenericRestClient restClient = cluster.getRestClient(USER_DEPT_02)) {
-                GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo");
+                HttpResponse response = restClient.get("_searchguard/authinfo");
 
                 Assert.assertEquals("", response.toJsonNode().path("sg_tenants").path("dept_01").asText());
                 Assert.assertEquals("true", response.toJsonNode().path("sg_tenants").path("dept_02").asText());

@@ -2,6 +2,7 @@ package com.floragunn.signals;
 
 import java.util.concurrent.ExecutionException;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,7 +24,6 @@ import org.junit.Test;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;

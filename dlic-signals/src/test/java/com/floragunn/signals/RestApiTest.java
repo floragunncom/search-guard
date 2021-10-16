@@ -1,5 +1,6 @@
 package com.floragunn.signals;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -13,7 +14,6 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;

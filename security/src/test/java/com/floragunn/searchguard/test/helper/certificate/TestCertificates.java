@@ -17,35 +17,43 @@ public class TestCertificates {
 
     private static final Logger log = LogManager.getLogger(TestCertificates.class);
 
-    private final TestCertificate caTestCertificate;
-    private final List<TestCertificate> nodeTestCertificates;
-    private final List<TestCertificate> clientTestCertificates;
+    private final TestCertificate caCertificate;
+    private final List<TestCertificate> nodeCertificates;
+    private final List<TestCertificate> clientCertificates;
 
-    private TestCertificates(TestCertificate caCertificateWithKeyPair, List<TestCertificate> nodesCertificateWithKeyPair,
-                             List<TestCertificate> clientCertificateWithKeyPair) {
-        this.caTestCertificate = caCertificateWithKeyPair;
-        this.nodeTestCertificates = nodesCertificateWithKeyPair;
-        this.clientTestCertificates = clientCertificateWithKeyPair;
+    private TestCertificates(TestCertificate caCertificate, List<TestCertificate> nodeCertificates,
+                             List<TestCertificate> clientCertificates) {
+        this.caCertificate = caCertificate;
+        this.nodeCertificates = nodeCertificates;
+        this.clientCertificates = clientCertificates;
     }
 
     public File getCaKeyFile() {
-        return caTestCertificate.getPrivateKeyFile();
+        return caCertificate.getPrivateKeyFile();
     }
 
     public File getCaCertFile() {
-        return caTestCertificate.getCertificateFile();
+        return caCertificate.getCertificateFile();
     }
 
-    public List<TestCertificate> getNodeCertificateContexts() {
-        return nodeTestCertificates;
+    public TestCertificate getCaCertificate() {
+        return caCertificate;
     }
 
-    public List<TestCertificate> getClientCertificatesContexts() {
-        return clientTestCertificates;
+    public List<TestCertificate> getClientsCertificates() {
+        return clientCertificates;
     }
 
-    public TestCertificate getAdminClientCertificateContext() {
-        return clientTestCertificates.stream().filter(testCertificate -> testCertificate.getCertificateType() == CertificateType.admin_client)
+    public List<TestCertificate> getNodesCertificates() {
+        return nodeCertificates;
+    }
+
+    public TestCertificate getNodeCertificate() {
+        return nodeCertificates.get(0);
+    }
+
+    public TestCertificate getAdminCertificate() {
+        return clientCertificates.stream().filter(testCertificate -> testCertificate.getCertificateType() == CertificateType.admin_client)
                 .findFirst().orElseThrow(() -> {
                     log.error("No admin client certificate configured");
                     return new RuntimeException("No admin client certificate configured");
@@ -65,8 +73,8 @@ public class TestCertificates {
 
     public static class TestCertificatesBuilder {
 
-        private static final String DEFAULT_CA_DN = "CN=root.ca.example.com,OU=SearchGuard";
-        private static final String DEFAULT_ONE_NODE_DN = "CN=node-0.example.com,OU=SearchGuard,SearchGuard";
+        private static final String DEFAULT_CA_DN = "CN=root.ca.example.com,OU=Organizational Unit,O=Organization";
+        private static final String DEFAULT_ONE_NODE_DN = "CN=node-0.example.com,OU=Organizational Unit,O=Organization";
 
         private CertificatesDefaults certificatesDefaults = new CertificatesDefaults();
         private final TestCertificateFactory testCertificateFactory;

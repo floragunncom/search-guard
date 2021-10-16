@@ -17,6 +17,7 @@ package com.floragunn.searchguard.dlic.dlsfls;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
@@ -248,7 +249,7 @@ public class DlsTermsLookupTest {
     public void testDlsWithTermsLookupGet() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient("sg_dls_lookup_user1", "password")) {
-            GenericRestClient.HttpResponse res = client.get("/deals_1/_doc/0?pretty");
+            HttpResponse res = client.get("/deals_1/_doc/0?pretty");
 
             System.out.println(res.getBody());
 
@@ -366,7 +367,7 @@ public class DlsTermsLookupTest {
 
             try (GenericRestClient client = cluster.getRestClient("sg_dls_lookup_user1", "password")) {
 
-                GenericRestClient.HttpResponse res = client.get("/deals/_doc/0?pretty");
+                HttpResponse res = client.get("/deals/_doc/0?pretty");
 
                 Assert.assertEquals(res.getBody(), HttpStatus.SC_BAD_REQUEST, res.getStatusCode());
 

@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.ElasticsearchStatusException;
@@ -47,7 +48,6 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.google.common.io.BaseEncoding;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;

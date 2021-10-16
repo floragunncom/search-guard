@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -39,7 +40,6 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.user.User;
 
 import io.jsonwebtoken.Claims;

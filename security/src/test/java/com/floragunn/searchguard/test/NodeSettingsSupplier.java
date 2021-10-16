@@ -21,5 +21,5 @@ import org.elasticsearch.common.settings.Settings;
 
 @FunctionalInterface
 public interface NodeSettingsSupplier {
-    Settings get(int i);
+    Settings get(int nodeIndex);
 }

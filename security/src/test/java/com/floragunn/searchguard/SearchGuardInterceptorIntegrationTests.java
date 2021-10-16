@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -64,7 +65,7 @@ public class SearchGuardInterceptorIntegrationTests {
                 .user("header_test_user", "secret", new Role("header_test_user_role").indexPermissions("*").on("*").clusterPermissions("*")).build();
                 GenericRestClient restClient = cluster.getRestClient("header_test_user", "secret")) {
 
-            GenericRestClient.HttpResponse httpResponse = restClient.get("/_header_test", new BasicHeader("test_header_name", "test_header_value"));
+            HttpResponse httpResponse = restClient.get("/_header_test", new BasicHeader("test_header_name", "test_header_value"));
             JsonNode headers = httpResponse.toJsonNode().get("headers");
 
             Assert.assertEquals("test_header_value", headers.get("test_header_name").textValue());
