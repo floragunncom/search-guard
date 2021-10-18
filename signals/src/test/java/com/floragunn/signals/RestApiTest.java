@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
@@ -87,7 +88,12 @@ public class RestApiTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(TestCertificates.builder()
+                    .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .build()).resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals__main_log", "signals.enterprise.enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
                     "signals.watch_log.sync_indexing", true)

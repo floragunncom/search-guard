@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.apache.commons.io.IOUtils;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
@@ -173,11 +174,17 @@ public class ActionTest {
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
 
+
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(TestCertificates.builder()
+                    .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .build())
             .nodeSettings("signals.enabled", true, "signals.enterprise.enabled", false).resources("sg_config/signals").build();
 
     @BeforeClass

@@ -17,6 +17,7 @@ package com.floragunn.searchguard.dlic.rest.api;
 import java.net.URLEncoder;
 import java.util.List;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
@@ -36,9 +37,16 @@ import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 
 public class UserApiTest {
 
+    public static TestCertificates certificatesContext = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
-            .resources("restapi").sslEnabled().build();
+            .resources("restapi").sslEnabled(certificatesContext).build();
 
     @Test
     public void testSearchGuardRoles() throws Exception {
@@ -330,7 +338,7 @@ public class UserApiTest {
                 .nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin",
                         ConfigConstants.SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_ERROR_MESSAGE, "xxx",
                         ConfigConstants.SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_REGEX, "(?=.*[A-Z])(?=.*[^a-zA-Z\\\\d])(?=.*[0-9])(?=.*[a-z]).{8,}")
-                .resources("restapi").singleNode().sslEnabled().build();
+                .resources("restapi").singleNode().sslEnabled(certificatesContext).build();
                 GenericRestClient adminClient = cluster.getAdminCertRestClient().trackResources()) {
 
             // initial configuration, 5 users

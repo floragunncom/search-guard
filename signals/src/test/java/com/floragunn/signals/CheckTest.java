@@ -57,7 +57,6 @@ import java.util.List;
 import java.util.Map;
 
 import static com.floragunn.searchguard.test.helper.certificate.NodeCertificateType.transport_and_rest;
-import static com.floragunn.searchguard.test.helper.certificate.TestCertificateFactory.rsaBaseCertificateFactory;
 
 @NotThreadSafe
 public class CheckTest {

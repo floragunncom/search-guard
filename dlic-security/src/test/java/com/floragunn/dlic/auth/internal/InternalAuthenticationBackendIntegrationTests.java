@@ -1,5 +1,6 @@
 package com.floragunn.dlic.auth.internal;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -17,13 +18,22 @@ import org.junit.Test;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
+import static com.floragunn.searchguard.test.helper.certificate.NodeCertificateType.transport_and_rest;
+
 public class InternalAuthenticationBackendIntegrationTests {
+
+    public static TestCertificates certificatesContext = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
 
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("internal_user_db").build();
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).resources("internal_user_db").build();
 
     @Test
     public void dlsIntegrationTest() throws Exception {

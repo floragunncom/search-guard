@@ -17,6 +17,7 @@ package com.floragunn.searchguard.multitenancy.test;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
@@ -57,8 +58,15 @@ public class MultitenancyTests {
     private final static TestSgConfig.User USER_DEPT_01 = new TestSgConfig.User("user_dept_01").attr("dept_no", "01").roles("sg_tenant_user_attrs");
     private final static TestSgConfig.User USER_DEPT_02 = new TestSgConfig.User("user_dept_02").attr("dept_no", "02").roles("sg_tenant_user_attrs");
 
+    public static TestCertificates certificatesContext = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").users(USER_DEPT_01, USER_DEPT_02).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled(certificatesContext).resources("multitenancy").users(USER_DEPT_01, USER_DEPT_02).build();
 
     @Test
     public void testMt() throws Exception {

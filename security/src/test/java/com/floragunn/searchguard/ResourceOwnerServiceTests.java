@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -58,7 +59,12 @@ import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 public class ResourceOwnerServiceTests {
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().plugin(MockActionPlugin.class).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build()).plugin(MockActionPlugin.class).build();
 
     @Test
     public void testAsyncSearch() throws Exception {

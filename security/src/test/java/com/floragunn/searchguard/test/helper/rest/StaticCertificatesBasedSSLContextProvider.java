@@ -6,9 +6,7 @@ import org.apache.http.ssl.SSLContexts;
 
 import javax.net.ssl.SSLContext;
 import java.io.FileInputStream;
-import java.io.IOException;
-import java.security.*;
-import java.security.cert.CertificateException;
+import java.security.KeyStore;
 
 public class StaticCertificatesBasedSSLContextProvider implements SSLContextProvider {
 
@@ -27,23 +25,28 @@ public class StaticCertificatesBasedSSLContextProvider implements SSLContextProv
     }
 
     @Override
-    public SSLContext getSslContext() throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException, KeyManagementException {
-        final SSLContextBuilder sslContextbBuilder = SSLContexts.custom();
+    public SSLContext getSslContext() {
+        try {
+            final SSLContextBuilder sslContextbBuilder = SSLContexts.custom();
 
-        if (trustHTTPServerCertificate) {
-            final KeyStore myTrustStore = KeyStore.getInstance("JKS");
-            myTrustStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix, truststore).toFile()),
-                    "changeit".toCharArray());
-            sslContextbBuilder.loadTrustMaterial(myTrustStore, null);
+            if (trustHTTPServerCertificate) {
+                final KeyStore myTrustStore = KeyStore.getInstance("JKS");
+                myTrustStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix, truststore).toFile()),
+                        "changeit".toCharArray());
+                sslContextbBuilder.loadTrustMaterial(myTrustStore, null);
+            }
+
+            if (sendHTTPClientCertificate) {
+                final KeyStore keyStore = KeyStore.getInstance("JKS");
+                keyStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix, keystore).toFile()), "changeit".toCharArray());
+                sslContextbBuilder.loadKeyMaterial(keyStore, "changeit".toCharArray());
+            }
+
+            return sslContextbBuilder.build();
+        } catch (Exception e) {
+            throw new RuntimeException("Getting SSL context failed", e);
         }
 
-        if (sendHTTPClientCertificate) {
-            final KeyStore keyStore = KeyStore.getInstance("JKS");
-            keyStore.load(new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix, keystore).toFile()), "changeit".toCharArray());
-            sslContextbBuilder.loadKeyMaterial(keyStore, "changeit".toCharArray());
-        }
-
-        return sslContextbBuilder.build();
     }
 
 }

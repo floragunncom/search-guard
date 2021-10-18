@@ -2,6 +2,7 @@ package com.floragunn.signals;
 
 import java.util.concurrent.ExecutionException;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
@@ -36,11 +37,18 @@ public class RestApiTestMultiTenancyOff {
 
     private static ScriptService scriptService;
 
+    public static TestCertificates certificatesContext = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals-no-mt")
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).resources("sg_config/signals-no-mt")
             .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).build();
 
     @BeforeClass

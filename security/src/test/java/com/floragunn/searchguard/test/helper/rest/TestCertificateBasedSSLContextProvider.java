@@ -28,7 +28,7 @@ public class TestCertificateBasedSSLContextProvider implements SSLContextProvide
     }
 
     @Override
-    public SSLContext getSslContext() throws Exception {
+    public SSLContext getSslContext()  {
         SSLFactory.Builder builder = SSLFactory.builder();
 
         if (trustHTTPServerCertificate) {

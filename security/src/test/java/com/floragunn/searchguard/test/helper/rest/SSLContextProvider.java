@@ -4,5 +4,5 @@ import javax.net.ssl.SSLContext;
 
 public interface SSLContextProvider {
 
-    SSLContext getSslContext() throws Exception;
+    SSLContext getSslContext();
 }

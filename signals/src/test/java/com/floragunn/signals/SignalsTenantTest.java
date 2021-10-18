@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
@@ -50,7 +51,12 @@ import net.jcip.annotations.NotThreadSafe;
 public class SignalsTenantTest {
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/no-tenants")
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(TestCertificates.builder()
+                    .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .build()).resources("sg_config/no-tenants")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "searchguard.enterprise_modules_enabled", false)
             .build();
 

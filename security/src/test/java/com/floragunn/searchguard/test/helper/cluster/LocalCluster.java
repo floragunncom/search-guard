@@ -178,9 +178,15 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     private void start() {
         try {
-            this.localCluster = new LocalEsCluster(clusterName, clusterConfiguration,
-                    minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride),
-                    resourceFolder, plugins);
+            if(testCertificates != null) {
+                this.localCluster = new LocalEsCluster(clusterName, clusterConfiguration,
+                        minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride),
+                        resourceFolder, plugins, new TestCertificateBasedSSLContextProvider(testCertificates.getCaCertificate(), testCertificates.getAdminCertificate(), false, true));
+            } else {
+                this.localCluster = new LocalEsCluster(clusterName, clusterConfiguration,
+                        minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride),
+                        resourceFolder, plugins);
+            }
             localCluster.start();
         } catch (RuntimeException e) {
             throw e;

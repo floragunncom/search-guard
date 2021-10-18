@@ -3,6 +3,7 @@ package com.floragunn.searchguard.dlic.dlsfls;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
@@ -28,9 +29,19 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.google.common.collect.ImmutableSet;
 
+import static com.floragunn.searchguard.test.helper.certificate.NodeCertificateType.transport_and_rest;
+
 public class DlsFilterLevelModeTest {
+
+    public static TestCertificates certificatesContext = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls")
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled(certificatesContext).resources("dlsfls")
             .nodeSettings(ConfigConstants.SEARCHGUARD_DLS_MODE, "filter_level").build();
 
     @BeforeClass

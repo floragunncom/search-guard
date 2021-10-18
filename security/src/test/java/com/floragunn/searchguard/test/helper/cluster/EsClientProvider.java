@@ -89,7 +89,6 @@ public interface EsClientProvider {
         return getRestHighLevelClient(user, password, null);
     }
 
-    //todo
     default RestHighLevelClient getRestHighLevelClient(String user, String password, String tenant) {
         CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
@@ -122,7 +121,6 @@ public interface EsClientProvider {
         return new RestHighLevelClient(builder);
     }
 
-    //todo
     default RestHighLevelClient getRestHighLevelClient(Header... headers) {
         RestClientBuilder builder = RestClient.builder(new HttpHost(getHttpAddress().getHostString(), getHttpAddress().getPort(), "https"))
                 .setDefaultHeaders(headers)

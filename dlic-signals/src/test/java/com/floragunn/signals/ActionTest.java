@@ -2,6 +2,7 @@ package com.floragunn.signals;
 
 import java.net.URI;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
@@ -43,8 +44,15 @@ public class ActionTest {
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
 
+    public static TestCertificates certificatesContext = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().nodeSettings("signals.enabled", true)
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).nodeSettings("signals.enabled", true)
             .resources("sg_config/signals").build();
 
     @BeforeClass

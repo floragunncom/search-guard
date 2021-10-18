@@ -17,29 +17,15 @@
 
 package com.floragunn.searchguard.test.helper.cluster;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.nio.file.Files;
-import java.security.KeyStore;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.SortedSet;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-
-import javax.net.ssl.SSLContext;
-
+import com.floragunn.searchguard.test.NodeSettingsSupplier;
+import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
+import com.floragunn.searchguard.test.helper.network.PortAllocator;
+import com.floragunn.searchguard.test.helper.rest.SSLContextProvider;
+import com.floragunn.searchguard.test.helper.rest.StaticCertificatesBasedSSLContextProvider;
+import com.google.common.net.InetAddresses;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchTimeoutException;
@@ -64,11 +50,14 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.BindTransportException;
 import org.elasticsearch.transport.TransportInfo;
 
-import com.floragunn.searchguard.test.NodeSettingsSupplier;
-import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.network.PortAllocator;
-import com.google.common.net.InetAddresses;
+import java.io.File;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * This is the SG-agnostic and ES-specific part of LocalCluster
@@ -90,6 +79,7 @@ public class LocalEsCluster {
     private final List<Node> masterNodes = new ArrayList<>();
     private final List<Node> dataNodes = new ArrayList<>();
     private final List<Node> clientNodes = new ArrayList<>();
+    private final SSLContextProvider sslContextSupplier;
 
     // TODO replace by proper TLS config
     private String resourcesFolder;
@@ -101,7 +91,34 @@ public class LocalEsCluster {
     private boolean started;
 
     public LocalEsCluster(String clustername, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
-            String resourcesFolder, List<Class<? extends Plugin>> additionalPlugins) {
+                          String resourcesFolder, List<Class<? extends Plugin>> additionalPlugins) {
+        this(clustername, clusterConfiguration, nodeSettingsSupplier, resourcesFolder, additionalPlugins,
+                new StaticCertificatesBasedSSLContextProvider(resourcesFolder, null, "truststore.jks", false, true));
+    }
+
+//                () -> {
+//            try {
+//                String truststoreType = "JKS";
+//                String truststorePassword = "changeit";
+//                String prefix = resourcesFolder == null ? "" : resourcesFolder + "/";
+//
+//                KeyStore trustStore = KeyStore.getInstance(truststoreType);
+//                try (InputStream in = Files.newInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))) {
+//                    trustStore.load(in, (truststorePassword == null || truststorePassword.length() == 0) ? null : truststorePassword.toCharArray());
+//                }
+//
+//                SSLContextBuilder sslContextBuilder = SSLContexts.custom().loadTrustMaterial(trustStore, null);
+//                return sslContextBuilder.build();
+//
+//                //return new OverlyTrustfulSSLContextBuilder().build();
+//            } catch (Exception e) {
+//                throw new RuntimeException("Error while building SSLContext", e);
+//            }
+//        });
+//    }
+
+    public LocalEsCluster(String clustername, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
+                          String resourcesFolder, List<Class<? extends Plugin>> additionalPlugins, SSLContextProvider sslContextSupplier) {
         super();
         this.clusterName = clustername;
         this.clusterConfiguration = clusterConfiguration;
@@ -113,6 +130,7 @@ public class LocalEsCluster {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        this.sslContextSupplier = sslContextSupplier;
     }
 
     public void start() throws Exception {
@@ -395,30 +413,8 @@ public class LocalEsCluster {
                 + "\n";
     }
 
-
-    //todo fix also here!
-    private SSLContext getSSLContext() {
-        try {
-            String truststoreType = "JKS";
-            String truststorePassword = "changeit";
-            String prefix = resourcesFolder == null ? "" : resourcesFolder + "/";
-
-            KeyStore trustStore = KeyStore.getInstance(truststoreType);
-            try (InputStream in = Files.newInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))) {
-                trustStore.load(in, (truststorePassword == null || truststorePassword.length() == 0) ? null : truststorePassword.toCharArray());
-            }
-
-            SSLContextBuilder sslContextBuilder = SSLContexts.custom().loadTrustMaterial(trustStore, null);
-            return sslContextBuilder.build();
-
-            //return new OverlyTrustfulSSLContextBuilder().build();
-        } catch (Exception e) {
-            throw new RuntimeException("Error while building SSLContext", e);
-        }
-    }
-
     public SSLIOSessionStrategy getSSLIOSessionStrategy() {
-        return new SSLIOSessionStrategy(getSSLContext(), null, null, NoopHostnameVerifier.INSTANCE);
+        return new SSLIOSessionStrategy(sslContextSupplier.getSslContext(), null, null, NoopHostnameVerifier.INSTANCE);
     }
 
     private static List<String> toHostList(Collection<Integer> ports) {

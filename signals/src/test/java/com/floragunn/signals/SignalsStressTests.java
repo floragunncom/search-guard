@@ -19,6 +19,7 @@ package com.floragunn.signals;
 
 import java.time.Duration;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -55,11 +56,18 @@ public class SignalsStressTests {
         IndexJobStateStore.includeNodeIdInSchedulerToJobStoreMapKeys = true;
     }
 
+    public static TestCertificates certificatesContext = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
     @Rule
     public LoggingTestWatcher loggingTestWatcher = new LoggingTestWatcher();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("sg_config/no-tenants")
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled(certificatesContext).resources("sg_config/no-tenants")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "searchguard.enterprise_modules_enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true)
             .clusterConfiguration(ClusterConfiguration.THREE_MASTERS) // In case we kill the master

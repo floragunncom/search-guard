@@ -17,6 +17,7 @@ package com.floragunn.searchguard.dlic.dlsfls;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
@@ -50,11 +51,18 @@ import com.google.common.collect.ImmutableSet;
 
 public class DlsTermsLookupTest {
 
+    public static TestCertificates certificatesContext = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls").build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled(certificatesContext).resources("dlsfls").build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -349,7 +357,7 @@ public class DlsTermsLookupTest {
     @Test
     public void testDlsWithTermsLookupGetTLQDisabled() throws Exception {
 
-        try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls").nodeSettings("searchguard.dls.mode", "lucene_level")
+        try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled(certificatesContext).resources("dlsfls").nodeSettings("searchguard.dls.mode", "lucene_level")
                 .build()) {
 
             try (Client client = cluster.getInternalNodeClient()) {

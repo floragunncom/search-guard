@@ -16,6 +16,7 @@ package com.floragunn.searchguard.dlic.rest.api;
 
 import java.util.List;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
@@ -34,9 +35,16 @@ import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 
 public class RolesApiTest {
 
+    public static TestCertificates certificatesContext = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
-            .resources("restapi").sslEnabled().build();
+            .resources("restapi").sslEnabled(certificatesContext).build();
 
     @Test
     public void testPutRole() throws Exception {
