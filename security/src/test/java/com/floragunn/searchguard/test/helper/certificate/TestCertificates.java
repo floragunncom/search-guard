@@ -8,6 +8,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Function;
 
 import static com.floragunn.searchguard.test.helper.certificate.TestCertificateFactory.rsaBaseCertificateFactory;
@@ -85,7 +86,7 @@ public class TestCertificates {
 
         public TestCertificatesBuilder(TestCertificateFactory testCertificateFactory) {
             this.testCertificateFactory = testCertificateFactory;
-            this.resources = FileHelper.createDirectoryInResources("tempCert");
+            this.resources = FileHelper.createDirectoryInResources("tempCert" + UUID.randomUUID().toString().substring(0, 10));
         }
 
         public TestCertificates build() {

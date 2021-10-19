@@ -56,15 +56,13 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
 
     private static ScriptService scriptService;
 
-    public static TestCertificates certificatesContext = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
-
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled(certificatesContext).resources("sg_config/signals").nodeSettings("signals.enabled", true,
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled(TestCertificates.builder()
+                    .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .build()).resources("sg_config/signals").nodeSettings("signals.enabled", true,
             "signals.index_names.log", "signals_main_log", "signals.enterprise.enabled", false, "signals.all_tenants_active_by_default", false)
             .build();
 

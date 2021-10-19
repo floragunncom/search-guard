@@ -7,6 +7,7 @@ import nl.altindag.ssl.util.PemUtils;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
+import java.nio.file.Paths;
 import java.util.Optional;
 
 public class TestCertificateBasedSSLContextProvider implements SSLContextProvider {
