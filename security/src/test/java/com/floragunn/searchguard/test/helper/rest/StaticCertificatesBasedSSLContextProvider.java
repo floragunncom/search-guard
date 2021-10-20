@@ -8,6 +8,7 @@ import javax.net.ssl.SSLContext;
 import java.io.FileInputStream;
 import java.security.KeyStore;
 
+@Deprecated
 public class StaticCertificatesBasedSSLContextProvider implements SSLContextProvider {
 
     private final String prefix;

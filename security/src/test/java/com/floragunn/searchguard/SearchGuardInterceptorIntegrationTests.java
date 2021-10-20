@@ -62,12 +62,7 @@ public class SearchGuardInterceptorIntegrationTests {
     @Test
     public void testAllowCustomHeaders() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().nodeSettings(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, ".*").singleNode()
-                .sslEnabled(TestCertificates.builder()
-                        .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-                        .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-                        .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-                        .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-                        .build()).plugin(MockActionPlugin.class)
+                .sslEnabled().plugin(MockActionPlugin.class)
                 .user("header_test_user", "secret", new Role("header_test_user_role").indexPermissions("*").on("*").clusterPermissions("*")).build();
                 GenericRestClient restClient = cluster.getRestClient("header_test_user", "secret")) {
 

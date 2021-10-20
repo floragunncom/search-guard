@@ -50,15 +50,8 @@ public class BackendRegistryTests {
             .user(BLOCK_TEST_USER)//
             .user(BLOCK_WILDCARD_TEST_USER);
 
-    public static TestCertificates certificatesContext = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
-
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).sgConfig(SG_CONFIG).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().sgConfig(SG_CONFIG).build();
 
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -72,7 +65,7 @@ public class BackendRegistryTests {
                 .authc(new TestSgConfig.AuthcDomain("skipping_domain", 0).httpAuthenticator("basic").backend("noop").skipUsers("skipped_user")) //
                 .authc(new TestSgConfig.AuthcDomain("base_domain", 1).challengingAuthenticator("basic").backend("internal"));
 
-        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).sgConfig(sgConfig).build()) {
+        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().sgConfig(sgConfig).build()) {
 
             try (GenericRestClient restClient = cluster.getRestClient("any_name", "any_password")) {
                 // This request is answered by the first authc backend, namely the noop backend. Any non-skipped user is authenticated at this point
@@ -174,7 +167,7 @@ public class BackendRegistryTests {
                 .authFailureListener(new TestSgConfig.AuthFailureListener("ip_rate_limiting", "ip", 3))//
                 .user(TEST_USER);
 
-        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).sgConfig(sgConfig).build()) {
+        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().sgConfig(sgConfig).build()) {
 
             Header xffHeader = new BasicHeader("X-Forwarded-For", "10.14.15.16");
 

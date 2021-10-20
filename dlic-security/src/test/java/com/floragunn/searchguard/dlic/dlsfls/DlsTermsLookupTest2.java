@@ -62,18 +62,11 @@ import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 
 public class DlsTermsLookupTest2 {
 
-    public static TestCertificates certificatesContext = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
-
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", true)
             .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*").on("tlqdummy").indexPermissions("*").dls(
                     "{ \"terms\": { \"access_codes\": { \"index\": \"user_access_codes\", \"id\": \"${user.name}\", \"path\": \"access_codes\" } } }")

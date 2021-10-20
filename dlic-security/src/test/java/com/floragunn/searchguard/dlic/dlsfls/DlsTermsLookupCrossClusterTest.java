@@ -67,18 +67,11 @@ public class DlsTermsLookupCrossClusterTest {
 
     private final static String CLUSTER_ALIAS = "my_remote";
 
-    public static TestCertificates certificatesContext = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
-
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup(); 
     
     @ClassRule
-    public static LocalCluster remote = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)//
+    public static LocalCluster remote = new LocalCluster.Builder().singleNode().sslEnabled()//
             .nodeSettings("searchguard.logging.context.extended", true)//
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")//
             .clusterName("remote")//
@@ -95,7 +88,7 @@ public class DlsTermsLookupCrossClusterTest {
             .build();
 
     @ClassRule
-    public static LocalCluster coordinating = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).remote(CLUSTER_ALIAS, remote)//
+    public static LocalCluster coordinating = new LocalCluster.Builder().singleNode().sslEnabled().remote(CLUSTER_ALIAS, remote)//
             .nodeSettings("searchguard.logging.context.extended", true)//
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")//
             .clusterName("coordinating")//

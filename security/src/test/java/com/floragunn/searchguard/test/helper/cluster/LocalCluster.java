@@ -25,7 +25,6 @@ import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.TestCertificateBasedSSLContextProvider;
 import org.apache.http.Header;
@@ -85,7 +84,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         this.clusterName = clusterName;
         this.testCertificates = testCertificates;
         this.minimumSearchGuardSettingsSupplierFactory = new MinimumSearchGuardSettingsSupplierFactory(resourceFolder, testCertificates);
-        painlessWhitelistKludge();
 
         start();
     }
@@ -199,39 +197,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
     }
 
-    private void painlessWhitelistKludge() {
-        try {
-            // TODO make this optional
-
-            /*
-             
-            final ClassLoader classLoader = getClass().getClassLoader();
-            
-            try (PainlessPlugin p = new PainlessPlugin()) {
-                p.loadExtensions(new ExtensionLoader() {
-            
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public <T> List<T> loadExtensions(Class<T> extensionPointType) {
-                        if (extensionPointType.equals(PainlessExtension.class)) {
-                            List<?> result = StreamSupport.stream(ServiceLoader.load(PainlessExtension.class, classLoader).spliterator(), false)
-                                    .collect(Collectors.toList());
-            
-                            return (List<T>) result;
-                        } else {
-                            return Collections.emptyList();
-                        }
-                    }
-                });
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            */
-        } catch (NoClassDefFoundError e) {
-
-        }
-    }
-
     private void initSearchGuardIndex(TestSgConfig testSgConfig) {
         log.info("Initializing Search Guard index");
 
@@ -307,19 +272,24 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     }
 
     public static class Builder {
+
+        private final Settings.Builder nodeOverrideSettingsBuilder = Settings.builder();
+        private final List<String> disabledModules = new ArrayList<>();
+        private final List<Class<? extends Plugin>> plugins = new ArrayList<>();
         private boolean sslEnabled;
-        private String httpKeystoreFilepath = "node-0-keystore.jks";
-        private String httpTruststoreFilepath = "truststore.jks";
         private String resourceFolder;
         private ClusterConfiguration clusterConfiguration = ClusterConfiguration.DEFAULT;
-        private Settings.Builder nodeOverrideSettingsBuilder = Settings.builder();
-        private List<String> disabledModules = new ArrayList<>();
-        private List<Class<? extends Plugin>> plugins = new ArrayList<>();
         private TestSgConfig testSgConfig = new TestSgConfig().resources("/");
         private String clusterName = "local_cluster";
         private TestCertificates testCertificates;
 
         public Builder sslEnabled() {
+            this.testCertificates = TestCertificates.builder()
+                    .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .build();
             this.sslEnabled = true;
             return this;
         }
@@ -431,21 +401,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         public LocalCluster build() {
             try {
-                if (testCertificates != null) {
+                if (sslEnabled) {
                     File caCertFile = testCertificates.getCaCertFile();
                     nodeOverrideSettingsBuilder.put("searchguard.ssl.http.enabled", true)
                             .put("searchguard.ssl.transport.pemtrustedcas_filepath", caCertFile.getPath())
                             .put("searchguard.ssl.http.pemtrustedcas_filepath", caCertFile.getPath());
 
-                } else if (sslEnabled) {
-                    nodeOverrideSettingsBuilder.put("searchguard.ssl.http.enabled", true)
-                            .put("searchguard.ssl.http.keystore_filepath",
-                                    FileHelper.getAbsoluteFilePathFromClassPath(
-                                            resourceFolder != null ? (resourceFolder + "/" + httpKeystoreFilepath) : httpKeystoreFilepath))
-                            .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(
-                                    resourceFolder != null ? (resourceFolder + "/" + httpTruststoreFilepath) : httpTruststoreFilepath));
                 }
-
                 if (this.disabledModules.size() > 0) {
                     nodeOverrideSettingsBuilder.putList(SearchGuardModulesRegistry.DISABLED_MODULES.getKey(), this.disabledModules);
                 }

@@ -179,12 +179,7 @@ public class ActionTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(TestCertificates.builder()
-                    .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-                    .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-                    .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-                    .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-                    .build())
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .nodeSettings("signals.enabled", true, "signals.enterprise.enabled", false).resources("sg_config/signals").build();
 
     @BeforeClass

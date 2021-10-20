@@ -66,27 +66,15 @@ public class CheckTest {
     private static ScriptService scriptService;
     private static BrowserUpProxy httpProxy;
 
-    public static TestCertificates certificatesContext = TestCertificates.builder()
-            .defaults(defaults -> defaults.setValidityDays(30)
-                    .setNodeOid("1.2.3.4.5.5")
-                    .setNodeIpList()
-                    .setNodeDnsList()
-                    .setNodeCertificateType(transport_and_rest))
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
-
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).resources("sg_config/signals")
+    public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
             .nodeSettings("signals.enabled", false, "searchguard.enterprise_modules_enabled", false).build();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).resources("sg_config/signals")
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).remote("my_remote", anotherCluster).build();
 
     @BeforeClass

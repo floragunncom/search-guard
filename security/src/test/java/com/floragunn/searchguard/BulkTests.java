@@ -38,12 +38,7 @@ public class BulkTests {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(TestCertificates.builder()
-                    .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-                    .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-                    .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-                    .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-                    .build())
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .user("bulk_test_user", "secret", new Role("bulk_test_user_role").clusterPermissions("*").indexPermissions("*").on("test")).build();
 
     @Test

@@ -98,19 +98,12 @@ public class AuthTokenIntegrationTest {
     static TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(SGCONFIG));
     private static Configuration JSON_PATH_CONFIG = BasicJsonPathDefaultConfiguration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
 
-    public static TestCertificates certificatesContext = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
-
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
-            .resources("authtoken").sslEnabled(certificatesContext).sgConfig(sgConfig).build();
+            .resources("authtoken").sslEnabled().sgConfig(sgConfig).build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -481,7 +474,7 @@ public class AuthTokenIntegrationTest {
                 .sgConfigSettings("sg_config.dynamic.auth_token_provider.exclude_cluster_permissions", Collections.emptyList());
 
         try (LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin").resources("authtoken")
-                .sslEnabled(certificatesContext).sgConfig(sgConfig).build(); GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
+                .sslEnabled().sgConfig(sgConfig).build(); GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
             try (Client client = cluster.getInternalNodeClient()) {
                 client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
@@ -653,7 +646,7 @@ public class AuthTokenIntegrationTest {
 
         TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(sgConfigWithEncryption));
 
-        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled(certificatesContext).singleNode().sgConfig(sgConfig).build();
+        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig).build();
                 GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
             try (Client client = cluster.getInternalNodeClient()) {
@@ -767,7 +760,7 @@ public class AuthTokenIntegrationTest {
 
         TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(sgConfigWithEncryption));
 
-        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled(certificatesContext).singleNode().sgConfig(sgConfig).build();
+        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig).build();
                 GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
             try (Client client = cluster.getInternalNodeClient()) {

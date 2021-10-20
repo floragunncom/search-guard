@@ -60,18 +60,11 @@ public class FieldMaskingAggregationTest {
 
     private final static byte[] salt = ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT_DEFAULT.getBytes(StandardCharsets.UTF_8);
 
-    public static TestCertificates certificatesContext = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
-
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled(certificatesContext).users(MASKED_TEST_USER, UNMASKED_TEST_USER).resources("dlsfls")
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().users(MASKED_TEST_USER, UNMASKED_TEST_USER).resources("dlsfls")
             .build();
     
     /**

@@ -16,12 +16,7 @@ public class ComponentStateIntegrationTest {
             .roles(new Role("allaccess").indexPermissions("*").on("*").clusterPermissions("*"));
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled(TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build()).user(ADMIN_USER).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().user(ADMIN_USER).build();
 
     @Test
     public void basicTest() throws Exception {

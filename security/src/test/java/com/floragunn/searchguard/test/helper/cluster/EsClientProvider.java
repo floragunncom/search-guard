@@ -93,26 +93,14 @@ public interface EsClientProvider {
         CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
 
-        HttpClientConfigCallback configCallback = new HttpClientConfigCallback() {
+        HttpClientConfigCallback configCallback = httpClientBuilder -> {
+            httpClientBuilder = httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider).setSSLStrategy(getSSLIOSessionStrategy());
 
-            @Override
-            public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
-                httpClientBuilder = httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider).setSSLStrategy(getSSLIOSessionStrategy());
-
-                if (tenant != null) {
-                    httpClientBuilder = httpClientBuilder.addInterceptorLast(new HttpRequestInterceptor() {
-
-                        @Override
-                        public void process(HttpRequest request, HttpContext context) throws HttpException, IOException {
-                            request.setHeader("sgtenant", tenant);
-
-                        }
-
-                    });
-                }
-
-                return httpClientBuilder;
+            if (tenant != null) {
+                httpClientBuilder = httpClientBuilder.addInterceptorLast((HttpRequestInterceptor) (request, context) -> request.setHeader("sgtenant", tenant));
             }
+
+            return httpClientBuilder;
         };
 
         RestClientBuilder builder = RestClient.builder(new HttpHost(getHttpAddress().getHostString(), getHttpAddress().getPort(), "https"))

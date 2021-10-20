@@ -33,15 +33,8 @@ import static com.floragunn.searchguard.test.helper.certificate.NodeCertificateT
 
 public class DlsFilterLevelModeTest {
 
-    public static TestCertificates certificatesContext = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
-
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled(certificatesContext).resources("dlsfls")
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls")
             .nodeSettings(ConfigConstants.SEARCHGUARD_DLS_MODE, "filter_level").build();
 
     @BeforeClass

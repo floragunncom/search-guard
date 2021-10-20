@@ -40,15 +40,8 @@ public class BulkConfigApiTest {
     private final static TestSgConfig.User ADMIN_USER = new TestSgConfig.User("admin")
             .roles(new Role("allaccess").indexPermissions("*").on("*").clusterPermissions("*"));
 
-    public static TestCertificates testCertificates = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
-
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled(testCertificates).user(ADMIN_USER).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().user(ADMIN_USER).build();
 
     @Test
     public void getTest() throws Exception {
@@ -162,7 +155,7 @@ public class BulkConfigApiTest {
 
     @Test
     public void getTestWithoutAdminCertWithAllowedAction() throws Exception {
-        try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled(testCertificates).user(ADMIN_USER)
+        try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().user(ADMIN_USER)
                 .nodeSettings("searchguard.actions.admin_only", Collections.emptyList()).build()) {
             try (GenericRestClient client = cluster.getRestClient(ADMIN_USER)) {
 

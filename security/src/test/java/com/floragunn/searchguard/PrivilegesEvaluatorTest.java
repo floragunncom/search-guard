@@ -66,20 +66,13 @@ public class PrivilegesEvaluatorTest {
             .roles(new Role("search_template_legacy_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ")
                     .on("resolve_test_*").indexPermissions("indices:data/read/search/template").on("*"));
 
-    public static TestCertificates certificatesContext = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
-
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster anotherCluster = new LocalCluster.Builder()
             .singleNode()
-            .sslEnabled(certificatesContext)
+            .sslEnabled()
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")
             .user("resolve_test_user", "secret", new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*"))//
             .build();
@@ -87,7 +80,7 @@ public class PrivilegesEvaluatorTest {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder()
             .singleNode()
-            .sslEnabled(certificatesContext)
+            .sslEnabled()
             .remote("my_remote", anotherCluster)
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")
             .user("resolve_test_user", "secret",
@@ -118,7 +111,7 @@ public class PrivilegesEvaluatorTest {
     @ClassRule
     public static LocalCluster clusterFof = new LocalCluster.Builder()
             .singleNode()
-            .sslEnabled(certificatesContext)
+            .sslEnabled()
             .remote("my_remote", anotherCluster)
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "false")
             .user("exclusion_test_user_basic", "secret",

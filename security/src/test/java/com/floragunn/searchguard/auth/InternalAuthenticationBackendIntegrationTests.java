@@ -22,12 +22,7 @@ import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 
 public class InternalAuthenticationBackendIntegrationTests {
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(TestCertificates.builder()
-                    .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-                    .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-                    .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-                    .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-                    .build())
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true") //
             .user("all_access", "secret", "sg_all_access") //
             .build();
