@@ -18,35 +18,37 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.StaticCertificatesBasedSSLContextProvider;
-import org.apache.http.*;
+import com.floragunn.searchguard.test.helper.rest.SSLContextProvider;
+import org.apache.http.Header;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
-import org.apache.http.protocol.HttpContext;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
 import org.elasticsearch.client.RestHighLevelClient;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.BiFunction;
 
 public interface EsClientProvider {
 
+    BiFunction<Boolean, Boolean, SSLContextProvider> getSSLContextProvider();
+
     default GenericRestClient createGenericClientRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers) {
-        return new GenericRestClient(nodeHttpAddress, headers, new StaticCertificatesBasedSSLContextProvider(getResourceFolder(), "node-0-keystore.jks", "truststore.jks", false, true));
+        return new GenericRestClient(nodeHttpAddress, headers, getSSLContextProvider().apply(false, true));
     }
 
     default GenericRestClient createGenericAdminRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers) {
-        return new GenericRestClient(nodeHttpAddress, headers, new StaticCertificatesBasedSSLContextProvider(getResourceFolder(), "kirk-keystore.jks", "truststore.jks", true, true));
+        return new GenericRestClient(nodeHttpAddress, headers, getSSLContextProvider().apply(true, true));
     }
 
     default GenericRestClient getRestClient(TestSgConfig.User user, Header... headers) {
@@ -118,22 +120,12 @@ public interface EsClientProvider {
     }
 
     @Deprecated
-    default Client getAdminCertClient() {
-        String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-        return new LocalEsClusterTransportClient(getClusterName(), getTransportAddress(), prefix + "truststore.jks", prefix + "kirk-keystore.jks");
-    }
-
+    Client getAdminCertClient() ;
     Client getInternalNodeClient();
 
     InetSocketAddress getHttpAddress();
 
-    InetSocketAddress getTransportAddress();
-
-    String getClusterName();
-
-    // XXX fixme
-    String getResourceFolder();
-
-    SSLIOSessionStrategy getSSLIOSessionStrategy();
+    default SSLIOSessionStrategy getSSLIOSessionStrategy() {
+        return getSSLContextProvider().apply(false, true).getSSLIOSessionStrategy();
+    }
 }

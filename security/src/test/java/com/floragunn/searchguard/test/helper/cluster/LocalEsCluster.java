@@ -24,7 +24,9 @@ import com.floragunn.searchguard.test.helper.rest.SSLContextProvider;
 import com.floragunn.searchguard.test.helper.rest.StaticCertificatesBasedSSLContextProvider;
 import com.google.common.net.InetAddresses;
 import org.apache.commons.io.FileUtils;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.Header;
+import org.apache.http.HttpHost;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,6 +38,9 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.common.Strings;
@@ -81,9 +86,6 @@ public class LocalEsCluster {
     private final List<Node> clientNodes = new ArrayList<>();
     private final SSLContextProvider sslContextSupplier;
 
-    // TODO replace by proper TLS config
-    private String resourcesFolder;
-
     private List<String> seedHosts;
     private List<String> initialMasterHosts;
     private TimeValue timeout = TimeValue.timeValueSeconds(10);
@@ -91,40 +93,12 @@ public class LocalEsCluster {
     private boolean started;
 
     public LocalEsCluster(String clustername, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
-                          String resourcesFolder, List<Class<? extends Plugin>> additionalPlugins) {
-        this(clustername, clusterConfiguration, nodeSettingsSupplier, resourcesFolder, additionalPlugins,
-                new StaticCertificatesBasedSSLContextProvider(resourcesFolder, null, "truststore.jks", false, true));
-    }
-
-//                () -> {
-//            try {
-//                String truststoreType = "JKS";
-//                String truststorePassword = "changeit";
-//                String prefix = resourcesFolder == null ? "" : resourcesFolder + "/";
-//
-//                KeyStore trustStore = KeyStore.getInstance(truststoreType);
-//                try (InputStream in = Files.newInputStream(FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))) {
-//                    trustStore.load(in, (truststorePassword == null || truststorePassword.length() == 0) ? null : truststorePassword.toCharArray());
-//                }
-//
-//                SSLContextBuilder sslContextBuilder = SSLContexts.custom().loadTrustMaterial(trustStore, null);
-//                return sslContextBuilder.build();
-//
-//                //return new OverlyTrustfulSSLContextBuilder().build();
-//            } catch (Exception e) {
-//                throw new RuntimeException("Error while building SSLContext", e);
-//            }
-//        });
-//    }
-
-    public LocalEsCluster(String clustername, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
-                          String resourcesFolder, List<Class<? extends Plugin>> additionalPlugins, SSLContextProvider sslContextSupplier) {
+                          List<Class<? extends Plugin>> additionalPlugins, SSLContextProvider sslContextSupplier) {
         super();
         this.clusterName = clustername;
         this.clusterConfiguration = clusterConfiguration;
         this.nodeSettingsSupplier = nodeSettingsSupplier;
         this.additionalPlugins = additionalPlugins;
-        this.resourcesFolder = resourcesFolder;
         try {
             this.clusterHomeDir = Files.createTempDirectory("sg_local_cluster_" + clustername).toFile();
         } catch (IOException e) {
@@ -413,15 +387,11 @@ public class LocalEsCluster {
                 + "\n";
     }
 
-    public SSLIOSessionStrategy getSSLIOSessionStrategy() {
-        return new SSLIOSessionStrategy(sslContextSupplier.getSslContext(), null, null, NoopHostnameVerifier.INSTANCE);
-    }
-
     private static List<String> toHostList(Collection<Integer> ports) {
         return ports.stream().map(s -> "127.0.0.1:" + s).collect(Collectors.toList());
     }
 
-    public class Node implements EsClientProvider {
+    public class Node {
         private final String nodeName;
         private final NodeSettings nodeSettings;
         private final File nodeHomeDir;
@@ -457,7 +427,6 @@ public class LocalEsCluster {
             }
 
             allNodes.add(this);
-
         }
 
         CompletableFuture<String> start() {
@@ -529,7 +498,6 @@ public class LocalEsCluster {
                     .put("http.cors.enabled", true).build();
         }
 
-        @Override
         public Client getInternalNodeClient() {
             return node.client();
         }
@@ -590,31 +558,21 @@ public class LocalEsCluster {
             return "127.0.0.1";
         }
 
-        @Override
         public InetSocketAddress getHttpAddress() {
             return httpAddress;
         }
 
-        @Override
         public InetSocketAddress getTransportAddress() {
             return transportAddress;
         }
 
-        @Override
-        public String getResourceFolder() {
-            return resourcesFolder;
-        }
+        public RestHighLevelClient getRestHighLevelClient(BasicHeader basicHeader) {
+            RestClientBuilder builder = RestClient.builder(new HttpHost(getHttpAddress().getHostString(), getHttpAddress().getPort(), "https"))
+                    .setDefaultHeaders(new Header[]{basicHeader})
+                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(sslContextSupplier.getSSLIOSessionStrategy()));
 
-        @Override
-        public SSLIOSessionStrategy getSSLIOSessionStrategy() {
-            return LocalEsCluster.this.getSSLIOSessionStrategy();
+            return new RestHighLevelClient(builder);
         }
-
-        @Override
-        public String getClusterName() {
-            return LocalEsCluster.this.clusterName;
-        }
-
     }
 
     private String createNextNodeName(NodeSettings nodeSettings) {

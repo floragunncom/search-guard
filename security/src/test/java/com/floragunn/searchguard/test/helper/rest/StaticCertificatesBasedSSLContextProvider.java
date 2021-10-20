@@ -1,6 +1,8 @@
 package com.floragunn.searchguard.test.helper.rest;
 
 import com.floragunn.searchguard.test.helper.file.FileHelper;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 
