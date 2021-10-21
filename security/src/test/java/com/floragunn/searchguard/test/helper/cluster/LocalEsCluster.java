@@ -18,14 +18,18 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.SSLContextProvider;
+import com.floragunn.searchguard.test.helper.rest.TestCertificateBasedSSLContextProvider;
 import com.floragunn.searchguard.test.helper.utils.UnitTestForkNumberProvider;
 import com.google.common.net.InetAddresses;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.message.BasicHeader;
+import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchTimeoutException;
@@ -82,7 +86,7 @@ public class LocalEsCluster {
     private final List<Node> masterNodes = new ArrayList<>();
     private final List<Node> dataNodes = new ArrayList<>();
     private final List<Node> clientNodes = new ArrayList<>();
-    private final SSLContextProvider sslContextSupplier;
+    private final TestCertificates testCertificates;
 
     private File clusterHomeDir;
     private List<String> seedHosts;
@@ -91,13 +95,13 @@ public class LocalEsCluster {
     private boolean started;
 
     public LocalEsCluster(String clusterName, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
-                          List<Class<? extends Plugin>> additionalPlugins, SSLContextProvider sslContextSupplier) {
+                          List<Class<? extends Plugin>> additionalPlugins, TestCertificates testCertificates) {
         this.clusterName = clusterName;
         this.clusterConfiguration = clusterConfiguration;
         this.nodeSettingsSupplier = nodeSettingsSupplier;
         this.additionalPlugins = additionalPlugins;
         this.clusterHomeDir = FileHelper.createTempDirectory("sg_local_cluster_" + clusterName);
-        this.sslContextSupplier = sslContextSupplier;
+        this.testCertificates = testCertificates;
     }
 
     public void start() throws Exception {
@@ -511,11 +515,13 @@ public class LocalEsCluster {
             return transportAddress;
         }
 
-        //todo move
         public RestHighLevelClient getRestHighLevelClient(BasicHeader basicHeader) {
+            SSLContextProvider sslContextProvider = new TestCertificateBasedSSLContextProvider(testCertificates.getCaCertificate(), testCertificates.getAnyClientCertificate());
+
             RestClientBuilder builder = RestClient.builder(new HttpHost(getHttpAddress().getHostString(), getHttpAddress().getPort(), "https"))
                     .setDefaultHeaders(new Header[]{basicHeader})
-                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(sslContextSupplier.getSSLIOSessionStrategy()));
+                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+                            .setSSLStrategy(new SSLIOSessionStrategy(sslContextProvider.getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
 
             return new RestHighLevelClient(builder);
         }

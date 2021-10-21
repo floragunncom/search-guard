@@ -45,6 +45,10 @@ public class TestCertificates {
         return clientCertificates;
     }
 
+    public TestCertificate getAnyClientCertificate() {
+        return clientCertificates.get(0);
+    }
+
     public List<TestCertificate> getNodesCertificates() {
         return nodeCertificates;
     }
@@ -54,8 +58,10 @@ public class TestCertificates {
     }
 
     public TestCertificate getAdminCertificate() {
-        return clientCertificates.stream().filter(testCertificate -> testCertificate.getCertificateType() == CertificateType.admin_client)
-                .findFirst().orElseThrow(() -> {
+        return clientCertificates.stream()
+                .filter(testCertificate -> testCertificate.getCertificateType() == CertificateType.admin_client)
+                .findFirst()
+                .orElseThrow(() -> {
                     log.error("No admin client certificate configured");
                     return new RuntimeException("No admin client certificate configured");
                 });

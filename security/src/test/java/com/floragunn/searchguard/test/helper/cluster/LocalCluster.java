@@ -22,11 +22,13 @@ import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.rest.SSLContextProvider;
-import com.floragunn.searchguard.test.helper.rest.TestCertificateBasedSSLContextProvider;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import org.apache.http.Header;
+import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
@@ -37,11 +39,9 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BiFunction;
 
-public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
+public class LocalCluster extends ExternalResource implements AutoCloseable {
 
     private static final Logger log = LogManager.getLogger(LocalCluster.class);
 
@@ -57,8 +57,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     private final TestSgConfig testSgConfig;
     private final Settings nodeOverride;
     private final String clusterName;
-    private final TestCertificates testCertificates;
     private final MinimumSearchGuardSettingsSupplierFactory minimumSearchGuardSettingsSupplierFactory;
+    private final EsClientProvider esClientProvider;
+    private final TestCertificates testCertificates;
     private LocalEsCluster localEsCluster;
 
     private LocalCluster(String clusterName, String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride,
@@ -69,9 +70,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         this.testSgConfig = testSgConfig;
         this.nodeOverride = nodeOverride;
         this.clusterName = clusterName;
-        this.testCertificates = testCertificates;
         this.minimumSearchGuardSettingsSupplierFactory = new MinimumSearchGuardSettingsSupplierFactory(resourceFolder, testCertificates);
-
+        this.esClientProvider = new EsClientProvider(clusterName, testCertificates);
+        this.testCertificates = testCertificates;
         start();
     }
 
@@ -125,9 +126,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         try {
             localEsCluster = new LocalEsCluster(clusterName, clusterConfiguration,
                     minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride),
-                    plugins,
-                    Optional.ofNullable(testCertificates)
-                            .map(certificates -> new TestCertificateBasedSSLContextProvider(certificates.getCaCertificate(), certificates.getAdminCertificate(), false, true)).orElse(null));
+                    plugins, testCertificates);
             localEsCluster.start();
         } catch (Exception e) {
             log.error("Local ES cluster start failed", e);
@@ -139,30 +138,52 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
     }
 
-    //todo
-    @Override
     public Client getAdminCertClient() {
-        if (testCertificates == null) {
-            throw new RuntimeException("Cannnot get admin cert client because missing certs");
-        }
-        return new LocalEsClusterTransportClient(localEsCluster.getClusterName(), localEsCluster.clientNode().getTransportAddress(), testCertificates.getAdminCertificate(),
-                testCertificates.getCaCertFile().toPath());
+        return esClientProvider.getAdminCertClient(localEsCluster.clientNode().getTransportAddress());
     }
 
-    @Override
     public Client getInternalNodeClient() {
         return localEsCluster.clientNode().getInternalNodeClient();
     }
 
-    //todo can be removed (EsClientProvider
-    @Override
-    public InetSocketAddress getHttpAddress() {
-        return localEsCluster.clientNode().getHttpAddress();
+    public GenericRestClient getAdminCertRestClient() {
+        return esClientProvider.getAdminCertRestClient(localEsCluster.clientNode().getHttpAddress());
     }
 
-    @Override
-    public BiFunction<Boolean, Boolean, SSLContextProvider> getSSLContextProvider() {
-        return (sendHttpClientCertificate, trustHttpServerCertificate) -> new TestCertificateBasedSSLContextProvider(testCertificates.getCaCertificate(), testCertificates.getAdminCertificate(), sendHttpClientCertificate, trustHttpServerCertificate);
+    public GenericRestClient getRestClient(TestSgConfig.User adminUser) {
+        return esClientProvider.getRestClient(localEsCluster.clientNode().getHttpAddress(), adminUser);
+    }
+
+    public GenericRestClient getRestClient(String user, String password, Header... headers) {
+        return esClientProvider.getRestClient(localEsCluster.clientNode().getHttpAddress(), user, password, headers);
+    }
+
+    public GenericRestClient getRestClient(TestSgConfig.User user, Header... headers) {
+        return esClientProvider.getRestClient(localEsCluster.clientNode().getHttpAddress(), user, headers);
+    }
+
+    public GenericRestClient getRestClient(BasicHeader authorization) {
+        return esClientProvider.getRestClient(localEsCluster.clientNode().getHttpAddress(), authorization);
+    }
+
+    public RestHighLevelClient getRestHighLevelClient(String user, String password) {
+        return esClientProvider.getRestHighLevelClient(localEsCluster.clientNode().getHttpAddress(), user, password);
+    }
+
+    public RestHighLevelClient getRestHighLevelClient(TestSgConfig.User user) {
+        return esClientProvider.getRestHighLevelClient(localEsCluster.clientNode().getHttpAddress(), user);
+    }
+
+    public RestHighLevelClient getRestHighLevelClient(Header... headers) {
+        return esClientProvider.getRestHighLevelClient(localEsCluster.clientNode().getHttpAddress(), headers);
+    }
+
+    public RestHighLevelClient getRestHighLevelClient(String user, String password, String tenant) {
+        return esClientProvider.getRestHighLevelClient(localEsCluster.clientNode().getHttpAddress(), user, password, tenant);
+    }
+
+    public GenericRestClient getRestClient(String user, String password, String tenant) {
+        return esClientProvider.getRestClient(localEsCluster.clientNode().getHttpAddress(), user, password, tenant);
     }
 
     public static class Builder {

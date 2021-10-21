@@ -17,14 +17,17 @@
 
 package com.floragunn.searchguard.test.helper.cluster;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchguard.test.helper.rest.SSLContextProvider;
+import com.floragunn.searchguard.test.helper.rest.TestCertificateBasedSSLContextProvider;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
@@ -37,95 +40,111 @@ import org.elasticsearch.client.RestHighLevelClient;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.function.BiFunction;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-public interface EsClientProvider {
+public class EsClientProvider {
 
-    BiFunction<Boolean, Boolean, SSLContextProvider> getSSLContextProvider();
+    private final String clusterName;
+    private final TestCertificates testCertificates;
+    private final SSLContextProvider adminClientSslContextProvider;
+    private final SSLContextProvider anyClientSslContextProvider;
 
-    default GenericRestClient createGenericClientRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers) {
-        return new GenericRestClient(nodeHttpAddress, headers, getSSLContextProvider().apply(false, true));
+    public EsClientProvider(String clusterName, TestCertificates testCertificates) {
+        this.clusterName = clusterName;
+        this.testCertificates = testCertificates;
+        this.adminClientSslContextProvider = new TestCertificateBasedSSLContextProvider(testCertificates.getCaCertificate(), testCertificates.getAdminCertificate());
+        this.anyClientSslContextProvider = new TestCertificateBasedSSLContextProvider(testCertificates.getCaCertificate(), testCertificates.getAdminCertificate());
     }
 
-    default GenericRestClient createGenericAdminRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers) {
-        return new GenericRestClient(nodeHttpAddress, headers, getSSLContextProvider().apply(true, true));
+    public GenericRestClient getRestClient(InetSocketAddress httpAddress, TestSgConfig.User user, Header... headers) {
+        return getRestClient(httpAddress, user.getName(), user.getPassword(), headers);
     }
 
-    default GenericRestClient getRestClient(TestSgConfig.User user, Header... headers) {
-        return getRestClient(user.getName(), user.getPassword(), headers);
+    public GenericRestClient getRestClient(InetSocketAddress httpAddress, String user, String password, String tenant) {
+        return getRestClient(httpAddress, user, password, new BasicHeader("sgtenant", tenant));
     }
 
-    default GenericRestClient getRestClient(String user, String password, String tenant) {
-        BasicHeader basicAuthHeader = new BasicHeader("Authorization",
-                "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-
-        return createGenericClientRestClient(getHttpAddress(), Arrays.asList(basicAuthHeader, new BasicHeader("sgtenant", tenant)));
-    }
-
-    default GenericRestClient getRestClient(String user, String password, Header... headers) {
-        BasicHeader basicAuthHeader = new BasicHeader("Authorization",
-                "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-
-        List<Header> headersList = new ArrayList<>();
-        headersList.add(basicAuthHeader);
+    public GenericRestClient getRestClient(InetSocketAddress httpAddress, String user, String password, Header... headers) {
+        BasicHeader basicAuthHeader = getBasicAuthHeader(user, password);
         if (headers != null && headers.length > 0) {
-            headersList.addAll(Arrays.asList(headers));
+            List<Header> concatenatedHeaders = Stream.concat(Stream.of(basicAuthHeader), Stream.of(headers))
+                    .collect(Collectors.toList());
+            return getRestClient(httpAddress, concatenatedHeaders);
         }
-
-        return createGenericClientRestClient(getHttpAddress(), headersList);
+        return getRestClient(httpAddress, basicAuthHeader);
     }
 
-    default GenericRestClient getRestClient(Header... headers) {
-        return createGenericClientRestClient(getHttpAddress(), Arrays.asList(headers));
+    public GenericRestClient getRestClient(InetSocketAddress httpAddress, Header... headers) {
+        return getRestClient(httpAddress, Arrays.asList(headers));
     }
 
-    default GenericRestClient getAdminCertRestClient() {
-        return createGenericAdminRestClient(getHttpAddress(), Collections.emptyList());
+    public GenericRestClient getRestClient(InetSocketAddress httpAddress, List<Header> headers) {
+        return createGenericClientRestClient(httpAddress, headers);
     }
 
-    default RestHighLevelClient getRestHighLevelClient(TestSgConfig.User user) {
-        return getRestHighLevelClient(user.getName(), user.getPassword());
+    public GenericRestClient getAdminCertRestClient(InetSocketAddress httpAddress) {
+        return createGenericAdminRestClient(httpAddress, Collections.emptyList());
     }
 
-    default RestHighLevelClient getRestHighLevelClient(String user, String password) {
-        return getRestHighLevelClient(user, password, null);
+    public RestHighLevelClient getRestHighLevelClient(InetSocketAddress httpAddress, TestSgConfig.User user) {
+        return getRestHighLevelClient(httpAddress, user.getName(), user.getPassword());
     }
 
-    default RestHighLevelClient getRestHighLevelClient(String user, String password, String tenant) {
+    public RestHighLevelClient getRestHighLevelClient(InetSocketAddress httpAddress, String user, String password) {
+        return getRestHighLevelClient(httpAddress, user, password, null);
+    }
+
+    public RestHighLevelClient getRestHighLevelClient(InetSocketAddress httpAddress, String user, String password, String tenant) {
         CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
 
+
         HttpClientConfigCallback configCallback = httpClientBuilder -> {
-            httpClientBuilder = httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider).setSSLStrategy(getSSLIOSessionStrategy());
+            httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider)
+                    .setSSLStrategy(new SSLIOSessionStrategy(anyClientSslContextProvider.getSslContext(false), null,
+                            null, NoopHostnameVerifier.INSTANCE));
 
             if (tenant != null) {
-                httpClientBuilder = httpClientBuilder.addInterceptorLast((HttpRequestInterceptor) (request, context) -> request.setHeader("sgtenant", tenant));
+                httpClientBuilder.addInterceptorLast((HttpRequestInterceptor) (request, context) -> request.setHeader("sgtenant", tenant));
             }
 
             return httpClientBuilder;
         };
 
-        RestClientBuilder builder = RestClient.builder(new HttpHost(getHttpAddress().getHostString(), getHttpAddress().getPort(), "https"))
+        RestClientBuilder builder = RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))
                 .setHttpClientConfigCallback(configCallback);
 
         return new RestHighLevelClient(builder);
     }
 
-    default RestHighLevelClient getRestHighLevelClient(Header... headers) {
-        RestClientBuilder builder = RestClient.builder(new HttpHost(getHttpAddress().getHostString(), getHttpAddress().getPort(), "https"))
+    public RestHighLevelClient getRestHighLevelClient(InetSocketAddress httpAddress, Header... headers) {
+        RestClientBuilder builder = RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))
                 .setDefaultHeaders(headers)
-                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(getSSLIOSessionStrategy()));
+                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+                        .setSSLStrategy(new SSLIOSessionStrategy(anyClientSslContextProvider.getSslContext(false), null, null,
+                                NoopHostnameVerifier.INSTANCE)));
 
         return new RestHighLevelClient(builder);
     }
 
     @Deprecated
-    Client getAdminCertClient() ;
-    Client getInternalNodeClient();
-
-    InetSocketAddress getHttpAddress();
-
-    default SSLIOSessionStrategy getSSLIOSessionStrategy() {
-        return getSSLContextProvider().apply(false, true).getSSLIOSessionStrategy();
+    Client getAdminCertClient(InetSocketAddress transportAddress) {
+        return new LocalEsClusterTransportClient(clusterName, transportAddress, testCertificates.getAdminCertificate(), testCertificates.getCaCertFile().toPath());
     }
+
+    private GenericRestClient createGenericClientRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers) {
+        return new GenericRestClient(nodeHttpAddress, headers, anyClientSslContextProvider.getSslContext(false));
+    }
+
+    private GenericRestClient createGenericAdminRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers) {
+        //a client authentication is needed for admin because admin needs to authenticate itself (dn matching in config file)
+        return new GenericRestClient(nodeHttpAddress, headers, adminClientSslContextProvider.getSslContext(true));
+    }
+
+    private BasicHeader getBasicAuthHeader(String user, String password) {
+        return new BasicHeader("Authorization",
+                "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
+    }
+
 }

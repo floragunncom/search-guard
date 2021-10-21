@@ -61,18 +61,18 @@ public class GenericRestClient implements AutoCloseable {
 
     private final Set<String> puttedResourcesSet = new HashSet<>();
     private final List<String> puttedResourcesList = new ArrayList<>();
-    private final SSLContextProvider sslContextProvider;
+    private final SSLContext sslContext;
 
-    public GenericRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers, SSLContextProvider sslContextProvider) {
+    public GenericRestClient(InetSocketAddress nodeHttpAddress, List<Header> headers, SSLContext sslContext) {
         this.nodeHttpAddress = nodeHttpAddress;
         this.headers.addAll(headers);
-        this.sslContextProvider = sslContextProvider;
+        this.sslContext = sslContext;
     }
 
-    public GenericRestClient(InetSocketAddress nodeHttpAddress, boolean enableHTTPClientSSL, SSLContextProvider sslContextProvider) {
+    public GenericRestClient(InetSocketAddress nodeHttpAddress, boolean enableHTTPClientSSL, SSLContext sslContext) {
         this.nodeHttpAddress = nodeHttpAddress;
         this.enableHTTPClientSSL = enableHTTPClientSSL;
-        this.sslContextProvider = sslContextProvider;
+        this.sslContext = sslContext;
     }
 
     public HttpResponse get(String path, Header... headers) throws Exception {
@@ -206,8 +206,6 @@ public class GenericRestClient implements AutoCloseable {
         } else if (enableHTTPClientSSL) {
 
             log.debug("Configure HTTP client with SSL");
-
-            final SSLContext sslContext = sslContextProvider.getSslContext();
 
             String[] protocols = null;
 
