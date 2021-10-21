@@ -82,20 +82,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
     }
 
-    //todo think about calling 'close;
     @Override
     protected void after() {
         close();
-//        if (localEsCluster != null && localEsCluster.isStarted()) {
-//            try {
-//                Thread.sleep(1234);
-//                localEsCluster.destroy();
-//            } catch (Exception e) {
-//                throw new RuntimeException(e);
-//            } finally {
-//                localEsCluster = null;
-//            }
-//        }
     }
 
     @Override
@@ -116,7 +105,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         return this.localEsCluster.masterNode().getInjectable(clazz);
     }
 
-    public PluginAwareNode node() {
+    public PluginAwareNode getEsNode() {
         return this.localEsCluster.masterNode().esNode();
     }
 
@@ -224,7 +213,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
 
         public Builder singleNode() {
-            this.clusterConfiguration = ClusterConfiguration.SINGLENODE;
+            this.clusterConfiguration = ClusterConfiguration.SINGLE_NODE;
             return this;
         }
 

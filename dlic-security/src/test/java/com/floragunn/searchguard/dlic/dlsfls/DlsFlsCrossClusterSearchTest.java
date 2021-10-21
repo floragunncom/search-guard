@@ -91,16 +91,16 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
         
         try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\","+
                               "\"Designation\": \"CEO\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                              "\"FirstName\": \"__fn__"+cl2Info.clusterName +"\","+
                               "\"LastName\": \"lastname0\","+
                               "\"Salary\": \"salary0\","+
                               "\"SecretFiled\": \"secret0\","+
@@ -109,9 +109,9 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
                             + "}", XContentType.JSON)).actionGet();
             
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\","+
                               "\"Designation\": \"someoneelse\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                              "\"FirstName\": \"__fn__"+cl2Info.clusterName +"\","+
                               "\"LastName\": \"lastname1\","+
                               "\"Salary\": \"salary1\","+
                               "\"SecretFiled\": \"secret1\","+
@@ -148,16 +148,16 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
         
         try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\","+
                               "\"Designation\": \"CEO\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                              "\"FirstName\": \"__fn__"+cl2Info.clusterName +"\","+
                               "\"LastName\": \"lastname0\","+
                               "\"Salary\": \"salary0\","+
                               "\"SecretFiled\": \"secret0\","+
@@ -166,9 +166,9 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
                             + "}", XContentType.JSON)).actionGet();
             
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\","+
                               "\"Designation\": \"someoneelse\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                              "\"FirstName\": \"__fn__"+cl2Info.clusterName +"\","+
                               "\"LastName\": \"lastname1\","+
                               "\"Salary\": \"salary1\","+
                               "\"SecretFiled\": \"secret1\","+
@@ -205,12 +205,12 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
         
         try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\","+
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\","+
                               "\"Designation\": \"CEO\","+
-                              "\"FirstName\": \"__fn__"+cl1Info.clustername+"\","+
+                              "\"FirstName\": \"__fn__"+cl1Info.clusterName +"\","+
                               "\"LastName\": \"lastname0\","+
                               "\"Salary\": \"salary0\","+
                               "\"SecretFiled\": \"secret3\","+
@@ -219,9 +219,9 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
                             + "}", XContentType.JSON)).actionGet();
             
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\","+
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\","+
                               "\"Designation\": \"someoneelse\","+
-                              "\"FirstName\": \"__fn__"+cl1Info.clustername+"\","+
+                              "\"FirstName\": \"__fn__"+cl1Info.clusterName +"\","+
                               "\"LastName\": \"lastname1\","+
                               "\"Salary\": \"salary1\","+
                               "\"SecretFiled\": \"secret4\","+
@@ -232,11 +232,11 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
         
         try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\","+
                               "\"Designation\": \"CEO\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                              "\"FirstName\": \"__fn__"+cl2Info.clusterName +"\","+
                               "\"LastName\": \"lastname0\","+
                               "\"Salary\": \"salary0\","+
                               "\"SecretFiled\": \"secret0\","+
@@ -245,9 +245,9 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
                             + "}", XContentType.JSON)).actionGet();
             
             tc.index(new IndexRequest("humanresources").type("hr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\","+
                               "\"Designation\": \"someoneelse\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                              "\"FirstName\": \"__fn__"+cl2Info.clusterName +"\","+
                               "\"LastName\": \"lastname1\","+
                               "\"Salary\": \"salary1\","+
                               "\"SecretFiled\": \"secret1\","+

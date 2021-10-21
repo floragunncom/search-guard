@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
@@ -66,7 +65,7 @@ public class SignalsTenantTest {
     @BeforeClass
     public static void setupTestData() throws Exception {
 
-        PluginAwareNode node = cluster.node();
+        PluginAwareNode node = cluster.getEsNode();
 
         clusterService = node.injector().getInstance(ClusterService.class);
         xContentRegistry = node.injector().getInstance(NamedXContentRegistry.class);

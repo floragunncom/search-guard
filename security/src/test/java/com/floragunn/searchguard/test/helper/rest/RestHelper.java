@@ -185,8 +185,8 @@ public class RestHelper {
         if (nodeIndex == -1) {
             return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + clusterInfo.httpHost + ":" + clusterInfo.httpPort;
         } else {
-            return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + clusterInfo.httpAdresses.get(nodeIndex).getAddress() + ":"
-                    + clusterInfo.httpAdresses.get(nodeIndex).getPort();
+            return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + clusterInfo.httpAddresses.get(nodeIndex).getAddress() + ":"
+                    + clusterInfo.httpAddresses.get(nodeIndex).getPort();
         }
     }
 	

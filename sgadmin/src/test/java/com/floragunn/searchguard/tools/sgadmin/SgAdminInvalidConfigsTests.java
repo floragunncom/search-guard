@@ -46,7 +46,7 @@ public class SgAdminInvalidConfigsTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-cd");
         argsAsList.add(new File("./src/test/resources/invalid_dupkey").getAbsolutePath());
         argsAsList.add("-nhnv");
@@ -76,7 +76,7 @@ public class SgAdminInvalidConfigsTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-rl");
         argsAsList.add("-nhnv");
         
@@ -105,7 +105,7 @@ public class SgAdminInvalidConfigsTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-f");
         argsAsList.add(new File("./src/test/resources/invalid_dupkey/sg_roles_mapping.yml").getAbsolutePath());
         argsAsList.add("-t");
@@ -137,7 +137,7 @@ public class SgAdminInvalidConfigsTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-rl");
         argsAsList.add("-nhnv");
         

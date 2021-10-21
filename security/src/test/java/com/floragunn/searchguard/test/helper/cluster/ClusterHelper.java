@@ -199,7 +199,7 @@ public final class ClusterHelper {
         ClusterInfo cInfo = waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(timeout),
                 nodes == null ? esNodes.size() : nodes.intValue());
         cInfo.numNodes = internalNodeSettings.size();
-        cInfo.clustername = clustername;
+        cInfo.clusterName = clustername;
         cInfo.tcpMasterPortsOnly = tcpMasterPortsOnly.stream().map(s -> "127.0.0.1:" + s).collect(Collectors.toList());
 
         final String defaultTemplate = "{\n" + "          \"index_patterns\": [\"*\"],\n" + "          \"order\": -1,\n"
@@ -340,7 +340,7 @@ public final class ClusterHelper {
             }
             
             for (NodeInfo nodeInfo : nodes) {
-                clusterInfo.httpAdresses.add(nodeInfo.getInfo(HttpInfo.class).address().publishAddress());
+                clusterInfo.httpAddresses.add(nodeInfo.getInfo(HttpInfo.class).address().publishAddress());
             }
         } catch (final ElasticsearchTimeoutException e) {
             throw new IOException("timeout, cluster does not respond to health request, cowardly refusing to continue with operations");

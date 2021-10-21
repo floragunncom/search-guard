@@ -117,7 +117,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
         RestHelper rh = nonSslRestHelper();
         Header spock = encodeBasicHeader("spock", "spock");
           
-        for (Iterator<TransportAddress> iterator = clusterInfo.httpAdresses.iterator(); iterator.hasNext();) {
+        for (Iterator<TransportAddress> iterator = clusterInfo.httpAddresses.iterator(); iterator.hasNext();) {
             TransportAddress TransportAddress = (TransportAddress) iterator.next();
             HttpResponse res = rh.executeRequest(new HttpGet("http://"+TransportAddress.getAddress()+":"+TransportAddress.getPort() + "/" + "_searchguard/authinfo?pretty=true"), spock);
             Assert.assertTrue(res.getBody().contains("spock"));
@@ -133,7 +133,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
             Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());   
         } 
         
-        for (Iterator<TransportAddress> iterator = clusterInfo.httpAdresses.iterator(); iterator.hasNext();) {
+        for (Iterator<TransportAddress> iterator = clusterInfo.httpAddresses.iterator(); iterator.hasNext();) {
             TransportAddress TransportAddress = (TransportAddress) iterator.next();
             log.debug("http://"+TransportAddress.getAddress()+":"+TransportAddress.getPort());
             HttpResponse res = rh.executeRequest(new HttpGet("http://"+TransportAddress.getAddress()+":"+TransportAddress.getPort() + "/" + "_searchguard/authinfo?pretty=true"), spock);
@@ -151,7 +151,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
             Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());   
         }
         
-        for (Iterator<TransportAddress> iterator = clusterInfo.httpAdresses.iterator(); iterator.hasNext();) {
+        for (Iterator<TransportAddress> iterator = clusterInfo.httpAddresses.iterator(); iterator.hasNext();) {
             TransportAddress TransportAddress = (TransportAddress) iterator.next();
             HttpResponse res = rh.executeRequest(new HttpGet("http://"+TransportAddress.getAddress()+":"+TransportAddress.getPort() + "/" + "_searchguard/authinfo?pretty=true"));
             log.debug(res.getBody());

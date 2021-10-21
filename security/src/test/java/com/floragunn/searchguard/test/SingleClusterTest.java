@@ -58,7 +58,7 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
     private Settings ccs(Settings nodeOverride) throws Exception {
         if(withRemoteCluster) {
         remoteClusterHelper = new ClusterHelper("crl2_n"+num.incrementAndGet()+"_f"+System.getProperty("forkno")+"_t"+System.nanoTime());
-        ClusterInfo cl2Info = remoteClusterHelper.startCluster(minimumSearchGuardSettings(Settings.EMPTY), ClusterConfiguration.SINGLENODE);
+        ClusterInfo cl2Info = remoteClusterHelper.startCluster(minimumSearchGuardSettings(Settings.EMPTY), ClusterConfiguration.SINGLE_NODE);
         Settings.Builder builder = Settings.builder()
                 .put(nodeOverride)
                 .putList("cluster.remote.cross_cluster_two.seeds", cl2Info.nodeHost+":"+cl2Info.nodePort);

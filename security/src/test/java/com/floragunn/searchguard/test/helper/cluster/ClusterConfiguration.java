@@ -44,21 +44,21 @@ public enum ClusterConfiguration {
     DEFAULT(new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true)),
 
     //1 node (1md)
-    SINGLENODE(new NodeSettings(true, true)),
+    SINGLE_NODE(new NodeSettings(true, true)),
 
     //4 node (1m, 2d, 1c)
-    CLIENTNODE(new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true), new NodeSettings(false, false)),
+    CLIENT_NODE(new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true), new NodeSettings(false, false)),
 
     THREE_MASTERS(new NodeSettings(true, false), new NodeSettings(true, false), new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true)),
     
     //3 nodes (1m, 2d) plus additional UserInjectorPlugin
-    USERINJECTOR(new NodeSettings(true, false, Lists.newArrayList(UserInjectorPlugin.class)),
+    USER_INJECTOR(new NodeSettings(true, false, Lists.newArrayList(UserInjectorPlugin.class)),
             new NodeSettings(false, true, Lists.newArrayList(UserInjectorPlugin.class)),
             new NodeSettings(false, true, Lists.newArrayList(UserInjectorPlugin.class)));
 
-    private List<NodeSettings> nodeSettings = new LinkedList<>();
+    private final List<NodeSettings> nodeSettings = new LinkedList<>();
 
-    private ClusterConfiguration(NodeSettings... settings) {
+    ClusterConfiguration(NodeSettings... settings) {
         nodeSettings.addAll(Arrays.asList(settings));
     }
 

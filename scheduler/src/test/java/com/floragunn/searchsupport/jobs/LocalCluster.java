@@ -100,7 +100,7 @@ public class LocalCluster extends ExternalResource {
         try {
             final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 
-            Settings tcSettings = Settings.builder().put("cluster.name", clusterInfo.clustername)
+            Settings tcSettings = Settings.builder().put("cluster.name", clusterInfo.clusterName)
                     .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
                     .put("searchguard.ssl.transport.enforce_hostname_verification", false)
                     .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "kirk-keystore.jks"))
@@ -118,7 +118,7 @@ public class LocalCluster extends ExternalResource {
         try {
             final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 
-            Settings tcSettings = Settings.builder().put("cluster.name", clusterInfo.clustername)
+            Settings tcSettings = Settings.builder().put("cluster.name", clusterInfo.clusterName)
                     .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
                     .put("searchguard.ssl.transport.enforce_hostname_verification", false)
                     .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
@@ -278,7 +278,7 @@ public class LocalCluster extends ExternalResource {
         }
 
         public Builder singleNode() {
-            this.clusterConfiguration = ClusterConfiguration.SINGLENODE;
+            this.clusterConfiguration = ClusterConfiguration.SINGLE_NODE;
             return this;
         }
 

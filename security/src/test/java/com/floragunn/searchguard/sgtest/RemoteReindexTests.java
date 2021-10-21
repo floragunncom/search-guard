@@ -84,7 +84,7 @@ public class RemoteReindexTests extends AbstractSGUnitTest{
         
         try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         String reindex = "{"+

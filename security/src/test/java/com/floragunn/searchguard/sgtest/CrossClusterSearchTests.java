@@ -99,9 +99,9 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("nagilum","nagilum")).getBody();
@@ -109,9 +109,9 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         HttpResponse ccs = null;
@@ -157,9 +157,9 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("twitter").alias("coordalias"))).actionGet();
 
         }
@@ -169,9 +169,9 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("twitter").alias("remotealias"))).actionGet();
 
         }
@@ -328,9 +328,9 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("twitter").alias("coordalias"))).actionGet();
 
         }
@@ -340,9 +340,9 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twutter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("twitter").alias("remotealias"))).actionGet();
 
         }
@@ -509,7 +509,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         HttpResponse ccs = null;
@@ -537,15 +537,15 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("coordinating").type("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("abc").type("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         
         try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("remote").type("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         HttpResponse ccs = null;
@@ -617,20 +617,20 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("coordinating").type("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("abc").type("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twitter").type("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         
         try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("remote").type("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             
             tc.index(new IndexRequest("analytics").type("analytics").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         HttpResponse ccs = null;
@@ -707,15 +707,15 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("coordinating").type("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("abc").type("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         
         try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("remote").type("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         HttpResponse ccs = null;
@@ -772,20 +772,20 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         try (Client tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("coordinating").type("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("abc").type("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("twitter").type("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl1Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         
         try (Client tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
             tc.index(new IndexRequest("remote").type("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
             
             tc.index(new IndexRequest("analytics").type("analytics").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+                    .source("{\"cluster\": \""+cl2Info.clusterName +"\"}", XContentType.JSON)).actionGet();
         }
         
         HttpResponse ccs = null;

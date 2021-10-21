@@ -45,7 +45,7 @@ public class SystemIntegratorsTests extends SingleClusterTest {
                 .put("http.type", "com.floragunn.searchguard.http.UserInjectingServerTransport")
                 .build();
                       
-        setup(settings, ClusterConfiguration.USERINJECTOR);
+        setup(settings, ClusterConfiguration.USER_INJECTOR);
         
         final RestHelper rh = nonSslRestHelper();
         // username|role1,role2|remoteIP|attributes
@@ -89,7 +89,7 @@ public class SystemIntegratorsTests extends SingleClusterTest {
                 .put("http.type", "com.floragunn.searchguard.http.UserInjectingServerTransport")
                 .build();
                       
-        setup(settings, ClusterConfiguration.USERINJECTOR);
+        setup(settings, ClusterConfiguration.USER_INJECTOR);
         
         final RestHelper rh = nonSslRestHelper();
         // username|role1,role2|remoteIP|attributes
@@ -186,7 +186,7 @@ public class SystemIntegratorsTests extends SingleClusterTest {
                 .put("http.type", "com.floragunn.searchguard.http.UserInjectingServerTransport")
                 .build();
                       
-        setup(settings, ClusterConfiguration.USERINJECTOR);
+        setup(settings, ClusterConfiguration.USER_INJECTOR);
         
         final RestHelper rh = nonSslRestHelper();
         // username|role1,role2|remoteIP|attributes
@@ -207,7 +207,7 @@ public class SystemIntegratorsTests extends SingleClusterTest {
               .put("http.type", "com.floragunn.searchguard.http.UserInjectingServerTransport")
               .build();
                     
-      setup(settings, ClusterConfiguration.USERINJECTOR);
+      setup(settings, ClusterConfiguration.USER_INJECTOR);
       
       final RestHelper rh = nonSslRestHelper();
       HttpResponse resc;
@@ -235,7 +235,7 @@ public class SystemIntegratorsTests extends SingleClusterTest {
                 .put("http.type", "com.floragunn.searchguard.http.UserInjectingServerTransport")
                 .build();
                       
-        setup(settings, ClusterConfiguration.USERINJECTOR);
+        setup(settings, ClusterConfiguration.USER_INJECTOR);
         
         final RestHelper rh = nonSslRestHelper();
         HttpResponse resc;

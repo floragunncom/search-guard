@@ -125,7 +125,7 @@ public abstract class AbstractSGUnitTest {
 
         Settings.Builder settingsBuilder = Settings.builder();
 
-        settingsBuilder.put("cluster.name", info.clustername);
+        settingsBuilder.put("cluster.name", info.clusterName);
         settingsBuilder.put("searchguard.ssl.transport.enforce_hostname_verification", false);
 
         if (initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH) == null
@@ -162,7 +162,7 @@ public abstract class AbstractSGUnitTest {
         try {
             final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 
-            Settings tcSettings = Settings.builder().put("cluster.name", info.clustername)
+            Settings tcSettings = Settings.builder().put("cluster.name", info.clusterName)
                     .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
                     .put("searchguard.ssl.transport.enforce_hostname_verification", false)
                     .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + keyStore))
@@ -243,12 +243,7 @@ public abstract class AbstractSGUnitTest {
     }
 
     protected NodeSettingsSupplier minimumSearchGuardSettings(Settings other) {
-        return new NodeSettingsSupplier() {
-            @Override
-            public Settings get(int i) {
-                return minimumSearchGuardSettingsBuilder(i, false, hasCustomTransportSettings(other)).put(other).build();
-            }
-        };
+        return nodeNumber -> minimumSearchGuardSettingsBuilder(nodeNumber, false, hasCustomTransportSettings(other)).put(other).build();
     }
 
     protected boolean hasCustomTransportSettings(Settings customSettings) {
@@ -256,12 +251,7 @@ public abstract class AbstractSGUnitTest {
     }
 
     protected NodeSettingsSupplier minimumSearchGuardSettingsSslOnly(Settings other) {
-        return new NodeSettingsSupplier() {
-            @Override
-            public Settings get(int i) {
-                return minimumSearchGuardSettingsBuilder(i, true, hasCustomTransportSettings(other)).put(other).build();
-            }
-        };
+        return nodeNumber -> minimumSearchGuardSettingsBuilder(nodeNumber, true, hasCustomTransportSettings(other)).put(other).build();
     }
 
     protected void initialize(ClusterInfo info) {

@@ -62,9 +62,9 @@ public class SgAdminMigrationTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-migrate");
-        argsAsList.add("data/"+clusterInfo.clustername+"_migration");
+        argsAsList.add("data/"+clusterInfo.clusterName +"_migration");
         argsAsList.add("-nhnv");
         
         
@@ -109,7 +109,7 @@ public class SgAdminMigrationTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-cd");
         argsAsList.add(new File("./sgconfig").getAbsolutePath()+"/v7");
         argsAsList.add("-nhnv");
@@ -124,9 +124,9 @@ public class SgAdminMigrationTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-migrate");
-        argsAsList.add("data/"+clusterInfo.clustername+"_migration");
+        argsAsList.add("data/"+clusterInfo.clusterName +"_migration");
         argsAsList.add("-nhnv");
         
         

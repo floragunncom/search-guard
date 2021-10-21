@@ -18,7 +18,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -73,7 +72,7 @@ public class AuthTokenServiceTest {
         clusterService = cluster.getInjectable(ClusterService.class);
         threadPool = cluster.getInjectable(ThreadPool.class);
         staticSgConfig = cluster.getInjectable(StaticSgConfig.class);
-        privilegedConfigClient = PrivilegedConfigClient.adapt(cluster.node().client());
+        privilegedConfigClient = PrivilegedConfigClient.adapt(cluster.getEsNode().client());
     }
 
     @Test

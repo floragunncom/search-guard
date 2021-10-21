@@ -26,16 +26,16 @@ public class ClusterInfo {
 	public int numNodes;
 	public String httpHost = null;
 	public int httpPort = -1;
-	public List<TransportAddress> httpAdresses = new ArrayList<TransportAddress>();
+	public List<TransportAddress> httpAddresses = new ArrayList<>();
 	public String nodeHost;
 	public int nodePort;
-	public String clustername;
+	public String clusterName;
     public List<String> tcpMasterPortsOnly;
     
     @Override
     public String toString() {
-        return "ClusterInfo [numNodes=" + numNodes + ", httpHost=" + httpHost + ", httpPort=" + httpPort + ", httpAdresses=" + httpAdresses
-                + ", nodeHost=" + nodeHost + ", nodePort=" + nodePort + ", clustername=" + clustername + ", tcpMasterPortsOnly=" + tcpMasterPortsOnly
+        return "ClusterInfo [numNodes=" + numNodes + ", httpHost=" + httpHost + ", httpPort=" + httpPort + ", httpAdresses=" + httpAddresses
+                + ", nodeHost=" + nodeHost + ", nodePort=" + nodePort + ", clustername=" + clusterName + ", tcpMasterPortsOnly=" + tcpMasterPortsOnly
                 + "]";
     }
 }

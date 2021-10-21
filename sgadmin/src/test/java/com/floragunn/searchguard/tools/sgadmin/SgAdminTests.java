@@ -50,7 +50,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-cd");
         argsAsList.add(new File("./sgconfig").getAbsolutePath());
         argsAsList.add("-nhnv");
@@ -77,7 +77,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-cd");
         argsAsList.add(new File("./legacy/sgconfig_v6").getAbsolutePath());
         argsAsList.add("-nhnv");
@@ -104,7 +104,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-cd");
         argsAsList.add(new File("./sgconfig").getAbsolutePath());
         argsAsList.add("-nhnv");
@@ -136,7 +136,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-f");
         argsAsList.add(new File("./sgconfig/sg_config.yml").getAbsolutePath());
         argsAsList.add("-t");
@@ -154,7 +154,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-f");
         argsAsList.add(new File("./sgconfig/sg_roles_mapping.yml").getAbsolutePath());
         argsAsList.add("-t");
@@ -172,7 +172,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-f");
         argsAsList.add(new File("./sgconfig/sg_tenants.yml").getAbsolutePath());
         argsAsList.add("-t");
@@ -190,7 +190,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-f");
         argsAsList.add(new File("./sgconfig/sg_blocks.yml").getAbsolutePath());
         argsAsList.add("-t");
@@ -224,7 +224,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-f");
         argsAsList.add(new File("./sgconfig/sg_config.yml").getAbsolutePath());
         argsAsList.add("-t");
@@ -242,7 +242,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-f");
         argsAsList.add(new File("./sgconfig/sg_roles_mapping.yml").getAbsolutePath());
         argsAsList.add("-t");
@@ -260,7 +260,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-f");
         argsAsList.add(new File("./sgconfig/sg_tenants.yml").getAbsolutePath());
         argsAsList.add("-t");
@@ -297,7 +297,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-f");
         argsAsList.add(new File("./legacy/sgconfig_v6/sg_config.yml").getAbsolutePath());
         argsAsList.add("-t");
@@ -331,7 +331,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-f");
         argsAsList.add(FileHelper.getAbsoluteFilePathFromClassPath(prefix + "sg_roles_invalidxcontent.yml").toFile().getAbsolutePath());
         argsAsList.add("-t");
@@ -379,7 +379,7 @@ public class SgAdminTests extends SingleClusterTest {
         argsAsList.add("-p");
         argsAsList.add(String.valueOf(clusterInfo.nodePort));
         argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
+        argsAsList.add(clusterInfo.clusterName);
         argsAsList.add("-rl");
         argsAsList.add("-nhnv");
 

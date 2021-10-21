@@ -27,7 +27,7 @@ public class BksTest extends SingleClusterTest {
                 .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("ssl/truststore.jks")).build();
 
         try {
-            setupSslOnlyMode(settings, ClusterConfiguration.SINGLENODE);
+            setupSslOnlyMode(settings, ClusterConfiguration.SINGLE_NODE);
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(e.toString(), e.getCause().getCause().getMessage().contains("Keystores of type BKS-V1 are not supported"));

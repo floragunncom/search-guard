@@ -67,7 +67,7 @@ public class SlowIntegrationTests extends SingleClusterTest {
         
         final Settings tcSettings = Settings.builder()
                 .put(minimumSearchGuardSettings(Settings.EMPTY).get(0))
-                .put("cluster.name", clusterInfo.clustername)
+                .put("cluster.name", clusterInfo.clusterName)
                 .put("node.data", false)
                 .put("node.master", false)
                 .put("node.ingest", false)
@@ -95,7 +95,7 @@ public class SlowIntegrationTests extends SingleClusterTest {
         
         final Settings tcSettings = Settings.builder()
                 .put(minimumSearchGuardSettings(Settings.EMPTY).get(0))
-                .put("cluster.name", clusterInfo.clustername)
+                .put("cluster.name", clusterInfo.clusterName)
                 .put("node.data", false)
                 .put("node.master", false)
                 .put("node.ingest", false)
@@ -125,7 +125,7 @@ public class SlowIntegrationTests extends SingleClusterTest {
      
         final Settings tcSettings = Settings.builder()
                 .put(minimumSearchGuardSettings(Settings.EMPTY).get(0))
-                .put("cluster.name", clusterInfo.clustername)
+                .put("cluster.name", clusterInfo.clusterName)
                 .put("node.data", false)
                 .put("node.master", false)
                 .put("node.ingest", false)
