@@ -29,6 +29,7 @@ import java.io.*;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
@@ -36,6 +37,23 @@ import java.security.KeyStore;
 public class FileHelper {
 
 	protected final static Logger log = LogManager.getLogger(FileHelper.class);
+
+	public static File createTempDirectory(String directoryNamePrefix) {
+		try {
+			return Files.createTempDirectory(directoryNamePrefix).toFile();
+		} catch (IOException e) {
+			log.error("Failed to create temp directory with prefix: {}", directoryNamePrefix, e);
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static void deleteDirectory(File directory) {
+		try {
+			FileUtils.deleteDirectory(directory);
+		} catch (IOException e) {
+			log.warn("Error while deleting {}", directory, e);
+		}
+	}
 
 	public static KeyStore getKeystoreFromClassPath(final String fileNameFromClasspath, String password) throws Exception {
 	    Path path = getAbsoluteFilePathFromClassPath(fileNameFromClasspath);

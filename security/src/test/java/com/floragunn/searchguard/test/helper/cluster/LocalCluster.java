@@ -85,20 +85,21 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     //todo think about calling 'close;
     @Override
     protected void after() {
-        if (localEsCluster != null && localEsCluster.isStarted()) {
-            try {
-                Thread.sleep(1234);
-                localEsCluster.destroy();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            } finally {
-                localEsCluster = null;
-            }
-        }
+        close();
+//        if (localEsCluster != null && localEsCluster.isStarted()) {
+//            try {
+//                Thread.sleep(1234);
+//                localEsCluster.destroy();
+//            } catch (Exception e) {
+//                throw new RuntimeException(e);
+//            } finally {
+//                localEsCluster = null;
+//            }
+//        }
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         if (localEsCluster != null && localEsCluster.isStarted()) {
             try {
                 Thread.sleep(100);
@@ -120,7 +121,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     }
 
     public List<LocalEsCluster.Node> nodes() {
-        return this.localEsCluster.allNodes();
+        return this.localEsCluster.getAllNodes();
     }
 
     public LocalEsCluster.Node getNodeByName(String name) {

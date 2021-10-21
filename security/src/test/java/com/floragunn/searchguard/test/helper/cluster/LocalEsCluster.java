@@ -19,15 +19,13 @@ package com.floragunn.searchguard.test.helper.cluster;
 
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
-import com.floragunn.searchguard.test.helper.network.PortAllocator;
+import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.SSLContextProvider;
-import com.floragunn.searchguard.test.helper.rest.StaticCertificatesBasedSSLContextProvider;
+import com.floragunn.searchguard.test.helper.utils.UnitTestForkNumberProvider;
 import com.google.common.net.InetAddresses;
-import org.apache.commons.io.FileUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.message.BasicHeader;
-import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchTimeoutException;
@@ -63,6 +61,9 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.floragunn.searchguard.test.helper.network.PortAllocator.TCP;
 
 /**
  * This is the SG-agnostic and ES-specific part of LocalCluster
@@ -79,61 +80,53 @@ public class LocalEsCluster {
     private final ClusterConfiguration clusterConfiguration;
     private final NodeSettingsSupplier nodeSettingsSupplier;
     private final List<Class<? extends Plugin>> additionalPlugins;
-    private File clusterHomeDir;
     private final List<Node> allNodes = new ArrayList<>();
     private final List<Node> masterNodes = new ArrayList<>();
     private final List<Node> dataNodes = new ArrayList<>();
     private final List<Node> clientNodes = new ArrayList<>();
     private final SSLContextProvider sslContextSupplier;
 
+    private File clusterHomeDir;
     private List<String> seedHosts;
     private List<String> initialMasterHosts;
-    private TimeValue timeout = TimeValue.timeValueSeconds(10);
     private int retry = 0;
     private boolean started;
 
-    public LocalEsCluster(String clustername, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
+    public LocalEsCluster(String clusterName, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
                           List<Class<? extends Plugin>> additionalPlugins, SSLContextProvider sslContextSupplier) {
-        super();
-        this.clusterName = clustername;
+        this.clusterName = clusterName;
         this.clusterConfiguration = clusterConfiguration;
         this.nodeSettingsSupplier = nodeSettingsSupplier;
         this.additionalPlugins = additionalPlugins;
-        try {
-            this.clusterHomeDir = Files.createTempDirectory("sg_local_cluster_" + clustername).toFile();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        this.clusterHomeDir = FileHelper.createTempDirectory("sg_local_cluster_" + clusterName);
         this.sslContextSupplier = sslContextSupplier;
     }
 
     public void start() throws Exception {
+        log.info("Starting {}", clusterName);
 
-        if (log.isDebugEnabled()) {
-            log.debug("Starting " + clusterName);
-        }
-
-        int forkNumber = getUnitTestForkNumber();
+        int forkNumber = UnitTestForkNumberProvider.getUnitTestForkNumber();
         int masterNodeCount = clusterConfiguration.getMasterNodes();
         int nonMasterNodeCount = clusterConfiguration.getDataNodes() + clusterConfiguration.getClientNodes();
 
         // TODO expiry hier festlegel
-        SortedSet<Integer> masterNodeTransportPorts = PortAllocator.TCP.allocate(clusterName, Math.max(masterNodeCount, 4),
-                5000 + forkNumber * 1000 + 300);
-        SortedSet<Integer> masterNodeHttpPorts = PortAllocator.TCP.allocate(clusterName, masterNodeCount, 5000 + forkNumber * 1000 + 200);
+        SortedSet<Integer> masterNodeTransportPorts = TCP.allocate(clusterName, Math.max(masterNodeCount, 4), 5000 + forkNumber * 1000 + 300);
+        SortedSet<Integer> masterNodeHttpPorts = TCP.allocate(clusterName, masterNodeCount, 5000 + forkNumber * 1000 + 200);
 
         this.seedHosts = toHostList(masterNodeTransportPorts);
         this.initialMasterHosts = toHostList(masterNodeTransportPorts.stream().limit(masterNodeCount).collect(Collectors.toSet()));
 
         started = true;
 
-        CompletableFuture<Void> masterNodeFuture = startNodes(clusterConfiguration.getMasterNodeSettings(), masterNodeTransportPorts,
+        CompletableFuture<Void> masterNodeFuture = startNodes(clusterConfiguration.getMasterNodeSettings(),
+                masterNodeTransportPorts,
                 masterNodeHttpPorts);
 
-        SortedSet<Integer> nonMasterNodeTransportPorts = PortAllocator.TCP.allocate(clusterName, nonMasterNodeCount, 5000 + forkNumber * 1000 + 310);
-        SortedSet<Integer> nonMasterNodeHttpPorts = PortAllocator.TCP.allocate(clusterName, nonMasterNodeCount, 5000 + forkNumber * 1000 + 210);
+        SortedSet<Integer> nonMasterNodeTransportPorts = TCP.allocate(clusterName, nonMasterNodeCount, 5000 + forkNumber * 1000 + 310);
+        SortedSet<Integer> nonMasterNodeHttpPorts = TCP.allocate(clusterName, nonMasterNodeCount, 5000 + forkNumber * 1000 + 210);
 
-        CompletableFuture<Void> otherNodeFuture = startNodes(clusterConfiguration.getNonMasterNodeSettings(), nonMasterNodeTransportPorts,
+        CompletableFuture<Void> otherNodeFuture = startNodes(clusterConfiguration.getNonMasterNodeSettings(),
+                nonMasterNodeTransportPorts,
                 nonMasterNodeHttpPorts);
 
         CompletableFuture.allOf(masterNodeFuture, otherNodeFuture).join();
@@ -145,30 +138,36 @@ public class LocalEsCluster {
             return;
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("Startup finished. Waiting for GREEN");
-        }
+        log.info("Startup finished. Waiting for GREEN");
 
-        waitForCluster(ClusterHealthStatus.GREEN, timeout, allNodes.size());
+        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(10), allNodes.size());
         putDefaultTemplate();
 
-        if (log.isInfoEnabled()) {
-            log.info("Started: " + this);
-        }
+        log.info("Started: {}", this);
 
     }
 
+    public String getClusterName() {
+        return clusterName;
+    }
+
+    public boolean isStarted() {
+        return started;
+    }
+
     private void putDefaultTemplate() {
-        String defaultTemplate = "{\n" //
-                + "          \"index_patterns\": [\"*\"],\n" //
-                + "          \"order\": -1,\n" + "          \"settings\": {\n" //
-                + "            \"number_of_shards\": \"5\",\n" //
-                + "            \"number_of_replicas\": \"1\"\n"//
+        String defaultTemplate = "{\n"
+                + "          \"index_patterns\": [\"*\"],\n"
+                + "          \"order\": -1,\n"
+                + "          \"settings\": {\n"
+                + "            \"number_of_shards\": \"5\",\n"
+                + "            \"number_of_replicas\": \"1\"\n"
                 + "          }\n" //
                 + "        }";
 
         AcknowledgedResponse templateAck = clientNode().getInternalNodeClient().admin().indices()
-                .putTemplate(new PutIndexTemplateRequest("default").source(defaultTemplate, XContentType.JSON)).actionGet();
+                .putTemplate(new PutIndexTemplateRequest("default").source(defaultTemplate, XContentType.JSON))
+                .actionGet();
 
         if (!templateAck.isAcknowledged()) {
             throw new RuntimeException("Default template could not be created");
@@ -188,30 +187,10 @@ public class LocalEsCluster {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
-    private int getUnitTestForkNumber() {
-
-        String forkno = System.getProperty("forkno");
-
-        if (forkno != null && forkno.length() > 0) {
-            return Integer.parseInt(forkno.split("_")[1]);
-        } else {
-            return 42;
-        }
-    }
-
     public void stop() {
-
-        for (Node node : clientNodes) {
-            node.stop();
-        }
-
-        for (Node node : dataNodes) {
-            node.stop();
-        }
-
-        for (Node node : masterNodes) {
-            node.stop();
-        }
+        clientNodes.forEach(Node::stop);
+        dataNodes.forEach(Node::stop);
+        masterNodes.forEach(Node::stop);
     }
 
     public void destroy() {
@@ -219,12 +198,7 @@ public class LocalEsCluster {
         clientNodes.clear();
         dataNodes.clear();
         masterNodes.clear();
-
-        try {
-            FileUtils.deleteDirectory(clusterHomeDir);
-        } catch (IOException e) {
-            log.warn("Error while deleting " + clusterHomeDir, e);
-        }
+        FileHelper.deleteDirectory(clusterHomeDir);
     }
 
     public Node clientNode() {
@@ -236,13 +210,8 @@ public class LocalEsCluster {
     }
 
     private boolean isNodeFailedWithPortCollision() {
-        for (Node node : allNodes) {
-            if (node.isPortCollision()) {
-                return true;
-            }
-        }
-
-        return false;
+        return allNodes.stream()
+                .anyMatch(Node::isPortCollision);
     }
 
     private void retry() throws Exception {
@@ -266,41 +235,26 @@ public class LocalEsCluster {
     }
 
     @SafeVarargs
-    private static final Node findRunningNode(List<Node> nodes, List<Node>... moreNodes) {
-        for (Node node : nodes) {
-            if (node.isRunning()) {
-                return node;
-            }
-        }
-
-        if (moreNodes != null && moreNodes.length > 0) {
-            for (List<Node> nodesList : moreNodes) {
-                for (Node node : nodesList) {
-                    if (node.isRunning()) {
-                        return node;
-                    }
-                }
-            }
-        }
-
-        return null;
+    private static Node findRunningNode(List<Node> nodes, List<Node>... moreNodes) {
+        return Stream.concat(Stream.of(nodes), Stream.of(moreNodes))
+                .flatMap(Collection::stream)
+                .filter(Node::isRunning)
+                .findFirst()
+                .orElse(null);
     }
 
-    public List<Node> allNodes() {
+    public List<Node> getAllNodes() {
         return Collections.unmodifiableList(allNodes);
     }
 
     public Node getNodeByName(String name) {
-        for (Node node : allNodes) {
-            if (node.getNodeName().equals(name)) {
-                return node;
-            }
-        }
-
-        throw new RuntimeException(
-                "No such node name: " + name + "; available: " + allNodes.stream().map((n) -> n.getNodeName()).collect(Collectors.toList()));
+        return allNodes.stream()
+                .filter(node -> node.getNodeName().equals(name))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("No such node with name: " + name + "; available: " + allNodes.stream().map(Node::getNodeName).collect(Collectors.toList())));
     }
 
+    //todo check
     public ClusterInfo waitForCluster(ClusterHealthStatus status, TimeValue timeout, int expectedNodeCount) throws IOException {
 
         ClusterInfo clusterInfo = new ClusterInfo();
@@ -388,9 +342,29 @@ public class LocalEsCluster {
     }
 
     private static List<String> toHostList(Collection<Integer> ports) {
-        return ports.stream().map(s -> "127.0.0.1:" + s).collect(Collectors.toList());
+        return ports.stream().map(port -> "127.0.0.1:" + port).collect(Collectors.toList());
     }
 
+    private String createNextNodeName(NodeSettings nodeSettings) {
+        List<Node> nodes;
+        String nodeType;
+
+        if (nodeSettings.masterNode) {
+            nodes = this.masterNodes;
+            nodeType = "master";
+        } else if (nodeSettings.dataNode) {
+            nodes = this.dataNodes;
+            nodeType = "data";
+        } else {
+            nodes = this.clientNodes;
+            nodeType = "client";
+        }
+
+        return nodeType + "_" + nodes.size();
+    }
+
+
+    //todo check
     public class Node {
         private final String nodeName;
         private final NodeSettings nodeSettings;
@@ -452,7 +426,7 @@ public class LocalEsCluster {
                         }
 
                         node = null;
-                        PortAllocator.TCP.blacklist(transportPort, httpPort);
+                        TCP.blacklist(transportPort, httpPort);
 
                         completableFuture.complete("retry");
 
@@ -573,32 +547,6 @@ public class LocalEsCluster {
 
             return new RestHighLevelClient(builder);
         }
-    }
-
-    private String createNextNodeName(NodeSettings nodeSettings) {
-        List<Node> nodes;
-        String nodeType;
-
-        if (nodeSettings.masterNode) {
-            nodes = this.masterNodes;
-            nodeType = "master";
-        } else if (nodeSettings.dataNode) {
-            nodes = this.dataNodes;
-            nodeType = "data";
-        } else {
-            nodes = this.clientNodes;
-            nodeType = "client";
-        }
-
-        return nodeType + "_" + nodes.size();
-    }
-
-    public String getClusterName() {
-        return clusterName;
-    }
-
-    public boolean isStarted() {
-        return started;
     }
 
 }
