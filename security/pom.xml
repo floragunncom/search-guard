@@ -8,8 +8,8 @@
 	the specific language governing permissions and limitations under the License. -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
@@ -68,7 +68,7 @@
 			<artifactId>bcpg-jdk15on</artifactId>
 			<version>${bc.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcpkix-jdk15on</artifactId>
@@ -84,9 +84,9 @@
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
-			<scope>provided</scope>				
+			<scope>provided</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.elasticsearch.client</groupId>
 			<artifactId>elasticsearch-rest-high-level-client</artifactId>
@@ -102,12 +102,12 @@
 					<artifactId>elasticsearch</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>		
-		
+		</dependency>
+
 		<dependency>
-    		<groupId>org.elasticsearch.plugin</groupId>
-    		<artifactId>elasticsearch-scripting-painless-spi</artifactId>
-    		<scope>provided</scope>
+			<groupId>org.elasticsearch.plugin</groupId>
+			<artifactId>elasticsearch-scripting-painless-spi</artifactId>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -115,7 +115,7 @@
 			<artifactId>search-guard-suite-support</artifactId>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-suite-support</artifactId>
@@ -127,7 +127,7 @@
 			<groupId>com.floragunn</groupId>
 			<artifactId>codova-sg</artifactId>
 			<scope>provided</scope>
-		</dependency>		
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
@@ -146,7 +146,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
 			<artifactId>json-path</artifactId>
@@ -159,8 +159,8 @@
 				<exclusion>
 					<groupId>org.ow2.asm</groupId>
 					<artifactId>asm</artifactId>
-				</exclusion>				
-			</exclusions>			
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -183,12 +183,12 @@
 				<exclusion>
 					<groupId>com.sun.activation</groupId>
 					<artifactId>javax.activation</artifactId>
-				</exclusion>	
+				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.woodstox</groupId>
 					<artifactId>woodstox-core</artifactId>
-				</exclusion>												
-			</exclusions>			
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -205,13 +205,13 @@
 		</dependency>
 
 		<dependency>
-    		<groupId>org.apache.httpcomponents</groupId>
-    		<artifactId>httpcore</artifactId>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore</artifactId>
 		</dependency>
-			
+
 		<dependency>
-    		<groupId>org.apache.httpcomponents</groupId>
-    		<artifactId>httpasyncclient</artifactId>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpasyncclient</artifactId>
 		</dependency>
 
 		<!-- Only test scoped dependencies hereafter -->
@@ -272,7 +272,7 @@
 			<groupId>io.github.hakky54</groupId>
 			<artifactId>sslcontext-kickstart-for-pem</artifactId>
 			<version>7.0.2</version>
-<!--			<scope>test</scope>-->
+			<!--			<scope>test</scope>-->
 		</dependency>
 
 		<dependency>
@@ -315,7 +315,7 @@
 			<version>${mockito.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.github.stephenc.jcip</groupId>
 			<artifactId>jcip-annotations</artifactId>
@@ -323,4 +323,28 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>org/elasticsearch/node/PluginAwareNode.class</include>
+								<include>com/floragunn/searchguard/test/**</include>
+								<include>com/floragunn/searchguard/configuration/PrivilegesInterceptorImpl.class</include>
+								<include>sg-plugin-security.policy</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 </project>
