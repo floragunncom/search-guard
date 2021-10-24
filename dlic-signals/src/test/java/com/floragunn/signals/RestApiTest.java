@@ -1,6 +1,5 @@
 package com.floragunn.signals;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;

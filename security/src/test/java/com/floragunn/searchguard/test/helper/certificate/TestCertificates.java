@@ -92,7 +92,7 @@ public class TestCertificates {
 
         public TestCertificatesBuilder(TestCertificateFactory testCertificateFactory) {
             this.testCertificateFactory = testCertificateFactory;
-            this.resources = FileHelper.createDirectoryInResources("tempCert" + UUID.randomUUID().toString().substring(0, 10));
+            this.resources = FileHelper.createTempDirectory("certs");
         }
 
         public TestCertificates build() {

@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.ActionListener;

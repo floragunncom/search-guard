@@ -3,7 +3,6 @@ package com.floragunn.searchguard.dlic.dlsfls;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;

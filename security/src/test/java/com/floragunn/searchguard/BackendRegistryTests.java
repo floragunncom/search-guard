@@ -20,7 +20,6 @@ package com.floragunn.searchguard;
 import java.net.InetAddress;
 import java.util.Arrays;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;

@@ -17,7 +17,6 @@ package com.floragunn.searchguard.dlic.rest.api;
 import java.net.URLEncoder;
 import java.util.List;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;

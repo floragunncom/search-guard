@@ -1,6 +1,5 @@
 package com.floragunn.dlic.auth.internal;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -17,8 +16,6 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-
-import static com.floragunn.searchguard.test.helper.certificate.NodeCertificateType.transport_and_rest;
 
 public class InternalAuthenticationBackendIntegrationTests {
 

@@ -17,7 +17,6 @@ package com.floragunn.searchguard.multitenancy.test;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;

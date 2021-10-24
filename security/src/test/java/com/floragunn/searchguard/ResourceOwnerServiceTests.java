@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;

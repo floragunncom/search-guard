@@ -1,15 +1,14 @@
 package com.floragunn.signals.enterprise.watch.action.handlers.pagerduty;
 
-import java.io.IOException;
-
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.accounts.Account;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+
+import java.io.IOException;
 
 public class PagerDutyAccount extends Account {
 
@@ -22,8 +21,7 @@ public class PagerDutyAccount extends Account {
         this.integrationKey = integrationKey;
     }
 
-    @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+    @Override public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
         builder.field("type", TYPE);
         builder.field("_name", getId());
@@ -37,14 +35,12 @@ public class PagerDutyAccount extends Account {
         return builder;
     }
 
-    @Override
-    public SearchSourceBuilder getReferencingWatchesQuery() {
+    @Override public SearchSourceBuilder getReferencingWatchesQuery() {
         return new SearchSourceBuilder().query(QueryBuilders.boolQuery().must(QueryBuilders.termQuery("actions.type", "pagerduty"))
                 .must(QueryBuilders.termQuery("actions.account", getId())));
     }
 
-    @Override
-    public String getType() {
+    @Override public String getType() {
         return "pagerduty";
     }
 
@@ -69,8 +65,7 @@ public class PagerDutyAccount extends Account {
             super(PagerDutyAccount.TYPE);
         }
 
-        @Override
-        protected PagerDutyAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors)
+        @Override protected PagerDutyAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors)
                 throws ConfigValidationException {
             PagerDutyAccount result = new PagerDutyAccount(vJsonNode.requiredString("integration_key"));
             result.setId(id);
@@ -81,8 +76,7 @@ public class PagerDutyAccount extends Account {
             return result;
         }
 
-        @Override
-        public Class<PagerDutyAccount> getImplClass() {
+        @Override public Class<PagerDutyAccount> getImplClass() {
             return PagerDutyAccount.class;
         }
     }

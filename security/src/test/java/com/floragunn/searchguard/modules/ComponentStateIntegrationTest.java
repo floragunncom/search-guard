@@ -1,6 +1,5 @@
 package com.floragunn.searchguard.modules;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.junit.ClassRule;
 import org.junit.Test;

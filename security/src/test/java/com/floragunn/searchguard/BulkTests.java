@@ -17,7 +17,6 @@
 
 package com.floragunn.searchguard;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;

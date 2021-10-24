@@ -19,7 +19,6 @@ package com.floragunn.signals;
 
 import java.util.concurrent.ExecutionException;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;

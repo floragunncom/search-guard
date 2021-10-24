@@ -17,7 +17,6 @@
 
 package com.floragunn.searchguard.configuration.secrets;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import org.junit.Assert;
 import org.junit.ClassRule;

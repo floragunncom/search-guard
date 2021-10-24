@@ -72,24 +72,6 @@ public class FileHelper {
         return getAbsoluteFilePathFromClassPath(null, fileNameFromClasspath);
     }
 
-	public static File createDirectoryInResources(String directory) {
-		try {
-			URL tempCertUrl = FileHelper.class.getClassLoader().getResource("");
-			File resourceDirectory = new File(URLDecoder.decode(tempCertUrl.getFile(), "UTF-8"));
-			resourceDirectory = new File(resourceDirectory, directory);
-
-			if (!resourceDirectory.exists()) {
-				boolean mkdirCreated = resourceDirectory.mkdir();
-				if(!mkdirCreated) {
-					throw new RuntimeException(String.format("Directory creation failed for: %s", resourceDirectory));
-				}
-			}
-			return resourceDirectory;
-		} catch (UnsupportedEncodingException e) {
-			throw new RuntimeException("Getting resources directory failed for: " + directory, e);
-		}
-	}
-
 	public static Path getAbsoluteFilePathFromClassPath(String resourceDirectory, String fileNameFromClasspath) throws FileNotFoundException {
         if (resourceDirectory != null) {
             if (resourceDirectory.endsWith("/")) {

@@ -2,7 +2,6 @@ package com.floragunn.signals;
 
 import java.net.URI;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
