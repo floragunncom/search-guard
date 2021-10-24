@@ -11,7 +11,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.crypto.digests.Blake2bDigest;
@@ -39,7 +38,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.TestData;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;

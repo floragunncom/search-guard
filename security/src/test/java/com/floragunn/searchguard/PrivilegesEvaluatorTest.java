@@ -36,8 +36,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import static com.floragunn.searchguard.test.RestMatchers.*;
-import static com.floragunn.searchguard.test.helper.certificate.NodeCertificateType.transport_and_rest;
+import static com.floragunn.searchguard.RestMatchers.*;
 import static org.hamcrest.Matchers.*;
 
 public class PrivilegesEvaluatorTest {

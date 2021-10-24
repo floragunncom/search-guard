@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.test;
+package com.floragunn.searchguard.user;
 
 import java.io.IOException;
 import java.util.regex.Matcher;

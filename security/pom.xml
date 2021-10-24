@@ -340,6 +340,8 @@
 								<include>com/floragunn/searchguard/test/**</include>
 								<include>com/floragunn/searchguard/configuration/PrivilegesInterceptorImpl.class</include>
 								<include>sg-plugin-security.policy</include>
+								<include>*.yml</include>
+								<include>mapping*.json</include>
 							</includes>
 						</configuration>
 					</execution>

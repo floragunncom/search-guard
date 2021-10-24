@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.test;
+package com.floragunn.searchguard.dlic.dlsfls;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;

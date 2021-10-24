@@ -1,8 +1,8 @@
 package com.floragunn.searchguard.user;
 
-import static com.floragunn.searchguard.test.SgMatchers.equalsAsJson;
-import static com.floragunn.searchguard.test.SgMatchers.getStringSegment;
-import static com.floragunn.searchguard.test.SgMatchers.segment;
+import static com.floragunn.searchguard.user.SgMatchers.equalsAsJson;
+import static com.floragunn.searchguard.user.SgMatchers.getStringSegment;
+import static com.floragunn.searchguard.user.SgMatchers.segment;
 
 import java.io.IOException;
 import java.util.Arrays;

@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.test;
+package com.floragunn.searchguard;
 
 import java.io.IOException;
 
