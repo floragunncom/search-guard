@@ -19,6 +19,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -354,14 +355,40 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         Map<String, Object> debugDetails = new HashMap<>();
 
         debugDetails.put("claims", claims.asMap());
-
+        debugDetails.put("user_mapping.subject", jsonSubjectPath);
+        
         if (jsonSubjectPath != null) {
             try {
-                subject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims.asMap()).read(jsonSubjectPath);
+                Object subjectObject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims.asMap()).read(jsonSubjectPath);
+                
+                if (subjectObject == null) {
+                    throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                        "The JWT contains a null subject", debugDetails));
+                }
+                
+                if (subjectObject instanceof Collection) {
+                    Collection<?> subjectCollection = (Collection<?>) subjectObject;
+
+                    if (subjectCollection.size() == 0) {
+                        throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                                "The subject array is empty", debugDetails));
+                    }
+
+                    if (subjectCollection.size() > 1) {
+                        throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                                "The subject array contains more than one element.", debugDetails));
+                    }
+
+                    subject = String.valueOf(subjectCollection.iterator().next());
+                } else {
+                    subject = String.valueOf(subjectObject);
+                }
+
+                
             } catch (PathNotFoundException e) {
                 log.error("The provided JSON path {} could not be found ", jsonSubjectPath.getPath());
                 throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                        "The configured JSON Path " + jsonSubjectPath.getPath() + " could not be found in the JWT", debugDetails));
+                        "The configured JSON Path could not be found in the JWT", debugDetails));
             }
         }
 
