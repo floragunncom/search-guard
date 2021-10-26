@@ -224,7 +224,7 @@ public class OidcAuthenticatorTest {
     @Test
     public void testRolesCollectionJsonPath() throws Exception {
         Map<String, Object> config = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "user_mapping.roles",
-                "$." + TestJwts.ROLES_CLAIM, "user_mapping.subject", "$.sub", "client_id", "Der Klient", "client_secret", "Das Geheimnis");
+                TestJwts.ROLES_CLAIM, "user_mapping.subject", "$.sub", "client_id", "Der Klient", "client_secret", "Das Geheimnis");
 
         OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
@@ -261,7 +261,7 @@ public class OidcAuthenticatorTest {
             AuthCredentials authCredentials = authenticator.extractCredentials(request);
             Assert.fail("Expected exception, got: " + authCredentials);
         } catch (CredentialsException e) {
-            Assert.assertTrue(e.getMessage(), e.getMessage().contains("The configured JSON Path $['subasd'] could not be found in the JWT"));
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("The configured JSON Path could not be found in the JWT"));
         }
     }
 
@@ -381,4 +381,51 @@ public class OidcAuthenticatorTest {
         Assert.assertEquals(TestJwts.MCCOY_SUBJECT.substring(0, 1), authCredentials.getUsername());
         Assert.assertEquals(2, authCredentials.getBackendRoles().size());
     }
+    
+
+    @Test
+    public void testSubjectJsonPathWithList() throws Exception {
+        Map<String, Object> config = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(),
+                "client_id", "Der Klient", "client_secret", "Das Geheimnis", "user_mapping.roles",
+                "roles", "user_mapping.subject", "n");
+        
+        OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+
+        String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_LIST_CLAIM_SIGNED_OCT_1);
+
+        Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
+                FRONTEND_BASE_URL);
+        AuthCredentials authCredentials = authenticator.extractCredentials(request);
+        
+        Assert.assertNotNull(authCredentials);
+        Assert.assertEquals("mcl", authCredentials.getUsername());
+        Assert.assertEquals(TestJwts.TEST_ROLES, authCredentials.getBackendRoles());
+    }
+
+    @Test
+    public void testSubjectJsonPathWithListSize2() throws Exception {
+        
+        Map<String, Object> config = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(),
+                "client_id", "Der Klient", "client_secret", "Das Geheimnis", "user_mapping.roles",
+                "roles", "user_mapping.subject", "n");
+        
+        OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+
+        String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_LIST_2_CLAIM_SIGNED_OCT_1);
+
+        Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
+                FRONTEND_BASE_URL);
+
+        try {
+            AuthCredentials authCredentials = authenticator.extractCredentials(request);
+            Assert.fail(authCredentials.toString());
+        } catch (CredentialsException e) {
+            Assert.assertEquals("The subject array contains more than one element.", e.getMessage());
+        }
+    }
+
 }
