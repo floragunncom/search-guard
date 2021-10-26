@@ -319,4 +319,30 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>org/elasticsearch/node/PluginAwareNode.class</include>
+								<include>com/floragunn/searchguard/test/**</include>
+								<include>com/floragunn/searchguard/configuration/PrivilegesInterceptorImpl.class</include>
+								<include>sg-plugin-security.policy</include>
+								<include>*.yml</include>
+								<include>mapping*.json</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 </project>
