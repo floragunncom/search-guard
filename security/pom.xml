@@ -66,22 +66,25 @@
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcpg-jdk15on</artifactId>
-			<version>${bc.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcpkix-jdk15on</artifactId>
-			<version>${bc.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk15on</artifactId>
+		</dependency>
+
 
 		<!-- provided scoped deps -->
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
-			<scope>provided</scope>				
+			<scope>provided</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.elasticsearch.client</groupId>
 			<artifactId>elasticsearch-rest-high-level-client</artifactId>
@@ -97,8 +100,8 @@
 					<artifactId>elasticsearch</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>		
-		
+		</dependency>
+
 		<dependency>
     		<groupId>org.elasticsearch.plugin</groupId>
     		<artifactId>elasticsearch-scripting-painless-spi</artifactId>
@@ -110,7 +113,7 @@
 			<artifactId>search-guard-suite-support</artifactId>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-suite-support</artifactId>
@@ -122,7 +125,7 @@
 			<groupId>com.floragunn</groupId>
 			<artifactId>codova-sg</artifactId>
 			<scope>provided</scope>
-		</dependency>		
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
@@ -141,7 +144,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
 			<artifactId>json-path</artifactId>
@@ -154,8 +157,8 @@
 				<exclusion>
 					<groupId>org.ow2.asm</groupId>
 					<artifactId>asm</artifactId>
-				</exclusion>				
-			</exclusions>			
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -178,12 +181,12 @@
 				<exclusion>
 					<groupId>com.sun.activation</groupId>
 					<artifactId>javax.activation</artifactId>
-				</exclusion>	
+				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.woodstox</groupId>
 					<artifactId>woodstox-core</artifactId>
-				</exclusion>												
-			</exclusions>			
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -203,7 +206,7 @@
     		<groupId>org.apache.httpcomponents</groupId>
     		<artifactId>httpcore</artifactId>
 		</dependency>
-			
+
 		<dependency>
     		<groupId>org.apache.httpcomponents</groupId>
     		<artifactId>httpasyncclient</artifactId>
@@ -256,6 +259,11 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<dependency>
+			<groupId>io.github.hakky54</groupId>
+			<artifactId>sslcontext-kickstart-for-pem</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>commons-validator</groupId>
@@ -303,7 +311,7 @@
 			<version>${mockito.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.github.stephenc.jcip</groupId>
 			<artifactId>jcip-annotations</artifactId>
