@@ -37,3 +37,7 @@ test.sh
 .vagrant/
 .flattened-pom.xml
 plugin/plugin-descriptor.properties
+
+### Intellij ###
+.idea/
+*.iml
