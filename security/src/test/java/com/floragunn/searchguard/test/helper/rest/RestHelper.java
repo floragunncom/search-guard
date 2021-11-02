@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
+ * Copyright 2015-2021 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -119,7 +119,7 @@ public class RestHelper {
 	public HttpResponse executeHeadRequest(final String request, Header... header) throws Exception {
         return executeRequest(new HttpHead(getHttpServerUri() + "/" + request), header);
     }
-	
+
 	public HttpResponse executeOptionsRequest(final String request) throws Exception {
         return executeRequest(new HttpOptions(getHttpServerUri() + "/" + request));
     }

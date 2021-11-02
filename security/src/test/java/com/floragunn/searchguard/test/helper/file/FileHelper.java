@@ -1,10 +1,10 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
- * 
+ * Copyright 2015-2021 floragunn GmbH
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.floragunn.searchguard.test.helper.file;
@@ -31,6 +31,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
@@ -50,26 +51,35 @@ import org.elasticsearch.common.xcontent.XContentType;
 
 public class FileHelper {
 
-	protected final static Logger log = LogManager.getLogger(FileHelper.class);
+    protected final static Logger log = LogManager.getLogger(FileHelper.class);
 
-	public static KeyStore getKeystoreFromClassPath(final String fileNameFromClasspath, String password) throws Exception {
-	    Path path = getAbsoluteFilePathFromClassPath(fileNameFromClasspath);
-	    if(path==null) {
-	        return null;
-	    }
-	    
-	    KeyStore ks = KeyStore.getInstance("JKS");
-	    try (FileInputStream fin = new FileInputStream(path.toFile())) {
-	        ks.load(fin, password==null||password.isEmpty()?null:password.toCharArray());
-	    }
-	    return ks;
-	}
+    public static File createTempDirectory(String directoryNamePrefix) {
+        try {
+            return Files.createTempDirectory(directoryNamePrefix).toFile();
+        } catch (IOException e) {
+            log.error("Failed to create temp directory with prefix: {}", directoryNamePrefix, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static KeyStore getKeystoreFromClassPath(final String fileNameFromClasspath, String password) throws Exception {
+        Path path = getAbsoluteFilePathFromClassPath(fileNameFromClasspath);
+        if (path == null) {
+            return null;
+        }
+
+        KeyStore ks = KeyStore.getInstance("JKS");
+        try (FileInputStream fin = new FileInputStream(path.toFile())) {
+            ks.load(fin, password == null || password.isEmpty() ? null : password.toCharArray());
+        }
+        return ks;
+    }
 
     public static Path getAbsoluteFilePathFromClassPath(String fileNameFromClasspath) throws FileNotFoundException {
         return getAbsoluteFilePathFromClassPath(null, fileNameFromClasspath);
     }
-	
-	public static Path getAbsoluteFilePathFromClassPath(String resourceDirectory, String fileNameFromClasspath) throws FileNotFoundException {
+
+    public static Path getAbsoluteFilePathFromClassPath(String resourceDirectory, String fileNameFromClasspath) throws FileNotFoundException {
         if (resourceDirectory != null) {
             if (resourceDirectory.endsWith("/")) {
                 fileNameFromClasspath = resourceDirectory + fileNameFromClasspath;
@@ -78,20 +88,20 @@ public class FileHelper {
             }
         }
 
-		URL fileUrl = FileHelper.class.getClassLoader().getResource(fileNameFromClasspath);
-		
-		if (fileUrl == null) {
-		    throw new FileNotFoundException("Could not locate " + fileNameFromClasspath);
-		}
-		
-		if (fileUrl.getProtocol().equals("file")) {
+        URL fileUrl = FileHelper.class.getClassLoader().getResource(fileNameFromClasspath);
+
+        if (fileUrl == null) {
+            throw new FileNotFoundException("Could not locate " + fileNameFromClasspath);
+        }
+
+        if (fileUrl.getProtocol().equals("file")) {
             try {
                 File file = new File(URLDecoder.decode(fileUrl.getFile(), "UTF-8"));
-                
+
                 if (!file.exists()) {
                     throw new FileNotFoundException("Could not locate " + fileNameFromClasspath + " at " + file);
                 }
-                
+
                 return Paths.get(file.getAbsolutePath());
             } catch (UnsupportedEncodingException e) {
                 throw new RuntimeException(e);
@@ -102,7 +112,7 @@ public class FileHelper {
                         FilenameUtils.getExtension(fileNameFromClasspath));
 
                 FileUtils.copyInputStreamToFile(fileUrl.openStream(), tempFile);
-                
+
                 return tempFile.toPath();
             } catch (IOException e) {
                 throw new RuntimeException("Error while making " + fileNameFromClasspath + " available as temp file", e);
@@ -110,45 +120,31 @@ public class FileHelper {
         } else {
             throw new RuntimeException("Unsupported scheme " + fileUrl);
         }
-	}
+    }
 
-	public static final String loadFile(final String file) throws IOException {
-		final StringWriter sw = new StringWriter();
-		
-		InputStream is = FileHelper.class.getResourceAsStream("/" + file);
-		
-		if (is == null) {
-		    throw new FileNotFoundException("Could not find resource in class path: " + file);
-		}
-		
-		IOUtils.copy(is, sw, StandardCharsets.UTF_8);
-		return sw.toString();
-	}
-	
-	public static void writeFile(String destFile, String content) throws IOException {
-	    FileWriter fw = new FileWriter(destFile, false);
-	    fw.write(content);
-	    fw.close();
-	}
-	
+    public static final String loadFile(final String file) throws IOException {
+        final StringWriter sw = new StringWriter();
+
+        InputStream is = FileHelper.class.getResourceAsStream("/" + file);
+
+        if (is == null) {
+            throw new FileNotFoundException("Could not find resource in class path: " + file);
+        }
+
+        IOUtils.copy(is, sw, StandardCharsets.UTF_8);
+        return sw.toString();
+    }
+
+    public static void writeFile(String destFile, String content) throws IOException {
+        FileWriter fw = new FileWriter(destFile, false);
+        fw.write(content);
+        fw.close();
+    }
+
     public static BytesReference readYamlContent(final String file) {
 
-		try (XContentParser parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, new StringReader(loadFile(file)))) {
-			parser.nextToken();
-			final XContentBuilder builder = XContentFactory.jsonBuilder();
-			builder.copyCurrentStructure(parser);
-			return BytesReference.bytes(builder);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-		//ignore
-	}
-    
-    public static BytesReference readYamlContentFromString(final String yaml) {
-        
-        XContentParser parser = null;
-        try {
-            parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, new StringReader(yaml));
+        try (XContentParser parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY,
+                DeprecationHandler.THROW_UNSUPPORTED_OPERATION, new StringReader(loadFile(file)))) {
             parser.nextToken();
             final XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.copyCurrentStructure(parser);
@@ -156,7 +152,22 @@ public class FileHelper {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        finally {
+        //ignore
+    }
+
+    public static BytesReference readYamlContentFromString(final String yaml) {
+
+        XContentParser parser = null;
+        try {
+            parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY,
+                    DeprecationHandler.THROW_UNSUPPORTED_OPERATION, new StringReader(yaml));
+            parser.nextToken();
+            final XContentBuilder builder = XContentFactory.jsonBuilder();
+            builder.copyCurrentStructure(parser);
+            return BytesReference.bytes(builder);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
             if (parser != null) {
                 try {
                     parser.close();
@@ -167,23 +178,23 @@ public class FileHelper {
         }
     }
 
-	public static void copyFileContents(String srcFile, String destFile) {
-		try {
-			final FileReader fr = new FileReader(srcFile);
-			final BufferedReader br = new BufferedReader(fr);
-			final FileWriter fw = new FileWriter(destFile, false);
-			String s;
+    public static void copyFileContents(String srcFile, String destFile) {
+        try {
+            final FileReader fr = new FileReader(srcFile);
+            final BufferedReader br = new BufferedReader(fr);
+            final FileWriter fw = new FileWriter(destFile, false);
+            String s;
 
-			while ((s = br.readLine()) != null) { // read a line
-				fw.write(s); // write to output file
-				fw.write(System.getProperty("line.separator"));
-				fw.flush();
-			}
+            while ((s = br.readLine()) != null) { // read a line
+                fw.write(s); // write to output file
+                fw.write(System.getProperty("line.separator"));
+                fw.flush();
+            }
 
-			br.close();
-			fw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+            br.close();
+            fw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }
