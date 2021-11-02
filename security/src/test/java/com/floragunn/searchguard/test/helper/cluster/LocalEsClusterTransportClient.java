@@ -17,19 +17,21 @@
 
 package com.floragunn.searchguard.test.helper.cluster;
 
-import java.io.FileNotFoundException;
-import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.Collection;
-
+import com.floragunn.searchguard.SearchGuardPlugin;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
+import com.floragunn.searchguard.test.helper.file.FileHelper;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.Netty4Plugin;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import java.io.FileNotFoundException;
+import java.net.InetSocketAddress;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Old-style transport client for ES. Will be removed for ES 8.
@@ -51,6 +53,11 @@ public class LocalEsClusterTransportClient extends TransportClient {
         super(settings, defaultSettings, plugins, null);
     }
 
+    public LocalEsClusterTransportClient(String clusterName, InetSocketAddress host, TestCertificate certificate, Path caCertFilePath) {
+        this(createSettings(clusterName, certificate, caCertFilePath), Arrays.asList(Netty4Plugin.class, SearchGuardPlugin.class));
+        this.addTransportAddress(new TransportAddress(host));
+    }
+
     private static Settings createSettings(String clusterName, InetSocketAddress host, String truststore, String keystore) {
         try {
             return Settings.builder().put("cluster.name", clusterName)
@@ -60,5 +67,19 @@ public class LocalEsClusterTransportClient extends TransportClient {
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static Settings createSettings(String clusterName, TestCertificate certificate, Path caCertFilePath) {
+        Settings.Builder builder = Settings.builder().put("cluster.name", clusterName)
+                .put("searchguard.ssl.transport.pemcert_filepath", certificate.getCertificateFile().getAbsolutePath())
+                .put("searchguard.ssl.transport.pemkey_filepath", certificate.getPrivateKeyFile().getAbsolutePath())
+                .put("searchguard.ssl.transport.pemtrustedcas_filepath", caCertFilePath)
+                .put("searchguard.ssl.transport.enforce_hostname_verification", false);
+
+        Optional.ofNullable(certificate.getPrivateKeyPassword())
+                .ifPresent(privateKeyPassword -> builder
+                        .put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
+
+        return builder.build();
     }
 }

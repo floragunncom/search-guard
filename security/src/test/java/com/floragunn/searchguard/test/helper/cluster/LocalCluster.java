@@ -18,45 +18,28 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.DocWriteResponse;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
-import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.modules.SearchGuardModule;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.NodeSettingsSupplier;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
+
     private static final Logger log = LogManager.getLogger(LocalCluster.class);
 
     static {
@@ -71,237 +54,138 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     private final TestSgConfig testSgConfig;
     private final Settings nodeOverride;
     private final String clusterName;
-    private LocalEsCluster localCluster;
+    private final MinimumSearchGuardSettingsSupplierFactory minimumSearchGuardSettingsSupplierFactory;
+    private final TestCertificates testCertificates;
+    private LocalEsCluster localEsCluster;
 
-    public LocalCluster(String clusterName, String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride, ClusterConfiguration clusterConfiguration,
-            List<Class<? extends Plugin>> plugins) {
+    private LocalCluster(String clusterName, String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride,
+            ClusterConfiguration clusterConfiguration, List<Class<? extends Plugin>> plugins, TestCertificates testCertificates) {
         this.resourceFolder = resourceFolder;
         this.plugins = plugins;
         this.clusterConfiguration = clusterConfiguration;
         this.testSgConfig = testSgConfig;
         this.nodeOverride = nodeOverride;
         this.clusterName = clusterName;
-        
-        painlessWhitelistKludge();
-
+        this.minimumSearchGuardSettingsSupplierFactory = new MinimumSearchGuardSettingsSupplierFactory(resourceFolder, testCertificates);
+        this.testCertificates = testCertificates;
         start();
     }
 
     @Override
     protected void before() throws Throwable {
-        if (localCluster == null) {
+        if (localEsCluster == null) {
             start();
         }
     }
 
     @Override
     protected void after() {
-        if (localCluster != null && localCluster.isStarted()) {
+        if (localEsCluster != null && localEsCluster.isStarted()) {
             try {
                 Thread.sleep(1234);
-                localCluster.destroy();
+                localEsCluster.destroy();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             } finally {
-                localCluster = null;
+                localEsCluster = null;
             }
         }
     }
 
     @Override
-    public void close() throws Exception {
-        if (localCluster != null && localCluster.isStarted()) {
+    public void close() {
+        if (localEsCluster != null && localEsCluster.isStarted()) {
             try {
                 Thread.sleep(100);
-                localCluster.destroy();
+                localEsCluster.destroy();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             } finally {
-                localCluster = null;
+                localEsCluster = null;
             }
         }
+    }
+
+    @Override
+    public String getClusterName() {
+        return clusterName;
+    }
+
+    @Override
+    public TestCertificates getTestCertificates() {
+        return testCertificates;
+    }
+
+    @Override
+    public InetSocketAddress getHttpAddress() {
+        return localEsCluster.clientNode().getHttpAddress();
+    }
+
+    @Override
+    public InetSocketAddress getTransportAddress() {
+        return localEsCluster.clientNode().getTransportAddress();
+    }
+
+    public Client getInternalNodeClient() {
+        return localEsCluster.clientNode().getInternalNodeClient();
     }
 
     public <X> X getInjectable(Class<X> clazz) {
-        return this.localCluster.masterNode().getInjectable(clazz);
+        return this.localEsCluster.masterNode().getInjectable(clazz);
     }
 
     public PluginAwareNode node() {
-        return this.localCluster.masterNode().esNode();
+        return this.localEsCluster.masterNode().esNode();
     }
 
     public List<LocalEsCluster.Node> nodes() {
-        return this.localCluster.allNodes();
+        return this.localEsCluster.getAllNodes();
     }
 
     public LocalEsCluster.Node getNodeByName(String name) {
-        return this.localCluster.getNodeByName(name);
+        return this.localEsCluster.getNodeByName(name);
     }
 
     public void updateSgConfig(CType configType, String key, Map<String, Object> value) {
-        try (Client client = getAdminCertClient()) {
-            log.info("Updating config " + configType + "." + key + ": " + value);
-
-            GetResponse getResponse = client.get(new GetRequest("searchguard", configType.toLCString())).actionGet();
-            String jsonDoc = new String(Base64.getDecoder().decode(String.valueOf(getResponse.getSource().get(configType.toLCString()))));
-            NestedValueMap config = NestedValueMap.fromJsonString(jsonDoc);
-
-            config.put(key, value);
-
-            if (log.isTraceEnabled()) {
-                log.trace("Updated config: " + config);
-            }
-
-            IndexResponse response = client
-                    .index(new IndexRequest("searchguard").id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                            .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
-                    .actionGet();
-
-            if (response.getResult() != DocWriteResponse.Result.UPDATED) {
-                throw new RuntimeException("Updated failed " + response);
-            }
-
-            ConfigUpdateResponse configUpdateResponse = client
-                    .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
-
-            if (configUpdateResponse.hasFailures()) {
-                throw new RuntimeException("ConfigUpdateResponse produced failures: " + configUpdateResponse.failures());
-            }
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        SgConfigUpdater.updateSgConfig(this::getAdminCertClient, configType, key, value);
     }
 
     private void start() {
         try {
-            this.localCluster = new LocalEsCluster(clusterName, clusterConfiguration, minimumSearchGuardSettings(ccs(nodeOverride)), resourceFolder,
-                    plugins);
-            localCluster.start();
-        } catch (RuntimeException e) {
-            throw e;
+            localEsCluster = new LocalEsCluster(clusterName, clusterConfiguration,
+                    minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride), plugins, testCertificates);
+            localEsCluster.start();
         } catch (Exception e) {
+            log.error("Local ES cluster start failed", e);
             throw new RuntimeException(e);
         }
 
         if (testSgConfig != null) {
-            initSearchGuardIndex(testSgConfig);
+            SearchGuardIndexInitializer.initSearchGuardIndex(this::getAdminCertClient, testSgConfig);
         }
-    }
-
-    private void painlessWhitelistKludge() {
-        try {
-            // TODO make this optional
-
-            /*
-              
-             
-            final ClassLoader classLoader = getClass().getClassLoader();
-            
-            try (PainlessPlugin p = new PainlessPlugin()) {
-                p.loadExtensions(new ExtensionLoader() {
-            
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public <T> List<T> loadExtensions(Class<T> extensionPointType) {
-                        if (extensionPointType.equals(PainlessExtension.class)) {
-                            List<?> result = StreamSupport.stream(ServiceLoader.load(PainlessExtension.class, classLoader).spliterator(), false)
-                                    .collect(Collectors.toList());
-            
-                            return (List<T>) result;
-                        } else {
-                            return Collections.emptyList();
-                        }
-                    }
-                });
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            */
-        } catch (NoClassDefFoundError e) {
-
-        }
-    }
-
-    protected void initSearchGuardIndex(TestSgConfig testSgConfig) {
-
-        log.info("Initializing Search Guard index");
-
-        try (Client client = getAdminCertClient()) {
-
-            testSgConfig.initIndex(client);
-
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "config")).actionGet().isExists());
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "roles")).actionGet().isExists());
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "rolesmapping")).actionGet().isExists());
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "actiongroups")).actionGet().isExists());
-            Assert.assertFalse(client.get(new GetRequest("searchguard", "rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "config")).actionGet().isExists());
-        }
-    }
-
-    private Settings ccs(Settings nodeOverride) {
-
-        return nodeOverride;
-    }
-
-    protected Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly) {
-        try {
-            final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-            Settings.Builder builder = Settings.builder()
-                    .put("searchguard.ssl.transport.keystore_alias", "node-0")
-                    .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
-                    .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
-                    .put("searchguard.ssl.transport.enforce_hostname_verification", false);
-
-            if (!sslOnly) {
-                builder.putList("searchguard.authcz.admin_dn", "CN=kirk,OU=client,O=client,l=tEst, C=De");
-                builder.put(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, false);
-            }
-
-            return builder;
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    protected NodeSettingsSupplier minimumSearchGuardSettings(Settings other) {
-        return new NodeSettingsSupplier() {
-            @Override
-            public Settings get(int i) {
-                return minimumSearchGuardSettingsBuilder(i, false).put(other).build();
-            }
-        };
-    }
-
-    protected NodeSettingsSupplier minimumSearchGuardSettingsSslOnly(Settings other) {
-        return new NodeSettingsSupplier() {
-            @Override
-            public Settings get(int i) {
-                return minimumSearchGuardSettingsBuilder(i, true).put(other).build();
-            }
-        };
-    }
-
-    public String getResourceFolder() {
-        return resourceFolder;
     }
 
     public static class Builder {
+
+        private final Settings.Builder nodeOverrideSettingsBuilder = Settings.builder();
+        private final List<String> disabledModules = new ArrayList<>();
+        private final List<Class<? extends Plugin>> plugins = new ArrayList<>();
         private boolean sslEnabled;
-        private String httpKeystoreFilepath = "node-0-keystore.jks";
-        private String httpTruststoreFilepath = "truststore.jks";
         private String resourceFolder;
         private ClusterConfiguration clusterConfiguration = ClusterConfiguration.DEFAULT;
-        private Settings.Builder nodeOverrideSettingsBuilder = Settings.builder();
-        private List<String> disabledModules = new ArrayList<>();
-        private List<Class<? extends Plugin>> plugins = new ArrayList<>();
         private TestSgConfig testSgConfig = new TestSgConfig().resources("/");
         private String clusterName = "local_cluster";
+        private TestCertificates testCertificates;
 
         public Builder sslEnabled() {
+            sslEnabled(TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+                    .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard").build());
+            return this;
+        }
+
+        public Builder sslEnabled(TestCertificates certificatesContext) {
+            this.testCertificates = certificatesContext;
             this.sslEnabled = true;
             return this;
         }
@@ -341,7 +225,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
 
         public Builder nodeSettings(Object... settings) {
-
             for (int i = 0; i < settings.length - 1; i += 2) {
                 String key = String.valueOf(settings[i]);
                 Object value = settings[i + 1];
@@ -365,7 +248,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
 
         public Builder remote(String name, LocalCluster anotherCluster) {
-            InetSocketAddress transportAddress = anotherCluster.localCluster.masterNode().getTransportAddress();
+            InetSocketAddress transportAddress = anotherCluster.localEsCluster.masterNode().getTransportAddress();
 
             nodeOverrideSettingsBuilder.putList("cluster.remote." + name + ".seeds",
                     transportAddress.getHostString() + ":" + transportAddress.getPort());
@@ -404,56 +287,28 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             this.clusterName = clusterName;
             return this;
         }
-        
+
         public LocalCluster build() {
             try {
-
                 if (sslEnabled) {
                     nodeOverrideSettingsBuilder.put("searchguard.ssl.http.enabled", true)
-                            .put("searchguard.ssl.http.keystore_filepath",
-                                    FileHelper.getAbsoluteFilePathFromClassPath(
-                                            resourceFolder != null ? (resourceFolder + "/" + httpKeystoreFilepath) : httpKeystoreFilepath))
-                            .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(
-                                    resourceFolder != null ? (resourceFolder + "/" + httpTruststoreFilepath) : httpTruststoreFilepath));
-                }
+                            .put("searchguard.ssl.transport.pemtrustedcas_filepath", testCertificates.getCaCertFile().getPath())
+                            .put("searchguard.ssl.http.pemtrustedcas_filepath", testCertificates.getCaCertFile().getPath());
 
+                }
                 if (this.disabledModules.size() > 0) {
                     nodeOverrideSettingsBuilder.putList(SearchGuardModulesRegistry.DISABLED_MODULES.getKey(), this.disabledModules);
                 }
-                
+
                 clusterName += "_" + num.incrementAndGet();
 
-                return new LocalCluster(clusterName, resourceFolder, testSgConfig, nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins);
+                return new LocalCluster(clusterName, resourceFolder, testSgConfig, nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins,
+                        testCertificates);
             } catch (Exception e) {
+                log.error("Failed to build LocalCluster", e);
                 throw new RuntimeException(e);
             }
-
         }
-    }
-
-    @Override
-    public InetSocketAddress getHttpAddress() {
-        return localCluster.clientNode().getHttpAddress();
-    }
-
-    @Override
-    public InetSocketAddress getTransportAddress() {
-        return localCluster.clientNode().getTransportAddress();
-    }
-
-    @Override
-    public String getClusterName() {
-        return localCluster.getClusterName();
-    }
-
-    @Override
-    public SSLIOSessionStrategy getSSLIOSessionStrategy() {
-        return localCluster.getSSLIOSessionStrategy();
-    }
-
-    @Override
-    public Client getInternalNodeClient() {
-        return localCluster.clientNode().getInternalNodeClient();
     }
 
 }
