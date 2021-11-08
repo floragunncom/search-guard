@@ -243,7 +243,7 @@ public class OpenIdProviderClient {
 
                         if (response.getStatusLine().getStatusCode() >= 300 || response.getStatusLine().getStatusCode() < 200) {
                             throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code",
-                                    statusLine + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""))
+                                    statusLine + (responseBody != null ? "\n" + responseBody : ""))
                                             .details("openid_configuration_url", openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
                         }
 
