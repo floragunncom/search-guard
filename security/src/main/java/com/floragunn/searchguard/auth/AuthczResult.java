@@ -16,6 +16,7 @@
  */
 package com.floragunn.searchguard.auth;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,10 +25,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.xcontent.ToXContent.Params;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentType;
 
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.user.User;
 
 public class AuthczResult implements ToXContentObject {
@@ -149,12 +151,14 @@ public class AuthczResult implements ToXContentObject {
             builder.field("message", message);
 
             if (details != null && details.size() > 0) {
-                builder.field("details", details);
+                // Use DocWriter and rawField to convert even unknown value types to String; by just using field,
+                // the XContentBuilder would throw an exception for unknown value types
+                builder.rawField("details", new ByteArrayInputStream(DocWriter.json().writeAsBytes(details)), XContentType.JSON);
             }
             builder.endObject();
             return builder;
         }
-
+              
     }
 
     public List<DebugInfo> getDebug() {
