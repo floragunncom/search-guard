@@ -92,6 +92,7 @@ import com.google.common.collect.Sets;
 
 public final class IndexResolverReplacer implements DCFListener {
 
+    private static final IndicesOptions MAX_INDICES_OPTIONS = IndicesOptions.fromOptions(false, true, true, false, true);
     private static final Set<String> NULL_SET = Sets.newHashSet((String)null);
     private final Logger log = LogManager.getLogger(this.getClass());
     private final IndexNameExpressionResolver resolver;
@@ -243,7 +244,7 @@ public final class IndexResolverReplacer implements DCFListener {
 
                 for (String requestedPattern : localRequestedPatterns) {
                     _indices.add(resolver.resolveDateMathExpression(requestedPattern));
-                }
+                }               
             }
 
             final List<String> _aliases = WildcardMatcher.getMatchAny(localRequestedPatterns.toArray(new String[0]), aliases);
@@ -304,7 +305,14 @@ public final class IndexResolverReplacer implements DCFListener {
 
             @Override
             public String[] provide(String[] original, Object localRequest, boolean supportsReplace) {
-                final IndicesOptions indicesOptions = indicesOptionsFrom(localRequest);
+                IndicesOptions indicesOptions;
+
+                if (!respectRequestIndicesOptions) {
+                    indicesOptions = IndicesOptions.fromOptions(false, true, true, false, indicesOptionsFrom(localRequest).expandWildcardsHidden());
+                } else {
+                    indicesOptions = indicesOptionsFrom(localRequest);
+                }
+
                 resolvedBuilder.indicesOptions(indicesOptions);
                 final Resolved iResolved = resolveIndexPatterns(indicesOptions, localRequest, original);
                 resolvedBuilder.add(iResolved);
@@ -603,7 +611,6 @@ public final class IndexResolverReplacer implements DCFListener {
         }
     }
 
-
     //--
 
     @FunctionalInterface
@@ -852,10 +859,6 @@ public final class IndexResolverReplacer implements DCFListener {
     
     private IndicesOptions indicesOptionsFrom(Object localRequest) {
         
-        if(!respectRequestIndicesOptions) {
-            return IndicesOptions.fromOptions(false, true, true, false);
-        }
-        
         if (IndicesRequest.class.isInstance(localRequest)) {
             return ((IndicesRequest) localRequest).indicesOptions();
         }
@@ -863,7 +866,7 @@ public final class IndexResolverReplacer implements DCFListener {
             return ((RestoreSnapshotRequest) localRequest).indicesOptions();
         }
         else {
-            return IndicesOptions.fromOptions(false, true, true, false);
+            return MAX_INDICES_OPTIONS;
         }
     }
 
