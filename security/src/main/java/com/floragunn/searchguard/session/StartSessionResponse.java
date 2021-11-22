@@ -24,19 +24,27 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 
 public class StartSessionResponse implements ToXContentObject {
     private String token;
-
-    public StartSessionResponse(String token) {
+    private String redirectUri;
+    
+    public StartSessionResponse(String token, String redirectUri) {
         this.token = token;
+        this.redirectUri = redirectUri;
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
+        builder.field("token", token);
+        builder.field("redirect_uri", redirectUri);        
+        builder.endObject();
+        return builder;
     }
 
     public String getToken() {
         return token;
     }
-    @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.field("token", token);
-        builder.endObject();
-        return builder;
+    
+    public String getRedirectUri() {
+        return redirectUri;
     }
 }

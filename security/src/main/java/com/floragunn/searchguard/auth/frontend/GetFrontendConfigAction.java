@@ -152,7 +152,7 @@ public class GetFrontendConfigAction extends Action<GetFrontendConfigAction.Requ
                         : authMethod.getType();
 
                 ActivatedFrontendConfig.AuthMethod activatedAuthMethod = new ActivatedFrontendConfig.AuthMethod(type, authMethod.getLabel(),
-                        authMethod.getId(), true, authMethod.isUnavailable(), null, authMethod.getMessage());
+                        authMethod.getId(), true, authMethod.isUnavailable(), authMethod.isCaptureUrlFragment(), null, authMethod.getMessage());
 
                 if (authMethod.getAuthenticationFrontend() instanceof ApiAuthenticationFrontend) {
                     try {
