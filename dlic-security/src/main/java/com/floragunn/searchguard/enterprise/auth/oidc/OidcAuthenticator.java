@@ -58,6 +58,7 @@ import com.floragunn.searchguard.enterprise.auth.oidc.OpenIdProviderClient.Token
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserAttributes;
+import com.google.common.base.Strings;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
@@ -65,7 +66,7 @@ import com.jayway.jsonpath.PathNotFoundException;
 
 public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(OidcAuthenticator.class);
-    private static final String SSO_CONTEXT_PREFIX = "oidc_nonce:";
+    private static final String SSO_CONTEXT_PREFIX = "oidc_state:";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private ProxyConfig proxyConfig;
@@ -151,13 +152,20 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
             URI frontendBaseUrl = new URI(request.getFrontendBaseUrl());
 
-            String redirectUri = buildRedirectUri(getLoginPostURI(frontendBaseUrl), request.getNextURL());
-            String nonce = createNonce();
+            String redirectUri = getLoginPostURI(frontendBaseUrl).toASCIIString();
+            String stateToken = createOpaqueToken();
+            String state;
+            
+            if (!Strings.isNullOrEmpty(request.getNextURL())) {
+                state = stateToken + "|" + request.getNextURL(); 
+            } else {
+                state = stateToken;
+            }
 
             String ssoLocation = new URIBuilder(oidcProviderConfig.getAuthorizationEndpoint()).addParameter("client_id", clientId)
-                    .addParameter("response_type", "code").addParameter("redirect_uri", redirectUri).addParameter("state", nonce)
+                    .addParameter("response_type", "code").addParameter("redirect_uri", redirectUri).addParameter("state", state)
                     .addParameter("scope", scope).build().toASCIIString();
-            String ssoContext = SSO_CONTEXT_PREFIX + nonce;
+            String ssoContext = SSO_CONTEXT_PREFIX + stateToken;
 
             return frontendConfig.ssoLocation(ssoLocation).ssoContext(ssoContext);
 
@@ -172,7 +180,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             throws CredentialsException, AuthenticatorUnavailableException, ConfigValidationException {
         Map<String, Object> debugDetails = new HashMap<>();
 
-        String nonce = null;
+        String expectedStateToken = null;
 
         String ssoContext = request.containsKey("sso_context") ? String.valueOf(request.get("sso_context")) : null;
 
@@ -181,7 +189,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
                 throw new ConfigValidationException(new InvalidAttributeValue("sso_context", ssoContext, "Must start with " + SSO_CONTEXT_PREFIX));
             }
 
-            nonce = ssoContext.substring(SSO_CONTEXT_PREFIX.length());
+            expectedStateToken = ssoContext.substring(SSO_CONTEXT_PREFIX.length());
         } else {
             throw new ConfigValidationException(new MissingAttribute("sso_context"));
         }
@@ -211,6 +219,18 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         if (state == null) {
             throw new ConfigValidationException(new MissingAttribute("ssoResult.state"));
         }
+        
+        String actualStateToken;
+        String frontendRedirectUri;
+        int separator = state.indexOf('|');
+        
+        if (separator == -1) {
+            actualStateToken = state;
+            frontendRedirectUri = null;
+        } else {
+            actualStateToken = state.substring(0, separator);
+            frontendRedirectUri = state.substring(separator + 1);
+        }
 
         String code = (String) ssoResultParams.get("code");
 
@@ -222,14 +242,14 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         debugDetails.put("sso_result", ssoResult);
         debugDetails.put("code", code);
         debugDetails.put("state", state);
-
-        if (!Objects.equals(nonce, state)) {
-            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "Invalid nonce: " + nonce + "/" + state, debugDetails));
+        
+        if (!Objects.equals(expectedStateToken, actualStateToken)) {
+            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "Invalid state token: " + expectedStateToken + "/" + actualStateToken, debugDetails));
         }
 
-        String redirectUri = buildRedirectUri(getLoginPostURI(frontendBaseUrl), (String) request.get("next_url"));
+        String oidcRedirectUri = getLoginPostURI(frontendBaseUrl).toASCIIString();
 
-        TokenResponse tokenResponse = openIdProviderClient.callTokenEndpoint(clientId, clientSecret, scope, code, redirectUri);
+        TokenResponse tokenResponse = openIdProviderClient.callTokenEndpoint(clientId, clientSecret, scope, code, oidcRedirectUri);
 
         debugDetails.put("token_response", tokenResponse.asMap());
 
@@ -264,7 +284,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
         return AuthCredentials.forUser(subject).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
                 .attribute(UserAttributes.AUTH_TYPE, "oidc").attribute("__oidc_id", jwtString).attribute("__fe_base_url", frontendBaseUrl.toString())
-                .claims(claims.asMap()).complete().build();
+                .claims(claims.asMap()).complete().redirectUri(frontendRedirectUri).build();
     }
 
     @Override
@@ -323,18 +343,6 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         }
     }
 
-    private String buildRedirectUri(URI loginPostUrl, String nextUrl) {
-        if (nextUrl != null) {
-            try {
-                return new URIBuilder(loginPostUrl).addParameter("next_url", nextUrl).build().toASCIIString();
-            } catch (URISyntaxException e) {
-                log.error("Could not build redirect URI for " + nextUrl + ". Falling back to base URI", e);
-                return loginPostUrl.toASCIIString();
-            }
-        } else {
-            return loginPostUrl.toASCIIString();
-        }
-    }
 
     private URI getLoginPostURI(URI frontendBaseURI) {
         try {
@@ -437,7 +445,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         }
     }
 
-    private String createNonce() {
+    private String createOpaqueToken() {
         return RandomStringUtils.random(22, 0, 0, true, true, null, SECURE_RANDOM);
     }
 

@@ -63,6 +63,7 @@ public final class AuthCredentials implements UserInformation {
     private final byte[] internalPasswordHash;
     private boolean secretsCleared;
     private Exception secretsClearedAt;
+    private String redirectUri;
 
     /**
      * Attributes which will be passed on to further authz mechanism like DLS/FLS.  Passed on to the User object.
@@ -79,7 +80,7 @@ public final class AuthCredentials implements UserInformation {
 
     private AuthCredentials(String username, String subUserName, AuthDomainInfo authDomainInfo, byte[] password, Object nativeCredentials, Set<String> backendRoles,
             boolean complete, boolean authzComplete, byte[] internalPasswordHash, Map<String, Object> structuredAttributes,
-            Map<String, String> attributes, Map<String, Object> claims) {
+            Map<String, String> attributes, Map<String, Object> claims, String redirectUri) {
         super();
         this.username = username;
         this.subUserName = subUserName;
@@ -93,6 +94,7 @@ public final class AuthCredentials implements UserInformation {
         this.attributes = Collections.unmodifiableMap(attributes);
         this.structuredAttributes = Collections.unmodifiableMap(structuredAttributes);
         this.claims = Collections.unmodifiableMap(claims);
+        this.redirectUri = redirectUri;
     }
 
     @Deprecated
@@ -287,6 +289,7 @@ public final class AuthCredentials implements UserInformation {
         builder.attributes.putAll(this.attributes);
         builder.structuredAttributes.putAll(this.structuredAttributes);
         builder.authDomainInfo = this.authDomainInfo;
+        builder.redirectUri = this.redirectUri;
         return builder;
     }
 
@@ -316,6 +319,7 @@ public final class AuthCredentials implements UserInformation {
         private Map<String, String> attributes = new HashMap<>();
         private Map<String, Object> structuredAttributes = new HashMap<>();
         private Map<String, Object> claims = new HashMap<>();
+        private String redirectUri;
         
         public Builder() {
 
@@ -448,10 +452,19 @@ public final class AuthCredentials implements UserInformation {
         public String getUserName() {
             return userName;
         }
+        
+        public String getRedirectUri() {
+            return redirectUri;
+        }
+
+        public Builder redirectUri(String redirectUri) {
+            this.redirectUri = redirectUri;
+            return this;
+        }
                
         public AuthCredentials build() {
             AuthCredentials result = new AuthCredentials(userName, subUserName, authDomainInfo, password, nativeCredentials, backendRoles, complete, authzComplete,
-                    internalPasswordHash, structuredAttributes, attributes, claims);
+                    internalPasswordHash, structuredAttributes, attributes, claims, redirectUri);
             this.password = null;
             this.nativeCredentials = null;
             this.internalPasswordHash = null;
@@ -484,6 +497,10 @@ public final class AuthCredentials implements UserInformation {
     @Override
     public String getAuthDomain() {
         return authDomainInfo != null ? authDomainInfo.toInfoString() : null;
+    }
+
+    public String getRedirectUri() {
+        return redirectUri;
     }
    
 }
