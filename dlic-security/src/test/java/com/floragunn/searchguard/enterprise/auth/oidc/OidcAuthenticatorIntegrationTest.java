@@ -106,7 +106,9 @@ public class OidcAuthenticatorIntegrationTest {
 
         try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
 
-            HttpResponse response = client.get("/_searchguard/auth/config?next_url=/abc/def&frontend_base_url=" + FRONTEND_BASE_URL);
+            String nextUrl = "/abc/def";
+
+            HttpResponse response = client.get("/_searchguard/auth/config?next_url=" + nextUrl + "&frontend_base_url=" + FRONTEND_BASE_URL);
 
             System.out.println(response.getBody());
 
@@ -119,11 +121,12 @@ public class OidcAuthenticatorIntegrationTest {
             String ssoResult = mockIdpServer.handleSsoGetRequestURI(ssoLocation, TestJwts.MC_COY_SIGNED_OCT_1);
 
             response = client.postJson("/_searchguard/auth/session", DocNode.of("method", "oidc", "id", id, "sso_result", ssoResult, "sso_context",
-                    ssoContext, "frontend_base_url", FRONTEND_BASE_URL, "next_url", "/abc/def"));
+                    ssoContext, "frontend_base_url", FRONTEND_BASE_URL));
 
             System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
+            Assert.assertEquals(nextUrl, response.toJsonNode().path("redirect_uri").textValue());
 
             String token = response.toJsonNode().path("token").textValue();
 
@@ -140,6 +143,5 @@ public class OidcAuthenticatorIntegrationTest {
                 Assert.assertNotNull(logoutAddress);
             }
         }
-
     }
 }

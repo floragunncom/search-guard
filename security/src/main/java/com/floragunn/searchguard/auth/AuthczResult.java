@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2020 floragunn GmbH
+ * Copyright 2015-2021 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,17 +42,22 @@ public class AuthczResult implements ToXContentObject {
     }
 
     public static AuthczResult stop(RestStatus restStatus, String message, List<DebugInfo> debug) {
-        return new AuthczResult(Status.STOP, restStatus, message, debug);
+        return new AuthczResult(Status.STOP, restStatus, message, null, debug);
     }
 
     public static AuthczResult pass(User user) {
         return new AuthczResult(user, Status.PASS);
+    }
+    
+    public static AuthczResult pass(User user, String redirectUri) {
+        return new AuthczResult(user, Status.PASS, redirectUri);
     }
 
     private final User user;
     private final Status status;
     private final RestStatus restStatus;
     private final String restStatusMessage;
+    private final String redirectUri;
     private final List<DebugInfo> debug;
 
     public AuthczResult(User user, Status status) {
@@ -61,6 +66,16 @@ public class AuthczResult implements ToXContentObject {
         this.restStatus = null;
         this.restStatusMessage = null;
         this.debug = null;
+        this.redirectUri = null;
+    }
+    
+    public AuthczResult(User user, Status status, String redirectUri) {
+        this.user = user;
+        this.status = status;
+        this.restStatus = null;
+        this.restStatusMessage = null;
+        this.debug = null;
+        this.redirectUri = redirectUri;
     }
 
     public AuthczResult(Status status) {
@@ -69,6 +84,7 @@ public class AuthczResult implements ToXContentObject {
         this.restStatus = null;
         this.restStatusMessage = null;
         this.debug = null;
+        this.redirectUri = null;
     }
 
     public AuthczResult(Status status, RestStatus restStatus, String restStatusMessage) {
@@ -77,14 +93,16 @@ public class AuthczResult implements ToXContentObject {
         this.restStatus = restStatus;
         this.restStatusMessage = restStatusMessage;
         this.debug = null;
+        this.redirectUri = null;
     }
 
-    public AuthczResult(Status status, RestStatus restStatus, String restStatusMessage, List<DebugInfo> debug) {
+    public AuthczResult(Status status, RestStatus restStatus, String restStatusMessage, String redirectUri, List<DebugInfo> debug) {
         this.user = null;
         this.status = status;
         this.restStatus = restStatus;
         this.restStatusMessage = restStatusMessage;
         this.debug = debug != null ? Collections.unmodifiableList(new ArrayList<>(debug)) : null;
+        this.redirectUri = redirectUri;
     }
 
     public static enum Status {
@@ -107,6 +125,10 @@ public class AuthczResult implements ToXContentObject {
         return restStatusMessage;
     }
 
+    public String getRedirectUri() {
+        return redirectUri;
+    }
+    
     public static class DebugInfo implements ToXContentObject {
         private final String authcMethod;
         private final boolean success;
@@ -180,8 +202,14 @@ public class AuthczResult implements ToXContentObject {
         if (debug != null) {
             builder.field("debug", debug);
         }
+        
+        if (redirectUri != null) {
+            builder.field("redirect_uri", redirectUri);
+        }
 
         builder.endObject();
         return builder;
     }
+
+
 }

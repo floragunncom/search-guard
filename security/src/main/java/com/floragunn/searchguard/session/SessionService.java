@@ -164,7 +164,7 @@ public class SessionService {
             if (authczResult.getStatus() == AuthczResult.Status.PASS) {
                 threadPool.generic().submit(() -> {
                     try {
-                        StartSessionResponse response = createLightweightJwt(authczResult.getUser());
+                        StartSessionResponse response = createLightweightJwt(authczResult);
                         onResult.accept(response);
                     } catch (SessionCreationException e) {
                         log.info("Creating token failed", e);
@@ -180,12 +180,14 @@ public class SessionService {
         }, onFailure);
     }
 
-    private StartSessionResponse createLightweightJwt(User user) throws SessionCreationException {
+    private StartSessionResponse createLightweightJwt(AuthczResult authczResult) throws SessionCreationException {
 
         if (jwtProducer == null) {
             throw new SessionCreationException("SessionService is not configured", RestStatus.INTERNAL_SERVER_ERROR);
         }
 
+        User user = authczResult.getUser();
+        
         SessionToken authToken = create(user);
 
         JwtClaims jwtClaims = new JwtClaims();
@@ -210,7 +212,7 @@ public class SessionService {
             throw new SessionCreationException("Error while creating JWT. Possibly the key configuration is not valid.",
                     RestStatus.INTERNAL_SERVER_ERROR, e);
         }
-        return new StartSessionResponse(encodedJwt);
+        return new StartSessionResponse(encodedJwt, authczResult.getRedirectUri());
     }
 
     public SessionToken getById(String id) throws NoSuchSessionException {

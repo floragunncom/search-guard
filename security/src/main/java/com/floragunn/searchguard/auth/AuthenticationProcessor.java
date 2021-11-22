@@ -261,7 +261,7 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
                         threadContext.putTransient(ConfigConstants.SG_USER, authenticatedUser);
                         auditLog.logSucceededLogin(authenticatedUser, false, authenticatedUser, restRequest);
                         addDebugInfo(new AuthczResult.DebugInfo(authenticationDomain.getId(), true, "User " + ac.getUsername() + " is logged in"));
-                        onResult.accept(AuthczResult.pass(authenticatedUser));
+                        onResult.accept(AuthczResult.pass(authenticatedUser, ac.getRedirectUri()));
                     }
 
                 } else {
