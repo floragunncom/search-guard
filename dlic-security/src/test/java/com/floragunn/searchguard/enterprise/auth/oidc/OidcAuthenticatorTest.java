@@ -21,6 +21,7 @@ import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.createSign
 
 import java.io.FileNotFoundException;
 import java.net.InetAddress;
+import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -108,19 +109,20 @@ public class OidcAuthenticatorTest {
     public void nextUrlTest() throws Exception {
         OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod,
-                new GetFrontendConfigAction.Request(null, "http://redirect", FRONTEND_BASE_URL));
+        String redirectTarget = "/goto/0f8bc3727ebe162dc2ceeae137e607a1?sg_tenant=management";
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, redirectTarget, FRONTEND_BASE_URL));
 
         String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
 
-        Assert.assertTrue(ssoResponse, ssoResponse.contains("next_url=http%3A%2F%2Fredirect"));
+        Assert.assertTrue(ssoResponse, ssoResponse.matches(".*state=[A-Za-z0-9]+%7C" + URLEncoder.encode(redirectTarget, "utf-8")));
 
         Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
-                FRONTEND_BASE_URL, "next_url", "http://redirect");
+                FRONTEND_BASE_URL);
 
         AuthCredentials authCredentials = authenticator.extractCredentials(request);
 
         Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
+        Assert.assertEquals(redirectTarget, authCredentials.getRedirectUri());
     }
 
     @Test
@@ -381,14 +383,12 @@ public class OidcAuthenticatorTest {
         Assert.assertEquals(TestJwts.MCCOY_SUBJECT.substring(0, 1), authCredentials.getUsername());
         Assert.assertEquals(2, authCredentials.getBackendRoles().size());
     }
-    
 
     @Test
     public void testSubjectJsonPathWithList() throws Exception {
-        Map<String, Object> config = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(),
-                "client_id", "Der Klient", "client_secret", "Das Geheimnis", "user_mapping.roles",
-                "roles", "user_mapping.subject", "n");
-        
+        Map<String, Object> config = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "client_id",
+                "Der Klient", "client_secret", "Das Geheimnis", "user_mapping.roles", "roles", "user_mapping.subject", "n");
+
         OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
         authMethod = authenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
@@ -398,7 +398,7 @@ public class OidcAuthenticatorTest {
         Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
                 FRONTEND_BASE_URL);
         AuthCredentials authCredentials = authenticator.extractCredentials(request);
-        
+
         Assert.assertNotNull(authCredentials);
         Assert.assertEquals("mcl", authCredentials.getUsername());
         Assert.assertEquals(TestJwts.TEST_ROLES, authCredentials.getBackendRoles());
@@ -406,11 +406,10 @@ public class OidcAuthenticatorTest {
 
     @Test
     public void testSubjectJsonPathWithListSize2() throws Exception {
-        
-        Map<String, Object> config = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(),
-                "client_id", "Der Klient", "client_secret", "Das Geheimnis", "user_mapping.roles",
-                "roles", "user_mapping.subject", "n");
-        
+
+        Map<String, Object> config = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "client_id",
+                "Der Klient", "client_secret", "Das Geheimnis", "user_mapping.roles", "roles", "user_mapping.subject", "n");
+
         OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
         authMethod = authenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));

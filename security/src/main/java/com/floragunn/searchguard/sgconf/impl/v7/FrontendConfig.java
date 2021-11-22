@@ -101,6 +101,7 @@ public class FrontendConfig implements Document<FrontendConfig> {
         private String message;
         private String id;
         private Map<String, Object> parsedJson;
+        private boolean captureUrlFragment;
 
         public Authcz() {
 
@@ -137,6 +138,8 @@ public class FrontendConfig implements Document<FrontendConfig> {
             result.label = vNode.get("label").withDefault(result.type).asString();
             result.enabled = vNode.get("enabled").withDefault(true).asBoolean();
             result.message = vNode.get("message").asString();
+            result.captureUrlFragment = vNode.get("capture_url_fragment").withDefault(false).asBoolean();
+            // Note: When adding attributes here, don't forget to also add it in the documentNode.without() call a couple of lines below
 
             if ("basic".equals(result.type)) {
                 if (result.message == null) {
@@ -147,7 +150,7 @@ public class FrontendConfig implements Document<FrontendConfig> {
 
                 try {
                     result.authenticationFrontend = authenticationFrontendRegistry.getInstance(result.type,
-                            documentNode.without("type", "label", "enabled", "message"), context);
+                            documentNode.without("type", "label", "enabled", "message", "capture_url_fragment"), context);
                 } catch (ConfigValidationException e) {
                     log.warn("Invalid config for authentication frontend " + result, e);
 
@@ -204,6 +207,10 @@ public class FrontendConfig implements Document<FrontendConfig> {
         @Override
         public String toString() {
             return "Authcz [type=" + type + ", authenticationFrontend=" + authenticationFrontend + ", id=" + id + "]";
+        }
+
+        public boolean isCaptureUrlFragment() {
+            return captureUrlFragment;
         }
     }
 
