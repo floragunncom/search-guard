@@ -45,6 +45,8 @@ public class GetFrontendConfigAction extends Action<GetFrontendConfigAction.Requ
             .handlesGet("/_searchguard/auth/config")
             .with(GetFrontendConfigAction.INSTANCE,
                     (params, body) -> new Request(params.get("config_id"), params.get("next_url"), params.get("frontend_base_url")))//
+            .handlesPost("/_searchguard/auth/config")//
+            .with(GetFrontendConfigAction.INSTANCE)//
             .name("Search Guard Frontend Auth Config");
 
     protected final static Logger log = LogManager.getLogger(GetFrontendConfigAction.class);
