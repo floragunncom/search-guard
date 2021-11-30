@@ -376,7 +376,7 @@ public class MockIpdServer implements Closeable {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(string.getBytes(StandardCharsets.US_ASCII));
 
-            return Base64.getUrlEncoder().encodeToString(hash);
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }

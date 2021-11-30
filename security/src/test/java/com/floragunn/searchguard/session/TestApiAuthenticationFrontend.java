@@ -25,15 +25,15 @@ import java.util.stream.Collectors;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchguard.auth.AuthenticationFrontend;
 import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.auth.CredentialsException;
 import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class TestApiAuthenticationFrontend implements ApiAuthenticationFrontend {
 
-    public TestApiAuthenticationFrontend(Map<String, Object> config, AuthenticationFrontend.Context context) throws ConfigValidationException {
+    public TestApiAuthenticationFrontend(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
 
     }
 

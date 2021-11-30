@@ -132,6 +132,8 @@ public class SessionService {
 
         activityTracker = new SessionActivityTracker(config.getInactivityTimeout() != null ? config.getInactivityTimeout() : Duration.ofHours(1),
                 this, indexName, privilegedConfigClient, threadPool);
+        
+        this.configComponentState.addPart(activityTracker.getComponentState());
 
         this.setConfig(config);
 
@@ -188,19 +190,19 @@ public class SessionService {
 
         User user = authczResult.getUser();
         
-        SessionToken authToken = create(user);
+        SessionToken sessionToken = create(user);
 
         JwtClaims jwtClaims = new JwtClaims();
         JwtToken jwt = new JwtToken(jwtClaims);
 
-        jwtClaims.setNotBefore(authToken.getCreationTime().getEpochSecond());
+        jwtClaims.setNotBefore(sessionToken.getCreationTime().getEpochSecond());
 
-        if (authToken.getExpiryTime() != null) {
-            jwtClaims.setExpiryTime(authToken.getExpiryTime().getEpochSecond());
+        if (sessionToken.getExpiryTime() != null) {
+            jwtClaims.setExpiryTime(sessionToken.getExpiryTime().getEpochSecond());
         }
 
         jwtClaims.setSubject(user.getName());
-        jwtClaims.setTokenId(authToken.getId());
+        jwtClaims.setTokenId(sessionToken.getId());
         jwtClaims.setAudience(JWT_AUDIENCE);
 
         String encodedJwt;
@@ -266,11 +268,11 @@ public class SessionService {
                 if (getResponse.isExists()) {
 
                     try {
-                        SessionToken authToken = SessionToken.parse(id, DocNode.parse(Format.JSON).from(getResponse.getSourceAsString()));
+                        SessionToken sessionToken = SessionToken.parse(id, DocNode.parse(Format.JSON).from(getResponse.getSourceAsString()));
 
-                        idToAuthTokenMap.put(id, authToken);
+                        idToAuthTokenMap.put(id, sessionToken);
 
-                        onResult.accept(authToken);
+                        onResult.accept(sessionToken);
                     } catch (ConfigValidationException e) {
                         onFailure.accept(new RuntimeException("Token " + id + " is not stored in a valid format", e));
                     } catch (Exception e) {
@@ -295,19 +297,19 @@ public class SessionService {
 
     }
 
-    public String delete(User user, SessionToken authToken) throws NoSuchSessionException, SessionUpdateException {
+    public String delete(User user, SessionToken sessionToken) throws NoSuchSessionException, SessionUpdateException {
         if (log.isTraceEnabled()) {
-            log.trace("revoke(" + user + ", " + authToken.getId() + ")");
+            log.trace("revoke(" + user + ", " + sessionToken.getId() + ")");
         }
 
-        authToken = getById(authToken.getId());
+        sessionToken = getById(sessionToken.getId());
 
-        if (authToken.getRevokedAt() != null) {
-            log.info("Auth token " + authToken + " was already revoked");
-            return "Auth token was already revoked";
+        if (sessionToken.getRevokedAt() != null) {
+            log.info("Session token " + sessionToken + " was already revoked");
+            return "Session token was already revoked";
         }
 
-        String updateStatus = updateSessionToken(authToken.getRevokedInstance(), UpdateType.REVOKED);
+        String updateStatus = updateSessionToken(sessionToken.getRevokedInstance(), UpdateType.REVOKED);
 
         if (updateStatus != null) {
             return updateStatus;
@@ -364,7 +366,7 @@ public class SessionService {
 
     public SessionToken create(User user) throws SessionCreationException {
         if (config == null || !config.isEnabled()) {
-            throw new SessionCreationException("Auth token handling is not enabled", RestStatus.INTERNAL_SERVER_ERROR);
+            throw new SessionCreationException("Session token handling is not enabled", RestStatus.INTERNAL_SERVER_ERROR);
         }
 
         if (log.isDebugEnabled()) {
@@ -445,24 +447,24 @@ public class SessionService {
         return expiresAfter;
     }
 
-    private String updateSessionToken(SessionToken authToken, UpdateType updateType) throws SessionUpdateException {
+    private String updateSessionToken(SessionToken sessionToken, UpdateType updateType) throws SessionUpdateException {
         SessionToken oldToken = null;
 
         try {
-            oldToken = getById(authToken.getId());
+            oldToken = getById(sessionToken.getId());
         } catch (NoSuchSessionException e) {
             oldToken = null;
         }
 
         if (updateType == UpdateType.NEW && oldToken != null) {
-            throw new SessionUpdateException("Token ID already exists: " + authToken.getId());
+            throw new SessionUpdateException("Token ID already exists: " + sessionToken.getId());
         }
 
         try (XContentBuilder xContentBuilder = XContentFactory.jsonBuilder()) {
-            authToken.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
+            sessionToken.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
 
             IndexResponse indexResponse = privilegedConfigClient
-                    .index(new IndexRequest(indexName).id(authToken.getId()).source(xContentBuilder).setRefreshPolicy(RefreshPolicy.IMMEDIATE))
+                    .index(new IndexRequest(indexName).id(sessionToken.getId()).source(xContentBuilder).setRefreshPolicy(RefreshPolicy.IMMEDIATE))
                     .actionGet();
 
             if (log.isDebugEnabled()) {
@@ -473,15 +475,15 @@ public class SessionService {
             if (oldToken != null) {
                 this.idToAuthTokenMap.put(oldToken.getId(), oldToken);
             } else {
-                this.idToAuthTokenMap.invalidate(authToken.getId());
+                this.idToAuthTokenMap.invalidate(sessionToken.getId());
             }
-            log.warn("Error while storing token " + authToken, e);
+            log.warn("Error while storing token " + sessionToken, e);
             throw new SessionUpdateException(e);
         }
 
         try {
             PushSessionTokenUpdateAction.Response pushAuthTokenUpdateResponse = privilegedConfigClient
-                    .execute(PushSessionTokenUpdateAction.INSTANCE, new PushSessionTokenUpdateAction.Request(authToken, updateType, 0)).actionGet();
+                    .execute(PushSessionTokenUpdateAction.INSTANCE, new PushSessionTokenUpdateAction.Request(sessionToken, updateType, 0)).actionGet();
 
             if (log.isDebugEnabled()) {
                 log.debug("Token update pushed: " + pushAuthTokenUpdateResponse);
@@ -492,7 +494,7 @@ public class SessionService {
             }
 
         } catch (Exception e) {
-            log.warn("Token update push failed: " + authToken, e);
+            log.warn("Token update push failed: " + sessionToken, e);
             return "Update partially failed: " + e;
         }
 
@@ -552,8 +554,8 @@ public class SessionService {
         return false;
     }
 
-    public void checkExpiryAndTrackAccess(SessionToken authToken, Consumer<Boolean> onResult, Consumer<Exception> onFailure) {
-        activityTracker.checkExpiryAndTrackAccess(authToken, onResult, onFailure);
+    public void checkExpiryAndTrackAccess(SessionToken sessionToken, Consumer<Boolean> onResult, Consumer<Exception> onFailure) {
+        activityTracker.checkExpiryAndTrackAccess(sessionToken, onResult, onFailure);
     }
 
     public void setConfig(SessionServiceConfig config) {

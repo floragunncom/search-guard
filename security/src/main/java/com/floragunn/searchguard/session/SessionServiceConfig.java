@@ -33,7 +33,7 @@ import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.support.JoseParsers;
 
 public class SessionServiceConfig {
-    static final String SIGNING_KEY_SECRET = "secrets.sessions.signing_key.hs512";
+    static final String SIGNING_KEY_SECRET = "sessions_signing_key";
 
     private boolean enabled;
     private JsonWebKey jwtSigningKey;
@@ -75,7 +75,7 @@ public class SessionServiceConfig {
         this.maxValidity = maxValidity;
     }
 
-    public static SessionServiceConfig parse(Map<String, Object> jsonNode, ConfigVarService secretsStorageService)
+    public static SessionServiceConfig parse(Map<String, Object> jsonNode, ConfigVarService configVarService)
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
@@ -90,7 +90,7 @@ public class SessionServiceConfig {
                 result.jwtSigningKey = vJsonNode.get("jwt_signing_key_hs512").byString(JoseParsers::parseJwkHs512SigningKey);
             } else {
                 try {
-                    result.jwtSigningKey = JoseParsers.parseJwkHs512SigningKey(secretsStorageService.getAsStringMandatory(SIGNING_KEY_SECRET));
+                    result.jwtSigningKey = JoseParsers.parseJwkHs512SigningKey(configVarService.getAsStringMandatory(SIGNING_KEY_SECRET));
                 } catch (ConfigValidationException e) {
                     validationErrors.add(null, e);
                 }
@@ -117,8 +117,8 @@ public class SessionServiceConfig {
         return result;
     }
 
-    public static SessionServiceConfig parseYaml(String yaml, ConfigVarService secretsStorageService) throws ConfigValidationException {
-        return parse(DocReader.yaml().readObject(yaml), secretsStorageService);
+    public static SessionServiceConfig parseYaml(String yaml, ConfigVarService configVarService) throws ConfigValidationException {
+        return parse(DocReader.yaml().readObject(yaml), configVarService);
     }
 
     public int getMaxSessionsPerUser() {

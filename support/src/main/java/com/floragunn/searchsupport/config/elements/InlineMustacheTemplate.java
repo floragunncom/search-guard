@@ -22,7 +22,6 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchsupport.config.validation.ScriptExecutionError;
 import com.floragunn.searchsupport.config.validation.ScriptValidationError;
-import com.floragunn.searchsupport.config.validation.ValueParser;
 import com.google.common.base.Functions;
 
 public class InlineMustacheTemplate<ResultType> implements ToXContent {
@@ -168,25 +167,5 @@ public class InlineMustacheTemplate<ResultType> implements ToXContent {
 
     public static <ResultType> InlineMustacheTemplate<ResultType> constant(ResultType value) {
         return value != null ? new InlineMustacheTemplate<ResultType>(value) : null;
-    }
-
-    public static class Parser<ResultType> implements ValueParser<InlineMustacheTemplate<ResultType>> {
-        private final ScriptService scriptService;
-        private final Function<String, ResultType> conversionFunction;
-
-        public Parser(ScriptService scriptService, Function<String, ResultType> conversionFunction) {
-            this.scriptService = scriptService;
-            this.conversionFunction = conversionFunction;
-        }
-
-        @Override
-        public InlineMustacheTemplate<ResultType> parse(String string) throws ConfigValidationException {
-            return InlineMustacheTemplate.parse(scriptService, string, conversionFunction);
-        }
-
-        @Override
-        public String getExpectedValue() {
-            return "Mustache Template";
-        }
     }
 }

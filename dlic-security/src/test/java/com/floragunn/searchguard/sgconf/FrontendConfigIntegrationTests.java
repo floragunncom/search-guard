@@ -25,9 +25,6 @@ import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 
 public class FrontendConfigIntegrationTests {
 
-    //@ClassRule
-    //public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config_legacy").build();
-
     @Test
     public void testLegacy() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config_legacy").build()) {
@@ -53,13 +50,12 @@ public class FrontendConfigIntegrationTests {
 
                 System.out.println(response.getBody());
 
-                // TODO
-                /*
+
                 Assert.assertTrue(response.getBody(),
                         response.toJsonNode().path("auth_methods").isArray() && response.toJsonNode().path("auth_methods").size() == 1);
                 Assert.assertEquals(response.getBody(), "basic", response.toJsonNode().path("auth_methods").path(0).path("method").asText());
+                Assert.assertEquals(response.getBody(), "Login Customized", response.toJsonNode().path("auth_methods").path(0).path("label").asText());
                 Assert.assertTrue(response.getBody(), response.toJsonNode().path("auth_methods").path(0).path("id").isMissingNode());
-                */
                 
             }
         }

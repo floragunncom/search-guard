@@ -59,13 +59,13 @@ public class ConfigVarApi {
 
         public static class Handler extends Action.Handler<StandardRequests.IdRequest, StandardResponse> {
 
-            private ConfigVarService secretsService;
+            private ConfigVarService configVarService;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, ConfigVarService secretsService) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigVarService configVarService) {
                 super(GetAction.INSTANCE, handlerDependencies);
 
-                this.secretsService = secretsService;
+                this.configVarService = configVarService;
 
             }
 
@@ -73,7 +73,7 @@ public class ConfigVarApi {
             protected CompletableFuture<StandardResponse> doExecute(StandardRequests.IdRequest request) {
                 return CompletableFuture.supplyAsync(() -> {
                     try {
-                        ConfigVar value = secretsService.getFromIndex(request.getId());
+                        ConfigVar value = configVarService.getFromIndex(request.getId());
 
                         if (value != null) {
                             return new StandardResponse(200).data(value.toBasicObject());
@@ -156,19 +156,19 @@ public class ConfigVarApi {
 
         public static class Handler extends Action.Handler<Request, StandardResponse> {
 
-            private ConfigVarService secretsService;
+            private ConfigVarService configVarService;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, ConfigVarService secretsService) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigVarService configVarService) {
                 super(UpdateAction.INSTANCE, handlerDependencies);
 
-                this.secretsService = secretsService;
+                this.configVarService = configVarService;
             }
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(Request request) {
                 try {
-                    return secretsService.update(request);
+                    return configVarService.update(request);
                 } catch (EncryptionException e) {
                     log.error("Error while encrypting data: " + request, e);
                     return CompletableFuture.completedFuture(new StandardResponse(500, e.getMessage()));
@@ -189,19 +189,19 @@ public class ConfigVarApi {
 
         public static class Handler extends Action.Handler<IdRequest, StandardResponse> {
 
-            private ConfigVarService secretsService;
+            private ConfigVarService configVarService;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, ConfigVarService secretsService) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigVarService configVarService) {
                 super(DeleteAction.INSTANCE, handlerDependencies);
 
-                this.secretsService = secretsService;
+                this.configVarService = configVarService;
 
             }
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(IdRequest request) {
-                return secretsService.delete(request.getId());
+                return configVarService.delete(request.getId());
             }
         }
     }
@@ -218,13 +218,13 @@ public class ConfigVarApi {
 
         public static class Handler extends Action.Handler<EmptyRequest, StandardResponse> {
 
-            private ConfigVarService secretsService;
+            private ConfigVarService configVarService;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, ConfigVarService secretsService) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigVarService configVarService) {
                 super(GetAllAction.INSTANCE, handlerDependencies);
 
-                this.secretsService = secretsService;
+                this.configVarService = configVarService;
 
             }
 
@@ -232,7 +232,7 @@ public class ConfigVarApi {
             protected CompletableFuture<StandardResponse> doExecute(EmptyRequest request) {
                 return CompletableFuture.supplyAsync(() -> {
                     try {
-                        return new StandardResponse(200).data(secretsService.getAllFromIndex());
+                        return new StandardResponse(200).data(configVarService.getAllFromIndex());
                     } catch (Exception e) {
                         log.error("Error in GetAllAction", e);
                         return new StandardResponse(500).error(e.getMessage());
@@ -289,19 +289,19 @@ public class ConfigVarApi {
 
         public static class Handler extends Action.Handler<Request, StandardResponse> {
 
-            private ConfigVarService secretsService;
+            private ConfigVarService configVarService;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, ConfigVarService secretsService) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigVarService configVarService) {
                 super(UpdateAllAction.INSTANCE, handlerDependencies);
 
-                this.secretsService = secretsService;
+                this.configVarService = configVarService;
 
             }
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(Request request) {
-                return secretsService.updateAll(request.getIdToValueMap());
+                return configVarService.updateAll(request.getIdToValueMap());
             }
         }
     }

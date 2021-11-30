@@ -33,12 +33,10 @@ import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.json.JacksonTools;
 import com.google.common.collect.ImmutableMap;
 
 public class SessionPrivileges implements ToXContentObject, Writeable, Serializable {
@@ -106,6 +104,10 @@ public class SessionPrivileges implements ToXContentObject, Writeable, Serializa
         List<String> backendRoles = vJsonNode.get("roles_be").asList().withEmptyListAsDefault().ofStrings();
         List<String> searchGuardRoles = vJsonNode.get("roles_sg").asList().withEmptyListAsDefault().ofStrings();
         Map<String, Object> attributes = vJsonNode.get("attrs").asMap();
+        
+        if (attributes == null) {
+            attributes = Collections.emptyMap();
+        }
 
         return new SessionPrivileges(backendRoles, searchGuardRoles, attributes);
     }

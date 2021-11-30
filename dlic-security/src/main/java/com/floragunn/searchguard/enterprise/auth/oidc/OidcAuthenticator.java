@@ -49,12 +49,12 @@ import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.Roles;
 import com.floragunn.searchguard.auth.AuthczResult;
-import com.floragunn.searchguard.auth.AuthenticationFrontend;
 import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.auth.CredentialsException;
 import com.floragunn.searchguard.auth.frontend.ActivatedFrontendConfig;
 import com.floragunn.searchguard.auth.frontend.GetFrontendConfigAction;
 import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auth.oidc.OpenIdProviderClient.TokenResponse;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -88,10 +88,10 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private Configuration jsonPathConfig;
     private Map<String, JsonPath> attributeMapping;
 
-    public OidcAuthenticator(Map<String, Object> config, AuthenticationFrontend.Context context) throws ConfigValidationException {
+    public OidcAuthenticator(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
 
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context.getConfigVariableProviders());
+        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context);
 
         this.clientId = vNode.get("client_id").required().asString();
         this.usePkce = vNode.get("pkce").withDefault(true).asBoolean();
@@ -179,7 +179,8 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
             if (usePkce) {
                 codeVerifier = createOpaqueToken(48);
-                codeChallenge = BaseEncoding.base64Url().encode(Hashing.sha256().hashString(codeVerifier, StandardCharsets.US_ASCII).asBytes());
+                codeChallenge = BaseEncoding.base64Url().omitPadding()
+                        .encode(Hashing.sha256().hashString(codeVerifier, StandardCharsets.US_ASCII).asBytes());
                 ssoLocationBuilder.addParameter("code_challenge", codeChallenge);
                 ssoLocationBuilder.addParameter("code_challenge_method", "S256");
                 ssoContext += ";" + SSO_CONTEXT_PREFIX_CODE_VERIFIER + codeVerifier;
@@ -483,7 +484,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private String createOpaqueToken(int byteCount) {
         byte[] b = new byte[byteCount];
         SECURE_RANDOM.nextBytes(b);
-        return BaseEncoding.base64Url().encode(b);
+        return BaseEncoding.base64Url().omitPadding().encode(b);
     }
 
     private String getValueFromSsoContext(String key, String ssoContext) {

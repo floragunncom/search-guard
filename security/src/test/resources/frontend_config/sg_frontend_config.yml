@@ -5,7 +5,7 @@ _sg_meta:
 default:
   authcz: 
   - type: basic
-    label: "Login"
+    label: "Login Customized"
   - type: oidc
     enabled: false
     label: "Hallo OIDC"

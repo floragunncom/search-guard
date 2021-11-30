@@ -29,6 +29,7 @@ import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.auth.AuthenticationFrontend;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.support.ReflectionHelper;
 
 public class SearchGuardComponentRegistry<ComponentType> {
@@ -155,7 +156,7 @@ public class SearchGuardComponentRegistry<ComponentType> {
         }
     }
 
-    public ComponentType getInstance(String clazzOrShortcut, Map<String, Object> config, AuthenticationFrontend.Context context) throws ConfigValidationException, NoSuchComponentException {
+    public ComponentType getInstance(String clazzOrShortcut, Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException, NoSuchComponentException {
         if (this.instanceMap.containsKey(clazzOrShortcut)) {
             ComponentType result = this.instanceMap.get(clazzOrShortcut);
             ReflectionHelper.addLoadedModule(result.getClass());

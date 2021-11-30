@@ -16,11 +16,7 @@ package com.floragunn.dlic.auth.ldap2;
 
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -107,37 +103,4 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
 
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, actual);
     }
-    
-    @Test
-    public void ldapDlsIntegrationTest() throws Exception {
-        String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_ldap2.yml");
-        sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(tlsLdapServer.getPort()));
-        setup(Settings.EMPTY, new DynamicSgConfig().setSgConfigAsYamlString(sgConfigAsYamlString), Settings.EMPTY);
-        
-        RestHelper rh = nonSslRestHelper();
-        HttpResponse res;
-
-        try (Client tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {
-
-            tc.index(new IndexRequest("dls_test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"a\", \"amount\": 1010}",
-                    XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("dls_test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"b\", \"amount\": 2020}",
-                    XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("dls_test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"c\", \"amount\": 3030}",
-                    XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("dls_test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"d\", \"amount\": 4040}",
-                    XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("dls_test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"e\", \"amount\": 5050}",
-                    XContentType.JSON)).actionGet();
-        }
-        
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/dls_test/_search?pretty&size=100", encodeBasicHeader("jacksonm", "secret"))).getStatusCode());
-        System.out.println(res.getBody());
-        Assert.assertTrue(res.getBody().contains("\"value\" : 5,\n      \"relation"));
-
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/dls_test/_search?pretty&size=100", encodeBasicHeader("propsreplace", "propsreplace"))).getStatusCode());
-        System.out.println(res.getBody());
-        Assert.assertTrue(res.getBody().contains("\"value\" : 3,\n      \"relation"));
-    }
-    
 }

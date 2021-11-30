@@ -22,11 +22,11 @@ public class NoSuchSessionException extends Exception {
     private static final long serialVersionUID = -343178809366694796L;
 
     public NoSuchSessionException(String id) {
-        super("No such auth token: " + id);
+        super("Unknown session token: " + id);
     }
 
     public NoSuchSessionException(String id, Throwable cause) {
-        super("No such auth token: " + id, cause);
+        super("Unknown session token: " + id, cause);
     }
 
 }

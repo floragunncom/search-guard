@@ -25,13 +25,13 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.auth.AuthInfoService;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.user.User;
@@ -123,7 +123,7 @@ public class SessionApi {
             return (RestChannel channel) -> {
 
                 try {
-                    Map<String, Object> requestBody = DocReader.type(DocType.getByContentType(xContentType.mediaType()))
+                    Map<String, Object> requestBody = DocReader.format(Format.getByContentType(xContentType.mediaType()))
                             .readObject(BytesReference.toBytes(body));
 
                     sessionService.createSession(requestBody, request, (response) -> {

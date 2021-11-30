@@ -32,14 +32,9 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.floragunn.codova.documents.DocParseException;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
-<<<<<<< Upstream, based on origin/master
 import com.floragunn.codova.documents.DocumentParseException;
-=======
->>>>>>> e2dbae8 Rebase adaptions
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.google.common.base.Charsets;
 
