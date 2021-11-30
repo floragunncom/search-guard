@@ -52,7 +52,7 @@ public class SessionModule implements SearchGuardModule<SessionServiceConfig>, C
 
     private SessionService sessionService;
     private SessionApi.Rest sessionRestAction = new SessionApi.Rest();
-    private ConfigVarService secretsStorageService;
+    private ConfigVarService configVarService;
     private SessionAuthenticationBackend sessionAuthenticationBackend;
     private SessionAuthTokenHttpJwtAuthenticator sessionHttpAuthenticator;
     private final ComponentState componentState = new ComponentState(1000, null, "session_service", SessionModule.class);
@@ -72,8 +72,8 @@ public class SessionModule implements SearchGuardModule<SessionServiceConfig>, C
 
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
-        this.secretsStorageService = baseDependencies.getSecretsService();
-        this.secretsStorageService.requestRandomKey(SessionServiceConfig.SIGNING_KEY_SECRET, 512, "authcz");
+        this.configVarService = baseDependencies.getConfigVarService();
+        this.configVarService.requestRandomKey(SessionServiceConfig.SIGNING_KEY_SECRET, 512, "authcz");
 
         baseDependencies.getDynamicConfigFactory().addAuthenticationDomainInjector(this::getAuthenticationDomainsForInjection);
 
@@ -100,13 +100,14 @@ public class SessionModule implements SearchGuardModule<SessionServiceConfig>, C
     @Override
     public SgConfigMetadata<SessionServiceConfig> getSgConfigMetadata() {
         return new SgConfigMetadata<SessionServiceConfig>(ConfigV7.class, "sg_config", JsonPointer.compile("/dynamic/sessions"),
-                (config) -> SessionServiceConfig.parse(config, secretsStorageService), sessionService::setConfig);
+                (config) -> SessionServiceConfig.parse(config, configVarService), sessionService::setConfig);
     }
 
     private List<AuthenticationDomain<HTTPAuthenticator>> getAuthenticationDomainsForInjection() {
-        if (!this.sessionService.isEnabled()) {
-            return Collections.emptyList();
-        }
+        // TODO
+        //   if (!this.sessionService.isEnabled()) {
+        //      return Collections.emptyList();
+        // }
 
         return Collections.singletonList(new AuthenticationDomain<HTTPAuthenticator>("__internal_session_auth_domain", sessionAuthenticationBackend,
                 sessionHttpAuthenticator, false, -999999, Collections.emptyList(), null));

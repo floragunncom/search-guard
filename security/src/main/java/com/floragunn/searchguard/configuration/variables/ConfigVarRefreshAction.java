@@ -116,14 +116,14 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
 
     public static class TransportAction extends TransportNodesAction<Request, Response, TransportAction.NodeRequest, TransportAction.NodeResponse> {
 
-        private final ConfigVarService secretsStorageService;
+        private final ConfigVarService configVarService;
 
         @Inject
-        public TransportAction(ConfigVarService secretsStorageService, ThreadPool threadPool, ClusterService clusterService,
+        public TransportAction(ConfigVarService configVarService, ThreadPool threadPool, ClusterService clusterService,
                 TransportService transportService, ActionFilters actionFilters) {
             super(ConfigVarRefreshAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new,
                     TransportAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT, TransportAction.NodeResponse.class);
-            this.secretsStorageService = secretsStorageService;
+            this.configVarService = configVarService;
         }
 
         @Override
@@ -142,7 +142,7 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
             DiscoveryNode localNode = clusterService.localNode();
 
             try {
-                secretsStorageService.refresh();
+                configVarService.refresh();
 
                 return new NodeResponse(localNode, NodeResponse.Status.SUCCESS, "");
             } catch (Exception e) {

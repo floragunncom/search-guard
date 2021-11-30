@@ -56,8 +56,8 @@ public class CType<T> {
     public static final CType<ConfigVar> CONFIG_VARS = new CType<ConfigVar>("config_vars", "Config Variable", 7, ConfigVar.class, null,
             Storage.EXTERNAL);
     
-    public static final CType<FrontendConfig> FRONTEND_CONFIG = new CType<FrontendConfig>("frontend_config", "Frontend Config", 8, FrontendConfig.class, null,
-            Storage.OPTIONAL);
+    public static final CType<FrontendConfig> FRONTEND_CONFIG = new CType<FrontendConfig>("frontend_config", "Frontend Config", 8,
+            FrontendConfig.class, FrontendConfig::parse, Storage.OPTIONAL);
 
     private final String name;
     private final String uiName;

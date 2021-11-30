@@ -38,7 +38,6 @@ import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.LDAPConnection;
-import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 
 @RunWith(Parameterized.class)
@@ -319,8 +318,8 @@ public class LdapBackendTestNewStyleConfig2 {
             new LDAPAuthenticationBackend2(settings, null)
                     .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
             Assert.fail("Expected exception");
-        } catch (final Exception e) {            
-            Assert.assertEquals(e.toString(), LDAPException.class, e.getCause().getClass());
+        } catch (final Exception e) {
+            Assert.assertEquals(IllegalStateException.class, e.getCause().getClass());
         }
     }
 

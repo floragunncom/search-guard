@@ -34,7 +34,7 @@ import com.floragunn.searchsupport.indices.IndexMapping.KeywordProperty;
 import com.floragunn.searchsupport.indices.IndexMapping.ObjectProperty;
 import com.floragunn.searchsupport.util.ImmutableMap;
 
-public class ConfigVar implements Document {
+public class ConfigVar implements Document<ConfigVar> {
 
     static IndexMapping INDEX_MAPPING = new DynamicIndexMapping(//
             new DisabledIndexProperty("value"), //

@@ -114,6 +114,7 @@ public class BulkConfigApiTest {
             Assert.assertEquals(response.getBody(), 404, response.getStatusCode());
             
             DocNode updateRequestDoc = DocNode.of("config_vars.content", responseDoc.get("config_vars", "content"));
+            System.out.println(updateRequestDoc.toJsonString());
             HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc);
 
             Assert.assertEquals(updateResponse.getBody(), 200, updateResponse.getStatusCode());
