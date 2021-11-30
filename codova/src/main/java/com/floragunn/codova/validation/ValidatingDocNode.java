@@ -428,6 +428,14 @@ public class ValidatingDocNode {
             return this;
         }
 
+        public Attribute required(boolean required) {
+            if (required) {
+                return this.required();
+            } else {
+                return this;
+            }
+        }
+        
         public StringAttribute withDefault(String defaultValue) {
             return new StringAttribute(name, fullAttributePath, documentNode).withDefault(defaultValue).expected(expected);
         }
