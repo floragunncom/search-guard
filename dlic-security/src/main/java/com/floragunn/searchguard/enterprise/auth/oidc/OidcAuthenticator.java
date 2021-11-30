@@ -17,18 +17,19 @@ package com.floragunn.searchguard.enterprise.auth.oidc;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.http.NameValuePair;
@@ -59,6 +60,8 @@ import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserAttributes;
 import com.google.common.base.Strings;
+import com.google.common.hash.Hashing;
+import com.google.common.io.BaseEncoding;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
@@ -66,7 +69,9 @@ import com.jayway.jsonpath.PathNotFoundException;
 
 public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(OidcAuthenticator.class);
-    private static final String SSO_CONTEXT_PREFIX = "oidc_state:";
+    private static final String SSO_CONTEXT_PREFIX_STATE = "oidc_s:";
+    private static final String SSO_CONTEXT_PREFIX_CODE_VERIFIER = "oidc_cv:";
+
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private ProxyConfig proxyConfig;
@@ -79,6 +84,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private final JsonPath jsonSubjectPath;
     private final JsonPath jsonRolesPath;
     private final String logoutUrl;
+    private final boolean usePkce;
     private Configuration jsonPathConfig;
     private Map<String, JsonPath> attributeMapping;
 
@@ -88,7 +94,9 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context.getConfigVariableProviders());
 
         this.clientId = vNode.get("client_id").required().asString();
-        this.clientSecret = vNode.get("client_secret").required().asString();
+        this.usePkce = vNode.get("pkce").withDefault(true).asBoolean();
+        this.clientSecret = vNode.get("client_secret").required(!this.usePkce).asString();
+
         this.scope = vNode.get("scope").withDefault("openid profile email address phone").asString();
         this.proxyConfig = vNode.get("idp.proxy").by(ProxyConfig::parse);
 
@@ -141,37 +149,48 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             OidcProviderConfig oidcProviderConfig = openIdProviderClient.getOidcConfiguration();
 
             if (oidcProviderConfig.getAuthorizationEndpoint() == null) {
-                throw new AuthenticatorUnavailableException("Invalid OIDC metadata", "authorization_endpoint missing from OIDC metadata").details("oidc_metadata",
-                        oidcProviderConfig.getParsedJson());
+                throw new AuthenticatorUnavailableException("Invalid OIDC metadata", "authorization_endpoint missing from OIDC metadata")
+                        .details("oidc_metadata", oidcProviderConfig.getParsedJson());
             }
 
             if (request.getFrontendBaseUrl() == null) {
-                throw new AuthenticatorUnavailableException("Invalid configuration", "frontend_base_url is required for OIDC authentication").details("request",
-                        request.toBasicObject());
+                throw new AuthenticatorUnavailableException("Invalid configuration", "frontend_base_url is required for OIDC authentication")
+                        .details("request", request.toBasicObject());
             }
 
             URI frontendBaseUrl = new URI(request.getFrontendBaseUrl());
 
             String redirectUri = getLoginPostURI(frontendBaseUrl).toASCIIString();
-            String stateToken = createOpaqueToken();
+            String stateToken = createOpaqueToken(24);
+            String codeVerifier = null;
+            String codeChallenge = null;
             String state;
-            
+            String ssoContext = SSO_CONTEXT_PREFIX_STATE + stateToken;
+
             if (!Strings.isNullOrEmpty(request.getNextURL())) {
-                state = stateToken + "|" + request.getNextURL(); 
+                state = stateToken + "|" + request.getNextURL();
             } else {
                 state = stateToken;
             }
 
-            String ssoLocation = new URIBuilder(oidcProviderConfig.getAuthorizationEndpoint()).addParameter("client_id", clientId)
+            URIBuilder ssoLocationBuilder = new URIBuilder(oidcProviderConfig.getAuthorizationEndpoint()).addParameter("client_id", clientId)
                     .addParameter("response_type", "code").addParameter("redirect_uri", redirectUri).addParameter("state", state)
-                    .addParameter("scope", scope).build().toASCIIString();
-            String ssoContext = SSO_CONTEXT_PREFIX + stateToken;
+                    .addParameter("scope", scope);
 
-            return frontendConfig.ssoLocation(ssoLocation).ssoContext(ssoContext);
+            if (usePkce) {
+                codeVerifier = createOpaqueToken(48);
+                codeChallenge = BaseEncoding.base64Url().encode(Hashing.sha256().hashString(codeVerifier, StandardCharsets.US_ASCII).asBytes());
+                ssoLocationBuilder.addParameter("code_challenge", codeChallenge);
+                ssoLocationBuilder.addParameter("code_challenge_method", "S256");
+                ssoContext += ";" + SSO_CONTEXT_PREFIX_CODE_VERIFIER + codeVerifier;
+            }
+
+            return frontendConfig.ssoLocation(ssoLocationBuilder.build().toASCIIString()).ssoContext(ssoContext);
 
         } catch (URISyntaxException e) {
             log.error("Error while activating SAML authenticator", e);
-            throw new AuthenticatorUnavailableException("Invalid configuration", "frontend_base_url is not a valid URL", e).details("request", request.toBasicObject());
+            throw new AuthenticatorUnavailableException("Invalid configuration", "frontend_base_url is not a valid URL", e).details("request",
+                    request.toBasicObject());
         }
     }
 
@@ -180,18 +199,23 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             throws CredentialsException, AuthenticatorUnavailableException, ConfigValidationException {
         Map<String, Object> debugDetails = new HashMap<>();
 
-        String expectedStateToken = null;
-
         String ssoContext = request.containsKey("sso_context") ? String.valueOf(request.get("sso_context")) : null;
 
-        if (ssoContext != null) {
-            if (!ssoContext.startsWith(SSO_CONTEXT_PREFIX)) {
-                throw new ConfigValidationException(new InvalidAttributeValue("sso_context", ssoContext, "Must start with " + SSO_CONTEXT_PREFIX));
-            }
-
-            expectedStateToken = ssoContext.substring(SSO_CONTEXT_PREFIX.length());
-        } else {
+        if (ssoContext == null) {
             throw new ConfigValidationException(new MissingAttribute("sso_context"));
+        }
+
+        String expectedStateToken = getValueFromSsoContext(SSO_CONTEXT_PREFIX_STATE, ssoContext);
+
+        if (expectedStateToken == null) {
+            throw new ConfigValidationException(new InvalidAttributeValue("sso_context", ssoContext, "Must contain " + SSO_CONTEXT_PREFIX_STATE));
+        }
+
+        String codeVerifier = getValueFromSsoContext(SSO_CONTEXT_PREFIX_CODE_VERIFIER, ssoContext);
+
+        if (usePkce && codeVerifier == null) {
+            throw new ConfigValidationException(
+                    new InvalidAttributeValue("sso_context", ssoContext, "Must contain " + SSO_CONTEXT_PREFIX_CODE_VERIFIER));
         }
 
         String ssoResult = request.containsKey("sso_result") ? String.valueOf(request.get("sso_result")) : null;
@@ -219,11 +243,11 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         if (state == null) {
             throw new ConfigValidationException(new MissingAttribute("ssoResult.state"));
         }
-        
+
         String actualStateToken;
         String frontendRedirectUri;
         int separator = state.indexOf('|');
-        
+
         if (separator == -1) {
             actualStateToken = state;
             frontendRedirectUri = null;
@@ -242,14 +266,28 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         debugDetails.put("sso_result", ssoResult);
         debugDetails.put("code", code);
         debugDetails.put("state", state);
-        
+
         if (!Objects.equals(expectedStateToken, actualStateToken)) {
-            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "Invalid state token: " + expectedStateToken + "/" + actualStateToken, debugDetails));
+            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                    "Invalid state token: " + expectedStateToken + "/" + actualStateToken, debugDetails));
         }
 
         String oidcRedirectUri = getLoginPostURI(frontendBaseUrl).toASCIIString();
 
-        TokenResponse tokenResponse = openIdProviderClient.callTokenEndpoint(clientId, clientSecret, scope, code, oidcRedirectUri);
+        Map<String, String> tokenRequest = new LinkedHashMap<>();
+        tokenRequest.put("client_id", clientId);
+        tokenRequest.put("code", code);
+        tokenRequest.put("redirect_uri", oidcRedirectUri);
+
+        if (usePkce) {
+            tokenRequest.put("code_verifier", codeVerifier);
+        }
+
+        if (clientSecret != null) {
+            tokenRequest.put("client_secret", clientSecret);
+        }
+
+        TokenResponse tokenResponse = openIdProviderClient.callTokenEndpoint(tokenRequest);
 
         debugDetails.put("token_response", tokenResponse.asMap());
 
@@ -343,7 +381,6 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         }
     }
 
-
     private URI getLoginPostURI(URI frontendBaseURI) {
         try {
             return new URIBuilder(frontendBaseURI).setPath(frontendBaseURI.getPath() + "auth/openid/login").build();
@@ -364,27 +401,26 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
         debugDetails.put("claims", claims.asMap());
         debugDetails.put("user_mapping.subject", jsonSubjectPath);
-        
+
         if (jsonSubjectPath != null) {
             try {
-                Object subjectObject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims.asMap()).read(jsonSubjectPath);
-                
+                Object subjectObject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims.asMap())
+                        .read(jsonSubjectPath);
+
                 if (subjectObject == null) {
-                    throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                        "The JWT contains a null subject", debugDetails));
+                    throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "The JWT contains a null subject", debugDetails));
                 }
-                
+
                 if (subjectObject instanceof Collection) {
                     Collection<?> subjectCollection = (Collection<?>) subjectObject;
 
                     if (subjectCollection.size() == 0) {
-                        throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                                "The subject array is empty", debugDetails));
+                        throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "The subject array is empty", debugDetails));
                     }
 
                     if (subjectCollection.size() > 1) {
-                        throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                                "The subject array contains more than one element.", debugDetails));
+                        throw new CredentialsException(
+                                new AuthczResult.DebugInfo(getType(), false, "The subject array contains more than one element.", debugDetails));
                     }
 
                     subject = String.valueOf(subjectCollection.iterator().next());
@@ -392,11 +428,10 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
                     subject = String.valueOf(subjectObject);
                 }
 
-                
             } catch (PathNotFoundException e) {
                 log.error("The provided JSON path {} could not be found ", jsonSubjectPath.getPath());
-                throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                        "The configured JSON Path could not be found in the JWT", debugDetails));
+                throw new CredentialsException(
+                        new AuthczResult.DebugInfo(getType(), false, "The configured JSON Path could not be found in the JWT", debugDetails));
             }
         }
 
@@ -445,8 +480,26 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         }
     }
 
-    private String createOpaqueToken() {
-        return RandomStringUtils.random(22, 0, 0, true, true, null, SECURE_RANDOM);
+    private String createOpaqueToken(int byteCount) {
+        byte[] b = new byte[byteCount];
+        SECURE_RANDOM.nextBytes(b);
+        return BaseEncoding.base64Url().encode(b);
+    }
+
+    private String getValueFromSsoContext(String key, String ssoContext) {
+        if (ssoContext == null) {
+            return null;
+        }
+
+        int keyIndex = ssoContext.indexOf(key);
+
+        if (keyIndex == -1) {
+            return null;
+        }
+
+        int valueIndex = keyIndex + key.length();
+        int endIndex = ssoContext.indexOf(';', valueIndex);
+        return ssoContext.substring(valueIndex, endIndex == -1 ? ssoContext.length() : endIndex).trim();
     }
 
 }

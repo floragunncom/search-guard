@@ -19,7 +19,7 @@ import java.net.URI;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -210,12 +210,16 @@ public class OpenIdProviderClient {
         }
     }
 
-    public TokenResponse callTokenEndpoint(String clientId, String clientSecret, String scope, String authCode, String redirectUri)
+    public TokenResponse callTokenEndpoint(Map<String, String> params) 
             throws AuthenticatorUnavailableException {
-        List<NameValuePair> request = Arrays.asList(new BasicNameValuePair("client_id", clientId),
-                new BasicNameValuePair("client_secret", clientSecret), new BasicNameValuePair("grant_type", "authorization_code"),
-                new BasicNameValuePair("code", authCode), new BasicNameValuePair("redirect_uri", redirectUri));
-
+        List<NameValuePair> request = new ArrayList<>(params.size() + 1);
+        
+        request.add(new BasicNameValuePair("grant_type", "authorization_code"));
+        
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            request.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
+        }
+        
         OidcProviderConfig oidcProviderConfg = getOidcConfiguration();
         String tokenEndpoint = oidcProviderConfg.getTokenEndpoint();
 

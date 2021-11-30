@@ -27,9 +27,13 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,9 +101,9 @@ public class MockIpdServer implements Closeable {
     private String requireTlsClientCertFingerprint;
     private JsonWebKeys jwks;
     private boolean requireValidCodes = true;
+    private boolean requirePkce = false;
 
-    private Map<String, String> validCodes = new ConcurrentHashMap<>();
-    private Map<String, String> validCodesToRedirectUri = new ConcurrentHashMap<>();
+    private Map<String, AuthCodeContext> validCodes = new ConcurrentHashMap<>();
 
     private InetAddress acceptConnectionsOnlyFromInetAddress;
     private TLSConfig tlsConfig;
@@ -282,15 +286,29 @@ public class MockIpdServer implements Closeable {
         String idToken;
 
         if (requireValidCodes) {
-            idToken = this.validCodes.remove(code);
+            AuthCodeContext authCodeContext = this.validCodes.remove(code);
 
-            if (idToken == null) {
+            if (authCodeContext == null) {
                 response.setStatusCode(400);
                 response.setEntity(new StringEntity("Invalid code " + code));
                 return;
             }
 
-            String oldRedirectUri = this.validCodesToRedirectUri.remove(code);
+            if (authCodeContext.codeChallenge != null) {
+                String codeVerifier = entityParams.get("code_verifier");
+                String hashed = applySHA256(codeVerifier);
+
+                if (!hashed.equals(authCodeContext.codeChallenge)) {
+                    response.setStatusCode(400);
+                    response.setEntity(new StringEntity(
+                            "Invalid code_challenge " + authCodeContext.codeChallenge + "; expected: " + hashed + " (" + codeVerifier + ")"));
+                    return;
+                }
+            }
+
+            idToken = authCodeContext.userJwt;
+
+            String oldRedirectUri = authCodeContext.redirectUri;
             String currentRedirectUri = entityParams.get("redirect_uri");
 
             System.out.println("redirect uri: " + oldRedirectUri + "; " + currentRedirectUri);
@@ -353,6 +371,17 @@ public class MockIpdServer implements Closeable {
         return true;
     }
 
+    private String applySHA256(String string) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(string.getBytes(StandardCharsets.US_ASCII));
+
+            return Base64.getUrlEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     static class SSLTestHttpServerConnection extends DefaultBHttpServerConnection {
         public SSLTestHttpServerConnection(final int buffersize, final int fragmentSizeHint, final CharsetDecoder chardecoder,
                 final CharsetEncoder charencoder, final MessageConstraints constraints, final ContentLengthStrategy incomingContentStrategy,
@@ -381,9 +410,22 @@ public class MockIpdServer implements Closeable {
         String redirectUri = ssoParams.get("redirect_uri");
         Assert.assertNotNull(ssoLocation, redirectUri);
 
+        String codeChallenge = ssoParams.get("code_challenge");
+        String codeChallengeMethod = ssoParams.get("code_challenge_method");
+
         String code = RandomStringUtils.randomAlphanumeric(8);
-        validCodes.put(code, userJwt);
-        validCodesToRedirectUri.put(code, redirectUri);
+        AuthCodeContext authCodeContext = new AuthCodeContext();
+        authCodeContext.userJwt = userJwt;
+        authCodeContext.redirectUri = redirectUri;
+        authCodeContext.codeChallenge = codeChallenge;
+
+        if (codeChallenge != null) {
+            Assert.assertEquals(ssoLocation, "S256", codeChallengeMethod);
+        } else if (requirePkce) {
+            return null;
+        }
+        
+        validCodes.put(code, authCodeContext);
 
         URIBuilder uriBuilder = new URIBuilder(redirectUri);
         uriBuilder.addParameter("code", code);
@@ -431,6 +473,11 @@ public class MockIpdServer implements Closeable {
             return this;
         }
 
+        public Builder requirePkce(boolean requirePkce) {
+            mockIdpServer.requirePkce = requirePkce;
+            return this;
+        }
+         
         public Builder requireTlsClientCertAuth() {
             mockIdpServer.requireTlsClientCertAuth = true;
             return this;
@@ -456,5 +503,12 @@ public class MockIpdServer implements Closeable {
             mockIdpServer.start();
             return mockIdpServer;
         }
+    }
+
+    private static class AuthCodeContext {
+        private String userJwt;
+        private String redirectUri;
+        private String codeChallenge;
+
     }
 }

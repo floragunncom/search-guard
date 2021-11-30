@@ -46,6 +46,8 @@ import com.google.common.collect.ImmutableMap;
 
 public class OidcAuthenticatorTest {
     protected static MockIpdServer mockIdpServer;
+    protected static MockIpdServer pkceMockIdpServer;
+
     protected static BrowserUpProxy httpProxy;
 
     private static AuthenticationFrontend.Context testContext = new AuthenticationFrontend.Context(null, null, null);
@@ -71,7 +73,9 @@ public class OidcAuthenticatorTest {
         httpProxy.setMitmDisabled(true);
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
         basicAuthenticatorSettings = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "client_id",
-                "Der Klient", "client_secret", "Das Geheimnis", "user_mapping.roles", "roles");
+                "Der Klient", "client_secret", "Das Geheimnis", "user_mapping.roles", "roles", "pkce", false);
+
+        pkceMockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL).requirePkce(true).start();
     }
 
     @AfterClass
@@ -103,6 +107,36 @@ public class OidcAuthenticatorTest {
         AuthCredentials authCredentials = authenticator.extractCredentials(request);
 
         Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
+    }
+    
+    @Test
+    public void pkceTest() throws Exception {
+        Map<String, Object> authenticatorSettings = ImmutableMap.of("idp.openid_configuration_url", pkceMockIdpServer.getDiscoverUri().toString(), "client_id",
+                "Der Klient", "user_mapping.roles", "roles");
+        
+        OidcAuthenticator authenticator = new OidcAuthenticator(authenticatorSettings, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+
+        String ssoResponse = pkceMockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
+
+        Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
+                FRONTEND_BASE_URL);
+
+        AuthCredentials authCredentials = authenticator.extractCredentials(request);
+
+        Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());        
+    }
+    
+    @Test
+    public void pkceMissingTest() throws Exception {
+        OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+
+        String ssoResponse = pkceMockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
+
+        Assert.assertNull(ssoResponse);
     }
 
     @Test
