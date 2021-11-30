@@ -56,6 +56,7 @@ import com.floragunn.searchguard.auth.Destroyable;
 import com.floragunn.searchguard.auth.frontend.ActivatedFrontendConfig;
 import com.floragunn.searchguard.auth.frontend.GetFrontendConfigAction;
 import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserAttributes;
@@ -91,11 +92,11 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
     private boolean checkIssuer;
     private Pattern subjectPattern;
 
-    public SamlAuthenticator(Map<String, Object> config, AuthenticationFrontend.Context context) throws ConfigValidationException {
+    public SamlAuthenticator(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
         ensureOpenSamlInitialization();
 
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context.getConfigVariableProviders());
+        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context);
 
         rolesKey = vNode.get("user_mapping.roles").asString();
         subjectKey = vNode.get("user_mapping.subject").asString();

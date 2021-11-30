@@ -104,6 +104,10 @@ public class SessionPrivileges implements ToXContentObject, Writeable, Serializa
         List<String> backendRoles = vJsonNode.get("roles_be").asList().withEmptyListAsDefault().ofStrings();
         List<String> searchGuardRoles = vJsonNode.get("roles_sg").asList().withEmptyListAsDefault().ofStrings();
         Map<String, Object> attributes = vJsonNode.get("attrs").asMap();
+        
+        if (attributes == null) {
+            attributes = Collections.emptyMap();
+        }
 
         return new SessionPrivileges(backendRoles, searchGuardRoles, attributes);
     }

@@ -132,11 +132,16 @@ public class ConfigurationLoader {
         MultiGetRequest mget = new MultiGetRequest().refresh(true).realtime(true);
 
         Set<CType<?>> expectedTypes = new HashSet<>();
+        Set<CType<?>> optionalTypes = new HashSet<>();
 
         for (CType<?> cType : types) {
             if (!cType.isExternal()) {
                 mget.add(searchguardIndex, cType.toLCString());
                 expectedTypes.add(cType);
+
+                if (cType.isOptional()) {
+                    optionalTypes.add(cType);
+                } 
             }
         }
 
@@ -155,7 +160,7 @@ public class ConfigurationLoader {
                                 .map(r -> r.getId() + ": failure: " + r.getFailure() + "; exists: " + r.getResponse().isExists() + "; sourceEmpty: "
                                         + r.getResponse().isSourceEmpty() + "; version: " + r.getResponse().getVersion() + "; seqno: "
                                         + r.getResponse().getSeqNo() + "; pt: " + r.getResponse().getPrimaryTerm() + "; size: "
-                                        + (r.getResponse().getSourceAsBytes() != null ? r.getResponse().getSourceAsBytes().length : "null")));
+                                        + (r.getResponse().getSourceAsBytes() != null ? r.getResponse().getSourceAsBytes().length : "null")).collect(Collectors.toList()));
                     }
 
                     List<Failure> failures = new ArrayList<>();
@@ -163,13 +168,13 @@ public class ConfigurationLoader {
 
                     for (MultiGetItemResponse item : response.getResponses()) {
                         CType<?> type = item.getId() != null ? CType.fromString(item.getId()) : null;
-
+                       
                         if (item.isFailed()) {
                             failures.add(item.getFailure());
                             failure(type, item.getFailure(), typeToStateMap);
                             continue;
                         }
-
+                    
                         try {
                             SgDynamicConfiguration<?> config = toConfig(type, item.getResponse());
                             configMapBuilder.with(config);
@@ -213,7 +218,7 @@ public class ConfigurationLoader {
     private SgDynamicConfiguration<?> toConfig(CType<?> type, GetResponse getResponse) throws Exception {
         if (!getResponse.isExists()) {
             if (type != null && type.isOptional()) {
-                return SgDynamicConfiguration.empty();
+                return SgDynamicConfiguration.empty(type);
             } else {
                 throw new Exception("Document does not exist");
             }

@@ -128,9 +128,9 @@ public class ConfigVarApiTest {
             response = client.get("/_searchguard/config/vars");
             DocNode responseDoc = response.getBodyAsDocNode();
 
-            ConfigVarService secretsService = cluster.getInjectable(ConfigVarService.class);
+            ConfigVarService configVarService = cluster.getInjectable(ConfigVarService.class);
 
-            Assert.assertEquals(secretContent, secretsService.get(secretId));
+            Assert.assertEquals(secretContent, configVarService.get(secretId));
 
             Assert.assertNotNull(response.getBody(), responseDoc.get("data", secretId, "encrypted", "value"));
 

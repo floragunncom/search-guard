@@ -233,14 +233,10 @@ public class OpenIdProviderClient {
                                     "Error response from token endpoint:\n" + response.getStatusLine() + "\n" + responseBody);
                         }
 
-                        try {
-                            Map<String, Object> responseJsonBody = DocReader.json().readObject(responseBody);
+                        Map<String, Object> responseJsonBody = DocReader.json().readObject(responseBody);
 
-                            return new TokenResponse(responseJsonBody);
-                        } catch (IOException e) {
-                            throw new AuthenticatorUnavailableException(
-                                    "Error while parsing result from " + tokenEndpoint + ":\n" + response + "\n" + responseBody, e);
-                        }
+                        return new TokenResponse(responseJsonBody);
+                        
                     }
                 } catch (IOException e) {
                     throw new AuthenticatorUnavailableException("Error while calling " + tokenEndpoint, e);

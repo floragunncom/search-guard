@@ -36,10 +36,10 @@ import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.auth.AuthenticationFrontend;
 import com.floragunn.searchguard.auth.CredentialsException;
 import com.floragunn.searchguard.auth.frontend.ActivatedFrontendConfig;
 import com.floragunn.searchguard.auth.frontend.GetFrontendConfigAction;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.collect.ImmutableMap;
@@ -50,7 +50,7 @@ public class OidcAuthenticatorTest {
 
     protected static BrowserUpProxy httpProxy;
 
-    private static AuthenticationFrontend.Context testContext = new AuthenticationFrontend.Context(null, null, null);
+    private static ConfigurationRepository.Context testContext = new ConfigurationRepository.Context(null, null, null, null);
     private static Map<String, Object> basicAuthenticatorSettings;
     private static String FRONTEND_BASE_URL = "http://whereever";
     private static final TLSConfig IDP_TLS_CONFIG;
@@ -148,7 +148,7 @@ public class OidcAuthenticatorTest {
 
         String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
 
-        Assert.assertTrue(ssoResponse, ssoResponse.matches(".*state=[A-Za-z0-9]+%7C" + URLEncoder.encode(redirectTarget, "utf-8")));
+        Assert.assertTrue(ssoResponse, ssoResponse.matches(".*state=[A-Za-z0-9\\-_]+%7C" + URLEncoder.encode(redirectTarget, "utf-8")));
 
         Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
                 FRONTEND_BASE_URL);

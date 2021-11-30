@@ -79,6 +79,12 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     public static <T> SgDynamicConfiguration<T> empty() {
         return new SgDynamicConfiguration<T>();
     }
+    
+    public static <T> SgDynamicConfiguration<T> empty(CType<T> type) {
+        SgDynamicConfiguration<T> result =  new SgDynamicConfiguration<T>();
+        result.ctype = type;
+        return result;
+    }
         
     public static <T> SgDynamicConfiguration<T> from(Reader reader, CType<T> ctype, Format docType, ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
         if (ctype.getParser() != null) {

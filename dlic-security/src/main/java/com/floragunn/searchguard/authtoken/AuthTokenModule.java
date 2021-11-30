@@ -61,7 +61,7 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig>, ComponentStateProvider {
 
     private AuthTokenService authTokenService;
-    private ConfigVarService secretsStorageService;
+    private ConfigVarService configVarService;
     private final ComponentState componentState = new ComponentState(1000, null, "auth_token_service", AuthTokenModule.class);
 
     @Override
@@ -83,9 +83,9 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
 
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
-        this.secretsStorageService = baseDependencies.getSecretsService();
-        
-        this.secretsStorageService.requestRandomKey("secrets.auth_tokens.signing_key.hs512", 512, "authcz");
+        this.configVarService = baseDependencies.getConfigVarService();
+
+        this.configVarService.requestRandomKey("auth_tokens_signing_key_hs512", 512, "authcz");
 
         PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(baseDependencies.getLocalClient());
 
@@ -94,9 +94,9 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
                 baseDependencies.getDynamicConfigFactory(), baseDependencies.getSettings());
 
         componentState.addPart(configHistoryService.getComponentState());
-        
+
         authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, baseDependencies.getSettings(),
-                baseDependencies.getThreadPool(), baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService(), null, null,
+                baseDependencies.getThreadPool(), baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService(), null,
                 componentState);
 
         AuthTokenAuthenticationBackend authenticationBackend = new AuthTokenAuthenticationBackend(authTokenService);
