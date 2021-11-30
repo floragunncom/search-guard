@@ -25,17 +25,17 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchguard.auth.AuthenticationFrontend;
 import com.floragunn.searchguard.auth.frontend.ActivatedFrontendConfig.AuthMethod;
 import com.floragunn.searchguard.auth.frontend.GetFrontendConfigAction.Request;
 import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class LinkApiAuthenticationFrontend implements ApiAuthenticationFrontend {
 
     private URI url;
 
-    public LinkApiAuthenticationFrontend(Map<String, Object> config, AuthenticationFrontend.Context context) throws ConfigValidationException {
+    public LinkApiAuthenticationFrontend(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors);
 

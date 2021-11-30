@@ -533,10 +533,10 @@ public class ComponentState implements Writeable, ToXContentObject {
             }
 
             if (detailJsonElements == null) {
-                detailJsonElements = new ArrayList<>();
+                detailJsonElements = Collections.synchronizedList(new ArrayList<>());
             }
         }
-
+        
         detailJsonElements.add(detail);
     }
 

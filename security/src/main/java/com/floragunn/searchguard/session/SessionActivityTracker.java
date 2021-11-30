@@ -35,6 +35,7 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.core.TimeValue;
@@ -46,6 +47,8 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.Scheduler.Cancellable;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 
 public class SessionActivityTracker {
@@ -62,6 +65,8 @@ public class SessionActivityTracker {
     private TimeValue flushInterval;
     private Cancellable job;
     private Random random;
+    private final ComponentState componentState = new ComponentState(1, null, "session_activity_tracker", SessionActivityTracker.class);
+    private volatile long lastComponentStateUpdate = -1;
 
     public SessionActivityTracker(Duration inactivityTimeout, SessionService sessionService, String indexName,
             PrivilegedConfigClient privilegedConfigClient, ThreadPool threadPool) {
@@ -75,7 +80,15 @@ public class SessionActivityTracker {
     }
 
     public void trackAccess(SessionToken authToken) {
-        lastAccess.put(authToken.getId(), System.currentTimeMillis() + inactivityBeforeExpiryMillis);
+        long now = System.currentTimeMillis();
+                
+        lastAccess.put(authToken.getId(), now + inactivityBeforeExpiryMillis);
+
+        if (lastComponentStateUpdate + 10 * 1000 < now) {
+            lastComponentStateUpdate = now;
+            componentState.addDetail("Sessions: " + lastAccess.size());
+        }
+
     }
 
     public void checkExpiryAndTrackAccess(SessionToken authToken, Consumer<Boolean> onResult, Consumer<Exception> onFailure) {
@@ -196,89 +209,96 @@ public class SessionActivityTracker {
                     .must(QueryBuilders.rangeQuery(SessionToken.DYNAMIC_EXPIRES_AT).lt(entry.getValue())));
         }
 
-        // TODO information gap between start and finish
-        // TODO scroll
+        ActionListener<SearchResponse> searchListener = new ActionListener<SearchResponse>() {
+            @Override
+            public void onResponse(SearchResponse response) {
 
-        privilegedConfigClient.search(new SearchRequest(indexName).source(new SearchSourceBuilder().query(query).size(1000)),
-                new ActionListener<SearchResponse>() {
+                if (response.getHits().getHits().length == 0) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("No updates for dynamic_expires needed");
+                    }
+                    
+                    componentState.setState(State.INITIALIZED, "Flushed " + lastAccessCopy.size() + " dynamic_expires entries");
+
+                    return;
+                }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Got response for dynamic_expires search. Must update " + response.getHits().getHits().length + " tokens");
+                }
+
+                BulkRequest bulkRequest = new BulkRequest(indexName);
+
+                for (SearchHit hit : response.getHits().getHits()) {
+                    UpdateRequest updateRequest = new UpdateRequest(indexName, hit.getId());
+                    updateRequest.setIfPrimaryTerm(hit.getPrimaryTerm());
+                    updateRequest.setIfSeqNo(hit.getSeqNo());
+                    updateRequest.doc(SessionToken.DYNAMIC_EXPIRES_AT, lastAccessCopy.get(hit.getId()));
+                    bulkRequest.add(updateRequest);
+                }
+
+                privilegedConfigClient.bulk(bulkRequest, new ActionListener<BulkResponse>() {
 
                     @Override
-                    public void onResponse(SearchResponse response) {
+                    public void onResponse(BulkResponse response) {
+                        int updated = 0;
+                        int conflict = 0;
 
-                        if (response.getHits().getHits().length == 0) {
-                            if (log.isDebugEnabled()) {
-                                log.debug("No updates for dynamic_expires needed");
-                            }
+                        List<String> failureMessages = new ArrayList<>();
 
-                            return;
-                        }
-
-                        if (log.isDebugEnabled()) {
-                            log.debug("Got response for dynamic_expires search. Must update " + response.getHits().getHits().length + " tokens");
-                        }
-
-                        BulkRequest bulkRequest = new BulkRequest(indexName);
-
-                        for (SearchHit hit : response.getHits().getHits()) {
-                            UpdateRequest updateRequest = new UpdateRequest(indexName, hit.getId());
-                            updateRequest.setIfPrimaryTerm(hit.getPrimaryTerm());
-                            updateRequest.setIfSeqNo(hit.getSeqNo());
-                            updateRequest.doc(SessionToken.DYNAMIC_EXPIRES_AT, lastAccessCopy.get(hit.getId()));
-                            bulkRequest.add(updateRequest);
-                        }
-
-                        privilegedConfigClient.bulk(bulkRequest, new ActionListener<BulkResponse>() {
-
-                            @Override
-                            public void onResponse(BulkResponse response) {
-                                int updated = 0;
-                                int conflict = 0;
-
-                                List<String> failureMessages = new ArrayList<>();
-
-                                for (BulkItemResponse itemResponse : response.getItems()) {
-                                    if (itemResponse.isFailed()) {
-                                        if (itemResponse.getFailure().getCause() instanceof VersionConflictEngineException) {
-                                            // expected, ignore
-                                            conflict++;
-                                        } else {
-                                            failureMessages.add(Strings.toString(itemResponse.getFailure()));
-                                            lastAccess.putIfAbsent(itemResponse.getId(), lastAccessCopy.get(itemResponse.getId()));
-                                        }
-                                    } else {
-                                        updated++;
-                                    }
-                                }
-
-                                if (failureMessages.isEmpty()) {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Writing auth token activity bulk request finished. Updated: " + updated + "; Conflicts: "
-                                                + conflict);
-                                    }
+                        for (BulkItemResponse itemResponse : response.getItems()) {
+                            if (itemResponse.isFailed()) {
+                                if (itemResponse.getFailure().getCause() instanceof VersionConflictEngineException) {
+                                    // expected, ignore
+                                    conflict++;
                                 } else {
-                                    log.error("Error while writing auth token activity:\n" + failureMessages);
-                                    flushWithJitter(30);
+                                    failureMessages.add(Strings.toString(itemResponse.getFailure()));
+                                    lastAccess.putIfAbsent(itemResponse.getId(), lastAccessCopy.get(itemResponse.getId()));
                                 }
+                            } else {
+                                updated++;
                             }
+                        }
 
-                            @Override
-                            public void onFailure(Exception e) {
-                                log.error("Error while writing auth token activity: " + query, e);
-                                restoreLastAccess(lastAccessCopy);
+                        if (failureMessages.isEmpty()) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Writing auth token activity bulk request finished. Updated: " + updated + "; Conflicts: " + conflict);
                             }
-                        });
-
+                        } else {
+                            log.error("Error while writing auth token activity:\n" + failureMessages);
+                            componentState.addLastException("session activity update", new Exception(failureMessages.toString()));
+                            flushWithJitter(30);
+                        }
                     }
 
                     @Override
                     public void onFailure(Exception e) {
-                        log.error("Error while writing auth token activity: " + query, e);
+                        log.error("Error while writing session activity: " + query, e);
+                        componentState.addLastException("session activity update", e);
                         restoreLastAccess(lastAccessCopy);
                     }
-
                 });
 
+                // Continue scrolling
+                privilegedConfigClient.searchScroll(new SearchScrollRequest(response.getScrollId()), this);
+
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                log.error("Error while writing auth token activity: " + query, e);
+                restoreLastAccess(lastAccessCopy);
+            }
+
+        };
+        
+        componentState.setState(State.INITIALIZED, "Flushing " + lastAccessCopy.size() + " dynamic_expires entries");
+        
+        privilegedConfigClient.search(new SearchRequest(indexName).source(new SearchSourceBuilder().query(query).size(1000)).scroll(new TimeValue(10000)), searchListener);
+
     }
+    
+    
 
     private void restoreLastAccess(Map<String, Long> lastAccessCopy) {
         for (Map.Entry<String, Long> entry : lastAccessCopy.entrySet()) {
@@ -286,5 +306,9 @@ public class SessionActivityTracker {
         }
 
         flushWithJitter(30);
+    }
+
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

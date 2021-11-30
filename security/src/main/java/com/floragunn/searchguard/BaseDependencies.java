@@ -60,7 +60,7 @@ public class BaseDependencies {
     private final StaticSgConfig staticSgConfig;
     private final DiagnosticContext diagnosticContext;
     private final BackendRegistry backendRegistry;
-    private final ConfigVarService secretsService;
+    private final ConfigVarService configVarService;
     private final VariableResolvers configVariableProviders;
     private final AuditLog auditLog;
 
@@ -70,7 +70,7 @@ public class BaseDependencies {
             DynamicConfigFactory dynamicConfigFactory, StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository,
             ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, BackendRegistry backendRegistry,
-            ConfigVarService secretsStorageService, VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog) {
+            ConfigVarService configVarService, VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog) {
         super();
         this.settings = settings;
         this.localClient = localClient;
@@ -89,7 +89,7 @@ public class BaseDependencies {
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         this.internalAuthTokenProvider = internalAuthTokenProvider;
         this.backendRegistry = backendRegistry;
-        this.secretsService = secretsStorageService;
+        this.configVarService = configVarService;
         this.diagnosticContext = diagnosticContext;
         this.configVariableProviders = configVariableProviders;
         this.auditLog = auditLog;
@@ -167,11 +167,11 @@ public class BaseDependencies {
         return backendRegistry;
     }
 
-    public ConfigVarService getSecretsService() {
-        return secretsService;
+    public ConfigVarService getConfigVarService() {
+        return configVarService;
     }
 
-    public VariableResolvers getConfigVariableProviders() {
+    public VariableResolvers getConfigVarResolvers() {
         return configVariableProviders;
     }
 

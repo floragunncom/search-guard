@@ -60,7 +60,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     
     public DynamicConfigFactory(ConfigurationRepository cr, StaticSgConfig staticSgConfig, final Settings esSettings, 
             final Path configPath, Client client, ThreadPool threadPool, ClusterInfoHolder cih, SearchGuardModulesRegistry modulesRegistry,
-            ConfigVarService secretsStorageService) {
+            ConfigVarService configVarService) {
         super();
         this.cr = cr;
         this.esSettings = esSettings;
@@ -78,7 +78,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
                 internalAuthBackendFactory);
         this.cr.subscribeOnChange(this);
         
-        secretsStorageService.addChangeListener(() -> {
+        configVarService.addChangeListener(() -> {
             if (currentConfig != null) {
                 onChange(this.currentConfig);
             }

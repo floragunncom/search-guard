@@ -37,6 +37,7 @@ import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.searchguard.auth.AuthenticationFrontend;
 import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.modules.NoSuchComponentException;
 import com.floragunn.searchguard.modules.SearchGuardComponentRegistry;
 import com.google.common.hash.Hashing;
@@ -70,18 +71,15 @@ public class FrontendConfig implements Document<FrontendConfig> {
         return multitenancy;
     }
 
-    public static FrontendConfig parse(Map<String, Object> parsedJson,
-            SearchGuardComponentRegistry<ApiAuthenticationFrontend> authenticationFrontendRegistry, VariableResolvers configVariableProviders)
+    public static FrontendConfig parse(Object parsedJson, ConfigurationRepository.Context context)
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(parsedJson, validationErrors);
+        ValidatingDocNode vNode = new ValidatingDocNode(DocNode.wrap(parsedJson), validationErrors).expandVariables(context);
 
         FrontendConfig result = new FrontendConfig();
-        result.parsedJson = parsedJson;
+        result.parsedJson = DocNode.wrap(parsedJson);
 
-        AuthenticationFrontend.Context context = new AuthenticationFrontend.Context(null, null, configVariableProviders);
-
-        result.authcz = vNode.get("authcz").asList((documentNode) -> Authcz.parse(documentNode, context, authenticationFrontendRegistry));
+        result.authcz = vNode.get("authcz").asList((documentNode) -> Authcz.parse(documentNode, context));
         result.multitenancy = vNode.get("multitenancy").withDefault(Multitenancy.DEFAULT).by(Multitenancy::parse);
         result.loginPage = vNode.get("login_page").withDefault(LoginPage.DEFAULT).by(LoginPage::parse);
         result.debug = vNode.get("debug").withDefault(false).asBoolean();
@@ -127,8 +125,7 @@ public class FrontendConfig implements Document<FrontendConfig> {
             this.authenticationFrontend = authenticationFrontend;
         }
 
-        public static Authcz parse(DocNode documentNode, AuthenticationFrontend.Context context,
-                SearchGuardComponentRegistry<ApiAuthenticationFrontend> authenticationFrontendRegistry) throws ConfigValidationException {
+        public static Authcz parse(DocNode documentNode, ConfigurationRepository.Context context) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(documentNode, validationErrors);
 
@@ -141,6 +138,8 @@ public class FrontendConfig implements Document<FrontendConfig> {
             result.captureUrlFragment = vNode.get("capture_url_fragment").withDefault(false).asBoolean();
             // Note: When adding attributes here, don't forget to also add it in the documentNode.without() call a couple of lines below
 
+            SearchGuardComponentRegistry<ApiAuthenticationFrontend> authenticationFrontendRegistry = context != null ? context.modulesRegistry().getApiAuthenticationFrontends() : null;
+            
             if ("basic".equals(result.type)) {
                 if (result.message == null) {
                     result.message = DEFAULT_BASIC_AUTHCZ.getMessage();

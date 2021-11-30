@@ -22,7 +22,6 @@ import org.elasticsearch.xcontent.XContentType;
 import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.searchguard.auth.AuthFailureListener;
 import com.floragunn.searchguard.auth.AuthenticationDomain;
-import com.floragunn.searchguard.auth.AuthenticationFrontend;
 import com.floragunn.searchguard.auth.AuthorizationDomain;
 import com.floragunn.searchguard.auth.Destroyable;
 import com.floragunn.searchguard.auth.HTTPAuthenticator;
@@ -31,6 +30,7 @@ import com.floragunn.searchguard.auth.api.AuthorizationBackend;
 import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.auth.internal.NoOpAuthenticationBackend;
 import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
@@ -287,9 +287,8 @@ public class DynamicConfigModelV7 extends DynamicConfigModel implements Componen
                     
                     if (httpAuthenticatorType != null) {
                         Map<String, Object> frontendConfig = ad.getValue().http_authenticator.config;
-                      
-                        AuthenticationFrontend.Context context = new AuthenticationFrontend.Context(configPath, esSettings, configVariableProviders);
-                        
+                        ConfigurationRepository.Context context = new ConfigurationRepository.Context(configVariableProviders, modulesRegistry, esSettings, configPath);
+
                         httpAuthenticator = modulesRegistry.getHttpAuthenticators().getInstance(httpAuthenticatorType, frontendConfig,
                                 context);
                         

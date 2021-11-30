@@ -137,7 +137,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.mainConfigLoader = new ConfigurationLoader(client, settings, clusterService, componentState, this);
         this.externalUseConfigLoader = new ConfigurationLoader(client, settings, null, null, this);
         this.variableResolvers = VariableResolvers.ALL_PRIVILEGED.with("var", (key) -> configVarService.get(key));
-        this.parserContext = new Context(variableResolvers, modulesRegistry);
+        this.parserContext = new Context(variableResolvers, modulesRegistry, settings, configPath);
 
         bgThread = new Thread(new Runnable() {
 
@@ -742,10 +742,14 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public static class Context implements Parser.Context {
         private final VariableResolvers variableResolvers;
         private final SearchGuardModulesRegistry searchGuardModulesRegistry;
-        
-        public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry) {
+        private final Settings esSettings;
+        private final Path configPath;
+
+        public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, Settings esSettings, Path configPath) {
             this.variableResolvers = variableResolvers;
             this.searchGuardModulesRegistry = searchGuardModulesRegistry;
+            this.esSettings = esSettings;
+            this.configPath = configPath;
         }
 
         @Override
@@ -755,6 +759,14 @@ public class ConfigurationRepository implements ComponentStateProvider {
         
         public SearchGuardModulesRegistry modulesRegistry() {
             return searchGuardModulesRegistry;
+        }
+
+        public Settings getEsSettings() {
+            return esSettings;
+        }
+
+        public Path getConfigPath() {
+            return configPath;
         }
               
     }

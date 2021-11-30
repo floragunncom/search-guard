@@ -358,7 +358,7 @@ public class ReflectionHelper {
     }
     
     @SuppressWarnings("unchecked")
-    public static <T> T instantiateAAA(String clazz, Map<String, Object> config, AuthenticationFrontend.Context context, boolean checkEnterprise) throws ConfigValidationException, ClassNotFoundException {
+    public static <T> T instantiateAAA(String clazz, Map<String, Object> config, ConfigurationRepository.Context context, boolean checkEnterprise) throws ConfigValidationException, ClassNotFoundException {
 
         if (checkEnterprise && enterpriseModulesDisabled()) {
             throw new ElasticsearchException("Can not load '{}' because enterprise modules are disabled", clazz);
@@ -369,7 +369,7 @@ public class ReflectionHelper {
             T ret;
             
             try {
-                ret = (T) clazz0.getConstructor(Map.class, AuthenticationFrontend.Context.class).newInstance(config, context);
+                ret = (T) clazz0.getConstructor(Map.class, ConfigurationRepository.Context.class).newInstance(config, context);
             } catch (NoSuchMethodException e) {
                 Settings.Builder settings = Settings.builder().loadFromMap(config);
                 

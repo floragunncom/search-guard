@@ -17,42 +17,10 @@
 
 package com.floragunn.searchguard.auth;
 
-import java.nio.file.Path;
-
-import org.elasticsearch.common.settings.Settings;
-
-import com.floragunn.codova.validation.VariableResolvers;
-
 public interface AuthenticationFrontend {
     /**
      * The type (name) of the authenticator. Only for logging.  
      * @return the type
      */
     String getType();
-
-    public static class Context {
-
-        private final Path configPath;
-        private final Settings esSettings;
-        private final VariableResolvers configVariableProviders;
-
-        public Context(Path configPath, Settings esSettings, VariableResolvers configVariableProviders) {
-            this.configPath = configPath;
-            this.esSettings = esSettings;
-            this.configVariableProviders = configVariableProviders;
-        }
-
-        public Path getConfigPath() {
-            return configPath;
-        }
-
-        public Settings getEsSettings() {
-            return esSettings;
-        }
-
-        public VariableResolvers getConfigVariableProviders() {
-            return configVariableProviders;
-        }
-
-    }
 }
