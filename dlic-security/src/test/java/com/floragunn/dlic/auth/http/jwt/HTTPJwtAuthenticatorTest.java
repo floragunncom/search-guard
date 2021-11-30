@@ -742,4 +742,54 @@ public class HTTPJwtAuthenticatorTest {
         AuthCredentials creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
         Assert.assertNull(creds);
     } 
+
+    @Test
+    public void testRequiredAudience() {
+        Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).put("required_audience", "test_audience")
+                .build();
+
+        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").setAudience("test_audience")
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+
+        HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Authorization", jwsToken);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
+        Assert.assertNotNull(creds);
+        Assert.assertEquals("Leonard McCoy", creds.getUsername());
+
+        jwsToken = Jwts.builder().setSubject("Leonard McCoy").setAudience("wrong_audience")
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        headers.put("Authorization", jwsToken);
+
+        creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
+
+        Assert.assertNull(creds);
+    }
+
+    @Test
+    public void testRequiredIssuer() {
+        Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).put("required_issuer", "test_issuer")
+                .build();
+
+        String jwsToken = Jwts.builder().setSubject("Leonard McCoy").setIssuer("test_issuer")
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+
+        HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Authorization", jwsToken);
+
+        AuthCredentials creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
+        Assert.assertNotNull(creds);
+        Assert.assertEquals("Leonard McCoy", creds.getUsername());
+
+        jwsToken = Jwts.builder().setSubject("Leonard McCoy").setAudience("wrong_issuer")
+                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        headers.put("Authorization", jwsToken);
+
+        creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
+
+        Assert.assertNull(creds);
+    }
 }

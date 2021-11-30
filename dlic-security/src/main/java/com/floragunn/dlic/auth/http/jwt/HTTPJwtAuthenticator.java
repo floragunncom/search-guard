@@ -69,6 +69,8 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
     private final String subjectKey;
     private final String jsonSubjectPath;
     private final String jsonRolesPath;
+    private final String requireAudience;
+    private final String requireIssuer;
     private Configuration jsonPathConfig;
     private Map<String, JsonPath> attributeMapping;
     private final Pattern subjectPattern;
@@ -122,6 +124,17 @@ public class HTTPJwtAuthenticator implements HTTPAuthenticator {
         subjectKey = settings.get("subject_key");
         jsonRolesPath = settings.get("roles_path");
         jsonSubjectPath = settings.get("subject_path");
+        requireAudience = settings.get("required_audience");
+        requireIssuer = settings.get("required_issuer");
+        
+        if (requireAudience != null) {
+            _jwtParser.requireAudience(requireAudience);
+        }
+        
+        if (requireIssuer != null) {
+            _jwtParser.requireIssuer(requireIssuer);
+        }
+        
         jwtParser = _jwtParser;
         attributeMapping = UserAttributes.getAttributeMapping(settings.getAsSettings("map_claims_to_user_attrs"));
 
