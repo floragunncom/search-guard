@@ -17,6 +17,7 @@
 
 package com.floragunn.codova.documents;
 
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,7 +30,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Charsets;
 
@@ -40,8 +40,8 @@ public class DocType {
     public static DocType JSON = new DocType("JSON", Encoding.TEXT, new JsonFactory(), "json", "application/json", "text/x-json");
     public static DocType YAML = new DocType("YAML", Encoding.TEXT, new YAMLFactory(), "ya?ml", "application/x-yaml", "application/yaml", "text/yaml",
             "text/x-yaml", "text/vnd.yaml");
-    public static DocType SMILE = new DocType("SMILE", Encoding.BINARY, new SmileFactory(), "sml", "application/x-jackson-smile",
-            "application/smile");
+    public static DocType SMILE = new DocType("SMILE", Encoding.BINARY, "com.fasterxml.jackson.dataformat.smile.SmileFactory", "sml",
+            "application/x-jackson-smile", "application/smile");
 
     public static DocType getByContentType(String contentType) throws UnknownDocTypeException {
         DocType result = peekByContentType(contentType);
@@ -108,6 +108,7 @@ public class DocType {
     private final String contentType;
     private final Set<String> contentTypeAliases;
     private final JsonFactory jsonFactory;
+    private final Exception jsonFactoryUnavailabilityReason;
     private final Pattern fileNamePattern;
     private final Encoding encoding;
     private final Charset defaultCharset;
@@ -118,6 +119,32 @@ public class DocType {
         this.encoding = encoding;
         this.contentType = contentType;
         this.jsonFactory = jsonFactory;
+        this.jsonFactoryUnavailabilityReason = null;
+        this.contentTypeAliases = new HashSet<>(Arrays.asList(contentTypeAliases));
+        this.fileNamePattern = fileNameSuffixPattern != null ? Pattern.compile("\\." + fileNameSuffixPattern + "$", Pattern.CASE_INSENSITIVE) : null;
+        this.defaultCharset = encoding == Encoding.TEXT ? Charsets.UTF_8 : null;
+
+        register(this);
+    }
+
+    public DocType(String name, Encoding encoding, String jsonFactoryClass, String fileNameSuffixPattern, String contentType,
+            String... contentTypeAliases) {
+        JsonFactory jsonFactory;
+        Exception jsonFactoryUnavailabilityReason;
+
+        try {
+            jsonFactory = createJsonFactory(jsonFactoryClass);
+            jsonFactoryUnavailabilityReason = null;
+        } catch (Exception e) {
+            jsonFactory = null;
+            jsonFactoryUnavailabilityReason = e;
+        }
+
+        this.name = name;
+        this.encoding = encoding;
+        this.contentType = contentType;
+        this.jsonFactory = jsonFactory;
+        this.jsonFactoryUnavailabilityReason = jsonFactoryUnavailabilityReason;
         this.contentTypeAliases = new HashSet<>(Arrays.asList(contentTypeAliases));
         this.fileNamePattern = fileNameSuffixPattern != null ? Pattern.compile("\\." + fileNameSuffixPattern + "$", Pattern.CASE_INSENSITIVE) : null;
         this.defaultCharset = encoding == Encoding.TEXT ? Charsets.UTF_8 : null;
@@ -130,7 +157,11 @@ public class DocType {
     }
 
     public JsonFactory getJsonFactory() {
-        return jsonFactory;
+        if (jsonFactory != null) {
+            return jsonFactory;
+        } else {
+            throw new RuntimeException("Support for " + this.name + " is not available", this.jsonFactoryUnavailabilityReason);
+        }
     }
 
     public Set<String> getContentTypeAliases() {
@@ -165,6 +196,12 @@ public class DocType {
 
     public Charset getDefaultCharset() {
         return defaultCharset;
+    }
+
+    private static JsonFactory createJsonFactory(String name) throws InstantiationException, IllegalAccessException, IllegalArgumentException,
+            InvocationTargetException, NoSuchMethodException, SecurityException, ClassNotFoundException {
+        Class<?> clazz = Class.forName(name);
+        return (JsonFactory) clazz.getConstructor().newInstance();
     }
 
 }
