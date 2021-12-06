@@ -12,7 +12,7 @@ import com.floragunn.searchguard.sgconf.StaticDefinable;
 import com.floragunn.searchguard.sgconf.impl.v6.InternalUserV6;
 
 public class InternalUserV7 implements Hideable, Hashed, StaticDefinable {
-        
+
         private String hash;
         private boolean reserved;
         private boolean hidden;
@@ -27,7 +27,7 @@ public class InternalUserV7 implements Hideable, Hashed, StaticDefinable {
             super();
             //default constructor
         }
-        
+
         public InternalUserV7(InternalUserV6 u6) {
             hash = u6.getHash();
             reserved = u6.isReserved();
@@ -44,15 +44,15 @@ public class InternalUserV7 implements Hideable, Hashed, StaticDefinable {
             this.hash = hash;
         }
 
-        
-        
+
+
         public boolean isHidden() {
             return hidden;
         }
         public void setHidden(boolean hidden) {
             this.hidden = hidden;
         }
-       
+
 
         public List<String> getBackend_roles() {
             return backend_roles;
@@ -62,7 +62,7 @@ public class InternalUserV7 implements Hideable, Hashed, StaticDefinable {
             this.backend_roles = backend_roles;
         }
 
-        public List<String> getSearch_guard_roles() {
+    public List<String> getSearch_guard_roles() {
             return search_guard_roles;
         }
 
@@ -104,7 +104,7 @@ public class InternalUserV7 implements Hideable, Hashed, StaticDefinable {
         public void setReserved(boolean reserved) {
             this.reserved = reserved;
         }
-        
+
         @JsonProperty(value = "static")
         public boolean isStatic() {
             return _static;
@@ -113,6 +113,6 @@ public class InternalUserV7 implements Hideable, Hashed, StaticDefinable {
         public void setStatic(boolean _static) {
             this._static = _static;
         }
-        
-        
+
+
     }

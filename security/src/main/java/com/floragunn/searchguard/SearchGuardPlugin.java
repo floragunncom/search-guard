@@ -44,6 +44,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.floragunn.searchguard.configuration.api.InternalUsersConfigApi;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -497,6 +498,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(new ComponentStateRestAction());
                 handlers.add(BulkConfigApi.REST_API);
                 handlers.add(SecretsConfigApi.REST_API);
+                handlers.add(InternalUsersConfigApi.REST_API);
 
             }
 
@@ -533,7 +535,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(SecretsConfigApi.DeleteAction.INSTANCE, SecretsConfigApi.DeleteAction.Handler.class));
             actions.add(new ActionHandler<>(SecretsConfigApi.GetAllAction.INSTANCE, SecretsConfigApi.GetAllAction.Handler.class));
             actions.add(new ActionHandler<>(SecretsConfigApi.UpdateAllAction.INSTANCE, SecretsConfigApi.UpdateAllAction.Handler.class));
-
+            actions.add(new ActionHandler<>(InternalUsersConfigApi.GetAction.INSTANCE, InternalUsersConfigApi.GetAction.Handler.class));
+            actions.add(new ActionHandler<>(InternalUsersConfigApi.DeleteAction.INSTANCE, InternalUsersConfigApi.DeleteAction.Handler.class));
+            actions.add(new ActionHandler<>(InternalUsersConfigApi.AddAction.INSTANCE, InternalUsersConfigApi.AddAction.Handler.class));
+            actions.add(new ActionHandler<>(InternalUsersConfigApi.UpdateAction.INSTANCE, InternalUsersConfigApi.UpdateAction.Handler.class));
         }
 
         actions.addAll(moduleRegistry.getActions());
