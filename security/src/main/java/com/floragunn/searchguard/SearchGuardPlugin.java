@@ -109,7 +109,7 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
-import com.floragunn.codova.validation.ConfigVariableProviders;
+import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.TransportConfigUpdateAction;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
@@ -131,7 +131,7 @@ import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.SearchGuardIndexSearcherWrapper;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
-import com.floragunn.searchguard.configuration.api.InternalUsersConfigApi;
+import com.floragunn.searchguard.configuration.internal_users.InternalUsersConfigApi;
 import com.floragunn.searchguard.configuration.secrets.SecretsConfigApi;
 import com.floragunn.searchguard.configuration.secrets.SecretsRefreshAction;
 import com.floragunn.searchguard.configuration.secrets.SecretsService;
@@ -215,7 +215,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private AuthInfoService authInfoService;
     private DiagnosticContext diagnosticContext;
     private SecretsService secretsStorageService;
-    private ConfigVariableProviders configVariableProviders = ConfigVariableProviders.ALL_PRIVILEGED;
+    private VariableResolvers configVariableProviders = VariableResolvers.ALL_PRIVILEGED;
 
     @Override
     public void close() throws IOException {
