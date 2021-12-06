@@ -24,6 +24,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -46,7 +47,10 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -384,6 +388,16 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     /**
      * This retrieves the config directly from the index without caching involved
+     * @param configType
+     * @param logComplianceEvent
+     * @return
+     */
+    public SgDynamicConfiguration<?> getConfigurationFromIndex(CType configType, boolean logComplianceEvent) {
+        return getConfigurationsFromIndex(Collections.singletonList(configType), logComplianceEvent).get(configType);
+    }
+
+    /**
+     * This retrieves the config directly from the index without caching involved
      * @param configTypes
      * @param logComplianceEvent
      * @return
@@ -427,7 +441,59 @@ public class ConfigurationRepository implements ComponentStateProvider {
             
             return retVal;
     }
-    
+
+    public void update(CType ctype, SgDynamicConfiguration<?> configInstance) throws ConfigUpdateException, ConfigValidationException {
+        ValidationErrors validationErrors = new ValidationErrors();
+
+        IndexRequest indexRequest = new IndexRequest(this.searchguardIndex);
+
+        try {
+            configInstance.removeStatic();
+
+            String id = ctype.toLCString();
+
+            indexRequest = indexRequest.id(id).source(id, XContentHelper.toXContent(configInstance, XContentType.JSON, false));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        validationErrors.throwExceptionForPresentErrors();
+
+        if (!clusterService.state().getMetadata().hasConcreteIndex(searchguardIndex)) {
+            boolean ok = client.admin().indices().create(
+                            new CreateIndexRequest(searchguardIndex).settings(SG_INDEX_SETTINGS).mapping("_doc", SG_INDEX_MAPPING))
+                    .actionGet().isAcknowledged();
+
+            if (!ok) {
+                throw new ConfigUpdateException("The creation of the Search Guard index was not acknowledged");
+            }
+        }
+
+        try {
+            IndexResponse indexResponse = privilegedConfigClient.index(indexRequest).actionGet();
+
+            if (indexResponse.status().getStatus() >= 400) {
+                throw new ConfigUpdateException("Updating the config failed", indexResponse);
+            }
+        } catch (Exception e) {
+            throw new ConfigUpdateException("Updating the config failed", e);
+        }
+
+        try {
+            ConfigUpdateRequest configUpdateRequest = new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]));
+
+            ConfigUpdateResponse configUpdateResponse = privilegedConfigClient.execute(ConfigUpdateAction.INSTANCE, configUpdateRequest).actionGet();
+
+            if (configUpdateResponse.hasFailures()) {
+                throw new ConfigUpdateException("Configuration index was updated; however, some nodes reported failures while refreshing.",
+                        configUpdateResponse);
+            }
+        } catch (Exception e) {
+            throw new ConfigUpdateException("Configuration index was updated; however, the refresh failed", e);
+        }
+    }
+
+
     public void update(Map<CType, Map<String, Object>> configTypeToConfigMap) throws ConfigUpdateException, ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         BulkRequest bulkRequest = new BulkRequest();
