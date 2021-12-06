@@ -44,7 +44,6 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.floragunn.searchguard.configuration.api.InternalUsersConfigApi;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -110,7 +109,7 @@ import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
-import com.floragunn.codova.validation.ConfigVariableProviders;
+import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.TransportConfigUpdateAction;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
@@ -132,6 +131,7 @@ import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.SearchGuardIndexSearcherWrapper;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
+import com.floragunn.searchguard.configuration.api.InternalUsersConfigApi;
 import com.floragunn.searchguard.configuration.secrets.SecretsConfigApi;
 import com.floragunn.searchguard.configuration.secrets.SecretsRefreshAction;
 import com.floragunn.searchguard.configuration.secrets.SecretsService;
@@ -215,7 +215,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private AuthInfoService authInfoService;
     private DiagnosticContext diagnosticContext;
     private SecretsService secretsStorageService;
-    private ConfigVariableProviders configVariableProviders = ConfigVariableProviders.ALL_PRIVILEGED;
+    private VariableResolvers configVariableProviders = VariableResolvers.ALL_PRIVILEGED;
 
     @Override
     public void close() throws IOException {

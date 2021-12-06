@@ -85,7 +85,7 @@ public class ValidatingDocNode {
         return this;
     }
 
-    public ValidatingDocNode expandVariables(ConfigVariableProviders variableProviders) {
+    public ValidatingDocNode expandVariables(VariableResolvers variableProviders) {
         if (variableProviders != null) {
             this.variableProviders.putAll(variableProviders.toMap());
         }

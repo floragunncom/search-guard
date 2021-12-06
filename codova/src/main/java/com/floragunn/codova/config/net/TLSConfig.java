@@ -81,7 +81,7 @@ import org.slf4j.LoggerFactory;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ConfigVariableProviders;
+import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.FileDoesNotExist;
@@ -95,7 +95,7 @@ public class TLSConfig implements Document {
 
     public static TLSConfig parse(Map<String, Object> config) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables("file", ConfigVariableProviders.FILE);
+        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables("file", VariableResolvers.FILE);
         TLSConfig tlsConfig = new TLSConfig();
 
         tlsConfig.supportedProtocols = vNode.get("enabled_protocols").asList().withDefault("TLSv1.2", "TLSv1.1").ofStrings();
@@ -470,7 +470,7 @@ public class TLSConfig implements Document {
 
         public static ClientCertAuthConfig parse(Map<String, Object> config) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables("file", ConfigVariableProviders.FILE);
+            ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables("file", VariableResolvers.FILE);
 
             ClientCertAuthConfig result = new ClientCertAuthConfig();
 

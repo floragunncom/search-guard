@@ -28,7 +28,7 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
-import com.floragunn.codova.validation.ConfigVariableProviders;
+import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
@@ -60,7 +60,7 @@ public class BaseDependencies {
     private final DiagnosticContext diagnosticContext;
     private final BackendRegistry backendRegistry;
     private final SecretsService secretsService;
-    private final ConfigVariableProviders configVariableProviders;
+    private final VariableResolvers configVariableProviders;
 
     public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
@@ -68,7 +68,7 @@ public class BaseDependencies {
             DynamicConfigFactory dynamicConfigFactory, StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository,
             ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, BackendRegistry backendRegistry,
-            SecretsService secretsStorageService, ConfigVariableProviders configVariableProviders, DiagnosticContext diagnosticContext) {
+            SecretsService secretsStorageService, VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext) {
         super();
         this.settings = settings;
         this.localClient = localClient;
@@ -168,7 +168,7 @@ public class BaseDependencies {
         return secretsService;
     }
 
-    public ConfigVariableProviders getConfigVariableProviders() {
+    public VariableResolvers getConfigVariableProviders() {
         return configVariableProviders;
     }
 

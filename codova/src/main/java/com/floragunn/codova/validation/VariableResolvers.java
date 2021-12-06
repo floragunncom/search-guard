@@ -36,9 +36,9 @@ import com.floragunn.codova.validation.errors.ValidationError;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
-public class ConfigVariableProviders {
+public class VariableResolvers {
 
-    private static final Logger log = LoggerFactory.getLogger(ConfigVariableProviders.class);
+    private static final Logger log = LoggerFactory.getLogger(VariableResolvers.class);
 
     public final static ValidatingFunction<String, Object> FILE = new ValidatingFunction<String, Object>() {
         public Object apply(String fileName) throws ConfigValidationException {
@@ -92,13 +92,13 @@ public class ConfigVariableProviders {
         }
     };
 
-    public final static ConfigVariableProviders ALL_PRIVILEGED = new ConfigVariableProviders().with("file", FILE_PRIVILEGED).with("env", ENV);
-    public final static ConfigVariableProviders ALL = new ConfigVariableProviders().with("file", FILE).with("env", ENV);
+    public final static VariableResolvers ALL_PRIVILEGED = new VariableResolvers().with("file", FILE_PRIVILEGED).with("env", ENV);
+    public final static VariableResolvers ALL = new VariableResolvers().with("file", FILE).with("env", ENV);
 
     private final Map<String, ValidatingFunction<String, Object>> map = new HashMap<>();
 
-    public ConfigVariableProviders with(String name, ValidatingFunction<String, Object> function) {
-        ConfigVariableProviders result = new ConfigVariableProviders();
+    public VariableResolvers with(String name, ValidatingFunction<String, Object> function) {
+        VariableResolvers result = new VariableResolvers();
         result.map.putAll(this.map);
         result.map.put(name, function);
         return result;
