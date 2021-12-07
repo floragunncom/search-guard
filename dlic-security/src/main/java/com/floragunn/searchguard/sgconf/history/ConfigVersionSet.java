@@ -44,28 +44,28 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
 
     public static final ConfigVersionSet EMPTY = new Builder().build();
 
-    public static Builder with(CType configurationType, long version) {
+    public static Builder with(CType<?> configurationType, long version) {
         return new Builder(configurationType, version);
     }
 
-    public static ConfigVersionSet from(Map<CType, SgDynamicConfiguration<?>> configByType) {
+    public static ConfigVersionSet from(Map<CType<?>, SgDynamicConfiguration<?>> configByType) {
         Builder builder = new Builder();
 
-        for (Map.Entry<CType, SgDynamicConfiguration<?>> entry : configByType.entrySet()) {
+        for (Map.Entry<CType<?>, SgDynamicConfiguration<?>> entry : configByType.entrySet()) {
             builder.add(entry.getKey(), entry.getValue().getDocVersion());
         }
 
         return builder.build();
     }
 
-    private Map<CType, ConfigVersion> versionMap;
+    private Map<CType<?>, ConfigVersion> versionMap;
 
-    public ConfigVersionSet(Map<CType, ConfigVersion> versionMap) {
+    public ConfigVersionSet(Map<CType<?>, ConfigVersion> versionMap) {
         this.versionMap = Collections.unmodifiableMap(versionMap);
     }
 
     public ConfigVersionSet(Collection<ConfigVersion> versions) {
-        Map<CType, ConfigVersion> versionMap = new HashMap<>(versions.size());
+        Map<CType<?>, ConfigVersion> versionMap = new HashMap<>(versions.size());
 
         for (ConfigVersion version : versions) {
             versionMap.put(version.getConfigurationType(), version);
@@ -78,7 +78,7 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
         this(in.readList(ConfigVersion::new));
     }
 
-    public ConfigVersion get(CType configurationType) {
+    public ConfigVersion get(CType<?> configurationType) {
         return versionMap.get(configurationType);
     }
 
@@ -111,16 +111,16 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
     }
 
     public static class Builder {
-        private Map<CType, ConfigVersion> versionMap = new HashMap<>();
+        private Map<CType<?>, ConfigVersion> versionMap = new HashMap<>();
 
         public Builder() {
         }
 
-        private Builder(CType configurationType, long version) {
+        private Builder(CType<?> configurationType, long version) {
             add(configurationType, version);
         }
 
-        public Builder add(CType configurationType, long version) {
+        public Builder add(CType<?> configurationType, long version) {
             versionMap.put(configurationType, new ConfigVersion(configurationType, version));
 
             return this;
@@ -132,7 +132,7 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
             return this;
         }
 
-        public Builder and(CType configurationType, long version) {
+        public Builder and(CType<?> configurationType, long version) {
             add(configurationType, version);
 
             return this;
@@ -181,7 +181,7 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
 
             while (fieldNames.hasNext()) {
                 String fieldName = fieldNames.next();
-                CType configType;
+                CType<?> configType;
 
                 try {
                     configType = CType.valueOf(fieldName);

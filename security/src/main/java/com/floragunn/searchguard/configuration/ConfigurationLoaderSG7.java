@@ -18,7 +18,6 @@
 package com.floragunn.searchguard.configuration;
 
 import java.util.Arrays;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -70,12 +69,12 @@ public class ConfigurationLoaderSG7 {
         log.debug("Index is: {}", searchguardIndex);
     }
 
-    Map<CType, SgDynamicConfiguration<?>> load(final CType[] events, long timeout, TimeUnit timeUnit) throws InterruptedException, TimeoutException {
+    Map<CType<?>, SgDynamicConfiguration<?>> load(final CType<?>[] events, long timeout, TimeUnit timeUnit) throws InterruptedException, TimeoutException {
         final CountDownLatch latch = new CountDownLatch(events.length);
-        final Map<CType, SgDynamicConfiguration<?>> rs = new HashMap<>(events.length);
-        Map<CType, ComponentState> typeToStateMap = new EnumMap<>(CType.class);
+        final Map<CType<?>, SgDynamicConfiguration<?>> rs = new HashMap<>(events.length);
+        Map<CType<?>, ComponentState> typeToStateMap = new HashMap<>(events.length);
         
-        for (CType ctype : events) {
+        for (CType<?> ctype : events) {
             typeToStateMap.put(ctype, componentState.getOrCreatePart("config", ctype.toLCString()));
         }
         
@@ -157,7 +156,7 @@ public class ConfigurationLoaderSG7 {
             }
 
             @Override
-            public void failure(Throwable t, CType ctype) {
+            public void failure(Throwable t, CType<?> ctype) {
                 log.error("Exception {} while retrieving configuration for {}  (index={})", t, t.toString(), Arrays.toString(events),
                         searchguardIndex);
                 typeToStateMap.get(ctype).setFailed(t instanceof Exception ? (Exception) t : new Exception(t));
@@ -174,7 +173,7 @@ public class ConfigurationLoaderSG7 {
         return rs;
     }
 
-    private void loadAsync(final CType[] events, final ConfigCallback callback) {
+    private void loadAsync(final CType<?>[] events, final ConfigCallback callback) {
         if (events == null || events.length == 0) {
             log.warn("No config events requested to load");
             return;
@@ -182,7 +181,7 @@ public class ConfigurationLoaderSG7 {
 
         final MultiGetRequest mget = new MultiGetRequest();
 
-        for (CType cType : events) {
+        for (CType<?> cType : events) {
             final String event = cType.toLCString();
             mget.add(searchguardIndex, event);
         }

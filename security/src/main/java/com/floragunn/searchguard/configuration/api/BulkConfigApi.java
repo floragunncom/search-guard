@@ -17,7 +17,6 @@
 
 package com.floragunn.searchguard.configuration.api;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -102,11 +101,11 @@ public class BulkConfigApi {
             @Override
             protected CompletableFuture<Response> doExecute(EmptyRequest request) {
                 return CompletableFuture.supplyAsync(() -> {
-                    Map<CType, SgDynamicConfiguration<?>> configMap = configurationRepository
-                            .getConfigurationsFromIndex(Arrays.asList(CType.values()), true);
+                    Map<CType<?>, SgDynamicConfiguration<?>> configMap = configurationRepository
+                            .getConfigurationsFromIndex(CType.all(), true);
                     Map<String, Object> result = new LinkedHashMap<>();
 
-                    for (Map.Entry<CType, SgDynamicConfiguration<?>> entry : configMap.entrySet()) {
+                    for (Map.Entry<CType<?>, SgDynamicConfiguration<?>> entry : configMap.entrySet()) {
                         SgDynamicConfiguration<?> config = entry.getValue();
 
                         if (config != null) {
@@ -193,7 +192,7 @@ public class BulkConfigApi {
                 });
             }
 
-            private Map<CType, Map<String, Object>> parseConfigJson(UnparsedDoc<?> unparsedDoc) throws ConfigValidationException {
+            private Map<CType<?>, Map<String, Object>> parseConfigJson(UnparsedDoc<?> unparsedDoc) throws ConfigValidationException {
                 Map<String, Object> parsedJson;
 
                 try {
@@ -203,10 +202,10 @@ public class BulkConfigApi {
                 }
 
                 ValidationErrors validationErrors = new ValidationErrors();
-                Map<CType, Map<String, Object>> configTypeToConfigMap = new HashMap<>();
+                Map<CType<?>, Map<String, Object>> configTypeToConfigMap = new HashMap<>();
 
                 for (String configTypeName : parsedJson.keySet()) {
-                    CType ctype;
+                    CType<?> ctype;
 
                     try {
                         ctype = CType.valueOf(configTypeName.toUpperCase());

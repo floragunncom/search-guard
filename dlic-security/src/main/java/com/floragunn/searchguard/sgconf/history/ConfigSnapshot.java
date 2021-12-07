@@ -20,17 +20,17 @@ import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 
 public class ConfigSnapshot {
-    private final Map<CType, SgDynamicConfiguration<?>> configByType;
+    private final Map<CType<?>, SgDynamicConfiguration<?>> configByType;
     private final ConfigVersionSet configVersions;
     private final ConfigVersionSet missingConfigVersions;
 
-    public ConfigSnapshot(Map<CType, SgDynamicConfiguration<?>> configByType) {
+    public ConfigSnapshot(Map<CType<?>, SgDynamicConfiguration<?>> configByType) {
         this.configByType = configByType;
         this.configVersions = ConfigVersionSet.from(configByType);
         this.missingConfigVersions = ConfigVersionSet.EMPTY;
     }
 
-    public ConfigSnapshot(Map<CType, SgDynamicConfiguration<?>> configByType, ConfigVersionSet configVersionSet) {
+    public ConfigSnapshot(Map<CType<?>, SgDynamicConfiguration<?>> configByType, ConfigVersionSet configVersionSet) {
         this.configByType = configByType;
         this.configVersions = configVersionSet;
         this.missingConfigVersions = findMissingVersions();
@@ -60,7 +60,7 @@ public class ConfigSnapshot {
         return missingConfigVersions.size() > 0;
     }
 
-    public SgDynamicConfiguration<?> getConfigByType(CType configType) {
+    public SgDynamicConfiguration<?> getConfigByType(CType<?> configType) {
         return configByType.get(configType);
     }
 

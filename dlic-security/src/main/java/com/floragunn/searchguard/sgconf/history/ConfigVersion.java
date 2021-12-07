@@ -32,10 +32,10 @@ import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 public class ConfigVersion implements ToXContentObject, Writeable, Serializable {
 
     private static final long serialVersionUID = -3369133843964881336L;
-    private final CType configurationType;
+    private final CType<?> configurationType;
     private final long version;
 
-    public ConfigVersion(CType configurationType, long version) {
+    public ConfigVersion(CType<?> configurationType, long version) {
         if (version <= 0) {
             throw new IllegalArgumentException("version must be not <= 0: " + version + "; configurationType: " + configurationType);
         }
@@ -45,11 +45,11 @@ public class ConfigVersion implements ToXContentObject, Writeable, Serializable 
     }
 
     public ConfigVersion(StreamInput in) throws IOException {
-        this.configurationType = in.readEnum(CType.class);
+        this.configurationType = CType.getByOrd(in.readVInt());
         this.version = in.readLong();
     }
 
-    public CType getConfigurationType() {
+    public CType<?> getConfigurationType() {
         return configurationType;
     }
 
@@ -121,7 +121,7 @@ public class ConfigVersion implements ToXContentObject, Writeable, Serializable 
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
 
-        CType configType = vJsonNode.requiredCaseInsensitiveEnum("type", CType.class);
+        CType<?> configType = CType.fromString(vJsonNode.requiredString("type"));
         long version = vJsonNode.requiredInt("version");
 
         validationErrors.throwExceptionForPresentErrors();
@@ -131,7 +131,7 @@ public class ConfigVersion implements ToXContentObject, Writeable, Serializable 
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeEnum(this.configurationType);
+        out.writeVInt(this.configurationType.getOrd());
         out.writeLong(this.version);
     }
 

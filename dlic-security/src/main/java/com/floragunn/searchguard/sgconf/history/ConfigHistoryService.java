@@ -16,7 +16,6 @@ package com.floragunn.searchguard.sgconf.history;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -117,17 +116,17 @@ public class ConfigHistoryService implements ComponentStateProvider {
     }
 
     public ConfigSnapshot getCurrentConfigSnapshot() {
-        return getCurrentConfigSnapshot(EnumSet.allOf(CType.class));
+        return getCurrentConfigSnapshot(CType.all());
     }
 
-    public ConfigSnapshot getCurrentConfigSnapshot(CType first, CType... rest) {
-        return getCurrentConfigSnapshot(EnumSet.of(first, rest));
+    public ConfigSnapshot getCurrentConfigSnapshot(CType<?> first, CType<?>... rest) {
+        return getCurrentConfigSnapshot(CType.of(first, rest));
     }
 
-    public ConfigSnapshot getCurrentConfigSnapshot(Set<CType> configurationTypes) {
-        Map<CType, SgDynamicConfiguration<?>> configByType = new HashMap<>();
+    public ConfigSnapshot getCurrentConfigSnapshot(Set<CType<?>> configurationTypes) {
+        Map<CType<?>, SgDynamicConfiguration<?>> configByType = new HashMap<>();
 
-        for (CType configurationType : configurationTypes) {
+        for (CType<?> configurationType : configurationTypes) {
             SgDynamicConfiguration<?> configuration = configurationRepository.getConfiguration(configurationType);
 
             if (configuration == null) {
@@ -295,7 +294,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
     }
 
     public ConfigSnapshot peekConfigSnapshotFromCache(ConfigVersionSet configVersionSet) {
-        Map<CType, SgDynamicConfiguration<?>> configByType = new HashMap<>();
+        Map<CType<?>, SgDynamicConfiguration<?>> configByType = new HashMap<>();
 
         for (ConfigVersion configurationVersion : configVersionSet) {
             SgDynamicConfiguration<?> configuration = configCache.getIfPresent(configurationVersion);
@@ -324,7 +323,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
 
     public void peekConfigSnapshot(ConfigVersionSet configVersionSet, Consumer<ConfigSnapshot> onResult, Consumer<Exception> onFailure) {
         try {
-            Map<CType, SgDynamicConfiguration<?>> configByType = new HashMap<>();
+            Map<CType<?>, SgDynamicConfiguration<?>> configByType = new HashMap<>();
 
             for (ConfigVersion configurationVersion : configVersionSet) {
                 SgDynamicConfiguration<?> configuration = configCache.getIfPresent(configurationVersion);
@@ -413,7 +412,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
 
     }
 
-    private void storeMissingConfigDocs(ConfigVersionSet missingVersions, Map<CType, SgDynamicConfiguration<?>> configByType) {
+    private void storeMissingConfigDocs(ConfigVersionSet missingVersions, Map<CType<?>, SgDynamicConfiguration<?>> configByType) {
         BulkRequestBuilder bulkRequest = privilegedConfigClient.prepareBulk().setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
         for (ConfigVersion missingVersion : missingVersions) {

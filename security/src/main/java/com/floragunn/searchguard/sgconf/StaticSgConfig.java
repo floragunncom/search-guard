@@ -8,6 +8,7 @@ import org.elasticsearch.common.settings.Settings;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
@@ -58,14 +59,13 @@ public class StaticSgConfig {
             return SgDynamicConfiguration.empty();
         }
 
-        switch (original.getCType()) {
-        case ACTIONGROUPS:
+        if (original.getCType().equals(CType.ACTIONGROUPS)) {
             return (SgDynamicConfiguration<ConfigType>) staticActionGroups;
-        case ROLES:
+        } else if (original.getCType().equals(CType.ROLES)) {
             return (SgDynamicConfiguration<ConfigType>) staticRoles;
-        case TENANTS:
+        } else if (original.getCType().equals(CType.TENANTS)) {
             return (SgDynamicConfiguration<ConfigType>) staticTenants;
-        default:
+        } else {
             return SgDynamicConfiguration.empty();
         }
 
