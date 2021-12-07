@@ -94,7 +94,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     private final String searchguardIndex;
     private final Client client;
-    private final Cache<CType, SgDynamicConfiguration<?>> configCache;
+    private final Cache<CType<?>, SgDynamicConfiguration<?>> configCache;
     private final List<ConfigurationChangeListener> configurationChangedListener;
     private final List<LicenseChangeListener> licenseChangeListener;
     private final ConfigurationLoaderSG7 cl;
@@ -225,7 +225,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         componentState.startNextTry();
                         try {
                             LOGGER.debug("Try to load config ...");
-                            reloadConfiguration(Arrays.asList(CType.values()));
+                            reloadConfiguration(CType.all());
                             break;
                         } catch (Exception e) {
                             LOGGER.debug("Unable to load configuration due to {}", String.valueOf(ExceptionUtils.getRootCause(e)));
@@ -298,7 +298,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
      * @param configurationType
      * @return can also return empty in case it was never loaded 
      */
-    public SgDynamicConfiguration<?> getConfiguration(CType configurationType) {
+    public SgDynamicConfiguration<?> getConfiguration(CType<?> configurationType) {
         SgDynamicConfiguration<?> conf=  configCache.getIfPresent(configurationType);
         if(conf != null) {
             return conf.deepClone();
@@ -308,7 +308,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     
     private final Lock LOCK = new ReentrantLock();
 
-    public void reloadConfiguration(Collection<CType> configTypes) throws ConfigUpdateAlreadyInProgressException {
+    public void reloadConfiguration(Collection<CType<?>> configTypes) throws ConfigUpdateAlreadyInProgressException {
         try {
             if (LOCK.tryLock(60, TimeUnit.SECONDS)) {
                 try {
@@ -326,8 +326,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
 
-   private void reloadConfiguration0(Collection<CType> configTypes) {
-        final Map<CType, SgDynamicConfiguration<?>> loaded = getConfigurationsFromIndex(configTypes, false);
+   private void reloadConfiguration0(Collection<CType<?>> configTypes) {
+        final Map<CType<?>, SgDynamicConfiguration<?>> loaded = getConfigurationsFromIndex(configTypes, false);
         configCache.putAll(loaded);
         notifyAboutChanges(loaded);
 
@@ -371,7 +371,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
     }
 
-    private synchronized void notifyAboutChanges(Map<CType, SgDynamicConfiguration<?>> typeToConfig) {
+    private synchronized void notifyAboutChanges(Map<CType<?>, SgDynamicConfiguration<?>> typeToConfig) {
         for (ConfigurationChangeListener listener : configurationChangedListener) {
             try {
                 LOGGER.debug("Notify {} listener about change configuration with type {}", listener);
@@ -389,7 +389,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
      * @param logComplianceEvent
      * @return
      */
-    public SgDynamicConfiguration<?> getConfigurationFromIndex(CType configType, boolean logComplianceEvent) {
+    public SgDynamicConfiguration<?> getConfigurationFromIndex(CType<?> configType, boolean logComplianceEvent) {
         return getConfigurationsFromIndex(Collections.singletonList(configType), logComplianceEvent).get(configType);
     }
 
@@ -399,10 +399,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
      * @param logComplianceEvent
      * @return
      */
-    public Map<CType, SgDynamicConfiguration<?>> getConfigurationsFromIndex(Collection<CType> configTypes, boolean logComplianceEvent) {
+    public Map<CType<?>, SgDynamicConfiguration<?>> getConfigurationsFromIndex(Collection<CType<?>> configTypes, boolean logComplianceEvent) {
 
             final ThreadContext threadContext = threadPool.getThreadContext();
-            final Map<CType, SgDynamicConfiguration<?>> retVal = new LinkedHashMap<>();
+            final Map<CType<?>, SgDynamicConfiguration<?>> retVal = new LinkedHashMap<>();
 
             try(StoredContext ctx = threadContext.stashContext()) {
                 threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
@@ -430,7 +430,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
             
             if (logComplianceEvent && complianceConfig != null && complianceConfig.isEnabled()) {
-                CType configurationType = configTypes.iterator().next();
+                CType<?> configurationType = configTypes.iterator().next();
                 Map<String, String> fields = new HashMap<String, String>();
                 fields.put(configurationType.toLCString(), Strings.toString(retVal.get(configurationType)));
                 auditLog.logDocumentRead(this.searchguardIndex, configurationType.toLCString(), null, fields, complianceConfig);
@@ -439,7 +439,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             return retVal;
     }
 
-    public void update(CType ctype, SgDynamicConfiguration<?> configInstance) throws ConfigUpdateException, ConfigValidationException {
+    public void update(CType<?> ctype, SgDynamicConfiguration<?> configInstance) throws ConfigUpdateException, ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
 
         IndexRequest indexRequest = new IndexRequest(this.searchguardIndex);
@@ -491,7 +491,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
 
-    public void update(Map<CType, Map<String, Object>> configTypeToConfigMap) throws ConfigUpdateException, ConfigValidationException {
+    public void update(Map<CType<?>, Map<String, Object>> configTypeToConfigMap) throws ConfigUpdateException, ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         BulkRequest bulkRequest = new BulkRequest();
 
@@ -501,8 +501,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
             throw new ConfigValidationException(new ValidationError(null, "No configuration given"));
         }
 
-        for (Map.Entry<CType, Map<String, Object>> entry : configTypeToConfigMap.entrySet()) {
-            CType ctype = entry.getKey();
+        for (Map.Entry<CType<?>, Map<String, Object>> entry : configTypeToConfigMap.entrySet()) {
+            CType<?> ctype = entry.getKey();
             Map<String, Object> configMap = entry.getValue();
 
             if (configMap == null) {
@@ -562,7 +562,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
     }
 
-    private Map<CType, SgDynamicConfiguration<?>> validate(Map<CType, SgDynamicConfiguration<?>> conf, int expectedSize) throws InvalidConfigException {
+    private Map<CType<?>, SgDynamicConfiguration<?>> validate(Map<CType<?>, SgDynamicConfiguration<?>> conf, int expectedSize) throws InvalidConfigException {
 
         if(conf == null || conf.size() != expectedSize) {
             throw new InvalidConfigException("Retrieved only partial configuration");

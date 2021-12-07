@@ -28,7 +28,7 @@ public interface ConfigCallback {
     void noData(String id, String type);
     void singleFailure(Failure failure);
     void failure(Throwable t);
-    void failure(Throwable t, CType ctype);
+    void failure(Throwable t, CType<?> ctype);
 
 
 }

@@ -79,7 +79,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     }
     
     @Override
-    public void onChange(Map<CType, SgDynamicConfiguration<?>> typeToConfig) {
+    public void onChange(Map<CType<?>, SgDynamicConfiguration<?>> typeToConfig) {
         SgDynamicConfiguration<?> actionGroups = cr.getConfiguration(CType.ACTIONGROUPS);
         config = cr.getConfiguration(CType.CONFIG);
         SgDynamicConfiguration<?> internalusers = cr.getConfiguration(CType.INTERNALUSERS);
