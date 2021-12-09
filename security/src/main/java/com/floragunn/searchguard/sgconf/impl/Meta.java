@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 
 public class Meta implements Document {
@@ -11,7 +12,7 @@ public class Meta implements Document {
     private String type;
     private int config_version;
 
-    private CType cType;
+    private CType<?> cType;
 
     public String getType() {
         return type;
@@ -31,7 +32,7 @@ public class Meta implements Document {
     }
 
     @JsonIgnore
-    public CType getCType() {
+    public CType<?> getCType() {
         return cType;
     }
 
@@ -45,6 +46,13 @@ public class Meta implements Document {
         Map<String, Object> result = new LinkedHashMap<>(2);
         result.put("type", type);
         result.put("config_version", config_version);
+        return result;
+    }
+    
+    public static Meta parse(DocNode docNode) {
+        Meta result = new Meta();
+        result.type = docNode.getAsString("type");
+        result.config_version = docNode.get("config_version") instanceof Number ? ((Number) docNode.get("config_version")).intValue() : -1;
         return result;
     }
 

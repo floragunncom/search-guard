@@ -19,6 +19,7 @@ import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.internal_users.InternalUser;
 import com.floragunn.searchguard.configuration.secrets.SecretsService;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -28,7 +29,6 @@ import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
-import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
@@ -109,7 +109,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
 
         //rebuild v7 Models
         DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), esSettings, configPath, modulesRegistry);
-        InternalUsersModel ium = new InternalUsersModelV7((SgDynamicConfiguration<InternalUserV7>) internalusers);
+        InternalUsersModel ium = new InternalUsersModelV7((SgDynamicConfiguration<InternalUser>) internalusers);
         ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<RoleV7>) roles, (SgDynamicConfiguration<RoleMappingsV7>) rolesmapping,
                 (SgDynamicConfiguration<ActionGroupsV7>) actionGroups, (SgDynamicConfiguration<TenantV7>) tenants,
                 (SgDynamicConfiguration<BlocksV7>) blocks, dcm, esSettings);
@@ -129,7 +129,6 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         notifyConfigChangeListeners(config);
 
         initialized.set(true);
-        
     }
     
     
@@ -190,9 +189,9 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     
     private static class InternalUsersModelV7 extends InternalUsersModel {
         
-        SgDynamicConfiguration<InternalUserV7> configuration;
+        SgDynamicConfiguration<InternalUser> configuration;
         
-        public InternalUsersModelV7(SgDynamicConfiguration<InternalUserV7> configuration) {
+        public InternalUsersModelV7(SgDynamicConfiguration<InternalUser> configuration) {
             super();
             this.configuration = configuration;
         }
@@ -204,31 +203,31 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
 
         @Override
         public List<String> getBackenRoles(String user) {
-            InternalUserV7 tmp = configuration.getCEntry(user);
-            return tmp==null?null:tmp.getBackend_roles();
+            InternalUser tmp = configuration.getCEntry(user);
+            return tmp==null?null:tmp.getBackendRoles();
         }
 
         @Override
         public Map<String, Object> getAttributes(String user) {
-            InternalUserV7 tmp = configuration.getCEntry(user);
+            InternalUser tmp = configuration.getCEntry(user);
             return tmp==null?null:tmp.getAttributes();
         }
 
         @Override
         public String getDescription(String user) {
-            InternalUserV7 tmp = configuration.getCEntry(user);
+            InternalUser tmp = configuration.getCEntry(user);
             return tmp==null?null:tmp.getDescription();
         }
 
         @Override
         public String getHash(String user) {
-            InternalUserV7 tmp = configuration.getCEntry(user);
-            return tmp==null?null:tmp.getHash();
+            InternalUser tmp = configuration.getCEntry(user);
+            return tmp==null?null:tmp.getPasswordHash();
         }
         
         public List<String> getSearchGuardRoles(String user) {
-            InternalUserV7 tmp = configuration.getCEntry(user);
-            return tmp==null?Collections.emptyList():tmp.getSearch_guard_roles();
+            InternalUser tmp = configuration.getCEntry(user);
+            return tmp==null?Collections.emptyList():tmp.getSearchGuardRoles();
         }
         
     }

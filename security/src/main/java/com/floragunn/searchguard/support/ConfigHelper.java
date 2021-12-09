@@ -28,15 +28,12 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.xcontent.DeprecationHandler;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
-import org.elasticsearch.xcontent.XContentParser;
-import org.elasticsearch.xcontent.XContentType;
 
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 
@@ -44,16 +41,16 @@ public class ConfigHelper {
     
     private static final Logger LOGGER = LogManager.getLogger(ConfigHelper.class);
     
-    public static void uploadFile(Client tc, String filepath, String index, CType cType, int configVersion) throws Exception {
+    public static <T> void uploadFile(Client tc, String filepath, String index, CType<T> cType) throws Exception {
         LOGGER.info("Will update '" + cType + "' with " + filepath);
-
-        ConfigHelper.fromYamlFile(filepath, cType, configVersion);
         
         try (Reader reader = new FileReader(filepath)) {
 
-            final String res = tc
-                    .index(new IndexRequest(index).type(configVersion==1?"sg":"_doc").id(cType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                            .source(cType.toLCString(), readXContent(reader, XContentType.YAML))).actionGet().getId();
+            SgDynamicConfiguration<T> config = SgDynamicConfiguration.from(reader, cType, DocType.YAML);
+            
+            String res = tc
+                    .index(new IndexRequest(index).id(cType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                            .source(cType.toLCString(),toBytesReference(config))).actionGet().getId();
 
             if (!cType.toLCString().equals(res)) {
                 throw new Exception("   FAIL: Configuration for '" + cType.toLCString()
@@ -64,26 +61,15 @@ public class ConfigHelper {
         }
     }
     
-    public static BytesReference readXContent(final Reader reader, final XContentType xContentType) throws IOException {
-        BytesReference retVal;
-        XContentParser parser = null;
-        try {
-            parser = XContentFactory.xContent(xContentType).createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, reader);
-            parser.nextToken();
-            final XContentBuilder builder = XContentFactory.jsonBuilder();
-            builder.copyCurrentStructure(parser);
-            retVal = BytesReference.bytes(builder);
-        } finally {
-            if (parser != null) {
-                parser.close();
-            }
-        }
-        return retVal;
+    private static BytesReference toBytesReference(ToXContent toXContent) throws IOException {
+        XContentBuilder builder = XContentFactory.jsonBuilder();
+        toXContent.toXContent(builder, ToXContent.EMPTY_PARAMS);
+        return BytesReference.bytes(builder);
     }
     
-    public static <T> SgDynamicConfiguration<T> fromYamlReader(Reader yamlReader, CType ctype, int version) throws IOException, ConfigValidationException {
+    private static <T> SgDynamicConfiguration<T> fromYamlReader(Reader yamlReader, CType<T> ctype, int version) throws IOException, ConfigValidationException {
         try {
-            return SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(yamlReader), ctype, version, 0, 0, 0);
+            return SgDynamicConfiguration.from(yamlReader, ctype, DocType.YAML);
         } finally {
             if(yamlReader != null) {
                 yamlReader.close();
@@ -91,11 +77,11 @@ public class ConfigHelper {
         }
     }
     
-    public static <T> SgDynamicConfiguration<T> fromYamlFile(String filepath, CType ctype, int version) throws IOException, ConfigValidationException {
+    public static <T> SgDynamicConfiguration<T> fromYamlFile(String filepath, CType<T> ctype, int version) throws IOException, ConfigValidationException {
         return fromYamlReader(new FileReader(filepath), ctype, version);
     }
     
-    public static <T> SgDynamicConfiguration<T> fromYamlString(String yamlString, CType ctype, int version) throws IOException, ConfigValidationException {
+    public static <T> SgDynamicConfiguration<T> fromYamlString(String yamlString, CType<T> ctype, int version) throws IOException, ConfigValidationException {
         return fromYamlReader(new StringReader(yamlString), ctype, version);
     }
 

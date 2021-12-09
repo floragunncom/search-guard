@@ -2,6 +2,9 @@ package com.floragunn.searchguard.modules;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -276,7 +279,13 @@ public class SearchGuardModulesRegistry {
             return null;
         }
 
-        JsonNode subNode = DefaultObjectMapper.objectMapper.valueToTree(entry).at(configMetadata.getJsonPointer());
+        JsonNode subNode;
+        
+        try {
+            subNode = AccessController.doPrivileged((PrivilegedExceptionAction<JsonNode>) () -> DefaultObjectMapper.objectMapper.valueToTree(entry).at(configMetadata.getJsonPointer()));
+        } catch (PrivilegedActionException e) {
+            throw new RuntimeException(e);
+        }
 
         if (subNode == null || subNode.isMissingNode()) {
             if (log.isDebugEnabled()) {

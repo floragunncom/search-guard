@@ -29,7 +29,6 @@ public class ConfigV7 {
 
     public static class Dynamic {
 
-
         public String filtered_alias_mode = "warn";
         public boolean disable_rest_auth;
         public boolean disable_intertransport_auth;

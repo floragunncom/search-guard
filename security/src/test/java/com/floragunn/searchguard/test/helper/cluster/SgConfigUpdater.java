@@ -42,7 +42,7 @@ class SgConfigUpdater {
 
     private static final Logger log = LogManager.getLogger(SgConfigUpdater.class);
 
-    static void updateSgConfig(Supplier<Client> adminCertClientSupplier, CType configType, String key, Map<String, Object> value) {
+    static void updateSgConfig(Supplier<Client> adminCertClientSupplier, CType<?> configType, String key, Map<String, Object> value) {
         try (Client client = adminCertClientSupplier.get()) {
             log.info("Updating config {}.{}:{}", configType, key, value);
 

@@ -50,8 +50,8 @@ public class GetConfigurationApiTest extends AbstractRestApiUnitTest {
 		response = rh.executeGetRequest("_searchguard/api/internalusers");
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-		Assert.assertEquals("", settings.get("admin.hash"));
-		Assert.assertEquals("", settings.get("other.hash"));
+		Assert.assertNull(settings.get("admin.hash"));
+		Assert.assertNull(settings.get("other.hash"));
 		Assert.assertNull(settings.get("_sg_meta.type"));
 
 		// roles

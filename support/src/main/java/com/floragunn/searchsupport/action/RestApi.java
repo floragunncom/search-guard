@@ -48,6 +48,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.UnparsedDoc;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchsupport.client.rest.Responses;
 
 public class RestApi extends BaseRestHandler {
@@ -214,7 +215,7 @@ public class RestApi extends BaseRestHandler {
         }
 
         public <RequestType extends Action.Request, ResponseType extends Action.Response> RestApi with(Action<RequestType, ResponseType> action,
-                BiFunction<Map<String, String>, DocNode, RequestType> requestParser) {
+                RestRequestParser<RequestType> requestParser) {
             if (action == null) {
                 throw new IllegalArgumentException("action must not be null");
             }
@@ -239,7 +240,7 @@ public class RestApi extends BaseRestHandler {
                         unparsedDoc = UnparsedDoc.from(BytesReference.toBytes(restRequest.content()), contentType);
                     }
 
-                    RequestType transportRequest = requestParser.apply(new RestRequestParams(restRequest),
+                    RequestType transportRequest = requestParser.parse(new RestRequestParams(restRequest),
                             unparsedDoc != null ? unparsedDoc.parseAsDocNode() : null);
 
                     if (log.isDebugEnabled()) {
@@ -290,6 +291,11 @@ public class RestApi extends BaseRestHandler {
 
     public static enum Method {
         GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH;
+    }
+    
+    @FunctionalInterface
+    public static interface RestRequestParser<RequestType extends Action.Request> {
+        RequestType parse(Map<String, String> requestUrlParams, DocNode requestBody) throws ConfigValidationException;
     }
 
     private static class RestRequestParams implements Map<String, String> {
