@@ -20,6 +20,7 @@ package com.floragunn.searchguard.configuration.api;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 import org.junit.ClassRule;
@@ -105,14 +106,15 @@ public class InternalUsersConfigApiTest {
     public void addUser_shouldSaveWithEmptyBackendRolesIfMissingInARequest() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             String userName = randomUserName();
-            DocNode userData = DocNode.of("search_guard_roles", asList("sgRole1", "sgRole2"), "attributes", ImmutableMap.of("a", "aAttributeValue"),
-                    "password", "pass");
+            DocNode userData = DocNode.of("search_guard_roles", asList("sgRole1", "sgRole2"), "attributes", ImmutableMap.of("a", "b"), "password",
+                    "pass");
             client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString());
 
             HttpResponse response = client.get("/_searchguard/internal_users/" + userName);
 
             assertEquals(200, response.getStatusCode());
-            assertEquals("{backend_roles=[], attributes={a=aAttributeValue}, search_guard_roles=[sgRole1, sgRole2]}", getData(response));
+            assertEquals(ImmutableMap.of("attributes", ImmutableMap.of("a", "b"), "search_guard_roles", Arrays.asList("sgRole1", "sgRole2")),
+                    response.getBodyAsDocNode().toMap());
         }
     }
 
@@ -142,20 +144,8 @@ public class InternalUsersConfigApiTest {
             HttpResponse response = client.get("/_searchguard/internal_users/" + userName);
 
             assertEquals(200, response.getStatusCode());
-            assertEquals("{backend_roles=[backendRole1, backendRole2], attributes={}, search_guard_roles=[sgRole1, sgRole2]}", getData(response));
-        }
-    }
-
-    @Test
-    public void addUser_shouldNotAcceptWhenUserAlreadyExists() throws Exception {
-        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
-            String userName = randomUserName();
-            userExists(client, userName);
-
-            HttpResponse response = client.putJson("/_searchguard/internal_users/" + userName, validUserData().toJsonString());
-
-            assertEquals(422, response.getStatusCode());
-            assertEquals("{message=User " + userName + " already exists}", getError(response));
+            assertEquals(ImmutableMap.of("backend_roles", Arrays.asList("backendRole1", "backendRole2"), "search_guard_roles",
+                    Arrays.asList("sgRole1", "sgRole2")), response.getBodyAsDocNode().toMap());
         }
     }
 
@@ -168,21 +158,6 @@ public class InternalUsersConfigApiTest {
 
             assertEquals(404, response.getStatusCode());
             assertEquals("{message=User " + userName + " not found}", getError(response));
-        }
-    }
-
-    @Test
-    public void getUser_shouldReturnMessageThatUserFound() throws Exception {
-        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
-            String userName = randomUserName();
-            DocNode userData = DocNode.of("search_guard_roles", asList("sgRole1", "sgRole2"), "backend_roles", asList("backendRole1", "backendRole2"),
-                    "attributes", ImmutableMap.of("a", "aAttributeValue"), "password", "pass");
-            client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString());
-
-            HttpResponse response = client.get("/_searchguard/internal_users/" + userName);
-
-            assertEquals(200, response.getStatusCode());
-            assertEquals("User found", getMessage(response));
         }
     }
 
@@ -206,13 +181,14 @@ public class InternalUsersConfigApiTest {
     public void updateUser_shouldReturnMessageThatUserNotFound() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             String userName = randomUserName();
-            HttpResponse response = client.patch("/_searchguard/internal_users/" + userName, DocNode.of("backend_roles", asList("backendRole2", "backendRole3")).toJsonString());
+            HttpResponse response = client.patch("/_searchguard/internal_users/" + userName,
+                    DocNode.of("backend_roles", asList("backendRole2", "backendRole3")).toJsonString());
 
             assertEquals(404, response.getStatusCode());
             assertEquals("{message=User " + userName + " not found}", getError(response));
         }
     }
-    
+
     @Test
     public void updateUser_shouldBeAbleToUpdateBackendRoles() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {

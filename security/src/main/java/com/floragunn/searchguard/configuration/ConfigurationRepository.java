@@ -105,7 +105,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final ThreadPool threadPool;
     private volatile SearchGuardLicense effectiveLicense;
     private DynamicConfigFactory dynamicConfigFactory;
-    private final int configVersion = 2;
     private final Thread bgThread;
     private final AtomicBoolean installDefaultConfig = new AtomicBoolean();
     private final ComponentState componentState = new ComponentState(1, null, "config_repository", ConfigurationRepository.class);
@@ -161,13 +160,13 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
                                     LOGGER.info("Index {} created?: {}", searchguardIndex, ok);
                                     if(ok) {
-                                        ConfigHelper.uploadFile(client, cd+"sg_config.yml", searchguardIndex, CType.CONFIG, configVersion);
-                                        ConfigHelper.uploadFile(client, cd+"sg_roles.yml", searchguardIndex, CType.ROLES, configVersion);
-                                        ConfigHelper.uploadFile(client, cd+"sg_roles_mapping.yml", searchguardIndex, CType.ROLESMAPPING, configVersion);
-                                        ConfigHelper.uploadFile(client, cd+"sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS, configVersion);
-                                        ConfigHelper.uploadFile(client, cd+"sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS, configVersion);
-                                        ConfigHelper.uploadFile(client, cd + "sg_tenants.yml", searchguardIndex, CType.TENANTS, configVersion);
-                                        ConfigHelper.uploadFile(client, cd + "sg_blocks.yml", searchguardIndex, CType.BLOCKS, configVersion);
+                                        ConfigHelper.uploadFile(client, cd + "sg_config.yml", searchguardIndex, CType.CONFIG);
+                                        ConfigHelper.uploadFile(client, cd + "sg_roles.yml", searchguardIndex, CType.ROLES);
+                                        ConfigHelper.uploadFile(client, cd + "sg_roles_mapping.yml", searchguardIndex, CType.ROLESMAPPING);
+                                        ConfigHelper.uploadFile(client, cd + "sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS);
+                                        ConfigHelper.uploadFile(client, cd + "sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS);
+                                        ConfigHelper.uploadFile(client, cd + "sg_tenants.yml", searchguardIndex, CType.TENANTS);
+                                        ConfigHelper.uploadFile(client, cd + "sg_blocks.yml", searchguardIndex, CType.BLOCKS);
                                         
                                         LOGGER.info("Default config applied");
                                     } else {
@@ -183,7 +182,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         } catch (ResourceAlreadyExistsException e) {
                             LOGGER.debug("Cannot apply default config (this is maybe not an error!) due to {}", e.getMessage());
                         } catch (Exception e) {
-                            LOGGER.error("Cannot apply default config (this is maybe not an error!) due to {}", e.getMessage());
+                            LOGGER.error("Cannot apply default config (this is maybe not an error!) due to {}", e.getMessage(), e);
                             // TODO find out when this is not an error o.O
                             componentState.setFailed(e);
                         }
@@ -301,7 +300,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public SgDynamicConfiguration<?> getConfiguration(CType<?> configurationType) {
         SgDynamicConfiguration<?> conf=  configCache.getIfPresent(configurationType);
         if(conf != null) {
-            return conf.deepClone();
+            return conf;
         }
         return SgDynamicConfiguration.empty();
     }
@@ -389,8 +388,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
      * @param logComplianceEvent
      * @return
      */
-    public SgDynamicConfiguration<?> getConfigurationFromIndex(CType<?> configType, boolean logComplianceEvent) {
-        return getConfigurationsFromIndex(Collections.singletonList(configType), logComplianceEvent).get(configType);
+    @SuppressWarnings("unchecked")
+    public <T> SgDynamicConfiguration<T> getConfigurationFromIndex(CType<T> configType, boolean logComplianceEvent) {
+        return (SgDynamicConfiguration<T>) getConfigurationsFromIndex(Collections.singletonList(configType), logComplianceEvent).get(configType);
     }
 
     /**
@@ -417,12 +417,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         LOGGER.debug("sg index exists and was created with ES 7 (new layout)");
                     }
                     
-                    retVal.putAll(validate(cl.load(configTypes.toArray(new CType[0]), 10, TimeUnit.SECONDS), configTypes.size()));
+                    retVal.putAll(validate(cl.load(configTypes.toArray(new CType[0]), 1000, TimeUnit.SECONDS), configTypes.size()));
 
                 } else {
                     //wait (and use new layout)
                     LOGGER.debug("sg index not exists (yet)");
-                    retVal.putAll(validate(cl.load(configTypes.toArray(new CType[0]), 10, TimeUnit.SECONDS), configTypes.size()));
+                    retVal.putAll(validate(cl.load(configTypes.toArray(new CType[0]), 1000, TimeUnit.SECONDS), configTypes.size()));
                 }
 
             } catch (Exception e) {

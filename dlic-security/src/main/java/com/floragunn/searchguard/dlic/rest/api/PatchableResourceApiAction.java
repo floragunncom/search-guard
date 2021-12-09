@@ -137,6 +137,9 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         }
 
         JsonNode existingResourceAsJsonNode = existingAsObjectNode.get(name);
+        
+        ((ObjectNode) existingResourceAsJsonNode).remove("hidden");
+        ((ObjectNode) existingResourceAsJsonNode).remove("reserved");
 
         JsonNode patchedResourceAsJsonNode;
 
@@ -185,6 +188,18 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     private void handleBulkPatch(RestChannel channel, RestRequest request, Client client, SgDynamicConfiguration<?> existingConfiguration,
             ObjectNode existingAsObjectNode, JsonNode jsonPatch) throws IOException, ConfigValidationException {
 
+        for (String resourceName : existingConfiguration.getCEntries().keySet()) {
+            ObjectNode oldResource = (ObjectNode) existingAsObjectNode.get(resourceName);
+            if (oldResource != null) {
+                if (oldResource.get("hidden") != null && !oldResource.get("hidden").booleanValue()) {
+                    ((ObjectNode) oldResource).remove("hidden");
+                }
+                if (oldResource.get("reserved") != null && !oldResource.get("reserved").booleanValue()) {
+                    ((ObjectNode) oldResource).remove("reserved");
+                }
+            }
+        }
+        
         JsonNode patchedAsJsonNode;
 
         try {
@@ -210,6 +225,8 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                     badRequestResponse(channel, "Resource name '" + resourceName + "' is reserved");
                     return;
                 }
+                
+
             }
         }
 

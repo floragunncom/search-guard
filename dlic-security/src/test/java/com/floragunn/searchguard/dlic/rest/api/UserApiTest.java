@@ -49,7 +49,6 @@ public class UserApiTest {
             HttpResponse response = adminClient.get("_searchguard/api/" + CType.INTERNALUSERS.toLCString());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertTrue(response.getBody(), settings.size() >= 35);
 
             response = adminClient.patch("/_searchguard/api/internalusers",
                     "[{ \"op\": \"add\", \"path\": \"/newuser\", \"value\": {\"password\": \"newuser\", \"search_guard_roles\": [\"sg_all_access\"] } }]");
@@ -57,7 +56,7 @@ public class UserApiTest {
 
             response = adminClient.get("/_searchguard/api/internalusers/newuser");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            Assert.assertTrue(response.getBody().contains("\"search_guard_roles\":[\"sg_all_access\"]"));
+            Assert.assertTrue(response.getBody(), response.getBody().contains("\"search_guard_roles\":[\"sg_all_access\"]"));
 
             checkGeneralAccess(HttpStatus.SC_OK, "newuser", "newuser");
         }
@@ -72,7 +71,7 @@ public class UserApiTest {
             HttpResponse response = adminClient.get("_searchguard/api/" + CType.INTERNALUSERS.toLCString());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertTrue(response.getBody(), settings.size() >= 35);
+            Assert.assertTrue(response.getBody(), settings.size() >= 20);
 
             // --- GET
 
@@ -81,9 +80,9 @@ public class UserApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             System.out.println(response.getBody());
             settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertEquals(7, settings.size());
+            Assert.assertEquals(4, settings.size());
             // hash must be filtered
-            Assert.assertEquals("", settings.get("admin.hash"));
+            Assert.assertEquals(null, settings.get("admin.hash"));
 
             // GET, user does not exist
             response = adminClient.get("/_searchguard/api/internalusers/nothinghthere");
@@ -151,12 +150,11 @@ public class UserApiTest {
             // PATCH password
             response = adminClient.patch("/_searchguard/api/internalusers/test",
                     "[{ \"op\": \"add\", \"path\": \"/password\", \"value\": \"neu\" }]");
-            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             response = adminClient.get("/_searchguard/api/internalusers/test");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
             Assert.assertFalse(settings.hasValue("test.password"));
-            Assert.assertTrue(settings.hasValue("test.hash"));
 
             // -- PATCH on whole config resource
             // PATCH on non-existing resource
@@ -187,7 +185,6 @@ public class UserApiTest {
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
             Assert.assertFalse(settings.hasValue("bulknew1.password"));
-            Assert.assertTrue(settings.hasValue("bulknew1.hash"));
             List<String> roles = settings.getAsList("bulknew1.backend_roles");
             Assert.assertEquals(1, roles.size());
             Assert.assertTrue(roles.contains("vulcan"));
@@ -251,7 +248,7 @@ public class UserApiTest {
             response = adminClient.get("/_searchguard/api/internalusers/nagilum");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertTrue(settings.get("nagilum.hash").equals(""));
+            Assert.assertNull(settings.get("nagilum.hash"));
 
             // ROLES
             // create index first
@@ -307,7 +304,7 @@ public class UserApiTest {
             response = adminClient.get("/_searchguard/api/internalusers/picard");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertEquals("", settings.get("picard.hash"));
+            Assert.assertNull(settings.get("picard.hash"));
             roles = settings.getAsList("picard.backend_roles");
             Assert.assertNotNull(roles);
             Assert.assertEquals(2, roles.size());
@@ -336,8 +333,6 @@ public class UserApiTest {
             // initial configuration, 5 users
             HttpResponse response = adminClient.get("_searchguard/api/" + CType.INTERNALUSERS.toLCString());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertEquals(response.getBody(), 35, settings.size());
 
             addUserWithPassword(adminClient, "tooshoort", "123", HttpStatus.SC_BAD_REQUEST);
             addUserWithPassword(adminClient, "tooshoort", "1234567", HttpStatus.SC_BAD_REQUEST);
@@ -403,7 +398,6 @@ public class UserApiTest {
             HttpResponse response = adminClient.get("_searchguard/api/" + CType.INTERNALUSERS.toLCString());
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertTrue(response.getBody(), settings.size() >= 35);
 
             addUserWithPassword(adminClient, ".my.dotuser0", "$2a$12$n5nubfWATfQjSYHiWtUyeOxMIxFInUHOAx8VMmGmxFNPGpaBmeB.m", HttpStatus.SC_CREATED);
 

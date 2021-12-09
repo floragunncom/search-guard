@@ -272,10 +272,10 @@ public class ConfigHistoryService implements ComponentStateProvider {
     }
 
     private ConfigModel createConfigModelForSnapshot(ConfigSnapshot configSnapshot) {
-        SgDynamicConfiguration<RoleV7> roles = configSnapshot.getConfigByType(RoleV7.class).deepClone();
+        SgDynamicConfiguration<RoleV7> roles = configSnapshot.getConfigByType(RoleV7.class).copy();
         SgDynamicConfiguration<RoleMappingsV7> roleMappings = configSnapshot.getConfigByType(RoleMappingsV7.class);
-        SgDynamicConfiguration<ActionGroupsV7> actionGroups = configSnapshot.getConfigByType(ActionGroupsV7.class).deepClone();
-        SgDynamicConfiguration<TenantV7> tenants = configSnapshot.getConfigByType(TenantV7.class).deepClone();
+        SgDynamicConfiguration<ActionGroupsV7> actionGroups = configSnapshot.getConfigByType(ActionGroupsV7.class).copy();
+        SgDynamicConfiguration<TenantV7> tenants = configSnapshot.getConfigByType(TenantV7.class).copy();
         SgDynamicConfiguration<BlocksV7> blocks = configSnapshot.getConfigByType(BlocksV7.class);
 
         if (blocks == null) {

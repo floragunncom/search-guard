@@ -106,7 +106,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 	protected abstract String getResourceName();
 
-	protected abstract CType getConfigName();
+	protected abstract CType<?> getConfigName();
 
 	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client) throws IOException {
 
@@ -176,7 +176,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 	protected void handlePut(String name, RestChannel channel, RestRequest request, Client client, JsonNode content) throws IOException {
 		
-		final SgDynamicConfiguration<?> existingConfiguration = load(getConfigName(), false);
+		@SuppressWarnings("unchecked")
+        final SgDynamicConfiguration<Object> existingConfiguration = (SgDynamicConfiguration<Object>) load(getConfigName(), false);
 
 		if (isHidden(existingConfiguration, name)) {
             forbidden(channel, "Resource '"+ name +"' is not available.");
@@ -193,7 +194,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		}
 		
 		boolean existed = existingConfiguration.exists(name);
-		existingConfiguration.putCObject(name, DefaultObjectMapper.readTree(content, existingConfiguration.getImplementingClass()));
+		existingConfiguration.putCEntry(name, DefaultObjectMapper.readTree(content, existingConfiguration.getImplementingClass()));
 		
 		saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<IndexResponse>(channel) {
 
@@ -253,8 +254,9 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		return;
 	}
 
-	protected final SgDynamicConfiguration<?> load(final CType config, boolean logComplianceEvent) {
-	    SgDynamicConfiguration<?> loaded = cl.getConfigurationsFromIndex(Collections.singleton(config), logComplianceEvent).get(config).deepClone();
+	protected final <T> SgDynamicConfiguration<T> load(final CType<T> config, boolean logComplianceEvent) {
+	    @SuppressWarnings("unchecked")
+        SgDynamicConfiguration<T> loaded = (SgDynamicConfiguration<T>) cl.getConfigurationsFromIndex(Collections.singleton(config), logComplianceEvent).get(config).copy();
 	    staticSgConfig.addTo(loaded);
 	    return loaded;
 	}
@@ -287,7 +289,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	    
 	}
 
-	protected void saveAnUpdateConfigs(final Client client, final RestRequest request, final CType cType,
+	protected void saveAnUpdateConfigs(final Client client, final RestRequest request, final CType<?> cType,
 	        final SgDynamicConfiguration<?> configuration, OnSucessActionListener<IndexResponse> actionListener) {
 		final IndexRequest ir = new IndexRequest(this.searchguardIndex);
 
@@ -453,9 +455,15 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		}
 	}
 
-	protected void successResponse(RestChannel channel, SgDynamicConfiguration<?> response) {
-	    channel.sendResponse(
-                new BytesRestResponse(RestStatus.OK, convertToJson(channel, response)));
+	protected void successResponse(RestChannel channel, SgDynamicConfiguration<?> response) {	    
+        try {
+            final XContentBuilder builder = channel.newBuilder();
+            builder.value(response.toRedactedBasicObject());
+            channel.sendResponse(new BytesRestResponse(RestStatus.OK, builder));
+        } catch (Exception e) {
+            log.error(e.toString(), e);
+            throw ExceptionsHelper.convertToElastic(e);
+        }
     }
 	
 	protected void successResponse(RestChannel channel, LicenseInfoResponse ur) {

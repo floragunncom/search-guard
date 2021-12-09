@@ -38,15 +38,18 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.internal_users.InternalUser;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.InternalUsersValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.sgconf.Hashed;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -88,7 +91,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         // TODO it might be sensible to consolidate this with the overridden method in
         // order to minimize duplicated logic
 
-        final SgDynamicConfiguration<?> configuration = load(getConfigName(), false);
+        final SgDynamicConfiguration<InternalUser> configuration = load(getConfigName(), false);
 
         if (isHidden(configuration, username)) {
             forbidden(channel, "Resource '" + username + "' is not available.");
@@ -117,7 +120,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         }
         
         // check if user exists
-        final SgDynamicConfiguration<?> internaluser = load(CType.INTERNALUSERS, false);
+        final SgDynamicConfiguration<InternalUser> internaluser = load(CType.INTERNALUSERS, false);
 
         final boolean userExisted = internaluser.exists(username);
 
@@ -133,7 +136,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         // for existing users, hash is optional
         if (userExisted && sgJsonNode.get("hash").asString() == null) {
             // sanity check, this should usually not happen
-            final String hash = ((Hashed)internaluser.getCEntry(username)).getHash();
+            final String hash = internaluser.getCEntry(username).getPasswordHash();
             if (hash == null || hash.length() == 0) {
                 internalErrorResponse(channel, 
                         "Existing user " + username + " has no password, and no new password or hash was specified.");
@@ -142,10 +145,16 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
             contentAsNode.put("hash", hash);
         }
 
+        String newJson = DefaultObjectMapper.writeJsonTree(contentAsNode);
+        
         internaluser.remove(username);
 
         // checks complete, create or update the user
-        internaluser.putCObject(username, DefaultObjectMapper.readTree(contentAsNode, internaluser.getImplementingClass()));
+        try {
+            internaluser.putCEntry(username, InternalUser.parse(DocReader.json().readObject(newJson)));
+        } catch (UnexpectedDocumentStructureException | ConfigValidationException e) {
+            throw new RuntimeException(e);
+        }
 
         saveAnUpdateConfigs(client, request, CType.INTERNALUSERS, internaluser, new OnSucessActionListener<IndexResponse>(channel) {
             
@@ -162,15 +171,6 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
 
         
 
-    }
-
-    @Override
-    protected void filter(SgDynamicConfiguration<?> builder) {
-        super.filter(builder);
-        // replace password hashes in addition. We must not remove them from the
-        // Builder since this would remove users completely if they
-        // do not have any addition properties like roles or attributes
-        builder.clearHashes();
     }
     
     @Override

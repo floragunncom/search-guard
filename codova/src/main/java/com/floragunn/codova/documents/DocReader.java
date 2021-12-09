@@ -230,7 +230,11 @@ public class DocReader {
                 return new DocReader(docType, parser).read();
             }
         }
-
+        
+        public Map<String, Object> readObject(Reader in) throws DocParseException, IOException {
+            return toJsonObject(read(in));
+        }
+        
         public Map<String, Object> readObject(InputStream in) throws DocParseException, IOException {
             return toJsonObject(read(in));
         }

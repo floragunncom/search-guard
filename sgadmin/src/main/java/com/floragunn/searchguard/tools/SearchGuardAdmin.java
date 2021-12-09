@@ -1364,7 +1364,7 @@ public class SearchGuardAdmin {
         return -1;
     }
     
-    private static boolean validateConfigFile(String file, CType cType, int version) {
+    private static boolean validateConfigFile(String file, CType<?> cType, int version) {
         try {
             ConfigHelper.fromYamlFile(file, cType, version==7?2:1);
             System.out.println(file+" OK" );

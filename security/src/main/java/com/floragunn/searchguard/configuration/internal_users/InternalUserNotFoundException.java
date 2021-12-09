@@ -15,11 +15,15 @@
  *
  */
 
-package com.floragunn.searchguard.configuration.api;
+package com.floragunn.searchguard.configuration.internal_users;
 
-public class InternalUserAlreadyExistsException extends Exception {
+public class InternalUserNotFoundException extends Exception {
 
-    public InternalUserAlreadyExistsException(String user) {
-        super("User " + user + " already exists");
-    }
+    private static final long serialVersionUID = 4001652936942892143L;
+
+    public InternalUserNotFoundException(String user) {
+		super("User " + user + " not found");
+	}
 }
+
+

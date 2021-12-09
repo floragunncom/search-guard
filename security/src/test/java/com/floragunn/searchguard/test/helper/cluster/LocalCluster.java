@@ -153,7 +153,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         return this.localEsCluster.getNodeByName(name);
     }
 
-    public void updateSgConfig(CType configType, String key, Map<String, Object> value) {
+    public void updateSgConfig(CType<?> configType, String key, Map<String, Object> value) {
         SgConfigUpdater.updateSgConfig(this::getAdminCertClient, configType, key, value);
     }
 

@@ -235,7 +235,7 @@ public class TestSgConfig {
         }
     }
 
-    private void writeConfigToIndex(Client client, CType configType, String file, NestedValueMap overrides) {
+    private void writeConfigToIndex(Client client, CType<?> configType, String file, NestedValueMap overrides) {
         try {
             NestedValueMap config;
 

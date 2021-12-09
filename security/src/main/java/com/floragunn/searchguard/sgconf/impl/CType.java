@@ -35,6 +35,10 @@ import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class CType<T> {
+    
+    private static Map<Class<?>, CType<?>> classToEnumMap = new HashMap<>();
+    private static Map<String, CType<?>> nameToInstanceMap = new HashMap<>();
+    private static Map<Integer, CType<?>> ordToInstanceMap = new HashMap<>();
 
     public static final CType<InternalUser> INTERNALUSERS = new CType<InternalUser>("internalusers", 0, InternalUser.class, InternalUser::parse);
     public static final CType<ActionGroupsV7> ACTIONGROUPS = new CType<ActionGroupsV7>("actiongroups", 1, ActionGroupsV7.class, null);
@@ -44,9 +48,7 @@ public class CType<T> {
     public static final CType<TenantV7> TENANTS = new CType<TenantV7>("tenants", 5, TenantV7.class, null);
     public static final CType<BlocksV7> BLOCKS = new CType<BlocksV7>("blocks", 6, BlocksV7.class, null);
 
-    private static Map<Class<?>, CType<?>> classToEnumMap = new HashMap<>();
-    private static Map<String, CType<?>> nameToInstanceMap = new HashMap<>();
-    private static Map<Integer, CType<?>> ordToInstanceMap = new HashMap<>();
+
 
     private final String name;
     private final Class<T> type;
@@ -81,7 +83,13 @@ public class CType<T> {
     }
 
     public static CType<?> valueOf(String value) {
-        return fromString(value);
+        CType<?> result = fromString(value);
+        
+        if (result != null) {
+            return result;
+        } else {
+            throw new IllegalArgumentException("Unknown CType: " + value);
+        }
     }
     
     public String toString() {

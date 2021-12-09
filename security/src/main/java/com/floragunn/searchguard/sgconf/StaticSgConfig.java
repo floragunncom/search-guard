@@ -44,7 +44,7 @@ public class StaticSgConfig {
         
         checkForOverriddenEntries(original, staticConfig);
         
-        original.add(staticConfig.deepClone());
+        original.add(staticConfig.copy());
 
         if (log.isDebugEnabled()) {
             log.debug(staticConfig.getCEntries().size() + " static " + original.getCType().toLCString() + " loaded");

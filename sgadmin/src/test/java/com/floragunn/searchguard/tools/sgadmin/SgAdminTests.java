@@ -64,33 +64,6 @@ public class SgAdminTests extends SingleClusterTest {
     }
 
     @Test
-    public void testSgAdminV6Update() throws Exception {
-        setup(Settings.EMPTY, null, Settings.EMPTY, false);
-
-        final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-        List<String> argsAsList = new ArrayList<>();
-        argsAsList.add("-ts");
-        argsAsList.add(FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks").toFile().getAbsolutePath());
-        argsAsList.add("-ks");
-        argsAsList.add(FileHelper.getAbsoluteFilePathFromClassPath(prefix + "kirk-keystore.jks").toFile().getAbsolutePath());
-        argsAsList.add("-p");
-        argsAsList.add(String.valueOf(clusterInfo.nodePort));
-        argsAsList.add("-cn");
-        argsAsList.add(clusterInfo.clustername);
-        argsAsList.add("-cd");
-        argsAsList.add(new File("./legacy/sgconfig_v6").getAbsolutePath());
-        argsAsList.add("-nhnv");
-
-        int returnCode = SearchGuardAdmin.execute(argsAsList.toArray(new String[0]));
-        Assert.assertNotEquals(0, returnCode);
-
-        RestHelper rh = nonSslRestHelper();
-
-        Assert.assertEquals(HttpStatus.SC_SERVICE_UNAVAILABLE, (rh.executeGetRequest("_searchguard/health?pretty")).getStatusCode());
-    }
-
-    @Test
     public void testSgAdminRegularUpdate() throws Exception {
         setup(Settings.EMPTY, new DynamicSgConfig(), Settings.EMPTY, true);
 
