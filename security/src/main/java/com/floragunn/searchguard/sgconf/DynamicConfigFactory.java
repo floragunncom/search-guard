@@ -25,11 +25,6 @@ import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v6.ActionGroupsV6;
-import com.floragunn.searchguard.sgconf.impl.v6.ConfigV6;
-import com.floragunn.searchguard.sgconf.impl.v6.InternalUserV6;
-import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
-import com.floragunn.searchguard.sgconf.impl.v6.RoleV6;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
 import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
@@ -105,50 +100,33 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             log.debug(logmsg);
         }
 
-        if(config.getImplementingClass() == ConfigV7.class) {
-            staticSgConfig.addTo(roles);
-            staticSgConfig.addTo(actionGroups);
-            staticSgConfig.addTo(tenants);
+        staticSgConfig.addTo(roles);
+        staticSgConfig.addTo(actionGroups);
+        staticSgConfig.addTo(tenants);
 
-            log.debug("Static configuration loaded (total roles: {}/total action groups: {}/total tenants: {})", roles.getCEntries().size(),
-                    actionGroups.getCEntries().size(), tenants.getCEntries().size());
+        log.debug("Static configuration loaded (total roles: {}/total action groups: {}/total tenants: {})", roles.getCEntries().size(),
+                actionGroups.getCEntries().size(), tenants.getCEntries().size());
 
-            //rebuild v7 Models
-            DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), esSettings, configPath, modulesRegistry);
-            InternalUsersModel ium = new InternalUsersModelV7((SgDynamicConfiguration<InternalUserV7>) internalusers);
-            ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<RoleV7>) roles,(SgDynamicConfiguration<RoleMappingsV7>)rolesmapping,
-                    (SgDynamicConfiguration<ActionGroupsV7>)actionGroups, (SgDynamicConfiguration<TenantV7>) tenants, (SgDynamicConfiguration<BlocksV7>) blocks, dcm, esSettings);
+        //rebuild v7 Models
+        DynamicConfigModel dcm = new DynamicConfigModelV7(getConfigV7(config), esSettings, configPath, modulesRegistry);
+        InternalUsersModel ium = new InternalUsersModelV7((SgDynamicConfiguration<InternalUserV7>) internalusers);
+        ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<RoleV7>) roles, (SgDynamicConfiguration<RoleMappingsV7>) rolesmapping,
+                (SgDynamicConfiguration<ActionGroupsV7>) actionGroups, (SgDynamicConfiguration<TenantV7>) tenants,
+                (SgDynamicConfiguration<BlocksV7>) blocks, dcm, esSettings);
 
-            
-            componentState.replacePart(dcm.getComponentState());
-            dcm.getComponentState().setConfigVersion(config.getDocVersion());
-            
-            //notify listeners
-            
-            for(DCFListener listener: listeners) {
-            	if (log.isTraceEnabled()) {
-            		log.trace("Notifying DCFListener '{}' about configuration changes" );	
-            	}            	
-                listener.onChanged(cm, dcm, ium);
+        componentState.replacePart(dcm.getComponentState());
+        dcm.getComponentState().setConfigVersion(config.getDocVersion());
+
+        //notify listeners
+
+        for (DCFListener listener : listeners) {
+            if (log.isTraceEnabled()) {
+                log.trace("Notifying DCFListener '{}' about configuration changes");
             }
-            
-            notifyConfigChangeListeners(config);
-        
-        } else {
-            //rebuild v6 Models
-            @SuppressWarnings("deprecation")
-            DynamicConfigModel dcmv6 = new DynamicConfigModelV6(getConfigV6(config), esSettings, configPath, modulesRegistry);
-            InternalUsersModel iumv6 = new InternalUsersModelV6((SgDynamicConfiguration<InternalUserV6>) internalusers);
-            ConfigModel cmv6 = new ConfigModelV6((SgDynamicConfiguration<RoleV6>) roles, (SgDynamicConfiguration<ActionGroupsV6>)actionGroups, (SgDynamicConfiguration<RoleMappingsV6>)rolesmapping, dcmv6, esSettings);
-            
-            componentState.replacePart(dcmv6.getComponentState());
-
-            //notify listeners
-            
-            for(DCFListener listener: listeners) {
-                listener.onChanged(cmv6, dcmv6, iumv6);
-            }
+            listener.onChanged(cm, dcm, ium);
         }
+
+        notifyConfigChangeListeners(config);
 
         initialized.set(true);
         
@@ -156,28 +134,17 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     
     
     public String getLicenseString() {
-        
-        if(!isInitialized()) {
+
+        if (!isInitialized()) {
             throw new RuntimeException("Can not retrieve license because not initialized (yet)");
         }
-        
-        if(config.getImplementingClass() == ConfigV6.class) {
-            @SuppressWarnings("unchecked")
-            SgDynamicConfiguration<ConfigV6> c = (SgDynamicConfiguration<ConfigV6>) config;
-            return c.getCEntry("searchguard").dynamic.license;
-        } else {
-            @SuppressWarnings("unchecked")
-            SgDynamicConfiguration<ConfigV7> c = (SgDynamicConfiguration<ConfigV7>) config;
-            return c.getCEntry("sg_config").dynamic.license;
-        }
-    }
-    
-    private static ConfigV6 getConfigV6(SgDynamicConfiguration<?> sdc) {
+
         @SuppressWarnings("unchecked")
-        SgDynamicConfiguration<ConfigV6> c = (SgDynamicConfiguration<ConfigV6>) sdc;
-        return c.getCEntry("searchguard");
+        SgDynamicConfiguration<ConfigV7> c = (SgDynamicConfiguration<ConfigV7>) config;
+        return c.getCEntry("sg_config").dynamic.license;
+
     }
-    
+     
     private static ConfigV7 getConfigV7(SgDynamicConfiguration<?> sdc) {
         @SuppressWarnings("unchecked")
         SgDynamicConfiguration<ConfigV7> c = (SgDynamicConfiguration<ConfigV7>) sdc;
@@ -264,47 +231,6 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             return tmp==null?Collections.emptyList():tmp.getSearch_guard_roles();
         }
         
-    }
-    
-    private static class InternalUsersModelV6 extends InternalUsersModel {
-        SgDynamicConfiguration<InternalUserV6> configuration;
-
-        public InternalUsersModelV6(SgDynamicConfiguration<InternalUserV6> configuration) {
-            super();
-            this.configuration = configuration;
-        }
-
-        @Override
-        public boolean exists(String user) {
-            return configuration.exists(user);
-        }
-
-        @Override
-        public List<String> getBackenRoles(String user) {
-            InternalUserV6 tmp = configuration.getCEntry(user);
-            return tmp==null?null:tmp.getRoles();
-        }
-
-        @Override
-        public Map<String, Object> getAttributes(String user) {
-            InternalUserV6 tmp = configuration.getCEntry(user);
-            return tmp==null?null:tmp.getAttributes();
-        }
-
-        @Override
-        public String getDescription(String user) {
-            return null;
-        }
-
-        @Override
-        public String getHash(String user) {
-            InternalUserV6 tmp = configuration.getCEntry(user);
-            return tmp==null?null:tmp.getHash();
-        }
-        
-        public List<String> getSearchGuardRoles(String user) {
-            return Collections.emptyList();
-        }
     }
 
     @Override

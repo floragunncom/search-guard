@@ -49,8 +49,6 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -168,10 +166,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
                                         ConfigHelper.uploadFile(client, cd+"sg_roles_mapping.yml", searchguardIndex, CType.ROLESMAPPING, configVersion);
                                         ConfigHelper.uploadFile(client, cd+"sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS, configVersion);
                                         ConfigHelper.uploadFile(client, cd+"sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS, configVersion);
-                                        if(configVersion == 2) {
-                                            ConfigHelper.uploadFile(client, cd+"sg_tenants.yml", searchguardIndex, CType.TENANTS, configVersion);
-                                            ConfigHelper.uploadFile(client, cd+"sg_blocks.yml", searchguardIndex, CType.BLOCKS, configVersion);
-                                        }
+                                        ConfigHelper.uploadFile(client, cd + "sg_tenants.yml", searchguardIndex, CType.TENANTS, configVersion);
+                                        ConfigHelper.uploadFile(client, cd + "sg_blocks.yml", searchguardIndex, CType.BLOCKS, configVersion);
+                                        
                                         LOGGER.info("Default config applied");
                                     } else {
                                         LOGGER.error("Can not create {} index", searchguardIndex);

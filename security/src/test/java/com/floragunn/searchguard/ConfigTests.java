@@ -42,19 +42,14 @@ public class ConfigTests {
     @Test
     public void testParseSg67Config() throws Exception {
 
-        check("./legacy/sgconfig_v6/sg_action_groups.yml", CType.ACTIONGROUPS);
         check("./sgconfig/sg_action_groups.yml", CType.ACTIONGROUPS);
         
-        check("./legacy/sgconfig_v6/sg_config.yml", CType.CONFIG);
         check("./sgconfig/sg_config.yml", CType.CONFIG);
         
-        check("./legacy/sgconfig_v6/sg_roles.yml", CType.ROLES);
         check("./sgconfig/sg_roles.yml", CType.ROLES);
         
-        check("./legacy/sgconfig_v6/sg_internal_users.yml", CType.INTERNALUSERS);
         check("./sgconfig/sg_internal_users.yml", CType.INTERNALUSERS);
         
-        check("./legacy/sgconfig_v6/sg_roles_mapping.yml", CType.ROLESMAPPING);
         check("./sgconfig/sg_roles_mapping.yml", CType.ROLESMAPPING);
         
         check("./sgconfig/sg_tenants.yml", CType.TENANTS);
