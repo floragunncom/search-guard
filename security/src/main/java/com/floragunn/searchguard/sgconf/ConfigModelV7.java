@@ -61,8 +61,6 @@ import com.floragunn.searchguard.auth.blocking.IpRangeVerdictBasedBlockRegistry;
 import com.floragunn.searchguard.auth.blocking.VerdictBasedBlockRegistry;
 import com.floragunn.searchguard.auth.blocking.WildcardVerdictBasedBlockRegistry;
 import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
-import com.floragunn.searchguard.sgconf.ConfigModelV6.IndexPattern;
-import com.floragunn.searchguard.sgconf.ConfigModelV6.TypePerm;
 import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;

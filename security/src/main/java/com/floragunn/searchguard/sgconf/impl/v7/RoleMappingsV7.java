@@ -4,7 +4,6 @@ import java.util.Collections;
 import java.util.List;
 
 import com.floragunn.searchguard.sgconf.Hideable;
-import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
 
 public class RoleMappingsV7 implements Hideable {
 
@@ -18,17 +17,6 @@ public class RoleMappingsV7 implements Hideable {
 
     public RoleMappingsV7() {
         super();
-    }
-
-    public RoleMappingsV7(RoleMappingsV6 roleMappingsV6) {
-        super();
-        this.reserved = roleMappingsV6.isReserved();
-        this.hidden = roleMappingsV6.isHidden();
-        this.backend_roles = roleMappingsV6.getBackendroles();
-        this.hosts = roleMappingsV6.getHosts();
-        this.users = roleMappingsV6.getUsers();
-        this.and_backend_roles = roleMappingsV6.getAndBackendroles();
-        this.description = "Migrated from v6";
     }
 
     public boolean isReserved() {

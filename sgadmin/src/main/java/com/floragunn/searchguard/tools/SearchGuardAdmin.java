@@ -81,7 +81,6 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
@@ -112,16 +111,6 @@ import com.floragunn.searchguard.action.whoami.WhoAmIRequest;
 import com.floragunn.searchguard.action.whoami.WhoAmIResponse;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.Meta;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v6.RoleMappingsV6;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
-import com.floragunn.searchguard.sgconf.impl.v7.InternalUserV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.ssl.util.config.ClientAuthCredentials;
@@ -133,7 +122,6 @@ import com.floragunn.searchguard.support.SgJsonNode;
 import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient.GenericResponse;
-import com.floragunn.searchguard.tools.sgconf.Migration;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 
@@ -299,10 +287,8 @@ public class SearchGuardAdmin {
         final boolean promptForPassword;
         String explicitReplicas = null;
         String backup = null;
-        String migrate = null;
         final boolean resolveEnvVars;
         Integer validateConfig = null;
-        String migrateOffline = null;
         boolean reloadHttpCerts = false;
         boolean reloadTransportCerts = false;
         
@@ -388,9 +374,7 @@ public class SearchGuardAdmin {
             explicitReplicas = line.getOptionValue("er", explicitReplicas);
             
             backup = line.getOptionValue("backup");
-            
-            migrate = line.getOptionValue("migrate");
-            
+                        
             resolveEnvVars = line.hasOption("rev");
             
             validateConfig = !line.hasOption("vc")?null:Integer.parseInt(line.getOptionValue("vc", "7"));
@@ -398,9 +382,7 @@ public class SearchGuardAdmin {
             if(validateConfig != null && validateConfig.intValue() != 6 && validateConfig.intValue() != 7) {
                 throw new ParseException("version must be 6 or 7");
             }
-            
-            migrateOffline = line.getOptionValue("mo");
-            
+                        
             reloadHttpCerts = line.hasOption("reload-http-certs");
             reloadTransportCerts = line.hasOption("reload-transport-certs");
 
@@ -415,12 +397,6 @@ public class SearchGuardAdmin {
         if(validateConfig != null) {
             System.out.println("Validate configuration for Version "+validateConfig.intValue());
             return validateConfig(cd, file, type, validateConfig.intValue());
-        }
-        
-        if(migrateOffline != null) {
-            System.out.println("Migrate "+migrateOffline+" offline");
-            final boolean retVal =  Migrater.migrateDirectory(new File(migrateOffline), true);
-            return retVal?0:-1;
         }
 
         if (reloadHttpCerts || reloadTransportCerts) {
@@ -859,15 +835,7 @@ public class SearchGuardAdmin {
             if(backup != null) {
                 return backup(tc, index, new File(backup), legacy);
             }
-            
-            if(migrate != null) {
-                if(!legacy) {
-                    System.out.println("ERR: Seems cluster is already migrated");
-                    return -1;
-                }
-                return migrate(tc, index, new File(migrate), nodesInfo, resolveEnvVars);
-            }
-            
+
             boolean isCdAbs = new File(cd).isAbsolute();
 
             System.out.println("Populate config from "+(isCdAbs?cd:new File(".", cd).getCanonicalPath()));
@@ -1344,70 +1312,6 @@ public class SearchGuardAdmin {
 
         System.out.println("Done with "+(success?"success":"failures"));
         return (success?0:-1);
-    }
-    
-    private static int migrate(TransportClient tc, String index, File backupDir, NodesInfoResponse nodesInfo, boolean resolveEnvVars) {
-        
-        System.out.println("== Migration started ==");
-        System.out.println("=======================");
-        
-        System.out.println("-> Backup current configuration to "+backupDir.getAbsolutePath());
-        
-        if(backup(tc, index, backupDir, true) != 0) {
-            return -1;
-        }
-
-        System.out.println("  done");
-        
-        File v7Dir = new File(backupDir,"v7");
-        v7Dir.mkdirs();
-        
-        try {
-
-            System.out.println("-> Migrate configuration to new format and store it here: "+v7Dir.getAbsolutePath());
-            SgDynamicConfiguration<ActionGroupsV7> actionGroupsV7 = Migration.migrateActionGroups(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_action_groups.yml")), CType.ACTIONGROUPS, 1, 0, 0, 0));
-            SgDynamicConfiguration<ConfigV7> configV7 = Migration.migrateConfig(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_config.yml")), CType.CONFIG, 1, 0, 0, 0));
-            SgDynamicConfiguration<InternalUserV7> internalUsersV7 = Migration.migrateInternalUsers(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_internal_users.yml")), CType.INTERNALUSERS, 1, 0, 0, 0));
-            SgDynamicConfiguration<RoleMappingsV6> rolesmappingV6 = SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_roles_mapping.yml")), CType.ROLESMAPPING, 1, 0, 0, 0);
-            Tuple<SgDynamicConfiguration<RoleV7>, SgDynamicConfiguration<TenantV7>> rolesTenantsV7 = Migration.migrateRoles(SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(new File(backupDir,"sg_roles.yml")), CType.ROLES, 1, 0, 0, 0), rolesmappingV6);
-            SgDynamicConfiguration<RoleMappingsV7> rolesmappingV7 = Migration.migrateRoleMappings(rolesmappingV6);
-            SgDynamicConfiguration<BlocksV7> blocksV7 = SgDynamicConfiguration.empty();
-
-            blocksV7.setCType(CType.BLOCKS);
-            blocksV7.set_sg_meta(new Meta());
-            blocksV7.get_sg_meta().setConfig_version(2);
-            blocksV7.get_sg_meta().setType("blocks");
-            
-            DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_action_groups.yml"), actionGroupsV7);
-            DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_config.yml"), configV7);
-            DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_internal_users.yml"), internalUsersV7);
-            DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_roles.yml"), rolesTenantsV7.v1());
-            DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_tenants.yml"), rolesTenantsV7.v2());
-            DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_roles_mapping.yml"), rolesmappingV7);
-            DefaultObjectMapper.YAML_MAPPER.writeValue(new File(v7Dir, "/sg_blocks.yml"), blocksV7);
-        } catch (Exception e) {
-            System.out.println("ERR: Unable to migrate config files due to "+e);
-            e.printStackTrace();
-            return -1;
-        }
-        
-        System.out.println("  done");
-        
-        System.out.println("-> Delete old "+index+" index");
-        deleteConfigIndex(tc, index, true);
-        System.out.println("  done");
-        
-        System.out.println("-> Upload new configuration into Elasticsearch cluster");
-        
-        int uploadResult = upload(tc, index, v7Dir.getAbsolutePath()+"/", false, nodesInfo, resolveEnvVars);
-        
-        if(uploadResult == 0) {
-            System.out.println("  done");
-        }else {
-            System.out.println("  ERR: unable to upload");
-        }
-        
-        return uploadResult;
     }
     
     private static String readTypeFromFile(File file) throws IOException {

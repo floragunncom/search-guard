@@ -6,7 +6,6 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchguard.sgconf.StaticDefinable;
-import com.floragunn.searchguard.sgconf.impl.v6.ActionGroupsV6;
 
 public class ActionGroupsV7 implements Hideable, StaticDefinable {
 
@@ -23,14 +22,7 @@ public class ActionGroupsV7 implements Hideable, StaticDefinable {
     public ActionGroupsV7() {
         super();
     }
-    public ActionGroupsV7(String agName, ActionGroupsV6 ag6) {
-        reserved = ag6.isReserved();
-        hidden = ag6.isHidden();
-        allowed_actions = ag6.getPermissions();
-        type = agName.toLowerCase().contains("cluster")?"cluster":"index";
-        description = "Migrated from v6";
-    }
-
+   
     public ActionGroupsV7(String key, List<String> allowed_actions) {
         this.allowed_actions = allowed_actions;
         type = "unknown";
