@@ -918,13 +918,6 @@ public class SearchGuardAdmin {
                 return false;
             }
             
-        } else {
-            try {
-                ConfigHelper.fromYamlFile(filepath, CType.fromString(_id), 2);
-            } catch (Exception e) {
-                System.out.println("ERR: Seems "+filepath+" is not in SG 7 format: "+e);
-                return false;
-            }
         }
         
         System.out.println("Will update '"+type+"/" + id + "' with " + filepath+" "+(legacy?"(legacy mode)":""));
@@ -972,22 +965,6 @@ public class SearchGuardAdmin {
                 }
                 
                 String yaml = convertToYaml(_id, response.getSourceAsBytesRef(), true);
-                
-                if(legacy) {
-                    try {
-                        ConfigHelper.fromYamlString(yaml, CType.fromString(_id), 1);
-                    } catch (Exception e) {
-                        System.out.println("ERR: Seems "+_id+" from cluster is not in legacy format: "+e);
-                        return false;
-                    }
-                } else {
-                    try {
-                        ConfigHelper.fromYamlString(yaml, CType.fromString(_id), 2);
-                    } catch (Exception e) {
-                        System.out.println("ERR: Seems "+_id+" from cluster is not in SG 7 format: "+e);
-                        return false;
-                    }
-                }
                 
                 writer.write(yaml);
                 System.out.println("   SUCC: Configuration for '"+_id+"' stored in "+filepath);
