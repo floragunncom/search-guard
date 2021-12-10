@@ -103,36 +103,42 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
 
     @Override
     protected ConfigUpdateNodeResponse nodeOperation(final NodeConfigUpdateRequest request) {
-        configurationRepository.reloadConfiguration(CType.fromStringValues((request.request.getConfigTypes())));
-        backendRegistry.get().invalidateCache();
+        try {
+            configurationRepository.reloadConfiguration(CType.fromStringValues((request.request.getConfigTypes())));
+            backendRegistry.get().invalidateCache();
 
-         /*final SearchGuardLicense license = configurationRepository.getLicense();
-
-        if (license != null) {
+            /*final SearchGuardLicense license = configurationRepository.getLicense();
+            
+            if (license != null) {
             if(!license.isValid()) {
                 logger.warn("License "+license.getUid()+" is invalid due to "+license.getMsgs());
                 //throw an exception here if loading of invalid license should be denied
             }
-        }*/
-        
-        final String licenseText = dynamicConfigFactory.getLicenseString();
-        
-        if(licenseText != null && !licenseText.isEmpty()) {
-            try {
-                final SearchGuardLicense license = new SearchGuardLicense(XContentHelper.convertToMap(XContentType.JSON.xContent(), LicenseHelper.validateLicense(licenseText), true), clusterService);
-                
-                if(!license.isValid()) {
-                    logger.warn("License "+license.getUid()+" is invalid due to "+license.getMsgs());
-                    //throw an exception here if loading of invalid license should be denied
-                }
-            } catch (Exception e) {
-                logger.error("Invalid license",e);
-                return new ConfigUpdateNodeResponse(clusterService.localNode(), new String[0], "Invalid license: "+e); 
-            }
-        }
+            }*/
 
-        
-        return new ConfigUpdateNodeResponse(clusterService.localNode(), request.request.getConfigTypes(), null); 
+            final String licenseText = dynamicConfigFactory.getLicenseString();
+
+            if (licenseText != null && !licenseText.isEmpty()) {
+                try {
+                    final SearchGuardLicense license = new SearchGuardLicense(
+                            XContentHelper.convertToMap(XContentType.JSON.xContent(), LicenseHelper.validateLicense(licenseText), true),
+                            clusterService);
+
+                    if (!license.isValid()) {
+                        logger.warn("License " + license.getUid() + " is invalid due to " + license.getMsgs());
+                        //throw an exception here if loading of invalid license should be denied
+                    }
+                } catch (Exception e) {
+                    logger.error("Invalid license", e);
+                    return new ConfigUpdateNodeResponse(clusterService.localNode(), new String[0], "Invalid license: " + e);
+                }
+            }
+
+            return new ConfigUpdateNodeResponse(clusterService.localNode(), request.request.getConfigTypes(), null);
+        } catch (Exception e) {
+            logger.error("Error in TransportConfigUpdateAction nodeOperation for " + request, e);
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

@@ -101,6 +101,8 @@ public class ConfigurationLoaderSG7 {
 
             @Override
             public void singleFailure(Failure failure) {
+                latch.countDown();
+
                 log.error("Failure {} retrieving configuration for {} (index={})", failure == null ? null : failure.getMessage(),
                         Arrays.toString(events), searchguardIndex);
                 
@@ -153,6 +155,10 @@ public class ConfigurationLoaderSG7 {
                 for (ComponentState subState : typeToStateMap.values()) {
                     subState.setFailed(t instanceof Exception ? (Exception) t : new Exception(t));
                 }
+                
+                while (latch.getCount() > 0) {
+                    latch.countDown();
+                }
             }
 
             @Override
@@ -160,7 +166,7 @@ public class ConfigurationLoaderSG7 {
                 log.error("Exception {} while retrieving configuration for {}  (index={})", t, t.toString(), Arrays.toString(events),
                         searchguardIndex);
                 typeToStateMap.get(ctype).setFailed(t instanceof Exception ? (Exception) t : new Exception(t));
-
+                latch.countDown();
             }
         });
 
@@ -196,35 +202,46 @@ public class ConfigurationLoaderSG7 {
         client.multiGet(mget, new ActionListener<MultiGetResponse>() {
             @Override
             public void onResponse(MultiGetResponse response) {
-                if (log.isTraceEnabled()) {
-                    log.trace("Response for " + mget.getItems());
-                }
-                
-                MultiGetItemResponse[] responses = response.getResponses();
-                for (MultiGetItemResponse singleResponse : responses) {
-                    if (singleResponse != null && !singleResponse.isFailed()) {
-                        GetResponse singleGetResponse = singleResponse.getResponse();
-                        if (singleGetResponse.isExists() && !singleGetResponse.isSourceEmpty()) {
-                            //success
-                            try {
-                                final SgDynamicConfiguration<?> dConf = toConfig(singleGetResponse);
-                                if (dConf != null) {
-                                    callback.success(dConf);
-                                } else {
-                                    callback.failure(new Exception("Cannot parse settings for " + singleGetResponse.getId()), CType.fromString(singleGetResponse.getId()));
+                try {
+                    if (log.isTraceEnabled()) {
+                        log.trace("Response for " + mget.getItems());
+                    }
+
+                    MultiGetItemResponse[] responses = response.getResponses();
+                    for (MultiGetItemResponse singleResponse : responses) {
+                        if (singleResponse != null && !singleResponse.isFailed()) {
+                            GetResponse singleGetResponse = singleResponse.getResponse();
+                            
+                            if (log.isTraceEnabled()) {
+                                log.trace("GetResponse: " + singleGetResponse);
+                            }
+                            
+                            if (singleGetResponse.isExists() && !singleGetResponse.isSourceEmpty()) {
+                                //success
+                                try {
+                                    final SgDynamicConfiguration<?> dConf = toConfig(singleGetResponse);
+                                    if (dConf != null) {
+                                        callback.success(dConf);
+                                    } else {
+                                        callback.failure(new Exception("Cannot parse settings for " + singleGetResponse.getId()),
+                                                CType.fromString(singleGetResponse.getId()));
+                                    }
+                                } catch (Exception e) {
+                                    log.error(e.toString(), e);
+                                    callback.failure(e, CType.fromString(singleGetResponse.getId()));
                                 }
-                            } catch (Exception e) {
-                                log.error(e.toString(), e);
-                                callback.failure(e, CType.fromString(singleGetResponse.getId()));
+                            } else {
+                                //does not exist or empty source
+                                callback.noData(singleGetResponse.getId(), singleGetResponse.getType());
                             }
                         } else {
-                            //does not exist or empty source
-                            callback.noData(singleGetResponse.getId(), singleGetResponse.getType());
+                            //failure
+                            callback.singleFailure(singleResponse == null ? null : singleResponse.getFailure());
                         }
-                    } else {
-                        //failure
-                        callback.singleFailure(singleResponse == null ? null : singleResponse.getFailure());
                     }
+                } catch (Exception e) {
+                    log.error("Error while loading config", e);
+                    callback.failure(e);
                 }
             }
 

@@ -426,6 +426,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 }
 
             } catch (Exception e) {
+                LOGGER.error("Error while reading " + configTypes, e);
                 throw new ElasticsearchException(e);
             }
             

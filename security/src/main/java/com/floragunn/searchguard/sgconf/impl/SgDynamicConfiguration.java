@@ -77,7 +77,9 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document, Redactab
         int configVersion = 1;
         
         if (jsonNode.get("_sg_meta") != null) {
-            assert jsonNode.get("_sg_meta").get("type").asText().equals(ctype.toLCString());
+            if (!jsonNode.get("_sg_meta").get("type").asText().equals(ctype.toLCString())) {
+                throw new RuntimeException("Illegal config: _sg_meta does not match ctype: " + ctype + "; " + jsonNode.get("_sg_meta"));
+            }
             configVersion = jsonNode.get("_sg_meta").get("config_version").asInt();
         }
 
