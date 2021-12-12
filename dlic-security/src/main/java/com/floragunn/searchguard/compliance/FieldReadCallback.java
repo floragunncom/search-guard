@@ -175,7 +175,7 @@ public final class FieldReadCallback {
             for(Field fi: doc.fields) {
                 f.put(fi.fieldName, String.valueOf(fi.fieldValue));
             }
-            auditLog.logDocumentRead(doc.indexName, doc.id, shardId, f, complianceConfig);
+            auditLog.logDocumentRead(doc.indexName, doc.id, shardId, f);
         } catch (Exception e) {
             log.error("Unexpected error finished compliance read entry {} in index '{}': {}", doc.id, index.getName(), e.toString(), e);
         } finally {
