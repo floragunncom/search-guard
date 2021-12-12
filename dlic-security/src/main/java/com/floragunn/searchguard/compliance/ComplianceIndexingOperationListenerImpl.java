@@ -154,14 +154,14 @@ public final class ComplianceIndexingOperationListenerImpl extends ComplianceInd
                 assert !result.isCreated():"Previous content and created";
             }
     
-            auditlog.logDocumentWritten(shardId, previousContent, index, result, complianceConfig);
+            auditlog.logDocumentWritten(shardId, previousContent, index, result);
         } else if (complianceConfig.isEnabled()) {
             //no diffs
             if (result.getFailure() != null || index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
                 return;
             }
             
-            auditlog.logDocumentWritten(shardId, null, index, result, complianceConfig);
+            auditlog.logDocumentWritten(shardId, null, index, result);
         }
     }
 

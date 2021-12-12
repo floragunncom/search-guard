@@ -434,7 +434,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 CType<?> configurationType = configTypes.iterator().next();
                 Map<String, String> fields = new HashMap<String, String>();
                 fields.put(configurationType.toLCString(), Strings.toString(retVal.get(configurationType)));
-                auditLog.logDocumentRead(this.searchguardIndex, configurationType.toLCString(), null, fields, complianceConfig);
+                auditLog.logDocumentRead(this.searchguardIndex, configurationType.toLCString(), null, fields);
             }
             
             return retVal;

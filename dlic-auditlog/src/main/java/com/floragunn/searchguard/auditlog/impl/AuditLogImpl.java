@@ -56,6 +56,7 @@ public final class AuditLogImpl extends AbstractAuditLog {
 
     @Override
     public void setComplianceConfig(ComplianceConfig complianceConfig) {
+        super.setComplianceConfig(complianceConfig);
         messageRouter.setComplianceConfig(complianceConfig);
     }
 
@@ -192,17 +193,16 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
 
     @Override
-    public void logDocumentRead(String index, String id, ShardId shardId, Map<String, String> fieldNameValues, ComplianceConfig complianceConfig) {
+    public void logDocumentRead(String index, String id, ShardId shardId, Map<String, String> fieldNameValues) {
         if (enabled) {
-            super.logDocumentRead(index, id, shardId, fieldNameValues, complianceConfig);
+            super.logDocumentRead(index, id, shardId, fieldNameValues);
         }
     }
 
     @Override
-    public void logDocumentWritten(ShardId shardId, GetResult originalResult, Index currentIndex, IndexResult result,
-            ComplianceConfig complianceConfig) {
+    public void logDocumentWritten(ShardId shardId, GetResult originalResult, Index currentIndex, IndexResult result) {
         if (enabled) {
-            super.logDocumentWritten(shardId, originalResult, currentIndex, result, complianceConfig);
+            super.logDocumentWritten(shardId, originalResult, currentIndex, result);
         }
     }
 

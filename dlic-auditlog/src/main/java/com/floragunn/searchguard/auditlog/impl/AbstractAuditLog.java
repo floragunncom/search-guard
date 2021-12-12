@@ -104,6 +104,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     private final List<String> defaultIgnoredUsers = Arrays.asList("kibanaserver");
     private final boolean excludeSensitiveHeaders;
     private final boolean logEnvVars;
+    private ComplianceConfig complianceConfig;
     
     private final String searchguardIndex;
     private static final List<String> writeClasses = new ArrayList<>();
@@ -213,6 +214,11 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         
         this.excludeSensitiveHeaders = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_EXCLUDE_SENSITIVE_HEADERS, true);
+    }
+    
+    @Override
+    public void setComplianceConfig(ComplianceConfig complianceConfig) {
+        this.complianceConfig = complianceConfig;
     }
 
     @Override
@@ -548,7 +554,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logDocumentRead(String index, String id, ShardId shardId, Map<String, String> fieldNameValues, ComplianceConfig complianceConfig) {
+    public void logDocumentRead(String index, String id, ShardId shardId, Map<String, String> fieldNameValues) {
         
         if(complianceConfig == null || !complianceConfig.readHistoryEnabledForIndex(index)) {
             return;
@@ -613,7 +619,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logDocumentWritten(ShardId shardId, GetResult originalResult, Index currentIndex, IndexResult result, ComplianceConfig complianceConfig) {
+    public void logDocumentWritten(ShardId shardId, GetResult originalResult, Index currentIndex, IndexResult result) {
         
         if(complianceConfig == null || !complianceConfig.writeHistoryEnabledForIndex(shardId.getIndexName())) {
             return;
