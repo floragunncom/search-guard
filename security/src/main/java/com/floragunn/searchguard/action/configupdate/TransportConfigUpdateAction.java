@@ -104,7 +104,7 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
     @Override
     protected ConfigUpdateNodeResponse nodeOperation(final NodeConfigUpdateRequest request) {
         try {
-            configurationRepository.reloadConfiguration(CType.fromStringValues((request.request.getConfigTypes())));
+            configurationRepository.reloadConfiguration(CType.fromStringValues(request.request.getConfigTypes()), "Config Update " + request.request);
             backendRegistry.get().invalidateCache();
 
             /*final SearchGuardLicense license = configurationRepository.getLicense();

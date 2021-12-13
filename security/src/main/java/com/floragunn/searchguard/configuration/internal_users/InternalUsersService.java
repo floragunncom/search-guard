@@ -19,45 +19,53 @@ package com.floragunn.searchguard.configuration.internal_users;
 
 import static com.floragunn.searchguard.sgconf.impl.CType.INTERNALUSERS;
 
-import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 
 class InternalUsersService {
 
-    private final ConfigurationRepository configurationRepository;
+	private final ConfigurationRepository configurationRepository;
 
-    InternalUsersService(ConfigurationRepository configurationRepository) {
-        this.configurationRepository = configurationRepository;
-    }
+	InternalUsersService(ConfigurationRepository configurationRepository) {
+		this.configurationRepository = configurationRepository;
+	}
 
-    public InternalUser getUser(String userName) throws InternalUserNotFoundException {
-        SgDynamicConfiguration<InternalUser> users = getAllUsers();
-        if (!users.exists(userName)) {
-            throw new InternalUserNotFoundException(userName);
-        }
+	public InternalUser getUser(String userName) throws InternalUserNotFoundException, ConfigUnavailableException {
+		SgDynamicConfiguration<InternalUser> users = getAllUsers();
+		if (!users.exists(userName)) {
+			throw new InternalUserNotFoundException(userName);
+		}
 
-        return users.getCEntry(userName);
-    }
+		return users.getCEntry(userName);
+	}
 
-    public void addOrUpdateUser(String userName, InternalUser internalUser) throws ConfigUpdateException, ConfigValidationException {
-        SgDynamicConfiguration<InternalUser> users = getAllUsers();
-        users.putCEntry(userName, internalUser);
-        configurationRepository.update(INTERNALUSERS, users);
-    }
+	public void addOrUpdateUser(String userName, InternalUser internalUser) throws ConfigUpdateException {
+		try {
+			SgDynamicConfiguration<InternalUser> users = getAllUsers();
+			users.putCEntry(userName, internalUser);
+			configurationRepository.update(INTERNALUSERS, users);
+		} catch (ConfigUnavailableException e) {
+			throw new ConfigUpdateException(e);
+		}
+	}
 
-    public void deleteUser(String userName) throws ConfigUpdateException, ConfigValidationException, InternalUserNotFoundException {
-        SgDynamicConfiguration<InternalUser> users = getAllUsers();
-        if (!users.exists(userName)) {
-            throw new InternalUserNotFoundException(userName);
-        }
-        users.remove(userName);
-        configurationRepository.update(INTERNALUSERS, users);
-    }
+	public void deleteUser(String userName) throws ConfigUpdateException, InternalUserNotFoundException {
+		try {
+			SgDynamicConfiguration<InternalUser> users = getAllUsers();
+			if (!users.exists(userName)) {
+				throw new InternalUserNotFoundException(userName);
+			}
+			users.remove(userName);
+			configurationRepository.update(INTERNALUSERS, users);
+		} catch (ConfigUnavailableException e) {
+			throw new ConfigUpdateException(e);
+		}
+	}
 
-    private SgDynamicConfiguration<InternalUser> getAllUsers() {
-        return configurationRepository.getConfigurationFromIndex(INTERNALUSERS, true);
-    }
+	private SgDynamicConfiguration<InternalUser> getAllUsers() throws ConfigUnavailableException {
+		return configurationRepository.getConfigurationFromIndex(INTERNALUSERS, "API Request");
+	}
 
 }

@@ -141,8 +141,6 @@ public class InternalUsersConfigApi {
                         String user = request.getId();
                         this.internalUsersService.addOrUpdateUser(user, request.getValue());
                         return new StandardResponse(200).message("User " + user + " has been added");
-                    } catch (ConfigValidationException e) {
-                        return new StandardResponse(400).error(e);
                     } catch (ConfigUpdateException e) {
                         log.error("Error while adding user", e);
                         return new StandardResponse(500).error(null, e.getMessage(), e.getDetailsAsMap());
@@ -186,8 +184,6 @@ public class InternalUsersConfigApi {
                     } catch (InternalUserNotFoundException e) {
                         log.info("User {} for deletion not found", user);
                         return new StandardResponse(404).error("User " + user + " for deletion not found");
-                    } catch (ConfigValidationException e) {
-                        return new StandardResponse(400).error(e);
                     } catch (ConfigUpdateException e) {
                         log.error("Error while deleting user", e);
                         return new StandardResponse(500).error(null, e.getMessage(), e.getDetailsAsMap());

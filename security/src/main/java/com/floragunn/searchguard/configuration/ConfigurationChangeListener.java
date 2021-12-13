@@ -17,11 +17,6 @@
 
 package com.floragunn.searchguard.configuration;
 
-import java.util.Map;
-
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-
 /**
  * Callback function on change particular configuration
  */
@@ -30,5 +25,5 @@ public interface ConfigurationChangeListener {
     /**
      * @param configuration not null updated configuration on that was subscribe current listener
      */
-    void onChange(Map<CType<?>, SgDynamicConfiguration<?>> typeToConfig);
+    void onChange(ConfigMap configMap);
 }
