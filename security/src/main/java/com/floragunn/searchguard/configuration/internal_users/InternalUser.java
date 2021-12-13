@@ -31,6 +31,7 @@ import com.floragunn.codova.documents.RedactableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.searchguard.configuration.AuthczVariableResolvers;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchsupport.util.ImmutableMap;
@@ -156,6 +157,10 @@ public class InternalUser implements Document, RedactableDocument, Hideable {
         String passwordHash = null;
 
         if (vNode.hasNonNull("password")) {
+        	if (vNode.get("password").asString().length() == 0) {
+        		validationErrors.add(new InvalidAttributeValue("password", "", "A non-empty password"));
+        	}
+        	
             passwordHash = hash(vNode.get("password").asString().trim().toCharArray());
         } else if (vNode.hasNonNull("hash")) {
             passwordHash = vNode.get("hash").asString();
