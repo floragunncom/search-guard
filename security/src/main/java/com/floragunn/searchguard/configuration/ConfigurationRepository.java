@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
+ * Copyright 2015-2021 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,13 +23,11 @@ import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
@@ -37,7 +35,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
@@ -52,9 +49,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -71,8 +66,6 @@ import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
@@ -85,8 +78,6 @@ import com.floragunn.searchguard.support.ConfigHelper;
 import com.floragunn.searchguard.support.LicenseHelper;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.support.SgUtils;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 
 public class ConfigurationRepository implements ComponentStateProvider {
@@ -94,14 +85,22 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     private final String searchguardIndex;
     private final Client client;
-    private final Cache<CType<?>, SgDynamicConfiguration<?>> configCache;
+    private volatile ConfigMap currentConfig;
     private final List<ConfigurationChangeListener> configurationChangedListener;
     private final List<LicenseChangeListener> licenseChangeListener;
-    private final ConfigurationLoaderSG7 cl;
+    
+    /**
+     * ConfigurationLoader for config that will be used by SG. Keeps component state up-to-date.
+     */
+    private final ConfigurationLoader mainConfigLoader;
+    
+    /**
+     * ConfigurationLoader for config that will be just passed through APIs.
+     */    
+    private final ConfigurationLoader externalUseConfigLoader;
+
     private final Settings settings;
     private final ClusterService clusterService;
-    private final AuditLog auditLog;
-    private final ComplianceConfig complianceConfig;
     private final ThreadPool threadPool;
     private volatile SearchGuardLicense effectiveLicense;
     private DynamicConfigFactory dynamicConfigFactory;
@@ -113,26 +112,20 @@ public class ConfigurationRepository implements ComponentStateProvider {
             ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
 
     private final static Map<String, ?> SG_INDEX_SETTINGS = ImmutableMap.of("index.number_of_shards", 1, "index.auto_expand_replicas", "0-all");    
-    
-    private ConfigurationRepository(Settings settings, final Path configPath, ThreadPool threadPool, 
-            Client client, ClusterService clusterService, AuditLog auditLog, ComplianceConfig complianceConfig) {
+
+    public ConfigurationRepository(Settings settings, Path configPath, ThreadPool threadPool, Client client, ClusterService clusterService) {
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         this.settings = settings;
         this.client = client;
         this.threadPool = threadPool;
         this.clusterService = clusterService;
-        this.auditLog = auditLog;
-        this.complianceConfig = complianceConfig;
         this.configurationChangedListener = new ArrayList<>();
         this.licenseChangeListener = new ArrayList<LicenseChangeListener>();
         this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.componentState.setMandatory(true);
-        cl = new ConfigurationLoaderSG7(client, threadPool, settings, clusterService, componentState);
-        
-        configCache = CacheBuilder
-                      .newBuilder()
-                      .build();
-        
+        this.mainConfigLoader = new ConfigurationLoader(client, settings, clusterService, componentState);
+        this.externalUseConfigLoader = new ConfigurationLoader(client, settings, null, null);
+
         bgThread = new Thread(new Runnable() {
 
             @Override
@@ -211,7 +204,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         }
                         componentState.startNextTry();
                         try {
-                            response = client.admin().cluster().health(new ClusterHealthRequest(searchguardIndex).waitForYellowStatus()).actionGet();
+                            response = client.admin().cluster().health(new ClusterHealthRequest(searchguardIndex).waitForActiveShards(1).waitForYellowStatus()).actionGet();
                         } catch (Exception e1) {
                             LOGGER.debug("Catched again a {} but we just try again ...", e1.toString());
                         }
@@ -224,7 +217,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         componentState.startNextTry();
                         try {
                             LOGGER.debug("Try to load config ...");
-                            reloadConfiguration(CType.all());
+                            reloadConfiguration(CType.all(), "Initialization");
                             break;
                         } catch (Exception e) {
                             LOGGER.debug("Unable to load configuration due to {}", String.valueOf(ExceptionUtils.getRootCause(e)));
@@ -282,12 +275,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
     }
 
-    public static ConfigurationRepository create(Settings settings, final Path configPath, final ThreadPool threadPool, 
-            Client client,  ClusterService clusterService, AuditLog auditLog, ComplianceConfig complianceConfig) {
-        final ConfigurationRepository repository = new ConfigurationRepository(settings, configPath, threadPool, client, clusterService, auditLog, complianceConfig);
-        return repository;
-    }
-
     public void setDynamicConfigFactory(DynamicConfigFactory dynamicConfigFactory) {
         this.dynamicConfigFactory = dynamicConfigFactory;
     }
@@ -297,39 +284,51 @@ public class ConfigurationRepository implements ComponentStateProvider {
      * @param configurationType
      * @return can also return empty in case it was never loaded 
      */
-    public SgDynamicConfiguration<?> getConfiguration(CType<?> configurationType) {
-        SgDynamicConfiguration<?> conf=  configCache.getIfPresent(configurationType);
-        if(conf != null) {
-            return conf;
+    public <T> SgDynamicConfiguration<T> getConfiguration(CType<T> configurationType) {
+        if (currentConfig == null) {
+            throw new RuntimeException("ConfigurationRepository is not yet initialized"); 
         }
-        return SgDynamicConfiguration.empty();
+        
+        return currentConfig.get(configurationType);
     }
     
     private final Lock LOCK = new ReentrantLock();
 
-    public void reloadConfiguration(Collection<CType<?>> configTypes) throws ConfigUpdateAlreadyInProgressException {
+    public void reloadConfiguration(Set<CType<?>> configTypes, String reason) throws ConfigUpdateAlreadyInProgressException {
         try {
             if (LOCK.tryLock(60, TimeUnit.SECONDS)) {
                 try {
-                    reloadConfiguration0(configTypes);
+                    reloadConfiguration0(configTypes, reason);
                 } finally {
                     LOCK.unlock();
                 }
             } else {
-                throw new ConfigUpdateAlreadyInProgressException("A config update is already imn progress");
+                throw new ConfigUpdateAlreadyInProgressException("A config update is already in progress");
             }
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ConfigUpdateAlreadyInProgressException("Interrupted config update");
+            throw new ConfigUpdateAlreadyInProgressException("Interrupted config update", e);
         }
     }
 
-
-   private void reloadConfiguration0(Collection<CType<?>> configTypes) {
-        final Map<CType<?>, SgDynamicConfiguration<?>> loaded = getConfigurationsFromIndex(configTypes, false);
-        configCache.putAll(loaded);
-        notifyAboutChanges(loaded);
-
+   private void reloadConfiguration0(Set<CType<?>> configTypes, String reason) {
+        try {
+            ConfigMap configMap = mainConfigLoader.load(configTypes, reason).get();
+            
+            if (this.currentConfig == null) {
+                this.currentConfig = configMap;                
+            } else {
+                this.currentConfig = this.currentConfig.with(configMap);
+            }
+            
+            notifyAboutChanges(this.currentConfig);
+            
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Interrupted while waiting for configuration", e);
+        } catch (ExecutionException e) {
+            // TODO
+            throw new RuntimeException(e);
+        }
+     
         final SearchGuardLicense sgLicense = getLicense();
         
         notifyAboutLicenseChanges(sgLicense);
@@ -370,11 +369,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
     }
 
-    private synchronized void notifyAboutChanges(Map<CType<?>, SgDynamicConfiguration<?>> typeToConfig) {
+    private synchronized void notifyAboutChanges(ConfigMap configMap) {
         for (ConfigurationChangeListener listener : configurationChangedListener) {
             try {
                 LOGGER.debug("Notify {} listener about change configuration with type {}", listener);
-                listener.onChange(typeToConfig);
+                listener.onChange(configMap);
             } catch (Exception e) {
                 LOGGER.error("{} listener errored: "+e, listener, e);
                 throw ExceptionsHelper.convertToElastic(e);
@@ -382,66 +381,31 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
     }
 
-    /**
-     * This retrieves the config directly from the index without caching involved
-     * @param configType
-     * @param logComplianceEvent
-     * @return
-     */
-    @SuppressWarnings("unchecked")
-    public <T> SgDynamicConfiguration<T> getConfigurationFromIndex(CType<T> configType, boolean logComplianceEvent) {
-        return (SgDynamicConfiguration<T>) getConfigurationsFromIndex(Collections.singletonList(configType), logComplianceEvent).get(configType);
-    }
+	/**
+	 * This retrieves the config directly from the index without caching involved
+	 * 
+	 * @param configType
+	 * @return
+	 * @throws ConfigUnavailableException
+	 */
+	public <T> SgDynamicConfiguration<T> getConfigurationFromIndex(CType<T> configType, String reason)
+			throws ConfigUnavailableException {
+		return externalUseConfigLoader.loadSync(configType, reason);
+	}
 
-    /**
-     * This retrieves the config directly from the index without caching involved
-     * @param configTypes
-     * @param logComplianceEvent
-     * @return
-     */
-    public Map<CType<?>, SgDynamicConfiguration<?>> getConfigurationsFromIndex(Collection<CType<?>> configTypes, boolean logComplianceEvent) {
+	/**
+	 * This retrieves the config directly from the index without caching involved
+	 * 
+	 * @param configTypes
+	 * @return
+	 * @throws ConfigUnavailableException
+	 */
+	public ConfigMap getConfigurationsFromIndex(Set<CType<?>> configTypes, String reason)
+			throws ConfigUnavailableException {
+		return externalUseConfigLoader.loadSync(configTypes, reason);
+	}
 
-            final ThreadContext threadContext = threadPool.getThreadContext();
-            final Map<CType<?>, SgDynamicConfiguration<?>> retVal = new LinkedHashMap<>();
-
-            try(StoredContext ctx = threadContext.stashContext()) {
-                threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-
-                IndexMetadata searchGuardMetaData = clusterService.state().getMetadata().index(this.searchguardIndex);
-                MappingMetadata mappingMetaData = searchGuardMetaData==null?null:searchGuardMetaData.mapping();
-
-                if(searchGuardMetaData !=null && mappingMetaData !=null ) {
-                    if("sg".equals(mappingMetaData.type())) {
-                        LOGGER.debug("sg index exists and was created before ES 7 (legacy layout)");
-                    } else {
-                        LOGGER.debug("sg index exists and was created with ES 7 (new layout)");
-                    }
-                    
-                    retVal.putAll(validate(cl.load(configTypes.toArray(new CType[0]), 1000, TimeUnit.SECONDS), configTypes.size()));
-
-                } else {
-                    //wait (and use new layout)
-                    LOGGER.debug("sg index not exists (yet)");
-                    retVal.putAll(validate(cl.load(configTypes.toArray(new CType[0]), 1000, TimeUnit.SECONDS), configTypes.size()));
-                }
-
-            } catch (Exception e) {
-                LOGGER.error("Error while reading " + configTypes, e);
-                throw new ElasticsearchException(e);
-            }
-            
-            if (logComplianceEvent && complianceConfig != null && complianceConfig.isEnabled()) {
-                CType<?> configurationType = configTypes.iterator().next();
-                Map<String, String> fields = new HashMap<String, String>();
-                fields.put(configurationType.toLCString(), Strings.toString(retVal.get(configurationType)));
-                auditLog.logDocumentRead(this.searchguardIndex, configurationType.toLCString(), null, fields);
-            }
-            
-            return retVal;
-    }
-
-    public void update(CType<?> ctype, SgDynamicConfiguration<?> configInstance) throws ConfigUpdateException, ConfigValidationException {
-        ValidationErrors validationErrors = new ValidationErrors();
+    public void update(CType<?> ctype, SgDynamicConfiguration<?> configInstance) throws ConfigUpdateException {
 
         IndexRequest indexRequest = new IndexRequest(this.searchguardIndex);
 
@@ -455,9 +419,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             throw new RuntimeException(e);
         }
 
-        validationErrors.throwExceptionForPresentErrors();
-
-        if (!clusterService.state().getMetadata().hasConcreteIndex(searchguardIndex)) {
+        if (!clusterService.state().getMetadata().hasIndex(searchguardIndex)) {
             boolean ok = client.admin().indices().create(
                             new CreateIndexRequest(searchguardIndex).settings(SG_INDEX_SETTINGS).mapping("_doc", SG_INDEX_MAPPING))
                     .actionGet().isAcknowledged();
@@ -563,15 +525,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
     }
 
-    private Map<CType<?>, SgDynamicConfiguration<?>> validate(Map<CType<?>, SgDynamicConfiguration<?>> conf, int expectedSize) throws InvalidConfigException {
-
-        if(conf == null || conf.size() != expectedSize) {
-            throw new InvalidConfigException("Retrieved only partial configuration");
-        }
-
-        return conf;
-    }
-
     private static String formatDate(long date) {
         return new SimpleDateFormat("yyyy-MM-dd", SgUtils.EN_Locale).format(new Date(date));
     }
@@ -661,5 +614,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
     @Override
     public ComponentState getComponentState() {
         return componentState;
+    }
+
+    public String getSearchguardIndex() {
+        return searchguardIndex;
     }
 }

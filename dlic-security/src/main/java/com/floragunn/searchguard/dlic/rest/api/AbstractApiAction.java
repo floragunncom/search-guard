@@ -17,7 +17,8 @@ package com.floragunn.searchguard.dlic.rest.api;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,6 +30,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -54,6 +56,8 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.ConfigUnavailableException;
+import com.floragunn.searchguard.configuration.ConfigurationLoader;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator.ErrorType;
@@ -67,6 +71,7 @@ import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.google.common.collect.ImmutableMap;
 
 public abstract class AbstractApiAction extends BaseRestHandler {
 
@@ -81,6 +86,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected final AuditLog auditLog;
 	protected final Settings settings;
 	protected final StaticSgConfig staticSgConfig;
+	private final ConfigurationLoader configLoader;
 
     protected AbstractApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
             final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs,
@@ -100,6 +106,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
                 specialPrivilegesEvaluationContextProviderRegistry, principalExtractor, configPath, threadPool);
 		this.auditLog = auditLog;
 		this.staticSgConfig = staticSgConfig;
+		this.configLoader = new ConfigurationLoader(client, settings);
 	}
 
 	protected abstract AbstractConfigurationValidator getValidator(RestRequest request, BytesReference ref, Object... params);
@@ -145,7 +152,13 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 			return;
 		}
 
-		final SgDynamicConfiguration<?> existingConfiguration = load(getConfigName(), false);
+		SgDynamicConfiguration<?> existingConfiguration;
+		try {
+			existingConfiguration = load(getConfigName(), false);
+		} catch (ConfigUnavailableException e) {
+			internalErrorResponse(channel, e.getMessage());
+			return;
+		}
 		
 		if (isHidden(existingConfiguration, name)) {
             notFound(channel, getResourceName() + " " + name + " not found.");
@@ -177,7 +190,13 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected void handlePut(String name, RestChannel channel, RestRequest request, Client client, JsonNode content) throws IOException {
 		
 		@SuppressWarnings("unchecked")
-        final SgDynamicConfiguration<Object> existingConfiguration = (SgDynamicConfiguration<Object>) load(getConfigName(), false);
+		SgDynamicConfiguration<Object> existingConfiguration;
+		try {
+			existingConfiguration = (SgDynamicConfiguration<Object>) load(getConfigName(), false);
+		} catch (ConfigUnavailableException e) {
+			internalErrorResponse(channel, e.getMessage());
+			return;
+		}
 
 		if (isHidden(existingConfiguration, name)) {
             forbidden(channel, "Resource '"+ name +"' is not available.");
@@ -231,32 +250,41 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	        throws IOException{
 	    
 		final String resourcename = request.param("name");
-
-		final SgDynamicConfiguration<?> configuration = load(getConfigName(), true);
-		filter(configuration);
 		
+		try {
+			SgDynamicConfiguration<?> configuration = configLoader.loadSync(getConfigName(), "API Request");
 
-		// no specific resource requested, return complete config
-		if (resourcename == null || resourcename.length() == 0) {
-		     
-		    successResponse(channel, configuration);
-			return;
+			logComplianceEvent(configuration);
+
+			filter(configuration);
+
+			// no specific resource requested, return complete config
+			if (resourcename == null || resourcename.length() == 0) {
+
+				successResponse(channel, configuration);
+				return;
+			}
+
+			if (!configuration.exists(resourcename)) {
+				notFound(channel, "Resource '" + resourcename + "' not found.");
+				return;
+			}
+
+			configuration.removeOthers(resourcename);
+			successResponse(channel, configuration);
+		} catch (ConfigUnavailableException e) {
+			log.error("Error while loading configuration", e);
+			internalErrorResponse(channel, e.getMessage());
 		}
-
-		if (!configuration.exists(resourcename)) {
-			notFound(channel, "Resource '" + resourcename + "' not found.");
-			return;
-		}	
-
-		configuration.removeOthers(resourcename);
-		successResponse(channel, configuration);
-
-		return;
 	}
 
-	protected final <T> SgDynamicConfiguration<T> load(final CType<T> config, boolean logComplianceEvent) {
-	    @SuppressWarnings("unchecked")
-        SgDynamicConfiguration<T> loaded = (SgDynamicConfiguration<T>) cl.getConfigurationsFromIndex(Collections.singleton(config), logComplianceEvent).get(config).copy();
+	protected final <T> SgDynamicConfiguration<T> load(final CType<T> config, boolean logComplianceEvent) throws ConfigUnavailableException {
+        SgDynamicConfiguration<T> loaded = cl.getConfigurationFromIndex(config, "API Request");
+        
+        if (logComplianceEvent) {
+            logComplianceEvent(loaded);
+        }
+        
 	    staticSgConfig.addTo(loaded);
 	    return loaded;
 	}
@@ -558,5 +586,10 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	}
 
 	protected abstract Endpoint getEndpoint();
+	
+    private <T> void logComplianceEvent(SgDynamicConfiguration<T> result) {
+        Map<String, String> fields = ImmutableMap.of(result.getCType().toLCString(), Strings.toString(result));
+        auditLog.logDocumentRead(this.searchguardIndex, result.getCType().toLCString(), null, fields);
+    }
 
 }

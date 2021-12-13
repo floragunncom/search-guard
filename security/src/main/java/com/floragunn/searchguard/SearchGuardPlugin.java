@@ -838,9 +838,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         AuthczVariableResolvers.init(secretsService);
         
-        cr = (ConfigurationRepository) ConfigurationRepository.create(settings, this.configPath, threadPool, localClient, clusterService, auditLog,
-                complianceConfig);
-
+        cr = new ConfigurationRepository(settings, this.configPath, threadPool, localClient, clusterService);
         cr.subscribeOnLicenseChange(complianceConfig);
         moduleRegistry.addComponentStateProvider(cr);
 
@@ -888,7 +886,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
                 scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, dcf, staticSgConfig, cr,
                 protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, backendRegistry,
-                secretsService, configVariableProviders, diagnosticContext);
+                secretsService, configVariableProviders, diagnosticContext, auditLog);
 
         sgi = new SearchGuardInterceptor(settings, threadPool, backendRegistry, auditLog, principalExtractor, interClusterRequestEvaluator, cs,
                 Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), guiceDependencies, diagnosticContext);
@@ -907,6 +905,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(authInfoService);
         components.add(diagnosticContext);
         components.add(secretsService);
+        components.add(auditLog);
+        components.add(baseDependencies);
 
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
 

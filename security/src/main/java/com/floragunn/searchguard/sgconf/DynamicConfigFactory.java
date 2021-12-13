@@ -17,6 +17,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
+import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.internal_users.InternalUser;
@@ -48,6 +49,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     private final InternalUsersDatabase internalUsersDatabase;
     private final StaticSgConfig staticSgConfig;
     private final ComponentState componentState = new ComponentState(2, null, "dynamic_config", DynamicConfigFactory.class);
+    private volatile ConfigMap currentConfig;
 
     SgDynamicConfiguration<?> config;
     
@@ -72,24 +74,25 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         this.cr.subscribeOnChange(this);
         
         secretsStorageService.addChangeListener(() -> {
-            if (config != null) {
-                onChange(Collections.emptyMap());
+            if (currentConfig != null) {
+                onChange(this.currentConfig);
             }
         });
     }
     
     @Override
-    public void onChange(Map<CType<?>, SgDynamicConfiguration<?>> typeToConfig) {
-        SgDynamicConfiguration<?> actionGroups = cr.getConfiguration(CType.ACTIONGROUPS);
+    public void onChange(ConfigMap configMap) {
+        this.currentConfig = configMap;
+        SgDynamicConfiguration<ActionGroupsV7> actionGroups = configMap.get(CType.ACTIONGROUPS);
         config = cr.getConfiguration(CType.CONFIG);
-        SgDynamicConfiguration<?> internalusers = cr.getConfiguration(CType.INTERNALUSERS);
-        SgDynamicConfiguration<?> roles = cr.getConfiguration(CType.ROLES);
-        SgDynamicConfiguration<?> rolesmapping = cr.getConfiguration(CType.ROLESMAPPING);
-        SgDynamicConfiguration<?> tenants = cr.getConfiguration(CType.TENANTS);
-        SgDynamicConfiguration<?> blocks = cr.getConfiguration(CType.BLOCKS);
+        SgDynamicConfiguration<InternalUser> internalusers = configMap.get(CType.INTERNALUSERS);
+        SgDynamicConfiguration<RoleV7> roles = configMap.get(CType.ROLES);
+        SgDynamicConfiguration<RoleMappingsV7> rolesmapping = configMap.get(CType.ROLESMAPPING);
+        SgDynamicConfiguration<TenantV7> tenants = configMap.get(CType.TENANTS);
+        SgDynamicConfiguration<BlocksV7> blocks = configMap.get(CType.BLOCKS);
         
         if(log.isDebugEnabled()) {
-            String logmsg = "current config (because of "+typeToConfig.keySet()+")\n"+
+            String logmsg = "current config\n"+
             " actionGroups: "+actionGroups.getImplementingClass()+" with "+actionGroups.getCEntries().size()+" entries\n"+
             " config: "+config.getImplementingClass()+" with "+config.getCEntries().size()+" entries\n"+
             " internalusers: "+internalusers.getImplementingClass()+" with "+internalusers.getCEntries().size()+" entries\n"+

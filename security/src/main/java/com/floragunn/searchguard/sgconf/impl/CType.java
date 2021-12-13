@@ -40,27 +40,29 @@ public class CType<T> {
     private static Map<String, CType<?>> nameToInstanceMap = new HashMap<>();
     private static Map<Integer, CType<?>> ordToInstanceMap = new HashMap<>();
 
-    public static final CType<InternalUser> INTERNALUSERS = new CType<InternalUser>("internalusers", 0, InternalUser.class, InternalUser::parse);
-    public static final CType<ActionGroupsV7> ACTIONGROUPS = new CType<ActionGroupsV7>("actiongroups", 1, ActionGroupsV7.class, null);
-    public static final CType<ConfigV7> CONFIG = new CType<ConfigV7>("config", 2, ConfigV7.class, null);
-    public static final CType<RoleV7> ROLES = new CType<RoleV7>("roles", 3, RoleV7.class, null);
-    public static final CType<RoleMappingsV7> ROLESMAPPING = new CType<RoleMappingsV7>("rolesmapping", 4, RoleMappingsV7.class, null);
-    public static final CType<TenantV7> TENANTS = new CType<TenantV7>("tenants", 5, TenantV7.class, null);
-    public static final CType<BlocksV7> BLOCKS = new CType<BlocksV7>("blocks", 6, BlocksV7.class, null);
+    public static final CType<InternalUser> INTERNALUSERS = new CType<InternalUser>("internalusers", 0, InternalUser.class, InternalUser::parse, false);
+    public static final CType<ActionGroupsV7> ACTIONGROUPS = new CType<ActionGroupsV7>("actiongroups", 1, ActionGroupsV7.class, null, false);
+    public static final CType<ConfigV7> CONFIG = new CType<ConfigV7>("config", 2, ConfigV7.class, null, false);
+    public static final CType<RoleV7> ROLES = new CType<RoleV7>("roles", 3, RoleV7.class, null, false);
+    public static final CType<RoleMappingsV7> ROLESMAPPING = new CType<RoleMappingsV7>("rolesmapping", 4, RoleMappingsV7.class, null, false);
+    public static final CType<TenantV7> TENANTS = new CType<TenantV7>("tenants", 5, TenantV7.class, null, false);
+    public static final CType<BlocksV7> BLOCKS = new CType<BlocksV7>("blocks", 6, BlocksV7.class, null, true);
 
 
 
     private final String name;
     private final Class<T> type;
     private final int ord;
+    private final boolean optional;
 
     private final ValidatingFunction<Map<String, Object>, ?> parser;
 
-    CType(String name, int ord, Class<T> type, ValidatingFunction<Map<String, Object>, ?> parser) {
+    CType(String name, int ord, Class<T> type, ValidatingFunction<Map<String, Object>, ?> parser, boolean optional) {
         this.name = name;
         this.type = type;
         this.parser = parser;
         this.ord = ord;
+        this.optional = optional;
         classToEnumMap.put(type, this);
         nameToInstanceMap.put(name, this);
         ordToInstanceMap.put(ord, this);
@@ -154,6 +156,10 @@ public class CType<T> {
 
     public int getOrd() {
         return ord;
+    }
+
+    public boolean isOptional() {
+        return optional;
     }
 
 }

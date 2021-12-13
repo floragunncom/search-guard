@@ -50,6 +50,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
@@ -87,7 +88,13 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         }
 
         String name = request.param("name");
-        SgDynamicConfiguration<?> existingConfiguration = load(getConfigName(), false);
+        SgDynamicConfiguration<?> existingConfiguration;
+		try {
+			existingConfiguration = load(getConfigName(), false);
+		} catch (ConfigUnavailableException e1) {
+			internalErrorResponse(channel, e1.getMessage());
+			return;
+		}
 
         JsonNode jsonPatch;
 

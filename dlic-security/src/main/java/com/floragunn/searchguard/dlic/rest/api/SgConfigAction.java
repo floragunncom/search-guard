@@ -32,6 +32,8 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.ConfigUnavailableException;
+import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.SgConfigValidator;
@@ -75,15 +77,21 @@ public class SgConfigAction extends PatchableResourceApiAction {
 
     }
 
-    @Override
-    protected void handleGet(RestChannel channel, RestRequest request, Client client, final JsonNode content) throws IOException {
+	@Override
+	protected void handleGet(RestChannel channel, RestRequest request, Client client, final JsonNode content)
+			throws IOException {
 
-        final SgDynamicConfiguration<?> configuration = load(getConfigName(), true);
+		try {
+			final SgDynamicConfiguration<?> configuration = load(getConfigName(), true);
 
-        filter(configuration);
+			filter(configuration);
 
-        successResponse(channel, configuration);
-    }
+			successResponse(channel, configuration);
+		} catch (ConfigUnavailableException e) {
+			internalErrorResponse(channel, e.getMessage());
+			return;
+		}
+	}
 
     @Override
     protected void handleApiRequest(RestChannel channel, RestRequest request, Client client) throws IOException {

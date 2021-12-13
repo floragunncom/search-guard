@@ -29,6 +29,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
 import com.floragunn.codova.validation.VariableResolvers;
+import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
@@ -61,6 +62,7 @@ public class BaseDependencies {
     private final BackendRegistry backendRegistry;
     private final SecretsService secretsService;
     private final VariableResolvers configVariableProviders;
+    private final AuditLog auditLog;
 
     public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
@@ -68,7 +70,7 @@ public class BaseDependencies {
             DynamicConfigFactory dynamicConfigFactory, StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository,
             ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, BackendRegistry backendRegistry,
-            SecretsService secretsStorageService, VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext) {
+            SecretsService secretsStorageService, VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog) {
         super();
         this.settings = settings;
         this.localClient = localClient;
@@ -90,6 +92,7 @@ public class BaseDependencies {
         this.secretsService = secretsStorageService;
         this.diagnosticContext = diagnosticContext;
         this.configVariableProviders = configVariableProviders;
+        this.auditLog = auditLog;
     }
 
     public Settings getSettings() {
@@ -170,6 +173,10 @@ public class BaseDependencies {
 
     public VariableResolvers getConfigVariableProviders() {
         return configVariableProviders;
+    }
+
+    public AuditLog getAuditLog() {
+        return auditLog;
     }
 
 

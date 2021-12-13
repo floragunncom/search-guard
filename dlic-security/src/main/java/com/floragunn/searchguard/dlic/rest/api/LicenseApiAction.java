@@ -37,6 +37,7 @@ import com.floragunn.searchguard.action.licenseinfo.LicenseInfoRequest;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SearchGuardLicense;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
@@ -128,7 +129,13 @@ public class LicenseApiAction extends AbstractApiAction {
         final boolean licenseExists;
 
         // load existing configuration into new map
-        final SgDynamicConfiguration<ConfigV7> existingV7 = (SgDynamicConfiguration<ConfigV7>) load(getConfigName(), false);
+        SgDynamicConfiguration<ConfigV7> existingV7;
+		try {
+			existingV7 = (SgDynamicConfiguration<ConfigV7>) load(getConfigName(), false);
+		} catch (ConfigUnavailableException e) {
+			internalErrorResponse(channel, e.getMessage());
+			return;
+		}
 
         if (log.isTraceEnabled()) {
             log.trace(existingV7.toString());

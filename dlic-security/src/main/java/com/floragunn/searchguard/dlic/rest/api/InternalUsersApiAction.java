@@ -44,6 +44,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.internal_users.InternalUser;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
@@ -91,7 +92,13 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         // TODO it might be sensible to consolidate this with the overridden method in
         // order to minimize duplicated logic
 
-        final SgDynamicConfiguration<InternalUser> configuration = load(getConfigName(), false);
+        SgDynamicConfiguration<InternalUser> configuration;
+		try {
+			configuration = load(getConfigName(), false);
+		} catch (ConfigUnavailableException e1) {
+			internalErrorResponse(channel, e1.getMessage());
+			return;
+		}
 
         if (isHidden(configuration, username)) {
             forbidden(channel, "Resource '" + username + "' is not available.");
@@ -120,7 +127,13 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         }
         
         // check if user exists
-        final SgDynamicConfiguration<InternalUser> internaluser = load(CType.INTERNALUSERS, false);
+        SgDynamicConfiguration<InternalUser> internaluser;
+		try {
+			internaluser = load(CType.INTERNALUSERS, false);
+		} catch (ConfigUnavailableException e1) {
+			internalErrorResponse(channel, e1.getMessage());
+			return;
+		}
 
         final boolean userExisted = internaluser.exists(username);
 
