@@ -55,7 +55,6 @@ import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.http.BindHttpException;
 import org.elasticsearch.http.HttpInfo;
@@ -63,6 +62,7 @@ import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.BindTransportException;
 import org.elasticsearch.transport.TransportInfo;
+import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
@@ -125,7 +125,6 @@ public class LocalEsCluster {
         int masterNodeCount = clusterConfiguration.getMasterNodes();
         int nonMasterNodeCount = clusterConfiguration.getDataNodes() + clusterConfiguration.getClientNodes();
 
-        // TODO expiry hier festlegel
         SortedSet<Integer> masterNodeTransportPorts = PortAllocator.TCP.allocate(clusterName, Math.max(masterNodeCount, 4),
                 5000 + forkNumber * 1000 + 300);
         SortedSet<Integer> masterNodeHttpPorts = PortAllocator.TCP.allocate(clusterName, masterNodeCount, 5000 + forkNumber * 1000 + 200);

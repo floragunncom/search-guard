@@ -7,7 +7,7 @@ import java.security.PrivilegedExceptionAction;
 
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.xcontent.XContentType;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;

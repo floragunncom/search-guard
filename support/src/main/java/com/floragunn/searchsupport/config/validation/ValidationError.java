@@ -2,8 +2,8 @@ package com.floragunn.searchsupport.config.validation;
 
 import java.io.IOException;
 
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

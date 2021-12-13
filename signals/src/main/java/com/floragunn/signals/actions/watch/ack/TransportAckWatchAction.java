@@ -21,6 +21,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.searchguard.modules.api.GetComponentStateAction.NodeResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.signals.NoSuchWatchOnThisNodeException;
@@ -191,7 +192,7 @@ public class TransportAckWatchAction
     }
 
     @Override
-    protected NodeResponse newNodeResponse(StreamInput in) throws IOException {
+    protected NodeResponse newNodeResponse(StreamInput in, DiscoveryNode node) throws IOException {
         return new NodeResponse(in);
     }
 

@@ -2,9 +2,9 @@ package com.floragunn.signals.watch.action.handlers.email;
 
 import java.io.IOException;
 
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;

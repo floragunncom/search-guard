@@ -2,7 +2,7 @@ package com.floragunn.searchsupport.config.validation;
 
 import java.io.IOException;
 
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.core.JsonLocation;
 import com.fasterxml.jackson.core.JsonParseException;

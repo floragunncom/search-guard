@@ -3,8 +3,8 @@ package com.floragunn.searchsupport.config.validation;
 import java.io.IOException;
 
 import org.apache.logging.log4j.util.Strings;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.ScriptException;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class ScriptExecutionError extends ValidationError {
 

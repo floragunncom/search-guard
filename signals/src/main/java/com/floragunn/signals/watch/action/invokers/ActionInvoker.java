@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.xcontent.ToXContent;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;

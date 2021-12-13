@@ -1,6 +1,6 @@
 package com.floragunn.signals.watch.common.auth;
 
-import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.ToXContentObject;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;

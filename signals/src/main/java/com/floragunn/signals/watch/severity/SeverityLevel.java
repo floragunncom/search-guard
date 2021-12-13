@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.util.EnumSet;
 import java.util.Map;
 
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;

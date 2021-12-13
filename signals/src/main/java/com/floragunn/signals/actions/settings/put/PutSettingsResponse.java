@@ -6,9 +6,9 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class PutSettingsResponse extends ActionResponse implements ToXContentObject {
 

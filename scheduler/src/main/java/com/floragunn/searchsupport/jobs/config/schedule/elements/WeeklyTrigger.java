@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.TimeZone;
 
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentBuilder;
 import org.quartz.CronExpression;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.DateBuilder;

@@ -24,6 +24,8 @@ import org.quartz.JobExecutionContext;
 import org.quartz.Scheduler;
 import org.quartz.impl.DirectSchedulerFactory;
 
+import com.floragunn.searchguard.modules.api.GetComponentStateAction.NodeResponse;
+
 public class TransportCheckForExecutingTriggerAction extends
         TransportNodesAction<CheckForExecutingTriggerRequest, CheckForExecutingTriggerResponse, TransportCheckForExecutingTriggerAction.NodeRequest, TransportCheckForExecutingTriggerAction.NodeResponse> {
 
@@ -170,7 +172,7 @@ public class TransportCheckForExecutingTriggerAction extends
     }
 
     @Override
-    protected NodeResponse newNodeResponse(StreamInput in) throws IOException {
+    protected NodeResponse newNodeResponse(StreamInput in, DiscoveryNode node) throws IOException {
         return new NodeResponse(in);
     }
 

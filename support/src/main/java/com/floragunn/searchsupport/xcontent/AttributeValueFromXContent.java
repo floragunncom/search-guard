@@ -10,17 +10,18 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Set;
 
-import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentGenerator;
-import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.core.CheckedConsumer;
+import org.elasticsearch.xcontent.DeprecationHandler;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.XContent;
+import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentFactory;
+import org.elasticsearch.xcontent.XContentGenerator;
+import org.elasticsearch.xcontent.XContentParser;
+import org.elasticsearch.xcontent.XContentType;
+import org.elasticsearch.xcontent.support.filtering.FilterPath;
 
 import com.google.common.base.Charsets;
 
@@ -101,6 +102,12 @@ public class AttributeValueFromXContent implements XContent {
 
     }
 
+    @Override
+    public XContentParser createParser(NamedXContentRegistry xContentRegistry, DeprecationHandler deprecationHandler, InputStream is,
+            FilterPath[] includes, FilterPath[] excludes) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+    
     class Generator implements XContentGenerator {
 
         private int depth = 0;
@@ -386,4 +393,6 @@ public class AttributeValueFromXContent implements XContent {
     public Object getAttributeValue() {
         return attributeValue;
     }
+
+
 }

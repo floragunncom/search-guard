@@ -153,6 +153,8 @@ SGS_KIBANA_SERVER:
   - "SGS_CLUSTER_COMPOSITE_OPS"
   - "cluster:admin/xpack/monitoring*"
   - "indices:admin/template*"
+  - "cluster:admin/component_template*"
+  - "indices:admin/index_template*"
   - "indices:data/read/scroll*"
   - "SGS_CLUSTER_MANAGE_ILM"
   - "cluster:admin:searchguard:authtoken/info"

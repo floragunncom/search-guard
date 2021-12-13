@@ -3,8 +3,8 @@ package com.floragunn.signals.enterprise.watch.action.handlers.jira;
 import java.io.IOException;
 import java.util.Collections;
 
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;

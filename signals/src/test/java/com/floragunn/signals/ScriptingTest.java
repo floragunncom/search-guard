@@ -3,8 +3,8 @@ package com.floragunn.signals;
 import java.util.Date;
 import java.util.HashMap;
 
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;

@@ -2,7 +2,7 @@ package com.floragunn.signals.watch.common.auth;
 
 import java.io.IOException;
 
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchsupport.config.validation.ConfigValidationException;
