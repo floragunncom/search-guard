@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class JiraIssueApiCall implements ToXContentObject {
 

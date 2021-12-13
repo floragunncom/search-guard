@@ -1,7 +1,7 @@
 package com.floragunn.signals.execution;
 
-import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.script.ScriptException;
+import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.signals.watch.result.ErrorInfo;
 

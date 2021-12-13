@@ -17,18 +17,33 @@
 
 package com.floragunn.searchguard.test.helper.rest;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.codova.documents.*;
-import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
-import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.net.ssl.SSLContext;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.*;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.HttpOptions;
+import org.apache.http.client.methods.HttpPatch;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
@@ -40,14 +55,18 @@ import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.ToXContentObject;
 
-import javax.net.ssl.SSLContext;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.ContentType;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
+import com.google.common.collect.Lists;
 
 public class GenericRestClient implements AutoCloseable {
     private static final Logger log = LogManager.getLogger(RestHelper.class);

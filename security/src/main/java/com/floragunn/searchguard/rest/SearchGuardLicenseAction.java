@@ -32,6 +32,7 @@ import org.elasticsearch.rest.action.RestActions.NodesResponseRestListener;
 
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoRequest;
+import com.floragunn.searchguard.action.licenseinfo.LicenseInfoResponse;
 import com.google.common.collect.ImmutableList;
 
 public class SearchGuardLicenseAction extends BaseRestHandler {
@@ -48,7 +49,7 @@ public class SearchGuardLicenseAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         LicenseInfoRequest licenseInfoRequest = new LicenseInfoRequest();
-        return channel -> client.executeLocally(LicenseInfoAction.INSTANCE, licenseInfoRequest, new NodesResponseRestListener<>(channel));
+        return channel -> client.executeLocally(LicenseInfoAction.INSTANCE, licenseInfoRequest, new NodesResponseRestListener<LicenseInfoResponse>(channel));
     }
 
     @Override

@@ -262,7 +262,7 @@ public final class IndexResolverReplacer implements DCFListener {
                 if (!_indices.isEmpty()) {
 
                     for (String al : _aliases) {
-                        Set<String> doubleIndices = lookup.get(al).getIndices().stream().map(a -> a.getIndex().getName()).collect(Collectors.toSet());
+                        Set<String> doubleIndices = lookup.get(al).getIndices().stream().map(a -> a.getName()).collect(Collectors.toSet());
                         _indices.removeAll(doubleIndices);
                     }
 

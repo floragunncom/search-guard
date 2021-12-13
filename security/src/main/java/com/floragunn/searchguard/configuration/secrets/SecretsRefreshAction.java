@@ -41,6 +41,8 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.searchguard.modules.api.GetComponentStateAction.NodeResponse;
+
 public class SecretsRefreshAction extends ActionType<SecretsRefreshAction.Response> {
     private final static Logger log = LogManager.getLogger(SecretsRefreshAction.class);
 
@@ -127,7 +129,7 @@ public class SecretsRefreshAction extends ActionType<SecretsRefreshAction.Respon
         }
 
         @Override
-        protected NodeResponse newNodeResponse(StreamInput in) throws IOException {
+        protected NodeResponse newNodeResponse(StreamInput in, DiscoveryNode node) throws IOException {
             return new NodeResponse(in);
         }
 

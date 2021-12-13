@@ -17,8 +17,8 @@ package com.floragunn.searchguard.auditlog.helper;
 import java.util.Collections;
 
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 public class MockRestRequest extends RestRequest {
 

@@ -21,18 +21,18 @@ import java.util.Properties;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.yaml.YamlXContent;
+import org.elasticsearch.xcontent.yaml.YamlXContent;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.springframework.kafka.test.rule.EmbeddedKafkaRule;
 
-import scala.util.Random;
-
 import com.floragunn.searchguard.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
+
+import scala.util.Random;
 
 public class KafkaSinkTest extends AbstractAuditlogiUnitTest {
 	

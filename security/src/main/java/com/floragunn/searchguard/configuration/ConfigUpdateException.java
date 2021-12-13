@@ -19,7 +19,7 @@ package com.floragunn.searchguard.configuration;
 
 import java.util.Map;
 
-import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.ToXContentObject;
 
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.google.common.collect.ImmutableMap;

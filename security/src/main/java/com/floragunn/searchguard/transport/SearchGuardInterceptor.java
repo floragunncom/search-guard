@@ -237,7 +237,7 @@ public class SearchGuardInterceptor {
             return false;
         }
         
-        if (headerKey.equals(Task.X_OPAQUE_ID)) {
+        if (headerKey.equals(Task.X_OPAQUE_ID_HTTP_HEADER)) {
             // This is included anyway. Including it again would cause an error.
             return false;
         }

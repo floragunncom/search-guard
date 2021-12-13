@@ -4,8 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;

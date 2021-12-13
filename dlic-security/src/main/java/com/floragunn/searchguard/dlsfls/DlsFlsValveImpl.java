@@ -34,7 +34,6 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.query.ParsedQuery;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.sampler.DiversifiedAggregationBuilder;
@@ -43,6 +42,7 @@ import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilde
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
@@ -245,7 +245,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
 
                     if (dlsQuery != null) {
                         context.parsedQuery(dlsQuery);
-                        context.preProcess(true);
+                        context.preProcess();
                     }
                 }
             }

@@ -5,8 +5,8 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 
 import org.elasticsearch.common.time.DateFormatter;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

@@ -19,6 +19,7 @@ package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -45,13 +46,13 @@ import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.http.HttpInfo;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.TransportInfo;
+import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
@@ -140,7 +141,7 @@ public final class ClusterHelper {
             PluginAwareNode node = new PluginAwareNode(setting.masterNode,
                     getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, internalNodeSettings.size(), tcpMasterPortsOnly,
                             tcpPortsAllIt.next(), httpPortsIt.next())
-                                    .put(nodeSettingsSupplier == null ? Settings.Builder.EMPTY_SETTINGS : nodeSettingsSupplier.get(nodeNum)).build(),
+                                    .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build(),
                     setting.getPlugins(additionalPlugins));
 
             new Thread(new Runnable() {
@@ -167,7 +168,7 @@ public final class ClusterHelper {
             PluginAwareNode node = new PluginAwareNode(setting.masterNode,
                     getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, internalNodeSettings.size(), tcpMasterPortsOnly,
                             tcpPortsAllIt.next(), httpPortsIt.next())
-                                    .put(nodeSettingsSupplier == null ? Settings.Builder.EMPTY_SETTINGS : nodeSettingsSupplier.get(nodeNum)).build(),
+                                    .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build(),
                     setting.getPlugins(additionalPlugins));
 
             new Thread(new Runnable() {
@@ -352,21 +353,31 @@ public final class ClusterHelper {
     private Settings.Builder getMinimumNonSgNodeSettingsBuilder(final int nodenum, final boolean masterNode,
             final boolean dataNode, int nodeCount, SortedSet<Integer> masterTcpPorts, /*SortedSet<Integer> nonMasterTcpPorts,*/ int tcpPort, int httpPort) {
         
+        List<String> nodeRoles = new ArrayList<>();
+        
+        if (dataNode) {
+            nodeRoles.add("data");
+        }
+        
+        if (masterNode) {
+            nodeRoles.add("master");
+        }
+        
+        nodeRoles.add("remote_cluster_client");
+        
         return Settings.builder()
                 .put("node.name", "node_"+clustername+ "_num" + nodenum)
-                .put("node.data", dataNode)
-                .put("node.master", masterNode)
+                .putList("node.roles", nodeRoles)
                 .put("cluster.name", clustername)
-                .put("path.data", "data/"+clustername+"/data")
-                .put("path.logs", "data/"+clustername+"/logs")
-                .put("node.max_local_storage_nodes", nodeCount)
+                .put("path.data", "data/"+clustername + nodenum +"/data")
+                .put("path.logs", "data/"+clustername + nodenum +"/logs")
                 //.put("discovery.zen.minimum_master_nodes", minMasterNodes(masterTcpPorts.size()))
                 .putList("cluster.initial_master_nodes", masterTcpPorts.stream().map(s->"127.0.0.1:"+s).collect(Collectors.toList()))
                 //.put("discovery.zen.no_master_block", "all")
                 //.put("discovery.zen.fd.ping_timeout", "5s")
                 .put("discovery.initial_state_timeout","8s")
                 .putList("discovery.seed_hosts", masterTcpPorts.stream().map(s->"127.0.0.1:"+s).collect(Collectors.toList()))
-                .put("transport.tcp.port", tcpPort)
+                .put("transport.port", tcpPort)
                 .put("http.port", httpPort)
                 //.put("http.enabled", true)
                 .put("cluster.routing.allocation.disk.threshold_enabled", false)

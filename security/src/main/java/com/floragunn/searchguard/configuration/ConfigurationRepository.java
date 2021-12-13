@@ -59,10 +59,10 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -258,7 +258,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
         try {
 
-            if (clusterService.state().getMetadata().hasConcreteIndex(searchguardIndex)) {
+            if (clusterService.state().getMetadata().hasIndex(searchguardIndex)) {
                 LOGGER.info("{} index does already exist, so we try to load the config from it", searchguardIndex);
                 bgThread.start();
             } else {
@@ -456,7 +456,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
         validationErrors.throwExceptionForPresentErrors();
 
-        if (!clusterService.state().getMetadata().hasConcreteIndex(searchguardIndex)) {
+        if (!clusterService.state().getMetadata().hasIndex(searchguardIndex)) {
             boolean ok = client.admin().indices().create(
                             new CreateIndexRequest(searchguardIndex).settings(SG_INDEX_SETTINGS).mapping("_doc", SG_INDEX_MAPPING))
                     .actionGet().isAcknowledged();
@@ -527,7 +527,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
         validationErrors.throwExceptionForPresentErrors();
         
-        if (!clusterService.state().getMetadata().hasConcreteIndex(searchguardIndex)) {
+        if (!clusterService.state().getMetadata().hasIndex(searchguardIndex)) {
             boolean ok = client.admin().indices().create(
                     new CreateIndexRequest(searchguardIndex).settings(SG_INDEX_SETTINGS).mapping("_doc", SG_INDEX_MAPPING))
                     .actionGet().isAcknowledged();

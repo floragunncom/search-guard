@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.xcontent.ToXContent;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.codova.documents.DocUtils;

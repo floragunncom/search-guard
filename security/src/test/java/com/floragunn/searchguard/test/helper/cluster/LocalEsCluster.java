@@ -34,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchguard.test.helper.network.PortAllocator;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
@@ -60,7 +59,6 @@ import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.http.BindHttpException;
 import org.elasticsearch.http.HttpInfo;
@@ -68,11 +66,13 @@ import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.BindTransportException;
 import org.elasticsearch.transport.TransportInfo;
+import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.network.PortAllocator;
 import com.floragunn.searchguard.test.helper.rest.SSLContextProvider;
 import com.floragunn.searchguard.test.helper.rest.TestCertificateBasedSSLContextProvider;
 import com.floragunn.searchguard.test.helper.utils.UnitTestForkNumberProvider;
@@ -106,7 +106,7 @@ public class LocalEsCluster {
     private boolean started;
 
     public LocalEsCluster(String clusterName, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
-                          List<Class<? extends Plugin>> additionalPlugins, TestCertificates testCertificates) {
+            List<Class<? extends Plugin>> additionalPlugins, TestCertificates testCertificates) {
         this.clusterName = clusterName;
         this.clusterConfiguration = clusterConfiguration;
         this.nodeSettingsSupplier = nodeSettingsSupplier;
@@ -122,8 +122,8 @@ public class LocalEsCluster {
         int masterNodeCount = clusterConfiguration.getMasterNodes();
         int nonMasterNodeCount = clusterConfiguration.getDataNodes() + clusterConfiguration.getClientNodes();
 
-        // TODO expiry hier festlegel
-        SortedSet<Integer> masterNodeTransportPorts = PortAllocator.TCP.allocate(clusterName, Math.max(masterNodeCount, 4), 5000 + forkNumber * 1000 + 300);
+        SortedSet<Integer> masterNodeTransportPorts = PortAllocator.TCP.allocate(clusterName, Math.max(masterNodeCount, 4),
+                5000 + forkNumber * 1000 + 300);
         SortedSet<Integer> masterNodeHttpPorts = PortAllocator.TCP.allocate(clusterName, masterNodeCount, 5000 + forkNumber * 1000 + 200);
 
         this.seedHosts = toHostList(masterNodeTransportPorts);
@@ -552,7 +552,19 @@ public class LocalEsCluster {
         }
 
         private Settings getMinimalEsSettings() {
-            return Settings.builder().put("node.name", nodeName).put("node.data", nodeSettings.dataNode).put("node.master", nodeSettings.masterNode)
+            List<String> nodeRoles = new ArrayList<>();
+
+            if (nodeSettings.dataNode) {
+                nodeRoles.add("data");
+            }
+
+            if (nodeSettings.masterNode) {
+                nodeRoles.add("master");
+            }
+
+            nodeRoles.add("remote_cluster_client");
+
+            return Settings.builder().put("node.name", nodeName).putList("node.roles", nodeRoles)
                     .put("cluster.name", clusterName).put("path.home", nodeHomeDir.toPath()).put("path.data", dataDir.toPath())
                     .put("path.logs", logsDir.toPath()).putList("cluster.initial_master_nodes", initialMasterHosts)
                     .put("discovery.initial_state_timeout", "8s").putList("discovery.seed_hosts", seedHosts).put("transport.tcp.port", transportPort)
