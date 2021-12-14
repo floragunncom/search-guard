@@ -44,7 +44,6 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
@@ -71,6 +70,7 @@ import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgConfigEntry;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -404,8 +404,55 @@ public class ConfigurationRepository implements ComponentStateProvider {
 			throws ConfigUnavailableException {
 		return externalUseConfigLoader.loadSync(configTypes, reason);
 	}
+	
+	public <T> SgConfigEntry<T> getConfigEntryFromIndex(CType<T> configType, String id, String reason) throws ConfigUnavailableException, NoSuchConfigEntryException {
+	    SgDynamicConfiguration<T> baseConfig = getConfigurationFromIndex(configType, reason);
+	    
+	    T entry = baseConfig.getCEntry(id);
+	    
+	    if (entry != null) {
+	        return new SgConfigEntry<T>(entry, baseConfig);
+	    } else {
+	        throw new NoSuchConfigEntryException(configType, id);
+	    }
+	}
+	
+	public <T> void addOrUpdate(CType<T> ctype, String id, T entry, String matchETag) throws ConfigUpdateException, ConcurrentConfigUpdateException {
+	    try {
+            SgDynamicConfiguration<T> configInstance = getConfigurationFromIndex(ctype, "Update of entry " + id);
+            
+            if (matchETag != null && !configInstance.getETag().equals(matchETag)) {
+                throw new ConcurrentConfigUpdateException("Unable to update configuration due to concurrent modification:\nIf-Match: " + matchETag
+                        + "; ETag: " + configInstance.getETag());
+            }
+            
+            configInstance.putCEntry(id, entry);
+            
+            update(ctype, configInstance, matchETag);
+            
+        } catch (ConfigUnavailableException e) {
+            throw new ConfigUpdateException(e);
+        }	    
+	}
 
-    public void update(CType<?> ctype, SgDynamicConfiguration<?> configInstance) throws ConfigUpdateException {
+    public <T> void delete(CType<T> configType, String id) throws ConfigUpdateException, ConcurrentConfigUpdateException, NoSuchConfigEntryException {
+        try {
+
+            SgDynamicConfiguration<T> configInstance = getConfigurationFromIndex(configType, "Deletion of entry " + id);
+            
+            if (!configInstance.exists(id)) {
+                throw new NoSuchConfigEntryException(configType, id);
+            }
+
+            configInstance.remove(id);
+
+            update(configType, configInstance, null);
+        } catch (ConfigUnavailableException e) {
+            throw new ConfigUpdateException(e);
+        }
+    }
+
+    public <T> void update(CType<T> ctype, SgDynamicConfiguration<T> configInstance, String matchETag) throws ConfigUpdateException, ConcurrentConfigUpdateException {
 
         IndexRequest indexRequest = new IndexRequest(this.searchguardIndex);
 
@@ -414,13 +461,32 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             String id = ctype.toLCString();
 
-            indexRequest = indexRequest.id(id).source(id, XContentHelper.toXContent(configInstance, XContentType.JSON, false));
+            indexRequest = indexRequest.id(id).source(id, XContentHelper.toXContent(configInstance, XContentType.JSON, false))
+                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        
+        if (matchETag != null) {
+            try {
+                int dot = matchETag.indexOf('.');
+
+                if (dot == -1) {
+                    throw new ConcurrentConfigUpdateException("Invalid E-Tag " + matchETag);
+                }
+
+                indexRequest.setIfPrimaryTerm(Long.parseLong(matchETag.substring(0, dot)));
+                indexRequest.setIfSeqNo(Long.parseLong(matchETag.substring(dot + 1)));
+            } catch (NumberFormatException e) {
+                throw new ConcurrentConfigUpdateException("Invalid E-Tag " + matchETag);
+            }
+        } else if (configInstance.getPrimaryTerm() != -1 && configInstance.getSeqNo() != -1) {
+            indexRequest.setIfPrimaryTerm(configInstance.getPrimaryTerm());
+            indexRequest.setIfSeqNo(configInstance.getSeqNo());
+        }
 
         if (!clusterService.state().getMetadata().hasIndex(searchguardIndex)) {
-            boolean ok = client.admin().indices().create(
+            boolean ok = privilegedConfigClient.admin().indices().create(
                             new CreateIndexRequest(searchguardIndex).settings(SG_INDEX_SETTINGS).mapping("_doc", SG_INDEX_MAPPING))
                     .actionGet().isAcknowledged();
 
@@ -430,11 +496,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
 
         try {
-            IndexResponse indexResponse = privilegedConfigClient.index(indexRequest).actionGet();
-
-            if (indexResponse.status().getStatus() >= 400) {
-                throw new ConfigUpdateException("Updating the config failed", indexResponse);
-            }
+            privilegedConfigClient.index(indexRequest).actionGet();
+        } catch (VersionConflictEngineException e) {
+            throw new ConcurrentConfigUpdateException("Unable to update configuration due to concurrent modification", e);
         } catch (Exception e) {
             throw new ConfigUpdateException("Updating the config failed", e);
         }

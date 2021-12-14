@@ -194,6 +194,12 @@ public class RestApi extends BaseRestHandler {
                     }
 
                     RequestType transportRequest = action.parseRequest(new Action.UnparsedMessage(unparsedDoc, DocNode.EMPTY));
+                    
+                    String ifMatchHeader = restRequest.header("If-Match");
+                    
+                    if (ifMatchHeader != null) {
+                        transportRequest.ifMatch(ifMatchHeader);
+                    }
 
                     return channel -> client.execute(action, transportRequest, new RestResponseListener<ResponseType>(channel) {
 
@@ -201,8 +207,14 @@ public class RestApi extends BaseRestHandler {
                         public RestResponse buildResponse(ResponseType response) throws Exception {
                             DocType responseDocType = DocType.JSON;
 
-                            return new BytesRestResponse(response.status(), responseDocType.getContentType(),
+                            RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getContentType(),
                                     DocWriter.type(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
+                            
+                            if (response.getConcurrencyControlEntityTag() != null) {
+                                restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
+                            }
+                            
+                            return restResponse;
                         }
 
                     });
@@ -242,6 +254,12 @@ public class RestApi extends BaseRestHandler {
 
                     RequestType transportRequest = requestParser.parse(new RestRequestParams(restRequest),
                             unparsedDoc != null ? unparsedDoc.parseAsDocNode() : null);
+                    
+                    String ifMatchHeader = restRequest.header("If-Match");
+                    
+                    if (ifMatchHeader != null) {
+                        transportRequest.ifMatch(ifMatchHeader);
+                    }
 
                     if (log.isDebugEnabled()) {
                         log.debug("Parsed request for " + this + ": " + transportRequest);
@@ -253,8 +271,14 @@ public class RestApi extends BaseRestHandler {
                         public RestResponse buildResponse(ResponseType response) throws Exception {
                             DocType responseDocType = DocType.JSON;
 
-                            return new BytesRestResponse(response.status(), responseDocType.getContentType(),
+                            RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getContentType(),
                                     DocWriter.type(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
+                            
+                            if (response.getConcurrencyControlEntityTag() != null) {
+                                restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
+                            }
+                            
+                            return restResponse;
                         }
 
                     });

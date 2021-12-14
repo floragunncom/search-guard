@@ -86,6 +86,12 @@ public class StandardResponse extends Action.Response {
         this.error = new Error(null, e.getMessage(), e.getValidationErrors().toMap());
         return this;
     }
+    
+    @Override
+    public StandardResponse eTag(String concurrencyControlEntityTag) {
+        super.eTag(concurrencyControlEntityTag);
+        return this;
+    }
 
     @Override
     public Object toBasicObject() {

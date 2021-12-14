@@ -48,7 +48,7 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.UnparsedDoc;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.google.common.collect.ImmutableMap;
+import com.floragunn.searchsupport.util.ImmutableMap;
 
 public abstract class Action<RequestType extends Action.Request, ResponseType extends Action.Response> extends ActionType<ResponseType> {
 
@@ -89,6 +89,8 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
     }
 
     public static abstract class Request extends ActionRequest implements Document {
+        private String matchConcurrencyControlEntityTag;
+
         public Request() {
 
         }
@@ -97,11 +99,18 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         }
 
         @Override
-        public void writeTo(StreamOutput out) throws IOException {
+        public void writeTo(StreamOutput out) throws IOException {            
             out.writeByte((byte) 0);
             out.writeByte((byte) 0);
-            out.writeMap((Map<String, Object>) null);
+            
+            Map<String, Object> metaData = getMetaData();
 
+            if (metaData != null && !metaData.isEmpty()) {
+                out.writeMap(metaData);
+            } else {
+                out.writeMap((Map<String, Object>) null);
+            }
+            
             Object basicObject = toBasicObject();
 
             if (basicObject != null) {
@@ -112,6 +121,24 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             }
         }
 
+        public String getMatchConcurrencyControlEntityTag() {
+            return matchConcurrencyControlEntityTag;
+        }
+
+        public Request matchConcurrencyControlEntityTag(String concurrencyControlEntityTag) {
+            this.matchConcurrencyControlEntityTag = concurrencyControlEntityTag;
+            return this;
+        }
+        
+        public Request ifMatch(String matchConcurrencyControlEntityTag) {
+            this.matchConcurrencyControlEntityTag = matchConcurrencyControlEntityTag;
+            return this;
+        }
+        
+        protected Map<String, Object> getMetaData() {
+            return ImmutableMap.ofNonNull("etag", matchConcurrencyControlEntityTag);
+        }
+        
         @Override
         public ActionRequestValidationException validate() {
             return null;
@@ -121,6 +148,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
     public static abstract class Response extends ActionResponse implements Document, StatusToXContentObject {
 
         private int restStatus = 200;
+        private String concurrencyControlEntityTag;
 
         public Response() {
         }
@@ -133,7 +161,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         public void writeTo(StreamOutput out) throws IOException {
             out.writeByte((byte) 0);
             out.writeByte((byte) 0);
-            out.writeMap(ImmutableMap.of("status", restStatus));
+            out.writeMap(ImmutableMap.ofNonNull("status", restStatus, "etag", concurrencyControlEntityTag));
             out.writeByte(MessageType.SMILE);
             out.writeByteArray(this.toSmile());
         }
@@ -164,11 +192,27 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             return this;
         }
 
+        public String getConcurrencyControlEntityTag() {
+            return concurrencyControlEntityTag;
+        }
+
+        public Response concurrencyControlEntityTag(String concurrencyControlEntityTag) {
+            this.concurrencyControlEntityTag = concurrencyControlEntityTag;
+            return this;
+        }
+        
+        public Response eTag(String concurrencyControlEntityTag) {
+            this.concurrencyControlEntityTag = concurrencyControlEntityTag;
+            return this;
+        }
+        
+        
         @Override
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.value(this.toBasicObject());
             return builder;
         }
+
     }
 
     public static abstract class Handler<RequestType extends Request, ResponseType extends Response>
