@@ -19,6 +19,7 @@ package com.floragunn.searchguard.configuration.api;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.UUID;
@@ -155,10 +156,11 @@ public class InternalUsersConfigApiTest {
             client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString());
 
             HttpResponse response = client.get("/_searchguard/internal_users/" + userName);
-
+            
             assertEquals(200, response.getStatusCode());
             assertEquals("{backend_roles=[backendRole1, backendRole2], attributes={a=aAttributeValue}, search_guard_roles=[sgRole1, sgRole2]}",
                     getData(response));
+            assertTrue(response.getHeaders().toString(), response.getHeaders().stream().anyMatch(h -> h.getName().equalsIgnoreCase("ETag")));
         }
     }
 

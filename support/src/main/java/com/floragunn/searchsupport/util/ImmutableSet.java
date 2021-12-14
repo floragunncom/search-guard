@@ -25,6 +25,8 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
+import com.google.common.base.Objects;
+
 public interface ImmutableSet<E> extends Set<E> {
 
     public static <E> ImmutableSet<E> empty() {
@@ -35,6 +37,14 @@ public interface ImmutableSet<E> extends Set<E> {
 
     public static <E> ImmutableSet<E> of(E e) {
         return new OneElementSet<E>(e);
+    }
+
+    public static <E> ImmutableSet<E> of(E e1, E e2) {
+        if (Objects.equal(e1, e2)) {
+            return new OneElementSet<E>(e1);
+        } else {
+            return new TwoElementSet<E>(e1, e2);
+        }
     }
 
     @SafeVarargs

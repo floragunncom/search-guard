@@ -26,8 +26,12 @@ import org.elasticsearch.common.inject.Inject;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchguard.configuration.ConcurrentConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.NoSuchConfigEntryException;
+import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgConfigEntry;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests;
@@ -56,21 +60,22 @@ public class InternalUsersConfigApi {
 
         public static class Handler extends Action.Handler<StandardRequests.IdRequest, StandardResponse> {
 
-            private final InternalUsersService internalUsersService;
+            private final ConfigurationRepository configRepository;
 
             @Inject
             public Handler(Action.HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
                 super(GetAction.INSTANCE, handlerDependencies);
-                this.internalUsersService = new InternalUsersService(configurationRepository);
+                this.configRepository = configurationRepository;
             }
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(StandardRequests.IdRequest request) {
                 return CompletableFuture.supplyAsync(() -> {
                     try {
-                        InternalUser user = this.internalUsersService.getUser(request.getId());
-                        return new StandardResponse(200).data(user.toRedactedBasicObject());
-                    } catch (InternalUserNotFoundException e) {
+                        SgConfigEntry<InternalUser> user = this.configRepository.getConfigEntryFromIndex(CType.INTERNALUSERS, request.getId(),
+                                "API GET /_searchguard/internal_users/");
+                        return new StandardResponse(200).data(user.toRedactedBasicObject()).eTag(user.getETag());
+                    } catch (NoSuchConfigEntryException e) {
                         log.info(e.getMessage());
                         return new StandardResponse(404).error(e.getMessage());
                     } catch (Exception e) {
@@ -126,21 +131,22 @@ public class InternalUsersConfigApi {
 
         public static class Handler extends Action.Handler<PutAction.Request, StandardResponse> {
 
-            private final InternalUsersService internalUsersService;
+            private final ConfigurationRepository configRepository;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configRepository) {
                 super(PutAction.INSTANCE, handlerDependencies);
-                this.internalUsersService = new InternalUsersService(configurationRepository);
+                this.configRepository = configRepository;
             }
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(PutAction.Request request) {
                 return CompletableFuture.supplyAsync(() -> {
                     try {
-                        String user = request.getId();
-                        this.internalUsersService.addOrUpdateUser(user, request.getValue());
-                        return new StandardResponse(200).message("User " + user + " has been added");
+                        this.configRepository.addOrUpdate(CType.INTERNALUSERS, request.getId(), request.getValue(), request.getMatchConcurrencyControlEntityTag());
+                        return new StandardResponse(200).message("User " + request.getId() + " has been added or updated");
+                    } catch (ConcurrentConfigUpdateException e) {
+                        return new StandardResponse(412).error(e.getMessage());
                     } catch (ConfigUpdateException e) {
                         log.error("Error while adding user", e);
                         return new StandardResponse(500).error(null, e.getMessage(), e.getDetailsAsMap());
@@ -165,25 +171,23 @@ public class InternalUsersConfigApi {
 
         public static class Handler extends Action.Handler<StandardRequests.IdRequest, StandardResponse> {
 
-            private final InternalUsersService internalUsersService;
+            private final ConfigurationRepository configRepository;
 
             @Inject
             public Handler(Action.HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
                 super(DeleteAction.INSTANCE, handlerDependencies);
-                this.internalUsersService = new InternalUsersService(configurationRepository);
+                this.configRepository = configurationRepository;
 
             }
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(StandardRequests.IdRequest request) {
                 return CompletableFuture.supplyAsync(() -> {
-                    String user = request.getId();
                     try {
-                        this.internalUsersService.deleteUser(user);
-                        return new StandardResponse(204).message("User " + user + " has been deleted");
-                    } catch (InternalUserNotFoundException e) {
-                        log.info("User {} for deletion not found", user);
-                        return new StandardResponse(404).error("User " + user + " for deletion not found");
+                        this.configRepository.delete(CType.INTERNALUSERS, request.getId());
+                        return new StandardResponse(204).message("User " + request.getId() + " has been deleted");
+                    } catch (NoSuchConfigEntryException e) {
+                        return new StandardResponse(404).error("User " + request.getId() + " for deletion not found");
                     } catch (ConfigUpdateException e) {
                         log.error("Error while deleting user", e);
                         return new StandardResponse(500).error(null, e.getMessage(), e.getDetailsAsMap());

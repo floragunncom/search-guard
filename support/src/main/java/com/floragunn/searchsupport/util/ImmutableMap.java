@@ -29,6 +29,38 @@ import java.util.stream.Collectors;
 
 public interface ImmutableMap<K, V> extends Map<K, V> {
 
+    public static <K, V> ImmutableMap<K, V> of(K k1, V v1) {
+        return new SingleElementMap<>(k1, v1);
+    }
+
+    public static <K, V> ImmutableMap<K, V> of(K k1, V v1, K k2, V v2) {
+        if (k1.equals(k2)) {
+            return new SingleElementMap<>(k1, v1);
+        } else {
+            return new TwoElementMap<>(k1, v1, k2, v2);
+        }
+    }
+
+    public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1) {
+        if (k1 != null && v1 != null) {
+            return of(k1, v1);
+        } else {
+            return empty();
+        }
+    }
+
+    public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1, K k2, V v2) {
+        if (v1 != null && k1 != null && v2 != null && k2 != null) {
+            return of(k1, v1, k2, v2);
+        } else if (k1 != null && v1 != null) {
+            return of(k1, v1);
+        } else if (k2 != null && v2 != null) {
+            return of(k2, v2);
+        } else {
+            return empty();
+        }
+    }
+
     public static <K, V> Map<K, V> without(Map<K, V> map, K key) {
         if (map.containsKey(key)) {
             if (map.size() == 1) {
@@ -38,6 +70,187 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             }
         } else {
             return map;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <K, V> ImmutableMap<K, V> empty() {
+        return (ImmutableMap<K, V>) EMPTY_MAP;
+    }
+
+    static class SingleElementMap<K, V> extends AbstractImmutableMap<K, V> {
+        private final K key;
+        private final V value;
+        private Set<K> keySet;
+        private Set<V> values;
+        private Set<Entry<K, V>> entrySet;
+
+        SingleElementMap(K key, V value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        @Override
+        public int size() {
+            return 1;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return false;
+        }
+
+        @Override
+        public boolean containsValue(Object value) {
+            return Objects.equals(this.value, value);
+        }
+
+        @Override
+        public boolean containsKey(Object key) {
+            return Objects.equals(this.key, key);
+
+        }
+
+        @Override
+        public V get(Object key) {
+            if (Objects.equals(this.key, key)) {
+                return this.value;
+            } else {
+                return null;
+            }
+        }
+
+        @Override
+        public Set<K> keySet() {
+            if (keySet == null) {
+                keySet = ImmutableSet.of(this.key);
+            }
+
+            return keySet;
+        }
+
+        @Override
+        public Collection<V> values() {
+            if (values == null) {
+                values = ImmutableSet.of(this.value);
+            }
+
+            return values;
+        }
+
+        @Override
+        public Set<Entry<K, V>> entrySet() {
+            if (entrySet == null) {
+                entrySet = ImmutableSet.of(new AbstractMap.SimpleEntry<>(key, value));
+            }
+            return entrySet;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Map)) {
+                return false;
+            }
+
+            Map<?, ?> otherMap = (Map<?, ?>) o;
+
+            if (otherMap.size() != 1) {
+                return false;
+            }
+
+            Entry<?, ?> entry = otherMap.entrySet().iterator().next();
+
+            return Objects.equals(key, entry.getKey()) && Objects.equals(value, entry.getValue());
+        }
+    }
+
+    static class TwoElementMap<K, V> extends AbstractImmutableMap<K, V> {
+        private final K key1;
+        private final V value1;
+        private final K key2;
+        private final V value2;
+        private Set<K> keySet;
+        private Set<V> values;
+        private Set<Entry<K, V>> entrySet;
+
+        TwoElementMap(K key1, V value1, K key2, V value2) {
+            this.key1 = key1;
+            this.value1 = value1;
+            this.key2 = key2;
+            this.value2 = value2;
+        }
+
+        @Override
+        public int size() {
+            return 2;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return false;
+        }
+
+        @Override
+        public boolean containsValue(Object value) {
+            return Objects.equals(this.value1, value) || Objects.equals(this.value2, value);
+        }
+
+        @Override
+        public boolean containsKey(Object key) {
+            return Objects.equals(this.key1, key) || Objects.equals(this.key2, key);
+
+        }
+
+        @Override
+        public V get(Object key) {
+            if (Objects.equals(this.key1, key)) {
+                return this.value1;
+            } else if (Objects.equals(this.key2, key)) {
+                return this.value2;
+            } else {
+                return null;
+            }
+        }
+
+        @Override
+        public Set<K> keySet() {
+            if (keySet == null) {
+                keySet = ImmutableSet.of(this.key1, this.key2);
+            }
+
+            return keySet;
+        }
+
+        @Override
+        public Collection<V> values() {
+            if (values == null) {
+                values = ImmutableSet.of(this.value1, this.value2);
+            }
+
+            return values;
+        }
+
+        @Override
+        public Set<Entry<K, V>> entrySet() {
+            if (entrySet == null) {
+                entrySet = ImmutableSet.of(new AbstractMap.SimpleEntry<>(key1, value1), new AbstractMap.SimpleEntry<>(key2, value2));
+            }
+            return entrySet;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Map)) {
+                return false;
+            }
+
+            Map<?, ?> otherMap = (Map<?, ?>) o;
+
+            if (otherMap.size() != 2) {
+                return false;
+            }
+
+            return Objects.equals(value1, otherMap.get(key1)) && Objects.equals(value2, otherMap.get(key2));
         }
     }
 
@@ -290,6 +503,65 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             };
         }
     }
+
+    static final Map<?, ?> EMPTY_MAP = new AbstractImmutableMap<Object, Object>() {
+
+        @Override
+        public Set<Entry<Object, Object>> entrySet() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public int size() {
+            return 0;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return true;
+        }
+
+        @Override
+        public boolean containsValue(Object value) {
+            return false;
+        }
+
+        @Override
+        public boolean containsKey(Object key) {
+            return false;
+        }
+
+        @Override
+        public Object get(Object key) {
+            return null;
+        }
+
+        @Override
+        public Set<Object> keySet() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Collection<Object> values() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Map)) {
+                return false;
+            }
+
+            Map<?, ?> otherMap = (Map<?, ?>) o;
+
+            return otherMap.size() == 0;
+        }
+
+        @Override
+        public String toString() {
+            return "{}";
+        }
+    };
 
     abstract static class AbstractImmutableMap<K, V> extends AbstractMap<K, V> implements ImmutableMap<K, V> {
 
