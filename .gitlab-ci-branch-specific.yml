@@ -1,5 +1,5 @@
 variables:
-  SG_KI_PLUGIN: "7.14.0-master-SNAPSHOT"
+  SG_KI_PLUGIN: "b-master-SNAPSHOT"
 #  IT_BRANCH: ""
 #  KI_VERSION: "7.14.0"
 
