@@ -58,6 +58,8 @@ import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
 
+import com.floragunn.codova.documents.patch.DocPatch;
+import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
@@ -78,6 +80,7 @@ import com.floragunn.searchguard.support.ConfigHelper;
 import com.floragunn.searchguard.support.LicenseHelper;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.support.SgUtils;
+import com.floragunn.searchsupport.action.StandardResponse;
 import com.google.common.collect.ImmutableMap;
 
 public class ConfigurationRepository implements ComponentStateProvider {
@@ -417,7 +420,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 	    }
 	}
 	
-	public <T> void addOrUpdate(CType<T> ctype, String id, T entry, String matchETag) throws ConfigUpdateException, ConcurrentConfigUpdateException {
+	public <T> StandardResponse addOrUpdate(CType<T> ctype, String id, T entry, String matchETag) throws ConfigUpdateException, ConcurrentConfigUpdateException {
 	    try {
             SgDynamicConfiguration<T> configInstance = getConfigurationFromIndex(ctype, "Update of entry " + id);
             
@@ -426,16 +429,51 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         + "; ETag: " + configInstance.getETag());
             }
             
+            boolean alreadyExists = configInstance.getCEntry(id) != null;
+            
             configInstance.putCEntry(id, entry);
             
             update(ctype, configInstance, matchETag);
             
+            if (!alreadyExists) {
+                return new StandardResponse(201).message(ctype.getUiName() + " " + id + " has been created");                 
+            } else {
+                return new StandardResponse(200).message(ctype.getUiName() + " " + id + " has been updated");
+            }                        
         } catch (ConfigUnavailableException e) {
             throw new ConfigUpdateException(e);
         }	    
 	}
+	
+    public <T> StandardResponse applyPatch(CType<T> configType, String id, DocPatch patch, String matchETag)
+            throws ConfigUpdateException, ConcurrentConfigUpdateException, NoSuchConfigEntryException, ConfigValidationException {
+        try {
+            SgDynamicConfiguration<T> configInstance = getConfigurationFromIndex(configType, "Update of entry " + id);
 
-    public <T> void delete(CType<T> configType, String id) throws ConfigUpdateException, ConcurrentConfigUpdateException, NoSuchConfigEntryException {
+            if (matchETag != null && !configInstance.getETag().equals(matchETag)) {
+                throw new ConcurrentConfigUpdateException("Unable to update configuration due to concurrent modification:\nIf-Match: " + matchETag
+                        + "; ETag: " + configInstance.getETag());
+            }
+
+            @SuppressWarnings("unchecked")
+            PatchableDocument<T> entry = (PatchableDocument<T>) configInstance.getCEntry(id);
+
+            if (entry == null) {
+                throw new NoSuchConfigEntryException(configType, id);
+            }
+
+            configInstance.putCEntry(id, entry.patch(patch));
+
+            update(configType, configInstance, matchETag);
+            
+            return new StandardResponse(200).message(configType.getUiName() + " " + id + " has been updated");
+
+        } catch (ConfigUnavailableException e) {
+            throw new ConfigUpdateException(e);
+        }
+    }
+
+    public <T> StandardResponse delete(CType<T> configType, String id) throws ConfigUpdateException, ConcurrentConfigUpdateException, NoSuchConfigEntryException {
         try {
 
             SgDynamicConfiguration<T> configInstance = getConfigurationFromIndex(configType, "Deletion of entry " + id);
@@ -447,6 +485,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
             configInstance.remove(id);
 
             update(configType, configInstance, null);
+            
+            return new StandardResponse(200).message(configType.getUiName() + " " + id + " has been deleted");
         } catch (ConfigUnavailableException e) {
             throw new ConfigUpdateException(e);
         }
@@ -683,4 +723,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public String getSearchguardIndex() {
         return searchguardIndex;
     }
+    
+  
 }

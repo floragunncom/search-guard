@@ -22,6 +22,7 @@ import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -58,6 +59,30 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             return of(k2, v2);
         } else {
             return empty();
+        }
+    }
+  
+    public static <K, V> ImmutableMap<K, V> of(Map<K, V> map, K k1, V v1) {
+        if (map == null || map.isEmpty()) {
+            return of(k1, v1);
+        } else if (map.size() == 1) {
+            Map.Entry<K, V> entry = map.entrySet().iterator().next();
+            return of(entry.getKey(), entry.getValue(), k1, v1);
+        } else {
+            Map<K, V> copy = new LinkedHashMap<>(map);
+            copy.put(k1, v1);
+            return new MapBackedMap<>(copy);
+        }
+    }
+    
+    public static <K, V> ImmutableMap<K, V> of(Map<K, V> map, K k1, V v1, K k2, V v2) {
+        if (map == null || map.isEmpty()) {
+            return of(k1, v1, k2, v2);
+        } else {
+            Map<K, V> copy = new LinkedHashMap<>(map);
+            copy.put(k1, v1);
+            copy.put(k2, v2);
+            return new MapBackedMap<>(copy);
         }
     }
 
@@ -254,6 +279,70 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         }
     }
 
+    static class MapBackedMap<K, V> extends AbstractImmutableMap<K, V> {
+        private final Map<K, V> delegate;
+
+        MapBackedMap(Map<K, V> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public int size() {
+            return delegate.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return delegate.isEmpty();
+        }
+
+        @Override
+        public boolean containsValue(Object value) {
+            return delegate.containsValue(value);
+        }
+
+        @Override
+        public boolean containsKey(Object key) {
+            return delegate.containsKey(key);
+
+        }
+
+        @Override
+        public V get(Object key) {
+            return delegate.get(key);
+        }
+
+        @Override
+        public Set<K> keySet() {
+            return Collections.unmodifiableSet(delegate.keySet());
+        }
+
+        @Override
+        public Collection<V> values() {
+            return Collections.unmodifiableCollection(delegate.values());
+        }
+
+        @Override
+        public Set<Entry<K, V>> entrySet() {
+            return Collections.unmodifiableSet(delegate.entrySet());
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return delegate.equals(o);
+        }
+
+        @Override
+        public int hashCode() {
+            return delegate.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return delegate.toString();
+        }
+    }
+    
     static class WithoutMap<K, V> extends AbstractImmutableMap<K, V> {
         private final Map<K, V> delegate;
         private final K withoutKey;

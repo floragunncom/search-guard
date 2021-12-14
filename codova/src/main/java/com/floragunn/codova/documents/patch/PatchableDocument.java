@@ -15,15 +15,18 @@
  *
  */
 
-package com.floragunn.searchguard.configuration.internal_users;
+package com.floragunn.codova.documents.patch;
 
-public class InternalUserNotFoundException extends Exception {
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.validation.ConfigValidationException;
 
-    private static final long serialVersionUID = 4001652936942892143L;
-
-    public InternalUserNotFoundException(String user) {
-		super("User " + user + " not found");
-	}
+public interface PatchableDocument<T> extends Document {
+    default T patch(DocPatch patch) throws ConfigValidationException {
+        DocNode patchedDocNode = patch.apply(this.toDocNode());
+        
+        return parseI(patchedDocNode);
+    }
+    
+    T parseI(DocNode docNode) throws ConfigValidationException;
 }
-
-

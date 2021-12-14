@@ -26,8 +26,9 @@ import java.util.Map;
 
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 
-import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.RedactableDocument;
+import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -36,7 +37,7 @@ import com.floragunn.searchguard.configuration.AuthczVariableResolvers;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchsupport.util.ImmutableMap;
 
-public class InternalUser implements Document, RedactableDocument, Hideable {
+public class InternalUser implements PatchableDocument<InternalUser>, RedactableDocument, Hideable {
 
     private final static SecureRandom RANDOM = new SecureRandom();
 
@@ -195,6 +196,11 @@ public class InternalUser implements Document, RedactableDocument, Hideable {
         Arrays.fill(salt, (byte) 0);
         Arrays.fill(clearTextPassword, '\0');
         return hash;
+    }
+
+    @Override
+    public InternalUser parseI(DocNode docNode) throws ConfigValidationException {
+        return InternalUser.parse(docNode.toMap());
     }
 
 

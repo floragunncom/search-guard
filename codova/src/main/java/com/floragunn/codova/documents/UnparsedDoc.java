@@ -30,9 +30,13 @@ public abstract class UnparsedDoc<Doc> implements Document {
     public static UnparsedDoc<String> from(String source, DocType docType) {
         return new StringDoc(source, docType);
     }
+    
+    public static UnparsedDoc<String> from(String source, ContentType contentType) {
+        return new StringDoc(source, contentType);
+    }
 
     public static UnparsedDoc<byte[]> from(byte[] source, ContentType contentType) {
-        return new BytesDoc(source, contentType.getDocType(), contentType.getCharset());
+        return new BytesDoc(source, contentType);
     }
 
     public static UnparsedDoc<byte[]> from(byte[] source, DocType docType, Charset charset) {
@@ -48,9 +52,21 @@ public abstract class UnparsedDoc<Doc> implements Document {
     }
 
     protected final DocType docType;
+    protected final ContentType contentType;
 
+    private UnparsedDoc(DocType docType, ContentType contentType) {
+        this.docType = docType;
+        this.contentType = contentType;
+    }
+    
     private UnparsedDoc(DocType docType) {
         this.docType = docType;
+        this.contentType = docType.getContentType();
+    }
+    
+    private UnparsedDoc(ContentType contentType) {
+        this.docType = contentType.getDocType();
+        this.contentType = contentType;
     }
 
     public abstract Map<String, Object> parseAsMap() throws DocParseException, UnexpectedDocumentStructureException;
@@ -68,6 +84,14 @@ public abstract class UnparsedDoc<Doc> implements Document {
     public DocType getDocType() {
         return docType;
     }
+    
+    public ContentType getContentType() {
+        return contentType;
+    }
+    
+    public String getMediaType() {
+        return contentType.getMediaType();
+    }
 
     @Override
     public Object toBasicObject() {
@@ -78,6 +102,11 @@ public abstract class UnparsedDoc<Doc> implements Document {
         private final String source;
 
         public StringDoc(String source, DocType docType) {
+            super(docType);
+            this.source = source;
+        }
+        
+        public StringDoc(String source, ContentType docType) {
             super(docType);
             this.source = source;
         }
@@ -104,7 +133,7 @@ public abstract class UnparsedDoc<Doc> implements Document {
 
         @Override
         public String toString() {
-            return docType.getContentType() + ":\n" + source;
+            return docType.getMediaType() + ":\n" + source;
         }
 
         @Override
@@ -123,6 +152,12 @@ public abstract class UnparsedDoc<Doc> implements Document {
         private String sourceAsString;
         private final Charset charset;
 
+        BytesDoc(byte[] source, ContentType contentType) {
+            super(contentType);
+            this.source = source;
+            this.charset = contentType.getCharset();
+        }
+        
         BytesDoc(byte[] source, DocType docType, Charset charset) {
             super(docType);
             this.source = source;
@@ -152,9 +187,9 @@ public abstract class UnparsedDoc<Doc> implements Document {
         @Override
         public String toString() {
             if (docType.isBinary()) {
-                return docType.getContentType() + ": " + source.length + " bytes";
+                return docType.getMediaType() + ": " + source.length + " bytes";
             } else {
-                return docType.getContentType() + ":\n" + getSourceAsString();
+                return docType.getMediaType() + ":\n" + getSourceAsString();
             }
         }
 

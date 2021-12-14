@@ -64,6 +64,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocParseException;
 import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.google.common.collect.Lists;
@@ -78,6 +79,8 @@ public class GenericRestClient implements AutoCloseable {
     private RequestConfig requestConfig;
     private final List<Header> headers = new ArrayList<>();
     private final Header CONTENT_TYPE_JSON = new BasicHeader("Content-Type", "application/json");
+    private final Header CONTENT_TYPE_JSON_MERGE = new BasicHeader("Content-Type", "application/merge-patch+json");
+
     private boolean trackResources = false;
 
     private final Set<String> puttedResourcesSet = new HashSet<>();
@@ -165,6 +168,16 @@ public class GenericRestClient implements AutoCloseable {
         HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + path);
         uriRequest.setEntity(new StringEntity(body));
         return executeRequest(uriRequest, CONTENT_TYPE_JSON);
+    }
+    
+    public HttpResponse patchJsonMerge(String path, Document body, Header... headers) throws Exception {
+        return patchJsonMerge(path, body.toJsonString(), headers);
+    }
+    
+    public HttpResponse patchJsonMerge(String path, String body, Header... headers) throws Exception {
+        HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + path);
+        uriRequest.setEntity(new StringEntity(body));
+        return executeRequest(uriRequest, mergeHeaders(CONTENT_TYPE_JSON_MERGE, headers));
     }
 
     public HttpResponse executeRequest(HttpUriRequest uriRequest, Header... requestSpecificHeaders) throws Exception {
@@ -300,7 +313,7 @@ public class GenericRestClient implements AutoCloseable {
     public static class HttpResponse {
         private final CloseableHttpResponse inner;
         private final String body;
-        private final Header[] header;
+        private final Header[] headers;
         private final int statusCode;
         private final String statusReason;
 
@@ -313,7 +326,7 @@ public class GenericRestClient implements AutoCloseable {
             } else {
                 this.body = IOUtils.toString(entity.getContent(), StandardCharsets.UTF_8);
             }
-            this.header = inner.getAllHeaders();
+            this.headers = inner.getAllHeaders();
             this.statusCode = inner.getStatusLine().getStatusCode();
             this.statusReason = inner.getStatusLine().getReasonPhrase();
             inner.close();
@@ -347,10 +360,6 @@ public class GenericRestClient implements AutoCloseable {
             return DocNode.parse(ContentType.parseHeader(getContentType())).from(body);
         }
 
-        public Header[] getHeader() {
-            return header;
-        }
-
         public int getStatusCode() {
             return statusCode;
         }
@@ -360,7 +369,17 @@ public class GenericRestClient implements AutoCloseable {
         }
 
         public List<Header> getHeaders() {
-            return header == null ? Collections.emptyList() : Arrays.asList(header);
+            return headers == null ? Collections.emptyList() : Arrays.asList(headers);
+        }
+        
+        public String getHeaderValue(String name) {
+            for (Header header : this.headers) {
+                if (header.getName().equalsIgnoreCase(name)) {
+                    return header.getValue();
+                }
+            }
+            
+            return null;
         }
 
         public JsonNode toJsonNode() throws JsonProcessingException, IOException {
@@ -369,7 +388,7 @@ public class GenericRestClient implements AutoCloseable {
 
         @Override
         public String toString() {
-            return "HttpResponse [inner=" + inner + ", body=" + body + ", header=" + Arrays.toString(header) + ", statusCode=" + statusCode
+            return "HttpResponse [inner=" + inner + ", body=" + body + ", header=" + Arrays.toString(headers) + ", statusCode=" + statusCode
                     + ", statusReason=" + statusReason + "]";
         }
 

@@ -35,7 +35,7 @@ import com.google.common.base.Charsets;
 
 public class DocType {
     private static List<DocType> registeredDocTypes = new ArrayList<>();
-    private static Map<String, DocType> registeredDocTypesByContentType = new HashMap<>();
+    private static Map<String, DocType> registeredDocTypesByMediaType = new HashMap<>();
 
     public static DocType JSON = new DocType("JSON", Encoding.TEXT, new JsonFactory(), "json", "application/json", "text/x-json");
     public static DocType YAML = new DocType("YAML", Encoding.TEXT, new YAMLFactory(), "ya?ml", "application/x-yaml", "application/yaml", "text/yaml",
@@ -60,7 +60,7 @@ public class DocType {
             contentType = contentType.substring(0, paramSeparator).trim();
         }
 
-        DocType result = registeredDocTypesByContentType.get(contentType);
+        DocType result = registeredDocTypesByMediaType.get(contentType);
 
         if (result != null) {
             return result;
@@ -85,50 +85,66 @@ public class DocType {
         return fallbackDocType;
     }
 
-    public static DocType getByMimeType(String mimeType) throws UnknownDocTypeException {
-        DocType result = registeredDocTypesByContentType.get(mimeType);
+    public static DocType getByMediaType(String mediaType) throws UnknownDocTypeException {
+        DocType result = registeredDocTypesByMediaType.get(mediaType);
 
         if (result != null) {
             return result;
-        } else {
-            throw new UnknownDocTypeException(mimeType);
         }
+
+        int plus = mediaType.lastIndexOf('+');
+        int slash = mediaType.indexOf('/');
+
+        if (plus != -1 && slash != -1) {
+            String suffix = mediaType.substring(plus + 1);
+            String prefix = mediaType.substring(0, slash);
+
+            result = registeredDocTypesByMediaType.get(prefix + "/" + suffix);
+
+            if (result != null) {
+                return result;
+            }
+        }
+
+        throw new UnknownDocTypeException(mediaType);
     }
 
     private static void register(DocType docType) {
         registeredDocTypes.add(docType);
-        registeredDocTypesByContentType.put(docType.getContentType().toLowerCase(), docType);
+        registeredDocTypesByMediaType.put(docType.getMediaType().toLowerCase(), docType);
 
-        for (String alias : docType.contentTypeAliases) {
-            registeredDocTypesByContentType.put(alias.toLowerCase(), docType);
+        for (String alias : docType.mediaTypeAliases) {
+            registeredDocTypesByMediaType.put(alias.toLowerCase(), docType);
         }
     }
 
     private final String name;
-    private final String contentType;
-    private final Set<String> contentTypeAliases;
+    private final String mediaType;
+    private final ContentType contentType;
+    private final Set<String> mediaTypeAliases;
     private final JsonFactory jsonFactory;
     private final Exception jsonFactoryUnavailabilityReason;
     private final Pattern fileNamePattern;
     private final Encoding encoding;
     private final Charset defaultCharset;
 
-    public DocType(String name, Encoding encoding, JsonFactory jsonFactory, String fileNameSuffixPattern, String contentType,
-            String... contentTypeAliases) {
+    public DocType(String name, Encoding encoding, JsonFactory jsonFactory, String fileNameSuffixPattern, String mediaType,
+            String... mediaTypeAliases) {
         this.name = name;
         this.encoding = encoding;
-        this.contentType = contentType;
+        this.mediaType = mediaType;
+        this.contentType = new ContentType(mediaType, mediaType, this, null);
         this.jsonFactory = jsonFactory;
         this.jsonFactoryUnavailabilityReason = null;
-        this.contentTypeAliases = new HashSet<>(Arrays.asList(contentTypeAliases));
+        this.mediaTypeAliases = new HashSet<>(Arrays.asList(mediaTypeAliases));
         this.fileNamePattern = fileNameSuffixPattern != null ? Pattern.compile("\\." + fileNameSuffixPattern + "$", Pattern.CASE_INSENSITIVE) : null;
         this.defaultCharset = encoding == Encoding.TEXT ? Charsets.UTF_8 : null;
 
         register(this);
     }
 
-    public DocType(String name, Encoding encoding, String jsonFactoryClass, String fileNameSuffixPattern, String contentType,
-            String... contentTypeAliases) {
+    public DocType(String name, Encoding encoding, String jsonFactoryClass, String fileNameSuffixPattern, String mediaType,
+            String... mediaTypeAliases) {
         JsonFactory jsonFactory;
         Exception jsonFactoryUnavailabilityReason;
 
@@ -142,17 +158,22 @@ public class DocType {
 
         this.name = name;
         this.encoding = encoding;
-        this.contentType = contentType;
+        this.mediaType = mediaType;
+        this.contentType = new ContentType(mediaType, mediaType, this, null);
         this.jsonFactory = jsonFactory;
         this.jsonFactoryUnavailabilityReason = jsonFactoryUnavailabilityReason;
-        this.contentTypeAliases = new HashSet<>(Arrays.asList(contentTypeAliases));
+        this.mediaTypeAliases = new HashSet<>(Arrays.asList(mediaTypeAliases));
         this.fileNamePattern = fileNameSuffixPattern != null ? Pattern.compile("\\." + fileNameSuffixPattern + "$", Pattern.CASE_INSENSITIVE) : null;
         this.defaultCharset = encoding == Encoding.TEXT ? Charsets.UTF_8 : null;
 
         register(this);
     }
 
-    public String getContentType() {
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public ContentType getContentType() {
         return contentType;
     }
 
@@ -165,7 +186,7 @@ public class DocType {
     }
 
     public Set<String> getContentTypeAliases() {
-        return contentTypeAliases;
+        return mediaTypeAliases;
     }
 
     public String getName() {

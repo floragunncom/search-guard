@@ -17,25 +17,144 @@
 
 package com.floragunn.searchguard.http;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.http.HttpChannel;
+import org.elasticsearch.http.HttpRequest;
+import org.elasticsearch.http.HttpResponse;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestRequest.Method;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
+import com.floragunn.codova.documents.ContentType;
+import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
 import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
 import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
+import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServerTransport {
+    private static final Logger log = LogManager.getLogger(SearchGuardHttpServerTransport.class);
 
     public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
             final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
             final NamedXContentRegistry namedXContentRegistry, final ValidatingDispatcher dispatcher, ClusterSettings clusterSettings,
             SharedGroupFactory sharedGroupFactory) {
         super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
+    }
+
+    @Override
+    public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
+        super.incomingRequest(fixNonStandardContentType(httpRequest), httpChannel);
+    }
+
+    /**
+     * Elasticsearch has normally a very limited choice of allowed Content-Type headers in requests. In order to support
+     * any Content-Type header in our REST APIs, we preempt those requests here and save the original Content-Type in 
+     * X-SG-Original-Content-Type and set Content-Type to a supported header.
+     */
+    private HttpRequest fixNonStandardContentType(HttpRequest httpRequest) {
+        try {
+
+            BytesReference content = httpRequest.content();
+
+            if (content == null || content.length() == 0) {
+                return httpRequest;
+            }
+
+            Map<String, List<String>> headers = httpRequest.getHeaders();
+
+            List<String> contentTypeHeader = headers.get("Content-Type");
+
+            if (contentTypeHeader == null || contentTypeHeader.size() != 1) {
+                return httpRequest;
+            }
+
+            if (RestRequest.parseContentType(contentTypeHeader) != null) {
+                return httpRequest;
+            }
+
+            ContentType contentType = ContentType.parseHeader(contentTypeHeader.get(0));
+            Map<String, List<String>> modifiedHeaders = ImmutableMap.of(headers, "Content-Type",
+                    Collections.singletonList(contentType.getDocType().getMediaType()), "X-SG-Original-Content-Type", contentTypeHeader);
+
+            return new HttpRequest() {
+
+                @Override
+                public String uri() {
+                    return httpRequest.uri();
+                }
+
+                @Override
+                public List<String> strictCookies() {
+                    return httpRequest.strictCookies();
+                }
+
+                @Override
+                public HttpRequest removeHeader(String header) {
+                    return httpRequest.removeHeader(header);
+                }
+
+                @Override
+                public HttpRequest releaseAndCopy() {
+                    return httpRequest.releaseAndCopy();
+                }
+
+                @Override
+                public void release() {
+                    httpRequest.release();
+                }
+
+                @Override
+                public HttpVersion protocolVersion() {
+                    return httpRequest.protocolVersion();
+                }
+
+                @Override
+                public Method method() {
+                    return httpRequest.method();
+                }
+
+                @Override
+                public Exception getInboundException() {
+                    return httpRequest.getInboundException();
+                }
+
+                @Override
+                public Map<String, List<String>> getHeaders() {
+                    return modifiedHeaders;
+                }
+
+                @Override
+                public HttpResponse createResponse(RestStatus status, BytesReference content) {
+                    return httpRequest.createResponse(status, content);
+                }
+
+                @Override
+                public BytesReference content() {
+                    return httpRequest.content();
+                }
+            };
+
+        } catch (UnknownDocTypeException e) {
+            log.debug("Unknown content type", e);
+            return httpRequest;
+        } catch (Exception e) {
+            log.error("Error in fixNonStandardContentType(" + httpRequest + ")", e);
+            return httpRequest;
+        }
     }
 }

@@ -539,6 +539,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(InternalUsersConfigApi.GetAction.INSTANCE, InternalUsersConfigApi.GetAction.Handler.class));
             actions.add(new ActionHandler<>(InternalUsersConfigApi.DeleteAction.INSTANCE, InternalUsersConfigApi.DeleteAction.Handler.class));
             actions.add(new ActionHandler<>(InternalUsersConfigApi.PutAction.INSTANCE, InternalUsersConfigApi.PutAction.Handler.class));
+            actions.add(new ActionHandler<>(InternalUsersConfigApi.PatchAction.INSTANCE, InternalUsersConfigApi.PatchAction.Handler.class));
+
         }
 
         actions.addAll(moduleRegistry.getActions());

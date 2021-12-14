@@ -207,7 +207,7 @@ public class RestApi extends BaseRestHandler {
                         public RestResponse buildResponse(ResponseType response) throws Exception {
                             DocType responseDocType = DocType.JSON;
 
-                            RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getContentType(),
+                            RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getMediaType(),
                                     DocWriter.type(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
                             
                             if (response.getConcurrencyControlEntityTag() != null) {
@@ -243,7 +243,9 @@ public class RestApi extends BaseRestHandler {
                     UnparsedDoc<byte[]> unparsedDoc = null;
 
                     if (restRequest.hasContent()) {
-                        ContentType contentType = ContentType.parseHeader(restRequest.header("Content-Type"));
+                        ContentType contentType = ContentType.parseHeader(
+                                restRequest.header("X-SG-Original-Content-Type") != null ? restRequest.header("X-SG-Original-Content-Type")
+                                        : restRequest.header("Content-Type"));
 
                         if (contentType == null) {
                             return channel -> Responses.sendError(channel, RestStatus.BAD_REQUEST, "Content-Type header is missing");
@@ -252,8 +254,7 @@ public class RestApi extends BaseRestHandler {
                         unparsedDoc = UnparsedDoc.from(BytesReference.toBytes(restRequest.content()), contentType);
                     }
 
-                    RequestType transportRequest = requestParser.parse(new RestRequestParams(restRequest),
-                            unparsedDoc != null ? unparsedDoc.parseAsDocNode() : null);
+                    RequestType transportRequest = requestParser.parse(new RestRequestParams(restRequest), unparsedDoc);
                     
                     String ifMatchHeader = restRequest.header("If-Match");
                     
@@ -271,7 +272,7 @@ public class RestApi extends BaseRestHandler {
                         public RestResponse buildResponse(ResponseType response) throws Exception {
                             DocType responseDocType = DocType.JSON;
 
-                            RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getContentType(),
+                            RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getMediaType(),
                                     DocWriter.type(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
                             
                             if (response.getConcurrencyControlEntityTag() != null) {
@@ -319,7 +320,7 @@ public class RestApi extends BaseRestHandler {
     
     @FunctionalInterface
     public static interface RestRequestParser<RequestType extends Action.Request> {
-        RequestType parse(Map<String, String> requestUrlParams, DocNode requestBody) throws ConfigValidationException;
+        RequestType parse(Map<String, String> requestUrlParams, UnparsedDoc<?> requestBody) throws ConfigValidationException;
     }
 
     private static class RestRequestParams implements Map<String, String> {
