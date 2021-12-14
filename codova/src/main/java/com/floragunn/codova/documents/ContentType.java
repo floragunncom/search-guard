@@ -23,10 +23,14 @@ import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
 
 public class ContentType {
 
+    private final String contentTypeString;
+    private final String mediaType;
     private final DocType docType;
     private final Charset charset;
 
-    public ContentType(DocType docType, Charset charset) {
+    ContentType(String contentTypeString, String mediaType, DocType docType, Charset charset) {
+        this.contentTypeString = contentTypeString;
+        this.mediaType = mediaType;
         this.docType = docType;
         this.charset = charset;
     }
@@ -35,22 +39,22 @@ public class ContentType {
         if (header == null) {
             return null;
         }
-        
+
         int paramSeparator = header.indexOf(';');
 
         if (paramSeparator == -1) {
-            return new ContentType(DocType.getByMimeType(header), null);
+            return new ContentType(header, header, DocType.getByMediaType(header), null);
         } else {
-            String mimeType = header.substring(0, paramSeparator).trim();
+            String mediaType = header.substring(0, paramSeparator).trim();
 
             int charSetPos = header.indexOf("charset=", paramSeparator);
 
             if (charSetPos == -1) {
-                return new ContentType(DocType.getByMimeType(mimeType), null);
+                return new ContentType(header, mediaType, DocType.getByMediaType(mediaType), null);
             } else {
                 int nextSeparator = header.indexOf(';', charSetPos);
 
-                return new ContentType(DocType.getByMimeType(mimeType),
+                return new ContentType(header, mediaType, DocType.getByMediaType(mediaType),
                         Charset.forName(header.substring(charSetPos + 8, nextSeparator != -1 ? nextSeparator : header.length())));
             }
         }
@@ -62,5 +66,14 @@ public class ContentType {
 
     public Charset getCharset() {
         return charset;
+    }
+
+    @Override
+    public String toString() {
+        return contentTypeString;
+    }
+
+    public String getMediaType() {
+        return mediaType;
     }
 }

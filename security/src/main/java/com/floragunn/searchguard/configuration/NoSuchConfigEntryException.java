@@ -24,6 +24,6 @@ public class NoSuchConfigEntryException extends Exception {
     private static final long serialVersionUID = -1792637044303383338L;
 
     public NoSuchConfigEntryException(CType<?> ctype, String id) {
-        super(ctype.getName() + " " + id + " does not exist");
+        super(ctype.getUiName() + " " + id + " does not exist");
     }
 }

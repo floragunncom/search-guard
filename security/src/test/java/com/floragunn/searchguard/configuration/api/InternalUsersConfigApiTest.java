@@ -19,18 +19,18 @@ package com.floragunn.searchguard.configuration.api;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.UUID;
 
+import org.apache.http.message.BasicHeader;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocParseException;
-import com.floragunn.codova.documents.DocReader;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
 import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
@@ -53,8 +53,8 @@ public class InternalUsersConfigApiTest {
 
             HttpResponse response = client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString());
 
-            assertEquals(200, response.getStatusCode());
-            assertEquals("User " + userName + " has been added", getMessage(response));
+            assertEquals(201, response.getStatusCode());
+            assertEquals(response.getBody(), "Internal User " + userName + " has been created", response.getBodyAsDocNode().get("message"));
         }
     }
 
@@ -68,9 +68,7 @@ public class InternalUsersConfigApiTest {
 
             HttpResponse response = client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString());
 
-            assertEquals(400, response.getStatusCode());
-            assertEquals("{message='password': Invalid value, details={password=[{error=Invalid value, value=null, expected=Password}]}}",
-                    getError(response));
+            assertEquals(400, response.getStatusCode());    
         }
     }
 
@@ -98,8 +96,7 @@ public class InternalUsersConfigApiTest {
             HttpResponse response = client.get("/_searchguard/internal_users/" + userName);
 
             assertEquals(200, response.getStatusCode());
-            assertEquals("{backend_roles=[backendRole1, backendRole2], attributes={a=aAttributeValue}, search_guard_roles=[sgRole1, sgRole2]}",
-                    getData(response));
+            assertEquals(response.getBody(), userData.without("password"), response.getBodyAsDocNode().getAsNode("data"));
         }
     }
 
@@ -143,7 +140,6 @@ public class InternalUsersConfigApiTest {
             HttpResponse response = client.get("/_searchguard/internal_users/" + userName);
 
             assertEquals(404, response.getStatusCode());
-            assertEquals("{message=User " + userName + " not found}", getError(response));
         }
     }
 
@@ -156,107 +152,66 @@ public class InternalUsersConfigApiTest {
             client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString());
 
             HttpResponse response = client.get("/_searchguard/internal_users/" + userName);
-            
+
             assertEquals(200, response.getStatusCode());
-            assertEquals("{backend_roles=[backendRole1, backendRole2], attributes={a=aAttributeValue}, search_guard_roles=[sgRole1, sgRole2]}",
-                    getData(response));
+            assertEquals(response.getBody(), userData.without("password"), response.getBodyAsDocNode().getAsNode("data"));
             assertTrue(response.getHeaders().toString(), response.getHeaders().stream().anyMatch(h -> h.getName().equalsIgnoreCase("ETag")));
         }
     }
 
-    @Ignore
     @Test
-    public void updateUser_shouldReturnMessageThatUserNotFound() throws Exception {
+    public void addUser_concurrencyControl() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             String userName = randomUserName();
-            HttpResponse response = client.patch("/_searchguard/internal_users/" + userName,
-                    DocNode.of("backend_roles", asList("backendRole2", "backendRole3")).toJsonString());
+            DocNode userData = DocNode.of("password", "pass");
 
-            assertEquals(response.getBody(), 404, response.getStatusCode());
-            assertEquals("{message=User " + userName + " not found}", getError(response));
+            HttpResponse response = client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString());
+            assertEquals(response.getBody(), 201, response.getStatusCode());
+
+            response = client.get("/_searchguard/internal_users/" + userName);
+            assertEquals(response.getBody(), 200, response.getStatusCode());
+
+            String eTag = response.getHeaderValue("ETag");
+            assertNotNull(response.getHeaders().toString(), eTag);
+
+            userData = DocNode.of("password", "xyz");
+            response = client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString(), new BasicHeader("If-Match", eTag));
+            assertEquals(response.getBody(), 200, response.getStatusCode());
+
+            userData = DocNode.of("password", "abc");
+            response = client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString(), new BasicHeader("If-Match", eTag));
+            assertEquals(response.getBody(), 412, response.getStatusCode());
+            assertTrue(response.getBody(), response.getBody().contains("Unable to update configuration due to concurrent modification"));
         }
     }
 
-    @Ignore
     @Test
-    public void updateUser_shouldBeAbleToUpdateBackendRoles() throws Exception {
+    public void patchUser_concurrencyControl() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             String userName = randomUserName();
-            client.putJson("/_searchguard/internal_users/" + userName,
-                    DocNode.of("backend_roles", asList("backendRole1", "backendRole2"), "password", "pass").toJsonString());
+            DocNode userData = DocNode.of("password", "pass", "description", "foo");
 
-            HttpResponse response = client.patch("/_searchguard/internal_users/" + userName,
-                    DocNode.of("backend_roles", asList("backendRole2", "backendRole3")).toJsonString());
+            HttpResponse response = client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString());
+            assertEquals(response.getBody(), 201, response.getStatusCode());
 
-            assertEquals(200, response.getStatusCode());
-            assertEquals("User " + userName + " has been updated", getMessage(response));
-        }
-    }
+            response = client.get("/_searchguard/internal_users/" + userName);
+            assertEquals(response.getBody(), 200, response.getStatusCode());
 
-    @Ignore
-    @Test
-    public void updateUser_shouldBeAbleToUpdateSearchGuardRoles() throws Exception {
-        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
-            String userName = randomUserName();
-            client.putJson("/_searchguard/internal_users/" + userName,
-                    DocNode.of("search_guard_roles", asList("sgRole1", "sgRole2"), "password", "pass").toJsonString());
+            String eTag = response.getHeaderValue("ETag");
+            assertNotNull(response.getHeaders().toString(), eTag);
 
-            HttpResponse response = client.patch("/_searchguard/internal_users/" + userName,
-                    DocNode.of("search_guard_roles", asList("sgRole1", "sgRole3")).toJsonString());
+            userData = DocNode.of("backend_roles", Arrays.asList("a", "b", "c"));
+            response = client.patchJsonMerge("/_searchguard/internal_users/" + userName, userData, new BasicHeader("If-Match", eTag));
+            assertEquals(response.getBody(), 200, response.getStatusCode());
 
-            assertEquals(200, response.getStatusCode());
-            assertEquals("User " + userName + " has been updated", getMessage(response));
-        }
-    }
+            userData = DocNode.of("password", "abc");
+            response = client.patchJsonMerge("/_searchguard/internal_users/" + userName, userData.toJsonString(), new BasicHeader("If-Match", eTag));
+            assertEquals(response.getBody(), 412, response.getStatusCode());
+            assertTrue(response.getBody(), response.getBody().contains("Unable to update configuration due to concurrent modification"));
 
-    @Ignore
-    @Test
-    public void updateUser_shouldBeAbleToUpdateAttributes() throws Exception {
-        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
-            String userName = randomUserName();
-            client.putJson("/_searchguard/internal_users/" + userName,
-                    DocNode.of("attributes", ImmutableMap.of("a", "aValue"), "password", "pass").toJsonString());
-
-            HttpResponse response = client.patch("/_searchguard/internal_users/" + userName,
-                    DocNode.of("attributes", ImmutableMap.of("a", "bValue")).toJsonString());
-
-            assertEquals(200, response.getStatusCode());
-            assertEquals("User " + userName + " has been updated", getMessage(response));
-        }
-    }
-
-    @Ignore
-    @Test
-    public void updateUser_shouldBeAbleToUpdatePassword() throws Exception {
-        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
-            String userName = randomUserName();
-            client.putJson("/_searchguard/internal_users/" + userName, DocNode.of("password", "pass").toJsonString());
-
-            HttpResponse response = client.patch("/_searchguard/internal_users/" + userName, DocNode.of("password", "pass3").toJsonString());
-
-            assertEquals(200, response.getStatusCode());
-            assertEquals("User " + userName + " has been updated", getMessage(response));
-        }
-    }
-
-    @Ignore
-    @Test
-    public void updateUser_shouldUpdateData() throws Exception {
-        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
-            String userName = randomUserName();
-            client.putJson("/_searchguard/internal_users/" + userName,
-                    DocNode.of("search_guard_roles", asList("sgRole1", "sgRole2"), "backend_roles", asList("backendRole1", "backendRole2"),
-                            "attributes", ImmutableMap.of("a", "aAttributeValue"), "password", "pass").toJsonString());
-
-            client.patch("/_searchguard/internal_users/" + userName,
-                    DocNode.of("search_guard_roles", asList("sgRole1", "sgRole3"), "backend_roles", asList("backendRole1", "backendRole3"),
-                            "attributes", ImmutableMap.of("a", "aValue", "b", "bValue"), "password", "pass").toJsonString());
-
-            HttpResponse response = client.get("/_searchguard/internal_users/" + userName);
-
-            assertEquals(200, response.getStatusCode());
-            assertEquals("{backend_roles=[backendRole1, backendRole3], attributes={a=aValue, b=bValue}, search_guard_roles=[sgRole1, sgRole3]}",
-                    getData(response));
+            response = client.get("/_searchguard/internal_users/" + userName);
+            assertEquals(response.getBody(), DocNode.of("description", "foo", "backend_roles", Arrays.asList("a", "b", "c")).toMap(),
+                    response.getBodyAsDocNode().get("data"));
         }
     }
 
@@ -268,7 +223,7 @@ public class InternalUsersConfigApiTest {
             HttpResponse response = client.delete("/_searchguard/internal_users/" + userName);
 
             assertEquals(404, response.getStatusCode());
-            assertEquals("{message=User " + userName + " for deletion not found}", getError(response));
+            assertEquals(response.getBody(), "Internal User " + userName + " does not exist", response.getBodyAsDocNode().get("error", "message"));
         }
     }
 
@@ -280,13 +235,13 @@ public class InternalUsersConfigApiTest {
 
             HttpResponse response = client.delete("/_searchguard/internal_users/" + userName);
 
-            assertEquals(204, response.getStatusCode());
+            assertEquals(200, response.getStatusCode());
         }
     }
 
     private void userExists(GenericRestClient client, String userName) throws Exception {
         HttpResponse response = client.putJson("/_searchguard/internal_users/" + userName, validUserData().toJsonString());
-        assertEquals(200, response.getStatusCode());
+        assertEquals(201, response.getStatusCode());
     }
 
     private DocNode validUserData() {
@@ -298,18 +253,4 @@ public class InternalUsersConfigApiTest {
         return "userName_" + UUID.randomUUID();
     }
 
-    private String getError(HttpResponse response) throws DocParseException {
-        DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
-        return responseDoc.getAsString("error");
-    }
-
-    private String getMessage(HttpResponse response) throws DocParseException {
-        DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
-        return responseDoc.getAsString("message");
-    }
-
-    private String getData(HttpResponse response) throws DocParseException {
-        DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
-        return responseDoc.getAsString("data");
-    }
 }

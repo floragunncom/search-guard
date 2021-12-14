@@ -409,18 +409,6 @@ public abstract class DocNode implements Map<String, Object>, Document {
                 return 0;
             }
         }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj)
-                return true;
-            if (obj == null)
-                return false;
-            if (getClass() != obj.getClass())
-                return false;
-            PlainJavaObjectAdapter other = (PlainJavaObjectAdapter) obj;
-            return Objects.equals(object, other.object);
-        }
     }
 
     static class SubTreeView extends DocNode {
@@ -1332,5 +1320,19 @@ public abstract class DocNode implements Map<String, Object>, Document {
         public DocNode from(File file) throws DocParseException, FileNotFoundException, IOException {
             return from(new FileInputStream(file));
         }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+       if (!(obj instanceof DocNode)) {
+           return false;
+       }
+       
+       DocNode other = (DocNode) obj;
+       
+       Object thisObject = this.toBasicObject();
+       Object otherObject = other.toBasicObject();
+       
+       return Objects.equals(thisObject, otherObject);
     }
 }
