@@ -26,9 +26,10 @@ import com.floragunn.codova.validation.errors.ValidationError;
 
 public interface DocPatch extends Document {
     DocNode apply(DocNode targetDocument);
+    String getMediaType();
 
     static DocPatch parse(String contentType, String content) throws ConfigValidationException {
-        if (contentType.equalsIgnoreCase(MergePatch.CONTENT_TYPE)) {
+        if (contentType.equalsIgnoreCase(MergePatch.MEDIA_TYPE)) {
             return new MergePatch(DocNode.parse(DocType.JSON).from(content));
         } else {
             throw new ConfigValidationException(new ValidationError(null, "Unsupported patch type: " + contentType));
@@ -36,7 +37,7 @@ public interface DocPatch extends Document {
     }
 
     static DocPatch parse(UnparsedDoc<?> unparsedDoc) throws ConfigValidationException {
-        if (unparsedDoc.getMediaType().equalsIgnoreCase(MergePatch.CONTENT_TYPE)) {
+        if (unparsedDoc.getMediaType().equalsIgnoreCase(MergePatch.MEDIA_TYPE)) {
             return new MergePatch(DocNode.parse(unparsedDoc));
         } else {
             throw new ConfigValidationException(new ValidationError(null, "Unsupported patch type: " + unparsedDoc.getMediaType()));
@@ -46,7 +47,7 @@ public interface DocPatch extends Document {
     static DocPatch parseTyped(DocNode docNode) throws ConfigValidationException {
         String contentType = docNode.getAsString("type");
 
-        if (contentType.equalsIgnoreCase(MergePatch.CONTENT_TYPE)) {
+        if (contentType.equalsIgnoreCase(MergePatch.MEDIA_TYPE)) {
             return new MergePatch(docNode.getAsNode("content"));
         } else {
             throw new ConfigValidationException(new ValidationError(null, "Unsupported patch type: " + contentType));

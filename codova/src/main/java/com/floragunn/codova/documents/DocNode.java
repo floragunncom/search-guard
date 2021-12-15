@@ -768,6 +768,10 @@ public abstract class DocNode implements Map<String, Object>, Document {
         public Map<String, Object> toNormalizedMap() {
             Map<String, Object> baseMap = toMap();
 
+            if (baseMap == null) {
+                return null;
+            }
+
             boolean baseMapIsTree = baseMap.entrySet().stream().anyMatch(e -> e.getKey().indexOf('.') != -1 || e.getValue() instanceof Map);
 
             if (!baseMapIsTree) {
