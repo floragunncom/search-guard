@@ -25,8 +25,8 @@ import com.google.common.collect.ImmutableMap;
 
 public class MergePatch implements DocPatch {
 
-    static final String CONTENT_TYPE = "application/merge-patch+json";
-    
+    public static final String MEDIA_TYPE = "application/merge-patch+json";
+
     private final DocNode patchDocument;
 
     public MergePatch(DocNode patchDocument) {
@@ -50,7 +50,7 @@ public class MergePatch implements DocPatch {
 
         for (Map.Entry<String, Object> entry : patchDocument.toMap().entrySet()) {
             Object targetValue = modifiedDocument.get(entry.getKey());
-            
+
             if (entry.getValue() == null) {
                 modifiedDocument.remove(entry.getKey());
             } else if (targetValue == null || !(entry.getValue() instanceof Map)) {
@@ -65,6 +65,15 @@ public class MergePatch implements DocPatch {
 
     @Override
     public Object toBasicObject() {
-        return ImmutableMap.of("type", CONTENT_TYPE, "content", patchDocument.toBasicObject());
+        return patchDocument.toBasicObject();
+    }
+
+    public Object toTypedBasicObject() {
+        return ImmutableMap.of("type", MEDIA_TYPE, "content", patchDocument.toBasicObject());
+    }
+
+    @Override
+    public String getMediaType() {
+        return MEDIA_TYPE;
     }
 }
