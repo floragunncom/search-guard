@@ -14,6 +14,9 @@
 
 package com.floragunn.searchguard.auditlog.sink;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -43,7 +46,10 @@ public final class Log4JSink extends AuditLogSink {
 
     public boolean doStore(final AuditMessage msg) {
         if(enabled) {
-            auditLogger.log(logLevel, msg.toJson());
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                auditLogger.log(logLevel, msg.toJson());
+                return null;
+            });
         }
         return true;
     }
