@@ -15,12 +15,13 @@
  * 
  */
 
-package com.floragunn.searchguard.configuration.secrets;
+package com.floragunn.searchguard.configuration.variables;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -34,6 +35,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.DocWriteRequest.OpType;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -41,6 +43,8 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
@@ -48,20 +52,25 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.FailureListener;
-import com.floragunn.searchguard.configuration.secrets.SecretsRefreshAction.Response;
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.Response;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
@@ -70,31 +79,33 @@ import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.client.Actions;
 import com.google.common.io.BaseEncoding;
 
-public class SecretsService implements ComponentStateProvider {
-    private final static Logger log = LogManager.getLogger(SecretsService.class);
+public class ConfigVarService implements ComponentStateProvider {
+    private final static Logger log = LogManager.getLogger(ConfigVarService.class);
 
     private final Client client;
     private final PrivilegedConfigClient privilegedConfigClient;
     private final ClusterService clusterService;
     private final ThreadPool threadPool;
-    private final Map<String, Supplier<String>> requestedValues = new ConcurrentHashMap<>();
-    private final ComponentState componentState = new ComponentState(1000, null, "secrets_storage", SecretsService.class);
-    private final String indexName = ".searchguard_secrets";
+    private final Map<String, RequestedValue> requestedValues = new ConcurrentHashMap<>();
+    private final ComponentState componentState = new ComponentState(1000, null, "config_var_storage", ConfigVarService.class);
+    private final String indexName = ".searchguard_config_vars";
     private Map<String, Object> values;
     private final List<Runnable> changeListeners = new ArrayList<>();
+    private final EncryptionKeys encryptionKeys;
 
-    public SecretsService(Client client, ClusterService clusterService, ThreadPool threadPool,
-            ProtectedConfigIndexService protectedConfigIndexService) {
+    public ConfigVarService(Client client, ClusterService clusterService, ThreadPool threadPool,
+            ProtectedConfigIndexService protectedConfigIndexService, EncryptionKeys encryptionKeys) {
         this.client = client;
         this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.clusterService = clusterService;
         this.threadPool = threadPool;
+        this.encryptionKeys = encryptionKeys;
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexName).onIndexReady((onFailure) -> init(onFailure))));
     }
 
     public Object get(String id) {
         if (values == null) {
-            throw new ElasticsearchException("SecretsService is not yet initialized");
+            throw new ElasticsearchException("ConfigVarService is not yet initialized");
         }
 
         return values.get(id);
@@ -128,7 +139,7 @@ public class SecretsService implements ComponentStateProvider {
 
                     @Override
                     public void onResponse(DeleteResponse deleteResponse) {
-                        SecretsRefreshAction.send(client, new ActionListener<Response>() {
+                        ConfigVarRefreshAction.send(client, new ActionListener<Response>() {
 
                             @Override
                             public void onResponse(Response response) {
@@ -168,20 +179,34 @@ public class SecretsService implements ComponentStateProvider {
         return result;
     }
 
-    public CompletableFuture<StandardResponse> update(String id, Object value) {
+    public CompletableFuture<StandardResponse> update(ConfigVarApi.UpdateAction.Request request) throws EncryptionException {
+        String id = request.getId();
+
         CompletableFuture<StandardResponse> result = new CompletableFuture<>();
 
-        String json = DocWriter.json().writeAsString(value);
+        Map<String, Object> doc = new LinkedHashMap<>();
+
+        if (request.isEncrypt()) {
+            doc.put("encrypted", encryptionKeys.getEncryptedData(request.getValue()));
+        } else {
+            doc.put("value", DocWriter.json().writeAsString(request.getValue()));
+        }
+
+        if (request.getScope() != null) {
+            doc.put("scope", request.getScope());
+        }
+
+        doc.put("updated", Instant.now());
 
         log.info("Writing secret " + id);
 
-        this.privilegedConfigClient.index(new IndexRequest(indexName).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id(id).source("value", json),
-                new ActionListener<IndexResponse>() {
+        this.privilegedConfigClient.index(new IndexRequest(indexName).opType(request.mustNotExist() ? OpType.CREATE : OpType.INDEX)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE).id(id).source(doc), new ActionListener<IndexResponse>() {
 
                     @Override
                     public void onResponse(IndexResponse indexResponse) {
                         if (indexResponse.getResult() == Result.CREATED || indexResponse.getResult() == Result.UPDATED) {
-                            SecretsRefreshAction.send(client, new ActionListener<Response>() {
+                            ConfigVarRefreshAction.send(client, new ActionListener<Response>() {
 
                                 @Override
                                 public void onResponse(Response response) {
@@ -193,7 +218,7 @@ public class SecretsService implements ComponentStateProvider {
                                                     "Index update was successful, but node refresh partially failed",
                                                     response.failures().toString()));
                                         } else if (indexResponse.getResult() == Result.CREATED) {
-                                            result.complete(new StandardResponse(200).message("Created"));
+                                            result.complete(new StandardResponse(201).message("Created"));
                                         } else { // indexResponse.getResult() == Result.UPDATED
                                             result.complete(new StandardResponse(200).message("Updated"));
                                         }
@@ -218,22 +243,47 @@ public class SecretsService implements ComponentStateProvider {
 
                     @Override
                     public void onFailure(Exception e) {
-                        log.error("Error while updating " + id, e);
-                        componentState.addLastException("update", e);
-                        result.completeExceptionally(e);
+                        if (e instanceof VersionConflictEngineException) {
+                            if (e.getMessage().contains("document already exists")) {
+                                result.complete(new StandardResponse(412).error("Variable does already exist"));
+                            } else {
+                                result.complete(new StandardResponse(412).error(e.getMessage()));
+                            }
+                        } else {
+                            log.error("Error while updating " + id, e);
+                            componentState.addLastException("update", e);
+                            result.completeExceptionally(e);
+                        }
                     }
                 });
 
         return result;
+
     }
 
-    public CompletableFuture<StandardResponse> updateAll(Map<String, Object> valueMap) {
+    public CompletableFuture<StandardResponse> updateAll(Map<String, ConfigVar> valueMap) {
         BulkRequest bulkRequest = new BulkRequest();
 
         bulkRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
-        for (Map.Entry<String, Object> entry : valueMap.entrySet()) {
-            bulkRequest.add(new IndexRequest(indexName).id(entry.getKey()).source(DocWriter.json().writeAsString(entry.getValue())));
+        ValidationErrors validationErrors = new ValidationErrors();
+
+        for (Map.Entry<String, ConfigVar> entry : valueMap.entrySet()) {
+            ConfigVar configVar = entry.getValue();
+
+            if (configVar.getEncValue() != null) {
+                try {
+                    encryptionKeys.getDecryptedData(configVar);
+                } catch (Exception e) {
+                    validationErrors.add(new ValidationError(entry.getKey(), e.getMessage()).cause(e));
+                }
+            }
+
+            bulkRequest.add(new IndexRequest(indexName).id(entry.getKey()).source(DocWriter.json().writeAsString(entry.getValue().updatedNow())));
+        }
+
+        if (!validationErrors.hasErrors()) {
+            return CompletableFuture.completedFuture(new StandardResponse(400).error(validationErrors));
         }
 
         Set<String> idsForDeletion = this.values.keySet().stream().filter((id) -> !valueMap.containsKey(id)).collect(Collectors.toSet());
@@ -255,7 +305,7 @@ public class SecretsService implements ComponentStateProvider {
                 if (bulkResponse.hasFailures()) {
                     result.complete(new StandardResponse(500).error("Bulk update partially failed"));
                 } else {
-                    SecretsRefreshAction.send(client, new ActionListener<Response>() {
+                    ConfigVarRefreshAction.send(client, new ActionListener<Response>() {
 
                         @Override
                         public void onResponse(Response response) {
@@ -330,24 +380,56 @@ public class SecretsService implements ComponentStateProvider {
         return result;
     }
 
-    public synchronized void requestRandomKey(String id, int bits) {
-        requestedValues.put(id, () -> generateKey(bits));
+    public synchronized void requestRandomKey(String id, int bits, String scope) {
+        requestedValues.put(id, new RequestedValue(() -> generateKey(bits), scope));
     }
 
-    public synchronized void requestValue(String id, Supplier<String> supplier) {
-        requestedValues.put(id, supplier);
+    public synchronized void requestValue(String id, Supplier<Object> supplier, String scope) {
+        requestedValues.put(id, new RequestedValue(supplier, scope));
     }
 
-    public Map<String, Object> getAll() {
-        if (values == null) {
-            throw new ElasticsearchException("SecretsService is not yet initialized");
+    public Map<String, ConfigVar> getAllFromIndex() {
+        SearchResponse response = privilegedConfigClient.search(new SearchRequest(this.indexName)
+                .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(1000)).scroll(new TimeValue(10000))).actionGet();
+
+        Map<String, ConfigVar> result = new LinkedHashMap<>();
+
+        try {
+            do {
+                for (SearchHit searchHit : response.getHits().getHits()) {
+                    try {
+                        result.put(searchHit.getId(), new ConfigVar(DocNode.wrap(searchHit.getSourceAsMap())));
+                    } catch (Exception e) {
+                        log.error("Error while reading " + searchHit, e);
+                    }
+                }
+
+                response = client.prepareSearchScroll(response.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
+
+            } while (response.getHits().getHits().length != 0);
+        } finally {
+            Actions.clearScrollAsync(client, response);
         }
 
-        return Collections.unmodifiableMap(values);
+        return result;
+    }
+
+    public ConfigVar getFromIndex(String id) {
+        GetResponse response = privilegedConfigClient.get(new GetRequest(this.indexName, id)).actionGet();
+
+        if (response.isExists()) {
+            try {
+                return new ConfigVar(DocNode.wrap(response.getSourceAsMap()));
+            } catch (ConfigValidationException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            return null;
+        }
     }
 
     private synchronized void init(FailureListener failureListener) {
-        Map<String, Supplier<String>> requestedValues = new HashMap<>(this.requestedValues);
+        Map<String, RequestedValue> requestedValues = new HashMap<>(this.requestedValues);
 
         try {
             Map<String, Object> existingValues = new HashMap<>(readValues());
@@ -364,9 +446,9 @@ public class SecretsService implements ComponentStateProvider {
                     log.info("Creating secrets: " + requestedValues);
                 }
 
-                HashMap<String, String> newValues = new HashMap<>();
+                HashMap<String, Object> newValues = new HashMap<>();
 
-                for (Map.Entry<String, Supplier<String>> entry : requestedValues.entrySet()) {
+                for (Map.Entry<String, RequestedValue> entry : requestedValues.entrySet()) {
                     String id = entry.getKey();
 
                     try {
@@ -374,14 +456,23 @@ public class SecretsService implements ComponentStateProvider {
                             continue;
                         }
 
-                        String value = entry.getValue().get();
+                        Object value = entry.getValue().valueSupplier.get();
                         newValues.put(id, value);
 
-                        String valueAsJson = DocWriter.json().writeAsString(value);
+                        Map<String, Object> doc = new LinkedHashMap<>();
+
+                        doc.putAll(encryptionKeys.getEncryptedData(value));
+
+                        String scope = entry.getValue().scope;
+
+                        if (scope != null) {
+                            doc.put("scope", scope);
+                        }
+
+                        doc.put("updated", Instant.now());
 
                         IndexResponse response = privilegedConfigClient
-                                .index(new IndexRequest(this.indexName).id(id).source("value", valueAsJson).setRefreshPolicy(RefreshPolicy.IMMEDIATE))
-                                .actionGet();
+                                .index(new IndexRequest(this.indexName).id(id).source(doc).setRefreshPolicy(RefreshPolicy.IMMEDIATE)).actionGet();
 
                         this.requestedValues.remove(id);
 
@@ -395,7 +486,7 @@ public class SecretsService implements ComponentStateProvider {
 
                 if (!newValues.isEmpty()) {
                     existingValues.putAll(newValues);
-                    SecretsRefreshAction.send(client);
+                    ConfigVarRefreshAction.send(client);
                 }
             }
 
@@ -439,11 +530,17 @@ public class SecretsService implements ComponentStateProvider {
             do {
                 for (SearchHit searchHit : response.getHits().getHits()) {
                     try {
-                        String valueJson = String.valueOf(searchHit.getSourceAsMap().get("value"));
-                        Object value = DocReader.json().read(valueJson);
-                        values.put(searchHit.getId(), value);
+                        Map<String, Object> source = searchHit.getSourceAsMap();
+
+                        if (source.containsKey("value")) {
+                            values.put(searchHit.getId(), DocReader.json().read((String) source.get("value")));
+                        } else if (source.containsKey("encrypted")) {
+                            values.put(searchHit.getId(), encryptionKeys.getDecryptedData(source));
+                        } else {
+                            throw new Exception("Unexpected doc: " + Strings.toString(searchHit));
+                        }
                     } catch (Exception e) {
-                        componentState.addLastException("readValues", e);
+                        componentState.getOrCreatePart("entry", searchHit.getId()).setFailed(e);
                         log.error("Error while reading " + searchHit, e);
                     }
                 }
@@ -504,6 +601,16 @@ public class SecretsService implements ComponentStateProvider {
     @Override
     public ComponentState getComponentState() {
         return componentState;
+    }
+
+    private static class RequestedValue {
+        final Supplier<Object> valueSupplier;
+        final String scope;
+
+        RequestedValue(Supplier<Object> valueSupplier, String scope) {
+            this.valueSupplier = valueSupplier;
+            this.scope = scope;
+        }
     }
 
 }

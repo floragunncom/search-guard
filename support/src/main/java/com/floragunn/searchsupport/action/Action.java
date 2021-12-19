@@ -89,13 +89,17 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
     }
 
     public static abstract class Request extends ActionRequest implements Document {
-        private String matchConcurrencyControlEntityTag;
+        private String ifMatch;
+        private String ifNoneMatch;
 
         public Request() {
 
         }
 
         public Request(UnparsedMessage metaData) {
+            DocNode metaDataDocNode = metaData.getMetaDataDocNode();
+            ifMatch = metaDataDocNode.getAsString("if-match");
+            ifNoneMatch = metaDataDocNode.getAsString("if-none-match");
         }
 
         @Override
@@ -121,28 +125,38 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             }
         }
 
-        public String getMatchConcurrencyControlEntityTag() {
-            return matchConcurrencyControlEntityTag;
-        }
-
-        public Request matchConcurrencyControlEntityTag(String concurrencyControlEntityTag) {
-            this.matchConcurrencyControlEntityTag = concurrencyControlEntityTag;
-            return this;
+        public String getIfMatch() {
+            return ifMatch;
         }
         
         public Request ifMatch(String matchConcurrencyControlEntityTag) {
-            this.matchConcurrencyControlEntityTag = matchConcurrencyControlEntityTag;
+            this.ifMatch = matchConcurrencyControlEntityTag;
+            return this;
+        }
+        
+        public String getIfNoneMatch() {
+            return ifNoneMatch;
+        }
+        
+        public boolean mustNotExist() {
+            return "*".equals(ifNoneMatch);
+        }
+
+        public Request ifNoneMatch(String ifNoneMatch) {
+            this.ifNoneMatch = ifNoneMatch;
             return this;
         }
         
         protected Map<String, Object> getMetaData() {
-            return ImmutableMap.ofNonNull("etag", matchConcurrencyControlEntityTag);
+            return ImmutableMap.ofNonNull("if-match", ifMatch, "if-none-match", ifNoneMatch);
         }
         
         @Override
         public ActionRequestValidationException validate() {
             return null;
         }
+
+
     }
 
     public static abstract class Response extends ActionResponse implements Document, StatusToXContentObject {
@@ -154,7 +168,9 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         }
 
         public Response(UnparsedMessage metaData) {
-            restStatus = ((Number) metaData.getMetaDataDocNode().get("status")).intValue();
+            DocNode metaDataDocNode = metaData.getMetaDataDocNode();
+            restStatus = ((Number) metaDataDocNode.get("status")).intValue();
+            concurrencyControlEntityTag = metaDataDocNode.getAsString("etag");
         }
 
         @Override

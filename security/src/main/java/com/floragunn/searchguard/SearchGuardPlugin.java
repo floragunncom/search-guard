@@ -133,9 +133,10 @@ import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.SearchGuardIndexSearcherWrapper;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
 import com.floragunn.searchguard.configuration.internal_users.InternalUsersConfigApi;
-import com.floragunn.searchguard.configuration.secrets.SecretsConfigApi;
-import com.floragunn.searchguard.configuration.secrets.SecretsRefreshAction;
-import com.floragunn.searchguard.configuration.secrets.SecretsService;
+import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
+import com.floragunn.searchguard.configuration.variables.ConfigVarService;
+import com.floragunn.searchguard.configuration.variables.EncryptionKeys;
 import com.floragunn.searchguard.filter.SearchGuardFilter;
 import com.floragunn.searchguard.filter.SearchGuardRestFilter;
 import com.floragunn.searchguard.http.SearchGuardHttpServerTransport;
@@ -215,7 +216,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private StaticSgConfig staticSgConfig;
     private AuthInfoService authInfoService;
     private DiagnosticContext diagnosticContext;
-    private SecretsService secretsService;
+    private ConfigVarService secretsService;
     private VariableResolvers configVariableProviders = VariableResolvers.ALL_PRIVILEGED;
 
     @Override
@@ -498,7 +499,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
                 handlers.add(new ComponentStateRestAction());
                 handlers.add(BulkConfigApi.REST_API);
-                handlers.add(SecretsConfigApi.REST_API);
+                handlers.add(ConfigVarApi.REST_API);
                 handlers.add(InternalUsersConfigApi.REST_API);
 
             }
@@ -530,12 +531,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(GetComponentStateAction.INSTANCE, GetComponentStateAction.TransportAction.class));
             actions.add(new ActionHandler<>(BulkConfigApi.GetAction.INSTANCE, BulkConfigApi.GetAction.Handler.class));
             actions.add(new ActionHandler<>(BulkConfigApi.UpdateAction.INSTANCE, BulkConfigApi.UpdateAction.Handler.class));
-            actions.add(new ActionHandler<>(SecretsRefreshAction.INSTANCE, SecretsRefreshAction.TransportAction.class));
-            actions.add(new ActionHandler<>(SecretsConfigApi.GetAction.INSTANCE, SecretsConfigApi.GetAction.Handler.class));
-            actions.add(new ActionHandler<>(SecretsConfigApi.UpdateAction.INSTANCE, SecretsConfigApi.UpdateAction.Handler.class));
-            actions.add(new ActionHandler<>(SecretsConfigApi.DeleteAction.INSTANCE, SecretsConfigApi.DeleteAction.Handler.class));
-            actions.add(new ActionHandler<>(SecretsConfigApi.GetAllAction.INSTANCE, SecretsConfigApi.GetAllAction.Handler.class));
-            actions.add(new ActionHandler<>(SecretsConfigApi.UpdateAllAction.INSTANCE, SecretsConfigApi.UpdateAllAction.Handler.class));
+            actions.add(new ActionHandler<>(ConfigVarRefreshAction.INSTANCE, ConfigVarRefreshAction.TransportAction.class));
+            actions.add(new ActionHandler<>(ConfigVarApi.GetAction.INSTANCE, ConfigVarApi.GetAction.Handler.class));
+            actions.add(new ActionHandler<>(ConfigVarApi.UpdateAction.INSTANCE, ConfigVarApi.UpdateAction.Handler.class));
+            actions.add(new ActionHandler<>(ConfigVarApi.DeleteAction.INSTANCE, ConfigVarApi.DeleteAction.Handler.class));
+            actions.add(new ActionHandler<>(ConfigVarApi.GetAllAction.INSTANCE, ConfigVarApi.GetAllAction.Handler.class));
+            actions.add(new ActionHandler<>(ConfigVarApi.UpdateAllAction.INSTANCE, ConfigVarApi.UpdateAllAction.Handler.class));
             actions.add(new ActionHandler<>(InternalUsersConfigApi.GetAction.INSTANCE, InternalUsersConfigApi.GetAction.Handler.class));
             actions.add(new ActionHandler<>(InternalUsersConfigApi.DeleteAction.INSTANCE, InternalUsersConfigApi.DeleteAction.Handler.class));
             actions.add(new ActionHandler<>(InternalUsersConfigApi.PutAction.INSTANCE, InternalUsersConfigApi.PutAction.Handler.class));
@@ -835,7 +836,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         adminDns = new AdminDNs(settings);
 
         protectedConfigIndexService = new ProtectedConfigIndexService(localClient, clusterService, threadPool, protectedIndices);
-        secretsService = new SecretsService(localClient, clusterService, threadPool, protectedConfigIndexService);
+        secretsService = new ConfigVarService(localClient, clusterService, threadPool, protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(secretsService);
 
         AuthczVariableResolvers.init(secretsService);
@@ -1172,6 +1173,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false, Property.NodeScope, Property.Filtered));
 
             settings.add(SearchGuardModulesRegistry.DISABLED_MODULES);
+            settings.add(EncryptionKeys.ENCRYPTION_KEYS_SETTING);
             settings.addAll(moduleRegistry.getSettings());
             settings.addAll(DiagnosticContext.SETTINGS);
         }

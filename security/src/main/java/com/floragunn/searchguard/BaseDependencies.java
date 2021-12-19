@@ -33,7 +33,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchguard.configuration.secrets.SecretsService;
+import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
@@ -60,7 +60,7 @@ public class BaseDependencies {
     private final StaticSgConfig staticSgConfig;
     private final DiagnosticContext diagnosticContext;
     private final BackendRegistry backendRegistry;
-    private final SecretsService secretsService;
+    private final ConfigVarService secretsService;
     private final VariableResolvers configVariableProviders;
     private final AuditLog auditLog;
 
@@ -70,7 +70,7 @@ public class BaseDependencies {
             DynamicConfigFactory dynamicConfigFactory, StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository,
             ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, BackendRegistry backendRegistry,
-            SecretsService secretsStorageService, VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog) {
+            ConfigVarService secretsStorageService, VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog) {
         super();
         this.settings = settings;
         this.localClient = localClient;
@@ -167,7 +167,7 @@ public class BaseDependencies {
         return backendRegistry;
     }
 
-    public SecretsService getSecretsService() {
+    public ConfigVarService getSecretsService() {
         return secretsService;
     }
 

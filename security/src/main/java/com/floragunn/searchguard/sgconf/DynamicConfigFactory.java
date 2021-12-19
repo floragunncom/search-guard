@@ -21,7 +21,7 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.internal_users.InternalUser;
-import com.floragunn.searchguard.configuration.secrets.SecretsService;
+import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
@@ -55,7 +55,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     
     public DynamicConfigFactory(ConfigurationRepository cr, StaticSgConfig staticSgConfig, final Settings esSettings, 
             final Path configPath, Client client, ThreadPool threadPool, ClusterInfoHolder cih, SearchGuardModulesRegistry modulesRegistry,
-            SecretsService secretsStorageService) {
+            ConfigVarService secretsStorageService) {
         super();
         this.cr = cr;
         this.esSettings = esSettings;

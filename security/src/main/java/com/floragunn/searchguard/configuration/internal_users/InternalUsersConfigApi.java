@@ -147,7 +147,7 @@ public class InternalUsersConfigApi {
                 return CompletableFuture.supplyAsync(() -> {
                     try {
                         return this.configRepository.addOrUpdate(CType.INTERNALUSERS, request.getId(), request.getValue(),
-                                request.getMatchConcurrencyControlEntityTag());
+                                request.getIfMatch());
                     } catch (ConcurrentConfigUpdateException e) {
                         return new StandardResponse(412).error(e.getMessage());
                     } catch (ConfigUpdateException e) {
@@ -259,7 +259,7 @@ public class InternalUsersConfigApi {
                 return CompletableFuture.supplyAsync(() -> {
                     try {
                         return this.configRepository.applyPatch(CType.INTERNALUSERS, request.getId(), request.getPatch(),
-                                request.getMatchConcurrencyControlEntityTag());
+                                request.getIfMatch());
                     } catch (ConfigValidationException e) {
                         return new StandardResponse(400).error(null, e.getMessage(), e.getValidationErrors());
                     } catch (ConcurrentConfigUpdateException e) {
