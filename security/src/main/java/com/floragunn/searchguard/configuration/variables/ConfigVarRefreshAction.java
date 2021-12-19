@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.configuration.secrets;
+package com.floragunn.searchguard.configuration.variables;
 
 import java.io.IOException;
 import java.util.List;
@@ -41,13 +41,13 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
-public class SecretsRefreshAction extends ActionType<SecretsRefreshAction.Response> {
-    private final static Logger log = LogManager.getLogger(SecretsRefreshAction.class);
+public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Response> {
+    private final static Logger log = LogManager.getLogger(ConfigVarRefreshAction.class);
 
-    public static final SecretsRefreshAction INSTANCE = new SecretsRefreshAction();
-    public static final String NAME = "cluster:admin:searchguard:secrets/refresh";
+    public static final ConfigVarRefreshAction INSTANCE = new ConfigVarRefreshAction();
+    public static final String NAME = "cluster:admin:searchguard:config_vars/refresh";
 
-    protected SecretsRefreshAction() {
+    protected ConfigVarRefreshAction() {
         super(NAME, in -> {
             Response response = new Response(in);
             return response;
@@ -55,8 +55,8 @@ public class SecretsRefreshAction extends ActionType<SecretsRefreshAction.Respon
     }
 
     public static void send(Client client) {
-        log.trace("Sending SecretsRefreshAction.Request");
-        client.execute(SecretsRefreshAction.INSTANCE, new Request(), new ActionListener<Response>() {
+        log.trace("Sending ConfigVarRefreshAction.Request");
+        client.execute(ConfigVarRefreshAction.INSTANCE, new Request(), new ActionListener<Response>() {
 
             @Override
             public void onResponse(Response response) {
@@ -73,7 +73,7 @@ public class SecretsRefreshAction extends ActionType<SecretsRefreshAction.Respon
 
     public static void send(Client client, ActionListener<Response> actionListener) {
         log.trace("Sending SecretsRefreshAction.Request");
-        client.execute(SecretsRefreshAction.INSTANCE, new Request(), actionListener);
+        client.execute(ConfigVarRefreshAction.INSTANCE, new Request(), actionListener);
     }
 
     public static class Request extends BaseNodesRequest<Request> {
@@ -116,12 +116,12 @@ public class SecretsRefreshAction extends ActionType<SecretsRefreshAction.Respon
 
     public static class TransportAction extends TransportNodesAction<Request, Response, TransportAction.NodeRequest, TransportAction.NodeResponse> {
 
-        private final SecretsService secretsStorageService;
+        private final ConfigVarService secretsStorageService;
 
         @Inject
-        public TransportAction(SecretsService secretsStorageService, ThreadPool threadPool, ClusterService clusterService,
+        public TransportAction(ConfigVarService secretsStorageService, ThreadPool threadPool, ClusterService clusterService,
                 TransportService transportService, ActionFilters actionFilters) {
-            super(SecretsRefreshAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new,
+            super(ConfigVarRefreshAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new,
                     TransportAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT, TransportAction.NodeResponse.class);
             this.secretsStorageService = secretsStorageService;
         }

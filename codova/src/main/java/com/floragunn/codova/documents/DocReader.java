@@ -225,16 +225,20 @@ public class DocReader {
             }
         }
 
-        private Object read(InputStream in) throws DocParseException, IOException {
+        public Object read(File file) throws DocParseException, FileNotFoundException, IOException {
+            return read(new FileInputStream(file));
+        }
+
+        public Object read(InputStream in) throws DocParseException, IOException {
             try (JsonParser parser = jsonFactory.createParser(in)) {
                 return new DocReader(docType, parser).read();
             }
         }
-        
+
         public Map<String, Object> readObject(Reader in) throws DocParseException, IOException {
             return toJsonObject(read(in));
         }
-        
+
         public Map<String, Object> readObject(InputStream in) throws DocParseException, IOException {
             return toJsonObject(read(in));
         }

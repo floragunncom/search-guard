@@ -15,8 +15,9 @@
  *
  */
 
-package com.floragunn.searchguard.configuration.secrets;
+package com.floragunn.searchguard.configuration.variables;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -25,30 +26,32 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.UnparsedDoc;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
 import com.floragunn.searchsupport.action.StandardRequests.IdRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
-import com.google.common.collect.ImmutableMap;
+import com.floragunn.searchsupport.util.ImmutableMap;
 
-public class SecretsConfigApi {
+public class ConfigVarApi {
     public static final RestApi REST_API = new RestApi()//
-            .handlesGet("/_searchguard/secrets").with(GetAllAction.INSTANCE)//
-            .handlesGet("/_searchguard/secrets/{id}").with(GetAction.INSTANCE, (params, body) -> new IdRequest(params.get("id")))
-            .handlesPut("/_searchguard/secrets").with(UpdateAllAction.INSTANCE)//
-            .handlesPut("/_searchguard/secrets/{id}")
-            .with(UpdateAction.INSTANCE, (params, body) -> new UpdateAction.Request(params.get("id"), body.toBasicObject()))//
-            .handlesDelete("/_searchguard/secrets/{id}").with(DeleteAction.INSTANCE, (params, body) -> new IdRequest(params.get("id")))
-            .name("Search Guard Secrets");
+            .handlesGet("/_searchguard/config/vars").with(GetAllAction.INSTANCE)//
+            .handlesGet("/_searchguard/config/vars/{id}").with(GetAction.INSTANCE, (params, body) -> new IdRequest(params.get("id")))
+            .handlesPut("/_searchguard/config/vars").with(UpdateAllAction.INSTANCE)//
+            .handlesPut("/_searchguard/config/vars/{id}").with(UpdateAction.INSTANCE, (params, body) -> new UpdateAction.Request(params.get("id"), body))//
+            .handlesDelete("/_searchguard/config/vars/{id}").with(DeleteAction.INSTANCE, (params, body) -> new IdRequest(params.get("id")))
+            .name("/_searchguard/config/vars");
 
     public static class GetAction extends Action<StandardRequests.IdRequest, StandardResponse> {
         protected final static Logger log = LogManager.getLogger(GetAction.class);
 
         public static final GetAction INSTANCE = new GetAction();
-        public static final String NAME = "cluster:admin:searchguard:config/secret/get";
+        public static final String NAME = "cluster:admin:searchguard:config/vars/get";
 
         protected GetAction() {
             super(NAME, StandardRequests.IdRequest::new, StandardResponse::new);
@@ -56,10 +59,10 @@ public class SecretsConfigApi {
 
         public static class Handler extends Action.Handler<StandardRequests.IdRequest, StandardResponse> {
 
-            private SecretsService secretsService;
+            private ConfigVarService secretsService;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, SecretsService secretsService) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigVarService secretsService) {
                 super(GetAction.INSTANCE, handlerDependencies);
 
                 this.secretsService = secretsService;
@@ -68,13 +71,21 @@ public class SecretsConfigApi {
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(StandardRequests.IdRequest request) {
-                Object value = secretsService.get(request.getId());
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        ConfigVar value = secretsService.getFromIndex(request.getId());
 
-                if (value != null) {
-                    return CompletableFuture.completedFuture(new StandardResponse(200).data(value));
-                } else {
-                    return CompletableFuture.completedFuture(new StandardResponse(404).error("Not found"));
-                }
+                        if (value != null) {
+                            return new StandardResponse(200).data(value.toBasicObject());
+                        } else {
+                            return new StandardResponse(404).error("Not found");
+                        }
+                    } catch (Exception e) {
+                        log.error("Error in GetAction", e);
+                        return new StandardResponse(500).error(e.getMessage());
+                    }
+                });
+
             }
         }
     }
@@ -83,7 +94,7 @@ public class SecretsConfigApi {
         protected final static Logger log = LogManager.getLogger(UpdateAction.class);
 
         public static final UpdateAction INSTANCE = new UpdateAction();
-        public static final String NAME = "cluster:admin:searchguard:config/secret/update";
+        public static final String NAME = "cluster:admin:searchguard:config/vars/put";
 
         protected UpdateAction() {
             super(NAME, Request::new, StandardResponse::new);
@@ -92,11 +103,15 @@ public class SecretsConfigApi {
         public static class Request extends Action.Request {
             private final String id;
             private final Object value;
+            private final String scope;
+            private final boolean encrypt;
 
-            public Request(String id, Object value) {
+            public Request(String id, Object value, String scope, boolean encrypt) {
                 super();
                 this.id = id;
                 this.value = value;
+                this.scope = scope;
+                this.encrypt = encrypt;
             }
 
             public Request(UnparsedMessage message) throws ConfigValidationException {
@@ -104,11 +119,22 @@ public class SecretsConfigApi {
                 DocNode docNode = message.requiredDocNode();
                 this.id = docNode.getAsString("id");
                 this.value = docNode.get("value");
+                this.scope = docNode.getAsString("scope");
+                this.encrypt = docNode.getBoolean("encrypt");
+            }
+
+            public Request(String id, UnparsedDoc<?> doc) throws ConfigValidationException {
+                ValidationErrors validationErrors = new ValidationErrors();
+                ValidatingDocNode vNode = new ValidatingDocNode(doc.parseAsDocNode(), validationErrors);
+                this.id = id;
+                this.value = vNode.get("value").required().asAnything();
+                this.scope = vNode.get("scope").asString();
+                this.encrypt = vNode.get("encrypt").withDefault(false).asBoolean();
             }
 
             @Override
             public Object toBasicObject() {
-                return ImmutableMap.of("id", id, "value", value);
+                return ImmutableMap.ofNonNull("id", id, "value", value, "scope", scope, "encrypt", encrypt);
             }
 
             public String getId() {
@@ -118,23 +144,35 @@ public class SecretsConfigApi {
             public Object getValue() {
                 return value;
             }
+
+            public String getScope() {
+                return scope;
+            }
+
+            public boolean isEncrypt() {
+                return encrypt;
+            }
         }
 
         public static class Handler extends Action.Handler<Request, StandardResponse> {
 
-            private SecretsService secretsService;
+            private ConfigVarService secretsService;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, SecretsService secretsService) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigVarService secretsService) {
                 super(UpdateAction.INSTANCE, handlerDependencies);
 
                 this.secretsService = secretsService;
-
             }
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(Request request) {
-                return secretsService.update(request.getId(), request.getValue());
+                try {
+                    return secretsService.update(request);
+                } catch (EncryptionException e) {
+                    log.error("Error while encrypting data: " + request, e);
+                    return CompletableFuture.completedFuture(new StandardResponse(500, e.getMessage()));
+                }
             }
         }
     }
@@ -143,7 +181,7 @@ public class SecretsConfigApi {
         protected final static Logger log = LogManager.getLogger(DeleteAction.class);
 
         public static final DeleteAction INSTANCE = new DeleteAction();
-        public static final String NAME = "cluster:admin:searchguard:config/secret/delete";
+        public static final String NAME = "cluster:admin:searchguard:config/vars/delete";
 
         protected DeleteAction() {
             super(NAME, IdRequest::new, StandardResponse::new);
@@ -151,10 +189,10 @@ public class SecretsConfigApi {
 
         public static class Handler extends Action.Handler<IdRequest, StandardResponse> {
 
-            private SecretsService secretsService;
+            private ConfigVarService secretsService;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, SecretsService secretsService) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigVarService secretsService) {
                 super(DeleteAction.INSTANCE, handlerDependencies);
 
                 this.secretsService = secretsService;
@@ -172,7 +210,7 @@ public class SecretsConfigApi {
         protected final static Logger log = LogManager.getLogger(GetAllAction.class);
 
         public static final GetAllAction INSTANCE = new GetAllAction();
-        public static final String NAME = "cluster:admin:searchguard:config/secret/get/all";
+        public static final String NAME = "cluster:admin:searchguard:config/vars/get/all";
 
         protected GetAllAction() {
             super(NAME, EmptyRequest::new, StandardResponse::new);
@@ -180,10 +218,10 @@ public class SecretsConfigApi {
 
         public static class Handler extends Action.Handler<EmptyRequest, StandardResponse> {
 
-            private SecretsService secretsService;
+            private ConfigVarService secretsService;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, SecretsService secretsService) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigVarService secretsService) {
                 super(GetAllAction.INSTANCE, handlerDependencies);
 
                 this.secretsService = secretsService;
@@ -192,9 +230,15 @@ public class SecretsConfigApi {
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(EmptyRequest request) {
-                return CompletableFuture.completedFuture(new StandardResponse(200).data(secretsService.getAll()));
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return new StandardResponse(200).data(secretsService.getAllFromIndex());
+                    } catch (Exception e) {
+                        log.error("Error in GetAllAction", e);
+                        return new StandardResponse(500).error(e.getMessage());
+                    }
+                });
             }
-
         }
     }
 
@@ -202,23 +246,34 @@ public class SecretsConfigApi {
         protected final static Logger log = LogManager.getLogger(UpdateAllAction.class);
 
         public static final UpdateAllAction INSTANCE = new UpdateAllAction();
-        public static final String NAME = "cluster:admin:searchguard:config/secret/update/all";
+        public static final String NAME = "cluster:admin:searchguard:config/vars/put/all";
 
         protected UpdateAllAction() {
             super(NAME, Request::new, StandardResponse::new);
         }
 
         public static class Request extends Action.Request {
-            private Map<String, Object> idToValueMap;
+            private Map<String, ConfigVar> idToValueMap;
 
-            public Request(Map<String, Object> idToValueMap) {
+            public Request(Map<String, ConfigVar> idToValueMap) {
                 super();
                 this.idToValueMap = idToValueMap;
             }
 
             public Request(UnparsedMessage message) throws ConfigValidationException {
                 super(message);
-                this.idToValueMap = message.requiredDocNode().toMap();
+                Map<String, Object> map = message.requiredDocNode().toMap();
+                ValidationErrors validationErrors = new ValidationErrors();
+
+                this.idToValueMap = new HashMap<>(map.size());
+
+                for (Map.Entry<String, Object> entry : map.entrySet()) {
+                    try {
+                        this.idToValueMap.put(entry.getKey(), new ConfigVar(DocNode.wrap(entry.getValue())));
+                    } catch (ConfigValidationException e) {
+                        validationErrors.add(entry.getKey(), e);
+                    }
+                }
             }
 
             @Override
@@ -226,7 +281,7 @@ public class SecretsConfigApi {
                 return idToValueMap;
             }
 
-            public Map<String, Object> getIdToValueMap() {
+            public Map<String, ConfigVar> getIdToValueMap() {
                 return idToValueMap;
             }
 
@@ -234,10 +289,10 @@ public class SecretsConfigApi {
 
         public static class Handler extends Action.Handler<Request, StandardResponse> {
 
-            private SecretsService secretsService;
+            private ConfigVarService secretsService;
 
             @Inject
-            public Handler(HandlerDependencies handlerDependencies, SecretsService secretsService) {
+            public Handler(HandlerDependencies handlerDependencies, ConfigVarService secretsService) {
                 super(UpdateAllAction.INSTANCE, handlerDependencies);
 
                 this.secretsService = secretsService;

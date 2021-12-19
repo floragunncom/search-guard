@@ -23,6 +23,7 @@ import java.util.Map;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.action.Action.UnparsedMessage;
 
 public class StandardResponse extends Action.Response {
@@ -62,6 +63,18 @@ public class StandardResponse extends Action.Response {
         return this;
     }
 
+    public StandardResponse data(Map<?, ? extends Document> map) {
+        Map<String, Object> plainMap = new LinkedHashMap<>(map.size());
+
+        for (Map.Entry<?, ? extends Document> entry : map.entrySet()) {
+            plainMap.put(String.valueOf(entry.getKey()), entry.getValue() != null ? entry.getValue().toBasicObject() : null);
+        }
+
+        this.data = plainMap;
+
+        return this;
+    }
+
     public StandardResponse message(String message) {
         this.message = message;
         return this;
@@ -86,7 +99,11 @@ public class StandardResponse extends Action.Response {
         this.error = new Error(null, e.getMessage(), e.getValidationErrors().toMap());
         return this;
     }
-    
+
+    public StandardResponse error(ValidationErrors validationErrors) {
+        return this.error(new ConfigValidationException(validationErrors));
+    }
+
     @Override
     public StandardResponse eTag(String concurrencyControlEntityTag) {
         super.eTag(concurrencyControlEntityTag);

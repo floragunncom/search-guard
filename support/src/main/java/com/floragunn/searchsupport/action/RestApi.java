@@ -200,6 +200,12 @@ public class RestApi extends BaseRestHandler {
                     if (ifMatchHeader != null) {
                         transportRequest.ifMatch(ifMatchHeader);
                     }
+                    
+                    String ifNoneMatchHeader = restRequest.header("If-None-Match");
+                    
+                    if (ifNoneMatchHeader != null) {
+                        transportRequest.ifNoneMatch(ifNoneMatchHeader);
+                    }
 
                     return channel -> client.execute(action, transportRequest, new RestResponseListener<ResponseType>(channel) {
 
@@ -260,6 +266,12 @@ public class RestApi extends BaseRestHandler {
                     
                     if (ifMatchHeader != null) {
                         transportRequest.ifMatch(ifMatchHeader);
+                    }
+                    
+                    String ifNoneMatchHeader = restRequest.header("If-None-Match");
+                    
+                    if (ifNoneMatchHeader != null) {
+                        transportRequest.ifNoneMatch(ifNoneMatchHeader);
                     }
 
                     if (log.isDebugEnabled()) {

@@ -88,6 +88,23 @@ public interface ImmutableSet<E> extends Set<E> {
         }
     }
 
+    public static <E> ImmutableSet<E> of(Set<E> set) {
+        if (set instanceof ImmutableSet) {
+            return (ImmutableSet<E>) set;
+        } else if (set == null || set.size() == 0) {
+            return empty();
+        } else if (set.size() == 1) {
+            return new OneElementSet<E>(set.iterator().next());
+        } else if (set.size() == 2) {
+            Iterator<E> iter = set.iterator();
+            return new TwoElementSet<E>(iter.next(), iter.next());
+        } else if (set.size() <= 4) {
+            return new ArrayBackedSet<>(set);
+        } else {
+            return new SetBackedSet<>(new HashSet<>(set));
+        }
+    }
+
     ImmutableSet<E> with(E other);
 
     ImmutableSet<E> with(ImmutableSet<E> other);
@@ -384,6 +401,10 @@ public interface ImmutableSet<E> extends Set<E> {
     static class ArrayBackedSet<E> extends AbstractImmutableSet<E> {
 
         private final Object[] elements;
+
+        ArrayBackedSet(Object[] elements) {
+            this.elements = elements;
+        }
 
         ArrayBackedSet(Set<E> elements) {
             this.elements = elements.toArray();
