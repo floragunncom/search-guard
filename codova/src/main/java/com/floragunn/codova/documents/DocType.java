@@ -137,7 +137,8 @@ public class DocType {
         this.jsonFactory = jsonFactory;
         this.jsonFactoryUnavailabilityReason = null;
         this.mediaTypeAliases = new HashSet<>(Arrays.asList(mediaTypeAliases));
-        this.fileNamePattern = fileNameSuffixPattern != null ? Pattern.compile("\\." + fileNameSuffixPattern + "$", Pattern.CASE_INSENSITIVE) : null;
+        this.fileNamePattern = fileNameSuffixPattern != null ? Pattern.compile(".*\\." + fileNameSuffixPattern + "$", Pattern.CASE_INSENSITIVE)
+                : null;
         this.defaultCharset = encoding == Encoding.TEXT ? Charsets.UTF_8 : null;
 
         register(this);
@@ -163,7 +164,8 @@ public class DocType {
         this.jsonFactory = jsonFactory;
         this.jsonFactoryUnavailabilityReason = jsonFactoryUnavailabilityReason;
         this.mediaTypeAliases = new HashSet<>(Arrays.asList(mediaTypeAliases));
-        this.fileNamePattern = fileNameSuffixPattern != null ? Pattern.compile("\\." + fileNameSuffixPattern + "$", Pattern.CASE_INSENSITIVE) : null;
+        this.fileNamePattern = fileNameSuffixPattern != null ? Pattern.compile(".*\\." + fileNameSuffixPattern + "$", Pattern.CASE_INSENSITIVE)
+                : null;
         this.defaultCharset = encoding == Encoding.TEXT ? Charsets.UTF_8 : null;
 
         register(this);
