@@ -311,7 +311,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
         @Override
         public boolean isEmpty() {
-            return size() != 0;
+            return size() == 0;
         }
 
         @Override
@@ -797,7 +797,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
         private Set<String> rootKeyNames() {
             if (this.rootKeyNames == null) {
-                Set<String> rootKeyNames = new HashSet<>();
+                Set<String> rootKeyNames = new LinkedHashSet<>();
 
                 for (String key : keySet()) {
                     int dot = key.indexOf('.');
@@ -862,6 +862,29 @@ public abstract class DocNode implements Map<String, Object>, Document {
         }
 
         return false;
+    }
+
+    public DocNode with(Document other) {
+        DocNode otherDocNode;
+
+        if (other instanceof DocNode) {
+            otherDocNode = (DocNode) other;
+        } else {
+            otherDocNode = other.toDocNode();
+        }
+
+        if (otherDocNode.isEmpty()) {
+            return this;
+        }
+
+        if (!otherDocNode.isMap() || !this.isMap()) {
+            return otherDocNode;
+        }
+
+        Map<String, Object> newMap = new LinkedHashMap<>(this.toNormalizedMap());
+        newMap.putAll(otherDocNode.toNormalizedMap());
+
+        return new PlainJavaObjectAdapter(newMap);
     }
 
     public DocNode without(String... attrs) {
@@ -1328,15 +1351,15 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
     @Override
     public boolean equals(Object obj) {
-       if (!(obj instanceof DocNode)) {
-           return false;
-       }
-       
-       DocNode other = (DocNode) obj;
-       
-       Object thisObject = this.toBasicObject();
-       Object otherObject = other.toBasicObject();
-       
-       return Objects.equals(thisObject, otherObject);
+        if (!(obj instanceof DocNode)) {
+            return false;
+        }
+
+        DocNode other = (DocNode) obj;
+
+        Object thisObject = this.toBasicObject();
+        Object otherObject = other.toBasicObject();
+
+        return Objects.equals(thisObject, otherObject);
     }
 }

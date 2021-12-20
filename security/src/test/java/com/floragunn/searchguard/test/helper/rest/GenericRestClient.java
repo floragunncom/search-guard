@@ -125,6 +125,10 @@ public class GenericRestClient implements AutoCloseable {
         return response;
     }
 
+    public HttpResponse putJson(String path, Document body) throws Exception {
+        return putJson(path, body.toJsonString());
+    }
+    
     public HttpResponse putJson(String path, ToXContentObject body) throws Exception {
         return putJson(path, Strings.toString(body));
     }

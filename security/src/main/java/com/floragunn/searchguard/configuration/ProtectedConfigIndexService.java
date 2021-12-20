@@ -42,8 +42,10 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchsupport.indices.IndexMapping;
 
 public class ProtectedConfigIndexService {
     private final static Logger log = LogManager.getLogger(ProtectedConfigIndexService.class);
@@ -393,6 +395,11 @@ public class ProtectedConfigIndexService {
 
         public ConfigIndex(String name) {
             this.name = name;
+        }
+
+        public ConfigIndex mapping(IndexMapping mapping) {
+            this.mapping = mapping.toDocNode().toMap();
+            return this;
         }
 
         public ConfigIndex mapping(Map<String, Object> mapping) {

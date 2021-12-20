@@ -151,14 +151,14 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document, Redactab
         return sdc;
     }
     
-    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType<T> ctype) throws ConfigValidationException {
+    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, ?> map, CType<T> ctype) throws ConfigValidationException {
         int configVersion = getConfigVersion(map, ctype);
         
         return fromMap(map, ctype, configVersion, -1, -1, -1);
     }
     
    
-    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, Object> map, CType<T> ctype, int version, long docVersion, long seqNo, long primaryTerm) throws ConfigValidationException {
+    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, ?> map, CType<T> ctype, int version, long docVersion, long seqNo, long primaryTerm) throws ConfigValidationException {
         SgDynamicConfiguration<T> sdc;               
         if(ctype != null) {
             if (ctype.getParser() != null) {
@@ -287,7 +287,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document, Redactab
         return (SgDynamicConfiguration<T>) fromJson(DefaultObjectMapper.writeValueAsString(json, false), null, CType.getByClass(configType), version, docVersion, seqNo, primaryTerm);
     }
     
-    private static int getConfigVersion(Map<String, Object> map, CType<?> ctype) {
+    private static int getConfigVersion(Map<String, ?> map, CType<?> ctype) {
         if (!(map.get("_sg_meta") instanceof Map)) {
             return 1;
         }

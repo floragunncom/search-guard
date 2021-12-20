@@ -558,7 +558,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
 
-    public void update(Map<CType<?>, Map<String, Object>> configTypeToConfigMap) throws ConfigUpdateException, ConfigValidationException {
+    public void update(Map<CType<?>, Map<String, ?>> configTypeToConfigMap) throws ConfigUpdateException, ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         BulkRequest bulkRequest = new BulkRequest();
 
@@ -568,9 +568,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
             throw new ConfigValidationException(new ValidationError(null, "No configuration given"));
         }
 
-        for (Map.Entry<CType<?>, Map<String, Object>> entry : configTypeToConfigMap.entrySet()) {
+        for (Map.Entry<CType<?>, Map<String, ?>> entry : configTypeToConfigMap.entrySet()) {
             CType<?> ctype = entry.getKey();
-            Map<String, Object> configMap = entry.getValue();
+            Map<String, ?> configMap = entry.getValue();
 
             if (configMap == null) {
                 validationErrors.add(new InvalidAttributeValue(ctype.toLCString(), null, "A config JSON document"));
