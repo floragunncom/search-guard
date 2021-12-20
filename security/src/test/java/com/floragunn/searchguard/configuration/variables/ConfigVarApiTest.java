@@ -76,6 +76,36 @@ public class ConfigVarApiTest {
     }
 
     @Test
+    public void indexMappingTest() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            HttpResponse response = client.putJson("/_searchguard/config/vars/m1", DocWriter.json().writeAsString(ImmutableMap.of("value", 1)));
+            Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
+
+            response = client.putJson("/_searchguard/config/vars/m2", DocWriter.json().writeAsString(ImmutableMap.of("value", "foo")));
+            Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
+
+            response = client.putJson("/_searchguard/config/vars/m3",
+                    DocWriter.json().writeAsString(ImmutableMap.of("value", ImmutableMap.of("a", 1, "b", 2))));
+            Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
+
+            Thread.sleep(20);
+
+            response = client.get("/_searchguard/config/vars/m1");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), 1, response.getBodyAsDocNode().get("data", "value"));
+
+            response = client.get("/_searchguard/config/vars/m2");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), "foo", response.getBodyAsDocNode().get("data", "value"));
+
+            response = client.get("/_searchguard/config/vars/m3");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), ImmutableMap.of("a", 1, "b", 2), response.getBodyAsDocNode().get("data", "value"));
+        }
+    }
+
+    @Test
     public void encryptedPutGetDeleteTest() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 

@@ -21,12 +21,26 @@ import org.joda.time.Instant;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.searchsupport.indices.IndexMapping;
+import com.floragunn.searchsupport.indices.IndexMapping.BinaryProperty;
+import com.floragunn.searchsupport.indices.IndexMapping.DisabledIndexProperty;
+import com.floragunn.searchsupport.indices.IndexMapping.DynamicIndexMapping;
+import com.floragunn.searchsupport.indices.IndexMapping.KeywordProperty;
+import com.floragunn.searchsupport.indices.IndexMapping.ObjectProperty;
 import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class ConfigVar implements Document {
+
+    static IndexMapping INDEX_MAPPING = new DynamicIndexMapping(//
+            new DisabledIndexProperty("value"), //
+            new KeywordProperty("scope"), //
+            new KeywordProperty("updated"), //
+            new ObjectProperty("encrypted", new BinaryProperty("value"), new KeywordProperty("key"), new KeywordProperty("iv")));
 
     private final Object value;
     private final String scope;
@@ -46,7 +60,18 @@ public class ConfigVar implements Document {
     }
 
     public ConfigVar(DocNode docNode) throws ConfigValidationException {
-        this.value = docNode.hasNonNull("value") ? DocReader.json().read(docNode.getAsString("value")) : null;
+        if (docNode.hasNonNull("value")) {
+            this.value = docNode.get("value");
+        } else if (docNode.hasNonNull("value_json")) {
+            try {
+                this.value = DocReader.json().read(docNode.getAsString("value_json"));
+            } catch (ConfigValidationException e) {
+                throw new ConfigValidationException(new ValidationErrors().add("value_json", e));
+            }
+        } else {
+            this.value = null;
+        }
+
         this.scope = docNode.getAsString("scope");
         this.updated = docNode.getAsString("updated");
 
@@ -85,6 +110,15 @@ public class ConfigVar implements Document {
                     "updated", updated);
         } else {
             return ImmutableMap.ofNonNull("value", value, "scope", scope, "updated", updated);
+        }
+    }
+
+    public Object toBasicObjectForIndex() {
+        if (encValue != null) {
+            return ImmutableMap.ofNonNull("encrypted", ImmutableMap.ofNonNull("value", encValue, "key", encKey, "iv", encIv), "scope", scope,
+                    "updated", updated);
+        } else {
+            return ImmutableMap.ofNonNull("value", DocWriter.json().writeAsString(this.value), "scope", scope, "updated", updated);
         }
     }
 

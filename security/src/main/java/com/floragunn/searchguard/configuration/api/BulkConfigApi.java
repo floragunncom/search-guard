@@ -17,13 +17,12 @@
 
 package com.floragunn.searchguard.configuration.api;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,6 +31,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.xcontent.ToXContent;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocUtils;
 import com.floragunn.codova.documents.UnparsedDoc;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -46,233 +46,275 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.variables.ConfigVar;
+import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
+import com.floragunn.searchsupport.util.ImmutableMap;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
-import com.google.common.collect.ImmutableMap;
 
 public class BulkConfigApi {
-	private static final Logger log = LogManager.getLogger(BulkConfigApi.class);
+    private static final Logger log = LogManager.getLogger(BulkConfigApi.class);
 
-	public static final RestApi REST_API = new RestApi()//
-			.handlesGet("/_searchguard/config").with(GetAction.INSTANCE)//
-			.handlesPut("/_searchguard/config").with(UpdateAction.INSTANCE)//
-			.name("Search Guard Config Management API for retrieving and updating all config types in one batch");
+    public static final RestApi REST_API = new RestApi()//
+            .handlesGet("/_searchguard/config").with(GetAction.INSTANCE)//
+            .handlesPut("/_searchguard/config").with(UpdateAction.INSTANCE)//
+            .name("/_searchguard/config");
 
-	public static class GetAction extends Action<EmptyRequest, GetAction.Response> {
+    public static class GetAction extends Action<EmptyRequest, GetAction.Response> {
 
-		public static final GetAction INSTANCE = new GetAction();
-		public static final String NAME = "cluster:admin:searchguard:config/bulk/get";
+        public static final GetAction INSTANCE = new GetAction();
+        public static final String NAME = "cluster:admin:searchguard:config/bulk/get";
 
-		protected GetAction() {
-			super(NAME, EmptyRequest::new, Response::new);
-		}
+        protected GetAction() {
+            super(NAME, EmptyRequest::new, Response::new);
+        }
 
-		public static class Response extends Action.Response {
+        public static class Response extends Action.Response {
 
-			private Map<String, Object> config;
+            private Map<String, Object> config;
 
-			public Response() {
-			}
+            public Response() {
+            }
 
-			public Response(Map<String, Object> config) {
-				this.config = config;
-			}
+            public Response(Map<String, Object> config) {
+                this.config = config;
+            }
 
-			public Response(UnparsedMessage message) throws ConfigValidationException {
-				this.config = message.requiredDocNode().toMap();
-			}
+            public Response(UnparsedMessage message) throws ConfigValidationException {
+                this.config = message.requiredDocNode().toMap();
+            }
 
-			@Override
-			public Object toBasicObject() {
-				return config;
-			}
-		}
+            @Override
+            public Object toBasicObject() {
+                return config;
+            }
+        }
 
-		public static class Handler extends Action.Handler<EmptyRequest, Response> {
+        public static class Handler extends Action.Handler<EmptyRequest, Response> {
 
-			private final ConfigurationRepository configurationRepository;
-			private final AuditLog auditLog;
+            private final ConfigurationRepository configurationRepository;
+            private final ConfigVarService configVarService;
+            private final AuditLog auditLog;
 
-			private final static ToXContent.Params OMIT_DEFAULTS_PARAMS = new ToXContent.MapParams(
-					ImmutableMap.of("omit_defaults", "true"));
+            private final static ToXContent.Params OMIT_DEFAULTS_PARAMS = new ToXContent.MapParams(ImmutableMap.of("omit_defaults", "true"));
 
-			@Inject
-			public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository,
-					BaseDependencies baseDependencies) {
-				super(GetAction.INSTANCE, handlerDependencies);
+            @Inject
+            public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository,
+                    ConfigVarService configVarService, BaseDependencies baseDependencies) {
+                super(GetAction.INSTANCE, handlerDependencies);
 
-				this.configurationRepository = configurationRepository;
-				this.auditLog = baseDependencies.getAuditLog();
-			}
+                this.configurationRepository = configurationRepository;
+                this.configVarService = configVarService;
+                this.auditLog = baseDependencies.getAuditLog();
+            }
 
-			@Override
-			protected CompletableFuture<Response> doExecute(EmptyRequest request) {
-				return CompletableFuture.supplyAsync(() -> {
-					try {
-						ConfigMap configMap = configurationRepository.getConfigurationsFromIndex(CType.all(),
-								"GET Bulk API Request");
+            @Override
+            protected CompletableFuture<Response> doExecute(EmptyRequest request) {
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        ConfigMap configMap = configurationRepository.getConfigurationsFromIndex(CType.all(), "GET Bulk API Request");
 
-						logComplianceEvent(configMap);
+                        logComplianceEvent(configMap);
 
-						Map<String, Object> result = new LinkedHashMap<>();
+                        Map<String, Object> result = new LinkedHashMap<>();
 
-						for (SgDynamicConfiguration<?> config : configMap.getAll()) {
-							Map<String, Object> resultEntry = new LinkedHashMap<>();
+                        for (SgDynamicConfiguration<?> config : configMap.getAll()) {
+                            Map<String, Object> resultEntry = new LinkedHashMap<>();
 
-							if (config.getUninterpolatedJson() != null) {
-								resultEntry.put("content", UnparsedDoc.fromJson(config.getUninterpolatedJson()));
-							} else {
-								resultEntry.put("content",
-										ObjectTreeXContent.toObjectTree(config, OMIT_DEFAULTS_PARAMS));
-							}
+                            if (config.getUninterpolatedJson() != null) {
+                                resultEntry.put("content", UnparsedDoc.fromJson(config.getUninterpolatedJson()));
+                            } else {
+                                resultEntry.put("content", ObjectTreeXContent.toObjectTree(config, OMIT_DEFAULTS_PARAMS));
+                            }
 
-							resultEntry.put("_version", config.getDocVersion());
-							resultEntry.put("_seq_no", config.getSeqNo());
-							resultEntry.put("_primary_term", config.getPrimaryTerm());
+                            resultEntry.put("_version", config.getDocVersion());
+                            resultEntry.put("_seq_no", config.getSeqNo());
+                            resultEntry.put("_primary_term", config.getPrimaryTerm());
 
-							result.put(config.getCType().toLCString(), resultEntry);
-						}
+                            result.put(config.getCType().toLCString(), resultEntry);
+                        }
 
-						return new Response(result);
-					} catch (ConfigUnavailableException e) {
-						throw new CompletionException(e);
-					}
-				}, getExecutor());
-			}
+                        result.put("config_vars", ImmutableMap.of("content", configVarService.getAllFromIndex()));
 
-			private void logComplianceEvent(ConfigMap configMap) {
-				Map<String, String> fields = new LinkedHashMap<>();
-				List<String> types = new ArrayList<>();
+                        return new Response(result);
+                    } catch (ConfigUnavailableException e) {
+                        throw new CompletionException(e);
+                    }
+                }, getExecutor());
+            }
 
-				for (SgDynamicConfiguration<?> config : configMap.getAll()) {
-					fields.put(config.getCType().toLCString(), Strings.toString(config));
-					types.add(config.getCType().toLCString());
-				}
+            private void logComplianceEvent(ConfigMap configMap) {
+                Map<String, String> fields = new LinkedHashMap<>();
 
-				auditLog.logDocumentRead(configurationRepository.getSearchguardIndex(), String.join(",", types), null,
-						fields);
-			}
-		}
-	}
+                for (SgDynamicConfiguration<?> config : configMap.getAll()) {
+                    fields.put(config.getCType().toLCString(), Strings.toString(config));
+                }
 
-	public static class UpdateAction extends Action<UpdateAction.Request, StandardResponse> {
+                auditLog.logDocumentRead(configurationRepository.getSearchguardIndex(), "*", null, fields);
+            }
+        }
+    }
 
-		public static final UpdateAction INSTANCE = new UpdateAction();
-		public static final String NAME = "cluster:admin:searchguard:config/bulk/update";
+    public static class UpdateAction extends Action<UpdateAction.Request, StandardResponse> {
 
-		protected UpdateAction() {
-			super(NAME, Request::new, StandardResponse::new);
-		}
+        public static final UpdateAction INSTANCE = new UpdateAction();
+        public static final String NAME = "cluster:admin:searchguard:config/bulk/update";
 
-		public static class Request extends Action.Request {
+        protected UpdateAction() {
+            super(NAME, Request::new, StandardResponse::new);
+        }
 
-			private final UnparsedDoc<?> config;
+        public static class Request extends Action.Request {
 
-			public Request(UnparsedDoc<?> config) {
-				super();
-				this.config = config;
-			}
+            private final UnparsedDoc<?> config;
 
-			public Request(UnparsedMessage message) throws ConfigValidationException {
-				this.config = message.requiredUnparsedDoc();
-			}
+            public Request(UnparsedDoc<?> config) {
+                super();
+                this.config = config;
+            }
 
-			public UnparsedDoc<?> getConfig() {
-				return config;
-			}
+            public Request(UnparsedMessage message) throws ConfigValidationException {
+                this.config = message.requiredUnparsedDoc();
+            }
 
-			@Override
-			public Object toBasicObject() {
-				return config;
-			}
-		}
+            public UnparsedDoc<?> getConfig() {
+                return config;
+            }
 
-		public static class Handler extends Action.Handler<Request, StandardResponse> {
+            @Override
+            public Object toBasicObject() {
+                return config;
+            }
+        }
 
-			private final ConfigurationRepository configurationRepository;
+        public static class Handler extends Action.Handler<Request, StandardResponse> {
 
-			@Inject
-			public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
-				super(UpdateAction.INSTANCE, handlerDependencies);
+            private final ConfigurationRepository configurationRepository;
+            private final ConfigVarService configVarService;
 
-				this.configurationRepository = configurationRepository;
-			}
+            @Inject
+            public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository,
+                    ConfigVarService configVarService) {
+                super(UpdateAction.INSTANCE, handlerDependencies);
 
-			@Override
-			protected final CompletableFuture<StandardResponse> doExecute(Request request) {
-				return CompletableFuture.supplyAsync(() -> {
-					try {
-						this.configurationRepository.update(parseConfigJson(request.getConfig()));
-						return new StandardResponse(200).message("Configuration has been updated");
-					} catch (ConfigValidationException e) {
-						return new StandardResponse(400).error(e);
-					} catch (ConfigUpdateException e) {
-						log.error("Error while updating configuration", e);
-						return new StandardResponse(500).error(null, e.getMessage(), e.getDetailsAsMap());
-					}
-				});
-			}
+                this.configurationRepository = configurationRepository;
+                this.configVarService = configVarService;
+            }
 
-			private Map<CType<?>, Map<String, Object>> parseConfigJson(UnparsedDoc<?> unparsedDoc)
-					throws ConfigValidationException {
-				Map<String, Object> parsedJson;
+            @Override
+            protected final CompletableFuture<StandardResponse> doExecute(Request request) {
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Map<CType<?>, Map<String, ?>> configMap = parseConfigJson(request.getConfig());
 
-				try {
-					parsedJson = unparsedDoc.parseAsMap();
-				} catch (JsonProcessingException e) {
-					throw new ConfigValidationException(new JsonValidationError(null, e));
-				}
+                        @SuppressWarnings("unchecked")
+                        Map<String, ConfigVar> configVars = (Map<String, ConfigVar>) configMap.get(CType.CONFIG_VARS);
 
-				ValidationErrors validationErrors = new ValidationErrors();
-				Map<CType<?>, Map<String, Object>> configTypeToConfigMap = new HashMap<>();
+                        if (configVars != null) {
+                            configMap.remove(CType.CONFIG_VARS);
 
-				for (String configTypeName : parsedJson.keySet()) {
-					CType<?> ctype;
+                            try {
+                                StandardResponse response = this.configVarService.updateAll(configVars).get();
 
-					try {
-						ctype = CType.valueOf(configTypeName.toUpperCase());
-					} catch (IllegalArgumentException e) {
-						validationErrors
-								.add(new ValidationError(configTypeName, "Invalid config type: " + configTypeName));
-						continue;
-					}
+                                if (response.getStatus() >= 300) {
+                                    return response;
+                                }
+                            } catch (InterruptedException e) {
+                                log.error("Error while updating configuration", e);
+                                return new StandardResponse(500).error(e.getMessage());
+                            } catch (ExecutionException e) {
+                                if (e.getCause() instanceof ConfigValidationException) {
+                                    return new StandardResponse(400).error((ConfigValidationException) e.getCause());
+                                } else {
+                                    log.error("Error while updating configuration", e);
+                                    return new StandardResponse(500).error(e.getMessage());
+                                }
+                            }
+                        }
 
-					Object value = parsedJson.get(configTypeName);
+                        if (!configMap.isEmpty()) {
+                            this.configurationRepository.update(configMap);
+                        }
+                        return new StandardResponse(200).message("Configuration has been updated");
+                    } catch (ConfigValidationException e) {
+                        return new StandardResponse(400).error(e);
+                    } catch (ConfigUpdateException e) {
+                        log.error("Error while updating configuration", e);
+                        return new StandardResponse(500).error(null, e.getMessage(), e.getDetailsAsMap());
+                    }
+                });
+            }
 
-					if (!(value instanceof Map)) {
-						validationErrors
-								.add(new InvalidAttributeValue(configTypeName, value, "A config JSON document"));
-						continue;
-					}
+            private Map<CType<?>, Map<String, ?>> parseConfigJson(UnparsedDoc<?> unparsedDoc) throws ConfigValidationException {
+                Map<String, Object> parsedJson;
 
-					Object content = ((Map<?, ?>) value).get("content");
+                try {
+                    parsedJson = unparsedDoc.parseAsMap();
+                } catch (JsonProcessingException e) {
+                    throw new ConfigValidationException(new JsonValidationError(null, e));
+                }
 
-					if (content == null) {
-						validationErrors.add(new MissingAttribute(configTypeName + ".content"));
-						continue;
-					}
+                ValidationErrors validationErrors = new ValidationErrors();
+                Map<CType<?>, Map<String, ?>> configTypeToConfigMap = new HashMap<>();
 
-					if (!(content instanceof Map)) {
-						validationErrors.add(new InvalidAttributeValue(configTypeName + ".content", content,
-								"A config JSON document"));
-						continue;
-					}
+                for (String configTypeName : parsedJson.keySet()) {
+                    CType<?> ctype;
 
-					Map<String, Object> contentMap = DocUtils.toStringKeyedMap((Map<?, ?>) content);
+                    try {
+                        ctype = CType.valueOf(configTypeName.toUpperCase());
+                    } catch (IllegalArgumentException e) {
+                        validationErrors.add(new ValidationError(configTypeName, "Invalid config type: " + configTypeName));
+                        continue;
+                    }
 
-					configTypeToConfigMap.put(ctype, contentMap);
-				}
+                    Object value = parsedJson.get(configTypeName);
 
-				validationErrors.throwExceptionForPresentErrors();
+                    if (!(value instanceof Map)) {
+                        validationErrors.add(new InvalidAttributeValue(configTypeName, value, "A config JSON document"));
+                        continue;
+                    }
 
-				return configTypeToConfigMap;
-			}
-		}
-	}
+                    Object content = ((Map<?, ?>) value).get("content");
+
+                    if (content == null) {
+                        validationErrors.add(new MissingAttribute(configTypeName + ".content"));
+                        continue;
+                    }
+
+                    if (!(content instanceof Map)) {
+                        validationErrors.add(new InvalidAttributeValue(configTypeName + ".content", content, "A config JSON document"));
+                        continue;
+                    }
+
+                    Map<String, ?> contentMap = DocUtils.toStringKeyedMap((Map<?, ?>) content);
+
+                    if (ctype == CType.CONFIG_VARS) {
+                        Map<String, ConfigVar> parsedContentMap = new LinkedHashMap<>(contentMap.size());
+
+                        for (Map.Entry<String, ?> entry : contentMap.entrySet()) {
+                            try {
+                                parsedContentMap.put(entry.getKey(), new ConfigVar(DocNode.wrap(entry.getValue())));
+                            } catch (ConfigValidationException e) {
+                                validationErrors.add(configTypeName + ".content." + entry.getKey(), e);
+                            }
+                        }
+
+                        contentMap = parsedContentMap;
+                    }
+
+                    configTypeToConfigMap.put(ctype, contentMap);
+                }
+
+                validationErrors.throwExceptionForPresentErrors();
+
+                return configTypeToConfigMap;
+            }
+        }
+    }
 
 }

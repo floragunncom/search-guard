@@ -86,6 +86,45 @@ public class BulkConfigApiTest {
     }
 
     @Test
+    public void configVarTest() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            HttpResponse response = client.putJson("/_searchguard/config/vars/bulk_test", DocNode.of("value", "bar"));
+            Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
+
+            response = client.putJson("/_searchguard/config/vars/bulk_test_encrypted", DocNode.of("value", "foo", "encrypt", true));
+            Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
+
+            response = client.get("/_searchguard/config");
+            DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
+
+            Assert.assertEquals(response.getBody(), "config", responseDoc.getAsNode("config").getAsNode("content").getAsNode("_sg_meta").get("type"));
+            Assert.assertEquals(response.getBody(), "internalusers",
+                    responseDoc.getAsNode("internalusers").getAsNode("content").getAsNode("_sg_meta").get("type"));
+
+            Assert.assertEquals(response.getBody(), "bar", responseDoc.get("config_vars", "content", "bulk_test", "value"));
+            Assert.assertNotNull(response.getBody(), responseDoc.get("config_vars", "content", "bulk_test_encrypted", "encrypted"));
+            Assert.assertNull(response.getBody(), responseDoc.get("config_vars", "content", "bulk_test_encrypted", "value"));
+            
+            response = client.delete("/_searchguard/config/vars/bulk_test_encrypted");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            
+            Thread.sleep(20);
+            response = client.get("/_searchguard/config/vars/bulk_test_encrypted");
+            Assert.assertEquals(response.getBody(), 404, response.getStatusCode());
+            
+            DocNode updateRequestDoc = DocNode.of("config_vars.content", responseDoc.get("config_vars", "content"));
+            HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc);
+
+            Assert.assertEquals(updateResponse.getBody(), 200, updateResponse.getStatusCode());
+            
+            Thread.sleep(20);
+            response = client.get("/_searchguard/config/vars/bulk_test_encrypted");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+    }
+
+    @Test
     public void putTestValidationError1() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 
@@ -105,7 +144,8 @@ public class BulkConfigApiTest {
 
             DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
 
-            Assert.assertEquals(updateResponse.getBody(), "'tenants.my_new_test_tenant.xxx': Unsupported attribute", updateResponseDoc.get("error.message"));
+            Assert.assertEquals(updateResponse.getBody(), "'tenants.my_new_test_tenant.xxx': Unsupported attribute",
+                    updateResponseDoc.get("error.message"));
         }
     }
 

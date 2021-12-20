@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,216 +55,214 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 
 public class ConfigurationLoader {
-	private static final Logger log = LogManager.getLogger(ConfigurationLoader.class);
+    private static final Logger log = LogManager.getLogger(ConfigurationLoader.class);
 
-	private final PrivilegedConfigClient client;
-	private final String searchguardIndex;
-	private final ClusterService clusterService;
-	private final Settings settings;
-	private final ComponentState componentState;
-	private final Map<CType<?>, ComponentState> typeToStateMap;
+    private final PrivilegedConfigClient client;
+    private final String searchguardIndex;
+    private final ClusterService clusterService;
+    private final Settings settings;
+    private final ComponentState componentState;
+    private final Map<CType<?>, ComponentState> typeToStateMap;
 
-	public ConfigurationLoader(Client client, Settings settings) {
-		this(client, settings, null, null);
-	}
+    public ConfigurationLoader(Client client, Settings settings) {
+        this(client, settings, null, null);
+    }
 
-	public ConfigurationLoader(Client client, Settings settings, ClusterService clusterService,
-			ComponentState componentState) {
-		this.client = PrivilegedConfigClient.adapt(client);
-		this.settings = settings;
-		this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME,
-				ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
-		this.clusterService = clusterService;
-		this.componentState = componentState;
+    public ConfigurationLoader(Client client, Settings settings, ClusterService clusterService, ComponentState componentState) {
+        this.client = PrivilegedConfigClient.adapt(client);
+        this.settings = settings;
+        this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
+        this.clusterService = clusterService;
+        this.componentState = componentState;
 
-		if (componentState != null) {
-			typeToStateMap = new HashMap<>(CType.all().size());
+        if (componentState != null) {
+            typeToStateMap = new HashMap<>(CType.all().size());
 
-			for (CType<?> ctype : CType.all()) {
-				typeToStateMap.put(ctype, componentState.getOrCreatePart("config", ctype.toLCString()));
-			}
-		} else {
-			typeToStateMap = null;
-		}
-	}
+            for (CType<?> ctype : CType.all()) {
+                typeToStateMap.put(ctype, componentState.getOrCreatePart("config", ctype.toLCString()));
+            }
+        } else {
+            typeToStateMap = null;
+        }
+    }
 
-	public <T> SgDynamicConfiguration<T> loadSync(CType<T> type, String reason) throws ConfigUnavailableException {
-		try {
-			return load(type, reason).get();
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		} catch (ExecutionException e) {
-			if (e.getCause() instanceof ConfigUnavailableException) {
-				throw (ConfigUnavailableException) e.getCause();
-			} else if (e.getCause() instanceof RuntimeException) {
-				throw (RuntimeException) e.getCause();
-			} else if (e.getCause() instanceof Error) {
-				throw (Error) e.getCause();
-			} else {
-				throw new RuntimeException(e);
-			}
-		}
-	}
-	
-	public ConfigMap loadSync(Set<CType<?>> types, String reason) throws ConfigUnavailableException {
-		try {
-			return load(types, reason).get();
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		} catch (ExecutionException e) {
-			if (e.getCause() instanceof ConfigUnavailableException) {
-				throw (ConfigUnavailableException) e.getCause();
-			} else if (e.getCause() instanceof RuntimeException) {
-				throw (RuntimeException) e.getCause();
-			} else if (e.getCause() instanceof Error) {
-				throw (Error) e.getCause();
-			} else {
-				throw new RuntimeException(e);
-			}
-		}
-	}
-	
-	public <T> CompletableFuture<SgDynamicConfiguration<T>> load(CType<T> type, String reason) {
-		return load(Collections.singleton(type), reason).thenApply(configMap -> configMap.get(type));
-	}
+    public <T> SgDynamicConfiguration<T> loadSync(CType<T> type, String reason) throws ConfigUnavailableException {
+        try {
+            return load(type, reason).get();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof ConfigUnavailableException) {
+                throw (ConfigUnavailableException) e.getCause();
+            } else if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            } else if (e.getCause() instanceof Error) {
+                throw (Error) e.getCause();
+            } else {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
-	public CompletableFuture<ConfigMap> load(Set<CType<?>> types, String reason) {
-		MultiGetRequest mget = new MultiGetRequest().refresh(true).realtime(true);
+    public ConfigMap loadSync(Set<CType<?>> types, String reason) throws ConfigUnavailableException {
+        try {
+            return load(types, reason).get();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof ConfigUnavailableException) {
+                throw (ConfigUnavailableException) e.getCause();
+            } else if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            } else if (e.getCause() instanceof Error) {
+                throw (Error) e.getCause();
+            } else {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
-		for (CType<?> cType : types) {
-			mget.add(searchguardIndex, cType.toLCString());
-		}
+    public <T> CompletableFuture<SgDynamicConfiguration<T>> load(CType<T> type, String reason) {
+        return load(Collections.singleton(type), reason).thenApply(configMap -> configMap.get(type));
+    }
 
-		if (log.isTraceEnabled()) {
-			log.trace("Issuing " + mget);
-		}
+    public CompletableFuture<ConfigMap> load(Set<CType<?>> types, String reason) {
+        MultiGetRequest mget = new MultiGetRequest().refresh(true).realtime(true);
 
-		CompletableFuture<ConfigMap> resultFuture = new CompletableFuture<>();
+        Set<CType<?>> expectedTypes = new HashSet<>();
 
-		client.multiGet(mget, new ActionListener<MultiGetResponse>() {
-			@Override
-			public void onResponse(MultiGetResponse response) {
-				try {
-					if (log.isDebugEnabled()) {
-						log.debug("Response: " + Arrays.asList(response.getResponses()).stream()
-								.map(r -> r.getId() + ": failure: " + r.getFailure() + "; exists: "
-										+ r.getResponse().isExists() + "; sourceEmpty: "
-										+ r.getResponse().isSourceEmpty() + "; version: " + r.getResponse().getVersion()
-										+ "; seqno: " + r.getResponse().getSeqNo() + "; pt: "
-										+ r.getResponse().getPrimaryTerm() + "; size: "
-										+ (r.getResponse().getSourceAsBytes() != null
-												? r.getResponse().getSourceAsBytes().length
-												: "null")));
-					}
+        for (CType<?> cType : types) {
+            if (!cType.isExternal()) {
+                mget.add(searchguardIndex, cType.toLCString());
+                expectedTypes.add(cType);
+            }
+        }
 
-					List<Failure> failures = new ArrayList<>();
-					ConfigMap.Builder configMapBuilder = new ConfigMap.Builder();
+        if (log.isTraceEnabled()) {
+            log.trace("Issuing " + mget);
+        }
 
-					for (MultiGetItemResponse item : response.getResponses()) {
-						CType<?> type = item.getId() != null ? CType.fromString(item.getId()) : null;
+        CompletableFuture<ConfigMap> resultFuture = new CompletableFuture<>();
 
-						if (item.isFailed()) {
-							failures.add(item.getFailure());
-							failure(type, item.getFailure(), typeToStateMap);
-							continue;
-						}
+        client.multiGet(mget, new ActionListener<MultiGetResponse>() {
+            @Override
+            public void onResponse(MultiGetResponse response) {
+                try {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Response: " + Arrays.asList(response.getResponses()).stream()
+                                .map(r -> r.getId() + ": failure: " + r.getFailure() + "; exists: " + r.getResponse().isExists() + "; sourceEmpty: "
+                                        + r.getResponse().isSourceEmpty() + "; version: " + r.getResponse().getVersion() + "; seqno: "
+                                        + r.getResponse().getSeqNo() + "; pt: " + r.getResponse().getPrimaryTerm() + "; size: "
+                                        + (r.getResponse().getSourceAsBytes() != null ? r.getResponse().getSourceAsBytes().length : "null")));
+                    }
 
-						try {
-							SgDynamicConfiguration<?> config = toConfig(type, item.getResponse());
-							configMapBuilder.with(config);
-							success(config, typeToStateMap);
-						} catch (Exception e) {
-							Failure failure = new Failure(searchguardIndex, item.getResponse().getType(),
-									item.getResponse().getId(), e);
-							failures.add(failure);
-							failure(type, failure, typeToStateMap);
-						}
-					}
+                    List<Failure> failures = new ArrayList<>();
+                    ConfigMap.Builder configMapBuilder = new ConfigMap.Builder();
 
-					ConfigMap result = configMapBuilder.build();
+                    for (MultiGetItemResponse item : response.getResponses()) {
+                        CType<?> type = item.getId() != null ? CType.fromString(item.getId()) : null;
 
-					if (result.containsAll(types)) {
-						resultFuture.complete(result);
-					} else {
-						throw new ConfigUnavailableException(
-								"Error while loading configuration (for " + reason + "):\n"
-										+ failures.stream().map(f -> Strings.toString(f)).collect(Collectors.toList()),
-								!failures.isEmpty() ? failures.get(0).getFailure() : null);
-					}
-				} catch (ConfigUnavailableException e) {
-					log.warn("Error while loading config", e);
-					resultFuture.completeExceptionally(e);
-				} catch (Throwable e) {
-					log.error("Error while loading config", e);
-					resultFuture.completeExceptionally(e);
-				}
-			}
+                        if (item.isFailed()) {
+                            failures.add(item.getFailure());
+                            failure(type, item.getFailure(), typeToStateMap);
+                            continue;
+                        }
 
-			@Override
-			public void onFailure(Exception e) {
-				log.error("Error while loading config", e);
-				resultFuture.completeExceptionally(e);
-			}
-		});
+                        try {
+                            SgDynamicConfiguration<?> config = toConfig(type, item.getResponse());
+                            configMapBuilder.with(config);
+                            success(config, typeToStateMap);
+                        } catch (Exception e) {
+                            Failure failure = new Failure(searchguardIndex, item.getResponse().getType(), item.getResponse().getId(), e);
+                            failures.add(failure);
+                            failure(type, failure, typeToStateMap);
+                        }
+                    }
 
-		return resultFuture;
-	}
+                    ConfigMap result = configMapBuilder.build();
 
-	private SgDynamicConfiguration<?> toConfig(CType<?> type, GetResponse getResponse) throws Exception {
-		if (!getResponse.isExists()) {
-			if (type != null && type.isOptional()) {
-				return SgDynamicConfiguration.empty();
-			} else {
-				throw new Exception("Document does not exist");
-			}
-		}
+                    if (result.containsAll(expectedTypes)) {
+                        resultFuture.complete(result);
+                    } else {
+                        throw new ConfigUnavailableException(
+                                "Error while loading configuration (for " + reason + "):\n"
+                                        + failures.stream().map(f -> Strings.toString(f)).collect(Collectors.toList()),
+                                !failures.isEmpty() ? failures.get(0).getFailure() : null);
+                    }
+                } catch (ConfigUnavailableException e) {
+                    log.warn("Error while loading config", e);
+                    resultFuture.completeExceptionally(e);
+                } catch (Throwable e) {
+                    log.error("Error while loading config", e);
+                    resultFuture.completeExceptionally(e);
+                }
+            }
 
-		if (getResponse.isSourceEmpty()) {
-			throw new Exception("Document source is empty");
-		}
+            @Override
+            public void onFailure(Exception e) {
+                log.error("Error while loading config", e);
+                resultFuture.completeExceptionally(e);
+            }
+        });
 
-		BytesReference source = getResponse.getSourceAsBytesRef();
-		String id = getResponse.getId();
+        return resultFuture;
+    }
 
-		try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY,
-				DeprecationHandler.THROW_UNSUPPORTED_OPERATION, source, XContentType.JSON)) {
-			parser.nextToken();
-			parser.nextToken();
+    private SgDynamicConfiguration<?> toConfig(CType<?> type, GetResponse getResponse) throws Exception {
+        if (!getResponse.isExists()) {
+            if (type != null && type.isOptional()) {
+                return SgDynamicConfiguration.empty();
+            } else {
+                throw new Exception("Document does not exist");
+            }
+        }
 
-			if (!id.equals(parser.currentName())) {
-				throw new Exception("Invalid config index: " + id + " vs " + parser.currentName());
-			}
+        if (getResponse.isSourceEmpty()) {
+            throw new Exception("Document source is empty");
+        }
 
-			parser.nextToken();
+        BytesReference source = getResponse.getSourceAsBytesRef();
+        String id = getResponse.getId();
 
-			return SgDynamicConfiguration.fromJson(new String(parser.binaryValue()), type, getResponse.getVersion(),
-					getResponse.getSeqNo(), getResponse.getPrimaryTerm(), settings);
-		}
-	}
+        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, source,
+                XContentType.JSON)) {
+            parser.nextToken();
+            parser.nextToken();
 
-	private void success(SgDynamicConfiguration<?> config, Map<CType<?>, ComponentState> typeToStateMap) {
-		if (typeToStateMap == null) {
-			return;
-		}
+            if (!id.equals(parser.currentName())) {
+                throw new Exception("Invalid config index: " + id + " vs " + parser.currentName());
+            }
 
-		ComponentState configState = typeToStateMap.get(config.getCType());
+            parser.nextToken();
 
-		if (configState != null) {
-			configState.setInitialized();
-			configState.setConfigVersion(config.getDocVersion());
-		}
-	}
+            return SgDynamicConfiguration.fromJson(new String(parser.binaryValue()), type, getResponse.getVersion(), getResponse.getSeqNo(),
+                    getResponse.getPrimaryTerm(), settings);
+        }
+    }
 
-	private void failure(CType<?> type, Failure failure, Map<CType<?>, ComponentState> typeToStateMap) {
-		if (type == null || typeToStateMap == null) {
-			return;
-		}
+    private void success(SgDynamicConfiguration<?> config, Map<CType<?>, ComponentState> typeToStateMap) {
+        if (typeToStateMap == null) {
+            return;
+        }
 
-		ComponentState configState = typeToStateMap.get(type);
+        ComponentState configState = typeToStateMap.get(config.getCType());
 
-		if (configState != null) {
-			configState.setFailed(failure.getMessage());
-			configState.setDetailJson(Strings.toString(failure));
-		}
-	}
+        if (configState != null) {
+            configState.setInitialized();
+            configState.setConfigVersion(config.getDocVersion());
+        }
+    }
+
+    private void failure(CType<?> type, Failure failure, Map<CType<?>, ComponentState> typeToStateMap) {
+        if (type == null || typeToStateMap == null) {
+            return;
+        }
+
+        ComponentState configState = typeToStateMap.get(type);
+
+        if (configState != null) {
+            configState.setFailed(failure.getMessage());
+            configState.setDetailJson(Strings.toString(failure));
+        }
+    }
 }

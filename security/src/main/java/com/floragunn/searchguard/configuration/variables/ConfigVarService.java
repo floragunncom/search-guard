@@ -59,9 +59,9 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -100,7 +100,8 @@ public class ConfigVarService implements ComponentStateProvider {
         this.clusterService = clusterService;
         this.threadPool = threadPool;
         this.encryptionKeys = encryptionKeys;
-        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexName).onIndexReady((onFailure) -> init(onFailure))));
+        componentState.addPart(protectedConfigIndexService
+                .createIndex(new ConfigIndex(indexName).mapping(ConfigVar.INDEX_MAPPING).onIndexReady((onFailure) -> init(onFailure))));
     }
 
     public Object get(String id) {
@@ -189,7 +190,7 @@ public class ConfigVarService implements ComponentStateProvider {
         if (request.isEncrypt()) {
             doc.put("encrypted", encryptionKeys.getEncryptedData(request.getValue()));
         } else {
-            doc.put("value", DocWriter.json().writeAsString(request.getValue()));
+            doc.put("value", request.getValue());
         }
 
         if (request.getScope() != null) {
@@ -279,10 +280,11 @@ public class ConfigVarService implements ComponentStateProvider {
                 }
             }
 
-            bulkRequest.add(new IndexRequest(indexName).id(entry.getKey()).source(DocWriter.json().writeAsString(entry.getValue().updatedNow())));
+            bulkRequest.add(new IndexRequest(indexName).id(entry.getKey()).source(DocWriter.json().writeAsString(entry.getValue().updatedNow()),
+                    XContentType.JSON));
         }
 
-        if (!validationErrors.hasErrors()) {
+        if (validationErrors.hasErrors()) {
             return CompletableFuture.completedFuture(new StandardResponse(400).error(validationErrors));
         }
 
@@ -533,7 +535,7 @@ public class ConfigVarService implements ComponentStateProvider {
                         Map<String, Object> source = searchHit.getSourceAsMap();
 
                         if (source.containsKey("value")) {
-                            values.put(searchHit.getId(), DocReader.json().read((String) source.get("value")));
+                            values.put(searchHit.getId(), source.get("value"));
                         } else if (source.containsKey("encrypted")) {
                             values.put(searchHit.getId(), encryptionKeys.getDecryptedData(source));
                         } else {
