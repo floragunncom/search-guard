@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.action.handlers.email;
 
 import java.io.ByteArrayOutputStream;
@@ -10,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,14 +57,11 @@ import org.simplejavamail.email.EmailBuilder;
 import org.simplejavamail.email.EmailPopulatingBuilder;
 import org.simplejavamail.email.Recipient;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.accounts.NoSuchAccountException;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.SimulationMode;
@@ -161,13 +174,13 @@ public class EmailAction extends ActionHandler {
             if (ccScript != null) {
                 emailBuilder.ccAddresses(render(ctx, ccScript));
             } else if (destination.getDefaultCc() != null) {
-                emailBuilder.ccMultiple(destination.getDefaultCc());
+                emailBuilder.ccAddresses(destination.getDefaultCc());
             }
 
             if (bccScript != null) {
                 emailBuilder.bccAddresses(render(ctx, bccScript));
             } else if (destination.getDefaultCc() != null) {
-                emailBuilder.bccMultiple(destination.getDefaultBcc());
+                emailBuilder.bccAddresses(destination.getDefaultBcc());
             }
 
             if (replyToScript != null) {

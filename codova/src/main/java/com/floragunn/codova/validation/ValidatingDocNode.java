@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
@@ -143,6 +144,10 @@ public class ValidatingDocNode {
     private void usedNonRecursive(String attribute) {
         this.unconsumedAttributes.remove(attribute);
         this.consumedAttributes.add(attribute);
+    }
+
+    public DocNode getAsDocNode(String attribute) {
+        return this.documentNode.getAsNode(attribute);
     }
 
     public Attribute get(String attribute) {
@@ -481,8 +486,14 @@ public class ValidatingDocNode {
             if (object != null) {
                 return DocNode.wrap(object);
             } else {
-                return null;
+                return DocNode.NULL;
             }
+        }
+
+        public ValidatingDocNode asValidatingDocNode() {
+            DocNode docNode = asDocNode();
+            ValidationErrors attributeValidationErrors = new ValidationErrors(validationErrors, name);
+            return new ValidatingDocNode(docNode, attributeValidationErrors);
         }
 
         public List<String> asListOfStrings() {
@@ -523,6 +534,28 @@ public class ValidatingDocNode {
                 return (Integer) number;
             } else if (number != null) {
                 return number.intValue();
+            } else {
+                return null;
+            }
+        }
+
+        public long asPrimitiveLong() {
+            Number number = asNumber();
+
+            if (number != null) {
+                return number.longValue();
+            } else {
+                return 0;
+            }
+        }
+
+        public Long asLong() {
+            Number number = asNumber();
+
+            if (number instanceof Long) {
+                return (Long) number;
+            } else if (number != null) {
+                return number.longValue();
             } else {
                 return null;
             }
@@ -773,6 +806,20 @@ public class ValidatingDocNode {
                 }
             } else if (object != null) {
                 validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "A time zone ID"));
+                return null;
+            } else {
+                return null;
+            }
+        }
+
+        public Instant asInstantFromEpochMilli() {
+            Object object = expandVariable(documentNode.get(name));
+
+            if (object instanceof Number) {
+                return Instant.ofEpochMilli(((Number) object).longValue());
+            } else if (object != null) {
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object,
+                        "A number representing a time stamp in milliseconds from epoch"));
                 return null;
             } else {
                 return null;

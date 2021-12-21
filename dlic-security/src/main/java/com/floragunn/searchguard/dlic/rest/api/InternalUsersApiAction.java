@@ -39,7 +39,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -165,7 +164,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         // checks complete, create or update the user
         try {
             internaluser.putCEntry(username, InternalUser.parse(DocReader.json().readObject(newJson)));
-        } catch (UnexpectedDocumentStructureException | ConfigValidationException e) {
+        } catch (ConfigValidationException e) {
             throw new RuntimeException(e);
         }
 

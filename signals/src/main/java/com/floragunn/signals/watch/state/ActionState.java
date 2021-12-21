@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.state;
 
 import java.io.IOException;
@@ -11,8 +28,9 @@ import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.config.temporal.DurationExpression;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.signals.watch.common.Ack;
 import com.floragunn.signals.watch.result.Status;
 import com.floragunn.signals.watch.severity.SeverityLevel;
@@ -83,8 +101,7 @@ public class ActionState implements ToXContentObject {
 
     public synchronized void ack(String user) {
         if (this.lastCheckResult == false) {
-            throw new IllegalStateException(
-                    "Cannot ack this action because it was not positively triaged recently. Last triage was at " + lastCheck);
+            throw new IllegalStateException("Cannot ack this action because it was not positively triaged recently. Last triage was at " + lastCheck);
         }
 
         this.acked = new Ack(Instant.now(), user);
@@ -148,43 +165,55 @@ public class ActionState implements ToXContentObject {
         return builder;
     }
 
-    public static ActionState createFrom(JsonNode jsonNode) {
+    public static ActionState createFrom(DocNode jsonNode) {
         ActionState result = new ActionState();
 
         if (jsonNode.hasNonNull("last_triggered")) {
-            result.lastTriggered = Instant.from(DATE_FORMATTER.parse(jsonNode.get("last_triggered").asText()));
+            result.lastTriggered = Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("last_triggered")));
         }
 
         if (jsonNode.hasNonNull("last_check")) {
-            result.lastCheck = Instant.from(DATE_FORMATTER.parse(jsonNode.get("last_check").asText()));
+            result.lastCheck = Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("last_check")));
         } else if (jsonNode.hasNonNull("last_triage")) {
-            result.lastCheck = Instant.from(DATE_FORMATTER.parse(jsonNode.get("last_triage").asText()));
+            result.lastCheck = Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("last_triage")));
         }
 
         if (jsonNode.hasNonNull("last_execution")) {
-            result.lastExecution = Instant.from(DATE_FORMATTER.parse(jsonNode.get("last_execution").asText()));
+            result.lastExecution = Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("last_execution")));
         }
 
         if (jsonNode.hasNonNull("last_error")) {
-            result.lastError = Instant.from(DATE_FORMATTER.parse(jsonNode.get("last_error").asText()));
+            result.lastError = Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("last_error")));
         }
 
         if (jsonNode.hasNonNull("last_check_result")) {
-            result.lastCheckResult = jsonNode.get("last_check_result").asBoolean();
+            try {
+                result.lastCheckResult = jsonNode.getBoolean("last_check_result");
+            } catch (ConfigValidationException e) {
+                log.error("Error parsing " + jsonNode, e);
+            }
         } else if (jsonNode.hasNonNull("last_triage_result")) {
-            result.lastCheckResult = jsonNode.get("last_triage_result").asBoolean();
+            try {
+                result.lastCheckResult = jsonNode.getBoolean("last_triage_result");
+            } catch (ConfigValidationException e) {
+                log.error("Error parsing " + jsonNode, e);
+            }
         }
 
         if (jsonNode.hasNonNull("last_status")) {
-            result.lastStatus = Status.parse(jsonNode.get("last_status"));
+            result.lastStatus = Status.parse(jsonNode.getAsNode("last_status"));
         }
 
         if (jsonNode.hasNonNull("execution_count")) {
-            result.executionCount = jsonNode.get("execution_count").asInt();
+            try {
+                result.executionCount = jsonNode.getNumber("execution_count").intValue();
+            } catch (ConfigValidationException e) {
+                log.error("Error parsing " + jsonNode, e);
+            }
         }
 
         if (jsonNode.hasNonNull("acked")) {
-            result.acked = Ack.create(jsonNode.get("acked"));
+            result.acked = Ack.create(jsonNode.getAsNode("acked"));
         }
 
         return result;

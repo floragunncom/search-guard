@@ -1,9 +1,27 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.result;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -12,9 +30,7 @@ import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.floragunn.searchsupport.json.JacksonTools;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.watch.common.Ack;
 
@@ -140,51 +156,51 @@ public class ActionLog implements ToXContentObject {
         return builder;
     }
 
-    public static ActionLog parse(JsonNode jsonNode) {
-        ActionLog result = new ActionLog(jsonNode.hasNonNull("name") ? jsonNode.get("name").asText() : null);
+    public static ActionLog parse(DocNode jsonNode) {
+        ActionLog result = new ActionLog(jsonNode.hasNonNull("name") ? jsonNode.getAsString("name") : null);
 
         if (jsonNode.hasNonNull("status")) {
-            result.status = Status.parse(jsonNode.get("status"));
+            result.status = Status.parse(jsonNode.getAsNode("status"));
         }
 
         if (jsonNode.hasNonNull("ack")) {
-            result.ack = Ack.create(jsonNode.get("ack"));
+            result.ack = Ack.create(jsonNode.getAsNode("ack"));
         }
 
         if (jsonNode.hasNonNull("execution_start")) {
             // XXX 
-            result.executionStart = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.get("execution_start").asText())));
+            result.executionStart = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("execution_start"))));
         }
 
         if (jsonNode.hasNonNull("execution_end")) {
             // XXX 
-            result.executionStart = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.get("execution_end").asText())));
+            result.executionStart = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("execution_end"))));
         }
 
         if (jsonNode.hasNonNull("request")) {
-            result.request = jsonNode.get("request").asText();
+            result.request = jsonNode.getAsString("request");
         }
 
         if (jsonNode.hasNonNull("data")) {
-            result.data = JacksonTools.toMap(jsonNode.get("data"));
+            result.data = jsonNode.getAsNode("data").toMap();
         }
 
         if (jsonNode.hasNonNull("runtime_attributes")) {
-            result.runtimeAttributes = WatchExecutionContextData.create(jsonNode.get("runtime_attributes"));
+            result.runtimeAttributes = WatchExecutionContextData.create(jsonNode.getAsNode("runtime_attributes"));
         }
 
-        if (jsonNode.hasNonNull("elements") && jsonNode.get("elements").isArray()) {
-            result.elements = parseList((ArrayNode) jsonNode.get("elements"));
+        if (jsonNode.hasNonNull("elements") && jsonNode.get("elements") instanceof Collection) {
+            result.elements = parseList((Collection<?>) jsonNode.get("elements"));
         }
 
         return result;
     }
 
-    public static List<ActionLog> parseList(ArrayNode arrayNode) {
+    public static List<ActionLog> parseList(Collection<?> arrayNode) {
         List<ActionLog> result = new ArrayList<>(arrayNode.size());
 
-        for (JsonNode actionNode : arrayNode) {
-            result.add(ActionLog.parse(actionNode));
+        for (Object actionNode : arrayNode) {
+            result.add(ActionLog.parse(DocNode.wrap(actionNode)));
         }
 
         return result;

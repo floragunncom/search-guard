@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.modules;
 
 import java.lang.reflect.Constructor;
@@ -34,7 +51,9 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auth.AuthFailureListener;
@@ -45,6 +64,7 @@ import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchsupport.json.JacksonTools;
 
 public class SearchGuardModulesRegistry {
     // TODO moduleinfo see reflectionhelper
@@ -278,7 +298,7 @@ public class SearchGuardModulesRegistry {
             }
             return null;
         }
-
+        
         JsonNode subNode;
         
         try {
@@ -293,8 +313,14 @@ public class SearchGuardModulesRegistry {
             }
             return null;
         }
+        
+        Object subObject = JacksonTools.toObject(subNode);
 
-        return configMetadata.getConfigParser().parse(subNode);
+        try {
+            return configMetadata.getConfigParser().apply(DocNode.wrap(subObject));
+        } catch (Exception e) {
+            throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
+        }
 
     }
 

@@ -30,14 +30,12 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.xcontent.ToXContent;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocUtils;
 import com.floragunn.codova.documents.UnparsedDoc;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.codova.validation.errors.JsonValidationError;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.BaseDependencies;
@@ -251,14 +249,7 @@ public class BulkConfigApi {
             }
 
             private Map<CType<?>, Map<String, ?>> parseConfigJson(UnparsedDoc<?> unparsedDoc) throws ConfigValidationException {
-                Map<String, Object> parsedJson;
-
-                try {
-                    parsedJson = unparsedDoc.parseAsMap();
-                } catch (JsonProcessingException e) {
-                    throw new ConfigValidationException(new JsonValidationError(null, e));
-                }
-
+                Map<String, Object> parsedJson = unparsedDoc.parseAsMap();
                 ValidationErrors validationErrors = new ValidationErrors();
                 Map<CType<?>, Map<String, ?>> configTypeToConfigMap = new HashMap<>();
 

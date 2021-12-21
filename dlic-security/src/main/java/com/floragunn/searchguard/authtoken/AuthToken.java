@@ -25,11 +25,11 @@ import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.google.common.collect.ImmutableMap;
 
 public class AuthToken implements ToXContentObject, Writeable, Serializable {
@@ -128,18 +128,18 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
         return revoked;
     }
 
-    public static AuthToken parse(String id, JsonNode jsonNode) throws ConfigValidationException {
+    public static AuthToken parse(String id, DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        String userName = vJsonNode.requiredString("user_name");
-        String tokenName = vJsonNode.string("token_name");
+        String userName = vJsonNode.get("user_name").required().asString();
+        String tokenName = vJsonNode.get("token_name").asString();
         AuthTokenPrivilegeBase base = null;
         RequestedPrivileges requestedPrivilges = null;
 
         if (vJsonNode.hasNonNull("base")) {
             try {
-                base = AuthTokenPrivilegeBase.parse(vJsonNode.get("base"));
+                base = AuthTokenPrivilegeBase.parse(jsonNode.getAsNode("base"));
             } catch (ConfigValidationException e) {
                 validationErrors.add("base", e);
             }
@@ -149,7 +149,7 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
 
         if (vJsonNode.hasNonNull("requested")) {
             try {
-                requestedPrivilges = RequestedPrivileges.parse(vJsonNode.get("requested"));
+                requestedPrivilges = RequestedPrivileges.parse(jsonNode.getAsNode("requested"));
             } catch (ConfigValidationException e) {
                 validationErrors.add("requested", e);
             }
@@ -157,10 +157,10 @@ public class AuthToken implements ToXContentObject, Writeable, Serializable {
             validationErrors.add(new MissingAttribute("requested", jsonNode));
         }
 
-        Instant createdAt = vJsonNode.requiredValue("created_at", (v) -> Instant.ofEpochMilli(v.longValue()));
-        Instant expiry = vJsonNode.value("expires_at", (v) -> Instant.ofEpochMilli(v.longValue()), null);
-        Instant revokedAt = vJsonNode.value("revoked_at", (v) -> Instant.ofEpochMilli(v.longValue()), null);
-
+        Instant createdAt = vJsonNode.get("created_at").asInstantFromEpochMilli();
+        Instant expiry = vJsonNode.get("expires_at").asInstantFromEpochMilli();
+        Instant revokedAt = vJsonNode.get("revoked_at").asInstantFromEpochMilli();
+        
         validationErrors.throwExceptionForPresentErrors();
 
         return new AuthToken(id, userName, tokenName, requestedPrivilges, base, createdAt, expiry, revokedAt);

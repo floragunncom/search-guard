@@ -1,27 +1,25 @@
 package com.floragunn.signals.confconv.es;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.confconv.ConversionResult;
 import com.floragunn.signals.watch.checks.Check;
 import com.floragunn.signals.watch.checks.Condition;
 
 public class ConditionConverter {
 
-    private final JsonNode conditionJsonNode;
+    private final DocNode conditionJsonNode;
 
-    public ConditionConverter(JsonNode conditionJsonNode) {
+    public ConditionConverter(DocNode conditionJsonNode) {
         this.conditionJsonNode = conditionJsonNode;
     }
 
@@ -35,21 +33,21 @@ public class ConditionConverter {
         }
 
         if (conditionJsonNode.hasNonNull("compare")) {
-            ConversionResult<List<Check>> convertedCondition = createCompareCondition(conditionJsonNode.get("compare"));
+            ConversionResult<List<Check>> convertedCondition = createCompareCondition(conditionJsonNode.getAsNode("compare"));
 
             result.addAll(convertedCondition.getElement());
             validationErrors.add("compare", convertedCondition.getSourceValidationErrors());
         }
 
         if (conditionJsonNode.hasNonNull("array_compare")) {
-            ConversionResult<List<Check>> convertedCondition = createArrayCompareCondition(conditionJsonNode.get("array_compare"));
+            ConversionResult<List<Check>> convertedCondition = createArrayCompareCondition(conditionJsonNode.getAsNode("array_compare"));
 
             result.addAll(convertedCondition.getElement());
             validationErrors.add("array_compare", convertedCondition.getSourceValidationErrors());
         }
 
         if (conditionJsonNode.hasNonNull("script")) {
-            ConversionResult<List<Check>> convertedCondition = createScriptCondition(conditionJsonNode.get("script"));
+            ConversionResult<List<Check>> convertedCondition = createScriptCondition(conditionJsonNode.getAsNode("script"));
 
             result.addAll(convertedCondition.getElement());
             validationErrors.add("script", convertedCondition.getSourceValidationErrors());
@@ -58,25 +56,20 @@ public class ConditionConverter {
         return new ConversionResult<List<Check>>(result, validationErrors);
     }
 
-    private ConversionResult<List<Check>> createCompareCondition(JsonNode jsonNode) {
+    private ConversionResult<List<Check>> createCompareCondition(DocNode jsonNode) {
         ValidationErrors validationErrors = new ValidationErrors();
         List<Check> result = new ArrayList<>();
 
-        if (!(jsonNode instanceof ObjectNode)) {
+        if (!(jsonNode.isMap())) {
             validationErrors.add(new InvalidAttributeValue(null, jsonNode, "JSON Object"));
             return new ConversionResult<List<Check>>(result, validationErrors);
         }
 
-        ObjectNode objectNode = (ObjectNode) jsonNode;
-
-        Iterator<Map.Entry<String, JsonNode>> iter = objectNode.fields();
-
-        while (iter.hasNext()) {
-            Map.Entry<String, JsonNode> entry = iter.next();
+        for (Map.Entry<String, DocNode> entry : jsonNode.toMapOfNodes().entrySet()) {
 
             String operand1 = entry.getKey();
 
-            if (!(entry.getValue() instanceof ObjectNode)) {
+            if (!(entry.getValue().isMap())) {
                 validationErrors.add(new InvalidAttributeValue(entry.getKey(), entry.getValue(), "JSON Object"));
                 continue;
             }
@@ -86,10 +79,7 @@ public class ConditionConverter {
 
             operand1 = convertedOperand1.getElement();
 
-            Iterator<Map.Entry<String, JsonNode>> subIter = ((ObjectNode) entry.getValue()).fields();
-
-            while (subIter.hasNext()) {
-                Map.Entry<String, JsonNode> subEntry = subIter.next();
+            for (Map.Entry<String, DocNode> subEntry : entry.getValue().toMapOfNodes().entrySet()) {
                 String operator;
                 try {
                     operator = operatorToPainless(subEntry.getKey());
@@ -98,16 +88,15 @@ public class ConditionConverter {
                     continue;
                 }
 
-                if (subEntry.getValue().isNumber()) {
-                    String operand2 = subEntry.getValue().asText();
+                if (subEntry.getValue().toBasicObject() instanceof Number) {
+                    String operand2 = subEntry.getValue().toString();
 
                     result.add(new Condition(null, operand1 + " " + operator + " " + operand2, null, null));
                 } else {
-                    String operand2 = subEntry.getValue().asText();
+                    String operand2 = subEntry.getValue().toString();
 
                     if (operand2.contains("{{")) {
-                        
-                        
+
                         operand2 = mustacheToPainless(operand2);
 
                         result.add(new Condition(null, operand1 + " " + operator + " " + operand2, null, null));
@@ -131,21 +120,16 @@ public class ConditionConverter {
         return new ConversionResult<List<Check>>(result, validationErrors);
     }
 
-    private ConversionResult<List<Check>> createArrayCompareCondition(JsonNode jsonNode) {
+    private ConversionResult<List<Check>> createArrayCompareCondition(DocNode jsonNode) {
         ValidationErrors validationErrors = new ValidationErrors();
         List<Check> result = new ArrayList<>();
 
-        if (!(jsonNode instanceof ObjectNode)) {
+        if (!(jsonNode.isMap())) {
             validationErrors.add(new InvalidAttributeValue(null, jsonNode, "JSON Object"));
             return new ConversionResult<List<Check>>(result, validationErrors);
         }
 
-        ObjectNode objectNode = (ObjectNode) jsonNode;
-
-        Iterator<Map.Entry<String, JsonNode>> iter = objectNode.fields();
-
-        while (iter.hasNext()) {
-            Map.Entry<String, JsonNode> entry = iter.next();
+        for (Map.Entry<String, DocNode> entry : jsonNode.toMapOfNodes().entrySet()) {
 
             String operand1 = entry.getKey();
 
@@ -153,8 +137,8 @@ public class ConditionConverter {
             validationErrors.add(operand1, convertedOperand1.getSourceValidationErrors());
 
             operand1 = convertedOperand1.getElement();
-            
-            if (!(entry.getValue() instanceof ObjectNode)) {
+
+            if (!(entry.getValue().isMap())) {
                 validationErrors.add(new InvalidAttributeValue(entry.getKey(), entry.getValue(), "JSON Object"));
                 continue;
             }
@@ -162,13 +146,10 @@ public class ConditionConverter {
             String path = null;
 
             if (entry.getValue().hasNonNull("path")) {
-                path = entry.getValue().get("path").asText();
+                path = entry.getValue().getAsString("path");
             }
 
-            Iterator<Map.Entry<String, JsonNode>> subIter = ((ObjectNode) entry.getValue()).fields();
-
-            while (subIter.hasNext()) {
-                Map.Entry<String, JsonNode> subEntry = iter.next();
+            for (Map.Entry<String, DocNode> subEntry : entry.getValue().toMapOfNodes().entrySet()) {
 
                 if (subEntry.getKey().equals("path")) {
                     continue;
@@ -184,25 +165,25 @@ public class ConditionConverter {
                 boolean all = false;
                 String operand2;
 
-                if (subEntry.getValue() instanceof ObjectNode) {
-                    ObjectNode operand2Node = (ObjectNode) subEntry.getValue();
+                if (subEntry.getValue().isMap()) {
+                    DocNode operand2Node = subEntry.getValue();
 
                     if (!operand2Node.hasNonNull("value")) {
                         validationErrors.add(new MissingAttribute(entry.getKey() + "." + subEntry.getKey() + ".value", entry.getValue()));
                         continue;
                     }
 
-                    if (operand2Node.get("value").isNumber()) {
-                        operand2 = operand2Node.asText();
+                    if (operand2Node.get("value") instanceof Number) {
+                        operand2 = operand2Node.toString();
                     } else {
-                        operand2 = operand2Node.asText();
+                        operand2 = operand2Node.toString();
 
                         if (operand2.contains("{{")) {
-                            
+
                             ConversionResult<String> convertedOperand2 = new MustacheTemplateConverter(operand2).convertToSignals();
                             validationErrors.add(entry.getKey() + "." + subEntry.getKey(), convertedOperand2.getSourceValidationErrors());
                             operand2 = convertedOperand2.getElement();
-                            
+
                             operand2 = mustacheToPainless(operand2);
                         } else if (operand2.startsWith("<") && operand2.endsWith(">")) {
                             operand2 = '"' + operand2 + '"';
@@ -213,15 +194,15 @@ public class ConditionConverter {
                         }
                     }
 
-                    if (operand2Node.hasNonNull("quantifier") && operand2Node.get("quantifier").asText().equalsIgnoreCase("all")) {
+                    if (operand2Node.hasNonNull("quantifier") && operand2Node.getAsString("quantifier").equalsIgnoreCase("all")) {
                         all = true;
                     }
 
                 } else {
-                    if (subEntry.getValue().isNumber()) {
-                        operand2 = subEntry.getValue().asText();
+                    if (subEntry.getValue().toBasicObject() instanceof Number) {
+                        operand2 = subEntry.getValue().toBasicObject().toString();
                     } else {
-                        operand2 = subEntry.getValue().asText();
+                        operand2 = subEntry.getValue().toBasicObject().toString();
 
                         if (operand2.contains("{{")) {
                             ConversionResult<String> convertedOperand2 = new MustacheTemplateConverter(operand2).convertToSignals();
@@ -251,25 +232,26 @@ public class ConditionConverter {
         return new ConversionResult<List<Check>>(result, validationErrors);
     }
 
-    private ConversionResult<List<Check>> createScriptCondition(JsonNode jsonNode) {
+    private ConversionResult<List<Check>> createScriptCondition(DocNode jsonNode) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
         List<Check> result = new ArrayList<>();
 
-        if (jsonNode.isTextual()) {
-            ConversionResult<String> convertedScript = new PainlessScriptConverter(jsonNode.asText()).convertToSignals();
+        if (jsonNode.isString()) {
+            ConversionResult<String> convertedScript = new PainlessScriptConverter(jsonNode.toString()).convertToSignals();
 
             result.add(new Condition(null, convertedScript.getElement(), null, null));
             validationErrors.add(null, convertedScript.getSourceValidationErrors());
-        } else if (jsonNode.isObject()) {
+        } else if (jsonNode.isMap()) {
             if (jsonNode.hasNonNull("id")) {
                 validationErrors.add(new ValidationError("id", "Script references are not supported"));
             }
 
-            ConversionResult<String> convertedScript = new PainlessScriptConverter(vJsonNode.string("source", "")).convertToSignals();
+            ConversionResult<String> convertedScript = new PainlessScriptConverter(vJsonNode.get("source").withDefault("").asString())
+                    .convertToSignals();
 
-            result.add(new Condition(null, convertedScript.getElement(), vJsonNode.string("lang"), null));
+            result.add(new Condition(null, convertedScript.getElement(), vJsonNode.get("lang").asString(), null));
             validationErrors.add("source", convertedScript.getSourceValidationErrors());
 
         } else {

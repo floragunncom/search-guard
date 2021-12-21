@@ -1,3 +1,17 @@
+/*
+ * Copyright 2020-2021 by floragunn GmbH - All rights reserved
+ * 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 
+ * This software is free of charge for non-commercial and academic use. 
+ * For commercial use in a production environment you have to obtain a license 
+ * from https://floragunn.com
+ * 
+ */
+
 package com.floragunn.signals.enterprise.watch.action.handlers.jira;
 
 import java.io.IOException;
@@ -8,8 +22,8 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.accounts.Account;
 
 public class JiraAccount extends Account {
@@ -80,10 +94,10 @@ public class JiraAccount extends Account {
         }
 
         @Override
-        protected JiraAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
+        protected JiraAccount create(String id, ValidatingDocNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
 
-            JiraAccount result = new JiraAccount(vJsonNode.requiredURI("url"), vJsonNode.requiredString("user_name"),
-                    vJsonNode.requiredString("auth_token"));
+            JiraAccount result = new JiraAccount(vJsonNode.get("url").required().asURI(), vJsonNode.get("user_name").required().asString(),
+                    vJsonNode.get("auth_token").required().asString());
             result.setId(id);
 
             validationErrors.throwExceptionForPresentErrors();

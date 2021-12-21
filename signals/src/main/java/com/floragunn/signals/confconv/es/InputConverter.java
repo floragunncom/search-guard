@@ -2,7 +2,6 @@ package com.floragunn.signals.confconv.es;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -10,17 +9,11 @@ import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.common.unit.TimeValue;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.floragunn.codova.documents.jackson.JacksonJsonNodeAdapter;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.confconv.ConversionResult;
 import com.floragunn.signals.watch.checks.AbstractSearchInput;
 import com.floragunn.signals.watch.checks.Check;
@@ -32,9 +25,9 @@ import com.floragunn.signals.watch.common.HttpRequestConfig;
 
 public class InputConverter {
 
-    private final JsonNode inputJsonNode;
+    private final DocNode inputJsonNode;
 
-    public InputConverter(JsonNode inputJsonNode) {
+    public InputConverter(DocNode inputJsonNode) {
         this.inputJsonNode = inputJsonNode;
     }
 
@@ -42,18 +35,18 @@ public class InputConverter {
         return convertToSignals(inputJsonNode, null, "_top");
     }
 
-    private ConversionResult<List<Check>> convertToSignals(JsonNode inputJsonNode, String name, String target) {
+    private ConversionResult<List<Check>> convertToSignals(DocNode inputJsonNode, String name, String target) {
         ValidationErrors validationErrors = new ValidationErrors();
 
         List<Check> result = new ArrayList<>();
 
         if (inputJsonNode.hasNonNull("simple")) {
-            result.add(new StaticInput(name, target, JacksonTools.toMap(inputJsonNode.get("simple"))));
+            result.add(new StaticInput(name, target, inputJsonNode.getAsNode("simple").toMap()));
             name = null;
         }
 
         if (inputJsonNode.hasNonNull("search")) {
-            ConversionResult<List<Check>> convertedSearch = createSearchInput(inputJsonNode.get("search"), name, target);
+            ConversionResult<List<Check>> convertedSearch = createSearchInput(inputJsonNode.getAsNode("search"), name, target);
 
             result.addAll(convertedSearch.getElement());
             validationErrors.add("search", convertedSearch.getSourceValidationErrors());
@@ -62,7 +55,7 @@ public class InputConverter {
         }
 
         if (inputJsonNode.hasNonNull("http")) {
-            ConversionResult<List<Check>> convertedSearch = createHttpInput(inputJsonNode.get("http"), name, target);
+            ConversionResult<List<Check>> convertedSearch = createHttpInput(inputJsonNode.getAsNode("http"), name, target);
 
             result.addAll(convertedSearch.getElement());
             validationErrors.add("http", convertedSearch.getSourceValidationErrors());
@@ -70,8 +63,8 @@ public class InputConverter {
             name = null;
         }
 
-        if (inputJsonNode.hasNonNull("chain") && inputJsonNode.get("chain").hasNonNull("inputs")) {
-            ConversionResult<List<Check>> convertedChain = createInputChain(inputJsonNode.get("chain").get("inputs"), target);
+        if (inputJsonNode.hasNonNull("chain") && inputJsonNode.getAsNode("chain").hasNonNull("inputs")) {
+            ConversionResult<List<Check>> convertedChain = createInputChain(inputJsonNode.getAsNode("chain").getAsNode("inputs"), target);
 
             result.addAll(convertedChain.getElement());
             validationErrors.add("chain", convertedChain.getSourceValidationErrors());
@@ -81,31 +74,31 @@ public class InputConverter {
         return new ConversionResult<List<Check>>(result, validationErrors);
     }
 
-    private ConversionResult<List<Check>> createSearchInput(JsonNode jsonNode, String name, String target) {
+    private ConversionResult<List<Check>> createSearchInput(DocNode jsonNode, String name, String target) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        JsonNode requestNode = vJsonNode.requiredObject("request");
+        DocNode requestNode = vJsonNode.get("request").required().asDocNode();
 
-        if (requestNode == null) {
+        if (requestNode.isNull()) {
             return new ConversionResult<List<Check>>(Collections.emptyList(), validationErrors);
         }
 
         ValidationErrors requestValidationErrors = new ValidationErrors();
-        ValidatingJsonNode vRequestNode = new ValidatingJsonNode(requestNode, requestValidationErrors);
+        ValidatingDocNode vRequestNode = new ValidatingDocNode(requestNode, requestValidationErrors);
 
-        List<String> indices = vRequestNode.stringList("indices");
-        SearchType searchType = vRequestNode.caseInsensitiveEnum("search_type", SearchType.class, null);
-        String body = bodyNodeToString(vRequestNode.requiredObject("body"), requestValidationErrors);
+        List<String> indices = vRequestNode.get("indices").asListOfStrings();
+        SearchType searchType = vRequestNode.get("search_type").asEnum(SearchType.class);
+        String body = bodyNodeToString(vRequestNode.get("body").required().asDocNode(), requestValidationErrors);
         ConversionResult<String> convertedBody = new MustacheTemplateConverter(body).convertToSignals();
         requestValidationErrors.add("body", convertedBody.getSourceValidationErrors());
 
         IndicesOptions indicesOptions = null;
-        TimeValue timeout = vJsonNode.timeValue("timeout");
+        TimeValue timeout = vJsonNode.get("timeout").byString((s) -> TimeValue.parseTimeValue(s, "timeout"));
 
         if (requestNode.hasNonNull("indices_options")) {
             try {
-                indicesOptions = AbstractSearchInput.parseIndicesOptions(new JacksonJsonNodeAdapter(requestNode.get("indices_options")));
+                indicesOptions = AbstractSearchInput.parseIndicesOptions(requestNode.getAsNode("indices_options"));
             } catch (ConfigValidationException e) {
                 requestValidationErrors.add("indices_options", e);
             }
@@ -129,13 +122,13 @@ public class InputConverter {
         return new ConversionResult<List<Check>>(Collections.singletonList(searchInput), validationErrors);
     }
 
-    private ConversionResult<List<Check>> createHttpInput(JsonNode jsonNode, String name, String target) {
+    private ConversionResult<List<Check>> createHttpInput(DocNode jsonNode, String name, String target) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        JsonNode requestNode = vJsonNode.requiredObject("request");
+        DocNode requestNode = vJsonNode.get("request").required().asDocNode();
 
-        if (requestNode == null) {
+        if (requestNode.isNull()) {
             return new ConversionResult<List<Check>>(Collections.emptyList(), validationErrors);
         }
 
@@ -152,23 +145,19 @@ public class InputConverter {
                 Collections.singletonList(new HttpInput(name, target, httpRequestConfig.getElement(), httpClientConfig)));
     }
 
-    private ConversionResult<List<Check>> createInputChain(JsonNode chain, String target) {
+    private ConversionResult<List<Check>> createInputChain(DocNode chain, String target) {
         ValidationErrors validationErrors = new ValidationErrors();
         List<Check> result = new ArrayList<>();
 
-        if (chain instanceof ArrayNode) {
-            for (JsonNode chainMember : chain) {
+        if (chain.isList()) {
+            for (DocNode chainMember : chain.toListOfNodes()) {
                 ConversionResult<List<Check>> subResult = createInputChain(chainMember, target);
                 result.addAll(subResult.getElement());
                 validationErrors.add(null, subResult.getSourceValidationErrors());
             }
-        } else if (chain instanceof ObjectNode) {
-            ObjectNode chainObject = (ObjectNode) chain;
+        } else if (chain.isMap()) {
 
-            Iterator<Map.Entry<String, JsonNode>> iter = chainObject.fields();
-
-            while (iter.hasNext()) {
-                Map.Entry<String, JsonNode> entry = iter.next();
+            for (Map.Entry<String, DocNode> entry : chain.toMapOfNodes().entrySet()) {
 
                 String subTarget = target == null || target.equals("_top") ? entry.getKey() : target + "." + entry.getKey();
 
@@ -184,12 +173,12 @@ public class InputConverter {
         return new ConversionResult<List<Check>>(result, validationErrors);
     }
 
-    private String bodyNodeToString(JsonNode bodyNode, ValidationErrors requestValidationErrors) {
+    private String bodyNodeToString(DocNode bodyNode, ValidationErrors requestValidationErrors) {
 
         if (bodyNode != null) {
             try {
-                return DefaultObjectMapper.objectMapper.writeValueAsString(bodyNode);
-            } catch (JsonProcessingException e) {
+                return bodyNode.toJsonString();
+            } catch (Exception e) {
                 requestValidationErrors.add(new ValidationError("body", e.getMessage()).cause(e));
                 return "{}";
             }

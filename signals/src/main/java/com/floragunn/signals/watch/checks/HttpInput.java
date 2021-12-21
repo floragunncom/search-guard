@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.checks;
 
 import java.io.IOException;
@@ -16,14 +33,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.execution.CheckExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.watch.common.HttpClientConfig;
@@ -62,9 +77,10 @@ public class HttpInput extends AbstractInput {
 
             this.request.checkHttpResponse(httpRequest, response);
 
-            ObjectMapper contentTypeObjectMapper = getObjectMapper(response);
+            
+            DocType docType = DocType.peekByContentType(getContentType(response));
 
-            if (contentTypeObjectMapper == null) {
+            if (docType == null) {
                 // just treat the response as plain text
 
                 try {
@@ -76,10 +92,7 @@ public class HttpInput extends AbstractInput {
                     throw new CheckExecutionException(this, "Error while decoding HTTP response", e);
                 }
             } else {
-                JsonNode tree = contentTypeObjectMapper.readTree(response.getEntity().getContent());
-                Object object = JacksonTools.toObject(tree);
-
-                setResult(ctx, object);
+                setResult(ctx, DocReader.type(docType).read(response.getEntity().getContent()));
             }
 
             return true;
@@ -88,28 +101,6 @@ public class HttpInput extends AbstractInput {
         } catch (Exception e) {
             throw new CheckExecutionException(this, e.getMessage(), e);
         }
-    }
-
-    private ObjectMapper getObjectMapper(HttpResponse response) {
-        String contentType = getContentType(response);
-
-        if (contentType == null) {
-            return null;
-        }
-
-        switch (contentType) {
-        case "application/json":
-        case "text/json":
-            return new ObjectMapper();
-        case "application/yaml":
-        case "application/x-yaml":
-        case "text/yaml":
-        case "text/x-yaml":
-            return new ObjectMapper(new YAMLFactory());
-        default:
-            return null;
-        }
-
     }
 
     private String getContentType(HttpResponse response) {

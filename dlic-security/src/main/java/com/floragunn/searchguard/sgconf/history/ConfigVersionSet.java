@@ -29,8 +29,7 @@ import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
@@ -162,25 +161,22 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
         return builder;
     }
 
-    public static ConfigVersionSet parse(JsonNode jsonNode) throws ConfigValidationException {
+    public static ConfigVersionSet parse(DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         Builder builder = new Builder();
 
-        if (jsonNode.isArray()) {
-            for (JsonNode subNode : jsonNode) {
+        if (jsonNode.isList()) {
+            for (Object subNode : jsonNode.toList()) {
                 try {
-                    builder.add(ConfigVersion.parse(subNode));
+                    builder.add(ConfigVersion.parse(DocNode.wrap(subNode)));
                 } catch (ConfigValidationException e) {
                     validationErrors.add("_", e);
                 }
             }
-        } else if (jsonNode.isObject()) {
-            ObjectNode objectNode = (ObjectNode) jsonNode;
-
-            Iterator<String> fieldNames = objectNode.fieldNames();
-
-            while (fieldNames.hasNext()) {
-                String fieldName = fieldNames.next();
+        } else if (jsonNode.isMap()) {
+         
+            for (Map.Entry<String, Object> entry : jsonNode.toMap().entrySet()) {
+                String fieldName = entry.getKey();
                 CType<?> configType;
 
                 try {
@@ -190,14 +186,14 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
                     continue;
                 }
 
-                JsonNode value = objectNode.get(fieldName);
+                Object value = entry.getValue();
 
-                if (value == null || !value.isNumber()) {
+                if (!(value instanceof Number)) {
                     validationErrors.add(new InvalidAttributeValue(fieldName, value, "A version number"));
                     continue;
                 }
 
-                builder.add(configType, value.asLong());
+                builder.add(configType, ((Number) value).longValue());
             }
         } else {
             validationErrors.add(new ValidationError(null, "Unexpected type " + jsonNode));

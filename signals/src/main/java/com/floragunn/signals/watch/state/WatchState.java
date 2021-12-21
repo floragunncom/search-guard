@@ -1,13 +1,28 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.state;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
@@ -16,8 +31,10 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.result.Status;
@@ -38,7 +55,7 @@ public class WatchState implements ToXContentObject {
     public WatchState(String tenant) {
         this.tenant = tenant;
     }
-    
+
     public WatchState(String tenant, String node) {
         this.tenant = tenant;
         this.node = node;
@@ -111,41 +128,41 @@ public class WatchState implements ToXContentObject {
         return Strings.toString(this);
     }
 
-    public static WatchState createFromJson(String tenant, String json) throws IOException {
-        return createFrom(tenant, DefaultObjectMapper.readTree(json));
+    public static WatchState createFromJson(String tenant, String json) throws DocParseException {
+        return createFrom(tenant, DocNode.parse(DocType.JSON).from(json));
     }
 
-    public static WatchState createFrom(String tenant, JsonNode jsonNode) {
+    public static WatchState createFrom(String tenant, DocNode jsonNode) {
         WatchState result = new WatchState(tenant);
 
         if (jsonNode.hasNonNull("last_execution")) {
             try {
-                result.lastExecutionContextData = WatchExecutionContextData.create(jsonNode.get("last_execution"));
+                result.lastExecutionContextData = WatchExecutionContextData.create(jsonNode.getAsNode("last_execution"));
             } catch (Exception e) {
                 log.error("Error while parsing watch state from index " + jsonNode, e);
             }
         }
 
         if (jsonNode.hasNonNull("actions")) {
-            Iterator<Entry<String, JsonNode>> actionIter = jsonNode.get("actions").fields();
-
-            while (actionIter.hasNext()) {
-                Entry<String, JsonNode> entry = actionIter.next();
-
-                result.actions.put(entry.getKey(), ActionState.createFrom(entry.getValue()));
+            for (Map.Entry<String, Object> entry : jsonNode.getAsNode("actions").toMap().entrySet()) {
+                result.actions.put(entry.getKey(), ActionState.createFrom(DocNode.wrap(entry.getValue())));
             }
         }
 
         if (jsonNode.hasNonNull("last_status")) {
-            result.lastStatus = Status.parse(jsonNode.get("last_status"));
+            result.lastStatus = Status.parse(jsonNode.getAsNode("last_status"));
         }
 
         if (jsonNode.hasNonNull("active")) {
-            result.active = jsonNode.get("active").asBoolean();
+            try {
+                result.active = jsonNode.getBoolean("active");
+            } catch (ConfigValidationException e) {
+                log.error("Error while parsing watch state from index " + jsonNode, e);
+            }
         }
 
         if (jsonNode.hasNonNull("node")) {
-            result.node = jsonNode.get("node").textValue();
+            result.node = jsonNode.getAsString("node");
         }
 
         return result;

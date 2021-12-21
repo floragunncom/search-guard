@@ -15,16 +15,12 @@
  *
  */
 
-package com.floragunn.codova.documents;
+package com.floragunn.codova.validation;
 
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.errors.ValidationError;
+import java.util.function.Predicate;
 
-public class UnexpectedDocumentStructureException extends ConfigValidationException {
+import org.apache.commons.validator.routines.EmailValidator;
 
-    private static final long serialVersionUID = 4969591600760212956L;
-
-    public UnexpectedDocumentStructureException(String message) {
-        super(new ValidationError(null, message));
-    }
+public class Validators {
+    public static final Predicate<String> EMAIL = (value) -> EmailValidator.getInstance(true, true).isValid(value);
 }

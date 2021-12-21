@@ -13,10 +13,10 @@ import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.signals.confconv.ConversionResult;
 import com.floragunn.signals.confconv.es.EsWatcherConverter;
 import com.floragunn.signals.watch.Watch;
@@ -37,7 +37,7 @@ public class ConvertWatchApiAction extends SignalsBaseRestHandler {
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
         try {
-            JsonNode input = ValidatingJsonParser.readTree(request.content().utf8ToString());
+            DocNode input = DocNode.parse(DocType.JSON).from(request.content().utf8ToString());
 
             EsWatcherConverter converter = new EsWatcherConverter(input);
             ConversionResult<Watch> result = converter.convertToSignals();

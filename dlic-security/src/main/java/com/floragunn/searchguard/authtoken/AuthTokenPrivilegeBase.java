@@ -30,15 +30,13 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.sgconf.history.ConfigVersionSet;
 import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.json.JacksonTools;
 import com.google.common.collect.ImmutableMap;
 
 public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Serializable {
@@ -115,28 +113,28 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
         return builder;
     }
 
-    public static AuthTokenPrivilegeBase parse(JsonNode jsonNode) throws ConfigValidationException {
+    public static AuthTokenPrivilegeBase parse(DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
         ConfigVersionSet configVersions = null;
 
-        List<String> backendRoles = vJsonNode.stringList("roles_be", Collections.emptyList());
-        List<String> searchGuardRoles = vJsonNode.stringList("roles_sg", Collections.emptyList());
+        List<String> backendRoles = vJsonNode.get("roles_be").asList().withEmptyListAsDefault().ofStrings();
+        List<String> searchGuardRoles = vJsonNode.get("roles_sg").asList().withEmptyListAsDefault().ofStrings();
         Map<String, Object> attributes;
 
         if (vJsonNode.hasNonNull("config")) {
             try {
-                configVersions = ConfigVersionSet.parse(vJsonNode.get("config"));
+                configVersions = ConfigVersionSet.parse(jsonNode.getAsNode("config"));
             } catch (ConfigValidationException e) {
                 validationErrors.add("config", e);
             }
         }
 
-        ObjectNode attrsNode = vJsonNode.getObjectNode("attrs");
+        DocNode attrsNode = jsonNode.getAsNode("attrs");
 
-        if (attrsNode != null) {
-            attributes = JacksonTools.toMap(attrsNode);
+        if (attrsNode != null && !attrsNode.isNull()) {
+            attributes = attrsNode.toMap();
         } else {
             attributes = new LinkedHashMap<>();
         }

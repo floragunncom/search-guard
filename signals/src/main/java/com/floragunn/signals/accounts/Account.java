@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.accounts;
 
 import java.util.HashMap;
@@ -14,12 +31,12 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
 import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
@@ -76,10 +93,10 @@ public abstract class Account implements ToXContentObject {
     }
 
     public static Account parse(String accountType, String id, String string) throws ConfigValidationException {
-        return create(accountType, id, ValidatingJsonParser.readTree(string));
+        return create(accountType, id, DocNode.parse(DocType.JSON).from(string));
     }
 
-    public static Account create(String accountType, String id, JsonNode jsonNode) throws ConfigValidationException {
+    public static Account create(String accountType, String id, DocNode jsonNode) throws ConfigValidationException {
 
         Factory<?> factory = factoryRegistry.get(accountType);
 
@@ -97,9 +114,9 @@ public abstract class Account implements ToXContentObject {
             this.type = type;
         }
 
-        public final A create(String id, JsonNode jsonNode) throws ConfigValidationException {
+        public final A create(String id, DocNode docNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+            ValidatingDocNode vJsonNode = new ValidatingDocNode(docNode, validationErrors);
 
             vJsonNode.used("type", "_name");
 
@@ -110,10 +127,10 @@ public abstract class Account implements ToXContentObject {
             return result;
         }
 
-        public final A create(String id, ValidatingJsonNode vJsonNode) throws ConfigValidationException {
+        public final A create(String id, ValidatingDocNode vJsonNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            vJsonNode = new ValidatingJsonNode(vJsonNode, validationErrors);
-            
+            vJsonNode = new ValidatingDocNode(vJsonNode, validationErrors);
+
             vJsonNode.used("type", "_name");
 
             A result = create(id, vJsonNode, validationErrors);
@@ -123,7 +140,7 @@ public abstract class Account implements ToXContentObject {
             return result;
         }
 
-        protected abstract A create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException;
+        protected abstract A create(String id, ValidatingDocNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException;
 
         public abstract Class<A> getImplClass();
 

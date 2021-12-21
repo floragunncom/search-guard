@@ -46,6 +46,7 @@ import org.elasticsearch.SpecialPermission;
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.documents.DocParseException;
 import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfig;
 
@@ -120,7 +121,7 @@ public class OpenIdProviderClient {
                     return new OidcProviderConfig(DocReader.json().readObject(httpEntity.getContent()));
                 }
 
-            } catch (DocParseException | IOException e) {
+            } catch (DocParseException | IOException | UnexpectedDocumentStructureException e) {
                 throw new AuthenticatorUnavailableException("Error while getting " + openIdConnectEndpoint + ": " + e, e);
             }
         });
