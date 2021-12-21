@@ -37,7 +37,7 @@ public class DocType {
     private static List<DocType> registeredDocTypes = new ArrayList<>();
     private static Map<String, DocType> registeredDocTypesByMediaType = new HashMap<>();
 
-    public static DocType JSON = new DocType("JSON", Encoding.TEXT, new JsonFactory(), "json", "application/json", "text/x-json");
+    public static DocType JSON = new DocType("JSON", Encoding.TEXT, new JsonFactory(), "json", "application/json", "text/x-json", "text/json");
     public static DocType YAML = new DocType("YAML", Encoding.TEXT, new YAMLFactory(), "ya?ml", "application/x-yaml", "application/yaml", "text/yaml",
             "text/x-yaml", "text/vnd.yaml");
     public static DocType SMILE = new DocType("SMILE", Encoding.BINARY, "com.fasterxml.jackson.dataformat.smile.SmileFactory", "sml",

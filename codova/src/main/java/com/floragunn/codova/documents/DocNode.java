@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.floragunn.codova.util.ValueRewritingMapWrapper;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingFunction;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -841,17 +842,33 @@ public abstract class DocNode implements Map<String, Object>, Document {
     public abstract boolean isMap();
 
     public abstract boolean isList();
-
+    
     public abstract boolean isList(String attribute);
 
     public abstract List<Object> toList();
-
+    
     public Object toBasicObject() {
         return get(null);
     }
+    
+    public Map<String, DocNode> toMapOfNodes() {
+        return new ValueRewritingMapWrapper<>(toMap(), (o) -> DocNode.wrap(o));
+    }
 
+    public List<DocNode> toListOfNodes() {
+        return getAsListOfNodes(null);
+    }
+    
     public boolean isNull() {
         return toBasicObject() == null;
+    }
+    
+    public boolean isString() {
+        return toBasicObject() instanceof String;
+    }
+    
+    public boolean isNumber() {
+        return toBasicObject() instanceof Number;
     }
 
     public boolean hasAny(String... keys) {
@@ -1211,6 +1228,10 @@ public abstract class DocNode implements Map<String, Object>, Document {
 
     protected DocNode createSubTree(String attribute) {
         return SubTreeView.getSubTree(this, attribute);
+    }
+
+    public Number toNumber() throws ConfigValidationException {
+        return getNumber(null);
     }
 
     @Override

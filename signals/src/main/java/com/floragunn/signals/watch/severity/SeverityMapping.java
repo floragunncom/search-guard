@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.severity;
 
 import java.io.IOException;
@@ -19,14 +36,11 @@ import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.jackson.JacksonJsonNodeAdapter;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchOperationExecutionException;
@@ -447,18 +461,18 @@ public class SeverityMapping implements ToXContentObject {
             return map;
         }
 
-        public static EvaluationResult create(JsonNode jsonNode) throws ConfigValidationException {
+        public static EvaluationResult create(DocNode docNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+            ValidatingDocNode vJsonNode = new ValidatingDocNode(docNode, validationErrors);
 
-            SeverityLevel level = vJsonNode.requiredCaseInsensitiveEnum("level", SeverityLevel.class);
-            Number actualValue = vJsonNode.decimalValue("value", null);
+            SeverityLevel level = vJsonNode.get("level").required().asEnum(SeverityLevel.class);
+            Number actualValue = vJsonNode.get("value").asBigDecimal();
 
             Element mappingElement = null;
 
-            if (jsonNode.hasNonNull("mapping_element")) {
+            if (docNode.hasNonNull("mapping_element")) {
                 try {
-                    mappingElement = Element.create(new JacksonJsonNodeAdapter(jsonNode.get("mapping_element")));
+                    mappingElement = Element.create(docNode.getAsNode("mapping_element"));
                 } catch (ConfigValidationException e) {
                     validationErrors.add("mapping_element", e);
                 }

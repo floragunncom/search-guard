@@ -23,11 +23,11 @@ import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 
 public class ConfigVersion implements ToXContentObject, Writeable, Serializable {
 
@@ -117,12 +117,12 @@ public class ConfigVersion implements ToXContentObject, Writeable, Serializable 
         }
     }
 
-    public static ConfigVersion parse(JsonNode jsonNode) throws ConfigValidationException {
+    public static ConfigVersion parse(DocNode jsonNode) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        CType<?> configType = CType.fromString(vJsonNode.requiredString("type"));
-        long version = vJsonNode.requiredInt("version");
+        CType<?> configType = CType.fromString(vJsonNode.get("type").required().asString());
+        long version = vJsonNode.get("version").required().asNumber().longValue();
 
         validationErrors.throwExceptionForPresentErrors();
 

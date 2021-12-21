@@ -235,11 +235,11 @@ public class DocReader {
             }
         }
 
-        public Map<String, Object> readObject(Reader in) throws DocParseException, IOException {
+        public Map<String, Object> readObject(Reader in) throws DocParseException, IOException, UnexpectedDocumentStructureException {
             return toJsonObject(read(in));
         }
 
-        public Map<String, Object> readObject(InputStream in) throws DocParseException, IOException {
+        public Map<String, Object> readObject(InputStream in) throws DocParseException, IOException, UnexpectedDocumentStructureException {
             return toJsonObject(read(in));
         }
 

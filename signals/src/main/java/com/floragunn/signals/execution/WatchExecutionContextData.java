@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.execution;
 
 import java.io.IOException;
@@ -14,8 +31,7 @@ import org.elasticsearch.script.JodaCompatibleZonedDateTime;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.severity.SeverityMapping;
@@ -139,12 +155,12 @@ public class WatchExecutionContextData implements ToXContentObject {
         return builder;
     }
 
-    public static WatchExecutionContextData create(JsonNode jsonNode) {
+    public static WatchExecutionContextData create(DocNode jsonNode) {
         WatchExecutionContextData result = new WatchExecutionContextData();
 
         if (jsonNode.hasNonNull("data")) {
             try {
-                result.data = NestedValueMap.createUnmodifieableMap(DefaultObjectMapper.readTree(jsonNode.get("data"), Map.class));
+                result.data = NestedValueMap.createUnmodifieableMap(jsonNode.getAsNode("data").toMap());
             } catch (Exception e) {
                 log.error("Error while parsing " + jsonNode.get("data"), e);
             }
@@ -152,7 +168,7 @@ public class WatchExecutionContextData implements ToXContentObject {
 
         if (jsonNode.hasNonNull("severity")) {
             try {
-                result.severity = SeverityMapping.EvaluationResult.create(jsonNode.get("severity"));
+                result.severity = SeverityMapping.EvaluationResult.create(jsonNode.getAsNode("severity"));
             } catch (Exception e) {
                 log.error("Error while parsing " + jsonNode.get("severity"), e);
             }
@@ -160,7 +176,7 @@ public class WatchExecutionContextData implements ToXContentObject {
 
         if (jsonNode.hasNonNull("watch")) {
             try {
-                result.watch = WatchInfo.create(jsonNode.get("watch"));
+                result.watch = WatchInfo.create(jsonNode.getAsNode("watch"));
             } catch (Exception e) {
                 log.error("Error while parsing " + jsonNode.get("watch"), e);
             }
@@ -168,7 +184,7 @@ public class WatchExecutionContextData implements ToXContentObject {
 
         if (jsonNode.hasNonNull("trigger")) {
             try {
-                result.triggerInfo = TriggerInfo.create(jsonNode.get("trigger"));
+                result.triggerInfo = TriggerInfo.create(jsonNode.getAsNode("trigger"));
             } catch (Exception e) {
                 log.error("Error while parsing " + jsonNode.get("trigger"), e);
             }
@@ -176,7 +192,7 @@ public class WatchExecutionContextData implements ToXContentObject {
 
         if (jsonNode.hasNonNull("execution_time")) {
             try {
-                result.executionTime = parseJodaCompatibleZonedDateTime(jsonNode.get("execution_time").textValue());
+                result.executionTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("execution_time"));
             } catch (Exception e) {
                 log.error("Error while parsing " + jsonNode.get("execution_time"), e);
             }
@@ -232,23 +248,23 @@ public class WatchExecutionContextData implements ToXContentObject {
             return ObjectTreeXContent.toMap(this);
         }
 
-        public static TriggerInfo create(JsonNode jsonNode) {
+        public static TriggerInfo create(DocNode jsonNode) {
             JodaCompatibleZonedDateTime triggeredTime = null;
             JodaCompatibleZonedDateTime scheduledTime = null;
             JodaCompatibleZonedDateTime previousScheduledTime = null;
             JodaCompatibleZonedDateTime nextScheduledTime = null;
 
             if (jsonNode.hasNonNull("triggered_time")) {
-                triggeredTime = parseJodaCompatibleZonedDateTime(jsonNode.get("triggered_time").textValue());
+                triggeredTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("triggered_time"));
             }
             if (jsonNode.hasNonNull("scheduled_time")) {
-                scheduledTime = parseJodaCompatibleZonedDateTime(jsonNode.get("scheduled_time").textValue());
+                scheduledTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("scheduled_time"));
             }
             if (jsonNode.hasNonNull("previous_scheduled_time")) {
-                previousScheduledTime = parseJodaCompatibleZonedDateTime(jsonNode.get("previous_scheduled_time").textValue());
+                previousScheduledTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("previous_scheduled_time"));
             }
             if (jsonNode.hasNonNull("next_scheduled_time")) {
-                nextScheduledTime = parseJodaCompatibleZonedDateTime(jsonNode.get("next_scheduled_time").textValue());
+                nextScheduledTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("next_scheduled_time"));
             }
             return new TriggerInfo(triggeredTime, scheduledTime, previousScheduledTime, nextScheduledTime);
         }
@@ -316,16 +332,16 @@ public class WatchExecutionContextData implements ToXContentObject {
             return ObjectTreeXContent.toMap(this);
         }
 
-        public static WatchInfo create(JsonNode jsonNode) {
+        public static WatchInfo create(DocNode jsonNode) {
             String id = null;
             String tenant = null;
 
             if (jsonNode.hasNonNull("id")) {
-                id = jsonNode.get("id").textValue();
+                id = jsonNode.getAsString("id");
             }
 
             if (jsonNode.hasNonNull("tenant")) {
-                tenant = jsonNode.get("tenant").textValue();
+                tenant = jsonNode.getAsString("tenant");
             }
 
             return new WatchInfo(id, tenant);

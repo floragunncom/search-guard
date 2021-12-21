@@ -70,6 +70,8 @@ import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.authtoken.AuthTokenServiceConfig.FreezePrivileges;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
@@ -93,7 +95,6 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -207,7 +208,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 if (getResponse.isExists()) {
 
                     try {
-                        AuthToken authToken = AuthToken.parse(id, ValidatingJsonParser.readTree(getResponse.getSourceAsString()));
+                        AuthToken authToken = AuthToken.parse(id, DocNode.parse(DocType.JSON).from(getResponse.getSourceAsString()));
 
                         idToAuthTokenMap.put(id, authToken);
 

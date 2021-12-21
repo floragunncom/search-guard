@@ -7,12 +7,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.jobs.config.schedule.Schedule;
-import com.floragunn.searchsupport.json.JacksonTools;
 import com.floragunn.signals.confconv.ConversionResult;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.action.invokers.AlertAction;
@@ -23,10 +22,10 @@ import com.floragunn.signals.watch.common.auth.Auth;
 import com.floragunn.signals.watch.common.auth.BasicAuth;
 
 public class EsWatcherConverter {
-    
-    private final JsonNode watcherJson;
 
-    public EsWatcherConverter(JsonNode watcherJson) {
+    private final DocNode watcherJson;
+
+    public EsWatcherConverter(DocNode watcherJson) {
         this.watcherJson = watcherJson;
     }
 
@@ -35,39 +34,39 @@ public class EsWatcherConverter {
         Schedule schedule = null;
         List<Check> checks = new ArrayList<>();
         List<AlertAction> actions = Collections.emptyList();
-        
+
         if (watcherJson.hasNonNull("metadata")) {
-            ConversionResult<List<Check>> conversionResult = new MetaConverter(watcherJson.get("metadata")).convertToSignals();
+            ConversionResult<List<Check>> conversionResult = new MetaConverter(watcherJson.getAsNode("metadata")).convertToSignals();
             checks.addAll(conversionResult.getElement());
             validationErrors.add("metadata", conversionResult.getSourceValidationErrors());
         }
 
-        if (watcherJson.hasNonNull("trigger") && watcherJson.get("trigger").hasNonNull("schedule")) {
-            ConversionResult<Schedule> conversionResult = new ScheduleConverter(watcherJson.get("trigger").get("schedule")).convertToSignals();
+        if (watcherJson.hasNonNull("trigger") && watcherJson.getAsNode("trigger").hasNonNull("schedule")) {
+            ConversionResult<Schedule> conversionResult = new ScheduleConverter(watcherJson.getAsNode("trigger").getAsNode("schedule")).convertToSignals();
             schedule = conversionResult.getElement();
             validationErrors.add("schedule", conversionResult.getSourceValidationErrors());
         }
 
         if (watcherJson.hasNonNull("input")) {
-            ConversionResult<List<Check>> conversionResult = new InputConverter(watcherJson.get("input")).convertToSignals();
+            ConversionResult<List<Check>> conversionResult = new InputConverter(watcherJson.getAsNode("input")).convertToSignals();
             checks.addAll(conversionResult.getElement());
             validationErrors.add("input", conversionResult.getSourceValidationErrors());
         }
 
         if (watcherJson.hasNonNull("condition")) {
-            ConversionResult<List<Check>> conversionResult = new ConditionConverter(watcherJson.get("condition")).convertToSignals();
+            ConversionResult<List<Check>> conversionResult = new ConditionConverter(watcherJson.getAsNode("condition")).convertToSignals();
             checks.addAll(conversionResult.getElement());
             validationErrors.add("condition", conversionResult.getSourceValidationErrors());
         }
 
         if (watcherJson.hasNonNull("transform")) {
-            ConversionResult<List<Check>> conversionResult = new TransformConverter(watcherJson.get("transform")).convertToSignals();
+            ConversionResult<List<Check>> conversionResult = new TransformConverter(watcherJson.getAsNode("transform")).convertToSignals();
             checks.addAll(conversionResult.getElement());
             validationErrors.add("transform", conversionResult.getSourceValidationErrors());
         }
 
         if (watcherJson.hasNonNull("actions")) {
-            ConversionResult<List<AlertAction>> conversionResult = new ActionConverter(watcherJson.get("actions")).convertToSignals();
+            ConversionResult<List<AlertAction>> conversionResult = new ActionConverter(watcherJson.getAsNode("actions")).convertToSignals();
             actions = conversionResult.getElement();
             validationErrors.add("actions", conversionResult.getSourceValidationErrors());
         }
@@ -75,17 +74,17 @@ public class EsWatcherConverter {
         return new ConversionResult<Watch>(new Watch(null, schedule, checks, null, actions, null), validationErrors);
     }
 
-    static ConversionResult<HttpRequestConfig> createHttpRequestConfig(JsonNode jsonNode) {
+    static ConversionResult<HttpRequestConfig> createHttpRequestConfig(DocNode jsonNode) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
         URI url = null;
 
         if (vJsonNode.hasNonNull("url")) {
-            url = vJsonNode.requiredURI("url");
+            url = vJsonNode.get("url").required().asURI();
         } else {
-            String scheme = vJsonNode.string("scheme", "http");
-            String host = vJsonNode.requiredString("host");
-            int port = vJsonNode.intNumber("port", -1);
+            String scheme = vJsonNode.get("scheme").withDefault("http").asString();
+            String host = vJsonNode.get("host").required().asString();
+            int port = vJsonNode.get("port").withDefault(-1).asInt();
 
             try {
                 url = new URI(scheme, null, host, port, null, null, null);
@@ -95,32 +94,32 @@ public class EsWatcherConverter {
             }
         }
 
-        String path = vJsonNode.string("path");
-        
+        String path = vJsonNode.get("path").asString();
+
         ConversionResult<String> convertedPath = new MustacheTemplateConverter(path).convertToSignals();
         validationErrors.add("path", convertedPath.getSourceValidationErrors());
         path = convertedPath.getElement();
-        
-        String query = vJsonNode.string("params");
-        
+
+        String query = vJsonNode.get("params").asString();
+
         ConversionResult<String> convertedQuery = new MustacheTemplateConverter(query).convertToSignals();
         validationErrors.add("params", convertedQuery.getSourceValidationErrors());
         query = convertedQuery.getElement();
-        
-        String body = vJsonNode.string("body");
-        
+
+        String body = vJsonNode.get("body").asString();
+
         ConversionResult<String> convertedBody = new MustacheTemplateConverter(body).convertToSignals();
         validationErrors.add("body", convertedBody.getSourceValidationErrors());
         body = convertedBody.getElement();
-        
-        Method method = vJsonNode.caseInsensitiveEnum("method", Method.class, Method.GET);
 
-        Map<String, Object> headers = vJsonNode.hasNonNull("headers") ? JacksonTools.toMap(vJsonNode.get("headers")) : null;
+        Method method = vJsonNode.get("method").withDefault(Method.GET).asEnum(Method.class);
+
+        Map<String, Object> headers = jsonNode.hasNonNull("headers") ? jsonNode.getAsNode("headers").toMap() : null;
 
         ConversionResult<Auth> auth = null;
 
         if (vJsonNode.hasNonNull("auth")) {
-            auth = createAuth(vJsonNode.get("auth"));
+            auth = createAuth(vJsonNode.getAsDocNode("auth"));
             validationErrors.add("auth", auth.getSourceValidationErrors());
         }
 
@@ -129,12 +128,13 @@ public class EsWatcherConverter {
         return new ConversionResult<HttpRequestConfig>(result, validationErrors);
     }
 
-    static ConversionResult<Auth> createAuth(JsonNode jsonNode) {
+    static ConversionResult<Auth> createAuth(DocNode jsonNode) {
         if (jsonNode.hasNonNull("basic")) {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode.get("basic"), validationErrors);
+            ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode.getAsNode("basic"), validationErrors);
 
-            return new ConversionResult<Auth>(new BasicAuth(vJsonNode.requiredString("username"), vJsonNode.string("password")), validationErrors);
+            return new ConversionResult<Auth>(new BasicAuth(vJsonNode.get("username").required().asString(), vJsonNode.get("password").asString()),
+                    validationErrors);
         } else {
             return new ConversionResult<Auth>(null, new ValidationErrors().add(new ValidationError(null, "Unknown auth type")));
         }

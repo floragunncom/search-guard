@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.action.handlers.slack;
 
 import java.io.IOException;
@@ -8,8 +25,8 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.accounts.Account;
 
 public class SlackAccount extends Account {
@@ -53,11 +70,11 @@ public class SlackAccount extends Account {
         }
 
         @Override
-        protected SlackAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
-            
+        protected SlackAccount create(String id, ValidatingDocNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
+
             SlackAccount result = new SlackAccount();
             result.setId(id);
-            result.url = vJsonNode.requiredURI("url");
+            result.url = vJsonNode.get("url").required().asURI();
 
             validationErrors.throwExceptionForPresentErrors();
 

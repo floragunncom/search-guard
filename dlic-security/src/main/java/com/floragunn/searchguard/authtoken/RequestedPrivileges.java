@@ -27,15 +27,14 @@ import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
-
 
 public class RequestedPrivileges implements Writeable, ToXContentObject, Serializable {
     private static final long serialVersionUID = 5862219250642101795L;
@@ -120,41 +119,40 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
 
         return result;
     }
-    
+
     public boolean isTotalWildcard() {
         if (!clusterPermissions.contains("*")) {
             return false;
         }
-        
+
         if (excludedClusterPermissions != null && excludedClusterPermissions.size() > 0) {
             return false;
         }
-        
+
         if (excludedIndexPermissions != null && excludedIndexPermissions.size() > 0) {
             return false;
         }
-        
+
         if (roles != null && roles.size() > 0) {
             return false;
         }
-        
+
         if (indexPermissions.size() != 1) {
-            return false; 
+            return false;
         }
-        
+
         if (!indexPermissions.get(0).isWildcard()) {
             return false;
         }
-        
+
         if (tenantPermissions.size() != 1) {
             return false;
         }
-        
+
         if (!tenantPermissions.get(0).isWildcard()) {
             return false;
         }
-        
-        
+
         return true;
     }
 
@@ -241,12 +239,12 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
             out.writeStringCollection(allowedActions);
         }
 
-        public static IndexPermissions parse(JsonNode jsonNode) throws ConfigValidationException {
+        public static IndexPermissions parse(DocNode jsonNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+            ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-            List<String> indexPatterns = vJsonNode.requiredStringList("index_patterns", 1);
-            List<String> allowedActions = vJsonNode.requiredStringList("allowed_actions", 1);
+            List<String> indexPatterns = vJsonNode.get("index_patterns").required().asList().minElements(1).ofStrings();
+            List<String> allowedActions = vJsonNode.get("allowed_actions").required().asList().minElements(1).ofStrings();
 
             validationErrors.throwExceptionForPresentErrors();
 
@@ -297,7 +295,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                 return false;
             return true;
         }
-        
+
         public boolean isWildcard() {
             return indexPatterns.contains("*") & allowedActions.contains("*");
         }
@@ -325,12 +323,12 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
             out.writeStringCollection(allowedActions);
         }
 
-        public static TenantPermissions parse(JsonNode jsonNode) throws ConfigValidationException {
+        public static TenantPermissions parse(DocNode jsonNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+            ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-            List<String> tenantPatterns = vJsonNode.requiredStringList("tenant_patterns", 1);
-            List<String> allowedActions = vJsonNode.requiredStringList("allowed_actions", 1);
+            List<String> tenantPatterns = vJsonNode.get("tenant_patterns").required().asList().minElements(1).ofStrings();
+            List<String> allowedActions = vJsonNode.get("allowed_actions").required().asList().minElements(1).ofStrings();
 
             validationErrors.throwExceptionForPresentErrors();
 
@@ -381,7 +379,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                 return false;
             return true;
         }
-        
+
         public boolean isWildcard() {
             return tenantPatterns.contains("*") & allowedActions.contains("*");
         }
@@ -410,12 +408,12 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
             out.writeStringCollection(actions);
         }
 
-        public static ExcludedIndexPermissions parse(JsonNode jsonNode) throws ConfigValidationException {
+        public static ExcludedIndexPermissions parse(DocNode jsonNode) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+            ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-            List<String> indexPatterns = vJsonNode.requiredStringList("index_patterns", 1);
-            List<String> actions = vJsonNode.requiredStringList("actions", 1);
+            List<String> indexPatterns = vJsonNode.get("index_patterns").required().asList().minElements(1).ofStrings();
+            List<String> actions = vJsonNode.get("actions").required().asList().minElements(1).ofStrings();
 
             validationErrors.throwExceptionForPresentErrors();
 
@@ -468,25 +466,24 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
     }
 
-    public static RequestedPrivileges parse(JsonNode jsonNode) throws ConfigValidationException {
-        if (jsonNode.isTextual()) {
-            if (jsonNode.textValue().equals("*")) {
+    public static RequestedPrivileges parse(DocNode jsonNode) throws ConfigValidationException {
+        if (jsonNode.toBasicObject() instanceof String) {
+            if (jsonNode.toString().equals("*")) {
                 return totalWildcard();
             }
         }
-        
+
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
         RequestedPrivileges result = new RequestedPrivileges();
 
-        result.clusterPermissions = vJsonNode.stringList("cluster_permissions");
-        result.indexPermissions = vJsonNode.list("index_permissions", IndexPermissions::parse);
-        result.tenantPermissions = vJsonNode.list("tenant_permissions", TenantPermissions::parse);
-        result.excludedClusterPermissions = vJsonNode.stringList("exclude_cluster_permissions");
-        result.excludedIndexPermissions = vJsonNode.list("exclude_index_permissions", ExcludedIndexPermissions::parse);
-        result.roles = vJsonNode.stringList("roles");
+        result.clusterPermissions = vJsonNode.get("cluster_permissions").asListOfStrings();
+        result.indexPermissions = vJsonNode.get("index_permissions").asList(IndexPermissions::parse);
+        result.tenantPermissions = vJsonNode.get("tenant_permissions").asList(TenantPermissions::parse);
+        result.excludedClusterPermissions = vJsonNode.get("exclude_cluster_permissions").asListOfStrings();
+        result.excludedIndexPermissions = vJsonNode.get("exclude_index_permissions").asList(ExcludedIndexPermissions::parse);
+        result.roles = vJsonNode.get("roles").asListOfStrings();
 
-        
         validationErrors.throwExceptionForPresentErrors();
 
         if (result.clusterPermissions == null && result.indexPermissions == null && result.tenantPermissions == null) {
@@ -497,11 +494,11 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                 result.clusterPermissions = WILDCARD_LIST;
                 result.indexPermissions = Arrays.asList(new IndexPermissions(WILDCARD_LIST, WILDCARD_LIST));
                 result.tenantPermissions = Arrays.asList(new TenantPermissions(WILDCARD_LIST, WILDCARD_LIST));
-            
+
                 return result;
             }
         }
-                
+
         if (result.clusterPermissions == null) {
             result.clusterPermissions = Collections.emptyList();
         }
@@ -545,7 +542,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     }
 
     public static RequestedPrivileges parseYaml(String yaml) throws ConfigValidationException {
-        return parse(ValidatingJsonParser.readYamlTree(yaml));
+        return parse(DocNode.parse(DocType.YAML).from(yaml));
     }
 
     @Override

@@ -23,7 +23,7 @@ public class SignalsMailer {
         String[] trustedHosts = new String[0];
 
         if (sslUsed() && emailDestination.getTrustedHosts() != null) {
-            trustedHosts = emailDestination.getTrustedHosts();
+            trustedHosts = emailDestination.getTrustedHosts().toArray(new String [] {});
         }
 
         MailerBuilder.MailerRegularBuilder mailerBuilder = MailerBuilder

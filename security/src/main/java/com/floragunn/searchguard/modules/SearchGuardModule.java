@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.modules;
 
 import java.util.Collection;
@@ -22,8 +39,9 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 
 import com.fasterxml.jackson.core.JsonPointer;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ValidatingFunction;
 import com.floragunn.searchguard.BaseDependencies;
-import com.floragunn.searchsupport.config.validation.JsonNodeParser;
 
 public interface SearchGuardModule<T> {
     default List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
@@ -60,10 +78,10 @@ public interface SearchGuardModule<T> {
         private final Class<?> sgConfigType;
         private final String entry;
         private final JsonPointer jsonPointer;
-        private final JsonNodeParser<T> configParser;
+        private final ValidatingFunction<DocNode, T> configParser;
         private final Consumer<T> configConsumer;
 
-        public SgConfigMetadata(Class<?> sgConfigType, String entry, JsonPointer jsonPointer, JsonNodeParser<T> configParser,
+        public SgConfigMetadata(Class<?> sgConfigType, String entry, JsonPointer jsonPointer, ValidatingFunction<DocNode, T> configParser,
                 Consumer<T> configConsumer) {
             super();
             this.sgConfigType = sgConfigType;
@@ -85,7 +103,7 @@ public interface SearchGuardModule<T> {
             return jsonPointer;
         }
 
-        public JsonNodeParser<T> getConfigParser() {
+        public ValidatingFunction<DocNode, T> getConfigParser() {
             return configParser;
         }
 

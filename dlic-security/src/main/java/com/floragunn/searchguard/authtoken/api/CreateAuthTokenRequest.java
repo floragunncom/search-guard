@@ -29,12 +29,13 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.config.temporal.TemporalAmountFormat;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.authtoken.RequestedPrivileges;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonParser;
 
 public class CreateAuthTokenRequest extends ActionRequest implements ToXContentObject {
 
@@ -85,17 +86,17 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
 
     public static CreateAuthTokenRequest parse(BytesReference document, XContentType contentType) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingJsonNode vJsonNode = new ValidatingJsonNode(ValidatingJsonParser.readTree(document, contentType), validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(DocReader.type(contentType == XContentType.YAML ? DocType.YAML : DocType.JSON).readObject(BytesReference.toBytes(document)), validationErrors);
         CreateAuthTokenRequest result = new CreateAuthTokenRequest();
 
-        result.tokenName = vJsonNode.string("name");
-        result.audience = vJsonNode.string("audience");
-        result.expiresAfter = vJsonNode.temporalAmount("expires_after");
-        result.freezePrivileges = vJsonNode.booleanAttributeStrict("freeze_privileges", Boolean.TRUE);
+        result.tokenName = vJsonNode.get("name").asString();
+        result.audience = vJsonNode.get("audience").asString();
+        result.expiresAfter = vJsonNode.get("expires_after").asTemporalAmount();
+        result.freezePrivileges = vJsonNode.get("freeze_privileges").withDefault(true).asBoolean();
 
         if (vJsonNode.hasNonNull("requested")) {
             try {
-                result.requestedPrivileges = RequestedPrivileges.parse(vJsonNode.get("requested"));
+                result.requestedPrivileges = RequestedPrivileges.parse(vJsonNode.getDocumentNode().getAsNode("requested"));
             } catch (ConfigValidationException e) {
                 validationErrors.add("requested", e);
             }

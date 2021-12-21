@@ -1,16 +1,35 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.action.handlers.email;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.Validators;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.signals.accounts.Account;
 
 public class EmailAccount extends Account {
@@ -21,43 +40,28 @@ public class EmailAccount extends Account {
     private int port = 25;
     private String user;
     private String password;
-    @JsonProperty(value = "proxy_host")
     private String proxyHost;
-    @JsonProperty(value = "proxy_port")
     private Integer proxyPort;
-    @JsonProperty(value = "proxy_user")
     private String proxyUser;
-    @JsonProperty(value = "proxy_password")
     private String proxyPassword;
-    @JsonProperty(value = "session_timeout")
     private Integer sessionTimeout; // = 120 * 1000;
     private boolean simulate;
     private boolean debug;
-    @JsonProperty(value = "enable_tls")
     private boolean enableTls;
-    @JsonProperty(value = "enable_start_tls")
+
     private boolean enableStartTls;
-    @JsonProperty(value = "trust_all")
+
     private boolean trustAll;
-    @JsonProperty(value = "trusted_hosts")
-    private String[] trustedHosts;
+
+    private List<String> trustedHosts;
 
     //permissions for from
     //internal vs external recipient (blacklist vs. whitelist)
 
-    @JsonProperty(value = "default_from")
     private String defaultFrom;
-    @JsonProperty(value = "default_to")
-    private String[] defaultTo;
-    @JsonProperty(value = "default_cc")
-    private String[] defaultCc;
-    @JsonProperty(value = "default_bcc")
-    private String[] defaultBcc;
-
-    //    private String forcedFrom;
-    //    private String[] forcedTo = new String[0];
-    //    private String[] forcedCc = new String[0];
-    //    private String[] forcedBcc = new String[0];
+    private List<String> defaultTo;
+    private List<String> defaultCc;
+    private List<String> defaultBcc;
 
     public String getHost() {
         return host;
@@ -171,11 +175,11 @@ public class EmailAccount extends Account {
         this.trustAll = trustAll;
     }
 
-    public String[] getTrustedHosts() {
+    public List<String> getTrustedHosts() {
         return trustedHosts;
     }
 
-    public void setTrustedHosts(String[] trustedHosts) {
+    public void setTrustedHosts(List<String> trustedHosts) {
         this.trustedHosts = trustedHosts;
     }
 
@@ -187,30 +191,34 @@ public class EmailAccount extends Account {
         this.defaultFrom = defaultFrom;
     }
 
-    public String[] getDefaultTo() {
+    public List<String> getDefaultTo() {
         return defaultTo;
     }
 
-    public void setDefaultTo(String[] defaultTo) {
+    public void setDefaultTo(List<String> defaultTo) {
         this.defaultTo = defaultTo;
     }
 
-    public String[] getDefaultCc() {
+    public List<String> getDefaultCc() {
         return defaultCc;
     }
 
-    public void setDefaultCc(String[] defaultCc) {
+    public void setDefaultCc(List<String> defaultCc) {
         this.defaultCc = defaultCc;
     }
 
-    public String[] getDefaultBcc() {
+    public List<String> getDefaultBcc() {
         return defaultBcc;
     }
 
     public void setDefaultBcc(String... defaultBcc) {
+        this.defaultBcc = Arrays.asList(defaultBcc);
+    }
+    
+    public void setDefaultBcc(List<String> defaultBcc) {
         this.defaultBcc = defaultBcc;
     }
-
+    
     @Override
     public SearchSourceBuilder getReferencingWatchesQuery() {
         return new SearchSourceBuilder().query(QueryBuilders.boolQuery().must(QueryBuilders.termQuery("actions.type", "email"))
@@ -305,17 +313,17 @@ public class EmailAccount extends Account {
         }
 
         @Override
-        protected EmailAccount create(String id, ValidatingJsonNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
+        protected EmailAccount create(String id, ValidatingDocNode vJsonNode, ValidationErrors validationErrors) throws ConfigValidationException {
 
             EmailAccount result = new EmailAccount();
-            
+
             result.setId(id);
-            result.host = vJsonNode.requiredString("host");
-            result.port = vJsonNode.requiredInt("port");
+            result.host = vJsonNode.get("host").required().asString();
+            result.port = vJsonNode.get("port").required().asInt();
 
             if (vJsonNode.hasNonNull("user")) {
-                result.user = vJsonNode.requiredString("user");
-                result.password = vJsonNode.string("password");
+                result.user = vJsonNode.get("user").asString();
+                result.password = vJsonNode.get("password").asString();
             } else {
                 if (vJsonNode.hasNonNull("password")) {
                     validationErrors.add(new ValidationError("user", "A user must be specified if a password is specified"));
@@ -323,21 +331,21 @@ public class EmailAccount extends Account {
             }
 
             // TODO move proxy stuff to a sub-object
-            result.proxyHost = vJsonNode.string("proxy_host");
-            result.proxyPort = vJsonNode.intNumber("proxy_port", null);
-            result.proxyUser = vJsonNode.string("proxy_user");
-            result.proxyPassword = vJsonNode.string("proxy_password");
-            result.sessionTimeout = vJsonNode.intNumber("session_timeout", null);
-            result.simulate = vJsonNode.booleanAttribute("simulate", Boolean.FALSE);
-            result.debug = vJsonNode.booleanAttribute("debug", Boolean.FALSE);
-            result.enableTls = vJsonNode.booleanAttribute("enable_tls", Boolean.FALSE);
-            result.enableStartTls = vJsonNode.booleanAttribute("enable_start_tls", Boolean.FALSE);
-            result.trustAll = vJsonNode.booleanAttribute("trust_all", Boolean.FALSE);
-            result.trustedHosts = vJsonNode.stringArray("trusted_hosts");
-            result.defaultFrom = vJsonNode.emailAddress("default_from");
-            result.defaultTo = vJsonNode.emailAddressArray("default_to");
-            result.defaultCc = vJsonNode.emailAddressArray("default_cc");
-            result.defaultBcc = vJsonNode.emailAddressArray("default_bcc");
+            result.proxyHost = vJsonNode.get("proxy_host").asString();
+            result.proxyPort = vJsonNode.get("proxy_port").asInteger();
+            result.proxyUser = vJsonNode.get("proxy_user").asString();
+            result.proxyPassword = vJsonNode.get("proxy_password").asString();
+            result.sessionTimeout = vJsonNode.get("session_timeout").asInteger();
+            result.simulate = vJsonNode.get("simulate").withDefault(false).asBoolean();
+            result.debug = vJsonNode.get("debug").withDefault(false).asBoolean();
+            result.enableTls = vJsonNode.get("enable_tls").withDefault(false).asBoolean();
+            result.enableStartTls = vJsonNode.get("enable_start_tls").withDefault(false).asBoolean();
+            result.trustAll = vJsonNode.get("trust_all").withDefault(false).asBoolean();
+            result.trustedHosts = vJsonNode.get("trusted_hosts").asListOfStrings();
+            result.defaultFrom = vJsonNode.get("default_from").validatedBy(Validators.EMAIL).expected("An eMail address").asString();
+            result.defaultTo = vJsonNode.get("default_to").asList().validatedBy(Validators.EMAIL).expected("A list of eMail addressed").ofStrings();
+            result.defaultCc = vJsonNode.get("default_cc").asList().validatedBy(Validators.EMAIL).expected("A list of eMail addressed").ofStrings();
+            result.defaultBcc = vJsonNode.get("default_bcc").asList().validatedBy(Validators.EMAIL).expected("A list of eMail addressed").ofStrings();
 
             validationErrors.throwExceptionForPresentErrors();
 

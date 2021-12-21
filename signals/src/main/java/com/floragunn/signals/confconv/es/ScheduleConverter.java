@@ -14,9 +14,8 @@ import org.quartz.TimeOfDay;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.config.temporal.DurationFormat;
-import com.floragunn.codova.documents.jackson.JacksonJsonNodeAdapter;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
@@ -33,9 +32,9 @@ import com.google.common.primitives.Ints;
 // TODO convert template variables
 public class ScheduleConverter {
 
-    private final JsonNode scheduleJsonNode;
+    private final DocNode scheduleJsonNode;
 
-    public ScheduleConverter(JsonNode scheduleJsonNode) {
+    public ScheduleConverter(DocNode scheduleJsonNode) {
         this.scheduleJsonNode = scheduleJsonNode;
     }
 
@@ -44,9 +43,9 @@ public class ScheduleConverter {
         ValidationErrors validationErrors = new ValidationErrors();
 
         if (scheduleJsonNode.hasNonNull("hourly")) {
-            if (scheduleJsonNode.get("hourly").hasNonNull("minute")) {
+            if (scheduleJsonNode.getAsNode("hourly").hasNonNull("minute")) {
                 try {
-                    triggers.add(HourlyTrigger.create(new JacksonJsonNodeAdapter(scheduleJsonNode.get("hourly")), null));
+                    triggers.add(HourlyTrigger.create(scheduleJsonNode.getAsNode("hourly"), null));
                 } catch (ConfigValidationException e) {
                     validationErrors.add("hourly", e);
                 }
@@ -56,42 +55,42 @@ public class ScheduleConverter {
         }
 
         if (scheduleJsonNode.hasNonNull("daily")) {
-            ConversionResult<List<TimeOfDay>> at = parseAt(scheduleJsonNode.get("daily").get("at"));
+            ConversionResult<List<TimeOfDay>> at = parseAt(scheduleJsonNode.getAsNode("daily").getAsNode("at"));
             validationErrors.add("daily.at", at.sourceValidationErrors);
 
             triggers.add(new DailyTrigger(at.element, null));
         }
 
         if (scheduleJsonNode.hasNonNull("weekly")) {
-            ConversionResult<List<WeeklyTrigger>> weeklyTrigger = parseWeekly(scheduleJsonNode.get("weekly"));
+            ConversionResult<List<WeeklyTrigger>> weeklyTrigger = parseWeekly(scheduleJsonNode.getAsNode("weekly"));
             validationErrors.add("weekly", weeklyTrigger.sourceValidationErrors);
 
             triggers.addAll(weeklyTrigger.element);
         }
 
         if (scheduleJsonNode.hasNonNull("monthly")) {
-            ConversionResult<List<MonthlyTrigger>> monthlyTrigger = parseMonthly(scheduleJsonNode.get("monthly"));
+            ConversionResult<List<MonthlyTrigger>> monthlyTrigger = parseMonthly(scheduleJsonNode.getAsNode("monthly"));
             validationErrors.add("monthly", monthlyTrigger.sourceValidationErrors);
 
             triggers.addAll(monthlyTrigger.element);
         }
 
         if (scheduleJsonNode.hasNonNull("yearly")) {
-            ConversionResult<List<Trigger>> yearlyTrigger = parseYearly(scheduleJsonNode.get("yearly"));
+            ConversionResult<List<Trigger>> yearlyTrigger = parseYearly(scheduleJsonNode.getAsNode("yearly"));
             validationErrors.add("yearly", yearlyTrigger.sourceValidationErrors);
 
             triggers.addAll(yearlyTrigger.element);
         }
 
         if (scheduleJsonNode.hasNonNull("cron")) {
-            ConversionResult<List<Trigger>> yearlyTrigger = parseCron(scheduleJsonNode.get("cron"));
+            ConversionResult<List<Trigger>> yearlyTrigger = parseCron(scheduleJsonNode.getAsNode("cron"));
             validationErrors.add("cron", yearlyTrigger.sourceValidationErrors);
 
             triggers.addAll(yearlyTrigger.element);
         }
 
         if (scheduleJsonNode.hasNonNull("interval")) {
-            ConversionResult<List<Trigger>> trigger = parseInterval(scheduleJsonNode.get("interval"));
+            ConversionResult<List<Trigger>> trigger = parseInterval(scheduleJsonNode.getAsNode("interval"));
             validationErrors.add("interval", trigger.sourceValidationErrors);
 
             triggers.addAll(trigger.element);
@@ -100,39 +99,39 @@ public class ScheduleConverter {
         return new ConversionResult<Schedule>(new ScheduleImpl(triggers), validationErrors);
     }
 
-    private static ConversionResult<List<WeeklyTrigger>> parseWeekly(JsonNode weeklyNode) {
-        if (weeklyNode.isArray()) {
+    private static ConversionResult<List<WeeklyTrigger>> parseWeekly(DocNode weeklyNode) {
+        if (weeklyNode.isList()) {
             List<WeeklyTrigger> triggers = new ArrayList<>();
             ValidationErrors validationErrors = new ValidationErrors();
 
-            for (JsonNode subNode : weeklyNode) {
+            for (DocNode subNode : weeklyNode.toListOfNodes()) {
                 ConversionResult<List<WeeklyTrigger>> subResult = parseWeekly(subNode);
                 triggers.addAll(subResult.element);
                 validationErrors.add(null, subResult.sourceValidationErrors);
             }
 
             return new ConversionResult<List<WeeklyTrigger>>(triggers, validationErrors);
-        } else if (weeklyNode.isObject()) {
+        } else if (weeklyNode.isMap()) {
             ConversionResult<List<TimeOfDay>> at;
             ValidationErrors validationErrors = new ValidationErrors();
 
             if (weeklyNode.hasNonNull("at")) {
-                at = parseAt(weeklyNode.get("at"));
+                at = parseAt(weeklyNode.getAsNode("at"));
                 validationErrors.add("at", at.sourceValidationErrors);
 
             } else {
-                at = parseAt(weeklyNode.get("time"));
+                at = parseAt(weeklyNode.getAsNode("time"));
                 validationErrors.add("time", at.sourceValidationErrors);
             }
 
             ConversionResult<List<DayOfWeek>> on;
 
             if (weeklyNode.hasNonNull("on")) {
-                on = parseOn(weeklyNode.get("on"));
+                on = parseOn(weeklyNode.getAsNode("on"));
                 validationErrors.add("on", at.sourceValidationErrors);
 
             } else {
-                on = parseOn(weeklyNode.get("day"));
+                on = parseOn(weeklyNode.getAsNode("day"));
                 validationErrors.add("day", at.sourceValidationErrors);
             }
 
@@ -144,39 +143,39 @@ public class ScheduleConverter {
         }
     }
 
-    private static ConversionResult<List<MonthlyTrigger>> parseMonthly(JsonNode monthlyNode) {
-        if (monthlyNode.isArray()) {
+    private static ConversionResult<List<MonthlyTrigger>> parseMonthly(DocNode monthlyNode) {
+        if (monthlyNode.isList()) {
             List<MonthlyTrigger> triggers = new ArrayList<>();
             ValidationErrors validationErrors = new ValidationErrors();
 
-            for (JsonNode subNode : monthlyNode) {
+            for (DocNode subNode : monthlyNode.toListOfNodes()) {
                 ConversionResult<List<MonthlyTrigger>> subResult = parseMonthly(subNode);
                 triggers.addAll(subResult.element);
                 validationErrors.add(null, subResult.sourceValidationErrors);
             }
 
             return new ConversionResult<List<MonthlyTrigger>>(triggers, validationErrors);
-        } else if (monthlyNode.isObject()) {
+        } else if (monthlyNode.isMap()) {
             ConversionResult<List<TimeOfDay>> at;
             ValidationErrors validationErrors = new ValidationErrors();
 
             if (monthlyNode.hasNonNull("at")) {
-                at = parseAt(monthlyNode.get("at"));
+                at = parseAt(monthlyNode.getAsNode("at"));
                 validationErrors.add("at", at.sourceValidationErrors);
 
             } else {
-                at = parseAt(monthlyNode.get("time"));
+                at = parseAt(monthlyNode.getAsNode("time"));
                 validationErrors.add("time", at.sourceValidationErrors);
             }
 
             ConversionResult<List<Integer>> on;
 
             if (monthlyNode.hasNonNull("on")) {
-                on = parseOnDayOfMonth(monthlyNode.get("on"));
+                on = parseOnDayOfMonth(monthlyNode.getAsNode("on"));
                 validationErrors.add("on", at.sourceValidationErrors);
 
             } else {
-                on = parseOnDayOfMonth(monthlyNode.get("day"));
+                on = parseOnDayOfMonth(monthlyNode.getAsNode("day"));
                 validationErrors.add("day", at.sourceValidationErrors);
             }
 
@@ -188,50 +187,50 @@ public class ScheduleConverter {
         }
     }
 
-    private static ConversionResult<List<Trigger>> parseYearly(JsonNode yearlyNode) {
-        if (yearlyNode.isArray()) {
+    private static ConversionResult<List<Trigger>> parseYearly(DocNode yearlyNode) {
+        if (yearlyNode.isList()) {
             List<Trigger> triggers = new ArrayList<>();
             ValidationErrors validationErrors = new ValidationErrors();
 
-            for (JsonNode subNode : yearlyNode) {
+            for (DocNode subNode : yearlyNode.toListOfNodes()) {
                 ConversionResult<List<Trigger>> subResult = parseYearly(subNode);
                 triggers.addAll(subResult.element);
                 validationErrors.add(null, subResult.sourceValidationErrors);
             }
 
             return new ConversionResult<List<Trigger>>(triggers, validationErrors);
-        } else if (yearlyNode.isObject()) {
+        } else if (yearlyNode.isMap()) {
             ConversionResult<List<TimeOfDay>> at;
             ValidationErrors validationErrors = new ValidationErrors();
 
             if (yearlyNode.hasNonNull("at")) {
-                at = parseAt(yearlyNode.get("at"));
+                at = parseAt(yearlyNode.getAsNode("at"));
                 validationErrors.add("at", at.sourceValidationErrors);
 
             } else {
-                at = parseAt(yearlyNode.get("time"));
+                at = parseAt(yearlyNode.getAsNode("time"));
                 validationErrors.add("time", at.sourceValidationErrors);
             }
 
             ConversionResult<List<Integer>> on;
 
             if (yearlyNode.hasNonNull("on")) {
-                on = parseOnDayOfMonth(yearlyNode.get("on"));
+                on = parseOnDayOfMonth(yearlyNode.getAsNode("on"));
                 validationErrors.add("on", on.sourceValidationErrors);
 
             } else {
-                on = parseOnDayOfMonth(yearlyNode.get("day"));
+                on = parseOnDayOfMonth(yearlyNode.getAsNode("day"));
                 validationErrors.add("day", on.sourceValidationErrors);
             }
 
             ConversionResult<List<Integer>> inMonth;
 
             if (yearlyNode.hasNonNull("in")) {
-                inMonth = parseInMonth(yearlyNode.get("in"));
+                inMonth = parseInMonth(yearlyNode.getAsNode("in"));
                 validationErrors.add("in", inMonth.sourceValidationErrors);
 
             } else {
-                inMonth = parseOnDayOfMonth(yearlyNode.get("month"));
+                inMonth = parseOnDayOfMonth(yearlyNode.getAsNode("month"));
                 validationErrors.add("month", inMonth.sourceValidationErrors);
             }
 
@@ -267,31 +266,31 @@ public class ScheduleConverter {
         }
     }
 
-    private static ConversionResult<List<Trigger>> parseCron(JsonNode cronNode) {
-        if (cronNode.isArray()) {
+    private static ConversionResult<List<Trigger>> parseCron(DocNode cronNode) {
+        if (cronNode.isList()) {
             List<Trigger> triggers = new ArrayList<>();
             ValidationErrors validationErrors = new ValidationErrors();
 
-            for (JsonNode subNode : cronNode) {
+            for (DocNode subNode : cronNode.toListOfNodes()) {
                 ConversionResult<List<Trigger>> subResult = parseCron(subNode);
                 triggers.addAll(subResult.element);
                 validationErrors.add(null, subResult.sourceValidationErrors);
             }
 
             return new ConversionResult<List<Trigger>>(triggers, validationErrors);
-        } else if (cronNode.isTextual()) {
+        } else if (cronNode.isString()) {
             List<Trigger> triggers = new ArrayList<>();
             ValidationErrors validationErrors = new ValidationErrors();
 
             try {
 
-                Trigger trigger = TriggerBuilder.newTrigger().withSchedule(CronScheduleBuilder.cronScheduleNonvalidatedExpression(cronNode.asText()))
-                        .build();
+                Trigger trigger = TriggerBuilder.newTrigger()
+                        .withSchedule(CronScheduleBuilder.cronScheduleNonvalidatedExpression(cronNode.toString())).build();
 
                 triggers.add(trigger);
 
             } catch (ParseException e) {
-                validationErrors.add(new InvalidAttributeValue(null, cronNode.textValue(),
+                validationErrors.add(new InvalidAttributeValue(null, cronNode.toString(),
                         "Quartz Cron Expression: <Seconds: 0-59|*> <Minutes: 0-59|*> <Hours: 0-23|*> <Day-of-Month: 1-31|?|*> <Month: JAN-DEC|*> <Day-of-Week: SUN-SAT|?|*> <Year: 1970-2199|*>?. Numeric ranges: 1-2; Several distinct values: 1,2; Increments: 0/15")
                                 .message("Invalid cron expression: " + e.getMessage()).cause(e));
             }
@@ -303,21 +302,21 @@ public class ScheduleConverter {
         }
     }
 
-    private static ConversionResult<List<Trigger>> parseInterval(JsonNode intervalNode) {
-        if (intervalNode.isArray()) {
+    private static ConversionResult<List<Trigger>> parseInterval(DocNode intervalNode) {
+        if (intervalNode.isList()) {
             List<Trigger> triggers = new ArrayList<>();
             ValidationErrors validationErrors = new ValidationErrors();
 
-            for (JsonNode subNode : intervalNode) {
+            for (DocNode subNode : intervalNode.toListOfNodes()) {
                 ConversionResult<List<Trigger>> subResult = parseInterval(subNode);
                 triggers.addAll(subResult.element);
                 validationErrors.add(null, subResult.sourceValidationErrors);
             }
 
             return new ConversionResult<List<Trigger>>(triggers, validationErrors);
-        } else if (intervalNode.isTextual()) {
+        } else if (intervalNode.isString()) {
 
-            Integer numeric = Ints.tryParse(intervalNode.textValue());
+            Integer numeric = Ints.tryParse(intervalNode.toString());
 
             if (numeric != null) {
                 return new ConversionResult<List<Trigger>>(Collections.singletonList(TriggerBuilder.newTrigger()
@@ -325,7 +324,7 @@ public class ScheduleConverter {
             }
 
             try {
-                Duration duration = DurationFormat.INSTANCE.parse(intervalNode.textValue());
+                Duration duration = DurationFormat.INSTANCE.parse(intervalNode.toString());
 
                 return new ConversionResult<List<Trigger>>(Collections.singletonList(TriggerBuilder.newTrigger()
                         .withSchedule(SimpleScheduleBuilder.simpleSchedule().repeatForever().withIntervalInMilliseconds(duration.toMillis()))
@@ -335,134 +334,143 @@ public class ScheduleConverter {
             }
 
         } else if (intervalNode.isNumber()) {
-            return new ConversionResult<List<Trigger>>(Collections.singletonList(TriggerBuilder.newTrigger()
-                    .withSchedule(SimpleScheduleBuilder.simpleSchedule().repeatForever().withIntervalInMilliseconds(intervalNode.intValue() * 1000))
-                    .build()));
+            try {
+                return new ConversionResult<List<Trigger>>(Collections.singletonList(TriggerBuilder.newTrigger().withSchedule(
+                        SimpleScheduleBuilder.simpleSchedule().repeatForever().withIntervalInMilliseconds(intervalNode.toNumber().intValue() * 1000))
+                        .build()));
+            } catch (ConfigValidationException e) {
+                throw new RuntimeException(e);
+            }
         } else {
             return new ConversionResult<>(Collections.emptyList(),
                     new ValidationErrors().add(new InvalidAttributeValue(null, intervalNode, "array or cron string")));
         }
+
     }
 
-    private static ConversionResult<List<TimeOfDay>> parseAt(JsonNode atNode) {
+    private static ConversionResult<List<TimeOfDay>> parseAt(DocNode atNode) {
 
-        if (atNode == null || atNode.isNull()) {
-            return new ConversionResult<>(Collections.singletonList(new TimeOfDay(0, 0)));
-        } else if (atNode.isArray()) {
-            List<TimeOfDay> at = new ArrayList<>(atNode.size());
-            ValidationErrors validationErrors = new ValidationErrors();
-
-            for (JsonNode atNodeElement : atNode) {
-                try {
-                    at.add(parseTimeOfDay(atNodeElement.textValue()));
-                } catch (ConfigValidationException e) {
-                    validationErrors.add(null, e);
-                }
-            }
-
-            return new ConversionResult<>(at, validationErrors);
-        } else if (atNode.isTextual()) {
-            try {
-                return new ConversionResult<>(Collections.singletonList(parseTimeOfDay(atNode.textValue())));
-            } catch (ConfigValidationException e) {
-                return new ConversionResult<>(Collections.emptyList(), new ValidationErrors().add(null, e));
-            }
-        } else if (atNode.isObject()) {
-            JsonNode hourNode = atNode.get("hour");
-            JsonNode minuteNode = atNode.get("minute");
-
-            if ((hourNode == null || hourNode.isNull()) && (minuteNode == null || minuteNode.isNull())) {
+        try {
+            if (atNode == null || atNode.isNull()) {
                 return new ConversionResult<>(Collections.singletonList(new TimeOfDay(0, 0)));
-            } else if (hourNode != null && hourNode.isNumber() && minuteNode != null && minuteNode.isNumber()) {
-                return new ConversionResult<>(Collections.singletonList(new TimeOfDay(hourNode.asInt(), minuteNode.asInt())));
-            } else if (hourNode != null && hourNode.isNumber() && minuteNode == null) {
-                return new ConversionResult<>(Collections.singletonList(new TimeOfDay(hourNode.asInt(), 0)));
-            } else if (hourNode == null || hourNode.isNull()) {
-                return new ConversionResult<>(Collections.emptyList(), new ValidationErrors().add(new MissingAttribute("hour", atNode)));
-            } else if (hourNode != null && hourNode.isArray() && minuteNode != null && minuteNode.isNumber()) {
+            } else if (atNode.isList()) {
+                List<TimeOfDay> at = new ArrayList<>(atNode.size());
                 ValidationErrors validationErrors = new ValidationErrors();
 
-                int minute = minuteNode.asInt();
-                List<TimeOfDay> at = new ArrayList<>();
-
-                for (JsonNode hour : hourNode) {
-                    if (hour.isNumber()) {
-                        at.add(new TimeOfDay(hour.asInt(), minute));
-                    } else {
-                        validationErrors.add(new InvalidAttributeValue("hour", hour, "number"));
+                for (DocNode atNodeElement : atNode.toListOfNodes()) {
+                    try {
+                        at.add(parseTimeOfDay(atNodeElement.toString()));
+                    } catch (ConfigValidationException e) {
+                        validationErrors.add(null, e);
                     }
                 }
 
                 return new ConversionResult<>(at, validationErrors);
-            } else if (hourNode != null && hourNode.isNumber() && minuteNode != null && minuteNode.isArray()) {
-                ValidationErrors validationErrors = new ValidationErrors();
-
-                int hour = hourNode.asInt();
-                List<TimeOfDay> at = new ArrayList<>();
-
-                for (JsonNode minute : minuteNode) {
-                    if (minute.isNumber()) {
-                        at.add(new TimeOfDay(hour, minute.asInt()));
-                    } else {
-                        validationErrors.add(new InvalidAttributeValue("minute", minute, "number"));
-                    }
+            } else if (atNode.isString()) {
+                try {
+                    return new ConversionResult<>(Collections.singletonList(parseTimeOfDay(atNode.toString())));
+                } catch (ConfigValidationException e) {
+                    return new ConversionResult<>(Collections.emptyList(), new ValidationErrors().add(null, e));
                 }
+            } else if (atNode.isMap()) {
+                DocNode hourNode = atNode.getAsNode("hour");
+                DocNode minuteNode = atNode.getAsNode("minute");
 
-                return new ConversionResult<>(at, validationErrors);
-            } else if (hourNode != null && hourNode.isArray() && minuteNode != null && minuteNode.isArray()) {
-                ValidationErrors validationErrors = new ValidationErrors();
+                if ((hourNode == null || hourNode.isNull()) && (minuteNode == null || minuteNode.isNull())) {
+                    return new ConversionResult<>(Collections.singletonList(new TimeOfDay(0, 0)));
+                } else if (hourNode != null && hourNode.isNumber() && minuteNode != null && minuteNode.isNumber()) {
+                    return new ConversionResult<>(
+                            Collections.singletonList(new TimeOfDay(hourNode.toNumber().intValue(), hourNode.toNumber().intValue())));
+                } else if (hourNode != null && hourNode.isNumber() && minuteNode == null) {
+                    return new ConversionResult<>(Collections.singletonList(new TimeOfDay(hourNode.toNumber().intValue(), 0)));
+                } else if (hourNode == null || hourNode.isNull()) {
+                    return new ConversionResult<>(Collections.emptyList(), new ValidationErrors().add(new MissingAttribute("hour", atNode)));
+                } else if (hourNode != null && hourNode.isList() && minuteNode != null && minuteNode.isNumber()) {
+                    ValidationErrors validationErrors = new ValidationErrors();
 
-                List<TimeOfDay> at = new ArrayList<>();
+                    int minute = minuteNode.toNumber().intValue();
+                    List<TimeOfDay> at = new ArrayList<>();
 
-                for (JsonNode hour : hourNode) {
-                    for (JsonNode minute : minuteNode) {
-                        if (hour.isNumber() && !minute.isNumber()) {
-                            at.add(new TimeOfDay(hour.asInt(), minute.asInt()));
-
+                    for (DocNode hour : hourNode.toListOfNodes()) {
+                        if (hour.isNumber()) {
+                            at.add(new TimeOfDay(hour.toNumber().intValue(), minute));
                         } else {
-                            if (!hour.isNumber()) {
-                                validationErrors.add(new InvalidAttributeValue("hour", hour, "number"));
-                            }
+                            validationErrors.add(new InvalidAttributeValue("hour", hour, "number"));
+                        }
+                    }
 
-                            if (!minute.isNumber()) {
-                                validationErrors.add(new InvalidAttributeValue("minute", minute, "number"));
+                    return new ConversionResult<>(at, validationErrors);
+                } else if (hourNode != null && hourNode.isNumber() && minuteNode != null && minuteNode.isList()) {
+                    ValidationErrors validationErrors = new ValidationErrors();
+
+                    int hour = hourNode.toNumber().intValue();
+                    List<TimeOfDay> at = new ArrayList<>();
+
+                    for (DocNode minute : minuteNode.toListOfNodes()) {
+                        if (minute.isNumber()) {
+                            at.add(new TimeOfDay(hour, minute.toNumber().intValue()));
+                        } else {
+                            validationErrors.add(new InvalidAttributeValue("minute", minute, "number"));
+                        }
+                    }
+
+                    return new ConversionResult<>(at, validationErrors);
+                } else if (hourNode != null && hourNode.isList() && minuteNode != null && minuteNode.isList()) {
+                    ValidationErrors validationErrors = new ValidationErrors();
+
+                    List<TimeOfDay> at = new ArrayList<>();
+
+                    for (DocNode hour : hourNode.toListOfNodes()) {
+                        for (DocNode minute : minuteNode.toListOfNodes()) {
+                            if (hour.isNumber() && minute.isNumber()) {
+                                at.add(new TimeOfDay(hour.toNumber().intValue(), minute.toNumber().intValue()));
+
+                            } else {
+                                if (!hour.isNumber()) {
+                                    validationErrors.add(new InvalidAttributeValue("hour", hour, "number"));
+                                }
+
+                                if (!minute.isNumber()) {
+                                    validationErrors.add(new InvalidAttributeValue("minute", minute, "number"));
+                                }
                             }
                         }
                     }
+
+                    return new ConversionResult<>(at, validationErrors);
+                } else {
+                    return new ConversionResult<>(Collections.emptyList(), new ValidationErrors().add(new InvalidAttributeValue(null, atNode, null)));
                 }
 
-                return new ConversionResult<>(at, validationErrors);
             } else {
-                return new ConversionResult<>(Collections.emptyList(), new ValidationErrors().add(new InvalidAttributeValue(null, atNode, null)));
+                return new ConversionResult<>(Collections.emptyList(),
+                        new ValidationErrors().add(new InvalidAttributeValue(null, atNode, "time string or array or object")));
             }
-
-        } else {
-            return new ConversionResult<>(Collections.emptyList(),
-                    new ValidationErrors().add(new InvalidAttributeValue(null, atNode, "time string or array or object")));
+        } catch (ConfigValidationException e) {
+            throw new RuntimeException(e);
         }
-
     }
 
-    private static ConversionResult<List<DayOfWeek>> parseOn(JsonNode onNode) {
+    private static ConversionResult<List<DayOfWeek>> parseOn(DocNode onNode) {
 
         if (onNode == null || onNode.isNull()) {
             return new ConversionResult<>(Collections.singletonList(DayOfWeek.MONDAY));
-        } else if (onNode.isArray()) {
+        } else if (onNode.isList()) {
             List<DayOfWeek> on = new ArrayList<>(onNode.size());
             ValidationErrors validationErrors = new ValidationErrors();
 
-            for (JsonNode onNodeElement : onNode) {
+            for (DocNode onNodeElement : onNode.toListOfNodes()) {
                 try {
-                    on.add(getDayOfWeek(onNodeElement.textValue()));
+                    on.add(getDayOfWeek(onNodeElement.toString()));
                 } catch (ConfigValidationException e) {
                     validationErrors.add(null, e);
                 }
             }
 
             return new ConversionResult<>(on, validationErrors);
-        } else if (onNode.isTextual()) {
+        } else if (onNode.isString()) {
             try {
-                return new ConversionResult<>(Collections.singletonList(getDayOfWeek(onNode.textValue())));
+                return new ConversionResult<>(Collections.singletonList(getDayOfWeek(onNode.toString())));
             } catch (ConfigValidationException e) {
                 return new ConversionResult<>(Collections.emptyList(), new ValidationErrors().add(null, e));
             }
@@ -473,30 +481,32 @@ public class ScheduleConverter {
 
     }
 
-    private static ConversionResult<List<Integer>> parseOnDayOfMonth(JsonNode onNode) {
+    private static ConversionResult<List<Integer>> parseOnDayOfMonth(DocNode onNode) {
+        try {
+            if (onNode == null || onNode.isNull()) {
+                return new ConversionResult<>(Collections.singletonList(1));
+            } else if (onNode.isList()) {
+                List<Integer> on = new ArrayList<>(onNode.size());
+                ValidationErrors validationErrors = new ValidationErrors();
 
-        if (onNode == null || onNode.isNull()) {
-            return new ConversionResult<>(Collections.singletonList(1));
-        } else if (onNode.isArray()) {
-            List<Integer> on = new ArrayList<>(onNode.size());
-            ValidationErrors validationErrors = new ValidationErrors();
-
-            for (JsonNode onNodeElement : onNode) {
-                if (onNodeElement.isNumber()) {
-                    on.add(onNodeElement.intValue());
-                } else {
-                    validationErrors.add(new InvalidAttributeValue(null, onNodeElement, "number between 1 and 31"));
+                for (DocNode onNodeElement : onNode.toListOfNodes()) {
+                    if (onNodeElement.isNumber()) {
+                        on.add(onNodeElement.toNumber().intValue());
+                    } else {
+                        validationErrors.add(new InvalidAttributeValue(null, onNodeElement, "number between 1 and 31"));
+                    }
                 }
+
+                return new ConversionResult<>(on, validationErrors);
+            } else if (onNode.isNumber()) {
+                return new ConversionResult<>(Collections.singletonList(onNode.toNumber().intValue()));
+            } else {
+                return new ConversionResult<>(Collections.emptyList(),
+                        new ValidationErrors().add(new InvalidAttributeValue(null, onNode, "number between 1 and 31 or array")));
             }
-
-            return new ConversionResult<>(on, validationErrors);
-        } else if (onNode.isNumber()) {
-            return new ConversionResult<>(Collections.singletonList(onNode.intValue()));
-        } else {
-            return new ConversionResult<>(Collections.emptyList(),
-                    new ValidationErrors().add(new InvalidAttributeValue(null, onNode, "number between 1 and 31 or array")));
+        } catch (ConfigValidationException e) {
+            throw new RuntimeException(e);
         }
-
     }
 
     private static TimeOfDay parseTimeOfDay(String string) throws ConfigValidationException {
@@ -556,36 +566,39 @@ public class ScheduleConverter {
         }
     }
 
-    private static ConversionResult<List<Integer>> parseInMonth(JsonNode node) {
-        if (node == null || node.isNull()) {
-            return new ConversionResult<List<Integer>>(Collections.emptyList(), new ValidationErrors().add(new MissingAttribute(null, node)));
-        } else if (node.isNumber()) {
-            return new ConversionResult<List<Integer>>(Collections.singletonList(node.asInt()));
-        } else if (node.isTextual()) {
+    private static ConversionResult<List<Integer>> parseInMonth(DocNode node) {
+        try {
+            if (node == null || node.isNull()) {
+                return new ConversionResult<List<Integer>>(Collections.emptyList(), new ValidationErrors().add(new MissingAttribute(null, node)));
+            } else if (node.isNumber()) {
+                return new ConversionResult<List<Integer>>(Collections.singletonList(node.toNumber().intValue()));
+            } else if (node.isString()) {
 
-            try {
-                return new ConversionResult<List<Integer>>(Collections.singletonList(parseMonth(node.textValue())));
-            } catch (ConfigValidationException e) {
-                return new ConversionResult<List<Integer>>(Collections.emptyList(), new ValidationErrors().add(null, e));
+                try {
+                    return new ConversionResult<List<Integer>>(Collections.singletonList(parseMonth(node.toString())));
+                } catch (ConfigValidationException e) {
+                    return new ConversionResult<List<Integer>>(Collections.emptyList(), new ValidationErrors().add(null, e));
+                }
+
+            } else if (node.isList()) {
+                ArrayList<Integer> result = new ArrayList<>();
+                ValidationErrors validationErrors = new ValidationErrors();
+
+                for (DocNode subNode : node.toListOfNodes()) {
+                    ConversionResult<List<Integer>> subResult = parseInMonth(subNode);
+
+                    result.addAll(subResult.element);
+                    validationErrors.add(null, subResult.sourceValidationErrors);
+                }
+
+                return new ConversionResult<List<Integer>>(result, validationErrors);
+            } else {
+                return new ConversionResult<List<Integer>>(Collections.emptyList(),
+                        new ValidationErrors().add(new InvalidAttributeValue(null, node, "month")));
             }
-
-        } else if (node.isArray()) {
-            ArrayList<Integer> result = new ArrayList<>();
-            ValidationErrors validationErrors = new ValidationErrors();
-
-            for (JsonNode subNode : node) {
-                ConversionResult<List<Integer>> subResult = parseInMonth(subNode);
-
-                result.addAll(subResult.element);
-                validationErrors.add(null, subResult.sourceValidationErrors);
-            }
-
-            return new ConversionResult<List<Integer>>(result, validationErrors);
-        } else {
-            return new ConversionResult<List<Integer>>(Collections.emptyList(),
-                    new ValidationErrors().add(new InvalidAttributeValue(null, node, "month")));
+        } catch (ConfigValidationException e) {
+            throw new RuntimeException(e);
         }
-
     }
 
     private static Integer parseMonth(String string) throws ConfigValidationException {

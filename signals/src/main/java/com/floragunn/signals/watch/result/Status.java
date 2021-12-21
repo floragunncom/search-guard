@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.result;
 
 import java.io.IOException;
@@ -7,7 +24,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.signals.watch.severity.SeverityLevel;
 
 public class Status implements ToXContentObject {
@@ -91,22 +108,22 @@ public class Status implements ToXContentObject {
         }
     }
 
-    public static Status parse(JsonNode jsonNode) {
+    public static Status parse(DocNode jsonNode) {
         Code code = null;
         String detail = null;
         SeverityLevel severityLevel = null;
 
         if (jsonNode.hasNonNull("code")) {
-            code = Code.valueOf(jsonNode.get("code").asText());
+            code = Code.valueOf(jsonNode.getAsString("code"));
         }
 
         if (jsonNode.hasNonNull("detail")) {
-            detail = jsonNode.get("detail").asText();
+            detail = jsonNode.getAsString("detail");
         }
 
         if (jsonNode.hasNonNull("severity")) {
             try {
-                severityLevel = SeverityLevel.valueOf(jsonNode.get("severity").asText());
+                severityLevel = SeverityLevel.valueOf(jsonNode.getAsString("severity"));
             } catch (Exception e) {
                 log.error("Invalid severity level in " + jsonNode + "; ignoring", e);
             }

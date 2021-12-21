@@ -882,7 +882,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request.toJson());
 
-            Assert.assertEquals(200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
             String token = response.toJsonNode().get("token").asText();
             Assert.assertNotNull(token);

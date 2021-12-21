@@ -1,25 +1,47 @@
+/*
+ * Copyright 2020-2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.result;
 
 import java.io.IOException;
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchsupport.json.JacksonTools;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 
 public class WatchLog implements ToXContentObject {
+    private static final Logger log = LogManager.getLogger(WatchLog.class);
+
     private static final DateFormatter DATE_FORMATTER = DateFormatter.forPattern("strict_date_time").withZone(ZoneOffset.UTC);
 
     public enum ToXContentParams {
@@ -152,61 +174,65 @@ public class WatchLog implements ToXContentObject {
 
     public static WatchLog parse(String id, String json) throws ParseException {
         try {
-            return parse(id, DefaultObjectMapper.readTree(json));
-        } catch (IOException e) {
+            return parse(id, DocNode.parse(DocType.JSON).from(json));
+        } catch (DocParseException e) {
             throw new ParseException(e.getMessage(), -1);
         }
     }
 
-    public static WatchLog parse(String id, JsonNode jsonNode) throws ParseException {
+    public static WatchLog parse(String id, DocNode jsonNode) throws ParseException {
         WatchLog result = new WatchLog();
 
         result.id = id;
 
         if (jsonNode.hasNonNull("tenant")) {
-            result.tenant = jsonNode.get("tenant").asText();
+            result.tenant = jsonNode.getAsString("tenant");
         }
 
         if (jsonNode.hasNonNull("watch_id")) {
-            result.watchId = jsonNode.get("watch_id").asText();
+            result.watchId = jsonNode.getAsString("watch_id");
         }
         
         if (jsonNode.hasNonNull("watch_version")) {
-            result.watchVersion = jsonNode.get("watch_version").asLong();
+            try {
+                result.watchVersion = jsonNode.getNumber("watch_version").longValue();
+            } catch (ConfigValidationException e) {
+                log.error("Error while parsing " + jsonNode, e);
+            }
         }
 
         if (jsonNode.hasNonNull("status")) {
-            result.status = Status.parse(jsonNode.get("status"));
+            result.status = Status.parse(jsonNode.getAsNode("status"));
         }
 
         if (jsonNode.hasNonNull("execution_start")) {
             // XXX 
-            result.executionStart = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.get("execution_start").asText())));
+            result.executionStart = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("execution_start"))));
         }
 
         if (jsonNode.hasNonNull("execution_end")) {
             // XXX 
-            result.executionFinished = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.get("execution_end").asText())));
+            result.executionFinished = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("execution_end"))));
         }
 
         if (jsonNode.hasNonNull("data")) {
-            result.data = JacksonTools.toMap(jsonNode.get("data"));
+            result.data = jsonNode.getAsNode("data").toMap();
         }
         
         if (jsonNode.hasNonNull("runtime_attributes")) {
-            result.runtimeAttributes = WatchExecutionContextData.create(jsonNode.get("runtime_attributes"));
+            result.runtimeAttributes = WatchExecutionContextData.create(jsonNode.getAsNode("runtime_attributes"));
         }
 
-        if (jsonNode.hasNonNull("actions") && jsonNode.get("actions").isArray()) {
-            result.actions = ActionLog.parseList((ArrayNode) jsonNode.get("actions"));
+        if (jsonNode.hasNonNull("actions") && jsonNode.get("actions") instanceof Collection) {
+            result.actions = ActionLog.parseList((Collection<?>) jsonNode.get("actions"));
         }
 
-        if (jsonNode.hasNonNull("resolve_actions") && jsonNode.get("resolve_actions").isArray()) {
-            result.resolveActions = ActionLog.parseList((ArrayNode) jsonNode.get("resolve_actions"));
+        if (jsonNode.hasNonNull("resolve_actions") && jsonNode.get("resolve_actions") instanceof Collection) {
+            result.resolveActions = ActionLog.parseList((Collection<?>) jsonNode.get("resolve_actions"));
         }
 
         if (jsonNode.hasNonNull("node")) {
-            result.node = jsonNode.get("node").textValue();
+            result.node = jsonNode.getAsString("node");
         }
 
         return result;

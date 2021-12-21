@@ -21,7 +21,6 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
-import com.floragunn.searchguard.modules.api.GetComponentStateAction.NodeResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.signals.NoSuchWatchOnThisNodeException;
