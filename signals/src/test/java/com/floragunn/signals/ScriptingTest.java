@@ -8,6 +8,7 @@ import org.elasticsearch.script.ScriptService;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.codova.validation.ValidationErrors;
@@ -33,13 +34,13 @@ public class ScriptingTest {
     private static ScriptService scriptService;
     private static WatchInitializationService watchInitService;
 
-    @ClassRule 
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "searchguard.enterprise_modules_enabled", false)
-            .build();
+            .enableModule(SignalsModule.class).build();
 
     @BeforeClass
     public static void setupDependencies() {
@@ -47,6 +48,7 @@ public class ScriptingTest {
         scriptService = cluster.getInjectable(ScriptService.class);
         watchInitService = new WatchInitializationService(null, scriptService);
     }
+
 
     @Test
     public void testPropertyAccessForTriggeredTime() {
@@ -74,8 +76,8 @@ public class ScriptingTest {
     public void testPropertyAccessForWatchId() {
         ValidationErrors validationErrors = new ValidationErrors();
 
-        SignalsObjectFunctionScript.Factory factory = watchInitService.compile("test", "watch.id", "painless",
-                SignalsObjectFunctionScript.CONTEXT, validationErrors);
+        SignalsObjectFunctionScript.Factory factory = watchInitService.compile("test", "watch.id", "painless", SignalsObjectFunctionScript.CONTEXT,
+                validationErrors);
 
         Assert.assertFalse(validationErrors.toString(), validationErrors.hasErrors());
 

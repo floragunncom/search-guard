@@ -62,7 +62,7 @@ public class SignalsStressTests {
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "searchguard.enterprise_modules_enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true)
             .clusterConfiguration(ClusterConfiguration.THREE_MASTERS) // In case we kill the master
-            .build();
+            .enableModule(SignalsModule.class).build();
 
     @BeforeClass
     public static void setupTestData() {

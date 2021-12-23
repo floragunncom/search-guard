@@ -24,7 +24,8 @@ public class RestApiTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
-            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log").enterpriseModulesEnabled().build();
+            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log").enterpriseModulesEnabled()
+            .enableModule(SignalsModule.class).build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -61,7 +62,7 @@ public class RestApiTest {
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
                     .act("jira", "project", "Test", "issue.type", "Bug", "issue.summary", "Bla", "issue.description", "Blub").name("testsink")
                     .build();
-            
+
             response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());

@@ -58,7 +58,7 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("sg_config/signals").nodeSettings("signals.enabled", true,
             "signals.index_names.log", "signals_main_log", "signals.enterprise.enabled", false, "signals.all_tenants_active_by_default", false)
-            .build();
+            .enableModule(SignalsModule.class).build();
 
     @BeforeClass
     public static void setupTestData() {
