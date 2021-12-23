@@ -71,23 +71,21 @@ public class CheckTest {
     private static ScriptService scriptService;
     private static BrowserUpProxy httpProxy;
 
-    private static TestCertificates testCertificates = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
+    private static TestCertificates testCertificates = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard").build();
 
-    @ClassRule 
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     @ClassRule
     public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates).resources("sg_config/signals")
-            .nodeSettings("signals.enabled", false, "searchguard.enterprise_modules_enabled", false).build();
+            .nodeSettings("signals.enabled", false, "searchguard.enterprise_modules_enabled", false).enableModule(SignalsModule.class).build();
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates).resources("sg_config/signals")
-            .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).remote("my_remote", anotherCluster).build();
+            .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).remote("my_remote", anotherCluster)
+            .enableModule(SignalsModule.class).build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -114,7 +112,7 @@ public class CheckTest {
         httpProxy = new BrowserUpProxyServer();
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
-    
+
     @AfterClass
     public static void tearDown() {
         if (httpProxy != null) {
@@ -351,12 +349,11 @@ public class CheckTest {
             Assert.assertEquals(text, runtimeData.get("test"));
         }
     }
-    
 
     @Test
     public void httpInputProxyTest() throws Exception {
         try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
-            
+
             webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
             webserviceProvider.setResponseContentType("text/json");
             webserviceProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
@@ -377,21 +374,21 @@ public class CheckTest {
             } catch (CheckExecutionException e) {
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("We are not accepting connections from"));
             }
-            
+
             httpInput = new HttpInput("test", "test", httpRequestConfig,
                     new HttpClientConfig(null, null, null, HttpProxyConfig.create("http://127.0.0.8:" + httpProxy.getPort())));
 
             boolean result = httpInput.execute(ctx);
 
             Assert.assertTrue(result);
-            
+
             Map<?, ?> inputResult = (Map<?, ?>) runtimeData.get("test");
 
             Assert.assertEquals("bar", inputResult.get("foo"));
             Assert.assertEquals(55, inputResult.get("x"));
         }
     }
-    
+
     @Test(expected = CheckExecutionException.class)
     public void httpWrongContentTypeTest() throws Exception {
         try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
@@ -526,7 +523,6 @@ public class CheckTest {
             Assert.assertEquals(5, runtimeData.get(new NestedValueMap.Path("x", "y")));
         }
     }
-
 
     private static String getYesterday() {
         LocalDate now = LocalDate.now().minus(1, ChronoUnit.DAYS);

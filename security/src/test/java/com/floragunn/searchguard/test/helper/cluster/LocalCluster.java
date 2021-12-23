@@ -20,8 +20,10 @@ package com.floragunn.searchguard.test.helper.cluster;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.logging.log4j.LogManager;
@@ -37,6 +39,7 @@ import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
+import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
 
@@ -45,6 +48,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     static {
         System.setProperty("sg.default_init.dir", new File("./sgconfig").getAbsolutePath());
     }
+
+    private static final ImmutableSet<String> MODULES_DISABLED_BY_DEFAULT = ImmutableSet.of("com.floragunn.searchguard.authtoken.AuthTokenModule",
+            "com.floragunn.signals.SignalsModule");
 
     protected static final AtomicLong num = new AtomicLong();
 
@@ -168,7 +174,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     public static class Builder {
 
         private final Settings.Builder nodeOverrideSettingsBuilder = Settings.builder();
-        private final List<String> disabledModules = new ArrayList<>();
+        private final Set<String> disabledModules = new HashSet<>(MODULES_DISABLED_BY_DEFAULT);
         private final List<Class<? extends Plugin>> plugins = new ArrayList<>();
         private boolean sslEnabled;
         private String resourceFolder;
@@ -235,7 +241,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
             return this;
         }
-        
+
         public Builder enterpriseModulesEnabled() {
             this.enterpriseModulesEnabled = true;
             return this;
@@ -243,6 +249,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         public Builder disableModule(Class<? extends SearchGuardModule<?>> moduleClass) {
             this.disabledModules.add(moduleClass.getName());
+
+            return this;
+        }
+
+        public Builder enableModule(Class<? extends SearchGuardModule<?>> moduleClass) {
+            this.disabledModules.remove(moduleClass.getName());
 
             return this;
         }
@@ -302,11 +314,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                             .put("searchguard.ssl.http.pemtrustedcas_filepath", testCertificates.getCaCertFile().getPath());
 
                 }
-                
+
                 nodeOverrideSettingsBuilder.put("searchguard.enterprise_modules_enabled", enterpriseModulesEnabled);
-                
+
                 if (this.disabledModules.size() > 0) {
-                    nodeOverrideSettingsBuilder.putList(SearchGuardModulesRegistry.DISABLED_MODULES.getKey(), this.disabledModules);
+                    nodeOverrideSettingsBuilder.putList(SearchGuardModulesRegistry.DISABLED_MODULES.getKey(), new ArrayList<>(this.disabledModules));
                 }
 
                 clusterName += "_" + num.incrementAndGet();

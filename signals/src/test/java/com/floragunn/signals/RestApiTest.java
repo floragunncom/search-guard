@@ -91,7 +91,7 @@ public class RestApiTest {
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals__main_log", "signals.enterprise.enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
                     "signals.watch_log.sync_indexing", true)
-            .dependsOn(javaSecurity).build();
+            .dependsOn(javaSecurity).enableModule(SignalsModule.class).build();
 
     @BeforeClass
     public static void setupTestData() {

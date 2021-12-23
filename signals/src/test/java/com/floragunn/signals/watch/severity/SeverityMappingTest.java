@@ -17,6 +17,7 @@ import com.floragunn.codova.documents.DocType;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.signals.SignalsModule;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionContextData;
@@ -34,7 +35,8 @@ public class SeverityMappingTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
-            .nodeSettings("signals.enabled", true, "signals.enterprise.enabled", false).resources("sg_config/signals").build();
+            .nodeSettings("signals.enabled", true, "signals.enterprise.enabled", false).resources("sg_config/signals")
+            .enableModule(SignalsModule.class).build();
 
     @BeforeClass
     public static void setupDependencies() {

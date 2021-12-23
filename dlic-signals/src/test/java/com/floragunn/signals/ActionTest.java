@@ -45,7 +45,7 @@ public class ActionTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().nodeSettings("signals.enabled", true)
-            .resources("sg_config/signals").enterpriseModulesEnabled().build();
+            .resources("sg_config/signals").enterpriseModulesEnabled().enableModule(SignalsModule.class).build();
 
     @BeforeClass
     public static void setupTestData() {
