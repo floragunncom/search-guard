@@ -98,6 +98,11 @@ public class SearchGuardModulesRegistry {
     }
 
     public void add(String... classes) {
+        if (disabledModules.contains("all")) {
+            log.info("All Search Guard modules are disabled by configuration");
+            return;
+        }
+        
         for (String clazz : classes) {
             try {
                 if (disabledModules.contains(clazz)) {
