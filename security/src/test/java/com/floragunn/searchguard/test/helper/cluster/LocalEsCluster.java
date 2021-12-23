@@ -567,7 +567,7 @@ public class LocalEsCluster {
             return Settings.builder().put("node.name", nodeName).putList("node.roles", nodeRoles)
                     .put("cluster.name", clusterName).put("path.home", nodeHomeDir.toPath()).put("path.data", dataDir.toPath())
                     .put("path.logs", logsDir.toPath()).putList("cluster.initial_master_nodes", initialMasterHosts)
-                    .put("discovery.initial_state_timeout", "8s").putList("discovery.seed_hosts", seedHosts).put("transport.tcp.port", transportPort)
+                    .put("discovery.initial_state_timeout", "8s").putList("discovery.seed_hosts", seedHosts).put("transport.port", transportPort)
                     .put("http.port", httpPort).put("cluster.routing.allocation.disk.threshold_enabled", false)
                     .put("discovery.probe.connect_timeout", "10s").put("discovery.probe.handshake_timeout", "10s").put("http.cors.enabled", true)
                     .build();
