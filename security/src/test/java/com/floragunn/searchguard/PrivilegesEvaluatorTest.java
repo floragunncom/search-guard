@@ -149,7 +149,7 @@ public class PrivilegesEvaluatorTest {
     @BeforeClass
     public static void setupTestData() {
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest("resolve_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "resolve_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("resolve_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
@@ -179,7 +179,7 @@ public class PrivilegesEvaluatorTest {
                     "exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
         }
 
-        try (Client client = clusterFof.getAdminCertClient()) {
+        try (Client client = clusterFof.getInternalNodeClient()) {
             client.index(new IndexRequest("resolve_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "resolve_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("resolve_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
@@ -213,7 +213,7 @@ public class PrivilegesEvaluatorTest {
                     "tttexclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
         }
 
-        try (Client client = anotherCluster.getAdminCertClient()) {
+        try (Client client = anotherCluster.getInternalNodeClient()) {
             client.index(new IndexRequest("resolve_test_allow_remote_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x",
                     "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("resolve_test_allow_remote_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a",
@@ -312,7 +312,7 @@ public class PrivilegesEvaluatorTest {
 
     @Test
     public void excludeWrite() throws Exception {
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest("write_exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "write_exclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("write_exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
@@ -390,7 +390,7 @@ public class PrivilegesEvaluatorTest {
 
     @Test
     public void excludeWriteFof() throws Exception {
-        try (Client client = clusterFof.getAdminCertClient()) {
+        try (Client client = clusterFof.getInternalNodeClient()) {
             client.index(new IndexRequest("write_exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "write_exclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("write_exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
