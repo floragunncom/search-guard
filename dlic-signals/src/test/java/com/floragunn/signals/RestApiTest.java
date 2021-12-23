@@ -24,7 +24,7 @@ public class RestApiTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
-            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log").build();
+            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log").enterpriseModulesEnabled().build();
 
     @BeforeClass
     public static void setupTestData() {

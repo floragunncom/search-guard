@@ -49,11 +49,11 @@ import com.google.common.collect.ImmutableSet;
 
 public class DlsTermsLookupTest {
 
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls").build();
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+
+    @ClassRule
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls").enterpriseModulesEnabled().build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -261,10 +261,10 @@ public class DlsTermsLookupTest {
             Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());
         }
     }
-    
+
     @Test
     public void testSearchTemplate() throws Exception {
-        
+
         SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest(new SearchRequest("deals_1"));
         searchTemplateRequest.setScriptType(ScriptType.INLINE);
         searchTemplateRequest.setScript("{\"query\": {\"term\": {\"keywords\": \"{{x}}\" } } }");
@@ -283,7 +283,7 @@ public class DlsTermsLookupTest {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
             SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
             SearchResponse searchResponse = searchTemplateResponse.getResponse();
-            
+
             Assert.assertEquals(searchResponse.toString(), 1, searchResponse.getHits().getTotalHits().value);
             Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
             Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("1"),
@@ -293,7 +293,7 @@ public class DlsTermsLookupTest {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
             SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
             SearchResponse searchResponse = searchTemplateResponse.getResponse();
-            
+
             Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
             Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
         }
@@ -349,7 +349,7 @@ public class DlsTermsLookupTest {
     public void testDlsWithTermsLookupGetTLQDisabled() throws Exception {
 
         try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls").nodeSettings("searchguard.dls.mode", "lucene_level")
-                .build()) {
+                .enterpriseModulesEnabled().build()) {
 
             try (Client client = cluster.getInternalNodeClient()) {
 

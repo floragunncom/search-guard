@@ -176,6 +176,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         private TestSgConfig testSgConfig = new TestSgConfig().resources("/");
         private String clusterName = "local_cluster";
         private TestCertificates testCertificates;
+        private boolean enterpriseModulesEnabled;
 
         public Builder sslEnabled() {
             sslEnabled(TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
@@ -232,6 +233,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 nodeOverrideSettingsBuilder.put(key, String.valueOf(value));
             }
 
+            return this;
+        }
+        
+        public Builder enterpriseModulesEnabled() {
+            this.enterpriseModulesEnabled = true;
             return this;
         }
 
@@ -296,6 +302,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                             .put("searchguard.ssl.http.pemtrustedcas_filepath", testCertificates.getCaCertFile().getPath());
 
                 }
+                
+                nodeOverrideSettingsBuilder.put("searchguard.enterprise_modules_enabled", enterpriseModulesEnabled);
+                
                 if (this.disabledModules.size() > 0) {
                     nodeOverrideSettingsBuilder.putList(SearchGuardModulesRegistry.DISABLED_MODULES.getKey(), this.disabledModules);
                 }

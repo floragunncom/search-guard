@@ -28,7 +28,7 @@ public class BlocksApiTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
-            .resources("restapi").sslEnabled().build();
+            .resources("restapi").sslEnabled().enterpriseModulesEnabled().build();
 
     @Test
     public void testBlockByUserName() throws Exception {

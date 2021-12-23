@@ -57,12 +57,11 @@ public class AuthTokenServiceTest {
     private static StaticSgConfig staticSgConfig;
     private static ClusterService clusterService;
 
-
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").singleNode().sslEnabled()
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+
+    @ClassRule
+    public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").singleNode().enterpriseModulesEnabled().sslEnabled()
             .disableModule(AuthTokenModule.class).build();
 
     @BeforeClass
@@ -318,7 +317,7 @@ public class AuthTokenServiceTest {
                 Assert.assertEquals(requestedPrivileges.getClusterPermissions(), baseAuthToken.getRequestedPrivileges().getClusterPermissions());
 
                 HttpResponse roleUpdateResponse = restClient.putJson("/_searchguard/api/roles/new_test_role", "{\"cluster_permissions\": [\"*\"]}");
-                Assert.assertEquals(201, roleUpdateResponse.getStatusCode());
+                Assert.assertEquals(roleUpdateResponse.getBody(), 201, roleUpdateResponse.getStatusCode());
 
                 Thread.sleep(500);
 
