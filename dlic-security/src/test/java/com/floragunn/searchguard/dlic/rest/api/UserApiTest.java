@@ -38,7 +38,7 @@ public class UserApiTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
-            .resources("restapi").sslEnabled().build();
+            .resources("restapi").sslEnabled().enterpriseModulesEnabled().build();
 
     @Test
     public void testSearchGuardRoles() throws Exception {
@@ -327,7 +327,7 @@ public class UserApiTest {
                 .nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin",
                         ConfigConstants.SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_ERROR_MESSAGE, "xxx",
                         ConfigConstants.SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_REGEX, "(?=.*[A-Z])(?=.*[^a-zA-Z\\\\d])(?=.*[0-9])(?=.*[a-z]).{8,}")
-                .resources("restapi").singleNode().sslEnabled().build();
+                .resources("restapi").singleNode().sslEnabled().enterpriseModulesEnabled().build();
                 GenericRestClient adminClient = cluster.getAdminCertRestClient().trackResources()) {
 
             // initial configuration, 5 users

@@ -18,7 +18,7 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class InternalAuthenticationBackendIntegrationTests {
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("internal_user_db").build();
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("internal_user_db").enterpriseModulesEnabled().build();
 
     @Test
     public void dlsIntegrationTest() throws Exception {

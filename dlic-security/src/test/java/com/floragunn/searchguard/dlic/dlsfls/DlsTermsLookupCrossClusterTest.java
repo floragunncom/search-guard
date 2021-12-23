@@ -82,6 +82,7 @@ public class DlsTermsLookupCrossClusterTest {
             .nodeSettings("searchguard.logging.context.extended", true)//
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")//
             .clusterName("remote")//
+            .enterpriseModulesEnabled()//
             .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*").on("tlqdummy").indexPermissions("*")
 
                     .dls("{ \"terms\": { \"access_codes\": { \"index\": \"user_access_codes\", \"id\": \"${user.name}\", \"path\": \"access_codes\" } } }")
@@ -99,6 +100,7 @@ public class DlsTermsLookupCrossClusterTest {
             .nodeSettings("searchguard.logging.context.extended", true)//
             .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")//
             .clusterName("coordinating")//
+            .enterpriseModulesEnabled()//
             .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*")
                     .dls("{ \"bool\": { \"must\": { \"match\": { \"bu\": \"GGG\"  }}}}").on("tlqdummy").indexPermissions("*")
                     .dls("{ \"bool\": { \"must\": { \"match\": { \"bu\": \"AAA\"  }}}}"

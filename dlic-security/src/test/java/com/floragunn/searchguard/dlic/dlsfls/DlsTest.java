@@ -35,7 +35,7 @@ public class DlsTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls").build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls").enterpriseModulesEnabled().build();
 
     @BeforeClass
     public static void setupTestData() {

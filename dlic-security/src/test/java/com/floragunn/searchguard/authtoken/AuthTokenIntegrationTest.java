@@ -38,10 +38,11 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.codova.documents.DocReader;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
@@ -96,6 +97,9 @@ public class AuthTokenIntegrationTest {
     private static Configuration JSON_PATH_CONFIG = BasicJsonPathDefaultConfiguration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
 
     @ClassRule
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+
+    @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
             .resources("authtoken").sslEnabled().sgConfig(sgConfig).build();
 
@@ -141,7 +145,8 @@ public class AuthTokenIntegrationTest {
 
             String tokenPayload = getJwtPayload(token);
             Map<String, Object> parsedTokenPayload = DocReader.json().readObject(tokenPayload);
-            Assert.assertEquals(tokenPayload, "spock", JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
+            Assert.assertEquals(tokenPayload, "spock",
+                    JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
             Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") != null);
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
@@ -203,7 +208,8 @@ public class AuthTokenIntegrationTest {
 
             String tokenPayload = getJwtPayload(token);
             Map<String, Object> parsedTokenPayload = DocReader.json().readObject(tokenPayload);
-            Assert.assertEquals(tokenPayload, "spock", JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
+            Assert.assertEquals(tokenPayload, "spock",
+                    JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
             Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") == null);
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
@@ -468,7 +474,7 @@ public class AuthTokenIntegrationTest {
                 .sgConfigSettings("sg_config.dynamic.auth_token_provider.exclude_cluster_permissions", Collections.emptyList());
 
         try (LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin").resources("authtoken")
-                .sslEnabled().sgConfig(sgConfig).build(); GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
+                .sslEnabled().sgConfig(sgConfig).enterpriseModulesEnabled().build(); GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
             try (Client client = cluster.getInternalNodeClient()) {
                 client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
@@ -640,8 +646,8 @@ public class AuthTokenIntegrationTest {
 
         TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(sgConfigWithEncryption));
 
-        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig).build();
-                GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
+        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig)
+                .enterpriseModulesEnabled().build(); GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
             try (Client client = cluster.getInternalNodeClient()) {
                 client.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
@@ -754,8 +760,8 @@ public class AuthTokenIntegrationTest {
 
         TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(sgConfigWithEncryption));
 
-        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig).build();
-                GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
+        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig)
+                .enterpriseModulesEnabled().build(); GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
             try (Client client = cluster.getInternalNodeClient()) {
                 client.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
