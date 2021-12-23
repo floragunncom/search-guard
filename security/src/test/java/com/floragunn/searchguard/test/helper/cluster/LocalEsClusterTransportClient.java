@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
 import com.floragunn.searchguard.SearchGuardPlugin;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import org.elasticsearch.client.transport.TransportClient;
@@ -63,7 +64,8 @@ public class LocalEsClusterTransportClient extends TransportClient {
             return Settings.builder().put("cluster.name", clusterName)
                     .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(truststore))
                     .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                    .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(keystore)).build();
+                    .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(keystore))
+                    .put(SearchGuardModulesRegistry.DISABLED_MODULES.getKey(), "all").build();
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -74,11 +76,11 @@ public class LocalEsClusterTransportClient extends TransportClient {
                 .put("searchguard.ssl.transport.pemcert_filepath", certificate.getCertificateFile().getAbsolutePath())
                 .put("searchguard.ssl.transport.pemkey_filepath", certificate.getPrivateKeyFile().getAbsolutePath())
                 .put("searchguard.ssl.transport.pemtrustedcas_filepath", caCertFilePath)
-                .put("searchguard.ssl.transport.enforce_hostname_verification", false);
+                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
+                .put(SearchGuardModulesRegistry.DISABLED_MODULES.getKey(), "all");
 
         Optional.ofNullable(certificate.getPrivateKeyPassword())
-                .ifPresent(privateKeyPassword -> builder
-                        .put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
+                .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
 
         return builder.build();
     }
