@@ -65,7 +65,7 @@ public interface ImmutableList<E> extends List<E> {
         } else if (more.length == 2) {
             return new TwoElementList<>(more[0], more[1]);
         } else {
-            return new Builder<>(Arrays.asList(more)).build();
+            return new ArrayBackedList<>(more);
         }
     }
 
@@ -83,7 +83,7 @@ public interface ImmutableList<E> extends List<E> {
 
             return new TwoElementList<>(e1, e2);
         } else {
-            return new Builder<>(collection).build();
+            return new ArrayBackedList<>(collection.toArray());
         }
     }
 

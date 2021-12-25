@@ -63,6 +63,7 @@ import com.floragunn.searchguard.auth.blocking.WildcardVerdictBasedBlockRegistry
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
@@ -77,6 +78,7 @@ import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.StringInterpolationException;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserAttributes;
+import com.floragunn.searchsupport.util.CheckTable;
 import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -580,18 +582,22 @@ public class ConfigModelV7 extends ConfigModel {
             return result;
         }
 
-        //return true on success
-        public boolean get(ResolvedIndices resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
-            if (isIndexActionExcluded(resolved, user, actions, resolver, cs)) {
-                return false;
+        @Override
+        public PrivilegesEvaluationResult get(ResolvedIndices resolved, User user, ImmutableSet<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+            PrivilegesEvaluationResult exclusionResult = checkIndexActionExclusion(resolved, user, actions, resolver, cs);
+            
+            if (exclusionResult.getStatus() != PrivilegesEvaluationResult.Status.PASS) {
+                return exclusionResult;
             }
             
             for (SgRole sgr : roles.values()) {
-                if (ConfigModelV7.impliesTypePerm(sgr.getIpatterns(), resolved, user, actions, resolver, cs)) {
-                    return true;
+                PrivilegesEvaluationResult result = ConfigModelV7.impliesTypePerm(sgr.getIpatterns(), resolved, user, actions, resolver, cs);
+                
+                if (result.getStatus() == PrivilegesEvaluationResult.Status.PASS) {
+                    return result;
                 }
             }
-            return false;
+            return PrivilegesEvaluationResult.STOP;
         }
 
         public boolean impliesClusterPermissionPermission(String action) {
@@ -610,13 +616,15 @@ public class ConfigModelV7 extends ConfigModel {
             return false;
         }
 
-        //rolespan
-        public boolean impliesTypePermGlobal(ResolvedIndices resolved, User user, Set<String> actions, IndexNameExpressionResolver resolver,
+        @Override
+        public PrivilegesEvaluationResult impliesTypePermGlobal(ResolvedIndices resolved, User user, ImmutableSet<String> actions, IndexNameExpressionResolver resolver,
                                              ClusterService cs) {
-            if (isIndexActionExcluded(resolved, user, actions, resolver, cs)) {
-                return false;
+            PrivilegesEvaluationResult exclusionResult = checkIndexActionExclusion(resolved, user, actions, resolver, cs);
+
+            if (exclusionResult.getStatus() != PrivilegesEvaluationResult.Status.PASS) {
+                return exclusionResult;
             }
-            
+                        
             Set<IndexPattern> ipatterns = new HashSet<ConfigModelV7.IndexPattern>();
             roles.values().stream().forEach(p -> ipatterns.addAll(p.getIpatterns()));
             return ConfigModelV7.impliesTypePerm(ipatterns, resolved, user, actions, resolver, cs);
@@ -723,27 +731,33 @@ public class ConfigModelV7 extends ConfigModel {
             return Collections.unmodifiableMap(result);
         }
         
-        private boolean isIndexActionExcluded(ResolvedIndices requestedResolved, User user, Set<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+        private PrivilegesEvaluationResult checkIndexActionExclusion(ResolvedIndices requestedResolved, User user, Set<String> actions,
+                IndexNameExpressionResolver resolver, ClusterService cs) {
             for (SgRole sgRole : roles.values()) {
                 for (ExcludedIndexPermissions indexPattern : sgRole.indexPermissionExclusions) {
                     for (String requestedAction : actions) {
                         if (WildcardMatcher.matchAny(indexPattern.perms, requestedAction)) {
                             try {
                                 if (requestedResolved.isLocalAll() || indexPattern.matches(requestedResolved.getLocalIndices(), user, resolver, cs)) {
-                                    return true;
+                                    return PrivilegesEvaluationResult.STOP.reason("Privilege exclusion rule");
                                 }
                             } catch (StringInterpolationException e) {
-                                log.warn("Invalid index pattern " + indexPattern.indexPattern + " in permission exclusion.\n"
-                                        + "In order to fail safely, the requested actions will be denied for all indices.", e);
                                 // For interpolation errors we go here for the strict path and also exclude the action. Otherwise, exclusions might break unexpectedly.
-                                return true;
+
+                                String message = "Invalid index pattern " + indexPattern.indexPattern + " in permission exclusion.\n"
+                                        + "In order to fail safely, the requested actions will be denied for all indices.";
+
+                                if (log.isDebugEnabled()) {
+                                    log.debug(message, e);
+                                }
+                                return PrivilegesEvaluationResult.STOP.reason(message, new PrivilegesEvaluationResult.Error(message, e));
                             }
                         }
                     }
                 }
             }
-            
-            return false;
+
+            return PrivilegesEvaluationResult.PASS;
         }
         
         private boolean containsDlsFlsConfig() {
@@ -1610,63 +1624,61 @@ public class ConfigModelV7 extends ConfigModel {
         }
         return orig;
     }
- 
-    private static boolean impliesTypePerm(Set<IndexPattern> ipatterns, ResolvedIndices resolved, User user, Set<String> actions,
-                                           IndexNameExpressionResolver resolver, ClusterService cs) {
+
+    private static PrivilegesEvaluationResult impliesTypePerm(Set<IndexPattern> ipatterns, ResolvedIndices resolved, User user,
+            ImmutableSet<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
+        ImmutableSet<PrivilegesEvaluationResult.Error> errors = ImmutableSet.empty();
+
         if (resolved.isLocalAll()) {
             // Only let localAll pass if there is an explicit privilege for a * index pattern
+            CheckTable<String, String> checkTable = CheckTable.create("*", actions);
 
             for (IndexPattern indexPattern : ipatterns) {
                 try {
                     if ("*".equals(indexPattern.getUnresolvedIndexPattern(user))) {
-                        Set<String> matchingActions = new HashSet<>(actions);
-
-                        for (String action : actions) {
-                            if (WildcardMatcher.matchAny(indexPattern.perms, action)) {
-                                matchingActions.remove(action);
-                            }
-                        }
-
-                        if (matchingActions.isEmpty()) {
-                            return true;
+                        if (checkTable.checkIf("*", (action) -> WildcardMatcher.matchAny(indexPattern.perms, action))) {
+                            return PrivilegesEvaluationResult.PASS;
                         }
                     }
                 } catch (StringInterpolationException e) {
-                    log.warn("Invalid index pattern " + indexPattern.indexPattern, e);
-                    continue;
+                    if (log.isDebugEnabled()) {
+                        log.debug("Invalid index pattern " + indexPattern.indexPattern, e);
+                    }
+                    errors = errors.with(new PrivilegesEvaluationResult.Error("Invalid index pattern " + indexPattern.indexPattern, e));
                 }
             }
-
-            return false;
+            
+            if (checkTable.isComplete()) {
+                return PrivilegesEvaluationResult.PASS;
+            } else {
+                return PrivilegesEvaluationResult.STOP.reason("Users doing * queries must have privileges for *").with(checkTable, errors);
+            }
         } else {
-            Set<String> matchingIndex = new HashSet<>(resolved.getLocalIndices());
+            CheckTable<String, String> checkTable = CheckTable.create(resolved.getLocalIndices(), actions);
 
-            for (String in : resolved.getLocalIndices()) {
-                //find index patterns who are matching
-                Set<String> matchingActions = new HashSet<>(actions);
-                for (IndexPattern p : ipatterns) {
-                    String[] resolvedIndexPatterns;
-                    try {
-                        resolvedIndexPatterns = p.getResolvedIndexPatterns(user, resolver, cs, true);
-                    } catch (StringInterpolationException e) {
-                        log.warn("Invalid index pattern " + p.indexPattern, e);
-                        continue;
+            for (IndexPattern indexPattern : ipatterns) {
+                try {
+                    String[] resolvedIndexPatterns = indexPattern.getResolvedIndexPatterns(user, resolver, cs, true);
+                    Set<String> matchingIndices = resolved.getLocalIndices()
+                            .matching((index) -> WildcardMatcher.matchAny(resolvedIndexPatterns, index));
+
+                    if (checkTable.checkIf(matchingIndices, (action) -> WildcardMatcher.matchAny(indexPattern.perms, action))) {
+                        return PrivilegesEvaluationResult.PASS;
                     }
-                    if (WildcardMatcher.matchAny(resolvedIndexPatterns, in)) {
-                        for (String a : actions) {
-                            if (WildcardMatcher.matchAny(p.perms, a)) {
-                                matchingActions.remove(a);
-                            }
-                        }
+                } catch (StringInterpolationException e) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Invalid index pattern " + indexPattern.indexPattern, e);
                     }
+                    errors = errors.with(new PrivilegesEvaluationResult.Error("Invalid index pattern " + indexPattern.indexPattern, e));
                 }
 
-                if (matchingActions.isEmpty()) {
-                    matchingIndex.remove(in);
-                }
             }
 
-            return matchingIndex.isEmpty();
+            if (checkTable.isComplete()) {
+                return PrivilegesEvaluationResult.PASS;
+            } else {
+                return PrivilegesEvaluationResult.STOP.with(checkTable, errors);
+            }
         }
     }
 
