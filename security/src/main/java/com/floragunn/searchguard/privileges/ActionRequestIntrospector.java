@@ -359,7 +359,17 @@ public class ActionRequestIntrospector {
         ActionRequestInfo(List<String> index, IndicesOptions indicesOptions) {
             this(ImmutableSet.of(new IndicesRequestInfo(null, index, indicesOptions)));
         }
-
+        
+        ActionRequestInfo(boolean unknown, boolean indexRequest, ImmutableSet<IndicesRequestInfo> indices, ResolvedIndices resolvedIndices, ImmutableMap<String, ResolvedIndices> additionalResolvedIndices, Object sourceRequest) {
+            this.unknown = unknown;
+            this.indexRequest = indexRequest;
+            this.indices = indices;
+            this.resolvedIndices = resolvedIndices;
+            this.resolvedIndicesInitialized = true;
+            this.additionalResolvedIndices = additionalResolvedIndices;
+            this.sourceRequest = sourceRequest;
+        }
+        
         ActionRequestInfo additional(String role, IndicesRequest indices) {
             return new ActionRequestInfo(unknown, indexRequest, this.indices.with(new IndicesRequestInfo(role, indices)));
         }
@@ -382,6 +392,16 @@ public class ActionRequestIntrospector {
             }
         }
 
+        public ActionRequestInfo reducedIndices(ImmutableSet<String> newLocalResolvedIndices) {
+            if (!resolvedIndicesInitialized) {
+                initResolvedIndices();
+                resolvedIndicesInitialized = true;
+            }
+
+            return new ActionRequestInfo(unknown, indexRequest, indices, resolvedIndices.localIndices(newLocalResolvedIndices),
+                    additionalResolvedIndices, newLocalResolvedIndices);
+        }
+        
         public ResolvedIndices getResolvedIndices() {
             if (!resolvedIndicesInitialized) {
                 initResolvedIndices();
@@ -840,8 +860,8 @@ public class ActionRequestIntrospector {
 
         public ImmutableSet<String> getLocalSubset(Set<String> superSet) {
             return getLocalIndices().intersection(superSet).with(remoteIndices);
-        }
-
+        }        
+        
         public String[] getLocalSubsetAsArray(Set<String> superSet) {
             ImmutableSet<String> result = getLocalSubset(superSet);
 
@@ -860,6 +880,10 @@ public class ActionRequestIntrospector {
                 return "local: " + (localIndices != null ? localIndices.toShortString() : "null") + "; remote: "
                         + (remoteIndices != null ? remoteIndices.toShortString() : "null");
             }
+        }
+        
+        public ResolvedIndices localIndices(ImmutableSet<String> localIndices) {
+            return new ResolvedIndices(false, localIndices, remoteIndices, ImmutableSet.empty());
         }
 
     }

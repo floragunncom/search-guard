@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -69,6 +70,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult.Status;
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig;
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfigRegistry;
 import com.floragunn.searchguard.sgconf.ConfigModel;
@@ -451,8 +453,8 @@ public class PrivilegesEvaluator implements DCFListener {
             }
 
             if (reduced.size() < actionRequestInfo.getResolvedIndices().getLocalIndices().size()) {
-                reduced = reduced.with(actionRequestInfo.getResolvedIndices().getRemoteIndices());
-                if (reduced.isEmpty()) {
+                ImmutableSet<String> reducedWithRemote = reduced.with(actionRequestInfo.getResolvedIndices().getRemoteIndices());
+                if (reducedWithRemote.isEmpty()) {
 
                     if (dcm.isDnfofForEmptyResultsEnabled()) {
 
@@ -500,35 +502,51 @@ public class PrivilegesEvaluator implements DCFListener {
                     return presponse;
                 }
 
-                if (actionRequestIntrospector.reduceIndices(request, reduced, actionRequestInfo)) {
+                if (actionRequestIntrospector.reduceIndices(request, reducedWithRemote, actionRequestInfo)) {
                     // TODO re-check privs?
 
                     if (log.isTraceEnabled()) {
                         log.trace("Allowing reduced request due to DNFOF: " + action0);
                     }
+                    
+                    actionRequestInfo = actionRequestInfo.reducedIndices(reduced);
 
-                    presponse.missingPrivileges.clear();
-                    presponse.allowed = true;
-                    return presponse;
+                    //presponse.missingPrivileges.clear();
+                    //presponse.allowed = true;
+                    //return presponse;
                 }
             }
         }
 
         //not bulk, mget, etc request here
-        boolean permGiven = false;
 
         if (log.isDebugEnabled()) {
             log.debug("sgr2: {}", sgRoles.getRoleNames());
         }
 
+        PrivilegesEvaluationResult privilegesEvaluationResult;
+        
         if (dcm.isMultiRolespanEnabled()) {
-            permGiven = sgRoles.impliesTypePermGlobal(actionRequestInfo.getResolvedIndices(), user, allIndexPermsRequired, resolver, clusterService);
+            privilegesEvaluationResult = sgRoles.impliesTypePermGlobal(actionRequestInfo.getResolvedIndices(), user, allIndexPermsRequired, resolver, clusterService);
         } else {
-            permGiven = sgRoles.get(actionRequestInfo.getResolvedIndices(), user, allIndexPermsRequired, resolver, clusterService);
-
+            privilegesEvaluationResult = sgRoles.get(actionRequestInfo.getResolvedIndices(), user, allIndexPermsRequired, resolver, clusterService);
         }
 
-        if (permGiven && request instanceof ResizeRequest) {
+        if (privilegesEvaluationResult.getStatus() != Status.PASS) {
+            Level logLevel = privilegesEvaluationResult.hasErrors() ? Level.WARN : Level.INFO;
+
+            if (log.isEnabled(logLevel)) {
+                log.log(logLevel, "### No index privileges for " + action0 + " (" + request.getClass().getName() + ")\nuser: " + user + "\nresolved: "
+                        + actionRequestInfo.getResolvedIndices() + "\nunresolved: " + actionRequestInfo.getUnresolved() + "\nroles: "
+                        + sgRoles.getRoleNames() + "\nrequired privileges: " + allIndexPermsRequired + "\nevaluated privileges: "
+                        + privilegesEvaluationResult.getIndexToActionPrivilegeTable() + "\nerrors: " + privilegesEvaluationResult.getErrors(), privilegesEvaluationResult.getFirstThrowable());
+            }
+
+            presponse.allowed = false;
+            return presponse;
+        }
+
+        if (request instanceof ResizeRequest) {
             if (log.isDebugEnabled()) {
                 log.debug("Checking additional create index action for resize operation: " + request);
             }
@@ -542,17 +560,11 @@ public class PrivilegesEvaluator implements DCFListener {
             }
         }
 
-        if (!permGiven) {
-            log.info("No index-level perm match for {} {} [Action [{}]] [RolesChecked {}]", user, actionRequestInfo, action0, sgRoles.getRoleNames());
-            log.info("No permissions for {}", presponse.missingPrivileges);
-        } else {
-
-            if (log.isDebugEnabled()) {
-                log.debug("Allowed because we have all indices permissions for " + action0);
-            }
+        if (log.isDebugEnabled()) {
+            log.debug("Allowed because we have all indices permissions for " + allIndexPermsRequired);
         }
 
-        presponse.allowed = permGiven;
+        presponse.allowed = true;
         return presponse;
     }
 

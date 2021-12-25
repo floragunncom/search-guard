@@ -28,6 +28,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.sgconf.ConfigModel.ActionGroupResolver;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.sgconf.SgRoles;
@@ -86,19 +87,17 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public boolean impliesTypePermGlobal(ResolvedIndices requestedResolved, User user, Set<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
+    public PrivilegesEvaluationResult impliesTypePermGlobal(ResolvedIndices requestedResolved, User user, ImmutableSet<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
-        boolean restrictedPermission = restrictionSgRoles.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver,
+        PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver,
                 clusterService);
 
-        if (!restrictedPermission) {
+        if (restrictedPermission.getStatus() != PrivilegesEvaluationResult.Status.PASS) {
             // Don't calculate base permission if we already know we will get an empty set
-            return false;
+            return restrictedPermission;
         }
 
-        boolean basePermission = base.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
-
-        return restrictedPermission && basePermission;
+        return base.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
     }
     
     @Override
@@ -107,18 +106,16 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public boolean get(ResolvedIndices requestedResolved, User user, Set<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
+    public PrivilegesEvaluationResult get(ResolvedIndices requestedResolved, User user, ImmutableSet<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
-        boolean restrictedPermission = restrictionSgRoles.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
+        PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
 
-        if (!restrictedPermission) {
+        if (restrictedPermission.getStatus() != PrivilegesEvaluationResult.Status.PASS) {
             // Don't calculate base permission if we already know we will get an empty set
-            return false;
+            return restrictedPermission;
         }
 
-        boolean basePermission = base.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
-
-        return restrictedPermission && basePermission;
+        return base.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
     }
 
     @Override
