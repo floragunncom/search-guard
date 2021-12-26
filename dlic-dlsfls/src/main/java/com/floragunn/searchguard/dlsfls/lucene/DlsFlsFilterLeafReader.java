@@ -77,8 +77,8 @@ import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
-import com.floragunn.searchguard.compliance.FieldReadCallback;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
+import com.floragunn.searchguard.dlsfls.FieldReadCallback;
+import com.floragunn.searchguard.dlsfls.Filtering;
 import com.floragunn.searchguard.dlsfls.MaskedField;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
@@ -509,7 +509,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
             if (fieldInfo.name.equals("_source")) {
                 
-                Map<String, Object> filteredSource = Utils.byteArrayToMutableJsonMap(value);
+                Map<String, Object> filteredSource = Filtering.byteArrayToMutableJsonMap(value);
 
                 if (!canOptimize) {
                     filteredSource = filterFunction.apply(filteredSource);
@@ -521,7 +521,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
                     }
                 }
 
-                delegate.binaryField(fieldInfo, Utils.jsonMapToByteArray(filteredSource));
+                delegate.binaryField(fieldInfo, Filtering.jsonMapToByteArray(filteredSource));
             } else {
                 delegate.binaryField(fieldInfo, value);
             }
