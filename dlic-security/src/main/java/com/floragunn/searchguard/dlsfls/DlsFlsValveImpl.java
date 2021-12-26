@@ -28,6 +28,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.RealtimeRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
+import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -100,8 +101,12 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             if (log.isDebugEnabled()) {
                 log.debug("DLS is already done for: " + threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE));
             }
-
-            return true;
+            
+            if (!checkRequestForDls(request, listener)) {
+                return false;
+            } else {
+                return true;
+            }
         }
 
         EvaluatedDlsFlsConfig filteredDlsFlsConfig = evaluatedDlsFlsConfig.filter(resolved);
@@ -192,18 +197,9 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             }
         }
 
-        if (evaluatedDlsFlsConfig.hasDls()) {
-            if (request instanceof SearchRequest) {
-
-                final SearchSourceBuilder source = ((SearchRequest) request).source();
-                if (source != null) {
-
-                    if (source.profile()) {
-                        listener.onFailure(new ElasticsearchSecurityException("Profiling is not supported when DLS is activated"));
-                        return false;
-                    }
-
-                }
+        if (evaluatedDlsFlsConfig.hasDls()) {            
+            if (!checkRequestForDls(request, listener)) {
+                return false;
             }
         }
 
@@ -252,6 +248,22 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         } catch (Exception e) {
             throw new RuntimeException("Error evaluating dls for a search query: " + e, e);
         }
+    }
+    
+    private boolean checkRequestForDls(ActionRequest request, ActionListener<?> listener) {
+        if (request instanceof SearchRequest) {
+            SearchRequest searchRequest = (SearchRequest) request;            
+            searchRequest.requestCache(Boolean.FALSE);           
+            SearchSourceBuilder source = searchRequest.source();
+            if (source != null) {
+                if (source.profile()) {
+                    listener.onFailure(new ElasticsearchSecurityException("Profiling is not supported when DLS is activated"));
+                    return false;
+                }
+            }
+        }
+        
+        return true;
     }
 
     private void setDlsHeaders(EvaluatedDlsFlsConfig dlsFls, ActionRequest request) {
