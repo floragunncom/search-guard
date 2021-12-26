@@ -49,6 +49,8 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.settings.Setting;
+import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -79,6 +81,9 @@ import com.google.common.base.Strings;
 
 public class PrivilegesEvaluator implements DCFListener {
 
+    public static final Setting<Boolean> INDEX_REDUCTION_FAST_PATH = Setting.boolSetting("searchguard.privilege_evaluation.index_reduction_fast_path",
+            true, Property.NodeScope, Property.Filtered);
+    
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     private final ClusterService clusterService;
@@ -104,6 +109,7 @@ public class PrivilegesEvaluator implements DCFListener {
     private final NamedXContentRegistry namedXContentRegistry;
     private final List<String> adminOnlyActions;
     private final List<String> adminOnlyActionExceptions;
+    private final boolean indexReductionFastPath;
 
     public PrivilegesEvaluator(final ClusterService clusterService, final ThreadPool threadPool,
             final ConfigurationRepository configurationRepository, final IndexNameExpressionResolver resolver, AuditLog auditLog,
@@ -116,7 +122,8 @@ public class PrivilegesEvaluator implements DCFListener {
         this.auditLog = auditLog;
 
         this.threadContext = threadPool.getThreadContext();
-
+        
+        this.indexReductionFastPath = INDEX_REDUCTION_FAST_PATH.get(settings);
         this.checkSnapshotRestoreWritePrivileges = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
                 ConfigConstants.SG_DEFAULT_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES);
 
@@ -211,15 +218,15 @@ public class PrivilegesEvaluator implements DCFListener {
 
         if (log.isDebugEnabled()) {
             if (requestInfo.isUnknown()) {
-                log.debug("### evaluate UNKNOWN " + action0 + " (" + request.getClass().getName() + ")\nuser: " + user
+                log.debug("### evaluate UNKNOWN " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user
                         + "\nspecialPrivilegesEvaluationContext: " + specialPrivilegesEvaluationContext);
             } else if (!requestInfo.isIndexRequest()) {
-                log.debug("### evaluate " + action0 + " (" + request.getClass().getName() + ")\nuser: " + user
+                log.debug("### evaluate " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user
                         + "\nspecialPrivilegesEvaluationContext: " + specialPrivilegesEvaluationContext);
             } else {
-                log.debug("### evaluate " + action0 + " (" + request.getClass().getName() + ")\nuser: " + user
-                        + "\nspecialPrivilegesEvaluationContext: " + specialPrivilegesEvaluationContext + "\nresolved: "
-                        + requestInfo.getResolvedIndices() + "\nunresolved: " + requestInfo.getUnresolved());
+                log.debug("### evaluate " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user
+                        + "\nspecialPrivilegesEvaluationContext: " + specialPrivilegesEvaluationContext + "\nResolved: "
+                        + requestInfo.getResolvedIndices() + "\nUresolved: " + requestInfo.getUnresolved() + "\nDNFOF: " + dcm.isDnfofEnabled());
             }
         }
 
@@ -441,19 +448,25 @@ public class PrivilegesEvaluator implements DCFListener {
                     presponse.allowed = false;
                     return presponse;
                 }
+                
+                if (log.isTraceEnabled()) {
+                    log.trace("DNFOF: Reducing indices to " + reduced);
+                }
 
                 if (actionRequestIntrospector.reduceIndices(request, reducedWithRemote, actionRequestInfo)) {
-                    // TODO re-check privs?
 
-                    if (log.isTraceEnabled()) {
-                        log.trace("Allowing reduced request due to DNFOF: " + action0);
+                    if (indexReductionFastPath) {                    
+                        if (log.isDebugEnabled()) {
+                            log.debug("Allowing reduced request due to DNFOF: " + action0);
+                        }
+                        
+                        presponse.missingPrivileges.clear();
+                        presponse.allowed = true;
+                        return presponse;
                     }
                     
-                    actionRequestInfo = actionRequestInfo.reducedIndices(reduced);
-
-                    //presponse.missingPrivileges.clear();
-                    //presponse.allowed = true;
-                    //return presponse;
+                    actionRequestInfo = actionRequestIntrospector.getActionRequestInfo(request);
+                    presponse.actionRequestInfo = actionRequestInfo;
                 }
             }
         }
@@ -476,10 +489,10 @@ public class PrivilegesEvaluator implements DCFListener {
             Level logLevel = privilegesEvaluationResult.hasErrors() ? Level.WARN : Level.INFO;
 
             if (log.isEnabled(logLevel)) {
-                log.log(logLevel, "### No index privileges for " + action0 + " (" + request.getClass().getName() + ")\nuser: " + user + "\nresolved: "
-                        + actionRequestInfo.getResolvedIndices() + "\nunresolved: " + actionRequestInfo.getUnresolved() + "\nroles: "
-                        + sgRoles.getRoleNames() + "\nrequired privileges: " + allIndexPermsRequired + "\nevaluated privileges: "
-                        + privilegesEvaluationResult.getIndexToActionPrivilegeTable() + "\nerrors: " + privilegesEvaluationResult.getErrors(), privilegesEvaluationResult.getFirstThrowable());
+                log.log(logLevel,
+                        "### No index privileges for " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user + "\nResolved Indices: "
+                                + actionRequestInfo.getResolvedIndices() + "\nUnresolved: " + actionRequestInfo.getUnresolved() + "\nRoles: "
+                                + sgRoles.getRoleNames() + "\nRequired Privileges: " + allIndexPermsRequired + "\n" + privilegesEvaluationResult);
             }
 
             presponse.allowed = false;
