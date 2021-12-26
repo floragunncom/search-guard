@@ -28,7 +28,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.RealtimeRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
-import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -197,7 +196,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             }
         }
 
-        if (evaluatedDlsFlsConfig.hasDls()) {            
+        if (evaluatedDlsFlsConfig.hasDls()) {
             if (!checkRequestForDls(request, listener)) {
                 return false;
             }

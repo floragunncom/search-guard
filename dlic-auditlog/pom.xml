@@ -87,6 +87,13 @@
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
+		
+		<dependency>
+		    <!--  DLS/FLS is a required dependency for audit logging to work -->
+			<groupId>com.floragunn</groupId>
+			<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+			<scope>test</scope>
+		</dependency>		
 
 		<dependency>
 			<groupId>org.ldaptive</groupId>

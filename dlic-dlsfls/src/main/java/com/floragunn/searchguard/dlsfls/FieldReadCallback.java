@@ -12,7 +12,7 @@
  *
  */
 
-package com.floragunn.searchguard.compliance;
+package com.floragunn.searchguard.dlsfls;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ import org.elasticsearch.index.mapper.Uid;
 import org.elasticsearch.index.shard.ShardId;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
+import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SourceFieldsContext;
 import com.floragunn.searchguard.support.WildcardMatcher;
@@ -105,8 +105,8 @@ public final class FieldReadCallback {
             if(fieldInfo.name.equals("_source")) {
 
                 if(filterFunction != null) {
-                    final Map<String, Object> filteredSource = filterFunction.apply(Utils.byteArrayToMutableJsonMap(fieldValue));
-                    fieldValue = Utils.jsonMapToByteArray(filteredSource);
+                    final Map<String, Object> filteredSource = filterFunction.apply(Filtering.byteArrayToMutableJsonMap(fieldValue));
+                    fieldValue = Filtering.jsonMapToByteArray(filteredSource);
                 }
 
                 Map<String, Object> filteredSource = new JsonFlattener(new String(fieldValue, StandardCharsets.UTF_8)).flattenAsMap();

@@ -287,7 +287,21 @@
 				<artifactId>dlic-search-guard-suite-security</artifactId>
 				<version>${project.version}</version>
 			</dependency>
-
+			
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			
+			
+			<dependency>			
+				<groupId>com.floragunn</groupId>
+				<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+				<version>${project.version}</version>
+				<classifier>tests</classifier>				
+			</dependency>
+			
 			<dependency>
 				<groupId>org.elasticsearch.plugin</groupId>
 				<artifactId>lang-mustache-client</artifactId>
@@ -607,7 +621,8 @@
 				<module>sgadmin</module>				
 				<module>dlic-security</module>
 				<module>dlic-signals</module>	
-				<module>dlic-auditlog</module>											
+				<module>dlic-auditlog</module>		
+				<module>dlic-dlsfls</module>											
 				<module>plugin</module>
 				<module>codova</module>					
 			</modules>
