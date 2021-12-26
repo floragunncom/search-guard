@@ -1174,6 +1174,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(EncryptionKeys.ENCRYPTION_KEYS_SETTING);
             settings.addAll(moduleRegistry.getSettings());
             settings.addAll(DiagnosticContext.SETTINGS);
+            settings.add(PrivilegesEvaluator.INDEX_REDUCTION_FAST_PATH);
         }
 
         return settings;

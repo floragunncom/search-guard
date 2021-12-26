@@ -151,8 +151,8 @@ public interface CheckTable<R, C> {
             result.append("|");
 
             String columnLabel = column.toString();
-            if (columnLabel.length() > 24) {
-                columnLabel = columnLabel.substring(0, 24);
+            if (columnLabel.length() > STRING_TABLE_HEADER_WIDTH) {
+                columnLabel = columnLabel.substring(0, STRING_TABLE_HEADER_WIDTH);
             }
             int columnWidth = columnLabel.length();
 
@@ -254,8 +254,8 @@ public interface CheckTable<R, C> {
             for (C column : columns) {
                 String columnLabel = column.toString();
 
-                if (columnLabel.length() > 24) {
-                    columnLabel = columnLabel.substring(0, 24);
+                if (columnLabel.length() > STRING_TABLE_HEADER_WIDTH) {
+                    columnLabel = columnLabel.substring(0, STRING_TABLE_HEADER_WIDTH);
                 }
 
                 columnWidth[i] = columnLabel.length();
@@ -479,8 +479,8 @@ public interface CheckTable<R, C> {
             for (C column : columns.keySet()) {
                 String columnLabel = column.toString();
 
-                if (columnLabel.length() > 24) {
-                    columnLabel = columnLabel.substring(0, 24);
+                if (columnLabel.length() > STRING_TABLE_HEADER_WIDTH) {
+                    columnLabel = columnLabel.substring(0, STRING_TABLE_HEADER_WIDTH);
                 }
 
                 columnWidth[i] = columnLabel.length();
@@ -513,6 +513,8 @@ public interface CheckTable<R, C> {
     }
 
     static abstract class AbstractCheckTable<R, C> implements CheckTable<R, C> {
+
+        static final int STRING_TABLE_HEADER_WIDTH = 40;
 
         @Override
         public boolean checkIf(Iterable<R> rows, Predicate<C> columnCheckPredicate) {

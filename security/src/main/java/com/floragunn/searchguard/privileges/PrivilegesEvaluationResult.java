@@ -110,7 +110,7 @@ public class PrivilegesEvaluationResult {
         }
 
         if (indexToActionPrivilegeTable != null) {
-            String evaluatedPrivileges = indexToActionPrivilegeTable.toString();
+            String evaluatedPrivileges = indexToActionPrivilegeTable.toString("ok", "MISSING");
 
             if (evaluatedPrivileges.length() > 30 || evaluatedPrivileges.contains("\n")) {
                 result.append("Evaluated Privileges:\n").append(evaluatedPrivileges).append("\n");
