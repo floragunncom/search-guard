@@ -27,9 +27,6 @@ public abstract class SgRoles implements ToXContentObject {
     public abstract PrivilegesEvaluationResult impliesTypePermGlobal(ResolvedIndices requestedResolved, User user, ImmutableSet<String> requiredPrivileges,
             IndexNameExpressionResolver resolver, ClusterService clusterService);
 
-    public abstract PrivilegesEvaluationResult get(ResolvedIndices requestedResolved, User user, ImmutableSet<String> requiredPrivileges,
-            IndexNameExpressionResolver resolver, ClusterService clusterService);
-
     public abstract EvaluatedDlsFlsConfig getDlsFls(User user, IndexNameExpressionResolver resolver, ClusterService clusterService,
             NamedXContentRegistry namedXContentRegistry);
 

@@ -138,10 +138,7 @@ public class DynamicConfigModelV7 extends DynamicConfigModel implements Componen
     public boolean isDnfofEnabled() {
         return config.dynamic.do_not_fail_on_forbidden;
     }
-    @Override
-    public boolean isMultiRolespanEnabled() {
-        return config.dynamic.multi_rolespan_enabled;
-    }
+  
     @Override
     public String getFilteredAliasMode() {
         return config.dynamic.filtered_alias_mode;

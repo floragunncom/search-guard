@@ -537,14 +537,8 @@ public class PrivilegesEvaluator implements DCFListener {
             log.debug("sgr2: {}", sgRoles.getRoleNames());
         }
 
-        PrivilegesEvaluationResult privilegesEvaluationResult;
+        PrivilegesEvaluationResult privilegesEvaluationResult = sgRoles.impliesTypePermGlobal(actionRequestInfo.getResolvedIndices(), user, allIndexPermsRequired, resolver, clusterService);
         
-        if (dcm.isMultiRolespanEnabled()) {
-            privilegesEvaluationResult = sgRoles.impliesTypePermGlobal(actionRequestInfo.getResolvedIndices(), user, allIndexPermsRequired, resolver, clusterService);
-        } else {
-            privilegesEvaluationResult = sgRoles.get(actionRequestInfo.getResolvedIndices(), user, allIndexPermsRequired, resolver, clusterService);
-        }
-
         if (privilegesEvaluationResult.getStatus() != Status.PASS) {
             Level logLevel = privilegesEvaluationResult.hasErrors() ? Level.WARN : Level.INFO;
 
