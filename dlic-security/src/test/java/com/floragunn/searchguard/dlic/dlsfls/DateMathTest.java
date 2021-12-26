@@ -41,7 +41,7 @@ public class DateMathTest extends AbstractDlsFlsTest{
 
 
         
-        SimpleDateFormat sdf = new SimpleDateFormat("YYYY.MM.dd", SgUtils.EN_Locale);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd", SgUtils.EN_Locale);
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         
         String date = sdf.format(new Date());
