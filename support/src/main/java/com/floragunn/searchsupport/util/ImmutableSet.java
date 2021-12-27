@@ -189,6 +189,18 @@ public interface ImmutableSet<E> extends Set<E> {
             }
         }
 
+        public Builder(E[] initialContent) {
+            if (initialContent.length < 16) {
+                internalBuilder = new HashArray16BackedSet.Builder<E>();
+
+                for (int i = 0; i < initialContent.length; i++) {
+                    internalBuilder = internalBuilder.with(initialContent[i]);
+                }
+            } else {
+                internalBuilder = new SetBackedSet.Builder<E>(Arrays.asList(initialContent));
+            }
+        }
+
         public Builder<E> with(E e) {
             internalBuilder = internalBuilder.with(e);
             return this;
@@ -199,12 +211,40 @@ public interface ImmutableSet<E> extends Set<E> {
             return this;
         }
 
+        public boolean add(E e) {
+            int size = internalBuilder.size();
+            internalBuilder = internalBuilder.with(e);
+            return size != internalBuilder.size();
+        }
+
+        public boolean addAll(Collection<E> collection) {
+            int size = internalBuilder.size();
+
+            for (E e : collection) {
+                internalBuilder = internalBuilder.with(e);
+            }
+
+            return size != internalBuilder.size();
+        }
+
         public boolean remove(E e) {
             return internalBuilder.remove(e);
         }
 
+        public void clear() {
+            internalBuilder.clear();
+        }
+
         public boolean contains(E e) {
             return internalBuilder.contains(e);
+        }
+
+        public boolean containsAny(Set<E> set) {
+            return internalBuilder.containsAny(set);
+        }
+
+        public boolean containsAll(Set<E> set) {
+            return internalBuilder.containsAll(set);
         }
 
         public ImmutableSet<E> build() {
@@ -218,6 +258,10 @@ public interface ImmutableSet<E> extends Set<E> {
         public int size() {
             return internalBuilder.size();
         }
+
+        public E any() {
+            return internalBuilder.any();
+        }
     }
 
     static abstract class InternalBuilder<E> {
@@ -227,13 +271,21 @@ public interface ImmutableSet<E> extends Set<E> {
 
         abstract boolean remove(E e);
 
+        abstract void clear();
+
         abstract boolean contains(E e);
+
+        abstract boolean containsAny(Set<E> set);
+
+        abstract boolean containsAll(Set<E> set);
 
         abstract ImmutableSet<E> build();
 
         abstract int size();
 
         abstract Iterator<E> iterator();
+
+        abstract E any();
     }
 
     static abstract class AbstractImmutableSet<E> extends AbstractImmutableCollection<E> implements ImmutableSet<E> {
@@ -972,8 +1024,10 @@ public interface ImmutableSet<E> extends Set<E> {
 
         @Override
         public boolean contains(Object o) {
-            int pos = hashPosition(o);
+            return contains(o, hashPosition(o));
+        }
 
+        boolean contains(Object o, int pos) {
             if (o.equals(this.table1[pos])) {
                 return true;
             } else if (this.table2 != null && o.equals(this.table2[pos])) {
@@ -1575,6 +1629,18 @@ public interface ImmutableSet<E> extends Set<E> {
             }
 
             @Override
+            void clear() {
+                size = 0;
+                first = null;
+
+                if (tail1 != null) {
+                    Arrays.fill(tail1, null);
+                }
+
+                tail2 = null;
+            }
+
+            @Override
             boolean contains(E e) {
                 if (e.equals(first)) {
                     return true;
@@ -1589,6 +1655,83 @@ public interface ImmutableSet<E> extends Set<E> {
                 }
 
                 return false;
+            }
+
+            @Override
+            boolean containsAny(Set<E> set) {
+                if (set instanceof HashArray16BackedSet) {
+                    return containsAny((HashArray16BackedSet<E>) set);
+                } else {
+                    for (E e : set) {
+                        if (contains(e)) {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            private boolean containsAny(HashArray16BackedSet<E> set) {
+                for (int i = 0; i < TABLE_SIZE; i++) {
+                    if (set.table1[i] != null) {
+                        if (contains(set.table1[i], i)) {
+                            return true;
+                        }
+                    }
+
+                    if (set.table2 != null && set.table2[i] != null) {
+                        if (contains(set.table2[i], i)) {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            @Override
+            boolean containsAll(Set<E> set) {
+                if (set instanceof HashArray16BackedSet) {
+                    return containsAll((HashArray16BackedSet<E>) set);
+                } else {
+                    for (E e : set) {
+                        if (!contains(e)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            }
+
+            private boolean containsAll(HashArray16BackedSet<E> set) {
+                for (int i = 0; i < TABLE_SIZE; i++) {
+                    if (set.table1[i] != null) {
+                        if (!contains(set.table1[i], i)) {
+                            return false;
+                        }
+                    }
+
+                    if (set.table2 != null && set.table2[i] != null) {
+                        if (!contains(set.table2[i], i)) {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            private boolean contains(Object e, int hashPosition) {
+                if (tail1 != null && tail1[hashPosition] != null && tail1[hashPosition].equals(e)) {
+                    return true;
+                } else if (tail2 != null && tail2[hashPosition] != null && tail2[hashPosition].equals(e)) {
+                    return true;
+                } else if (first.equals(e)) {
+                    return true;
+                } else {
+                    return false;
+                }
             }
 
             @Override
@@ -1709,6 +1852,16 @@ public interface ImmutableSet<E> extends Set<E> {
                     }
 
                 };
+            }
+
+            @SuppressWarnings("unchecked")
+            @Override
+            E any() {
+                if (first != null) {
+                    return first;
+                }
+
+                return (E) findFirstNonNull(this.tail1, this.tail2);
             }
 
         }
@@ -2366,6 +2519,18 @@ public interface ImmutableSet<E> extends Set<E> {
             }
 
             @Override
+            void clear() {
+                size = 0;
+                first = null;
+
+                if (tail1 != null) {
+                    Arrays.fill(tail1, null);
+                }
+
+                tail2 = null;
+            }
+
+            @Override
             boolean contains(E e) {
                 if (e.equals(first)) {
                     return true;
@@ -2380,6 +2545,84 @@ public interface ImmutableSet<E> extends Set<E> {
                 }
 
                 return false;
+            }
+
+            @Override
+            boolean containsAny(Set<E> set) {
+                if (set instanceof HashArray64BackedSet) {
+                    return containsAny((HashArray64BackedSet<E>) set);
+                } else {
+                    for (E e : set) {
+                        if (contains(e)) {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            private boolean containsAny(HashArray64BackedSet<E> set) {
+                for (int i = 0; i < TABLE_SIZE; i++) {
+                    if (set.table1[i] != null) {
+                        if (contains(set.table1[i], i)) {
+                            return true;
+                        }
+                    }
+
+                    if (set.table2 != null && set.table2[i] != null) {
+                        if (contains(set.table2[i], i)) {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            @Override
+            boolean containsAll(Set<E> set) {
+                if (set instanceof HashArray64BackedSet) {
+                    return containsAll((HashArray64BackedSet<E>) set);
+                } else {
+                    for (E e : set) {
+                        if (!contains(e)) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+            }
+
+            private boolean containsAll(HashArray64BackedSet<E> set) {
+                for (int i = 0; i < TABLE_SIZE; i++) {
+                    if (set.table1[i] != null) {
+                        if (!contains(set.table1[i], i)) {
+                            return false;
+                        }
+                    }
+
+                    if (set.table2 != null && set.table2[i] != null) {
+                        if (!contains(set.table2[i], i)) {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            private boolean contains(Object e, int hashPosition) {
+                if (tail1 != null && tail1[hashPosition] != null && tail1[hashPosition].equals(e)) {
+                    return true;
+                } else if (tail2 != null && tail2[hashPosition] != null && tail2[hashPosition].equals(e)) {
+                    return true;
+                } else if (first.equals(e)) {
+                    return true;
+                } else {
+                    return false;
+                }
             }
 
             @Override
@@ -2495,6 +2738,16 @@ public interface ImmutableSet<E> extends Set<E> {
                     }
 
                 };
+            }
+
+            @SuppressWarnings("unchecked")
+            @Override
+            E any() {
+                if (first != null) {
+                    return first;
+                }
+
+                return (E) findFirstNonNull(tail1, tail2);
             }
 
         }
@@ -2662,9 +2915,36 @@ public interface ImmutableSet<E> extends Set<E> {
             }
 
             @Override
+            boolean containsAny(Set<E> set) {
+                for (E e : set) {
+                    if (delegate.contains(e)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            @Override
+            boolean containsAll(Set<E> set) {
+                return delegate.containsAll(set);
+            }
+
+            @Override
             Iterator<E> iterator() {
                 return delegate.iterator();
             }
+
+            @Override
+            E any() {
+                return delegate.iterator().next();
+            }
+
+            @Override
+            void clear() {
+                delegate.clear();
+            }
+
         }
 
     }
