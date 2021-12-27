@@ -227,7 +227,7 @@
 					<version>3.0.0-M3</version>
 					<configuration>
 						<argLine>-Xmx3072m</argLine>
-						<rerunFailingTestsCount>1</rerunFailingTestsCount>
+						<rerunFailingTestsCount>0</rerunFailingTestsCount>
 						<forkCount>3</forkCount>
 						<reuseForks>true</reuseForks>
 						<systemPropertyVariables>
