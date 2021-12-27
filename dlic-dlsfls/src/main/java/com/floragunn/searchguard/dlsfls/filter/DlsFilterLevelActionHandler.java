@@ -140,10 +140,17 @@ public class DlsFilterLevelActionHandler {
 
     private boolean handle() {
 
+        if (log.isTraceEnabled()) {
+            log.trace("DlsFilterLevelActionHandler.handle()\naction: " + action + " (" + request.getClass().getName() + ")");
+        }
+        
         threadContext.putHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE, request.toString());
 
         try {
             if (!createQueryExtension()) {
+                if (log.isTraceEnabled()) {
+                    log.trace("No filtering necessary for " + request);
+                }
                 return true;
             }
 
@@ -158,6 +165,7 @@ public class DlsFilterLevelActionHandler {
         }
 
         if (filterLevelQueryBuilder == null) {
+            log.warn("No filterLevelQueryBuilder for " + request);
             return true;
         }
 

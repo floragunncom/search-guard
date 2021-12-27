@@ -173,6 +173,8 @@ public class DlsTermsLookupTest {
     @Test
     public void testMultiSearch() throws Exception {
 
+        System.out.println("---- testMultiSearch ----");
+        
         SearchRequest searchRequest1 = new SearchRequest("deals_1")
                 .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "test")));
 
@@ -182,6 +184,9 @@ public class DlsTermsLookupTest {
         MultiSearchRequest multiSearchRequest = new MultiSearchRequest();
         multiSearchRequest.add(searchRequest1);
         multiSearchRequest.add(searchRequest2);
+        
+        System.out.println("---- testMultiSearch 1 ----");
+
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
             MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
@@ -192,6 +197,9 @@ public class DlsTermsLookupTest {
                     multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
 
         }
+        
+        System.out.println("---- testMultiSearch 2 ----");
+
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
             MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
@@ -202,6 +210,9 @@ public class DlsTermsLookupTest {
             Assert.assertEquals(multiSearchResponse.toString(), 1,
                     multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
         }
+        
+        System.out.println("---- testMultiSearch 3 ----");
+
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
             MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
@@ -212,6 +223,9 @@ public class DlsTermsLookupTest {
             Assert.assertEquals(multiSearchResponse.toString(), 2,
                     multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
         }
+
+        System.out.println("---- END testMultiSearch END ----");
+
     }
 
     @Test
