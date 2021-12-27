@@ -97,7 +97,7 @@ public class ConfigModelV7 extends ConfigModel {
 	private static boolean dfmEmptyOverridesAll;
 
     private ConfigConstants.RolesMappingResolution rolesMappingResolution;
-    private ActionGroupResolver agr;
+    private ActionGroups actionGroups;
     private SgRoles sgRoles;
     private RoleMappingHolder roleMappingHolder;
     private SgDynamicConfiguration<RoleV7> roles;
@@ -122,7 +122,7 @@ public class ConfigModelV7 extends ConfigModel {
             rolesMappingResolution = ConfigConstants.RolesMappingResolution.MAPPING_ONLY;
         }
 
-        agr = reloadActionGroups(actiongroups);
+        actionGroups = new ActionGroups(actiongroups);
         sgRoles = reload(roles);
         roleMappingHolder = new RoleMappingHolder(rolemappings, dcm.getHostsResolverMode());
         blockedIpAddresses = reloadBlockedIpAddresses(blocks);
@@ -206,8 +206,8 @@ public class ConfigModelV7 extends ConfigModel {
         return sgRoles;
     }
 
-    public ActionGroupResolver getActionGroupResolver() {
-        return agr;
+    public ActionGroups getActionGroups() {
+        return actionGroups;
     }
 
     @Override
@@ -235,79 +235,6 @@ public class ConfigModelV7 extends ConfigModel {
         return getAllConfiguredTenantNames().contains(requestedTenant);
     }
 
-    private ActionGroupResolver reloadActionGroups(SgDynamicConfiguration<ActionGroupsV7> actionGroups) {
-        return new ActionGroupResolver() {
-
-            private Set<String> getGroupMembers(final String groupname) {
-
-                if (actionGroups == null) {
-                    return Collections.emptySet();
-                }
-
-                return Collections.unmodifiableSet(resolve(actionGroups, groupname));
-            }
-
-            private Set<String> resolve(final SgDynamicConfiguration<?> actionGroups, final String entry) {
-
-                // SG5 format, plain array
-                //List<String> en = actionGroups.getAsList(DotPath.of(entry));
-                //if (en.isEmpty()) {
-                // try SG6 format including readonly and permissions key
-                //  en = actionGroups.getAsList(DotPath.of(entry + "." + ConfigConstants.CONFIGKEY_ACTION_GROUPS_PERMISSIONS));
-                //}
-
-                if (!actionGroups.getCEntries().containsKey(entry)) {
-                    return Collections.emptySet();
-                }
-
-                final Set<String> ret = new HashSet<String>();
-
-                final Object actionGroupAsObject = actionGroups.getCEntries().get(entry);
-
-                if (actionGroupAsObject != null && actionGroupAsObject instanceof List) {
-
-                    for (Object permObject : ((List<?>) actionGroupAsObject)) {
-                        String perm = String.valueOf(permObject);
-                        
-                        if (actionGroups.getCEntries().keySet().contains(perm)) {
-                            ret.addAll(resolve(actionGroups, perm));
-                        } else {
-                            ret.add(perm);
-                        }
-                    }
-
-                } else if (actionGroupAsObject != null && actionGroupAsObject instanceof ActionGroupsV7) {
-                    for (final String perm : ((ActionGroupsV7) actionGroupAsObject).getAllowed_actions()) {
-                        if (actionGroups.getCEntries().keySet().contains(perm)) {
-                            ret.addAll(resolve(actionGroups, perm));
-                        } else {
-                            ret.add(perm);
-                        }
-                    }
-                } else {
-                    throw new RuntimeException("Unable to handle " + actionGroupAsObject);
-                }
-
-                return Collections.unmodifiableSet(ret);
-            }
-
-            @Override
-            public Set<String> resolvedActions(final List<String> actions) {
-                final Set<String> resolvedActions = new HashSet<String>();
-                for (String string : actions) {
-                    final Set<String> groups = getGroupMembers(string);
-                    if (groups.isEmpty()) {
-                        resolvedActions.add(string);
-                    } else {
-                        resolvedActions.addAll(groups);
-                    }
-                }
-
-                return Collections.unmodifiableSet(resolvedActions);
-            }
-        };
-    }
-
     private SgRoles reload(SgDynamicConfiguration<RoleV7> settings) {
 
         final Set<Future<SgRole>> futures = new HashSet<>(5000);
@@ -320,7 +247,7 @@ public class ConfigModelV7 extends ConfigModel {
                     return null;
                 }
 
-                return SgRole.create(sgRole.getKey(), sgRole.getValue(), agr);
+                return SgRole.create(sgRole.getKey(), sgRole.getValue(), actionGroups);
             });
 
             futures.add(future);
@@ -356,7 +283,7 @@ public class ConfigModelV7 extends ConfigModel {
     //beans
     public static class SgRoles extends com.floragunn.searchguard.sgconf.SgRoles implements ToXContentObject {
 
-        public static SgRoles create(SgDynamicConfiguration<RoleV7> settings, ActionGroupResolver actionGroupResolver) {
+        public static SgRoles create(SgDynamicConfiguration<RoleV7> settings, ActionGroups actionGroups) {
 
             SgRoles result = new SgRoles(settings.getCEntries().size());
 
@@ -366,7 +293,7 @@ public class ConfigModelV7 extends ConfigModel {
                     continue;
                 }
 
-                result.addSgRole(SgRole.create(entry.getKey(), entry.getValue(), actionGroupResolver));
+                result.addSgRole(SgRole.create(entry.getKey(), entry.getValue(), actionGroups));
             }
 
             return result;
@@ -794,10 +721,10 @@ public class ConfigModelV7 extends ConfigModel {
     public static class SgRole implements ToXContentObject {
 
 
-        static SgRole create(String roleName, RoleV7 roleConfig, ActionGroupResolver actionGroupResolver) {
+        static SgRole create(String roleName, RoleV7 roleConfig, ActionGroups actionGroups) {
             SgRole result = new SgRole(roleName);
 
-            final Set<String> permittedClusterActions = actionGroupResolver.resolvedActions(roleConfig.getCluster_permissions());
+            final Set<String> permittedClusterActions = actionGroups.resolve(roleConfig.getCluster_permissions());
             result.addClusterPerms(permittedClusterActions);
 
             for (final Index permittedAliasesIndex : roleConfig.getIndex_permissions()) {
@@ -811,7 +738,7 @@ public class ConfigModelV7 extends ConfigModel {
                     _indexPattern.setDlsQuery(dls);
                     _indexPattern.addFlsFields(fls);
                     _indexPattern.addMaskedFields(maskedFields);
-                    _indexPattern.addPerm(actionGroupResolver.resolvedActions(permittedAliasesIndex.getAllowed_actions()));
+                    _indexPattern.addPerm(actionGroups.resolve(permittedAliasesIndex.getAllowed_actions()));
 
                     result.addIndexPattern(_indexPattern);
                     
@@ -833,7 +760,7 @@ public class ConfigModelV7 extends ConfigModel {
 
             if (roleConfig.getTenant_permissions() != null) {
                 for (RoleV7.Tenant tenant : roleConfig.getTenant_permissions()) {
-                    Set<String> resolvedTenantPermissions = actionGroupResolver.resolvedActions(tenant.getAllowed_actions());
+                    Set<String> resolvedTenantPermissions = actionGroups.resolve(tenant.getAllowed_actions());
 
                     for (String tenantPattern : tenant.getTenant_patterns()) {
                         // Important: Key can contain patterns
@@ -843,14 +770,14 @@ public class ConfigModelV7 extends ConfigModel {
             }
 
             if (roleConfig.getExclude_cluster_permissions() != null) {
-                result.clusterPermissionExclusions.addAll(actionGroupResolver.resolvedActions(roleConfig.getExclude_cluster_permissions()));
+                result.clusterPermissionExclusions.addAll(actionGroups.resolve(roleConfig.getExclude_cluster_permissions()));
             }
 
             if (roleConfig.getExclude_index_permissions() != null) {
                 for (ExcludeIndex excludedIndexPermissions : roleConfig.getExclude_index_permissions()) {
                     for (String pattern : excludedIndexPermissions.getIndex_patterns()) {
                         ExcludedIndexPermissions excludedIndexPattern = new ExcludedIndexPermissions(pattern);
-                        excludedIndexPattern.addPerm(actionGroupResolver.resolvedActions(excludedIndexPermissions.getActions()));
+                        excludedIndexPattern.addPerm(actionGroups.resolve(excludedIndexPermissions.getActions()));
                         result.indexPermissionExclusions.add(excludedIndexPattern);
                     }
                 }

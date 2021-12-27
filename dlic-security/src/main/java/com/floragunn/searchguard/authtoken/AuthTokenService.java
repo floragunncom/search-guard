@@ -801,7 +801,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 }
 
                 RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivileges(),
-                        configModelSnapshot.getActionGroupResolver());
+                        configModelSnapshot.getActionGroups());
 
                 onResult.accept(new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles,
                         authToken.getRequestedPrivileges()));

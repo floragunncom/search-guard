@@ -29,7 +29,7 @@ import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult;
-import com.floragunn.searchguard.sgconf.ConfigModel.ActionGroupResolver;
+import com.floragunn.searchguard.sgconf.ActionGroups;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
@@ -42,10 +42,10 @@ public class RestrictedSgRoles extends SgRoles {
     private final SgRoles restrictionSgRoles;
     private final RequestedPrivileges restriction;
 
-    RestrictedSgRoles(SgRoles base, RequestedPrivileges restriction, ActionGroupResolver actionGroupResolver) {
+    RestrictedSgRoles(SgRoles base, RequestedPrivileges restriction, ActionGroups actionGroups) {
         this.base = base;
         this.restriction = restriction;
-        this.restrictionSgRoles = com.floragunn.searchguard.sgconf.ConfigModelV7.SgRoles.create(restriction.toRolesConfig(), actionGroupResolver);
+        this.restrictionSgRoles = com.floragunn.searchguard.sgconf.ConfigModelV7.SgRoles.create(restriction.toRolesConfig(), actionGroups);
     }
 
     @Override
