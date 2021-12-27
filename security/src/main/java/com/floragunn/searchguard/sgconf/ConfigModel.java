@@ -40,7 +40,7 @@ public abstract class ConfigModel {
     
     public abstract boolean isTenantValid(String requestedTenant);
     
-    public abstract ActionGroupResolver getActionGroupResolver();
+    public abstract ActionGroups getActionGroups();
 
     public abstract List<ClientBlockRegistry<InetAddress>> getBlockIpAddresses();
 
