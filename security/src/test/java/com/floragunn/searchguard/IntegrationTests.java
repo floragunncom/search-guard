@@ -358,40 +358,7 @@ public class IntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("special/_search",encodeBasicHeader("rexclude", "nagilum")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("alsonotallowed/_search",encodeBasicHeader("rexclude", "nagilum")).getStatusCode());
     }
-    
-    @Test
-    public void testMultiRoleSpan() throws Exception {
         
-        setup();
-        final RestHelper rh = nonSslRestHelper();
-
-        try (TransportClient tc = getInternalTransportClient()) {    
-            tc.index(new IndexRequest("mindex_1").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("mindex_2").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
-        }
-        
-        HttpResponse res = rh.executeGetRequest("/mindex_1,mindex_2/_search", encodeBasicHeader("mindex12", "nagilum"));
-        System.out.println(res.getBody());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());
-        Assert.assertFalse(res.getBody().contains("\"content\":1"));
-        Assert.assertFalse(res.getBody().contains("\"content\":2"));
-        
-        try (TransportClient tc = getInternalTransportClient()) {                                       
-            tc.index(new IndexRequest("searchguard").type(getType()).id("config").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("config", FileHelper.readYamlContent("sg_config_multirolespan.yml"))).actionGet();
-   
-            ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config"})).actionGet();
-            Assert.assertFalse(cur.hasFailures());
-            Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());
-        }
-        
-        res = rh.executeGetRequest("/mindex_1,mindex_2/_search", encodeBasicHeader("mindex12", "nagilum"));
-        System.out.println(res.getBody());
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-        Assert.assertTrue(res.getBody().contains("\"content\":1"));
-        Assert.assertTrue(res.getBody().contains("\"content\":2"));
-        
-    }
-    
     @Test
     public void testMultiRoleSpan2() throws Exception {
         

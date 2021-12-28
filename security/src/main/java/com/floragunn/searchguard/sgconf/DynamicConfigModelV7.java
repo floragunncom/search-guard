@@ -62,6 +62,10 @@ public class DynamicConfigModelV7 extends DynamicConfigModel implements Componen
         this.configPath = configPath;
         this.modulesRegistry = modulesRegistry;
         buildAAA();
+        
+        if (config != null && config.dynamic != null && !config.dynamic.multi_rolespan_enabled) {
+            log.error("The option multi_rolespan_enabled is no longer supported; from now on the privilege evaluation will always work like multi_rolespan_enabled was set to true");
+        }
     }
     @Override
     public SortedSet<AuthenticationDomain> getRestAuthenticationDomains() {
@@ -137,10 +141,6 @@ public class DynamicConfigModelV7 extends DynamicConfigModel implements Componen
     @Override
     public boolean isDnfofEnabled() {
         return config.dynamic.do_not_fail_on_forbidden;
-    }
-    @Override
-    public boolean isMultiRolespanEnabled() {
-        return config.dynamic.multi_rolespan_enabled;
     }
     @Override
     public String getFilteredAliasMode() {

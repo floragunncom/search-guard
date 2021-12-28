@@ -35,7 +35,6 @@ public abstract class DynamicConfigModel implements ComponentStateProvider {
     public abstract String getKibanaIndexname();
     public abstract boolean isKibanaMultitenancyEnabled();
     public abstract boolean isDnfofEnabled();
-    public abstract boolean isMultiRolespanEnabled();
     public abstract String getFilteredAliasMode();
     public abstract String getHostsResolverMode();
     public abstract boolean isDnfofForEmptyResultsEnabled();
