@@ -215,6 +215,52 @@ public class DlsTermsLookupTest {
     }
 
     @Test
+    public void testMultiSearch_maxConcurrentSearchRequests() throws Exception {
+
+        SearchRequest searchRequest1 = new SearchRequest("deals_1")
+                .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "test")));
+
+        SearchRequest searchRequest2 = new SearchRequest("deals_2")
+                .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "foo")));
+
+        MultiSearchRequest multiSearchRequest = new MultiSearchRequest();
+        multiSearchRequest.add(searchRequest1);
+        multiSearchRequest.add(searchRequest2);
+        multiSearchRequest.maxConcurrentSearchRequests(1);
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
+            MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
+
+            Assert.assertEquals(multiSearchResponse.toString(), 2,
+                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchResponse.toString(), 3,
+                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+
+        }
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
+            MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
+            System.out.println(Strings.toString(multiSearchResponse));
+
+            Assert.assertEquals(multiSearchResponse.toString(), 1,
+                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchResponse.toString(), 1,
+                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+        }
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
+            MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
+
+            System.out.println(Strings.toString(multiSearchResponse));
+            Assert.assertEquals(multiSearchResponse.toString(), 0,
+                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+            Assert.assertEquals(multiSearchResponse.toString(), 2,
+                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+        }
+    }
+
+    
+    @Test
     public void testDlsWithTermsLookupSingleIndexUnmatchedQuery() throws Exception {
 
         SearchRequest searchRequest = new SearchRequest("deals_1")
