@@ -79,6 +79,9 @@ public class ActionRequestIntrospector {
     private static final IndicesOptions EXACT = new IndicesOptions(EnumSet.noneOf(IndicesOptions.Option.class),
             EnumSet.noneOf(IndicesOptions.WildcardStates.class));
 
+    private static final Set<String> NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS = ImmutableSet.of("indices:data/read/msearch/template",
+            "indices:data/read/search/template");
+
     private final static Logger log = LogManager.getLogger(ActionRequestIntrospector.class);
     private final IndexNameExpressionResolver resolver;
     private final ClusterService clusterService;
@@ -94,25 +97,26 @@ public class ActionRequestIntrospector {
         this.guiceDependencies = guiceDependencies;
     }
 
-    public ActionRequestInfo getActionRequestInfo(Object request) {
+    public ActionRequestInfo getActionRequestInfo(String action, Object request) {
+
+        if (NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS.contains(action)) {
+            return CLUSTER_REQUEST;
+        }
 
         if (request instanceof IndicesRequest) {
             if (request instanceof PutMappingRequest) {
                 PutMappingRequest putMappingRequest = (PutMappingRequest) request;
 
-                if (putMappingRequest.getConcreteIndex() == null) {
-                    return new ActionRequestInfo(putMappingRequest);
-                } else if (putMappingRequest.indices() == null || putMappingRequest.indices().length == 0) {
-                    return new ActionRequestInfo(putMappingRequest.getConcreteIndex().getName(), putMappingRequest.indicesOptions());
-                } else if (request instanceof FieldCapabilitiesIndexRequest) {
-                    // FieldCapabilitiesIndexRequest implements IndicesRequest. However,  this delegates to the original indices specified in the FieldCapabilitiesIndexRequest.
-                    // On the level of FieldCapabilitiesIndexRequest, it is sufficient to only consider the index stored in the index attribute. 
-
-                    return new ActionRequestInfo(((FieldCapabilitiesIndexRequest) request).index(), EXACT);
+                if (putMappingRequest.getConcreteIndex() != null) {
+                    return new ActionRequestInfo(putMappingRequest.getConcreteIndex().getName(), EXACT);
                 } else {
-                    // TODO both
-                    return UNKNOWN;
+                    return new ActionRequestInfo(putMappingRequest);
                 }
+            } else if (request instanceof FieldCapabilitiesIndexRequest) {
+                // FieldCapabilitiesIndexRequest implements IndicesRequest. However,  this delegates to the original indices specified in the FieldCapabilitiesIndexRequest.
+                // On the level of FieldCapabilitiesIndexRequest, it is sufficient to only consider the index stored in the index attribute. 
+
+                return new ActionRequestInfo(((FieldCapabilitiesIndexRequest) request).index(), EXACT);
             } else if (request instanceof ResizeRequest) {
                 // Note: The targetIndex of ResizeRequest gets special treatment in PrivilegesEvaluator
 
@@ -901,21 +905,21 @@ public class ActionRequestIntrospector {
 
         @Override
         public String toString() {
-            if (localAll) { 
+            if (localAll) {
                 if (remoteIndices.isEmpty() && !deferredRequests.isEmpty()) {
                     return "local: _all";
                 }
-                 
+
                 StringBuilder result = new StringBuilder("local: _all");
-                
+
                 if (deferredRequests.isEmpty()) {
                     result.append(" [").append(localIndices.size()).append("]");
                 }
-                
+
                 if (!remoteIndices.isEmpty()) {
                     result.append("; remote: ").append(remoteIndices.toShortString());
                 }
-                
+
                 return result.toString();
             } else {
                 return "local: " + (localIndices != null ? localIndices.toShortString() : "null") + "; remote: "

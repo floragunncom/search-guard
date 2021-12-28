@@ -312,7 +312,7 @@ public class ComplianceConfig implements LicenseChangeListener, DCFListener {
     }
 
     //check for isEnabled
-    public boolean isIndexImmutable(Object request) {
+    public boolean isIndexImmutable(String action, Object request) {
         
         if(!this.enabled) {
             return false;
@@ -322,7 +322,7 @@ public class ComplianceConfig implements LicenseChangeListener, DCFListener {
             return false;
         }
         
-        ResolvedIndices resolved = actionRequestIntrospector.getActionRequestInfo(request).getResolvedIndices();
+        ResolvedIndices resolved = actionRequestIntrospector.getActionRequestInfo(action, request).getResolvedIndices();
         
         if (resolved.isLocalAll()) {
             return true;

@@ -231,7 +231,7 @@ public class PrivilegesEvaluator implements DCFListener {
             }
         }
 
-        ActionRequestInfo requestInfo = actionRequestIntrospector.getActionRequestInfo(request);
+        ActionRequestInfo requestInfo = actionRequestIntrospector.getActionRequestInfo(action0, request);
         presponse.actionRequestInfo = requestInfo;
 
         if (log.isDebugEnabled()) {
@@ -525,7 +525,7 @@ public class PrivilegesEvaluator implements DCFListener {
                         return presponse;
                     }
                     
-                    actionRequestInfo = actionRequestIntrospector.getActionRequestInfo(request);
+                    actionRequestInfo = actionRequestIntrospector.getActionRequestInfo(action0, request);
                     presponse.actionRequestInfo = actionRequestInfo;
                 }
             }
