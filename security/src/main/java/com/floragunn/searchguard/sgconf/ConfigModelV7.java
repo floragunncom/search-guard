@@ -509,24 +509,6 @@ public class ConfigModelV7 extends ConfigModel {
             return result;
         }
 
-        @Override
-        public PrivilegesEvaluationResult get(ResolvedIndices resolved, User user, ImmutableSet<String> actions, IndexNameExpressionResolver resolver, ClusterService cs) {
-            PrivilegesEvaluationResult exclusionResult = checkIndexActionExclusion(resolved, user, actions, resolver, cs);
-            
-            if (exclusionResult.getStatus() != PrivilegesEvaluationResult.Status.PASS) {
-                return exclusionResult;
-            }
-            
-            for (SgRole sgr : roles.values()) {
-                PrivilegesEvaluationResult result = ConfigModelV7.impliesTypePerm(sgr.getIpatterns(), resolved, user, actions, resolver, cs);
-                
-                if (result.getStatus() == PrivilegesEvaluationResult.Status.PASS) {
-                    return result;
-                }
-            }
-            return PrivilegesEvaluationResult.STOP;
-        }
-
         public boolean impliesClusterPermissionPermission(String action) {
             for (SgRole sgRole : roles.values()) {
                 if (sgRole.excludesClusterPermission(action)) {

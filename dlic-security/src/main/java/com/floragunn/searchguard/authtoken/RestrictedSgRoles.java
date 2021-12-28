@@ -106,19 +106,6 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public PrivilegesEvaluationResult get(ResolvedIndices requestedResolved, User user, ImmutableSet<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
-            ClusterService clusterService) {
-        PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
-
-        if (restrictedPermission.getStatus() != PrivilegesEvaluationResult.Status.PASS) {
-            // Don't calculate base permission if we already know we will get an empty set
-            return restrictedPermission;
-        }
-
-        return base.get(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
-    }
-
-    @Override
     public EvaluatedDlsFlsConfig getDlsFls(User user, IndexNameExpressionResolver resolver,
             ClusterService clusterService, NamedXContentRegistry namedXContentRegistry) {
         // not implemented
