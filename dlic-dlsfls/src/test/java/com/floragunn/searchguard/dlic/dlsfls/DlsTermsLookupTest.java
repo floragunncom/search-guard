@@ -18,6 +18,8 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 
 import org.apache.http.HttpStatus;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.MultiSearchResponse;
@@ -48,6 +50,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 public class DlsTermsLookupTest {
+
+    private static final Logger log = LogManager.getLogger(DlsTermsLookupTest.class);
 
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -173,7 +177,7 @@ public class DlsTermsLookupTest {
     @Test
     public void testMultiSearch() throws Exception {
 
-        System.out.println("---- testMultiSearch ----");
+        log.error("---- testMultiSearch ----");
         
         SearchRequest searchRequest1 = new SearchRequest("deals_1")
                 .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "test")));
@@ -185,7 +189,7 @@ public class DlsTermsLookupTest {
         multiSearchRequest.add(searchRequest1);
         multiSearchRequest.add(searchRequest2);
         
-        System.out.println("---- testMultiSearch 1 ----");
+        log.error("---- testMultiSearch 1 ----");
 
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
@@ -198,12 +202,12 @@ public class DlsTermsLookupTest {
 
         }
         
-        System.out.println("---- testMultiSearch 2 ----");
+        log.error("---- testMultiSearch 2 ----");
 
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
             MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
-            System.out.println(Strings.toString(multiSearchResponse));
+            log.error(Strings.toString(multiSearchResponse));
 
             Assert.assertEquals(multiSearchResponse.toString(), 1,
                     multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
@@ -211,20 +215,20 @@ public class DlsTermsLookupTest {
                     multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
         }
         
-        System.out.println("---- testMultiSearch 3 ----");
+        log.error("---- testMultiSearch 3 ----");
 
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
             MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
 
-            System.out.println(Strings.toString(multiSearchResponse));
+            log.error(Strings.toString(multiSearchResponse));
             Assert.assertEquals(multiSearchResponse.toString(), 0,
                     multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
             Assert.assertEquals(multiSearchResponse.toString(), 2,
                     multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
         }
 
-        System.out.println("---- END testMultiSearch END ----");
+        log.error("---- END testMultiSearch END ----");
 
     }
 

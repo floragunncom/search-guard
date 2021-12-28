@@ -67,6 +67,7 @@ import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.SgUtils;
+import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 
 public class DlsFilterLevelActionHandler {
@@ -139,9 +140,9 @@ public class DlsFilterLevelActionHandler {
     }
 
     private boolean handle() {
-
         if (log.isTraceEnabled()) {
-            log.trace("DlsFilterLevelActionHandler.handle()\naction: " + action + " (" + request.getClass().getName() + ")");
+            User user = threadContext.getTransient(ConfigConstants.SG_USER);
+            log.trace("DlsFilterLevelActionHandler.handle()\naction: " + action + " (" + request.getClass().getName() + ")\nuser: " + user);
         }
         
         threadContext.putHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE, request.toString());
