@@ -408,7 +408,7 @@ public class SearchGuardFilter implements ActionFilter {
                 || request instanceof CloseIndexRequest || request instanceof IndicesAliasesRequest //TODO only remove index
         ) {
 
-            if (complianceConfig != null && complianceConfig.isIndexImmutable(request)) {
+            if (complianceConfig != null && complianceConfig.isIndexImmutable(action, request)) {
 
                 //check index for type = remove index
                 //IndicesAliasesRequest iar = (IndicesAliasesRequest) request;
@@ -426,7 +426,7 @@ public class SearchGuardFilter implements ActionFilter {
         }
 
         if (request instanceof IndexRequest) {
-            if (complianceConfig != null && complianceConfig.isIndexImmutable(request)) {
+            if (complianceConfig != null && complianceConfig.isIndexImmutable(action, request)) {
                 ((IndexRequest) request).opType(OpType.CREATE);
                 return new Tuple<ImmutableState, ActionListener>(ImmutableState.LISTENER,
                         new ImmutableIndexActionListener(originalListener, auditLog, originalRequest, action, task));
