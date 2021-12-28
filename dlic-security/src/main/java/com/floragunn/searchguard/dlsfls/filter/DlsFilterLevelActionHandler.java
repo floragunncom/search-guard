@@ -142,45 +142,47 @@ public class DlsFilterLevelActionHandler {
 
     private boolean handle() {
 
-        threadContext.putHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE, request.toString());
+        try (StoredContext ctx = threadContext.newStoredContext(true)) {
 
-        try {
-            if (!createQueryExtension()) {
+            threadContext.putHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE, request.toString());
+
+            try {
+                if (!createQueryExtension()) {
+                    return true;
+                }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Created filterLevelQuery for " + request + ":\n" + filterLevelQueryBuilder);
+                }
+
+            } catch (Exception e) {
+                log.error("Unable to handle filter level DLS", e);
+                listener.onFailure(new ElasticsearchSecurityException("Unable to handle filter level DLS", e));
+                return false;
+            }
+
+            if (filterLevelQueryBuilder == null) {
                 return true;
             }
 
-            if (log.isDebugEnabled()) {
-                log.debug("Created filterLevelQuery for " + request + ":\n" + filterLevelQueryBuilder);
+            if (request instanceof SearchRequest) {
+                return handle((SearchRequest) request, ctx);
+            } else if (request instanceof GetRequest) {
+                return handle((GetRequest) request, ctx);
+            } else if (request instanceof MultiGetRequest) {
+                return handle((MultiGetRequest) request, ctx);
+            } else if (request instanceof ClusterSearchShardsRequest) {
+                return handle((ClusterSearchShardsRequest) request, ctx);
+            } else {
+                log.error("Unsupported request type for filter level DLS: " + request);
+                listener.onFailure(new ElasticsearchSecurityException(
+                        "Unsupported request type for filter level DLS: " + action + "; " + request.getClass().getName()));
+                return false;
             }
-
-        } catch (Exception e) {
-            log.error("Unable to handle filter level DLS", e);
-            listener.onFailure(new ElasticsearchSecurityException("Unable to handle filter level DLS", e));
-            return false;
         }
-
-        if (filterLevelQueryBuilder == null) {
-            return true;
-        }
-
-        if (request instanceof SearchRequest) {
-            return handle((SearchRequest) request);
-        } else if (request instanceof GetRequest) {
-            return handle((GetRequest) request);
-        } else if (request instanceof MultiGetRequest) {
-            return handle((MultiGetRequest) request);
-        } else if (request instanceof ClusterSearchShardsRequest) {
-            return handle((ClusterSearchShardsRequest) request);
-        } else {
-            log.error("Unsupported request type for filter level DLS: " + request);
-            listener.onFailure(new ElasticsearchSecurityException(
-                    "Unsupported request type for filter level DLS: " + action + "; " + request.getClass().getName()));
-            return false;
-        }
-
     }
 
-    private boolean handle(SearchRequest searchRequest) {
+    private boolean handle(SearchRequest searchRequest, StoredContext ctx) {
         if (documentWhitelist != null) {
             documentWhitelist.applyTo(threadContext);
         }
@@ -203,115 +205,138 @@ public class DlsFilterLevelActionHandler {
 
         searchRequest.source().query(filterLevelQueryBuilder);
 
-        return true;
-    }
+        nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
+            @Override
+            public void onResponse(SearchResponse response) {
+                try {
+                    ctx.restore();
 
-    private boolean handle(GetRequest getRequest) {
-        try (StoredContext ctx = threadContext.newStoredContext(true)) {
-            if (documentWhitelist != null) {
-                documentWhitelist.applyTo(threadContext);
-            }
+                    @SuppressWarnings("unchecked")
+                    ActionListener<SearchResponse> searchListener = (ActionListener<SearchResponse>) listener;
 
-            SearchRequest searchRequest = new SearchRequest(getRequest.indices());
-            BoolQueryBuilder query = QueryBuilders.boolQuery().must(QueryBuilders.idsQuery().addIds(getRequest.id())).must(filterLevelQueryBuilder);
-            searchRequest.source(SearchSourceBuilder.searchSource().query(query));
-
-            nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
-                @Override
-                public void onResponse(SearchResponse response) {
-                    try {
-
-                        long hits = response.getHits().getTotalHits().value;
-
-                        @SuppressWarnings("unchecked")
-                        ActionListener<GetResponse> getListener = (ActionListener<GetResponse>) listener;
-                        if (hits == 1) {
-                            getListener.onResponse(new GetResponse(searchHitToGetResult(response.getHits().getAt(0))));
-                        } else if (hits == 0) {
-                            getListener.onResponse(new GetResponse(new GetResult(searchRequest.indices()[0], "_doc", getRequest.id(),
-                                    SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, -1, false, null, null, null)));
-                        } else {
-                            log.error("Unexpected hit count " + hits + " in " + response);
-                            listener.onFailure(new ElasticsearchSecurityException("Internal error when performing DLS"));
-                        }
-
-                    } catch (Exception e) {
-                        listener.onFailure(e);
-                    }
-                }
-
-                @Override
-                public void onFailure(Exception e) {
+                    searchListener.onResponse(response);
+                } catch (Exception e) {
                     listener.onFailure(e);
                 }
-            });
+            }
 
-            return false;
-        }
+            @Override
+            public void onFailure(Exception e) {
+                listener.onFailure(e);
+            }
+        });
+
+        return false;
     }
 
-    private boolean handle(MultiGetRequest multiGetRequest) {
-        try (StoredContext ctx = threadContext.newStoredContext(true)) {
-            if (documentWhitelist != null) {
-                documentWhitelist.applyTo(threadContext);
-            }
+    private boolean handle(GetRequest getRequest, StoredContext ctx) {
+        if (documentWhitelist != null) {
+            documentWhitelist.applyTo(threadContext);
+        }
 
-            Map<String, Set<String>> idsGroupedByIndex = multiGetRequest.getItems().stream()
-                    .collect(Collectors.groupingBy((item) -> item.index(), Collectors.mapping((item) -> item.id(), Collectors.toSet())));
-            Set<String> indices = idsGroupedByIndex.keySet();
-            SearchRequest searchRequest = new SearchRequest(indices.toArray(new String[indices.size()]));
+        SearchRequest searchRequest = new SearchRequest(getRequest.indices());
+        BoolQueryBuilder query = QueryBuilders.boolQuery().must(QueryBuilders.idsQuery().addIds(getRequest.id())).must(filterLevelQueryBuilder);
+        searchRequest.source(SearchSourceBuilder.searchSource().query(query));
 
-            BoolQueryBuilder query;
+        nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
+            @Override
+            public void onResponse(SearchResponse response) {
+                try {
 
-            if (indices.size() == 1) {
-                Set<String> ids = idsGroupedByIndex.get(indices.iterator().next());
-                query = QueryBuilders.boolQuery().must(QueryBuilders.idsQuery().addIds(ids.toArray(new String[ids.size()])))
-                        .must(filterLevelQueryBuilder);
-            } else {
-                BoolQueryBuilder mgetQuery = QueryBuilders.boolQuery().minimumShouldMatch(1);
+                    ctx.restore();
 
-                for (Map.Entry<String, Set<String>> entry : idsGroupedByIndex.entrySet()) {
-                    BoolQueryBuilder indexQuery = QueryBuilders.boolQuery().must(QueryBuilders.termQuery("_index", entry.getKey()))
-                            .must(QueryBuilders.idsQuery().addIds(entry.getValue().toArray(new String[entry.getValue().size()])));
+                    long hits = response.getHits().getTotalHits().value;
 
-                    mgetQuery.should(indexQuery);
-                }
-
-                query = QueryBuilders.boolQuery().must(mgetQuery).must(filterLevelQueryBuilder);
-            }
-
-            searchRequest.source(SearchSourceBuilder.searchSource().query(query));
-
-            nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
-                @Override
-                public void onResponse(SearchResponse response) {
-                    try {
-
-                        List<MultiGetItemResponse> itemResponses = new ArrayList<>(response.getHits().getHits().length);
-
-                        for (SearchHit hit : response.getHits().getHits()) {
-                            itemResponses.add(new MultiGetItemResponse(new GetResponse(searchHitToGetResult(hit)), null));
-                        }
-
-                        @SuppressWarnings("unchecked")
-                        ActionListener<MultiGetResponse> multiGetListener = (ActionListener<MultiGetResponse>) listener;
-                        multiGetListener.onResponse(new MultiGetResponse(itemResponses.toArray(new MultiGetItemResponse[itemResponses.size()])));
-                    } catch (Exception e) {
-                        listener.onFailure(e);
+                    @SuppressWarnings("unchecked")
+                    ActionListener<GetResponse> getListener = (ActionListener<GetResponse>) listener;
+                    if (hits == 1) {
+                        getListener.onResponse(new GetResponse(searchHitToGetResult(response.getHits().getAt(0))));
+                    } else if (hits == 0) {
+                        getListener.onResponse(new GetResponse(new GetResult(searchRequest.indices()[0], "_doc", getRequest.id(),
+                                SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, -1, false, null, null, null)));
+                    } else {
+                        log.error("Unexpected hit count " + hits + " in " + response);
+                        listener.onFailure(new ElasticsearchSecurityException("Internal error when performing DLS"));
                     }
-                }
 
-                @Override
-                public void onFailure(Exception e) {
+                } catch (Exception e) {
                     listener.onFailure(e);
                 }
-            });
+            }
 
-            return false;
-        }
+            @Override
+            public void onFailure(Exception e) {
+                listener.onFailure(e);
+            }
+        });
+
+        return false;
+
     }
 
-    private boolean handle(ClusterSearchShardsRequest request) {
+    private boolean handle(MultiGetRequest multiGetRequest, StoredContext ctx) {
+        if (documentWhitelist != null) {
+            documentWhitelist.applyTo(threadContext);
+        }
+
+        Map<String, Set<String>> idsGroupedByIndex = multiGetRequest.getItems().stream()
+                .collect(Collectors.groupingBy((item) -> item.index(), Collectors.mapping((item) -> item.id(), Collectors.toSet())));
+        Set<String> indices = idsGroupedByIndex.keySet();
+        SearchRequest searchRequest = new SearchRequest(indices.toArray(new String[indices.size()]));
+
+        BoolQueryBuilder query;
+
+        if (indices.size() == 1) {
+            Set<String> ids = idsGroupedByIndex.get(indices.iterator().next());
+            query = QueryBuilders.boolQuery().must(QueryBuilders.idsQuery().addIds(ids.toArray(new String[ids.size()])))
+                    .must(filterLevelQueryBuilder);
+        } else {
+            BoolQueryBuilder mgetQuery = QueryBuilders.boolQuery().minimumShouldMatch(1);
+
+            for (Map.Entry<String, Set<String>> entry : idsGroupedByIndex.entrySet()) {
+                BoolQueryBuilder indexQuery = QueryBuilders.boolQuery().must(QueryBuilders.termQuery("_index", entry.getKey()))
+                        .must(QueryBuilders.idsQuery().addIds(entry.getValue().toArray(new String[entry.getValue().size()])));
+
+                mgetQuery.should(indexQuery);
+            }
+
+            query = QueryBuilders.boolQuery().must(mgetQuery).must(filterLevelQueryBuilder);
+        }
+
+        searchRequest.source(SearchSourceBuilder.searchSource().query(query));
+
+        nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
+            @Override
+            public void onResponse(SearchResponse response) {
+                try {
+
+                    ctx.restore();
+
+                    List<MultiGetItemResponse> itemResponses = new ArrayList<>(response.getHits().getHits().length);
+
+                    for (SearchHit hit : response.getHits().getHits()) {
+                        itemResponses.add(new MultiGetItemResponse(new GetResponse(searchHitToGetResult(hit)), null));
+                    }
+
+                    @SuppressWarnings("unchecked")
+                    ActionListener<MultiGetResponse> multiGetListener = (ActionListener<MultiGetResponse>) listener;
+                    multiGetListener.onResponse(new MultiGetResponse(itemResponses.toArray(new MultiGetItemResponse[itemResponses.size()])));
+                } catch (Exception e) {
+                    listener.onFailure(e);
+                }
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                listener.onFailure(e);
+            }
+        });
+
+        return false;
+
+    }
+
+    private boolean handle(ClusterSearchShardsRequest request, StoredContext ctx) {
         listener.onFailure(new ElasticsearchSecurityException(
                 "Filter-level DLS via cross cluster search is not available for scrolling and minimize_roundtrips=true"));
         return false;
