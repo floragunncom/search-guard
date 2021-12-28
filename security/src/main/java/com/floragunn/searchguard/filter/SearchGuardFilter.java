@@ -199,7 +199,8 @@ public class SearchGuardFilter implements ActionFilter {
                 actionTrace.trace("Node " + cs.localNode().getName() + " -> " + action + " (" + count + "): userIsAdmin=" + userIsAdmin
                         + "/conRequest=" + confRequest + "/internalRequest=" + internalRequest + "origin="
                         + threadContext.getTransient(ConfigConstants.SG_ORIGIN) + "/directRequest=" + HeaderHelper.isDirectRequest(threadContext)
-                        + "/remoteAddress=" + request.remoteAddress());
+                        + "/remoteAddress=" + request.remoteAddress() + " " + Thread.currentThread().getName() + " user: " + user + " channel type: "
+                        + threadContext.getTransient(ConfigConstants.SG_CHANNEL_TYPE));
 
                 threadContext.putHeader("_sg_trace" + System.currentTimeMillis() + "#" + UUID.randomUUID().toString(),
                         Thread.currentThread().getName() + " FILTER -> " + "Node " + cs.localNode().getName() + " -> " + action + " userIsAdmin="
