@@ -16,9 +16,9 @@
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>dlic-search-guard-suite-security</artifactId>
+	<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
 	<packaging>jar</packaging>
-	<name>Search Guard Suite - Security (Enterprise)</name>
+	<name>Search Guard Suite - Document Level Security and Field Level Security (Enterprise)</name>
 
 	<properties>
 		<jjwt.version>0.10.5</jjwt.version>
@@ -84,13 +84,6 @@
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
-		
-		<dependency>
-			<groupId>com.floragunn</groupId>
-			<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
-			<scope>test</scope>
-		</dependency>		
-		
 		<!--	needed because maven does not get the transitive test-scoped dependencies automatically. Maven only resolves the compile-time dependencies, so you'll have to add all the other required test-scoped dependencies by hand.	-->
 		<dependency>
 			<groupId>io.github.hakky54</groupId>
@@ -109,88 +102,6 @@
 					<artifactId>log4j-api</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>org.ldaptive</groupId>
-			<artifactId>ldaptive</artifactId>
-			<version>${ldaptive.version}</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>commons-cli</artifactId>
-					<groupId>commons-cli</groupId>
-				</exclusion>
-				<exclusion>
-					<artifactId>slf4j-api</artifactId>
-					<groupId>org.slf4j</groupId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient-cache</artifactId>
-			<version>${http.commons.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpcore</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-api</artifactId>
-			<version>${jjwt.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-impl</artifactId>
-			<version>${jjwt.version}</version>
-			<scope>runtime</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-jackson</artifactId>
-			<version>${jjwt.version}</version>
-			<scope>runtime</scope>
-			<exclusions>
-				<exclusion>
-					<artifactId>jackson-databind</artifactId>
-					<groupId>com.fasterxml.jackson.core</groupId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.cxf</groupId>
-			<artifactId>cxf-rt-rs-security-jose</artifactId>
-			<version>${cxf.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.glassfish.jaxb</groupId>
-					<artifactId>jaxb-runtime</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>jakarta.xml.bind</groupId>
-					<artifactId>jakarta.xml.bind-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.activation</groupId>
-					<artifactId>activation</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.activation</groupId>
-					<artifactId>javax.activation</artifactId>
-				</exclusion>	
-				<exclusion>
-					<groupId>com.fasterxml.woodstox</groupId>
-					<artifactId>woodstox-core</artifactId>
-				</exclusion>												
-			</exclusions>				
 		</dependency>
 
 		<dependency>
@@ -226,61 +137,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka-clients</artifactId>
-			<version>2.5.1</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>slf4j-api</artifactId>
-					<groupId>org.slf4j</groupId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.lz4</groupId>
-					<artifactId>lz4-java</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>com.onelogin</groupId>
-			<artifactId>java-saml</artifactId>
-			<version>2.7.0</version>
-
-			<exclusions>
-				<exclusion>
-					<groupId>org.codehaus.woodstox</groupId>
-					<artifactId>woodstox-core-asl</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>joda-time</groupId>
-					<artifactId>joda-time</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>jakarta.activation</groupId>
-					<artifactId>jakarta.activation-api</artifactId>
-				</exclusion>								
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.opensaml</groupId>
-			<artifactId>opensaml-saml-impl</artifactId>
-			<version>3.4.5</version>
-			<exclusions>
-				<exclusion>
-					<groupId>joda-time</groupId>
-					<artifactId>joda-time</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>commons-collections</groupId>
-					<artifactId>commons-collections</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-				</exclusion>					
-			</exclusions>
-		</dependency>
-
+	
 		<dependency>
 			<groupId>commons-collections</groupId>
 			<artifactId>commons-collections</artifactId>
@@ -298,50 +155,7 @@
 			<version>${guava.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>com.jayway.jsonpath</groupId>
-			<artifactId>json-path</artifactId>
-			<version>2.5.0</version>
-			<exclusions>
-				<exclusion>
-					<groupId>net.minidev</groupId>
-					<artifactId>json-smart</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.ow2.asm</groupId>
-					<artifactId>asm</artifactId>
-				</exclusion>				
-			</exclusions>			
-		</dependency>
-
-
-		<dependency>
-			<groupId>com.unboundid</groupId>
-			<artifactId>unboundid-ldapsdk</artifactId>
-			<version>${unboundid-ldapsdk.version}</version>
-		</dependency>
-
 		<!-- Only test scoped dependencies hereafter -->
-
-		<dependency>
-			<groupId>org.springframework.kafka</groupId>
-			<artifactId>spring-kafka-test</artifactId>
-			<version>2.5.5.RELEASE</version>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.junit.jupiter</groupId>
-					<artifactId>junit-jupiter-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka-clients</artifactId>
-			<version>2.5.1</version>
-			<scope>test</scope>
-			<classifier>test</classifier>
-		</dependency>
 
 		<dependency>
 			<groupId>org.hamcrest</groupId>
@@ -400,31 +214,33 @@
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.browserup</groupId>
-			<artifactId>browserup-proxy-core</artifactId>
-			<version>2.1.2</version>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>xyz.rogfam</groupId>
-					<artifactId>littleproxy</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>	
 		
-		<dependency>
-   			<groupId>xyz.rogfam</groupId>
-    		<artifactId>littleproxy</artifactId>
-    		<version>2.0.5</version>
-    		<scope>test</scope>
-		</dependency>		
-		
 	</dependencies>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>3.0.0-M3</version>
+					<configuration>
+						<argLine>-Xmx3072m</argLine>
+						<rerunFailingTestsCount>0</rerunFailingTestsCount>
+						<forkCount>3</forkCount>
+						<reuseForks>true</reuseForks>
+						<systemPropertyVariables>
+							<forkno>fork_${surefire.forkNumber}</forkno>
+						</systemPropertyVariables>
+
+						<includes>
+							<include>**/*.java</include>
+						</includes>
+						<trimStackTrace>false</trimStackTrace>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
 </project>
