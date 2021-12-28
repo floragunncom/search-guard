@@ -140,7 +140,6 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
         Assert.assertFalse(ccs.getBody().contains("secret1"));
         Assert.assertFalse(ccs.getBody().contains("AnotherSecredField"));
         Assert.assertFalse(ccs.getBody().contains("xxx1"));
-        Assert.assertEquals(ccs.getHeaders().toString(), 1, ccs.getHeaders().size());
     }
     
     @Test
@@ -198,7 +197,6 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
         Assert.assertTrue(ccs.getBody().contains("__fn__crl2"));
         Assert.assertFalse(ccs.getBody().contains("secret1"));
         Assert.assertFalse(ccs.getBody().contains("AnotherSecredField"));
-        Assert.assertEquals(ccs.getHeaders().toString(), 1, ccs.getHeaders().size());
     }
     
     @Test
@@ -280,6 +278,5 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
         Assert.assertFalse(ccs.getBody().contains("secret1"));
         Assert.assertFalse(ccs.getBody().contains("AnotherSecredField"));
         Assert.assertTrue(ccs.getBody().contains("someoneelse"));
-        Assert.assertEquals(ccs.getHeaders().toString(), 1, ccs.getHeaders().size());
     }
 }

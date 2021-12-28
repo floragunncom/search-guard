@@ -78,7 +78,7 @@ public class DlsQueryParser {
         if (unparsedDlsQueries == null || unparsedDlsQueries.isEmpty()) {
             return null;
         }
-        
+
         boolean hasNestedMapping = queryShardContext.getMapperService().hasNested();
 
         BooleanQuery.Builder dlsQueryBuilder = new BooleanQuery.Builder();
@@ -101,7 +101,7 @@ public class DlsQueryParser {
 
         return dlsQueryBuilder;
     }
-    
+
     private static void handleNested(final QueryShardContext queryShardContext, final BooleanQuery.Builder dlsQueryBuilder,
             final Query parentQuery) {
         final BitSetProducer parentDocumentsFilter = queryShardContext.bitsetFilter(NON_NESTED_QUERY);

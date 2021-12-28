@@ -235,6 +235,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
                 final Set<String> unparsedDlsQueries = queries.get(dlsEval);
                 
                 if (unparsedDlsQueries != null && !unparsedDlsQueries.isEmpty()) {
+
                     BooleanQuery.Builder queryBuilder = dlsQueryParser.parse(unparsedDlsQueries, context.getQueryShardContext(),
                             (q) -> new ConstantScoreQuery(q));
 

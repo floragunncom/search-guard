@@ -197,6 +197,12 @@
 					<version>${project.version}</version>
 				</dependency>		
 				
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+					<version>${project.version}</version>
+				</dependency>					
+				
 				<!-- necessary for sgadmin-standalone. we should find a different solution for this -->
 				<dependency>
 					<groupId>org.elasticsearch</groupId>
@@ -280,7 +286,13 @@
 					<groupId>${project.groupId}</groupId>
 					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
 					<version>${project.version}</version>
-				</dependency>				
+				</dependency>	
+				
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+					<version>${project.version}</version>
+				</dependency>								
 			</dependencies>
 		</profile>
 	</profiles>
