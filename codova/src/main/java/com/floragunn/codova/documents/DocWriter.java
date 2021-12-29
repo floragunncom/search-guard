@@ -74,7 +74,7 @@ public class DocWriter {
     }
 
     private JsonFactory jsonFactory;
-    private int maxDepth = 20;
+    private int maxDepth = 100;
     private DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ISO_INSTANT;
     private boolean pretty;
 

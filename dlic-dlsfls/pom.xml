@@ -20,13 +20,6 @@
 	<packaging>jar</packaging>
 	<name>Search Guard Suite - Document Level Security and Field Level Security (Enterprise)</name>
 
-	<properties>
-		<jjwt.version>0.10.5</jjwt.version>
-		<ldaptive.version>1.2.3</ldaptive.version>
-
-		<unboundid-ldapsdk.version>5.0.1</unboundid-ldapsdk.version>
-	</properties>
-
 	<dependencies>
 		<!-- Security -->
 		<dependency>
@@ -105,37 +98,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>${jackson.version}</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>jackson-core</artifactId>
-					<groupId>com.fasterxml.jackson.core</groupId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
 			<groupId>com.github.wnameless</groupId>
 			<artifactId>json-flattener</artifactId>
 			<version>0.5.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.flipkart.zjsonpatch</groupId>
-			<artifactId>zjsonpatch</artifactId>
-			<version>0.4.11</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>jackson-core</artifactId>
-					<groupId>com.fasterxml.jackson.core</groupId>
-				</exclusion>
-				<exclusion>
-					<artifactId>jackson-databind</artifactId>
-					<groupId>com.fasterxml.jackson.core</groupId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 	
 		<dependency>
