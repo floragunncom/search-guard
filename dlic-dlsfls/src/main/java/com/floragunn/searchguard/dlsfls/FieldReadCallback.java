@@ -34,6 +34,8 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.Uid;
 import org.elasticsearch.index.shard.ShardId;
 
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.support.HeaderHelper;
@@ -105,8 +107,8 @@ public final class FieldReadCallback {
             if(fieldInfo.name.equals("_source")) {
 
                 if(filterFunction != null) {
-                    final Map<String, Object> filteredSource = filterFunction.apply(Filtering.byteArrayToMutableJsonMap(fieldValue));
-                    fieldValue = Filtering.jsonMapToByteArray(filteredSource);
+                    final Map<String, Object> filteredSource = filterFunction.apply(DocReader.json().readObject(fieldValue));
+                    fieldValue = DocWriter.json().writeAsBytes(filteredSource);
                 }
 
                 Map<String, Object> filteredSource = new JsonFlattener(new String(fieldValue, StandardCharsets.UTF_8)).flattenAsMap();

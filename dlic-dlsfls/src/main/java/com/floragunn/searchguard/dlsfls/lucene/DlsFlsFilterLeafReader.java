@@ -61,6 +61,7 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.automaton.CompiledAutomaton;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesArray;
@@ -75,10 +76,13 @@ import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
 
+import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.dlsfls.FieldReadCallback;
-import com.floragunn.searchguard.dlsfls.Filtering;
 import com.floragunn.searchguard.dlsfls.MaskedField;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
@@ -509,19 +513,24 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
             if (fieldInfo.name.equals("_source")) {
                 
-                Map<String, Object> filteredSource = Filtering.byteArrayToMutableJsonMap(value);
-
-                if (!canOptimize) {
-                    filteredSource = filterFunction.apply(filteredSource);
-                } else {
-                    if (!excludesSet.isEmpty()) {
-                        filteredSource.keySet().removeAll(excludesSet);
+                try {
+                    Map<String, Object> filteredSource = DocReader.json().readObject(value);
+                    
+                    if (!canOptimize) {
+                        filteredSource = filterFunction.apply(filteredSource);
                     } else {
-                        filteredSource.keySet().retainAll(includesSet);
+                        if (!excludesSet.isEmpty()) {
+                            filteredSource.keySet().removeAll(excludesSet);
+                        } else {
+                            filteredSource.keySet().retainAll(includesSet);
+                        }
                     }
-                }
 
-                delegate.binaryField(fieldInfo, Filtering.jsonMapToByteArray(filteredSource));
+                    delegate.binaryField(fieldInfo, DocWriter.json().writeAsBytes(filteredSource));
+                } catch (DocParseException | UnexpectedDocumentStructureException e) {
+                    throw new ElasticsearchException("Cannot filter source of document", e);
+                } 
+                
             } else {
                 delegate.binaryField(fieldInfo, value);
             }
