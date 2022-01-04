@@ -17,7 +17,7 @@
  *
  */
 
-package com.floragunn.searchguard.ssl;
+package com.floragunn.searchguard;
 
 import java.io.File;
 import java.util.List;

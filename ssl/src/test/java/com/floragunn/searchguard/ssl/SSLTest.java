@@ -35,7 +35,6 @@ import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.http.NoHttpResponseException;
-import org.apache.lucene.util.Constants;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
@@ -53,18 +52,14 @@ import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.SingleClusterTest;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.rest.RestHelper;
 
@@ -72,10 +67,6 @@ import io.netty.util.internal.PlatformDependent;
 
 @SuppressWarnings({"resource"})
 public class SSLTest extends SingleClusterTest {
-
-
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
@@ -84,7 +75,6 @@ public class SSLTest extends SingleClusterTest {
     public void testHttps() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
                 .put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
                 .putList(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_PROTOCOLS, "TLSv1.1","TLSv1.2")
@@ -101,7 +91,7 @@ public class SSLTest extends SingleClusterTest {
         rh.enableHTTPClientSSL = true;
         rh.trustHTTPServerCertificate = true;
         rh.sendHTTPClientCertificate = true;
-        rh.keystore = "node-untspec5-keystore.p12";
+        rh.keystore = "ssl/node-untspec5-keystore.p12";
         
         System.out.println(rh.executeSimpleRequest("_searchguard/sslinfo?pretty&show_dn=true"));
         Assert.assertTrue(rh.executeSimpleRequest("_searchguard/sslinfo?pretty&show_dn=true").contains("EMAILADDRESS=unt@tst.com"));
@@ -123,7 +113,6 @@ public class SSLTest extends SingleClusterTest {
         System.out.println("Disabled algos: "+Security.getProperty("jdk.tls.disabledAlgorithms"));
 
         Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -146,7 +135,6 @@ public class SSLTest extends SingleClusterTest {
             Assert.assertEquals("SSL_RSA_EXPORT_WITH_RC4_40_MD5", enabledCiphers[0]);
             
             settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                    .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
                     .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                     .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
                      //WEAK and insecure cipher, do NOT use this, its here for unittesting only!!!
@@ -187,7 +175,6 @@ public class SSLTest extends SingleClusterTest {
     public void testHttpsOptionalAuth() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.http.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks")).build();
@@ -210,7 +197,7 @@ public class SSLTest extends SingleClusterTest {
     public void testHttpsAndNodeSSL() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -247,7 +234,7 @@ public class SSLTest extends SingleClusterTest {
     public void testHttpsAndNodeSSLPem() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0.crt.pem"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0.key.pem"))
                 //.put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD, "changeit")
@@ -282,7 +269,7 @@ public class SSLTest extends SingleClusterTest {
     public void testHttpsAndNodeSSLPemEnc() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pem/node-4.crt.pem"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pem/node-4.key"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD, "changeit")
@@ -318,7 +305,7 @@ public class SSLTest extends SingleClusterTest {
     public void testHttpsAndNodeSSLFailedCipher() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -350,7 +337,7 @@ public class SSLTest extends SingleClusterTest {
         thrown.expect(NoHttpResponseException.class);
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "OPTIONAL")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -373,7 +360,7 @@ public class SSLTest extends SingleClusterTest {
     public void testHttpsNoEnforce() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "NONE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -396,7 +383,7 @@ public class SSLTest extends SingleClusterTest {
     public void testHttpsEnforceFail() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -426,7 +413,7 @@ public class SSLTest extends SingleClusterTest {
         thrown.expect(SSLHandshakeException.class);
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "NONE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -449,7 +436,7 @@ public class SSLTest extends SingleClusterTest {
     public void testTransportClientSSL() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -462,7 +449,7 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings tcSettings = Settings.builder().put("cluster.name", clusterInfo.clustername).put(settings).build();
 
-        try (TransportClient tc = new TransportClientImpl(tcSettings, asCollection(SearchGuardPlugin.class))) {
+        try (TransportClient tc = new TransportClientImpl(tcSettings, asCollection(SearchGuardSSLPlugin.class))) {
             
             log.debug("TransportClient built, connect now to {}:{}", clusterInfo.nodeHost, clusterInfo.nodePort);
             
@@ -484,7 +471,7 @@ public class SSLTest extends SingleClusterTest {
     public void testTransportClientSSLExternalContext() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -518,7 +505,7 @@ public class SSLTest extends SingleClusterTest {
         sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
         ExternalSearchGuardKeyStore.registerExternalSslContext("abcx", sslContext);
         
-        try (TransportClient tc = new TransportClientImpl(tcSettings, asCollection(SearchGuardPlugin.class))) {
+        try (TransportClient tc = new TransportClientImpl(tcSettings, asCollection(SearchGuardSSLPlugin.class))) {
             
             log.debug("TransportClient built, connect now to {}:{}", clusterInfo.nodeHost, clusterInfo.nodePort);
             
@@ -549,7 +536,7 @@ public class SSLTest extends SingleClusterTest {
     public void testNodeClientSSL() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -571,7 +558,7 @@ public class SSLTest extends SingleClusterTest {
                 .put(settings)// -----
                 .build();
         
-        try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardPlugin.class).start()) {
+        try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardSSLPlugin.class).start()) {
             ClusterHealthResponse res = node.client().admin().cluster().health(new ClusterHealthRequest().waitForNodes("4").timeout(TimeValue.timeValueSeconds(15))).actionGet();
             Assert.assertFalse(res.isTimedOut());
             Assert.assertEquals(4, res.getNumberOfNodes());
@@ -589,7 +576,7 @@ public class SSLTest extends SingleClusterTest {
         thrown.expect(IllegalStateException.class);
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -605,7 +592,7 @@ public class SSLTest extends SingleClusterTest {
                 .put("searchguard.ssl.transport.enforce_hostname_verification", false)
                 .put("searchguard.ssl.transport.resolve_hostname", false).build();
 
-        try (TransportClient tc = new TransportClientImpl(tcSettings, asCollection(SearchGuardPlugin.class))) {
+        try (TransportClient tc = new TransportClientImpl(tcSettings, asCollection(SearchGuardSSLPlugin.class))) {
             tc.addTransportAddress(new TransportAddress(new InetSocketAddress(clusterInfo.nodeHost, clusterInfo.nodePort)));
             Assert.assertEquals(3, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
         }
@@ -645,7 +632,7 @@ public class SSLTest extends SingleClusterTest {
     public void testCustomPrincipalExtractor() throws Exception {
         
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -668,7 +655,7 @@ public class SSLTest extends SingleClusterTest {
 
         final Settings tcSettings = Settings.builder().put("cluster.name", clusterInfo.clustername).put("path.home", ".").put(settings).build();
 
-        try (TransportClient tc = new TransportClientImpl(tcSettings, asCollection(SearchGuardPlugin.class))) {
+        try (TransportClient tc = new TransportClientImpl(tcSettings, asCollection(SearchGuardSSLPlugin.class))) {
             
             log.debug("TransportClient built, connect now to {}:{}", clusterInfo.nodeHost, clusterInfo.nodePort);
             
@@ -697,7 +684,7 @@ public class SSLTest extends SingleClusterTest {
     public void testCRLPem() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0.crt.pem"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0.key.pem"))
                 //.put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD, "changeit")
@@ -729,7 +716,7 @@ public class SSLTest extends SingleClusterTest {
     public void testCRL() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0").put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -757,7 +744,7 @@ public class SSLTest extends SingleClusterTest {
         Assume.assumeTrue(PlatformDependent.javaVersion() >= 11);
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -778,7 +765,7 @@ public class SSLTest extends SingleClusterTest {
                 .put(settings)// -----
                 .build();
 
-        try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardPlugin.class).start()) {
+        try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardSSLPlugin.class).start()) {
             ClusterHealthResponse res = node.client().admin().cluster().health(new ClusterHealthRequest().waitForNodes("4").timeout(TimeValue.timeValueSeconds(5))).actionGet();
             Assert.assertFalse(res.isTimedOut());
             Assert.assertEquals(4, res.getNumberOfNodes());
@@ -795,7 +782,7 @@ public class SSLTest extends SingleClusterTest {
     public void testTLSv1() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -821,7 +808,7 @@ public class SSLTest extends SingleClusterTest {
     public void testHttpsAndNodeSSLKeyPass() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -861,7 +848,7 @@ public class SSLTest extends SingleClusterTest {
     public void testHttpsAndNodeSSLKeyPassFail() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
@@ -893,7 +880,7 @@ public class SSLTest extends SingleClusterTest {
     public void testHttpsAndNodeSSLPCKS1() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                .put(ConfigConstants.SEARCHGUARD_SSL_ONLY, true)
+                
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/node-0.crt.pem"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/pkcs1/node-0-pkcs1.key.pem"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH, FileHelper. getAbsoluteFilePathFromClassPath("ssl/root-ca.pem"))

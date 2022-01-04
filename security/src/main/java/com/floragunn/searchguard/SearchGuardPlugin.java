@@ -152,6 +152,7 @@ import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedAct
 import com.floragunn.searchguard.privileges.extended_action_handling.ResourceOwnerService;
 import com.floragunn.searchguard.rest.KibanaInfoAction;
 import com.floragunn.searchguard.rest.PermissionAction;
+import com.floragunn.searchguard.rest.SSLReloadCertAction;
 import com.floragunn.searchguard.rest.SearchGuardHealthAction;
 import com.floragunn.searchguard.rest.SearchGuardInfoAction;
 import com.floragunn.searchguard.rest.SearchGuardLicenseAction;
@@ -161,7 +162,6 @@ import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
-import com.floragunn.searchguard.ssl.rest.SSLReloadCertAction;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;

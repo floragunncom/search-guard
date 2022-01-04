@@ -61,6 +61,7 @@
 		<module>sgadmin</module>
 		<module>plugin</module>
 		<module>codova</module>		
+		<module>ssl</module>		
 		
 	</modules>
 
@@ -246,6 +247,12 @@
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>search-guard-suite-security</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-ssl</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 

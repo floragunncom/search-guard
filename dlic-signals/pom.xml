@@ -101,6 +101,12 @@
 			<scope>provided</scope>
 		</dependency>
 		
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-ssl</artifactId>
+			<scope>test</scope>
+		</dependency>
+		
 		<!-- Security Enterprise -->
 		<dependency>
 			<groupId>com.floragunn</groupId>

@@ -35,22 +35,16 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.ssl.util.CertificateValidator;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class CertificateValidatorTest {
     
     public static final Date CRL_DATE = new Date(1525546426000L);
     protected final Logger log = LogManager.getLogger(this.getClass());
-    
-
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @Test
     public void testStaticCRL() throws Exception {

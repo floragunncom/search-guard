@@ -150,6 +150,12 @@
 			<dependencies>
 				<dependency>
 					<groupId>${project.groupId}</groupId>
+					<artifactId>search-guard-suite-ssl</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+				
+				<dependency>
+					<groupId>${project.groupId}</groupId>
 					<artifactId>search-guard-suite-security</artifactId>
 					<version>${project.version}</version>
 				</dependency>
@@ -239,6 +245,12 @@
 				</plugins>
 			</build>
 			<dependencies>
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>search-guard-suite-ssl</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+				
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>search-guard-suite-security</artifactId>

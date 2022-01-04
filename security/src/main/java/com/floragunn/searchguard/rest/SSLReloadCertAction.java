@@ -17,23 +17,28 @@
  *
  */
 
-package com.floragunn.searchguard.ssl.rest;
+package com.floragunn.searchguard.rest;
 
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.rest.*;
-import org.elasticsearch.threadpool.ThreadPool;
+import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import static org.elasticsearch.rest.RestRequest.Method.POST;
+import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.rest.BaseRestHandler;
+import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.threadpool.ThreadPool;
+
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
 
 public class SSLReloadCertAction extends BaseRestHandler {
     private static final List<Route> routes = Collections.singletonList(new Route(POST, "_searchguard/api/ssl/{certType}/reloadcerts/"));
