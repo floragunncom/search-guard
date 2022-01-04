@@ -31,6 +31,12 @@
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-ssl</artifactId>
+			<scope>provided</scope>
+		</dependency>		
+		
+		<dependency>
+			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-suite-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>

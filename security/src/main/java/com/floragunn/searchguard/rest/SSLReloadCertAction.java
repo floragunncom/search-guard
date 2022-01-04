@@ -17,7 +17,7 @@
  *
  */
 
-package com.floragunn.searchguard.ssl.rest;
+package com.floragunn.searchguard.rest;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
