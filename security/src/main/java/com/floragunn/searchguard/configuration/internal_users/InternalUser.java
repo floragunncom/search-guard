@@ -79,22 +79,14 @@ public class InternalUser implements PatchableDocument<InternalUser>, Redactable
                 result.put("hash", passwordHash);
             }
 
-            if (backendRoles != null && backendRoles.size() > 0) {
-                result.put("backend_roles", backendRoles);
-            }
-
-            if (searchGuardRoles != null && searchGuardRoles.size() > 0) {
-                result.put("search_guard_roles", searchGuardRoles);
-            }
-
-            if (attributes != null && attributes.size() > 0) {
-                result.put("attributes", attributes);
-            }
+            result.put("backend_roles", backendRoles);
+            result.put("search_guard_roles", searchGuardRoles);
+            result.put("attributes", attributes);
 
             return result;
         }
     }
-    
+
     @Override
     public Object toRedactedBasicObject() {
         if (rawDocument != null) {
@@ -106,17 +98,9 @@ public class InternalUser implements PatchableDocument<InternalUser>, Redactable
                 result.put("description", description);
             }
 
-            if (backendRoles != null && backendRoles.size() > 0) {
-                result.put("backend_roles", backendRoles);
-            }
-
-            if (searchGuardRoles != null && searchGuardRoles.size() > 0) {
-                result.put("search_guard_roles", searchGuardRoles);
-            }
-
-            if (attributes != null && attributes.size() > 0) {
-                result.put("attributes", attributes);
-            }
+            result.put("backend_roles", backendRoles);
+            result.put("search_guard_roles", searchGuardRoles);
+            result.put("attributes", attributes);
 
             return result;
         }
