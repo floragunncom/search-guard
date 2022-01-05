@@ -25,7 +25,7 @@ import org.apache.cxf.rs.security.jose.jwk.KeyType;
 import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidatingFunction;
@@ -146,7 +146,7 @@ public class AuthTokenServiceConfig {
     }
 
     public static AuthTokenServiceConfig parseYaml(String yaml) throws ConfigValidationException {
-        return parse(DocNode.parse(DocType.YAML).from(yaml));
+        return parse(DocNode.parse(Format.YAML).from(yaml));
     }
 
     private static final ValidatingFunction<DocNode, JsonWebKey> JWK_SIGNING_KEY_PARSER = new ValidatingFunction<DocNode, JsonWebKey>() {

@@ -83,10 +83,10 @@ public class BasicDocWriterTest {
     }
 
     @Test
-    public void instantTest() throws DocParseException {
+    public void instantTest() throws DocumentParseException {
         Object value = ImmutableMap.of("instant", ZonedDateTime.of(2000, 1, 1, 12, 34, 56, 0, ZoneId.of("Europe/Berlin")));
 
-        assertEquals("2000-01-01T11:34:56Z", DocNode.parse(DocType.JSON).from(DocWriter.json().writeAsString(value)).get("instant"));
+        assertEquals("2000-01-01T11:34:56Z", DocNode.parse(Format.JSON).from(DocWriter.json().writeAsString(value)).get("instant"));
 
     }
 

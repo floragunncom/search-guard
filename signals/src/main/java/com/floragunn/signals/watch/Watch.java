@@ -27,7 +27,7 @@ import org.quartz.Trigger;
 
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -368,13 +368,13 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     }
 
     public static Watch parse(WatchInitializationService ctx, String tenant, String id, String json, long version) throws ConfigValidationException {
-        return parse(ctx, tenant, id, DocNode.parse(DocType.JSON).from(json), version);
+        return parse(ctx, tenant, id, DocNode.parse(Format.JSON).from(json), version);
     }
 
     public static Watch parseFromElasticDocument(WatchInitializationService ctx, String tenant, String id, String json, long version)
             throws ConfigValidationException {
 
-        DocNode jsonNode = DocNode.parse(DocType.JSON).from(json);
+        DocNode jsonNode = DocNode.parse(Format.JSON).from(json);
 
         if (jsonNode.hasNonNull("_source")) {
             return parse(ctx, tenant, id, jsonNode.getAsNode("_source"), version);

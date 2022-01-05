@@ -18,9 +18,9 @@
 package com.floragunn.codova.documents.patch;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.UnparsedDoc;
+import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
 
@@ -30,13 +30,13 @@ public interface DocPatch extends Document<Object> {
 
     static DocPatch parse(String contentType, String content) throws ConfigValidationException {
         if (contentType.equalsIgnoreCase(MergePatch.MEDIA_TYPE)) {
-            return new MergePatch(DocNode.parse(DocType.JSON).from(content));
+            return new MergePatch(DocNode.parse(Format.JSON).from(content));
         } else {
             throw new ConfigValidationException(new ValidationError(null, "Unsupported patch type: " + contentType));
         }
     }
 
-    static DocPatch parse(UnparsedDoc<?> unparsedDoc) throws ConfigValidationException {
+    static DocPatch parse(UnparsedDocument<?> unparsedDoc) throws ConfigValidationException {
         if (unparsedDoc.getMediaType().equalsIgnoreCase(MergePatch.MEDIA_TYPE)) {
             return new MergePatch(DocNode.parse(unparsedDoc));
         } else {

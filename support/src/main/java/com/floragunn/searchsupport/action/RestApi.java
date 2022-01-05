@@ -45,9 +45,9 @@ import org.elasticsearch.rest.action.RestResponseListener;
 
 import com.floragunn.codova.documents.ContentType;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.codova.documents.UnparsedDoc;
+import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchsupport.client.rest.Responses;
 
@@ -181,7 +181,7 @@ public class RestApi extends BaseRestHandler {
                 try {
                     boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
 
-                    UnparsedDoc<?> unparsedDoc = null;
+                    UnparsedDocument<?> unparsedDoc = null;
 
                     if (restRequest.hasContent()) {
                         ContentType contentType = ContentType.parseHeader(restRequest.header("Content-Type"));
@@ -190,7 +190,7 @@ public class RestApi extends BaseRestHandler {
                             return channel -> Responses.sendError(channel, RestStatus.BAD_REQUEST, "Content-Type header is missing");
                         }
 
-                        unparsedDoc = UnparsedDoc.from(BytesReference.toBytes(restRequest.content()), contentType);
+                        unparsedDoc = UnparsedDocument.from(BytesReference.toBytes(restRequest.content()), contentType);
                     }
 
                     RequestType transportRequest = action.parseRequest(new Action.UnparsedMessage(unparsedDoc, DocNode.EMPTY));
@@ -211,10 +211,10 @@ public class RestApi extends BaseRestHandler {
 
                         @Override
                         public RestResponse buildResponse(ResponseType response) throws Exception {
-                            DocType responseDocType = DocType.JSON;
+                            Format responseDocType = Format.JSON;
 
                             RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getMediaType(),
-                                    DocWriter.type(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
+                                    DocWriter.format(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
                             
                             if (response.getConcurrencyControlEntityTag() != null) {
                                 restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
@@ -246,7 +246,7 @@ public class RestApi extends BaseRestHandler {
                 try {
                     boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
 
-                    UnparsedDoc<?> unparsedDoc = null;
+                    UnparsedDocument<?> unparsedDoc = null;
 
                     if (restRequest.hasContent()) {
                         ContentType contentType = ContentType.parseHeader(
@@ -257,7 +257,7 @@ public class RestApi extends BaseRestHandler {
                             return channel -> Responses.sendError(channel, RestStatus.BAD_REQUEST, "Content-Type header is missing");
                         }
 
-                        unparsedDoc = UnparsedDoc.from(BytesReference.toBytes(restRequest.content()), contentType);
+                        unparsedDoc = UnparsedDocument.from(BytesReference.toBytes(restRequest.content()), contentType);
                     }
 
                     RequestType transportRequest = requestParser.parse(new RestRequestParams(restRequest), unparsedDoc);
@@ -282,10 +282,10 @@ public class RestApi extends BaseRestHandler {
 
                         @Override
                         public RestResponse buildResponse(ResponseType response) throws Exception {
-                            DocType responseDocType = DocType.JSON;
+                            Format responseDocType = Format.JSON;
 
                             RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getMediaType(),
-                                    DocWriter.type(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
+                                    DocWriter.format(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
                             
                             if (response.getConcurrencyControlEntityTag() != null) {
                                 restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
@@ -332,7 +332,7 @@ public class RestApi extends BaseRestHandler {
     
     @FunctionalInterface
     public static interface RestRequestParser<RequestType extends Action.Request> {
-        RequestType parse(Map<String, String> requestUrlParams, UnparsedDoc<?> requestBody) throws ConfigValidationException;
+        RequestType parse(Map<String, String> requestUrlParams, UnparsedDocument<?> requestBody) throws ConfigValidationException;
     }
 
     private static class RestRequestParams implements Map<String, String> {

@@ -34,7 +34,7 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 
-import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.searchsupport.client.Actions;
 
 public class WatchStateIndexReader {
@@ -52,7 +52,7 @@ public class WatchStateIndexReader {
         this.client = client;
     }
 
-    public WatchState get(String watchId) throws IOException, DocParseException {
+    public WatchState get(String watchId) throws IOException, DocumentParseException {
         String prefixedId = watchIdPrefix + watchId;
 
         GetResponse getResponse = client.prepareGet().setIndex(this.indexName).setId(prefixedId).get();

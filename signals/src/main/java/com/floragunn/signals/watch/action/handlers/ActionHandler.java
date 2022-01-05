@@ -7,7 +7,7 @@ import java.util.TreeSet;
 import org.elasticsearch.common.Strings;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -73,7 +73,7 @@ public abstract class ActionHandler extends WatchElement {
     }
 
     public static ActionHandler parseJson(WatchInitializationService ctx, String json) throws ConfigValidationException {
-        DocNode jsonNode = DocNode.parse(DocType.JSON).from(json);
+        DocNode jsonNode = DocNode.parse(Format.JSON).from(json);
 
         return create(ctx, jsonNode);
     }

@@ -30,7 +30,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 
 import com.floragunn.codova.config.temporal.TemporalAmountFormat;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -86,7 +86,7 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
 
     public static CreateAuthTokenRequest parse(BytesReference document, XContentType contentType) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vJsonNode = new ValidatingDocNode(DocReader.type(contentType == XContentType.YAML ? DocType.YAML : DocType.JSON).readObject(BytesReference.toBytes(document)), validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(DocReader.format(contentType == XContentType.YAML ? Format.YAML : Format.JSON).readObject(BytesReference.toBytes(document)), validationErrors);
         CreateAuthTokenRequest result = new CreateAuthTokenRequest();
 
         result.tokenName = vJsonNode.get("name").asString();

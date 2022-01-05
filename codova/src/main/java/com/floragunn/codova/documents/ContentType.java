@@ -19,19 +19,19 @@ package com.floragunn.codova.documents;
 
 import java.nio.charset.Charset;
 
-import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
+import com.floragunn.codova.documents.Format.UnknownDocTypeException;
 
 public class ContentType {
 
     private final String contentTypeString;
     private final String mediaType;
-    private final DocType docType;
+    private final Format format;
     private final Charset charset;
 
-    ContentType(String contentTypeString, String mediaType, DocType docType, Charset charset) {
+    ContentType(String contentTypeString, String mediaType, Format format, Charset charset) {
         this.contentTypeString = contentTypeString;
         this.mediaType = mediaType;
-        this.docType = docType;
+        this.format = format;
         this.charset = charset;
     }
 
@@ -43,25 +43,25 @@ public class ContentType {
         int paramSeparator = header.indexOf(';');
 
         if (paramSeparator == -1) {
-            return new ContentType(header, header, DocType.getByMediaType(header), null);
+            return new ContentType(header, header, Format.getByMediaType(header), null);
         } else {
             String mediaType = header.substring(0, paramSeparator).trim();
 
             int charSetPos = header.indexOf("charset=", paramSeparator);
 
             if (charSetPos == -1) {
-                return new ContentType(header, mediaType, DocType.getByMediaType(mediaType), null);
+                return new ContentType(header, mediaType, Format.getByMediaType(mediaType), null);
             } else {
                 int nextSeparator = header.indexOf(';', charSetPos);
 
-                return new ContentType(header, mediaType, DocType.getByMediaType(mediaType),
+                return new ContentType(header, mediaType, Format.getByMediaType(mediaType),
                         Charset.forName(header.substring(charSetPos + 8, nextSeparator != -1 ? nextSeparator : header.length())));
             }
         }
     }
 
-    public DocType getDocType() {
-        return docType;
+    public Format getFormat() {
+        return format;
     }
 
     public Charset getCharset() {

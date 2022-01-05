@@ -24,8 +24,8 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocParseException;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.google.common.collect.ImmutableMap;
 
 public class ValidatingDocumentNodeTest {
@@ -107,7 +107,7 @@ public class ValidatingDocumentNodeTest {
     }
 
     @Test
-    public void usedAttrTest() throws DocParseException {
+    public void usedAttrTest() throws DocumentParseException {
         String doc = "" //
                 + "a: 42\n"//
                 + "b: x\n"//
@@ -120,7 +120,7 @@ public class ValidatingDocumentNodeTest {
                 + "e.ff.fff: 99";
 
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(DocNode.parse(DocType.YAML).from(doc), validationErrors);
+        ValidatingDocNode vNode = new ValidatingDocNode(DocNode.parse(Format.YAML).from(doc), validationErrors);
 
         vNode.get("a").asString();
         vNode.get("e").asString();
@@ -134,7 +134,7 @@ public class ValidatingDocumentNodeTest {
 
     @Ignore // Unused attributes right now only work well on attributes on the top level of ValidatingDocNode
     @Test
-    public void usedAttrTest2() throws DocParseException {
+    public void usedAttrTest2() throws DocumentParseException {
         String doc = "" //
                 + "a: 42\n"//
                 + "b: x\n"//
@@ -147,7 +147,7 @@ public class ValidatingDocumentNodeTest {
                 + "e.ff.fff: 99";
 
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(DocNode.parse(DocType.YAML).from(doc), validationErrors);
+        ValidatingDocNode vNode = new ValidatingDocNode(DocNode.parse(Format.YAML).from(doc), validationErrors);
 
         vNode.get("a").asString();
         vNode.get("b").asString();

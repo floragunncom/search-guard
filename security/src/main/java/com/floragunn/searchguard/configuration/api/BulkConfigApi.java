@@ -32,7 +32,7 @@ import org.elasticsearch.common.xcontent.ToXContent;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocUtils;
-import com.floragunn.codova.documents.UnparsedDoc;
+import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
@@ -125,7 +125,7 @@ public class BulkConfigApi {
                             Map<String, Object> resultEntry = new LinkedHashMap<>();
 
                             if (config.getUninterpolatedJson() != null) {
-                                resultEntry.put("content", UnparsedDoc.fromJson(config.getUninterpolatedJson()));
+                                resultEntry.put("content", UnparsedDocument.fromJson(config.getUninterpolatedJson()));
                             } else {
                                 resultEntry.put("content", ObjectTreeXContent.toObjectTree(config, OMIT_DEFAULTS_PARAMS));
                             }
@@ -169,9 +169,9 @@ public class BulkConfigApi {
 
         public static class Request extends Action.Request {
 
-            private final UnparsedDoc<?> config;
+            private final UnparsedDocument<?> config;
 
-            public Request(UnparsedDoc<?> config) {
+            public Request(UnparsedDocument<?> config) {
                 super();
                 this.config = config;
             }
@@ -180,7 +180,7 @@ public class BulkConfigApi {
                 this.config = message.requiredUnparsedDoc();
             }
 
-            public UnparsedDoc<?> getConfig() {
+            public UnparsedDocument<?> getConfig() {
                 return config;
             }
 
@@ -248,7 +248,7 @@ public class BulkConfigApi {
                 });
             }
 
-            private Map<CType<?>, Map<String, ?>> parseConfigJson(UnparsedDoc<?> unparsedDoc) throws ConfigValidationException {
+            private Map<CType<?>, Map<String, ?>> parseConfigJson(UnparsedDocument<?> unparsedDoc) throws ConfigValidationException {
                 Map<String, Object> parsedJson = unparsedDoc.parseAsMap();
                 ValidationErrors validationErrors = new ValidationErrors();
                 Map<CType<?>, Map<String, ?>> configTypeToConfigMap = new HashMap<>();

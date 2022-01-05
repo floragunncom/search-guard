@@ -44,7 +44,7 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
 
-import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.configuration.SearchGuardLicense;
@@ -525,7 +525,7 @@ public class ComponentState implements Writeable, ToXContentObject {
                         detailJsonElements = new ArrayList<>();
                         detailJsonElements.add(parsedDetailJson);
                     }
-                } catch (DocParseException e) {
+                } catch (DocumentParseException e) {
                     log.error("Error while parsing detail JSON", e);
                 }
 

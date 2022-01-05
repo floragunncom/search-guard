@@ -22,19 +22,19 @@ import java.io.File;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class DocTypeTest {
+public class FormatTest {
     @Test
     public void testGetByFileName() throws Exception {
-        Assert.assertEquals(DocType.JSON, DocType.getByFileName(File.createTempFile("foo", ".json").getAbsolutePath(), null));
-        Assert.assertEquals(DocType.YAML, DocType.getByFileName(File.createTempFile("foo", ".yaml").getAbsolutePath(), null));
-        Assert.assertEquals(DocType.YAML, DocType.getByFileName(File.createTempFile("foo", ".yml").getAbsolutePath(), null));
-        Assert.assertNull(DocType.getByFileName(File.createTempFile("foo", ".x").getAbsolutePath(), null));
-        Assert.assertEquals(DocType.YAML, DocType.getByFileName(File.createTempFile("foo", ".x").getAbsolutePath(), DocType.YAML));
+        Assert.assertEquals(Format.JSON, Format.getByFileName(File.createTempFile("foo", ".json").getAbsolutePath(), null));
+        Assert.assertEquals(Format.YAML, Format.getByFileName(File.createTempFile("foo", ".yaml").getAbsolutePath(), null));
+        Assert.assertEquals(Format.YAML, Format.getByFileName(File.createTempFile("foo", ".yml").getAbsolutePath(), null));
+        Assert.assertNull(Format.getByFileName(File.createTempFile("foo", ".x").getAbsolutePath(), null));
+        Assert.assertEquals(Format.YAML, Format.getByFileName(File.createTempFile("foo", ".x").getAbsolutePath(), Format.YAML));
     }
 
     @Test
     public void testGetByMediaType() throws Exception {
-        Assert.assertEquals(DocType.JSON, DocType.getByMediaType("application/foo+json"));
-        Assert.assertEquals(DocType.YAML, DocType.getByMediaType("application/foo+yaml"));
+        Assert.assertEquals(Format.JSON, Format.getByMediaType("application/foo+json"));
+        Assert.assertEquals(Format.YAML, Format.getByMediaType("application/foo+yaml"));
     }
 }

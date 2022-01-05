@@ -39,7 +39,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.SharedGroupFactory;
 
 import com.floragunn.codova.documents.ContentType;
-import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
+import com.floragunn.codova.documents.Format.UnknownDocTypeException;
 import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
@@ -89,7 +89,7 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
 
             ContentType contentType = ContentType.parseHeader(contentTypeHeader.get(0));
             Map<String, List<String>> modifiedHeaders = ImmutableMap.of(headers, "Content-Type",
-                    Collections.singletonList(contentType.getDocType().getMediaType()), "X-SG-Original-Content-Type", contentTypeHeader);
+                    Collections.singletonList(contentType.getFormat().getMediaType()), "X-SG-Original-Content-Type", contentTypeHeader);
 
             return new HttpRequest() {
 

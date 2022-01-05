@@ -32,8 +32,8 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocParseException;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.support.NestedValueMap;
@@ -128,8 +128,8 @@ public class WatchState implements ToXContentObject {
         return Strings.toString(this);
     }
 
-    public static WatchState createFromJson(String tenant, String json) throws DocParseException {
-        return createFrom(tenant, DocNode.parse(DocType.JSON).from(json));
+    public static WatchState createFromJson(String tenant, String json) throws DocumentParseException {
+        return createFrom(tenant, DocNode.parse(Format.JSON).from(json));
     }
 
     public static WatchState createFrom(String tenant, DocNode jsonNode) {

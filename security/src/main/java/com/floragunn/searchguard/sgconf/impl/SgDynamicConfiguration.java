@@ -40,9 +40,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.RedactableDocument;
@@ -81,9 +81,9 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     }
     
     
-    public static <T> SgDynamicConfiguration<T> from(Reader reader, CType<T> ctype, DocType docType, ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
+    public static <T> SgDynamicConfiguration<T> from(Reader reader, CType<T> ctype, Format docType, ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
         if (ctype.getParser() != null) {
-            return fromMap(DocReader.type(docType).readObject(reader), ctype, parserContext);
+            return fromMap(DocReader.format(docType).readObject(reader), ctype, parserContext);
         } else {
             return SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(reader), ctype, 2, 0, 0, 0, parserContext);
         }
@@ -193,7 +193,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     }
     
     public static <T> SgDynamicConfiguration<T> fromJsonWithParser(String json, String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo, long primaryTerm, SearchGuardModulesRegistry searchGuardModulesRegistry, ConfigurationRepository.Context parserContext) throws ConfigValidationException {                
-        return fromMapWithParser(DocNode.parse(DocType.JSON).from(json), uninterpolatedJson, ctype, docVersion, seqNo, primaryTerm, searchGuardModulesRegistry, parserContext);
+        return fromMapWithParser(DocNode.parse(Format.JSON).from(json), uninterpolatedJson, ctype, docVersion, seqNo, primaryTerm, searchGuardModulesRegistry, parserContext);
     }
     
     public static <T> SgDynamicConfiguration<T> fromMapWithParser(DocNode docNode, String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo, long primaryTerm, SearchGuardModulesRegistry searchGuardModulesRegistry, ConfigurationRepository.Context parserContext) throws ConfigValidationException {       
@@ -399,7 +399,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             } else {
                 try {
                     result.put(entry.getKey(), DocReader.json().read(DefaultObjectMapper.writeValueAsString(this, false)));
-                } catch (DocParseException | JsonProcessingException e) {
+                } catch (DocumentParseException | JsonProcessingException e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -424,7 +424,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             } else {
                 try {
                     result.put(entry.getKey(), DocReader.json().read(DefaultObjectMapper.writeValueAsString(entry.getValue(), false)));
-                } catch (DocParseException | JsonProcessingException e) {
+                } catch (DocumentParseException | JsonProcessingException e) {
                     throw new RuntimeException(e);
                 }
             }

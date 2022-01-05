@@ -59,15 +59,15 @@ public abstract class DocNode implements Map<String, Object>, Document<Object> {
     public static final DocNode EMPTY = new PlainJavaObjectAdapter(Collections.EMPTY_MAP);
     public static final DocNode NULL = new PlainJavaObjectAdapter(null);
 
-    public static DocNodeParserBuilder parse(DocType docType) {
-        return new DocNodeParserBuilder(docType);
+    public static DocNodeParserBuilder parse(Format format) {
+        return new DocNodeParserBuilder(format);
     }
 
     public static DocNodeParserBuilder parse(ContentType contentType) {
-        return new DocNodeParserBuilder(contentType.getDocType());
+        return new DocNodeParserBuilder(contentType.getFormat());
     }
 
-    public static DocNode parse(UnparsedDoc<?> unparsedDoc) throws DocParseException {
+    public static DocNode parse(UnparsedDocument<?> unparsedDoc) throws DocumentParseException {
         return wrap(unparsedDoc.parse());
     }
 
@@ -1235,24 +1235,24 @@ public abstract class DocNode implements Map<String, Object>, Document<Object> {
     }
 
     @Override
-    public String toString(DocType docType) {
+    public String toString(Format format) {
         Object value = toBasicObject();
 
-        if (value instanceof Map && docType.equals(DocType.JSON)) {
+        if (value instanceof Map && format.equals(Format.JSON)) {
             return DocWriter.json().writeAsString(this.toNormalizedMap());
         } else {
-            return DocWriter.type(docType).writeAsString(value);
+            return DocWriter.format(format).writeAsString(value);
         }
     }
 
     @Override
     public String toJsonString() {
-        return toString(DocType.JSON);
+        return toString(Format.JSON);
     }
 
     @Override
     public String toYamlString() {
-        return toString(DocType.YAML);
+        return toString(Format.YAML);
     }
 
     @Override
@@ -1321,35 +1321,35 @@ public abstract class DocNode implements Map<String, Object>, Document<Object> {
     }
 
     public static class DocNodeParserBuilder {
-        private final DocType docType;
+        private final Format format;
         private final JsonFactory jsonFactory;
 
-        private DocNodeParserBuilder(DocType docType) {
-            this.docType = docType;
-            this.jsonFactory = docType.getJsonFactory();
+        private DocNodeParserBuilder(Format format) {
+            this.format = format;
+            this.jsonFactory = format.getJsonFactory();
         }
 
-        public DocNode from(Reader in) throws DocParseException, IOException {
+        public DocNode from(Reader in) throws DocumentParseException, IOException {
             try (JsonParser parser = jsonFactory.createParser(in)) {
-                return wrap(new DocReader(docType, parser).read());
+                return wrap(new DocReader(format, parser).read());
             }
         }
 
-        public DocNode from(String string) throws DocParseException {
+        public DocNode from(String string) throws DocumentParseException {
             if (string == null || string.length() == 0) {
-                throw new DocParseException(new ValidationError(null, "The document is empty").expected(docType.getName() + " document"));
+                throw new DocumentParseException(new ValidationError(null, "The document is empty").expected(format.getName() + " document"));
             }
 
             try (JsonParser parser = jsonFactory.createParser(string)) {
-                return wrap(new DocReader(docType, parser).read());
+                return wrap(new DocReader(format, parser).read());
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
 
-        public DocNode from(byte[] bytes) throws DocParseException {
+        public DocNode from(byte[] bytes) throws DocumentParseException {
             if (bytes == null || bytes.length == 0) {
-                throw new DocParseException(new ValidationError(null, "The document is empty").expected(docType.getName() + " document"));
+                throw new DocumentParseException(new ValidationError(null, "The document is empty").expected(format.getName() + " document"));
             }
 
             try {
@@ -1359,13 +1359,13 @@ public abstract class DocNode implements Map<String, Object>, Document<Object> {
             }
         }
 
-        public DocNode from(InputStream in) throws DocParseException, IOException {
+        public DocNode from(InputStream in) throws DocumentParseException, IOException {
             try (JsonParser parser = jsonFactory.createParser(in)) {
-                return wrap(new DocReader(docType, parser).read());
+                return wrap(new DocReader(format, parser).read());
             }
         }
 
-        public DocNode from(File file) throws DocParseException, FileNotFoundException, IOException {
+        public DocNode from(File file) throws DocumentParseException, FileNotFoundException, IOException {
             return from(new FileInputStream(file));
         }
     }

@@ -32,7 +32,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -93,7 +93,7 @@ public abstract class Account implements ToXContentObject {
     }
 
     public static Account parse(String accountType, String id, String string) throws ConfigValidationException {
-        return create(accountType, id, DocNode.parse(DocType.JSON).from(string));
+        return create(accountType, id, DocNode.parse(Format.JSON).from(string));
     }
 
     public static Account create(String accountType, String id, DocNode jsonNode) throws ConfigValidationException {

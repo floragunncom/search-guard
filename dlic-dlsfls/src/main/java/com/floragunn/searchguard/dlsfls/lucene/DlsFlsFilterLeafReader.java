@@ -76,7 +76,7 @@ import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.shard.ShardId;
 
-import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
@@ -527,7 +527,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
                     }
 
                     delegate.binaryField(fieldInfo, DocWriter.json().writeAsBytes(filteredSource));
-                } catch (DocParseException | UnexpectedDocumentStructureException e) {
+                } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
                     throw new ElasticsearchException("Cannot filter source of document", e);
                 } 
                 
