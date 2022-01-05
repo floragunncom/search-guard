@@ -88,7 +88,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         }
     }
 
-    public static abstract class Request extends ActionRequest implements Document {
+    public static abstract class Request extends ActionRequest implements Document<Object> {
         private String ifMatch;
         private String ifNoneMatch;
 
@@ -159,7 +159,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
 
     }
 
-    public static abstract class Response extends ActionResponse implements Document, StatusToXContentObject {
+    public static abstract class Response extends ActionResponse implements Document<Object>, StatusToXContentObject {
 
         private int restStatus = 200;
         private String concurrencyControlEntityTag;

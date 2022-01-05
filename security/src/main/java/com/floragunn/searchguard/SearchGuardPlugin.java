@@ -123,7 +123,6 @@ import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.AuthczVariableResolvers;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.CompatConfig;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -837,10 +836,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         protectedConfigIndexService = new ProtectedConfigIndexService(localClient, clusterService, threadPool, protectedIndices);
         secretsService = new ConfigVarService(localClient, clusterService, threadPool, protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(secretsService);
-
-        AuthczVariableResolvers.init(secretsService);
         
-        cr = new ConfigurationRepository(settings, this.configPath, threadPool, localClient, clusterService);
+        cr = new ConfigurationRepository(settings, this.configPath, threadPool, localClient, clusterService, secretsService, moduleRegistry);
         cr.subscribeOnLicenseChange(complianceConfig);
         moduleRegistry.addComponentStateProvider(cr);
 

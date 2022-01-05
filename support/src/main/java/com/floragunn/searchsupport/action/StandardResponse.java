@@ -63,10 +63,10 @@ public class StandardResponse extends Action.Response {
         return this;
     }
 
-    public StandardResponse data(Map<?, ? extends Document> map) {
+    public StandardResponse data(Map<?, ? extends Document<?>> map) {
         Map<String, Object> plainMap = new LinkedHashMap<>(map.size());
 
-        for (Map.Entry<?, ? extends Document> entry : map.entrySet()) {
+        for (Map.Entry<?, ? extends Document<?>> entry : map.entrySet()) {
             plainMap.put(String.valueOf(entry.getKey()), entry.getValue() != null ? entry.getValue().toBasicObject() : null);
         }
 
@@ -131,7 +131,7 @@ public class StandardResponse extends Action.Response {
         return result;
     }
 
-    public static class Error implements Document {
+    public static class Error implements Document<Error> {
         private final String message;
         private final String code;
         private final Object details;

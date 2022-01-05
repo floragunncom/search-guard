@@ -20,7 +20,7 @@ package com.floragunn.searchguard.sgconf.impl;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.RedactableDocument;
 
-public class SgConfigEntry<T> implements Document, RedactableDocument {
+public class SgConfigEntry<T> implements Document<T>, RedactableDocument {
     
     private final T object;
     private final SgDynamicConfiguration<T> baseConfig;
@@ -35,13 +35,13 @@ public class SgConfigEntry<T> implements Document, RedactableDocument {
         if (object instanceof RedactableDocument) {
             return ((RedactableDocument) object).toRedactedBasicObject();
         } else {
-            return ((Document) object).toBasicObject();
+            return ((Document<?>) object).toBasicObject();
         }
     }
 
     @Override
     public Object toBasicObject() {
-        return ((Document) object).toBasicObject();
+        return ((Document<?>) object).toBasicObject();
     }
     
     public String getETag() {

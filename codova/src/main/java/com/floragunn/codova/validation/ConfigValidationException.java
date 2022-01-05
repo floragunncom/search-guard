@@ -24,7 +24,7 @@ import com.floragunn.codova.validation.errors.ValidationError;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Multimap;
 
-public class ConfigValidationException extends Exception implements Document {
+public class ConfigValidationException extends Exception implements Document<ConfigValidationException> {
 
     private static final long serialVersionUID = 8874565903177850402L;
 

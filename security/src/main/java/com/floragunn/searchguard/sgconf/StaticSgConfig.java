@@ -84,7 +84,7 @@ public class StaticSgConfig {
         try {
             JsonNode jsonNode = DefaultObjectMapper.YAML_MAPPER.readTree(DynamicConfigFactory.class.getResourceAsStream(resourcePath));
 
-            return SgDynamicConfiguration.fromNode(jsonNode, configType, 2, 0, 0, 0);
+            return SgDynamicConfiguration.fromNode(jsonNode, configType, 2, 0, 0, 0, null);
         } catch (Exception e) {
             throw new RuntimeException("Error while reading static configuration from " + resourcePath, e);
         }

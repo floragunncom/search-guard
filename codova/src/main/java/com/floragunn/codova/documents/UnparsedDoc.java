@@ -25,29 +25,29 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 
-public abstract class UnparsedDoc<Doc> implements Document {
+public abstract class UnparsedDoc<T> implements Document<T> {
 
-    public static UnparsedDoc<String> from(String source, DocType docType) {
+    public static UnparsedDoc<?> from(String source, DocType docType) {
         return new StringDoc(source, docType);
     }
     
-    public static UnparsedDoc<String> from(String source, ContentType contentType) {
+    public static UnparsedDoc<?> from(String source, ContentType contentType) {
         return new StringDoc(source, contentType);
     }
 
-    public static UnparsedDoc<byte[]> from(byte[] source, ContentType contentType) {
+    public static UnparsedDoc<?> from(byte[] source, ContentType contentType) {
         return new BytesDoc(source, contentType);
     }
 
-    public static UnparsedDoc<byte[]> from(byte[] source, DocType docType, Charset charset) {
+    public static UnparsedDoc<?> from(byte[] source, DocType docType, Charset charset) {
         return new BytesDoc(source, docType, charset);
     }
 
-    public static UnparsedDoc<byte[]> from(byte[] source, DocType docType) {
+    public static UnparsedDoc<?> from(byte[] source, DocType docType) {
         return new BytesDoc(source, docType, null);
     }
 
-    public static UnparsedDoc<String> fromJson(String json) {
+    public static UnparsedDoc<?> fromJson(String json) {
         return new StringDoc(json, DocType.JSON);
     }
 
@@ -75,8 +75,6 @@ public abstract class UnparsedDoc<Doc> implements Document {
 
     public abstract Object parse() throws DocParseException;
 
-    public abstract Doc getSource();
-
     public abstract String getSourceAsString();
 
     public abstract JsonParser createParser() throws JsonParseException, IOException;
@@ -98,7 +96,7 @@ public abstract class UnparsedDoc<Doc> implements Document {
         return this;
     }
 
-    private static class StringDoc extends UnparsedDoc<String> {
+    public static class StringDoc extends UnparsedDoc<Object> {
         private final String source;
 
         public StringDoc(String source, DocType docType) {
@@ -145,9 +143,18 @@ public abstract class UnparsedDoc<Doc> implements Document {
         public JsonParser createParser() throws JsonParseException, IOException {
             return docType.getJsonFactory().createParser(source);
         }
+
+        @Override
+        public String toString(DocType docType) {
+            if (docType.equals(this.docType)) {
+                return source;
+            } else {
+                return super.toString(docType);                
+            }
+        }
     }
 
-    private static class BytesDoc extends UnparsedDoc<byte[]> {
+    public static class BytesDoc extends UnparsedDoc<Object> {
         private final byte[] source;
         private String sourceAsString;
         private final Charset charset;
@@ -239,6 +246,15 @@ public abstract class UnparsedDoc<Doc> implements Document {
 
         private boolean checkBom(int b1, int b2, int b3, int b4) {
             return source.length >= 4 && source[0] == b1 && source[1] == b2 && source[2] == b3 && source[3] == b4;
+        }
+
+        @Override
+        public byte[] toBytes(DocType docType) {
+            if (docType.equals(this.docType)) {
+                return source;
+            } else {
+                return super.toBytes(docType);                
+            }
         }
 
     }

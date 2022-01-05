@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 
-public class Meta implements Document {
+public class Meta implements Document<Meta> {
 
     private String type;
     private int config_version;

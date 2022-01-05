@@ -44,6 +44,7 @@ import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.config.temporal.TemporalAmountFormat;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.UnsupportedAttribute;
@@ -86,6 +87,13 @@ public class ValidatingDocNode {
         return this;
     }
 
+    public ValidatingDocNode expandVariables(Parser.Context context) {
+        if (context != null && context.variableResolvers() != null) {
+            this.variableProviders.putAll(context.variableResolvers().toMap());            
+        }
+        return this;
+    }
+    
     public ValidatingDocNode expandVariables(VariableResolvers variableProviders) {
         if (variableProviders != null) {
             this.variableProviders.putAll(variableProviders.toMap());

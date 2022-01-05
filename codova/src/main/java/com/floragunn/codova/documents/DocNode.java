@@ -53,7 +53,7 @@ import com.floragunn.codova.validation.errors.ValidationError;
 import com.google.common.collect.Maps;
 import com.jayway.jsonpath.JsonPath;
 
-public abstract class DocNode implements Map<String, Object>, Document {
+public abstract class DocNode implements Map<String, Object>, Document<Object> {
     private static final Logger log = LoggerFactory.getLogger(DocNode.class);
 
     public static final DocNode EMPTY = new PlainJavaObjectAdapter(Collections.EMPTY_MAP);
@@ -881,7 +881,7 @@ public abstract class DocNode implements Map<String, Object>, Document {
         return false;
     }
 
-    public DocNode with(Document other) {
+    public DocNode with(Document<?> other) {
         DocNode otherDocNode;
 
         if (other instanceof DocNode) {

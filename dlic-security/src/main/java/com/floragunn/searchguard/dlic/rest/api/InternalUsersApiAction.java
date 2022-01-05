@@ -163,7 +163,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
 
         // checks complete, create or update the user
         try {
-            internaluser.putCEntry(username, InternalUser.parse(DocReader.json().readObject(newJson)));
+            internaluser.putCEntry(username, InternalUser.parse(DocReader.json().readObject(newJson), cl.getParserContext()));
         } catch (ConfigValidationException e) {
             throw new RuntimeException(e);
         }
