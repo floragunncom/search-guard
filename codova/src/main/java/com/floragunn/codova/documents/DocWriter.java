@@ -131,15 +131,15 @@ public class DocWriter {
         }
     }
 
-    public String writeAsString(Document document) {
+    public String writeAsString(Document<?> document) {
         return writeAsString(document != null ? document.toBasicObject() : (Object) null);
     }
 
-    public byte[] writeAsBytes(Document document) {
+    public byte[] writeAsBytes(Document<?> document) {
         return writeAsBytes(document != null ? document.toBasicObject() : (Object) null);
     }
 
-    public void write(File file, Document document) throws IOException {
+    public void write(File file, Document<?> document) throws IOException {
         write(file, document.toBasicObject());
     }
 
@@ -153,7 +153,7 @@ public class DocWriter {
         }
 
         if (object instanceof Document && !(object instanceof UnparsedDoc)) {
-            object = ((Document) object).toBasicObject();
+            object = ((Document<?>) object).toBasicObject();
         }
 
         if (object instanceof Collection) {

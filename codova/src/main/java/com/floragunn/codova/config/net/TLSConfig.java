@@ -81,16 +81,16 @@ import org.slf4j.LoggerFactory;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.FileDoesNotExist;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.io.Files;
 
-public class TLSConfig implements Document {
+public class TLSConfig implements Document<TLSConfig> {
     private static final Logger log = LoggerFactory.getLogger(TLSConfig.class);
 
     public static TLSConfig parse(Map<String, Object> config) throws ConfigValidationException {
@@ -121,6 +121,7 @@ public class TLSConfig implements Document {
         return tlsConfig;
     }
 
+    @Override
     public Map<String, Object> toBasicObject() {
         Map<String, Object> result = new LinkedHashMap<>();
 
@@ -459,7 +460,7 @@ public class TLSConfig implements Document {
         }
     }
 
-    public static class ClientCertAuthConfig implements Document {
+    public static class ClientCertAuthConfig implements Document<ClientCertAuthConfig> {
         private String certficate;
         private String privateKey;
         private KeyStore keyStore;

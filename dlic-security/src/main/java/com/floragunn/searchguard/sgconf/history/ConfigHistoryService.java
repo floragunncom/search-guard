@@ -404,7 +404,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
 
         try {
             return SgDynamicConfiguration.fromJson(jsonString, configurationVersion.getConfigurationType(), configurationVersion.getVersion(), 0, 0,
-                    settings);
+                    settings, null);
         } catch (IOException e) {
             componentState.addLastException("parseConfig", new ExceptionRecord(e, "Error while parsing config history record"));
             throw new RuntimeException("Error while parsing config history record: " + jsonString + "\n" + singleGetResponse);

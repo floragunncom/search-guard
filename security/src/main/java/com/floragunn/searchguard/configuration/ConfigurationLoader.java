@@ -63,17 +63,19 @@ public class ConfigurationLoader {
     private final Settings settings;
     private final ComponentState componentState;
     private final Map<CType<?>, ComponentState> typeToStateMap;
+    private final ConfigurationRepository configRepository;
 
-    public ConfigurationLoader(Client client, Settings settings) {
-        this(client, settings, null, null);
+    public ConfigurationLoader(Client client, Settings settings, ConfigurationRepository configRepository) {
+        this(client, settings, null, null, configRepository);
     }
 
-    public ConfigurationLoader(Client client, Settings settings, ClusterService clusterService, ComponentState componentState) {
+    public ConfigurationLoader(Client client, Settings settings, ClusterService clusterService, ComponentState componentState, ConfigurationRepository configRepository) {
         this.client = PrivilegedConfigClient.adapt(client);
         this.settings = settings;
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         this.clusterService = clusterService;
         this.componentState = componentState;
+        this.configRepository = configRepository;
 
         if (componentState != null) {
             typeToStateMap = new HashMap<>(CType.all().size());
@@ -236,7 +238,7 @@ public class ConfigurationLoader {
             parser.nextToken();
 
             return SgDynamicConfiguration.fromJson(new String(parser.binaryValue()), type, getResponse.getVersion(), getResponse.getSeqNo(),
-                    getResponse.getPrimaryTerm(), settings);
+                    getResponse.getPrimaryTerm(), settings, configRepository.getParserContext());
         }
     }
 

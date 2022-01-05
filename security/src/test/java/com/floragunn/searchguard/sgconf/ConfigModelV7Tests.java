@@ -36,12 +36,12 @@ public class ConfigModelV7Tests {
                                 ImmutableMap.of("tenant_permissions",
                                         Arrays.asList(
                                                 ImmutableMap.of("tenant_patterns", Arrays.asList("*"), "allowed_actions", Arrays.asList("*"))))),
-                        CType.ROLES, 2, -1, -1, -1);
+                        CType.ROLES, 2, -1, -1, -1, null);
         SgDynamicConfiguration<RoleMappingsV7> rolemappings = SgDynamicConfiguration.empty();
         SgDynamicConfiguration<ActionGroupsV7> actiongroups = SgDynamicConfiguration.empty();
         SgDynamicConfiguration<TenantV7> tenants = SgDynamicConfiguration.fromMap(ImmutableMap.of("_sg_meta",
                 ImmutableMap.of("type", "tenants", "config_version", 2), "my_tenant", ImmutableMap.of("description", "my tenant")), CType.TENANTS, 2,
-                -1, -1, -1);
+                -1, -1, -1, null);
         SgDynamicConfiguration<BlocksV7> blocks = SgDynamicConfiguration.empty();
 
         ConfigModel configModel = new ConfigModelV7(roles, rolemappings, actiongroups, tenants, blocks, dynamicConfigModel, Settings.EMPTY);

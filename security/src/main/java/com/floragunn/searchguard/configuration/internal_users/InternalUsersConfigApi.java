@@ -23,6 +23,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -46,7 +48,7 @@ public class InternalUsersConfigApi {
             .handlesDelete("/_searchguard/internal_users/{id}")
             .with(InternalUsersConfigApi.DeleteAction.INSTANCE, (params, body) -> new StandardRequests.IdRequest(params.get("id")))
             .handlesPut("/_searchguard/internal_users/{id}")
-            .with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(params.get("id"), InternalUser.parse(body.parseAsDocNode())))
+            .with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(params.get("id"), InternalUser.check(body.parseAsDocNode())))
             .handlesPatch("/_searchguard/internal_users/{id}")
             .with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(params.get("id"), DocPatch.parse(body)))
             .name("Search Guard Config Management API for retrieving and updating entries in the internal user database");
@@ -102,9 +104,9 @@ public class InternalUsersConfigApi {
 
         public static class Request extends Action.Request {
             private final String id;
-            private final InternalUser value;
+            private final Document<InternalUser> value;
 
-            public Request(String id, InternalUser value) {
+            public Request(String id, Document<InternalUser> value) {
                 super();
                 this.id = id;
                 this.value = value;
@@ -112,10 +114,9 @@ public class InternalUsersConfigApi {
 
             public Request(UnparsedMessage message) throws ConfigValidationException {
                 super(message);
-                ValidationErrors validationErrors = new ValidationErrors();
-                ValidatingDocNode vNode = new ValidatingDocNode(message.requiredDocNode(), validationErrors);
-                this.id = vNode.get("id").required().asString();
-                this.value = vNode.get("value").required().by(InternalUser::parse);
+                DocNode docNode = message.requiredDocNode();
+                this.id = docNode.getAsString("id");
+                this.value = Document.assertedType(docNode.getAsNode("value"), InternalUser.class);
             }
 
             @Override
@@ -127,7 +128,7 @@ public class InternalUsersConfigApi {
                 return id;
             }
 
-            public InternalUser getValue() {
+            public Document<InternalUser> getValue() {
                 return value;
             }
         }
@@ -146,8 +147,12 @@ public class InternalUsersConfigApi {
             protected CompletableFuture<StandardResponse> doExecute(PutAction.Request request) {
                 return CompletableFuture.supplyAsync(() -> {
                     try {
-                        return this.configRepository.addOrUpdate(CType.INTERNALUSERS, request.getId(), request.getValue(),
+                        InternalUser internalUser = InternalUser.parse(request.getValue().toDocNode(), configRepository.getParserContext());
+                        
+                        return this.configRepository.addOrUpdate(CType.INTERNALUSERS, request.getId(), internalUser,
                                 request.getIfMatch());
+                    } catch (ConfigValidationException e) {
+                        return new StandardResponse(400).error(e);
                     } catch (ConcurrentConfigUpdateException e) {
                         return new StandardResponse(412).error(e.getMessage());
                     } catch (ConfigUpdateException e) {

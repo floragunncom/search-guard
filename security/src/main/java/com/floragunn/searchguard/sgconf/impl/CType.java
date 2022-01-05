@@ -24,7 +24,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.floragunn.codova.validation.ValidatingFunction;
+import com.floragunn.codova.documents.Parser;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.internal_users.InternalUser;
 import com.floragunn.searchguard.configuration.variables.ConfigVar;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
@@ -60,13 +61,13 @@ public class CType<T> {
     private final int ord;
     private final Storage storage;
 
-    private final ValidatingFunction<Map<String, Object>, ?> parser;
+    private final Parser<?, ConfigurationRepository.Context> parser;
 
-    CType(String name, String uiName, int ord, Class<T> type, ValidatingFunction<Map<String, Object>, ?> parser) {
+    CType(String name, String uiName, int ord, Class<T> type, Parser<T, ConfigurationRepository.Context> parser) {
         this(name, uiName, ord, type, parser, null);
     }
 
-    CType(String name, String uiName, int ord, Class<T> type, ValidatingFunction<Map<String, Object>, ?> parser, Storage storage) {
+    CType(String name, String uiName, int ord, Class<T> type, Parser<T, ConfigurationRepository.Context> parser, Storage storage) {
         this.name = name;
         this.uiName = uiName;
         this.type = type;
@@ -146,7 +147,7 @@ public class CType<T> {
         return ordToInstanceMap.get(ord);
     }
 
-    public ValidatingFunction<Map<String, Object>, ?> getParser() {
+    public Parser<?, ConfigurationRepository.Context> getParser() {
         return parser;
     }
 

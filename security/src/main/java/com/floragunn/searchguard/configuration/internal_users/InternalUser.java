@@ -27,13 +27,14 @@ import java.util.Map;
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.RedactableDocument;
 import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.searchguard.configuration.AuthczVariableResolvers;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchsupport.util.ImmutableMap;
 
@@ -150,9 +151,9 @@ public class InternalUser implements PatchableDocument<InternalUser>, Redactable
         return attributes;
     }
 
-    public static InternalUser parse(Map<String, Object> parsedJson) throws ConfigValidationException {
+    public static InternalUser parse(Object parsedJson, Parser.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(parsedJson, validationErrors).expandVariables(AuthczVariableResolvers.get());
+        ValidatingDocNode vNode = new ValidatingDocNode(DocNode.wrap(parsedJson), validationErrors).expandVariables(context);
 
         String description = vNode.get("description").asString();
         String passwordHash = null;
@@ -178,7 +179,7 @@ public class InternalUser implements PatchableDocument<InternalUser>, Redactable
 
         attributes = attributes != null ? Collections.unmodifiableMap(new LinkedHashMap<>(attributes)) : Collections.emptyMap();
 
-        Map<String, Object> rawDocument = new LinkedHashMap<>(parsedJson);
+        Map<String, Object> rawDocument = new LinkedHashMap<>(DocNode.wrap(parsedJson));
 
         rawDocument.remove("password");
 
@@ -187,6 +188,10 @@ public class InternalUser implements PatchableDocument<InternalUser>, Redactable
         }
 
         return new InternalUser(rawDocument, description, passwordHash, reserved, hidden, backendRoles, searchGuardRoles, attributes);
+    }
+    
+    public static Document<InternalUser> check(Map<String, Object> parsedJson) throws ConfigValidationException {
+        return Document.assertedType(parsedJson, InternalUser.class);
     }
 
     private static String hash(char[] clearTextPassword) {
@@ -199,8 +204,8 @@ public class InternalUser implements PatchableDocument<InternalUser>, Redactable
     }
 
     @Override
-    public InternalUser parseI(DocNode docNode) throws ConfigValidationException {
-        return InternalUser.parse(docNode.toMap());
+    public InternalUser parseI(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        return InternalUser.parse(docNode.toMap(), context);
     }
 
 

@@ -24,7 +24,7 @@ import com.floragunn.codova.documents.UnparsedDoc;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
 
-public interface DocPatch extends Document {
+public interface DocPatch extends Document<Object> {
     DocNode apply(DocNode targetDocument);
     String getMediaType();
 

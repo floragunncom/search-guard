@@ -181,7 +181,7 @@ public class RestApi extends BaseRestHandler {
                 try {
                     boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
 
-                    UnparsedDoc<byte[]> unparsedDoc = null;
+                    UnparsedDoc<?> unparsedDoc = null;
 
                     if (restRequest.hasContent()) {
                         ContentType contentType = ContentType.parseHeader(restRequest.header("Content-Type"));
@@ -246,7 +246,7 @@ public class RestApi extends BaseRestHandler {
                 try {
                     boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
 
-                    UnparsedDoc<byte[]> unparsedDoc = null;
+                    UnparsedDoc<?> unparsedDoc = null;
 
                     if (restRequest.hasContent()) {
                         ContentType contentType = ContentType.parseHeader(

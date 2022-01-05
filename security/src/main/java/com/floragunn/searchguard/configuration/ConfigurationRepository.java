@@ -58,15 +58,19 @@ import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
 
+import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
+import com.floragunn.searchguard.configuration.variables.ConfigVarService;
+import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
@@ -114,9 +118,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public final static Map<String, ?> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap.of("encoded_config",
             ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
 
-    private final static Map<String, ?> SG_INDEX_SETTINGS = ImmutableMap.of("index.number_of_shards", 1, "index.auto_expand_replicas", "0-all");    
+    private final static Map<String, ?> SG_INDEX_SETTINGS = ImmutableMap.of("index.number_of_shards", 1, "index.auto_expand_replicas", "0-all");   
+    
+    private final VariableResolvers variableResolvers;
+    private final Context parserContext;
 
-    public ConfigurationRepository(Settings settings, Path configPath, ThreadPool threadPool, Client client, ClusterService clusterService) {
+    public ConfigurationRepository(Settings settings, Path configPath, ThreadPool threadPool, Client client, ClusterService clusterService, ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry) {
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         this.settings = settings;
         this.client = client;
@@ -126,8 +133,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.licenseChangeListener = new ArrayList<LicenseChangeListener>();
         this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.componentState.setMandatory(true);
-        this.mainConfigLoader = new ConfigurationLoader(client, settings, clusterService, componentState);
-        this.externalUseConfigLoader = new ConfigurationLoader(client, settings, null, null);
+        this.mainConfigLoader = new ConfigurationLoader(client, settings, clusterService, componentState, this);
+        this.externalUseConfigLoader = new ConfigurationLoader(client, settings, null, null, this);
+        this.variableResolvers = VariableResolvers.ALL_PRIVILEGED.with("var", (key) -> configVarService.get(key));
+        this.parserContext = new Context(variableResolvers, modulesRegistry);
 
         bgThread = new Thread(new Runnable() {
 
@@ -462,7 +471,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 throw new NoSuchConfigEntryException(configType, id);
             }
 
-            configInstance.putCEntry(id, entry.patch(patch));
+            configInstance.putCEntry(id, entry.patch(patch, parserContext));
 
             update(configType, configInstance, matchETag);
             
@@ -578,7 +587,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
 
             try {
-                SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype);
+                SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype, null);
                 configInstance.removeStatic();
 
                 String id = ctype.toLCString();
@@ -723,6 +732,29 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public String getSearchguardIndex() {
         return searchguardIndex;
     }
+
+    public Context getParserContext() {
+        return parserContext;
+    }
     
+    public static class Context implements Parser.Context {
+        private final VariableResolvers variableResolvers;
+        private final SearchGuardModulesRegistry searchGuardModulesRegistry;
+        
+        public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry) {
+            this.variableResolvers = variableResolvers;
+            this.searchGuardModulesRegistry = searchGuardModulesRegistry;
+        }
+
+        @Override
+        public VariableResolvers variableResolvers() {
+            return variableResolvers;
+        }
+        
+        public SearchGuardModulesRegistry modulesRegistry() {
+            return searchGuardModulesRegistry;
+        }
+              
+    }
   
 }

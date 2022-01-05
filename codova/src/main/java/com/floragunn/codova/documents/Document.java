@@ -17,23 +17,27 @@
 
 package com.floragunn.codova.documents;
 
-public interface Document {
+public interface Document<T> {
     Object toBasicObject();
 
     default String toString(DocType docType) {
         return DocWriter.type(docType).writeAsString(this.toBasicObject());
     }
 
+    default byte[] toBytes(DocType docType) {
+        return DocWriter.type(docType).writeAsBytes(this.toBasicObject());        
+    }
+
     default String toJsonString() {
-        return DocWriter.json().writeAsString(this.toBasicObject());
+        return toString(DocType.JSON);
     }
 
     default String toYamlString() {
-        return DocWriter.yaml().writeAsString(this.toBasicObject());
+        return toString(DocType.YAML);
     }
-
+    
     default byte[] toSmile() {
-        return DocWriter.smile().writeAsBytes(this.toBasicObject());
+        return toBytes(DocType.SMILE);
     }
 
     default DocNode toDocNode() {
@@ -45,5 +49,9 @@ public interface Document {
             return null;
         }
     }
-
+    
+    @SuppressWarnings("unchecked")
+    static <T> Document<T> assertedType(Object object, Class<T> type) {
+        return (Document<T>) DocNode.wrap(object);
+    }    
 }

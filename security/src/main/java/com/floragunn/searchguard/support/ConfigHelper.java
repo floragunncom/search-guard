@@ -46,7 +46,7 @@ public class ConfigHelper {
         
         try (Reader reader = new FileReader(filepath)) {
 
-            SgDynamicConfiguration<T> config = SgDynamicConfiguration.from(reader, cType, DocType.YAML);
+            SgDynamicConfiguration<T> config = SgDynamicConfiguration.from(reader, cType, DocType.YAML, null);
             
             String res = tc
                     .index(new IndexRequest(index).id(cType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
@@ -69,7 +69,7 @@ public class ConfigHelper {
     
     private static <T> SgDynamicConfiguration<T> fromYamlReader(Reader yamlReader, CType<T> ctype, int version) throws IOException, ConfigValidationException {
         try {
-            return SgDynamicConfiguration.from(yamlReader, ctype, DocType.YAML);
+            return SgDynamicConfiguration.from(yamlReader, ctype, DocType.YAML, null);
         } finally {
             if(yamlReader != null) {
                 yamlReader.close();

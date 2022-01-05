@@ -15,19 +15,17 @@
  *
  */
 
-package com.floragunn.codova.documents.patch;
+package com.floragunn.codova.documents;
 
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.VariableResolvers;
 
-public interface PatchableDocument<T> extends Document<T> {
-    default T patch(DocPatch patch, Parser.Context context) throws ConfigValidationException {
-        DocNode patchedDocNode = patch.apply(this.toDocNode());
-        
-        return parseI(patchedDocNode, context);
+@FunctionalInterface
+public interface Parser<T, C extends Parser.Context> {
+    T parse(Object basicObject, C context) throws ConfigValidationException;
+
+    interface Context {
+        VariableResolvers variableResolvers();
     }
-    
-    T parseI(DocNode docNode, Parser.Context context) throws ConfigValidationException;
+
 }

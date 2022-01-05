@@ -33,7 +33,7 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 
-public class ValidationErrors implements Document {
+public class ValidationErrors implements Document<ValidationErrors> {
 
     private Multimap<String, ValidationError> attributeToErrorMap;
     private ValidationErrors parent;
