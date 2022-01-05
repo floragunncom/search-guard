@@ -42,10 +42,10 @@ import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.UnparsedDoc;
+import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchsupport.util.ImmutableMap;
@@ -69,20 +69,20 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         return responseParser.apply(message);
     }
 
-    static UnparsedDoc<?> toUnparsedDoc(StreamInput in) throws IOException {
+    static UnparsedDocument<?> toUnparsedDoc(StreamInput in) throws IOException {
         byte messageType = in.readByte();
 
         if (messageType == MessageType.EMPTY) {
             return null;
         } else if (messageType == MessageType.SMILE) {
             byte[] smile = in.readByteArray();
-            return UnparsedDoc.from(smile, DocType.SMILE);
+            return UnparsedDocument.from(smile, Format.SMILE);
         } else if (messageType == MessageType.JSON_STRING) {
             String json = in.readString();
-            return UnparsedDoc.from(json, DocType.JSON);
+            return UnparsedDocument.from(json, Format.JSON);
         } else if (messageType == MessageType.YAML_STRING) {
             String yaml = in.readString();
-            return UnparsedDoc.from(yaml, DocType.YAML);
+            return UnparsedDocument.from(yaml, Format.YAML);
         } else {
             throw new IllegalArgumentException("Unknown messageType " + messageType);
         }
@@ -300,7 +300,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
                 metaData = Collections.emptyMap();
             }
 
-            UnparsedDoc<?> unparsedDoc = toUnparsedDoc(in);
+            UnparsedDocument<?> unparsedDoc = toUnparsedDoc(in);
 
             UnparsedMessage message = new UnparsedMessage(unparsedDoc, DocNode.wrap(metaData), majorVersion, minorVersion);
 
@@ -316,30 +316,30 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
     }
 
     public static class UnparsedMessage {
-        private final UnparsedDoc<?> unparsedDoc;
+        private final UnparsedDocument<?> unparsedDoc;
         private final DocNode metaDataDocNode;
         private final byte majorVersion;
         private final byte minorVersion;
 
-        UnparsedMessage(UnparsedDoc<?> unparsedDoc, DocNode metaDataDocNode) {
+        UnparsedMessage(UnparsedDocument<?> unparsedDoc, DocNode metaDataDocNode) {
             this.unparsedDoc = unparsedDoc;
             this.metaDataDocNode = metaDataDocNode;
             this.majorVersion = 0;
             this.minorVersion = 0;
         }
 
-        UnparsedMessage(UnparsedDoc<?> unparsedDoc, DocNode metaDataDocNode, byte majorVersion, byte minorVersion) {
+        UnparsedMessage(UnparsedDocument<?> unparsedDoc, DocNode metaDataDocNode, byte majorVersion, byte minorVersion) {
             this.unparsedDoc = unparsedDoc;
             this.metaDataDocNode = metaDataDocNode;
             this.majorVersion = majorVersion;
             this.minorVersion = minorVersion;
         }
 
-        public UnparsedDoc<?> unparsedDoc() {
+        public UnparsedDocument<?> unparsedDoc() {
             return unparsedDoc;
         }
 
-        public UnparsedDoc<?> requiredUnparsedDoc() throws ConfigValidationException {
+        public UnparsedDocument<?> requiredUnparsedDoc() throws ConfigValidationException {
             if (unparsedDoc != null) {
                 return unparsedDoc;
             } else {

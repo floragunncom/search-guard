@@ -43,7 +43,7 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 
-import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -145,16 +145,16 @@ public class EncryptionKeys implements ComponentStateProvider {
         }
     }
 
-    Object getDecryptedData(Map<String, Object> source) throws EncryptionException, DocParseException {
+    Object getDecryptedData(Map<String, Object> source) throws EncryptionException, DocumentParseException {
         Map<?, ?> encrypted = (Map<?, ?>) source.get("encrypted");
         return getDecryptedData((String) encrypted.get("value"), (String) encrypted.get("key"), (String) encrypted.get("iv"));
     }
 
-    Object getDecryptedData(ConfigVar configVar) throws DocParseException, EncryptionException {
+    Object getDecryptedData(ConfigVar configVar) throws DocumentParseException, EncryptionException {
         return getDecryptedData(configVar.getEncValue(), configVar.getEncKey(), configVar.getEncIv());
     }
 
-    Object getDecryptedData(String value, String key, String iv) throws EncryptionException, DocParseException {
+    Object getDecryptedData(String value, String key, String iv) throws EncryptionException, DocumentParseException {
         byte[] encryptedBytes = BaseEncoding.base64().decode(value);
 
         try {

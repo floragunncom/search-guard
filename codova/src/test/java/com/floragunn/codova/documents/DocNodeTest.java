@@ -54,7 +54,7 @@ public class DocNodeTest {
                 + "      - 300\n"//
                 + "e.ff.fff: 99";
 
-        DocNode docNode = DocNode.parse(DocType.YAML).from(doc);
+        DocNode docNode = DocNode.parse(Format.YAML).from(doc);
 
         Assert.assertNull(docNode.get("x"));
         Assert.assertTrue(docNode.getAsNode("x").isNull());
@@ -100,7 +100,7 @@ public class DocNodeTest {
                 + "e.ee.eec: 100\n"//
                 + "e.ff.fff: 99";
 
-        DocNode docNode = DocNode.parse(DocType.YAML).from(doc);
+        DocNode docNode = DocNode.parse(Format.YAML).from(doc);
 
         Assert.assertEquals(44, docNode.get("e", "ee", "eea"));
         Assert.assertEquals(99, docNode.get("e", "ff", "fff"));
@@ -108,9 +108,9 @@ public class DocNodeTest {
     }
 
     @Test
-    public void nullTest() throws DocParseException {
+    public void nullTest() throws DocumentParseException {
         String doc = "a: null";
-        DocNode docNode = DocNode.parse(DocType.YAML).from(doc);
+        DocNode docNode = DocNode.parse(Format.YAML).from(doc);
 
         Assert.assertNull(docNode.get("a"));
         Assert.assertTrue(docNode.getAsNode("a").isNull());
@@ -127,7 +127,7 @@ public class DocNodeTest {
     }
 
     @Test
-    public void without() throws DocParseException {
+    public void without() throws DocumentParseException {
         String doc = "" //
                 + "a: 42\n"//
                 + "b: x\n"//
@@ -136,7 +136,7 @@ public class DocNodeTest {
                 + "  - 2\n"//
                 + "  - 3\n";
 
-        DocNode docNode = DocNode.parse(DocType.YAML).from(doc);
+        DocNode docNode = DocNode.parse(Format.YAML).from(doc);
 
         Assert.assertEquals(ImmutableMap.of("a", 42, "c", Arrays.asList(1, 2, 3)), docNode.without("b").toMap());
     }
@@ -144,7 +144,7 @@ public class DocNodeTest {
     @Test
     public void parseEmptyDocument() throws Exception {
         try {
-            DocNode docNode = DocNode.parse(DocType.JSON).from("");
+            DocNode docNode = DocNode.parse(Format.JSON).from("");
             Assert.fail(docNode.toString());
         } catch (ConfigValidationException e) {
             Assert.assertEquals("The document is empty", e.getMessage());
@@ -154,7 +154,7 @@ public class DocNodeTest {
     @Test
     public void parseWhitespaceDocument() throws Exception {
         try {
-            DocNode docNode = DocNode.parse(DocType.JSON).from("   ");
+            DocNode docNode = DocNode.parse(Format.JSON).from("   ");
             Assert.fail(docNode.toString());
         } catch (ConfigValidationException e) {
             Assert.assertEquals("The document is empty", e.getMessage());

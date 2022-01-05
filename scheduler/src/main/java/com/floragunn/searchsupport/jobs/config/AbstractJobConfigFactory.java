@@ -13,7 +13,7 @@ import org.quartz.JobKey;
 import org.quartz.Trigger;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
@@ -39,7 +39,7 @@ public abstract class AbstractJobConfigFactory<JobConfigType extends JobConfig> 
 
     @Override
     public JobConfigType createFromBytes(String id, BytesReference source, long version) throws ConfigValidationException {
-        DocNode jsonNode = DocNode.parse(DocType.JSON).from(source.utf8ToString());
+        DocNode jsonNode = DocNode.parse(Format.JSON).from(source.utf8ToString());
 
         return createFromJsonNode(id, jsonNode, version);
     }

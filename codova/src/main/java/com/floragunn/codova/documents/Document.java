@@ -20,24 +20,24 @@ package com.floragunn.codova.documents;
 public interface Document<T> {
     Object toBasicObject();
 
-    default String toString(DocType docType) {
-        return DocWriter.type(docType).writeAsString(this.toBasicObject());
+    default String toString(Format format) {
+        return DocWriter.format(format).writeAsString(this.toBasicObject());
     }
 
-    default byte[] toBytes(DocType docType) {
-        return DocWriter.type(docType).writeAsBytes(this.toBasicObject());        
+    default byte[] toBytes(Format format) {
+        return DocWriter.format(format).writeAsBytes(this.toBasicObject());        
     }
 
     default String toJsonString() {
-        return toString(DocType.JSON);
+        return toString(Format.JSON);
     }
 
     default String toYamlString() {
-        return toString(DocType.YAML);
+        return toString(Format.YAML);
     }
     
     default byte[] toSmile() {
-        return toBytes(DocType.SMILE);
+        return toBytes(Format.SMILE);
     }
 
     default DocNode toDocNode() {

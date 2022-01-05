@@ -13,7 +13,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -144,7 +144,7 @@ public class SeverityMappingTest {
 
         String configJson = "{\"value\": \"data.x\", \"mapping\": [{\"threshold\": 123456789999, \"level\": \"info\"}, {\"threshold\": 223456789999, \"level\": \"error\"}]}";
 
-        DocNode config = DocNode.parse(DocType.JSON).from(configJson);
+        DocNode config = DocNode.parse(Format.JSON).from(configJson);
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
 
@@ -188,7 +188,7 @@ public class SeverityMappingTest {
                 + "        \"level\": \"critical\",\n" + "        \"threshold\": 400\n" + "      }\n" + "    ],\n" + "    \"value\": \"data.a\",\n"
                 + "    \"order\": \"ascending\"\n" + "  }";
 
-        DocNode config = DocNode.parse(DocType.JSON).from(configJson);
+        DocNode config = DocNode.parse(Format.JSON).from(configJson);
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
 

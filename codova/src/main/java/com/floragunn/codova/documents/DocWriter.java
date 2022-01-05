@@ -57,20 +57,20 @@ import com.fasterxml.jackson.core.JsonToken;
  */
 public class DocWriter {
 
-    public static DocWriter type(DocType docType) {
-        return new DocWriter(docType.getJsonFactory());
+    public static DocWriter format(Format format) {
+        return new DocWriter(format.getJsonFactory());
     }
 
     public static DocWriter json() {
-        return type(DocType.JSON);
+        return format(Format.JSON);
     }
 
     public static DocWriter yaml() {
-        return type(DocType.YAML);
+        return format(Format.YAML);
     }
 
     public static DocWriter smile() {
-        return type(DocType.SMILE);
+        return format(Format.SMILE);
     }
 
     private JsonFactory jsonFactory;
@@ -152,7 +152,7 @@ public class DocWriter {
             throw new JsonGenerationException("Max JSON depth exceeded", generator);
         }
 
-        if (object instanceof Document && !(object instanceof UnparsedDoc)) {
+        if (object instanceof Document && !(object instanceof UnparsedDocument)) {
             object = ((Document<?>) object).toBasicObject();
         }
 
@@ -208,8 +208,8 @@ public class DocWriter {
             generator.writeString(dateTimeFormatter.format(((Date) object).toInstant()));
         } else if (object instanceof TemporalAccessor) {
             generator.writeString(dateTimeFormatter.format((TemporalAccessor) object));
-        } else if (object instanceof UnparsedDoc) {
-            copy(((UnparsedDoc<?>) object).createParser(), generator);
+        } else if (object instanceof UnparsedDocument) {
+            copy(((UnparsedDocument<?>) object).createParser(), generator);
         } else if (object == null) {
             generator.writeNull();
         } else {

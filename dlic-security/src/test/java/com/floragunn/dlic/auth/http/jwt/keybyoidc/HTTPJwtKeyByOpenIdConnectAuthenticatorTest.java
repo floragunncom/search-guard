@@ -45,7 +45,7 @@ import org.junit.Test;
 
 import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
-import com.floragunn.codova.documents.DocParseException;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -96,7 +96,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    public void proxyTest() throws UnknownHostException, IOException, DocParseException, UnexpectedDocumentStructureException {
+    public void proxyTest() throws UnknownHostException, IOException, DocumentParseException, UnexpectedDocumentStructureException {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL)
                 .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"))) {
             Settings settings = Settings.builder().put("openid_connect_url", proxyOnlyMockIdpServer.getDiscoverUri()).put("proxy.host", "127.0.0.8")

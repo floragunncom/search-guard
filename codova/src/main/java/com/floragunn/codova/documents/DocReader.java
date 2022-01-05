@@ -50,35 +50,35 @@ import com.floragunn.codova.validation.errors.ValidationError;
  */
 public class DocReader {
 
-    public static DocReaderBuilder type(DocType docType) {
-        return new DocReaderBuilder(docType, docType.getJsonFactory());
+    public static DocReaderBuilder format(Format format) {
+        return new DocReaderBuilder(format, format.getJsonFactory());
     }
 
     public static DocReaderBuilder json() {
-        return type(DocType.JSON);
+        return format(Format.JSON);
     }
 
     public static DocReaderBuilder yaml() {
-        return type(DocType.YAML);
+        return format(Format.YAML);
     }
 
     public static DocReaderBuilder smile() {
-        return type(DocType.SMILE);
+        return format(Format.SMILE);
     }
 
     private JsonParser parser;
-    private DocType docType;
+    private Format format;
     private Deque<Object> nodeStack = new ArrayDeque<>();
     private Object currentNode;
     private Object topNode;
     private String currentAttributeName = null;
 
-    public DocReader(DocType docType, JsonParser parser) {
-        this.docType = docType;
+    public DocReader(Format format, JsonParser parser) {
+        this.format = format;
         this.parser = parser;
     }
 
-    public Object read() throws IOException, DocParseException {
+    public Object read() throws IOException, DocumentParseException {
 
         int tokenCount = 0;
 
@@ -157,12 +157,12 @@ public class DocReader {
             parser.clearCurrentToken();
 
             if (tokenCount == 0) {
-                throw new DocParseException(new ValidationError(null, "The document is empty").expected(docType.getName() + " document"));
+                throw new DocumentParseException(new ValidationError(null, "The document is empty").expected(format.getName() + " document"));
             }
 
             return topNode;
         } catch (JsonProcessingException e) {
-            throw new DocParseException(e, docType);
+            throw new DocumentParseException(e, format);
         }
     }
 
@@ -196,28 +196,28 @@ public class DocReader {
 
     public static class DocReaderBuilder {
         private JsonFactory jsonFactory;
-        private DocType docType;
+        private Format format;
 
-        DocReaderBuilder(DocType docType, JsonFactory jsonFactory) {
-            this.docType = docType;
+        DocReaderBuilder(Format format, JsonFactory jsonFactory) {
+            this.format = format;
             this.jsonFactory = jsonFactory;
         }
 
-        public Object read(Reader in) throws DocParseException, IOException {
+        public Object read(Reader in) throws DocumentParseException, IOException {
             try (JsonParser parser = jsonFactory.createParser(in)) {
-                return new DocReader(docType, parser).read();
+                return new DocReader(format, parser).read();
             }
         }
 
-        public Object read(String string) throws DocParseException {
+        public Object read(String string) throws DocumentParseException {
             try (JsonParser parser = jsonFactory.createParser(string)) {
-                return new DocReader(docType, parser).read();
+                return new DocReader(format, parser).read();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
 
-        public Object read(byte[] bytes) throws DocParseException {
+        public Object read(byte[] bytes) throws DocumentParseException {
             try {
                 return read(new ByteArrayInputStream(bytes));
             } catch (IOException e) {
@@ -225,34 +225,34 @@ public class DocReader {
             }
         }
 
-        public Object read(File file) throws DocParseException, FileNotFoundException, IOException {
+        public Object read(File file) throws DocumentParseException, FileNotFoundException, IOException {
             return read(new FileInputStream(file));
         }
 
-        public Object read(InputStream in) throws DocParseException, IOException {
+        public Object read(InputStream in) throws DocumentParseException, IOException {
             try (JsonParser parser = jsonFactory.createParser(in)) {
-                return new DocReader(docType, parser).read();
+                return new DocReader(format, parser).read();
             }
         }
 
-        public Map<String, Object> readObject(Reader in) throws DocParseException, IOException, UnexpectedDocumentStructureException {
+        public Map<String, Object> readObject(Reader in) throws DocumentParseException, IOException, UnexpectedDocumentStructureException {
             return toJsonObject(read(in));
         }
 
-        public Map<String, Object> readObject(InputStream in) throws DocParseException, IOException, UnexpectedDocumentStructureException {
+        public Map<String, Object> readObject(InputStream in) throws DocumentParseException, IOException, UnexpectedDocumentStructureException {
             return toJsonObject(read(in));
         }
 
-        public Map<String, Object> readObject(String string) throws DocParseException, UnexpectedDocumentStructureException {
+        public Map<String, Object> readObject(String string) throws DocumentParseException, UnexpectedDocumentStructureException {
             return toJsonObject(read(string));
         }
 
-        public Map<String, Object> readObject(byte[] bytes) throws DocParseException, UnexpectedDocumentStructureException {
+        public Map<String, Object> readObject(byte[] bytes) throws DocumentParseException, UnexpectedDocumentStructureException {
             return toJsonObject(read(bytes));
         }
 
         public Map<String, Object> readObject(File file)
-                throws UnexpectedDocumentStructureException, DocParseException, FileNotFoundException, IOException {
+                throws UnexpectedDocumentStructureException, DocumentParseException, FileNotFoundException, IOException {
             return toJsonObject(read(new FileInputStream(file)));
         }
 

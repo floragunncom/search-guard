@@ -26,7 +26,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.UnparsedDoc;
+import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -123,7 +123,7 @@ public class ConfigVarApi {
                 this.encrypt = docNode.getBoolean("encrypt");
             }
 
-            public Request(String id, UnparsedDoc<?> doc) throws ConfigValidationException {
+            public Request(String id, UnparsedDocument<?> doc) throws ConfigValidationException {
                 ValidationErrors validationErrors = new ValidationErrors();
                 ValidatingDocNode vNode = new ValidatingDocNode(doc.parseAsDocNode(), validationErrors);
                 this.id = id;

@@ -28,7 +28,7 @@ import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -542,7 +542,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     }
 
     public static RequestedPrivileges parseYaml(String yaml) throws ConfigValidationException {
-        return parse(DocNode.parse(DocType.YAML).from(yaml));
+        return parse(DocNode.parse(Format.YAML).from(yaml));
     }
 
     @Override

@@ -32,7 +32,7 @@ import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -46,7 +46,7 @@ public class ConfigHelper {
         
         try (Reader reader = new FileReader(filepath)) {
 
-            SgDynamicConfiguration<T> config = SgDynamicConfiguration.from(reader, cType, DocType.YAML, null);
+            SgDynamicConfiguration<T> config = SgDynamicConfiguration.from(reader, cType, Format.YAML, null);
             
             String res = tc
                     .index(new IndexRequest(index).id(cType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
@@ -69,7 +69,7 @@ public class ConfigHelper {
     
     private static <T> SgDynamicConfiguration<T> fromYamlReader(Reader yamlReader, CType<T> ctype, int version) throws IOException, ConfigValidationException {
         try {
-            return SgDynamicConfiguration.from(yamlReader, ctype, DocType.YAML, null);
+            return SgDynamicConfiguration.from(yamlReader, ctype, Format.YAML, null);
         } finally {
             if(yamlReader != null) {
                 yamlReader.close();

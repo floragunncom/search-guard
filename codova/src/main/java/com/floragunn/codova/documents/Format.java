@@ -33,18 +33,18 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Charsets;
 
-public class DocType {
-    private static List<DocType> registeredDocTypes = new ArrayList<>();
-    private static Map<String, DocType> registeredDocTypesByMediaType = new HashMap<>();
+public class Format {
+    private static List<Format> registeredDocTypes = new ArrayList<>();
+    private static Map<String, Format> registeredDocTypesByMediaType = new HashMap<>();
 
-    public static DocType JSON = new DocType("JSON", Encoding.TEXT, new JsonFactory(), "json", "application/json", "text/x-json", "text/json");
-    public static DocType YAML = new DocType("YAML", Encoding.TEXT, new YAMLFactory(), "ya?ml", "application/x-yaml", "application/yaml", "text/yaml",
+    public static Format JSON = new Format("JSON", Encoding.TEXT, new JsonFactory(), "json", "application/json", "text/x-json", "text/json");
+    public static Format YAML = new Format("YAML", Encoding.TEXT, new YAMLFactory(), "ya?ml", "application/x-yaml", "application/yaml", "text/yaml",
             "text/x-yaml", "text/vnd.yaml");
-    public static DocType SMILE = new DocType("SMILE", Encoding.BINARY, "com.fasterxml.jackson.dataformat.smile.SmileFactory", "sml",
+    public static Format SMILE = new Format("SMILE", Encoding.BINARY, "com.fasterxml.jackson.dataformat.smile.SmileFactory", "sml",
             "application/x-jackson-smile", "application/smile");
 
-    public static DocType getByContentType(String contentType) throws UnknownDocTypeException {
-        DocType result = peekByContentType(contentType);
+    public static Format getByContentType(String contentType) throws UnknownDocTypeException {
+        Format result = peekByContentType(contentType);
 
         if (result != null) {
             return result;
@@ -53,14 +53,14 @@ public class DocType {
         }
     }
 
-    public static DocType peekByContentType(String contentType) {
+    public static Format peekByContentType(String contentType) {
         int paramSeparator = contentType.indexOf(';');
 
         if (paramSeparator != -1) {
             contentType = contentType.substring(0, paramSeparator).trim();
         }
 
-        DocType result = registeredDocTypesByMediaType.get(contentType);
+        Format result = registeredDocTypesByMediaType.get(contentType);
 
         if (result != null) {
             return result;
@@ -69,24 +69,24 @@ public class DocType {
         }
     }
 
-    public static DocType getByFileName(String fileName, DocType fallbackDocType) {
-        for (DocType docType : registeredDocTypes) {
-            if (docType.fileNamePattern == null) {
+    public static Format getByFileName(String fileName, Format fallbackDocType) {
+        for (Format format : registeredDocTypes) {
+            if (format.fileNamePattern == null) {
                 continue;
             }
 
-            Matcher matcher = docType.fileNamePattern.matcher(fileName);
+            Matcher matcher = format.fileNamePattern.matcher(fileName);
 
             if (matcher.matches()) {
-                return docType;
+                return format;
             }
         }
 
         return fallbackDocType;
     }
 
-    public static DocType getByMediaType(String mediaType) throws UnknownDocTypeException {
-        DocType result = registeredDocTypesByMediaType.get(mediaType);
+    public static Format getByMediaType(String mediaType) throws UnknownDocTypeException {
+        Format result = registeredDocTypesByMediaType.get(mediaType);
 
         if (result != null) {
             return result;
@@ -109,12 +109,12 @@ public class DocType {
         throw new UnknownDocTypeException(mediaType);
     }
 
-    private static void register(DocType docType) {
-        registeredDocTypes.add(docType);
-        registeredDocTypesByMediaType.put(docType.getMediaType().toLowerCase(), docType);
+    private static void register(Format format) {
+        registeredDocTypes.add(format);
+        registeredDocTypesByMediaType.put(format.getMediaType().toLowerCase(), format);
 
-        for (String alias : docType.mediaTypeAliases) {
-            registeredDocTypesByMediaType.put(alias.toLowerCase(), docType);
+        for (String alias : format.mediaTypeAliases) {
+            registeredDocTypesByMediaType.put(alias.toLowerCase(), format);
         }
     }
 
@@ -128,7 +128,7 @@ public class DocType {
     private final Encoding encoding;
     private final Charset defaultCharset;
 
-    public DocType(String name, Encoding encoding, JsonFactory jsonFactory, String fileNameSuffixPattern, String mediaType,
+    public Format(String name, Encoding encoding, JsonFactory jsonFactory, String fileNameSuffixPattern, String mediaType,
             String... mediaTypeAliases) {
         this.name = name;
         this.encoding = encoding;
@@ -144,7 +144,7 @@ public class DocType {
         register(this);
     }
 
-    public DocType(String name, Encoding encoding, String jsonFactoryClass, String fileNameSuffixPattern, String mediaType,
+    public Format(String name, Encoding encoding, String jsonFactoryClass, String fileNameSuffixPattern, String mediaType,
             String... mediaTypeAliases) {
         JsonFactory jsonFactory;
         Exception jsonFactoryUnavailabilityReason;

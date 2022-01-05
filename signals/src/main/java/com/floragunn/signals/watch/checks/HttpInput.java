@@ -35,7 +35,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -78,7 +78,7 @@ public class HttpInput extends AbstractInput {
             this.request.checkHttpResponse(httpRequest, response);
 
             
-            DocType docType = DocType.peekByContentType(getContentType(response));
+            Format docType = Format.peekByContentType(getContentType(response));
 
             if (docType == null) {
                 // just treat the response as plain text
@@ -92,7 +92,7 @@ public class HttpInput extends AbstractInput {
                     throw new CheckExecutionException(this, "Error while decoding HTTP response", e);
                 }
             } else {
-                setResult(ctx, DocReader.type(docType).read(response.getEntity().getContent()));
+                setResult(ctx, DocReader.format(docType).read(response.getEntity().getContent()));
             }
 
             return true;

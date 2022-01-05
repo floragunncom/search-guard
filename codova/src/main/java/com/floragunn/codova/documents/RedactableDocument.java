@@ -20,8 +20,8 @@ package com.floragunn.codova.documents;
 public interface RedactableDocument {
     Object toRedactedBasicObject();
 
-    default String toRedactedString(DocType docType) {
-        return DocWriter.type(docType).writeAsString(this.toRedactedBasicObject());
+    default String toRedactedString(Format format) {
+        return DocWriter.format(format).writeAsString(this.toRedactedBasicObject());
     }
 
     default String toRedactedJsonString() {

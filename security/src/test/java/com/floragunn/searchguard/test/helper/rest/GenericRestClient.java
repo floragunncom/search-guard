@@ -61,8 +61,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.documents.ContentType;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocParseException;
-import com.floragunn.codova.documents.DocType.UnknownDocTypeException;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format.UnknownDocTypeException;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.searchguard.DefaultObjectMapper;
@@ -360,7 +360,7 @@ public class GenericRestClient implements AutoCloseable {
             return body;
         }
 
-        public DocNode getBodyAsDocNode() throws DocParseException, UnknownDocTypeException {
+        public DocNode getBodyAsDocNode() throws DocumentParseException, UnknownDocTypeException {
             return DocNode.parse(ContentType.parseHeader(getContentType())).from(body);
         }
 

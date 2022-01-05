@@ -9,28 +9,28 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
 
-public class DocParseException extends ConfigValidationException {
+public class DocumentParseException extends ConfigValidationException {
 
     private static final long serialVersionUID = 7108776044115873652L;
 
-    public DocParseException(ValidationError validationError) {
+    public DocumentParseException(ValidationError validationError) {
         super(validationError);
     }
     
-    public DocParseException(JsonProcessingException jsonProcessingException, DocType docType) {
-        this(new DocParseError(null, jsonProcessingException, docType));
+    public DocumentParseException(JsonProcessingException jsonProcessingException, Format format) {
+        this(new DocParseError(null, jsonProcessingException, format));
     }
     
-    public DocParseException(String attribute, JsonProcessingException jsonProcessingException, DocType docType) {
-        this(new DocParseError(attribute, jsonProcessingException, docType));
+    public DocumentParseException(String attribute, JsonProcessingException jsonProcessingException, Format format) {
+        this(new DocParseError(attribute, jsonProcessingException, format));
     }
 
     public static class DocParseError extends ValidationError {
         private JsonLocation jsonLocation;
         private String context;
 
-        public DocParseError(String attribute, JsonProcessingException jsonProcessingException, DocType docType) {
-            super(attribute, "Invalid " + docType.getName() + " document: " + jsonProcessingException.getOriginalMessage());
+        public DocParseError(String attribute, JsonProcessingException jsonProcessingException, Format format) {
+            super(attribute, "Invalid " + format.getName() + " document: " + jsonProcessingException.getOriginalMessage());
             cause(jsonProcessingException);
             this.jsonLocation = jsonProcessingException.getLocation();
 

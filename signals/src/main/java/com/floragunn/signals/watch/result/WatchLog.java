@@ -34,8 +34,8 @@ import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocParseException;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 
@@ -174,8 +174,8 @@ public class WatchLog implements ToXContentObject {
 
     public static WatchLog parse(String id, String json) throws ParseException {
         try {
-            return parse(id, DocNode.parse(DocType.JSON).from(json));
-        } catch (DocParseException e) {
+            return parse(id, DocNode.parse(Format.JSON).from(json));
+        } catch (DocumentParseException e) {
             throw new ParseException(e.getMessage(), -1);
         }
     }

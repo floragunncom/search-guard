@@ -34,7 +34,7 @@ import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -217,7 +217,7 @@ public class TlsConfig implements ToXContentObject {
     }
 
     public static TlsConfig parseJson(String json) throws ConfigValidationException {
-        return create(DocNode.parse(DocType.JSON).from(json));
+        return create(DocNode.parse(Format.JSON).from(json));
     }
 
     private static class OverlyTrustfulSSLContextBuilder extends SSLContextBuilder {

@@ -17,7 +17,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.ScriptService;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocType;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -161,7 +161,7 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
                 return new RequestBody();
             }
 
-            DocNode rootNode = DocNode.parse(DocType.JSON).from(requestBody);
+            DocNode rootNode = DocNode.parse(Format.JSON).from(requestBody);
             RequestBody result = new RequestBody();
 
             ValidationErrors validationErrors = new ValidationErrors();

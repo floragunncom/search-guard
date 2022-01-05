@@ -61,7 +61,7 @@ public class BasicJsonPathDefaultConfiguration implements com.jayway.jsonpath.Co
         public Object parse(InputStream jsonStream, String charset) throws InvalidJsonException {
             try {
                 return DocReader.json().read(new InputStreamReader(jsonStream, charset));
-            } catch (DocParseException | IOException e) {
+            } catch (DocumentParseException | IOException e) {
                 throw new InvalidJsonException(e);
             }
         }
@@ -70,7 +70,7 @@ public class BasicJsonPathDefaultConfiguration implements com.jayway.jsonpath.Co
         public Object parse(String json) throws InvalidJsonException {
             try {
                 return DocReader.json().read(json);
-            } catch (DocParseException e) {
+            } catch (DocumentParseException e) {
                 throw new InvalidJsonException(e);
             }
         }

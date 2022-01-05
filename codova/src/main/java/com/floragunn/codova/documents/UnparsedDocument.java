@@ -25,62 +25,62 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 
-public abstract class UnparsedDoc<T> implements Document<T> {
+public abstract class UnparsedDocument<T> implements Document<T> {
 
-    public static UnparsedDoc<?> from(String source, DocType docType) {
-        return new StringDoc(source, docType);
+    public static UnparsedDocument<?> from(String source, Format format) {
+        return new StringDoc(source, format);
     }
     
-    public static UnparsedDoc<?> from(String source, ContentType contentType) {
+    public static UnparsedDocument<?> from(String source, ContentType contentType) {
         return new StringDoc(source, contentType);
     }
 
-    public static UnparsedDoc<?> from(byte[] source, ContentType contentType) {
+    public static UnparsedDocument<?> from(byte[] source, ContentType contentType) {
         return new BytesDoc(source, contentType);
     }
 
-    public static UnparsedDoc<?> from(byte[] source, DocType docType, Charset charset) {
-        return new BytesDoc(source, docType, charset);
+    public static UnparsedDocument<?> from(byte[] source, Format format, Charset charset) {
+        return new BytesDoc(source, format, charset);
     }
 
-    public static UnparsedDoc<?> from(byte[] source, DocType docType) {
-        return new BytesDoc(source, docType, null);
+    public static UnparsedDocument<?> from(byte[] source, Format format) {
+        return new BytesDoc(source, format, null);
     }
 
-    public static UnparsedDoc<?> fromJson(String json) {
-        return new StringDoc(json, DocType.JSON);
+    public static UnparsedDocument<?> fromJson(String json) {
+        return new StringDoc(json, Format.JSON);
     }
 
-    protected final DocType docType;
+    protected final Format format;
     protected final ContentType contentType;
 
-    private UnparsedDoc(DocType docType, ContentType contentType) {
-        this.docType = docType;
+    private UnparsedDocument(Format format, ContentType contentType) {
+        this.format = format;
         this.contentType = contentType;
     }
     
-    private UnparsedDoc(DocType docType) {
-        this.docType = docType;
-        this.contentType = docType.getContentType();
+    private UnparsedDocument(Format format) {
+        this.format = format;
+        this.contentType = format.getContentType();
     }
     
-    private UnparsedDoc(ContentType contentType) {
-        this.docType = contentType.getDocType();
+    private UnparsedDocument(ContentType contentType) {
+        this.format = contentType.getFormat();
         this.contentType = contentType;
     }
 
-    public abstract Map<String, Object> parseAsMap() throws DocParseException, UnexpectedDocumentStructureException;
+    public abstract Map<String, Object> parseAsMap() throws DocumentParseException, UnexpectedDocumentStructureException;
 
-    public abstract DocNode parseAsDocNode() throws DocParseException;
+    public abstract DocNode parseAsDocNode() throws DocumentParseException;
 
-    public abstract Object parse() throws DocParseException;
+    public abstract Object parse() throws DocumentParseException;
 
     public abstract String getSourceAsString();
 
     public abstract JsonParser createParser() throws JsonParseException, IOException;
 
-    public DocType getDocType() {
-        return docType;
+    public Format getFormat() {
+        return format;
     }
     
     public ContentType getContentType() {
@@ -96,42 +96,42 @@ public abstract class UnparsedDoc<T> implements Document<T> {
         return this;
     }
 
-    public static class StringDoc extends UnparsedDoc<Object> {
+    public static class StringDoc extends UnparsedDocument<Object> {
         private final String source;
 
-        public StringDoc(String source, DocType docType) {
-            super(docType);
+        public StringDoc(String source, Format format) {
+            super(format);
             this.source = source;
         }
         
-        public StringDoc(String source, ContentType docType) {
-            super(docType);
+        public StringDoc(String source, ContentType format) {
+            super(format);
             this.source = source;
         }
 
-        public Map<String, Object> parseAsMap() throws DocParseException, UnexpectedDocumentStructureException {
-            return DocReader.type(docType).readObject(source);
+        public Map<String, Object> parseAsMap() throws DocumentParseException, UnexpectedDocumentStructureException {
+            return DocReader.format(format).readObject(source);
         }
 
-        public DocNode parseAsDocNode() throws DocParseException {
-            return DocNode.parse(docType).from(source);
+        public DocNode parseAsDocNode() throws DocumentParseException {
+            return DocNode.parse(format).from(source);
         }
 
-        public Object parse() throws DocParseException {
-            return DocReader.type(docType).read(source);
+        public Object parse() throws DocumentParseException {
+            return DocReader.format(format).read(source);
         }
 
         public String getSource() {
             return source;
         }
 
-        public DocType getDocType() {
-            return docType;
+        public Format getFormat() {
+            return format;
         }
 
         @Override
         public String toString() {
-            return docType.getMediaType() + ":\n" + source;
+            return format.getMediaType() + ":\n" + source;
         }
 
         @Override
@@ -141,20 +141,20 @@ public abstract class UnparsedDoc<T> implements Document<T> {
 
         @Override
         public JsonParser createParser() throws JsonParseException, IOException {
-            return docType.getJsonFactory().createParser(source);
+            return format.getJsonFactory().createParser(source);
         }
 
         @Override
-        public String toString(DocType docType) {
-            if (docType.equals(this.docType)) {
+        public String toString(Format format) {
+            if (format.equals(this.format)) {
                 return source;
             } else {
-                return super.toString(docType);                
+                return super.toString(format);                
             }
         }
     }
 
-    public static class BytesDoc extends UnparsedDoc<Object> {
+    public static class BytesDoc extends UnparsedDocument<Object> {
         private final byte[] source;
         private String sourceAsString;
         private final Charset charset;
@@ -165,38 +165,38 @@ public abstract class UnparsedDoc<T> implements Document<T> {
             this.charset = contentType.getCharset();
         }
         
-        BytesDoc(byte[] source, DocType docType, Charset charset) {
-            super(docType);
+        BytesDoc(byte[] source, Format format, Charset charset) {
+            super(format);
             this.source = source;
             this.charset = charset;
         }
 
-        public Map<String, Object> parseAsMap() throws DocParseException, UnexpectedDocumentStructureException {
-            return DocReader.type(docType).readObject(source);
+        public Map<String, Object> parseAsMap() throws DocumentParseException, UnexpectedDocumentStructureException {
+            return DocReader.format(format).readObject(source);
         }
 
-        public DocNode parseAsDocNode() throws DocParseException {
-            return DocNode.parse(docType).from(source);
+        public DocNode parseAsDocNode() throws DocumentParseException {
+            return DocNode.parse(format).from(source);
         }
 
-        public Object parse() throws DocParseException {
-            return DocReader.type(docType).read(source);
+        public Object parse() throws DocumentParseException {
+            return DocReader.format(format).read(source);
         }
 
         public byte[] getSource() {
             return source;
         }
 
-        public DocType getDocType() {
-            return docType;
+        public Format getFormat() {
+            return format;
         }
 
         @Override
         public String toString() {
-            if (docType.isBinary()) {
-                return docType.getMediaType() + ": " + source.length + " bytes";
+            if (format.isBinary()) {
+                return format.getMediaType() + ": " + source.length + " bytes";
             } else {
-                return docType.getMediaType() + ":\n" + getSourceAsString();
+                return format.getMediaType() + ":\n" + getSourceAsString();
             }
         }
 
@@ -211,12 +211,12 @@ public abstract class UnparsedDoc<T> implements Document<T> {
 
         @Override
         public JsonParser createParser() throws JsonParseException, IOException {
-            return docType.getJsonFactory().createParser(source);
+            return format.getJsonFactory().createParser(source);
         }
 
         private String createSourceString() {
-            if (docType.isBinary()) {
-                throw new IllegalStateException("Cannot encode " + docType + " as string");
+            if (format.isBinary()) {
+                throw new IllegalStateException("Cannot encode " + format + " as string");
             }
 
             if (charset != null) {
@@ -232,7 +232,7 @@ public abstract class UnparsedDoc<T> implements Document<T> {
             } else if (checkBom(0xff, 0xfe)) {
                 return new String(source, 2, source.length - 2, StandardCharsets.UTF_16LE);
             } else {
-                return new String(source, docType.getDefaultCharset());
+                return new String(source, format.getDefaultCharset());
             }
         }
 
@@ -249,11 +249,11 @@ public abstract class UnparsedDoc<T> implements Document<T> {
         }
 
         @Override
-        public byte[] toBytes(DocType docType) {
-            if (docType.equals(this.docType)) {
+        public byte[] toBytes(Format format) {
+            if (format.equals(this.format)) {
                 return source;
             } else {
-                return super.toBytes(docType);                
+                return super.toBytes(format);                
             }
         }
 
