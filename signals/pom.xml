@@ -13,8 +13,28 @@
 	<packaging>jar</packaging>
 	<name>Search Guard Suite - Signals</name>
 
-	<dependencies>
+	<dependencies>	
+	
+	<!-- provided scoped deps -->
 
+	<dependency>
+		<groupId>org.elasticsearch</groupId>
+		<artifactId>elasticsearch</artifactId>
+		<scope>provided</scope>
+	</dependency>
+
+	<dependency>
+		<groupId>com.fasterxml.jackson.core</groupId>
+		<artifactId>jackson-databind</artifactId>
+		<version>${jackson-databind.version}</version>
+		<exclusions>
+			<exclusion>
+				<artifactId>jackson-core</artifactId>
+				<groupId>com.fasterxml.jackson.core</groupId>
+			</exclusion>
+		</exclusions>
+	</dependency>
+		
 		<!-- Scheduler -->
 		<dependency>
 			<groupId>com.floragunn</groupId>

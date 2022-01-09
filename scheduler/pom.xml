@@ -24,6 +24,20 @@
 
 	<dependencies>
 
+	<!-- provided scoped deps -->
+
+	<dependency>
+		<groupId>org.elasticsearch</groupId>
+		<artifactId>elasticsearch</artifactId>
+		<scope>provided</scope>
+	</dependency>
+
+	<dependency>
+		<groupId>org.elasticsearch.plugin</groupId>
+		<artifactId>lang-mustache-client</artifactId>
+		<scope>provided</scope>
+	</dependency>
+		
 		<!-- Security -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
