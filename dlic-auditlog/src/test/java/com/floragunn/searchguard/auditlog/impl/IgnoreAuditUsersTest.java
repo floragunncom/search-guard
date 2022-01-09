@@ -114,7 +114,6 @@ public class IgnoreAuditUsersTest {
     public void testWildcards() {
 
         SearchRequest sr = new SearchRequest();
-        User user = new User("John Doe", null);
         //sr.putInContext(ConfigConstants.SG_USER, user);
         //sr.putInContext(ConfigConstants.SG_REMOTE_ADDRESS, "8.8.8.8");
         //sr.putInContext(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE");

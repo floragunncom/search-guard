@@ -32,7 +32,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
 
-public class ValidationError implements Document {
+public class ValidationError implements Document<ValidationError> {
     private static final Logger log = LoggerFactory.getLogger(ValidationError.class);
 
     private String attribute;

@@ -26,7 +26,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.searchsupport.util.ImmutableMap;
 
-public class IndexMapping implements Document {
+public class IndexMapping implements Document<IndexMapping> {
 
     private final DocNode baseAttributes;
     private final List<Property> properties;
@@ -41,7 +41,7 @@ public class IndexMapping implements Document {
         this.baseAttributes = baseAttributes;
     }
 
-    public static class Property implements Document {
+    public static class Property implements Document<Property> {
         private String name;
         private String type;
         private boolean enabled;
