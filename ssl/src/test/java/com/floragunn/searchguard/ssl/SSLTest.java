@@ -431,7 +431,7 @@ public class SSLTest extends SingleClusterTest {
         Assert.assertTrue(rh.executeSimpleRequest("_nodes/settings?pretty").contains(clusterInfo.clustername));
     }
 
-    // transport
+    @Deprecated
     @Test
     public void testTransportClientSSL() throws Exception {
 
@@ -467,6 +467,7 @@ public class SSLTest extends SingleClusterTest {
         }
     }
 
+    @Deprecated
     @Test
     public void testTransportClientSSLExternalContext() throws Exception {
 
@@ -571,6 +572,7 @@ public class SSLTest extends SingleClusterTest {
         Assert.assertFalse(rh.executeSimpleRequest("_nodes/stats?pretty").contains("\"tx_count\" : 0"));
     }
 
+    @Deprecated
     @Test
     public void testTransportClientSSLFail() throws Exception {
         thrown.expect(IllegalStateException.class);
@@ -628,6 +630,7 @@ public class SSLTest extends SingleClusterTest {
         }
     }
     
+    @Deprecated
     @Test
     public void testCustomPrincipalExtractor() throws Exception {
         

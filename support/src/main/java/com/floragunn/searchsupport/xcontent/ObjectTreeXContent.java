@@ -132,17 +132,12 @@ public class ObjectTreeXContent implements XContent {
 
     static class Generator implements XContentGenerator {
 
-        // TODO:
-        private Set<String> includes;
-        private Set<String> excludes;
         private List<Object> objectStack = new ArrayList<>();
         private List<Object> topLevelObjects = new ArrayList<>();
         private String currentKey = null;
         private final Supplier<Map<?, ?>> mapFactory;
 
         Generator(Set<String> includes, Set<String> excludes, Supplier<Map<?, ?>> mapFactory) {
-            this.includes = includes;
-            this.excludes = excludes;
             this.mapFactory = mapFactory;
         }
 

@@ -133,6 +133,7 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
         }
         
 
+        @Deprecated
         @Override
         public final void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
             if (cause instanceof DecoderException && cause != null) {
