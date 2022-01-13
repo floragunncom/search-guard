@@ -99,7 +99,6 @@ public class BackendRegistry implements DCFListener {
 
     private final AuditLog auditLog;
     private final ThreadPool threadPool;
-    private final UserInjector userInjector;
     private final int ttlInMin;
     private Cache<AuthCredentials, User> userCache; //rest standard
     private Cache<String, User> restImpersonationCache; //used for rest impersonation
@@ -157,7 +156,6 @@ public class BackendRegistry implements DCFListener {
         this.xffResolver = xffResolver;
         this.auditLog = auditLog;
         this.threadPool = threadPool;
-        this.userInjector = new UserInjector(settings, threadPool, auditLog, xffResolver);
 
         this.ttlInMin = settings.getAsInt(ConfigConstants.SEARCHGUARD_CACHE_TTL_MINUTES, 60);
 
@@ -381,12 +379,6 @@ public class BackendRegistry implements DCFListener {
             auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
             channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
             onResult.accept(new AuthczResult(AuthczResult.Status.STOP));
-            return;
-        }
-
-        if (userInjector.injectUser(request)) {
-            // ThreadContext injected user
-            onResult.accept(new AuthczResult(null, AuthczResult.Status.PASS));
             return;
         }
 
