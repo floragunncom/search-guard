@@ -650,10 +650,11 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             }
         }
 
+        @SuppressWarnings("unchecked")
         @Override
         public Set<K> keySet() {
             if (keySet == null) {
-                keySet = new ImmutableSet.HashArray16BackedSet<>(size, table1, table2);
+                keySet = new ImmutableSet.HashArrayBackedSet<K>(16, size, (K []) table1, (K []) table2);
             }
 
             return keySet;
@@ -766,8 +767,8 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 }
             }
 
-            if (keys instanceof ImmutableSet.HashArray16BackedSet) {
-                return intersection((ImmutableSet.HashArray16BackedSet<K>) keys);
+            if (keys instanceof ImmutableSet.HashArrayBackedSet && ((ImmutableSet.HashArrayBackedSet<?>) keys).tableSize == 16) {
+                return intersection((ImmutableSet.HashArrayBackedSet<K>) keys);
             } else {
                 Object[] newTable1 = new Object[TABLE_SIZE];
                 V[] newValues1 = (V[]) new Object[TABLE_SIZE];
@@ -823,7 +824,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         }
 
         @SuppressWarnings("unchecked")
-        private ImmutableMap<K, V> intersection(ImmutableSet.HashArray16BackedSet<K> keys) {
+        private ImmutableMap<K, V> intersection(ImmutableSet.HashArrayBackedSet<K> keys) {
 
             Object[] newTable1 = new Object[TABLE_SIZE];
             V[] newValues1 = (V[]) new Object[TABLE_SIZE];
@@ -1368,7 +1369,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 System.arraycopy(this.values, 0, values, 0, l);
 
                 keys[l] = key;
-                values[l] = values;
+                values[l] = value;
 
                 return new ArrayBackedMap<>(keys, values);
             } else {

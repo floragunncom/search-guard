@@ -62,10 +62,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     private final String clusterName;
     private final MinimumSearchGuardSettingsSupplierFactory minimumSearchGuardSettingsSupplierFactory;
     private final TestCertificates testCertificates;
+    private final List<LocalCluster> clusterDependencies;
     private LocalEsCluster localEsCluster;
 
     private LocalCluster(String clusterName, String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride,
-            ClusterConfiguration clusterConfiguration, List<Class<? extends Plugin>> plugins, TestCertificates testCertificates) {
+            ClusterConfiguration clusterConfiguration, List<Class<? extends Plugin>> plugins, TestCertificates testCertificates,
+            List<LocalCluster> clusterDependencies) {
         this.resourceFolder = resourceFolder;
         this.plugins = plugins;
         this.clusterConfiguration = clusterConfiguration;
@@ -74,12 +76,19 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         this.clusterName = clusterName;
         this.minimumSearchGuardSettingsSupplierFactory = new MinimumSearchGuardSettingsSupplierFactory(resourceFolder, testCertificates);
         this.testCertificates = testCertificates;
+        this.clusterDependencies = clusterDependencies;
         start();
     }
 
     @Override
-    protected void before() throws Throwable {
+    public void before() throws Throwable {
         if (localEsCluster == null) {
+            for (LocalCluster dependency : clusterDependencies) {
+                if (!dependency.isStarted()) {
+                    dependency.before();
+                }
+            }
+
             start();
         }
     }
@@ -156,6 +165,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         SgConfigUpdater.updateSgConfig(this::getAdminCertClient, configType, key, value);
     }
 
+    public boolean isStarted() {
+        return localEsCluster != null;
+    }
+
     private void start() {
         try {
             localEsCluster = new LocalEsCluster(clusterName, clusterConfiguration,
@@ -176,6 +189,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         private final Settings.Builder nodeOverrideSettingsBuilder = Settings.builder();
         private final Set<String> disabledModules = new HashSet<>(MODULES_DISABLED_BY_DEFAULT);
         private final List<Class<? extends Plugin>> plugins = new ArrayList<>();
+        private List<LocalCluster> clusterDependencies = new ArrayList<>();
         private boolean sslEnabled;
         private String resourceFolder;
         private ClusterConfiguration clusterConfiguration = ClusterConfiguration.DEFAULT;
@@ -271,6 +285,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             nodeOverrideSettingsBuilder.putList("cluster.remote." + name + ".seeds",
                     transportAddress.getHostString() + ":" + transportAddress.getPort());
 
+            clusterDependencies.add(anotherCluster);
+
+            return this;
+        }
+
+        public Builder filterSgIndex() {
+            nodeOverrideSettingsBuilder.put("searchguard.filter_sgindex_from_all_requests", true);
             return this;
         }
 
@@ -324,7 +345,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 clusterName += "_" + num.incrementAndGet();
 
                 return new LocalCluster(clusterName, resourceFolder, testSgConfig, nodeOverrideSettingsBuilder.build(), clusterConfiguration, plugins,
-                        testCertificates);
+                        testCertificates, clusterDependencies);
             } catch (Exception e) {
                 log.error("Failed to build LocalCluster", e);
                 throw new RuntimeException(e);

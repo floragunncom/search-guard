@@ -24,13 +24,17 @@ import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class PrivilegesEvaluationResult {
 
-    public static final PrivilegesEvaluationResult PASS = new PrivilegesEvaluationResult(Status.PASS);
-    public static final PrivilegesEvaluationResult STOP = new PrivilegesEvaluationResult(Status.STOP);
+    public static final PrivilegesEvaluationResult OK = new PrivilegesEvaluationResult(Status.OK);
+    public static final PrivilegesEvaluationResult PARTIALLY_OK = new PrivilegesEvaluationResult(Status.PARTIALLY_OK);
+    public static final PrivilegesEvaluationResult EMPTY = new PrivilegesEvaluationResult(Status.EMPTY);
+
+    public static final PrivilegesEvaluationResult INSUFFICIENT = new PrivilegesEvaluationResult(Status.INSUFFICIENT);
     public static final PrivilegesEvaluationResult PENDING = new PrivilegesEvaluationResult(Status.PENDING);
 
     private final Status status;
     private final CheckTable<String, String> indexToActionPrivilegeTable;
     private final ImmutableSet<Error> errors;
+    private final ImmutableSet<String> availableIndices;
     private final String reason;
 
     PrivilegesEvaluationResult(Status status) {
@@ -38,39 +42,49 @@ public class PrivilegesEvaluationResult {
         this.indexToActionPrivilegeTable = null;
         this.errors = ImmutableSet.empty();
         this.reason = null;
+        this.availableIndices = null;
     }
 
-    PrivilegesEvaluationResult(Status status, String reason, CheckTable<String, String> indexToActionPrivilegeTable, ImmutableSet<Error> errors) {
+    PrivilegesEvaluationResult(Status status, String reason, ImmutableSet<String> availableIndices, CheckTable<String, String> indexToActionPrivilegeTable, ImmutableSet<Error> errors) {
         this.status = status;
         this.indexToActionPrivilegeTable = indexToActionPrivilegeTable;
         this.errors = errors;
         this.reason = reason;
+        this.availableIndices = availableIndices;
     }
 
     public PrivilegesEvaluationResult reason(String reason) {
-        return new PrivilegesEvaluationResult(this.status, reason, this.indexToActionPrivilegeTable, this.errors);
+        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.indexToActionPrivilegeTable, this.errors);
     }
 
     public PrivilegesEvaluationResult reason(String reason, ImmutableSet<Error> errors) {
-        return new PrivilegesEvaluationResult(this.status, reason, this.indexToActionPrivilegeTable, errors);
+        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.indexToActionPrivilegeTable, errors);
     }
 
     public PrivilegesEvaluationResult reason(String reason, Error error) {
-        return new PrivilegesEvaluationResult(this.status, reason, this.indexToActionPrivilegeTable, ImmutableSet.of(errors));
+        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices,  this.indexToActionPrivilegeTable, ImmutableSet.of(errors));
     }
 
     public PrivilegesEvaluationResult with(CheckTable<String, String> indexToActionPrivilegeTable) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, indexToActionPrivilegeTable, this.errors);
+        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, indexToActionPrivilegeTable, this.errors);
     }
 
     public PrivilegesEvaluationResult with(CheckTable<String, String> indexToActionPrivilegeTable, ImmutableSet<Error> errors) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, indexToActionPrivilegeTable, errors);
+        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices,  indexToActionPrivilegeTable, errors);
     }
     
     public PrivilegesEvaluationResult with(String reason, CheckTable<String, String> indexToActionPrivilegeTable, ImmutableSet<Error> errors) {
-        return new PrivilegesEvaluationResult(this.status, reason, indexToActionPrivilegeTable, errors);
+        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, indexToActionPrivilegeTable, errors);
+    }
+    
+    public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices, CheckTable<String, String> indexToActionPrivilegeTable) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices,  indexToActionPrivilegeTable, errors);
     }
 
+    public PrivilegesEvaluationResult status(Status status) {
+        return new PrivilegesEvaluationResult(status, this.reason, this.availableIndices, this.indexToActionPrivilegeTable, this.errors);
+    }
+    
     public CheckTable<String, String> getIndexToActionPrivilegeTable() {
         return indexToActionPrivilegeTable;
     }
@@ -100,6 +114,13 @@ public class PrivilegesEvaluationResult {
     public Status getStatus() {
         return status;
     }
+    
+    public ImmutableSet<String> getAvailableIndices() {
+        return availableIndices;
+    }
+    
+    
+
 
     @Override
     public String toString() {
@@ -129,7 +150,7 @@ public class PrivilegesEvaluationResult {
     }
 
     public static enum Status {
-        PASS, STOP, PENDING;
+        OK, PARTIALLY_OK, EMPTY, INSUFFICIENT, PENDING;
     }
 
     public static class Error {

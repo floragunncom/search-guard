@@ -33,11 +33,9 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
 import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
@@ -46,11 +44,9 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.MultiGetAction;
 import org.elasticsearch.action.search.MultiSearchAction;
-import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
 import org.elasticsearch.client.Client;
@@ -58,8 +54,8 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Setting.Property;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.reindex.ReindexAction;
@@ -91,7 +87,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
     public static final Setting<Boolean> INDEX_REDUCTION_FAST_PATH = Setting.boolSetting("searchguard.privilege_evaluation.index_reduction_fast_path",
             true, Property.NodeScope, Property.Filtered);
-    
+
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     private final ClusterService clusterService;
@@ -118,7 +114,6 @@ public class PrivilegesEvaluator implements DCFListener {
     private final List<String> adminOnlyActions;
     private final List<String> adminOnlyActionExceptions;
     private final Client localClient;
-    private final boolean indexReductionFastPath;
 
     // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
     private String kibanaServerUsername;
@@ -137,8 +132,7 @@ public class PrivilegesEvaluator implements DCFListener {
         this.localClient = localClient;
 
         this.threadContext = threadPool.getThreadContext();
-        
-        this.indexReductionFastPath = INDEX_REDUCTION_FAST_PATH.get(settings);
+
         this.checkSnapshotRestoreWritePrivileges = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
                 ConfigConstants.SG_DEFAULT_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES);
 
@@ -295,26 +289,6 @@ public class PrivilegesEvaluator implements DCFListener {
                 }
             }
 
-            if (dcm.isDnfofEnabled() && action0.startsWith("indices:data/read/") && requestInfo.containsWildcards()) {
-
-                Set<String> reduced = sgRoles.reduce(requestInfo.getResolvedIndices(), user, ImmutableSet.of(action0), resolver, clusterService);
-
-                if (reduced.isEmpty()) {
-                    presponse.allowed = false;
-                    return presponse;
-                }
-
-                if (!reduced.containsAll(requestInfo.getResolvedIndices().getLocalIndices())) {
-                    if (actionRequestIntrospector.reduceIndices(request, reduced, requestInfo)) {
-                        // TODO re-check privs?
-
-                        presponse.missingPrivileges.clear();
-                        presponse.allowed = true;
-                        return presponse;
-                    }
-                }
-            }
-
             if (log.isTraceEnabled()) {
                 log.trace("Allowing as cluster privilege: " + action0);
             }
@@ -368,212 +342,178 @@ public class PrivilegesEvaluator implements DCFListener {
             ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, SgRoles sgRoles,
             SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext, PrivilegesEvaluatorResponse presponse) {
 
-        if (actionRequestInfo.getResolvedIndices().containsOnlyRemoteIndices()) {
-            log.debug(
-                    "Request contains only remote indices. We can skip all further checks and let requests be handled by remote cluster: " + action0);
-            presponse.missingPrivileges.clear();
-            presponse.allowed = true;
-            return presponse;
-        }
-
-        presponse.missingPrivileges.clear();
-        presponse.missingPrivileges.addAll(allIndexPermsRequired);
-
-        if (log.isDebugEnabled()) {
-            log.debug("requested resolved indextypes: {}", actionRequestInfo);
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("sgr: {}", sgRoles.getRoleNames());
-        }
-
-        // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
-        if (!kibanaIndexTemplateFixApplied && user.getName().equals(kibanaServerUsername)) {
-            if ((request instanceof ResizeRequest && ((ResizeRequest) request).getSourceIndex().startsWith(kibanaIndexName)
-                    && ((ResizeRequest) request).getSourceIndex().endsWith("_reindex_temp"))
-                    || (request instanceof CreateIndexRequest && ((CreateIndexRequest) request).index().startsWith(kibanaIndexName))) {
-
-                kibanaIndexTemplateFixApplied = true;
-
-                IndexTemplateMetadata template = clusterService.state().getMetadata().getTemplates().get("tenant_template");
-
-                if (template != null && template.patterns().size() > 0 && template.patterns().get(0).startsWith(kibanaIndexName)) {
-                    presponse.addAdditionalActionFilter(new ActionFilter() {
-
-                        @Override
-                        public int order() {
-                            return 0;
-                        }
-
-                        @Override
-                        public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, String action, Request request,
-                                ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
-                            localClient.admin().indices().deleteTemplate(new DeleteIndexTemplateRequest("tenant_template"),
-                                    new ActionListener<AcknowledgedResponse>() {
-
-                                        @Override
-                                        public void onResponse(AcknowledgedResponse response) {
-                                            log.info("Deleted obsolete tenant_template");
-                                            chain.proceed(task, action, request, listener);
-                                        }
-
-                                        @Override
-                                        public void onFailure(Exception e) {
-                                            log.error("Error while deleting tenant_template. Ignoring.", e);
-                                            chain.proceed(task, action, request, listener);
-                                        }
-                                    });
-                        }
-                    });
-                }
-            }
-        }
-
-        if (privilegesInterceptor != null) {
-
-            PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user,
-                    actionRequestInfo.getResolvedIndices(), sgRoles);
-
-            if (log.isDebugEnabled()) {
-                log.debug("Result from privileges interceptor: {}", replaceResult);
-            }
-
-            if (replaceResult == PrivilegesInterceptor.InterceptionResult.DENY) {
-                auditLog.logMissingPrivileges(action0, request, task);
-                return presponse;
-            } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
+        try {
+            if (actionRequestInfo.getResolvedIndices().containsOnlyRemoteIndices()) {
+                log.debug("Request contains only remote indices. We can skip all further checks and let requests be handled by remote cluster: "
+                        + action0);
+                presponse.missingPrivileges.clear();
                 presponse.allowed = true;
                 return presponse;
             }
-        }
 
-        if (dcm.isDnfofEnabled()
-                && (action0.startsWith("indices:data/read/") || action0.startsWith("indices:admin/mappings/fields/get")
-                        || action0.equals("indices:admin/shards/search_shards") || action0.equals(ResolveIndexAction.NAME))
-                && actionRequestInfo.containsWildcards()) {
+            presponse.missingPrivileges.clear();
+            presponse.missingPrivileges.addAll(allIndexPermsRequired);
 
-            ImmutableSet<String> reduced = sgRoles
-                    .reduce(actionRequestInfo.getResolvedIndices(), user, allIndexPermsRequired, resolver, clusterService).with();
-            
-            if (log.isTraceEnabled()) {
-                log.trace("DNFNF: reduced from: " + actionRequestInfo.getResolvedIndices().getLocalIndices() + "\n       to: " + reduced);
+            if (log.isDebugEnabled()) {
+                log.debug("requested resolved indextypes: {}", actionRequestInfo);
             }
 
-            if (reduced.size() < actionRequestInfo.getResolvedIndices().getLocalIndices().size()) {
-                ImmutableSet<String> reducedWithRemote = reduced.with(actionRequestInfo.getResolvedIndices().getRemoteIndices());
-                if (reducedWithRemote.isEmpty()) {
+            if (log.isDebugEnabled()) {
+                log.debug("sgr: {}", sgRoles.getRoleNames());
+            }
 
-                    if (dcm.isDnfofForEmptyResultsEnabled()) {
+            // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
+            if (!kibanaIndexTemplateFixApplied && user.getName().equals(kibanaServerUsername)) {
+                if ((request instanceof ResizeRequest && ((ResizeRequest) request).getSourceIndex().startsWith(kibanaIndexName)
+                        && ((ResizeRequest) request).getSourceIndex().endsWith("_reindex_temp"))
+                        || (request instanceof CreateIndexRequest && ((CreateIndexRequest) request).index().startsWith(kibanaIndexName))) {
 
-                        if (log.isTraceEnabled()) {
-                            log.trace("Allowing empty result due to DNFOF: " + action0);
-                        }
+                    kibanaIndexTemplateFixApplied = true;
 
-                        if (request instanceof SearchRequest) {
-                            ((SearchRequest) request).indices(new String[0]);
-                            ((SearchRequest) request).indicesOptions(IndicesOptions.fromOptions(true, true, false, false));
-                            presponse.missingPrivileges.clear();
-                            presponse.allowed = true;
-                            return presponse;
-                        }
+                    IndexTemplateMetadata template = clusterService.state().getMetadata().getTemplates().get("tenant_template");
 
-                        if (request instanceof ClusterSearchShardsRequest) {
-                            ((ClusterSearchShardsRequest) request).indices(new String[0]);
-                            ((ClusterSearchShardsRequest) request).indicesOptions(IndicesOptions.fromOptions(true, true, false, false));
-                            presponse.missingPrivileges.clear();
-                            presponse.allowed = true;
-                            return presponse;
-                        }
+                    if (template != null && template.patterns().size() > 0 && template.patterns().get(0).startsWith(kibanaIndexName)) {
+                        presponse.addAdditionalActionFilter(new ActionFilter() {
 
-                        if (request instanceof GetFieldMappingsRequest) {
-                            ((GetFieldMappingsRequest) request).indices(new String[0]);
-                            ((GetFieldMappingsRequest) request).indicesOptions(IndicesOptions.fromOptions(true, true, false, false));
-                            presponse.missingPrivileges.clear();
-                            presponse.allowed = true;
-                            return presponse;
-                        }
+                            @Override
+                            public int order() {
+                                return 0;
+                            }
 
-                        if (request instanceof ResolveIndexAction.Request) {
-                            ((ResolveIndexAction.Request) request).indices(new String[0]);
-                            presponse.missingPrivileges.clear();
-                            presponse.allowed = true;
-                            return presponse;
-                        }
+                            @Override
+                            public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, String action,
+                                    Request request, ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
+                                localClient.admin().indices().deleteTemplate(new DeleteIndexTemplateRequest("tenant_template"),
+                                        new ActionListener<AcknowledgedResponse>() {
+
+                                            @Override
+                                            public void onResponse(AcknowledgedResponse response) {
+                                                log.info("Deleted obsolete tenant_template");
+                                                chain.proceed(task, action, request, listener);
+                                            }
+
+                                            @Override
+                                            public void onFailure(Exception e) {
+                                                log.error("Error while deleting tenant_template. Ignoring.", e);
+                                                chain.proceed(task, action, request, listener);
+                                            }
+                                        });
+                            }
+                        });
                     }
+                }
+            }
 
-                    if (log.isDebugEnabled()) {
-                        log.trace("Denying because no allowed indices were found: " + action0);
-                    }
+            if (privilegesInterceptor != null) {
 
-                    presponse.allowed = false;
+                PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(request, action0, user,
+                        actionRequestInfo.getResolvedIndices(), sgRoles);
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Result from privileges interceptor: {}", replaceResult);
+                }
+
+                if (replaceResult == PrivilegesInterceptor.InterceptionResult.DENY) {
+                    auditLog.logMissingPrivileges(action0, request, task);
+                    return presponse;
+                } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
+                    presponse.allowed = true;
                     return presponse;
                 }
-                
-                if (log.isTraceEnabled()) {
-                    log.trace("DNFOF: Reducing indices to " + reduced);
-                }
+            }
 
-                if (actionRequestIntrospector.reduceIndices(request, reducedWithRemote, actionRequestInfo)) {
+            PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, resolver, clusterService);
 
-                    if (indexReductionFastPath) {                    
-                        if (log.isDebugEnabled()) {
-                            log.debug("Allowing reduced request due to DNFOF: " + action0);
-                        }
-                        
-                        presponse.missingPrivileges.clear();
-                        presponse.allowed = true;
-                        return presponse;
+            boolean dnfofPossible = dcm.isDnfofEnabled()
+                    && (action0.startsWith("indices:data/read/") || action0.startsWith("indices:admin/mappings/fields/get")
+                            || action0.equals("indices:admin/shards/search_shards") || action0.equals(ResolveIndexAction.NAME))
+                    && (actionRequestInfo.ignoreUnavailable() || actionRequestInfo.containsWildcards());
+
+            if (!dnfofPossible) {
+                context.setResolveLocalAll(false);
+            }
+
+            PrivilegesEvaluationResult privilegesEvaluationResult = sgRoles.impliesIndexPrivilege(context, actionRequestInfo.getResolvedIndices(),
+                    allIndexPermsRequired);
+
+            if (log.isTraceEnabled()) {
+                log.trace("Result from privileges evaluation: " + privilegesEvaluationResult.getStatus() + "\n" + privilegesEvaluationResult);
+            }
+
+            if (privilegesEvaluationResult.getStatus() == Status.PARTIALLY_OK) {
+                if (dnfofPossible) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("DNF: Reducing indices to " + privilegesEvaluationResult.getAvailableIndices() + "\n" + privilegesEvaluationResult);
                     }
-                    
-                    actionRequestInfo = actionRequestIntrospector.getActionRequestInfo(action0, request);
-                    presponse.actionRequestInfo = actionRequestInfo;
+
+                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action0, request,
+                            privilegesEvaluationResult.getAvailableIndices(), actionRequestInfo);
+
+                } else {
+                    privilegesEvaluationResult = privilegesEvaluationResult.status(Status.INSUFFICIENT);
+                }
+            } else if (privilegesEvaluationResult.getStatus() == Status.INSUFFICIENT) {
+                if (dnfofPossible) {
+                    if (log.isTraceEnabled()) {
+                        log.trace("Changing result from INSUFFICIENT to EMPTY");
+                    }
+
+                    privilegesEvaluationResult = privilegesEvaluationResult.status(Status.EMPTY);
                 }
             }
-        }
 
-        //not bulk, mget, etc request here
+            if (privilegesEvaluationResult.getStatus() == Status.EMPTY) {
+                if (actionRequestIntrospector.forceEmptyResult(request)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("DNF: Reducing indices to yield an empty result\n" + privilegesEvaluationResult);
+                    }
 
-        if (log.isDebugEnabled()) {
-            log.debug("sgr2: {}", sgRoles.getRoleNames());
-        }
-
-        PrivilegesEvaluationResult privilegesEvaluationResult = sgRoles.impliesTypePermGlobal(actionRequestInfo.getResolvedIndices(), user,
-                allIndexPermsRequired, resolver, clusterService);
-
-        if (privilegesEvaluationResult.getStatus() != Status.PASS) {
-            Level logLevel = privilegesEvaluationResult.hasErrors() ? Level.WARN : Level.INFO;
-
-            if (log.isEnabled(logLevel)) {
-                log.log(logLevel,
-                        "### No index privileges for " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user + "\nResolved Indices: "
-                                + actionRequestInfo.getResolvedIndices() + "\nUnresolved: " + actionRequestInfo.getUnresolved() + "\nRoles: "
-                                + sgRoles.getRoleNames() + "\nRequired Privileges: " + allIndexPermsRequired + "\n" + privilegesEvaluationResult);
+                    privilegesEvaluationResult = privilegesEvaluationResult.status(Status.OK);
+                } else {
+                    log.warn("DNFOF for empty results is not available for " + action0 + " (" + request.getClass().getName() + ")");
+                }
             }
 
+            if (privilegesEvaluationResult.getStatus() != Status.OK) {
+                Level logLevel = privilegesEvaluationResult.hasErrors() ? Level.WARN : Level.INFO;
+
+                if (log.isEnabled(logLevel)) {
+                    log.log(logLevel,
+                            "### No index privileges for " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user
+                                    + "\nResolved Indices: " + actionRequestInfo.getResolvedIndices() + "\nUnresolved: "
+                                    + actionRequestInfo.getUnresolved() + "\nRoles: " + sgRoles.getRoleNames() + "\nRequired Privileges: "
+                                    + allIndexPermsRequired + "\n" + privilegesEvaluationResult);
+                }
+
+                presponse.allowed = false;
+                return presponse;
+            }
+
+            if (request instanceof ResizeRequest) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Checking additional create index action for resize operation: " + request);
+                }
+                ResizeRequest resizeRequest = (ResizeRequest) request;
+                CreateIndexRequest createIndexRequest = resizeRequest.getTargetIndexRequest();
+                PrivilegesEvaluatorResponse subResponse = evaluate(user, CreateIndexAction.NAME, createIndexRequest, task,
+                        specialPrivilegesEvaluationContext);
+
+                if (!subResponse.allowed) {
+                    return subResponse;
+                }
+            }
+
+            if (log.isDebugEnabled()) {
+                log.debug("Allowed because we have all indices permissions for " + allIndexPermsRequired);
+            }
+
+            presponse.allowed = true;
+            return presponse;
+        } catch (PrivilegesEvaluationException e) {
+            log.error("Error while evaluating " + action0 + " (" + request.getClass().getName() + ")", e);
             presponse.allowed = false;
             return presponse;
         }
-
-        if (request instanceof ResizeRequest) {
-            if (log.isDebugEnabled()) {
-                log.debug("Checking additional create index action for resize operation: " + request);
-            }
-            ResizeRequest resizeRequest = (ResizeRequest) request;
-            CreateIndexRequest createIndexRequest = resizeRequest.getTargetIndexRequest();
-            PrivilegesEvaluatorResponse subResponse = evaluate(user, CreateIndexAction.NAME, createIndexRequest, task,
-                    specialPrivilegesEvaluationContext);
-
-            if (!subResponse.allowed) {
-                return subResponse;
-            }
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("Allowed because we have all indices permissions for " + allIndexPermsRequired);
-        }
-
-        presponse.allowed = true;
-        return presponse;
     }
 
     public Set<String> mapSgRoles(final User user, final TransportAddress caller) {

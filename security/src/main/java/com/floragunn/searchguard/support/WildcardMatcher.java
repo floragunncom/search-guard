@@ -505,7 +505,7 @@ public class WildcardMatcher {
      * @return true if the filename matches the wilcard string
      * @since 1.3
      */
-    private static boolean simpleWildcardMatch(final String pattern, final String candidate) {
+    static boolean simpleWildcardMatch(final String pattern, final String candidate) {
         if (candidate == null && pattern == null) {
             return true;
         }
