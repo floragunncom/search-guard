@@ -115,14 +115,6 @@ public class DynamicConfigModelV7 extends DynamicConfigModel implements Componen
     }
     
     @Override
-    public boolean isRestAuthDisabled() {
-        return config.dynamic.disable_rest_auth;
-    }
-    @Override
-    public boolean isInterTransportAuthDisabled() {
-        return config.dynamic.disable_intertransport_auth;
-    }
-    @Override
     public boolean isRespectRequestIndicesEnabled() {
         return config.dynamic.respect_request_indices_options;
     }
@@ -142,11 +134,6 @@ public class DynamicConfigModelV7 extends DynamicConfigModel implements Componen
     public boolean isDnfofEnabled() {
         return config.dynamic.do_not_fail_on_forbidden;
     }
-    @Override
-    public String getFilteredAliasMode() {
-        return config.dynamic.filtered_alias_mode;
-    }
-
     @Override
     public String getHostsResolverMode() {
         return config.dynamic.hosts_resolver_mode;

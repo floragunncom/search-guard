@@ -40,7 +40,6 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auth.AuthczResult;
 import com.floragunn.searchguard.auth.BackendRegistry;
-import com.floragunn.searchguard.configuration.CompatConfig;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
@@ -58,11 +57,10 @@ public class SearchGuardRestFilter {
     private final PrincipalExtractor principalExtractor;
     private final Settings settings;
     private final Path configPath;
-    private final CompatConfig compatConfig;
     private final DiagnosticContext diagnosticContext;
 
     public SearchGuardRestFilter(final BackendRegistry registry, final AuditLog auditLog, final ThreadPool threadPool,
-            final PrincipalExtractor principalExtractor, final Settings settings, final Path configPath, final CompatConfig compatConfig, DiagnosticContext diagnosticContext) {
+            final PrincipalExtractor principalExtractor, final Settings settings, final Path configPath, DiagnosticContext diagnosticContext) {
         super();
         this.registry = registry;
         this.auditLog = auditLog;
@@ -70,7 +68,6 @@ public class SearchGuardRestFilter {
         this.principalExtractor = principalExtractor;
         this.settings = settings;
         this.configPath = configPath;
-        this.compatConfig = compatConfig;
         this.diagnosticContext = diagnosticContext;
     }
 
@@ -125,7 +122,7 @@ public class SearchGuardRestFilter {
     }
 
     private boolean isAuthczRequired(RestRequest request) {
-        return compatConfig.restAuthEnabled() && request.method() != Method.OPTIONS && !"/_searchguard/license".equals(request.path())
+        return request.method() != Method.OPTIONS && !"/_searchguard/license".equals(request.path())
                 && !"/_searchguard/health".equals(request.path());
     }
 
