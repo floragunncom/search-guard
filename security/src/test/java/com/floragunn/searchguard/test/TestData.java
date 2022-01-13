@@ -1,3 +1,20 @@
+/*
+ * Copyright 2021 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.test;
 
 import java.nio.ByteBuffer;
@@ -23,9 +40,9 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 
+import com.floragunn.searchsupport.util.ImmutableMap;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableMap;
 
 public class TestData {
     private static final Logger log = LogManager.getLogger(TestData.class);
@@ -57,16 +74,18 @@ public class TestData {
     private int refreshAfter;
     private Map<String, Map<String, ?>> allDocuments;
     private Map<String, Map<String, ?>> retainedDocuments;
+    private ImmutableMap<String, Object> additionalAttributes;
     private Set<String> deletedDocuments;
     private long subRandomSeed;
 
-    public TestData(int seed, int size, int deletedDocumentCount, int refreshAfter) {
+    public TestData(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes) {
         Random random = new Random(seed);
         this.ipAddresses = createRandomIpAddresses(random);
         this.locationNames = createRandomLocationNames(random);
         this.size = size;
         this.deletedDocumentCount = deletedDocumentCount;
         this.refreshAfter = refreshAfter;
+        this.additionalAttributes = additionalAttributes;
         createTestDocuments(random);
         this.subRandomSeed = random.nextLong();
     }
@@ -74,7 +93,7 @@ public class TestData {
     public void createIndex(Client client, String name, Settings settings) {
         log.info("creating test index " + name + "; size: " + size + "; deletedDocumentCount: " + deletedDocumentCount + "; refreshAfter: "
                 + refreshAfter);
-        
+
         Random random = new Random(subRandomSeed);
         long start = System.currentTimeMillis();
 
@@ -114,8 +133,12 @@ public class TestData {
         Map<String, Map<String, ?>> allDocuments = new HashMap<>(size);
 
         for (int i = 0; i < size; i++) {
-            Map<String, ?> document = ImmutableMap.of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random), "source_loc",
-                    randomLocationName(random), "dest_loc", randomLocationName(random));
+            ImmutableMap<String, Object> document = ImmutableMap.of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random),
+                    "source_loc", randomLocationName(random), "dest_loc", randomLocationName(random));
+
+            if (additionalAttributes != null && additionalAttributes.size() != 0) {
+                document = document.with(additionalAttributes);
+            }
 
             String id = randomId(random);
 
@@ -195,7 +218,7 @@ public class TestData {
     }
 
     public int getSize() {
-        return size;
+        return size - deletedDocumentCount;
     }
 
     public int getDeletedDocumentCount() {
@@ -214,19 +237,27 @@ public class TestData {
         return deletedDocuments;
     }
 
+    public TestDocument anyDocument() {
+        Map.Entry<String, Map<String, ?>> entry = retainedDocuments.entrySet().iterator().next();
+
+        return new TestDocument(entry.getKey(), entry.getValue());
+    }
+
     private static class Key {
 
         private final int seed;
         private final int size;
         private final int deletedDocumentCount;
         private final int refreshAfter;
+        private final ImmutableMap<String, Object> additionalAttributes;
 
-        public Key(int seed, int size, int deletedDocumentCount, int refreshAfter) {
+        public Key(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes) {
             super();
             this.seed = seed;
             this.size = size;
             this.deletedDocumentCount = deletedDocumentCount;
             this.refreshAfter = refreshAfter;
+            this.additionalAttributes = additionalAttributes;
         }
 
         @Override
@@ -237,6 +268,7 @@ public class TestData {
             result = prime * result + refreshAfter;
             result = prime * result + seed;
             result = prime * result + size;
+            result = prime * result + additionalAttributes.hashCode();
             return result;
         }
 
@@ -264,6 +296,9 @@ public class TestData {
             if (size != other.size) {
                 return false;
             }
+            if (!additionalAttributes.equals(other.additionalAttributes)) {
+                return false;
+            }
             return true;
         }
 
@@ -277,6 +312,7 @@ public class TestData {
         private double deletedDocumentFraction = 0.06;
         private int refreshAfter = -1;
         private int segmentCount = 17;
+        private Map<String, Object> additionalAttributes = new HashMap<>();
 
         public Builder() {
             super();
@@ -312,6 +348,11 @@ public class TestData {
             return this;
         }
 
+        public Builder attr(String name, Object value) {
+            additionalAttributes.put(name, value);
+            return this;
+        }
+
         public Key toKey() {
             if (deletedDocumentCount == -1) {
                 this.deletedDocumentCount = (int) (this.size * deletedDocumentFraction);
@@ -321,18 +362,36 @@ public class TestData {
                 this.refreshAfter = this.size / this.segmentCount;
             }
 
-            return new Key(seed, size, deletedDocumentCount, refreshAfter);
+            return new Key(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes));
         }
 
         public TestData get() {
             Key key = toKey();
 
             try {
-                return cache.get(key, () -> new TestData(seed, size, deletedDocumentCount, refreshAfter));
+                return cache.get(key, () -> new TestData(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes)));
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }
         }
 
+    }
+
+    public static class TestDocument {
+        private final String id;
+        private final Map<String, ?> content;
+
+        TestDocument(String id, Map<String, ?> content) {
+            this.id = id;
+            this.content = content;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public Map<String, ?> getContent() {
+            return content;
+        }
     }
 }

@@ -9,6 +9,8 @@ import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult;
@@ -20,12 +22,6 @@ public abstract class SgRoles implements ToXContentObject {
     public abstract boolean impliesClusterPermissionPermission(String action0);
 
     public abstract Set<String> getRoleNames();
-
-    public abstract ImmutableSet<String> reduce(ResolvedIndices requestedResolved, User user, Set<String> requiredPrivileges,
-            IndexNameExpressionResolver resolver, ClusterService clusterService);
-
-    public abstract PrivilegesEvaluationResult impliesTypePermGlobal(ResolvedIndices requestedResolved, User user, ImmutableSet<String> requiredPrivileges,
-            IndexNameExpressionResolver resolver, ClusterService clusterService);
 
     public abstract EvaluatedDlsFlsConfig getDlsFls(User user, IndexNameExpressionResolver resolver, ClusterService clusterService,
             NamedXContentRegistry namedXContentRegistry);
@@ -40,6 +36,9 @@ public abstract class SgRoles implements ToXContentObject {
     public abstract Set<String> getClusterPermissions(User user);
 
     public abstract boolean hasTenantPermission(User user, String requestedTenant, String action);
+
+    public abstract PrivilegesEvaluationResult impliesIndexPrivilege(PrivilegesEvaluationContext privilegesEvaluationContext,
+            ResolvedIndices resolved, ImmutableSet<String> actions) throws PrivilegesEvaluationException;
 
     /**
      * Only used for authinfo REST API

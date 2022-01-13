@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2018 floragunn GmbH
+ * Copyright 2015-2021 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@ import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.reindex.ReindexRequest;
@@ -81,7 +82,7 @@ public class ActionRequestIntrospector {
             EnumSet.noneOf(IndicesOptions.WildcardStates.class));
 
     private static final Set<String> NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS = ImmutableSet.of("indices:data/read/msearch/template",
-            "indices:data/read/search/template");
+            "indices:data/read/search/template", "indices:data/read/sql/translate", "indices:data/read/sql", "indices:data/read/sql/close_cursor");
 
     private final static Logger log = LogManager.getLogger(ActionRequestIntrospector.class);
     private final IndexNameExpressionResolver resolver;
@@ -185,58 +186,76 @@ public class ActionRequestIntrospector {
         }
     }
 
-    public boolean reduceIndices(Object request, Set<String> keepIndices, ActionRequestInfo actionRequestInfo) {
-        if (request instanceof IndicesRequest) {
-            if (request instanceof IndicesRequest.Replaceable) {
-                IndicesRequest.Replaceable replaceableIndicesRequest = (IndicesRequest.Replaceable) request;
+    public PrivilegesEvaluationResult reduceIndices(String action, Object request, Set<String> keepIndices,
+            ActionRequestInfo actionRequestInfo) throws PrivilegesEvaluationException {
 
-                String[] indices = getResolvedIndices(replaceableIndicesRequest, actionRequestInfo).getLocalSubsetAsArray(keepIndices);
+        if (request instanceof IndicesRequest.Replaceable) {
+            IndicesRequest.Replaceable replaceableIndicesRequest = (IndicesRequest.Replaceable) request;
 
-                if (indices.length > 0) {
-                    replaceableIndicesRequest.indices(indices);
-                    return true;
-                } else {
-                    return false;
-                }
-            } else if (request instanceof SingleShardRequest) {
-                SingleShardRequest<?> singleShardRequest = (SingleShardRequest<?>) request;
+            ResolvedIndices resolvedIndices = getResolvedIndices(replaceableIndicesRequest, actionRequestInfo);
+            ImmutableSet<String> actualIndices = resolvedIndices.getLocalIndices();
 
-                String[] indices = getResolvedIndices(singleShardRequest, actionRequestInfo).getLocalSubsetAsArray(keepIndices);
-
-                if (indices.length == 1) {
-                    singleShardRequest.index(indices[0]);
-                    return true;
-                } else {
-                    return false;
-                }
+            if (keepIndices.containsAll(actualIndices)) {
+                return PrivilegesEvaluationResult.OK;
             }
-        } else if (request instanceof CompositeIndicesRequest) {
-            if (request instanceof MultiSearchRequest) {
-                for (SearchRequest searchRequest : ((MultiSearchRequest) request).requests()) {
-                    if (!reduceIndices(searchRequest, keepIndices, actionRequestInfo)) {
-                        return false;
-                    }
-                }
 
-                return true;
-            } else if (request instanceof MultiTermVectorsRequest) {
-                for (TermVectorsRequest termVectorsRequest : ((MultiTermVectorsRequest) request).getRequests()) {
-                    if (!reduceIndices(termVectorsRequest, keepIndices, actionRequestInfo)) {
-                        return false;
-                    }
-                }
+            if (!replaceableIndicesRequest.indicesOptions().ignoreUnavailable() && !containsWildcard(replaceableIndicesRequest)) {
+                return PrivilegesEvaluationResult.INSUFFICIENT;
+            }
 
-                return true;
+            ImmutableSet<String> newIndices = actualIndices.intersection(keepIndices).with(resolvedIndices.getRemoteIndices());
+
+            if (log.isTraceEnabled()) {
+                log.trace("reduceIndicesForIgnoreUnavailable: keep: " + keepIndices + " actual: " + actualIndices + "; newIndices: " + newIndices);
+            }
+
+            if (newIndices.size() > 0) {
+                replaceableIndicesRequest.indices(toArray(newIndices));
+                validateIndexReduction(action, replaceableIndicesRequest, keepIndices);
+                return PrivilegesEvaluationResult.OK;
+            } else {
+                return PrivilegesEvaluationResult.EMPTY;
             }
         } else if (request instanceof IndicesAliasesRequest) {
             for (AliasesRequest aliasesRequest : ((IndicesAliasesRequest) request).getAliasActions()) {
-                if (!reduceIndices(aliasesRequest, keepIndices, actionRequestInfo)) {
-                    return false;
+                PrivilegesEvaluationResult result = reduceIndices(action, aliasesRequest, keepIndices, actionRequestInfo);
+                
+                if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
+                    return result;
                 }
             }
+            
+            return PrivilegesEvaluationResult.OK;
         }
 
-        return false;
+        return PrivilegesEvaluationResult.INSUFFICIENT;
+    }
+
+    private void validateIndexReduction(String action, Object request, Set<String> keepIndices) throws PrivilegesEvaluationException {
+        ActionRequestInfo newInfo = getActionRequestInfo(action, request);
+
+        if (!keepIndices.containsAll(newInfo.getResolvedIndices().getLocalIndices())) {
+            throw new PrivilegesEvaluationException(
+                    "Indices were not properly reduced: " + request + "/" + newInfo.getResolvedIndices() + "; keep: " + keepIndices);
+        }
+    }
+
+    public boolean forceEmptyResult(Object request) throws PrivilegesEvaluationException {
+        if (request instanceof IndicesRequest.Replaceable) {
+            IndicesRequest.Replaceable replaceableIndicesRequest = (IndicesRequest.Replaceable) request;
+
+            if (replaceableIndicesRequest.indicesOptions().expandWildcardsOpen() || replaceableIndicesRequest.indicesOptions().expandWildcardsClosed()) {
+                replaceableIndicesRequest.indices(new String [] {".force_no_index*", "-*"});
+            } else {
+                replaceableIndicesRequest.indices(new String [0]);
+            }
+            
+            validateIndexReduction("", replaceableIndicesRequest, Collections.emptySet());
+
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public boolean replaceIndices(Object request, Function<ResolvedIndices, List<String>> replacementFunction, ActionRequestInfo actionRequestInfo) {
@@ -328,6 +347,10 @@ public class ActionRequestIntrospector {
             log.error("Unable to parse the regular expression denoted in 'rename_pattern'. Please correct the pattern an try again.", e);
             throw e;
         }
+    }
+
+    private String[] toArray(ImmutableSet<String> set) {
+        return set.toArray(new String[set.size()]);
     }
 
     public class ActionRequestInfo {
@@ -437,6 +460,20 @@ public class ActionRequestIntrospector {
             }
 
             return additionalResolvedIndices;
+        }
+
+        public boolean ignoreUnavailable() {
+            if (indices == null || indices.size() == 0) {
+                return false;
+            }
+
+            for (IndicesRequestInfo index : indices) {
+                if (!index.indicesOptions().ignoreUnavailable()) {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void initResolvedIndices() {
@@ -1000,6 +1037,30 @@ public class ActionRequestIntrospector {
 
     private static boolean containsWildcard(String index) {
         return index == null || index.contains("*");
+    }
+
+    private static boolean containsWildcard(IndicesRequest request) {        
+        String[] indices = request.indices();
+
+        if (indices == null || indices.length == 0)  {
+            return true;
+        }
+        
+        if (!request.indicesOptions().expandWildcardsOpen() && !request.indicesOptions().expandWildcardsClosed()) {
+            return false;
+        }        
+
+        for (int i = 0; i < indices.length; i++) {
+            if (indices[i].equals("_all") || indices[i].equals("*")) {
+                return true;
+            }
+
+            if (Regex.isSimpleMatchPattern(indices[i])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static boolean equals(IndicesRequest a, IndicesRequest b) {

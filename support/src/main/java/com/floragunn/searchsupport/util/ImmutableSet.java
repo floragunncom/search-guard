@@ -162,27 +162,43 @@ public interface ImmutableSet<E> extends Set<E> {
         private InternalBuilder<E> internalBuilder;
 
         public Builder() {
-            internalBuilder = new HashArray16BackedSet.Builder<E>();
+            internalBuilder = new HashArrayBackedSet.Builder<E>(16);
         }
 
         public Builder(int expectedNumberOfElements) {
-            if (expectedNumberOfElements < 16) {
-                internalBuilder = new HashArray16BackedSet.Builder<E>();
+            if (expectedNumberOfElements <= 16) {
+                internalBuilder = new HashArrayBackedSet.Builder<E>(16);
+            } else if (expectedNumberOfElements <= 64) {
+                internalBuilder = new HashArrayBackedSet.Builder<E>(64);
+            } else if (expectedNumberOfElements <= 256) {
+                internalBuilder = new HashArrayBackedSet.Builder<E>(256);
             } else {
                 internalBuilder = new SetBackedSet.Builder<E>(expectedNumberOfElements);
             }
         }
 
         public Builder(Collection<E> initialContent) {
-            if (initialContent instanceof HashArray16BackedSet) {
-                internalBuilder = new HashArray16BackedSet.Builder<E>((HashArray16BackedSet<E>) initialContent);
+            if (initialContent instanceof HashArrayBackedSet) {
+                internalBuilder = new HashArrayBackedSet.Builder<E>((HashArrayBackedSet<E>) initialContent);
             } else {
-                if (initialContent.size() < 16) {
-                    internalBuilder = new HashArray16BackedSet.Builder<E>();
+                if (initialContent.size() <= 16) {
+                    internalBuilder = new HashArrayBackedSet.Builder<E>(16);
 
                     for (E e : initialContent) {
                         internalBuilder = internalBuilder.with(e);
                     }
+                } else if (initialContent.size() <= 64) {
+                    internalBuilder = new HashArrayBackedSet.Builder<E>(64);
+
+                    for (E e : initialContent) {
+                        internalBuilder = internalBuilder.with(e);
+                    }
+                } else if (initialContent.size() <= 256) {
+                    internalBuilder = new HashArrayBackedSet.Builder<E>(256);
+
+                    for (E e : initialContent) {
+                        internalBuilder = internalBuilder.with(e);
+                    }                    
                 } else {
                     internalBuilder = new SetBackedSet.Builder<E>(initialContent);
                 }
@@ -190,8 +206,20 @@ public interface ImmutableSet<E> extends Set<E> {
         }
 
         public Builder(E[] initialContent) {
-            if (initialContent.length < 16) {
-                internalBuilder = new HashArray16BackedSet.Builder<E>();
+            if (initialContent.length <= 16) {
+                internalBuilder = new HashArrayBackedSet.Builder<E>(16);
+
+                for (int i = 0; i < initialContent.length; i++) {
+                    internalBuilder = internalBuilder.with(initialContent[i]);
+                }
+            } else if (initialContent.length <= 64) {
+                internalBuilder = new HashArrayBackedSet.Builder<E>(64);
+
+                for (int i = 0; i < initialContent.length; i++) {
+                    internalBuilder = internalBuilder.with(initialContent[i]);
+                }
+            } else if (initialContent.length <= 256) {
+                internalBuilder = new HashArrayBackedSet.Builder<E>(256);
 
                 for (int i = 0; i < initialContent.length; i++) {
                     internalBuilder = internalBuilder.with(initialContent[i]);
@@ -262,9 +290,14 @@ public interface ImmutableSet<E> extends Set<E> {
         public E any() {
             return internalBuilder.any();
         }
+
+        @Override
+        public String toString() {
+            return internalBuilder.toString() + " [" + internalBuilder.getClass() + "]";
+        }
     }
 
-    static abstract class InternalBuilder<E> {
+    static abstract class InternalBuilder<E> implements Iterable<E> {
         abstract InternalBuilder<E> with(E e);
 
         abstract InternalBuilder<E> with(Collection<E> e);
@@ -283,9 +316,30 @@ public interface ImmutableSet<E> extends Set<E> {
 
         abstract int size();
 
-        abstract Iterator<E> iterator();
+        public abstract Iterator<E> iterator();
 
         abstract E any();
+
+        @Override
+        public String toString() {
+            StringBuilder result = new StringBuilder("[");
+            boolean first = true;
+
+            for (E e : this) {
+                if (first) {
+                    first = false;
+                } else {
+                    result.append(", ");
+                }
+
+                result.append(e);
+            }
+
+            result.append("]");
+            result.append(" ").append(size()).append(getClass());
+
+            return result.toString();
+        }
     }
 
     static abstract class AbstractImmutableSet<E> extends AbstractImmutableCollection<E> implements ImmutableSet<E> {
@@ -997,19 +1051,31 @@ public interface ImmutableSet<E> extends Set<E> {
 
     }
 
-    static class HashArray16BackedSet<E> extends AbstractImmutableSet<E> {
+    static class HashArrayBackedSet<E> extends AbstractImmutableSet<E> {
 
-        private static final int TABLE_SIZE = 16;
+        private static final int COLLISION_HEAD_ROOM = 4;
+        private static final int NO_SPACE = Integer.MAX_VALUE;
+
+        final int tableSize;
         private int size = 0;
 
-        private final Object[] table1;
-        private final Object[] table2;
-        private Object[] flat;
+        private final E[] table1;
+        private final E[] table2;
+        private E[] flat;
 
-        HashArray16BackedSet(int size, Object[] table1, Object[] table2) {
+        HashArrayBackedSet(int tableSize, int size, E[] table1, E[] table2) {
+            this.tableSize = tableSize;
             this.size = size;
             this.table1 = table1;
             this.table2 = table2;
+        }
+
+        HashArrayBackedSet(int tableSize, int size, E[] table1, E[] table2, E[] flat) {
+            this.tableSize = tableSize;
+            this.size = size;
+            this.table1 = table1;
+            this.table2 = table2;
+            this.flat = flat;
         }
 
         @Override
@@ -1030,7 +1096,7 @@ public interface ImmutableSet<E> extends Set<E> {
         boolean contains(Object o, int pos) {
             if (o.equals(this.table1[pos])) {
                 return true;
-            } else if (this.table2 != null && o.equals(this.table2[pos])) {
+            } else if (this.table2 != null && checkTable2(o, pos) < 0) {
                 return true;
             } else {
                 return false;
@@ -1041,7 +1107,7 @@ public interface ImmutableSet<E> extends Set<E> {
         public Iterator<E> iterator() {
             return new Iterator<E>() {
 
-                private Object[] table = table1;
+                private E[] table = table1;
                 private int i = findIndexOfNextNonNull(table1, 0);
 
                 @Override
@@ -1055,8 +1121,7 @@ public interface ImmutableSet<E> extends Set<E> {
                         throw new NoSuchElementException();
                     }
 
-                    @SuppressWarnings("unchecked")
-                    E element = (E) table[i];
+                    E element = table[i];
 
                     i = findIndexOfNextNonNull(table, i + 1);
 
@@ -1098,10 +1163,9 @@ public interface ImmutableSet<E> extends Set<E> {
             return result;
         }
 
-        @SuppressWarnings("unchecked")
         @Override
         E any() {
-            return (E) findFirstNonNull(table1, table2);
+            return getFlatArray()[0];
         }
 
         @Override
@@ -1113,893 +1177,17 @@ public interface ImmutableSet<E> extends Set<E> {
             return any();
         }
 
-        @SuppressWarnings("unchecked")
         @Override
         public ImmutableSet<E> matching(Predicate<E> predicate) {
             int table1count = 0;
             int table2count = 0;
 
-            Object[] newTable1 = new Object[TABLE_SIZE];
-            Object[] newTable2 = table2 != null ? new Object[TABLE_SIZE] : null;
-
-            for (int i = 0; i < TABLE_SIZE; i++) {
-                Object v = this.table1[i];
-
-                if (v != null) {
-                    if (predicate.test((E) v)) {
-                        newTable1[i] = v;
-                        table1count++;
-                    }
-                }
-            }
-
-            if (this.table2 != null) {
-                for (int i = 0; i < TABLE_SIZE; i++) {
-                    Object v = this.table2[i];
-
-                    if (v != null) {
-                        if (predicate.test((E) v)) {
-                            newTable2[i] = v;
-                            table2count++;
-                        }
-                    }
-                }
-            }
-
-            int count = table1count + table2count;
-
-            if (count == 0) {
-                return empty();
-            } else if (count == 1) {
-                return new OneElementSet<E>((E) findFirstNonNull(newTable1, newTable2));
-            } else if (count < size) {
-                if (table2count == 0) {
-                    return new HashArray16BackedSet<E>(count, newTable1, null);
-                } else if (table1count == 0) {
-                    return new HashArray16BackedSet<E>(count, newTable2, null);
-                } else {
-                    return new HashArray16BackedSet<E>(count, newTable1, newTable2);
-                }
-            } else {
-                return this;
-            }
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public ImmutableSet<E> intersection(Set<E> other) {
-            if (other.isEmpty()) {
-                return empty();
-            }
-
-            if (other == this) {
-                return this;
-            }
-
-            if (other instanceof ImmutableSet && other.size() < this.size()) {
-                return ((ImmutableSet<E>) other).intersection(this);
-            }
-
-            if (other instanceof HashArray16BackedSet) {
-                return intersection((HashArray16BackedSet<E>) other);
-            }
-
-            int table1count = 0;
-            int table2count = 0;
-
-            Object[] newTable1 = new Object[TABLE_SIZE];
-            Object[] newTable2 = table2 != null ? new Object[TABLE_SIZE] : null;
-
-            for (int i = 0; i < TABLE_SIZE; i++) {
-                Object v = this.table1[i];
-
-                if (v != null) {
-                    if (other.contains((E) v)) {
-                        newTable1[i] = v;
-                        table1count++;
-                    }
-
-                }
-            }
-
-            if (this.table2 != null) {
-                for (int i = 0; i < TABLE_SIZE; i++) {
-                    Object v = this.table2[i];
-
-                    if (v != null) {
-                        if (other.contains((E) v)) {
-                            newTable2[i] = v;
-                            table2count++;
-                        }
-                    }
-                }
-            }
-
-            int count = table1count + table2count;
-
-            if (count == 0) {
-                return empty();
-            } else if (count == 1) {
-                return new OneElementSet<E>((E) findFirstNonNull(newTable1, newTable2));
-            } else if (count < size) {
-                if (table2count == 0) {
-                    return new HashArray16BackedSet<E>(count, newTable1, null);
-                } else if (table1count == 0) {
-                    return new HashArray16BackedSet<E>(count, newTable2, null);
-                } else {
-                    return new HashArray16BackedSet<E>(count, newTable1, newTable2);
-                }
-            } else {
-                return this;
-            }
-        }
-
-        @SuppressWarnings("unchecked")
-        private ImmutableSet<E> intersection(HashArray16BackedSet<E> other) {
-            int k = 0;
-
-            Object[] newTable1 = new Object[TABLE_SIZE];
-            Object[] newTable2 = table2 != null ? new Object[TABLE_SIZE] : null;
-
-            for (int i = 0; i < TABLE_SIZE; i++) {
-                Object v = this.table1[i];
-
-                if (v != null) {
-                    if (other.table1[i] != null && other.table1[i].equals(v)) {
-                        newTable1[i] = v;
-                        k++;
-                    } else if (other.table2 != null && other.table2[i] != null && other.table2[i].equals(v)) {
-                        newTable1[i] = v;
-                        k++;
-                    }
-                }
-            }
-
-            if (this.table2 != null) {
-                for (int i = 0; i < TABLE_SIZE; i++) {
-                    Object v = this.table2[i];
-
-                    if (v != null) {
-                        if (other.table1[i] != null && other.table1[i].equals(v)) {
-                            newTable2[i] = v;
-                            k++;
-                        } else if (other.table2 != null && other.table2[i] != null && other.table2[i].equals(v)) {
-                            newTable2[i] = v;
-                            k++;
-                        }
-                    }
-                }
-            }
-
-            if (k == 0) {
-                return empty();
-            } else if (k == 1) {
-                E only = (E) findFirstNonNull(newTable1);
-
-                if (only == null) {
-                    only = (E) findFirstNonNull(newTable2);
-                }
-
-                return new OneElementSet<E>(only);
-            } else if (k < size) {
-                return new HashArray16BackedSet<E>(k, newTable1, newTable2);
-            } else {
-                return this;
-            }
-        }
-
-        @Override
-        public ImmutableSet<E> without(Collection<E> other) {
-            if (other.isEmpty()) {
-                return this;
-            }
-
-            return matching((e) -> !other.contains(e));
-        }
-
-        @Override
-        public String toShortString() {
-            StringBuilder result = new StringBuilder("[");
-            Object[] flat = getFlatArray();
-
-            for (int i = 0; i < flat.length; i++) {
-                if (i != 0) {
-                    result.append(",");
-                }
-                result.append(flat[i]);
-            }
-
-            result.append("]");
-
-            return result.toString();
-        }
-
-        @Override
-        public ImmutableSet<E> with(E other) {
-
-            int pos = hashPosition(other);
-
-            if (this.table1[pos] != null) {
-                if (other.equals(this.table1[pos])) {
-                    // already contained
-                    return this;
-                } else if (this.table2 != null) {
-                    if (this.table2[pos] != null) {
-                        if (other.equals(this.table2[pos])) {
-                            // already contained
-                            return this;
-                        } else {
-                            return new WithSet<>(this, other);
-                        }
-                    } else {
-                        Object[] newTable2 = this.table2.clone();
-                        newTable2[pos] = other;
-                        return new HashArray16BackedSet<>(size + 1, this.table1, newTable2);
-                    }
-                } else {
-                    Object[] newTable2 = new Object[TABLE_SIZE];
-                    newTable2[pos] = other;
-                    return new HashArray16BackedSet<>(size + 1, this.table1, newTable2);
-                }
-            } else {
-                Object[] newTable1 = this.table1.clone();
-                newTable1[pos] = other;
-                return new HashArray16BackedSet<>(size + 1, newTable1, this.table2);
-            }
-        }
-
-        @Override
-        public ImmutableSet<E> with(ImmutableSet<E> other) {
-            int otherSize = other.size();
-
-            if (otherSize == 0) {
-                return this;
-            } else if (otherSize == 1) {
-                return this.with(other.only());
-            } else {
-                HashArray16BackedSet.Builder<E> builder = new HashArray16BackedSet.Builder<E>(this);
-                builder.with(other);
-                return builder.build();
-            }
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public ImmutableSet<E> with(E... other) {
-            int otherSize = other.length;
-
-            if (otherSize == 0) {
-                return this;
-            } else if (otherSize == 1) {
-                return this.with(other[0]);
-            } else {
-                InternalBuilder<E> builder = new HashArray16BackedSet.Builder<E>(this);
-
-                for (int i = 0; i < other.length; i++) {
-                    builder = builder.with(other[i]);
-                }
-
-                return builder.build();
-            }
-        }
-
-        @Override
-        public ImmutableSet<E> without(E other) {
-            int pos = hashPosition(other);
-
-            if (this.table1[pos] != null && other.equals(this.table1[pos])) {
-                if (size == 1) {
-                    return empty();
-                }
-
-                Object[] newTable1 = this.table1.clone();
-                newTable1[pos] = null;
-                return new HashArray16BackedSet<>(size - 1, newTable1, this.table2);
-            } else if (this.table2 != null && this.table2[pos] != null && other.equals(this.table1[pos])) {
-                if (size == 1) {
-                    return empty();
-                }
-
-                Object[] newTable2 = this.table2.clone();
-                newTable2[pos] = null;
-                return new HashArray16BackedSet<>(size - 1, this.table1, newTable2);
-            } else {
-                return this;
-            }
-        }
-
-        Object[] getFlatArray() {
-            if (flat != null) {
-                return flat;
-            }
-
-            Object[] flat = new Object[size];
-            int k = 0;
-
-            for (int i = 0; i < table1.length; i++) {
-                Object v = table1[i];
-
-                if (v != null) {
-                    flat[k] = v;
-                    k++;
-                }
-            }
-
-            if (table2 != null) {
-                for (int i = 0; i < table2.length; i++) {
-                    Object v = table2[i];
-
-                    if (v != null) {
-                        flat[k] = v;
-                        k++;
-                    }
-                }
-            }
-
-            this.flat = flat;
-
-            return flat;
-        }
-
-        static Object findFirstNonNull(Object[] array) {
-            for (int i = 0; i < array.length; i++) {
-                if (array[i] != null) {
-                    return array[i];
-                }
-            }
-
-            return null;
-        }
-
-        static Object findFirstNonNull(Object[] array1, Object[] array2) {
-            Object result = findFirstNonNull(array1);
-
-            if (result == null && array2 != null) {
-                result = findFirstNonNull(array2);
-            }
-
-            return result;
-        }
-
-        static int findIndexOfNextNonNull(Object[] array, int start) {
-            for (int i = start; i < array.length; i++) {
-                if (array[i] != null) {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
-        static int hashPosition(Object e) {
-            if (e == null) {
-                throw new IllegalArgumentException("ImmutableSet does not support null values");
-            }
-
-            int hash = e.hashCode();
-            int pos = (hash & 0xf) ^ (hash >> 4 & 0xf) ^ (hash >> 8 & 0xf) ^ (hash >> 12 & 0xf) ^ (hash >> 16 & 0xf) ^ (hash >> 20 & 0xf)
-                    ^ (hash >> 24 & 0xf) ^ (hash >> 28 & 0xf);
-            return pos;
-        }
-
-        static class Builder<E> extends InternalBuilder<E> {
-            private E first;
-            private Object[] tail1;
-            private Object[] tail2;
-            private int size = 0;
-
-            public Builder() {
-
-            }
-
-            @SuppressWarnings("unchecked")
-            public Builder(HashArray16BackedSet<E> initialContent) {
-                this.tail1 = initialContent.table1.clone();
-                this.tail2 = initialContent.table2 != null ? initialContent.table2.clone() : null;
-                this.size = initialContent.size;
-
-                int firstIndex = findIndexOfNextNonNull(tail1, size);
-
-                if (firstIndex != -1) {
-                    this.first = (E) this.tail1[firstIndex];
-                    this.tail1[firstIndex] = null;
-                }
-            }
-
-            public InternalBuilder<E> with(E e) {
-                if (e == null) {
-                    throw new IllegalArgumentException("Null elements are not supported");
-                }
-
-                if (first == null) {
-                    first = e;
-                    size++;
-                    return this;
-                } else if (first.equals(e)) {
-                    // done
-                    return this;
-                } else if (tail1 == null) {
-                    tail1 = new Object[TABLE_SIZE];
-                    tail1[hashPosition(e)] = e;
-                    size++;
-                    return this;
-                } else {
-                    int position = hashPosition(e);
-
-                    if (tail1[position] == null) {
-                        tail1[position] = e;
-                        size++;
-                        return this;
-                    } else if (tail1[position].equals(e)) {
-                        // done
-                        return this;
-                    } else {
-                        // collision
-
-                        if (tail2 == null) {
-                            tail2 = new Object[TABLE_SIZE];
-                            tail2[position] = e;
-                            size++;
-                            return this;
-                        } else if (tail2[position] == null) {
-                            tail2[position] = e;
-                            size++;
-                            return this;
-                        } else if (tail2[position].equals(e)) {
-                            // done     
-                            return this;
-                        } else {
-                            // collision
-
-                            return new SetBackedSet.Builder<>(build()).with(e);
-                        }
-                    }
-                }
-            }
-
-            @Override
-            InternalBuilder<E> with(Collection<E> collection) {
-                InternalBuilder<E> builder = this;
-
-                for (E e : collection) {
-                    builder = builder.with(e);
-                }
-
-                return builder;
-            }
-
-            @SuppressWarnings("unchecked")
-            public ImmutableSet<E> build() {
-                if (size == 0) {
-                    return ImmutableSet.empty();
-                } else if (first == null) {
-                    return new HashArray16BackedSet<>(size, tail1, tail2);
-                } else if (size == 1) {
-                    return new OneElementSet<>(first);
-                } else if (size == 2) {
-                    return new TwoElementSet<>(first, (E) findFirstNonNull(this.tail1));
-                } else {
-                    // We need to integrate the first element
-                    int firstPos = hashPosition(first);
-
-                    if (this.tail1[firstPos] == null) {
-                        this.tail1[firstPos] = first;
-                        return new HashArray16BackedSet<>(size, tail1, tail2);
-                    } else if (this.tail2 == null) {
-                        this.tail2 = new Object[TABLE_SIZE];
-                        this.tail2[firstPos] = first;
-                        return new HashArray16BackedSet<>(size, tail1, tail2);
-                    } else if (this.tail2[firstPos] == null) {
-                        this.tail2[firstPos] = first;
-                        return new HashArray16BackedSet<>(size, tail1, tail2);
-                    } else {
-                        return new WithSet<>(new HashArray16BackedSet<>(size, tail1, tail2), first);
-                    }
-
-                }
-            }
-
-            @Override
-            int size() {
-                return size;
-            }
-
-            @Override
-            boolean remove(E e) {
-                if (e.equals(first)) {
-                    first = null;
-                    size--;
-
-                    return true;
-                } else {
-                    int position = hashPosition(e);
-
-                    if (tail1[position] != null && tail1[position].equals(e)) {
-                        tail1[position] = null;
-                        size--;
-                        return true;
-                    } else if (tail2 != null && tail2[position] != null && tail2[position].equals(e)) {
-                        tail2[position] = null;
-                        size--;
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-            @Override
-            void clear() {
-                size = 0;
-                first = null;
-
-                if (tail1 != null) {
-                    Arrays.fill(tail1, null);
-                }
-
-                tail2 = null;
-            }
-
-            @Override
-            boolean contains(E e) {
-                if (e.equals(first)) {
-                    return true;
-                } else {
-                    int position = hashPosition(e);
-
-                    if (tail1[position] != null && tail1[position].equals(e)) {
-                        return true;
-                    } else if (tail2 != null && tail2[position] != null && tail2[position].equals(e)) {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-            @Override
-            boolean containsAny(Set<E> set) {
-                if (set instanceof HashArray16BackedSet) {
-                    return containsAny((HashArray16BackedSet<E>) set);
-                } else {
-                    for (E e : set) {
-                        if (contains(e)) {
-                            return true;
-                        }
-                    }
-                }
-
-                return false;
-            }
-
-            private boolean containsAny(HashArray16BackedSet<E> set) {
-                for (int i = 0; i < TABLE_SIZE; i++) {
-                    if (set.table1[i] != null) {
-                        if (contains(set.table1[i], i)) {
-                            return true;
-                        }
-                    }
-
-                    if (set.table2 != null && set.table2[i] != null) {
-                        if (contains(set.table2[i], i)) {
-                            return true;
-                        }
-                    }
-                }
-
-                return false;
-            }
-
-            @Override
-            boolean containsAll(Set<E> set) {
-                if (set instanceof HashArray16BackedSet) {
-                    return containsAll((HashArray16BackedSet<E>) set);
-                } else {
-                    for (E e : set) {
-                        if (!contains(e)) {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-            }
-
-            private boolean containsAll(HashArray16BackedSet<E> set) {
-                for (int i = 0; i < TABLE_SIZE; i++) {
-                    if (set.table1[i] != null) {
-                        if (!contains(set.table1[i], i)) {
-                            return false;
-                        }
-                    }
-
-                    if (set.table2 != null && set.table2[i] != null) {
-                        if (!contains(set.table2[i], i)) {
-                            return false;
-                        }
-                    }
-                }
-
-                return true;
-            }
-
-            private boolean contains(Object e, int hashPosition) {
-                if (tail1 != null && tail1[hashPosition] != null && tail1[hashPosition].equals(e)) {
-                    return true;
-                } else if (tail2 != null && tail2[hashPosition] != null && tail2[hashPosition].equals(e)) {
-                    return true;
-                } else if (first.equals(e)) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-
-            @Override
-            Iterator<E> iterator() {
-                if (size == 0) {
-                    return Collections.emptyIterator();
-                }
-
-                return new Iterator<E>() {
-
-                    int currentState = -1;
-                    int nextState = 0;
-                    int currentPos = 0;
-                    int nextPos = 0;
-                    E current;
-                    E prev;
-                    int prevState;
-                    int prevPos;
-
-                    @Override
-                    public boolean hasNext() {
-                        if (current == null) {
-                            initNext();
-                        }
-                        return current != null;
-                    }
-
-                    @Override
-                    public E next() {
-                        if (current != null) {
-                            E result = current;
-                            prev = current;
-                            prevState = currentState;
-                            prevPos = currentPos;
-                            current = null;
-                            return result;
-                        } else {
-                            throw new NoSuchElementException();
-                        }
-                    }
-
-                    @Override
-                    public void remove() {
-                        if (prev == null) {
-                            throw new NoSuchElementException();
-                        }
-
-                        if (prevState == 0) {
-                            if (prev.equals(first)) {
-                                first = null;
-                                size--;
-                            }
-                        } else if (prevState == 1) {
-                            if (tail1 != null && prev.equals(tail1[this.prevPos])) {
-                                tail1[this.prevPos] = null;
-                                size--;
-                            }
-                        } else if (prevState == 2) {
-                            if (tail2 != null && prev.equals(tail2[this.prevPos])) {
-                                tail2[this.prevPos] = null;
-                                size--;
-                            }
-                        }
-
-                    }
-
-                    @SuppressWarnings("unchecked")
-                    private void initNext() {
-                        if (nextState == 0) {
-                            currentState = 0;
-                            nextState = 1;
-                            if (first != null) {
-                                current = first;
-                                return;
-                            }
-                        }
-
-                        if (nextState == 1) {
-                            if (tail1 != null) {
-                                int nextIndex = findIndexOfNextNonNull(tail1, nextPos);
-
-                                if (nextIndex != -1) {
-                                    this.currentState = 1;
-                                    this.currentPos = nextIndex;
-                                    this.nextPos = nextIndex + 1;
-                                    this.current = (E) tail1[nextIndex];
-                                    return;
-                                } else {
-                                    this.nextPos = 0;
-                                    this.nextState = 2;
-                                }
-                            } else {
-                                this.nextState = 2;
-                            }
-                        }
-
-                        if (nextState == 2) {
-                            if (tail2 != null) {
-                                int nextIndex = findIndexOfNextNonNull(tail2, nextPos);
-
-                                if (nextIndex != -1) {
-                                    this.currentState = 2;
-                                    this.currentPos = nextIndex;
-                                    this.nextPos = nextIndex + 1;
-                                    this.current = (E) tail2[nextIndex];
-                                    return;
-                                } else {
-                                    this.nextPos = 0;
-                                    this.nextState = 2;
-                                }
-                            } else {
-                                this.nextState = 3;
-                            }
-                        }
-
-                        this.currentState = 3;
-                        this.current = null;
-                    }
-
-                };
-            }
-
-            @SuppressWarnings("unchecked")
-            @Override
-            E any() {
-                if (first != null) {
-                    return first;
-                }
-
-                return (E) findFirstNonNull(this.tail1, this.tail2);
-            }
-
-        }
-    }
-
-    static class HashArray64BackedSet<E> extends AbstractImmutableSet<E> {
-
-        private static final int TABLE_SIZE = 64;
-        private int size = 0;
-
-        private final Object[] table1;
-        private final Object[] table2;
-        private Object[] flat;
-
-        HashArray64BackedSet(int size, Object[] table1, Object[] table2) {
-            this.size = size;
-            this.table1 = table1;
-            this.table2 = table2;
-        }
-
-        HashArray64BackedSet(int size, Object[] table1, Object[] table2, Object[] flat) {
-            this.size = size;
-            this.table1 = table1;
-            this.table2 = table2;
-            this.flat = flat;
-        }
-
-        @Override
-        public int size() {
-            return size;
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return false;
-        }
-
-        @Override
-        public boolean contains(Object o) {
-            int pos = hashPosition(o);
-
-            if (o.equals(this.table1[pos])) {
-                return true;
-            } else if (this.table2 != null && o.equals(this.table2[pos])) {
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public Iterator<E> iterator() {
-            return new Iterator<E>() {
-
-                private Object[] table = table1;
-                private int i = findIndexOfNextNonNull(table1, 0);
-
-                @Override
-                public boolean hasNext() {
-                    return table != null;
-                }
-
-                @Override
-                public E next() {
-                    if (table == null) {
-                        throw new NoSuchElementException();
-                    }
-
-                    @SuppressWarnings("unchecked")
-                    E element = (E) table[i];
-
-                    i = findIndexOfNextNonNull(table, i + 1);
-
-                    if (i == -1) {
-                        if (table == table1) {
-                            table = table2;
-
-                            if (table != null) {
-                                i = findIndexOfNextNonNull(table, 0);
-
-                                if (i == -1) {
-                                    table = null;
-                                }
-                            }
-                        } else {
-                            table = null;
-                        }
-                    }
-
-                    return element;
-                }
-            };
-        }
-
-        @Override
-        public Object[] toArray() {
-            Object[] result = new Object[size];
-            System.arraycopy(getFlatArray(), 0, result, 0, size);
-            return result;
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public <T> T[] toArray(T[] a) {
-            T[] result = a.length >= size ? a : (T[]) java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), size);
-
-            System.arraycopy(getFlatArray(), 0, result, 0, size);
-
-            return result;
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        E any() {
-            return (E) getFlatArray()[0];
-        }
-
-        @Override
-        public E only() {
-            if (size() != 1) {
-                throw new IllegalStateException();
-            }
-
-            return any();
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public ImmutableSet<E> matching(Predicate<E> predicate) {
-            int table1count = 0;
-            int table2count = 0;
-
-            Object[] newTable1 = new Object[TABLE_SIZE];
-            Object[] newTable2 = table2 != null ? new Object[TABLE_SIZE] : null;
-            Object[] newFlat = new Object[size];
-
-            for (int i = 0; i < TABLE_SIZE; i++) {
-                Object v = this.table1[i];
+            E[] newTable1 = createTable1();
+            E[] newTable2 = table2 != null ? createTable2() : null;
+            E[] newFlat = createEArray(size);
+
+            for (int i = 0; i < tableSize; i++) {
+                E v = this.table1[i];
 
                 if (v != null) {
                     if (predicate.test((E) v)) {
@@ -2013,147 +1201,110 @@ public interface ImmutableSet<E> extends Set<E> {
             int count = table1count;
 
             if (this.table2 != null) {
-                for (int i = 0; i < TABLE_SIZE; i++) {
-                    Object v = this.table2[i];
+                for (int i = 0; i < this.table2.length; i++) {
+                    E v = this.table2[i];
 
                     if (v != null) {
-                        if (predicate.test((E) v)) {
-                            newTable2[i] = v;
-                            newFlat[count] = v;
-                            table2count++;
-                            count++;
-                        }
-                    }
-                }
-            }
+                        if (predicate.test(v)) {
+                            int pos = i == 0 ? 0 : hashPosition(v);
 
-            if (count == 0) {
-                return empty();
-            } else if (count == 1) {
-                return new OneElementSet<E>((E) newFlat[0]);
-            } else if (count == 2) {
-                return new TwoElementSet<E>((E) newFlat[0], (E) newFlat[1]);
-            } else if (count < size) {
-                if (table2count == 0) {
-                    return new HashArray64BackedSet<E>(count, newTable1, null, newFlat);
-                } else if (table1count == 0) {
-                    return new HashArray64BackedSet<E>(count, newTable2, null, newFlat);
-                } else {
-                    return new HashArray64BackedSet<E>(count, newTable1, newTable2, newFlat);
-                }
-            } else {
-                return this;
-            }
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public ImmutableSet<E> intersection(Set<E> other) {
-            if (other.isEmpty()) {
-                return empty();
-            }
-
-            if (other == this) {
-                return this;
-            }
-
-            if (other instanceof ImmutableSet && other.size() < this.size()) {
-                return ((ImmutableSet<E>) other).intersection(this);
-            }
-
-            if (other instanceof HashArray64BackedSet) {
-                return intersection((HashArray64BackedSet<E>) other);
-            }
-
-            int table1count = 0;
-            int table2count = 0;
-
-            Object[] newTable1 = new Object[TABLE_SIZE];
-            Object[] newTable2 = table2 != null ? new Object[TABLE_SIZE] : null;
-            Object[] newFlat = new Object[size];
-
-            for (int i = 0; i < TABLE_SIZE; i++) {
-                Object v = this.table1[i];
-
-                if (v != null) {
-                    if (other.contains((E) v)) {
-                        newTable1[i] = v;
-                        newFlat[table1count] = v;
-                        table1count++;
-                    }
-
-                }
-            }
-
-            int count = table1count;
-
-            if (this.table2 != null) {
-                for (int i = 0; i < TABLE_SIZE; i++) {
-                    Object v = this.table2[i];
-
-                    if (v != null) {
-                        if (other.contains((E) v)) {
-                            newTable2[i] = v;
-                            newFlat[count] = v;
-                            table2count++;
-                            count++;
-                        }
-                    }
-                }
-            }
-
-            if (count == 0) {
-                return empty();
-            } else if (count == 1) {
-                return new OneElementSet<E>((E) newFlat[0]);
-            } else if (count == 2) {
-                return new TwoElementSet<E>((E) newFlat[0], (E) newFlat[1]);
-            } else if (count < size) {
-                if (table2count == 0) {
-                    return new HashArray64BackedSet<E>(count, newTable1, null, newFlat);
-                } else if (table1count == 0) {
-                    return new HashArray64BackedSet<E>(count, newTable2, null, newFlat);
-                } else {
-                    return new HashArray64BackedSet<E>(count, newTable1, newTable2, newFlat);
-                }
-            } else {
-                return this;
-            }
-        }
-
-        @SuppressWarnings("unchecked")
-        private ImmutableSet<E> intersection(HashArray64BackedSet<E> other) {
-            int table1count = 0;
-            int table2count = 0;
-
-            Object[] newTable1 = new Object[TABLE_SIZE];
-            Object[] newTable2 = table2 != null ? new Object[TABLE_SIZE] : null;
-
-            for (int i = 0; i < TABLE_SIZE; i++) {
-                Object v = this.table1[i];
-
-                if (v != null) {
-                    if ((other.table1[i] != null && other.table1[i].equals(v))
-                            || (other.table2 != null && other.table2[i] != null && other.table2[i].equals(v))) {
-                        newTable1[i] = v;
-                        table1count++;
-                    }
-                }
-            }
-
-            if (this.table2 != null) {
-                for (int i = 0; i < TABLE_SIZE; i++) {
-                    Object v = this.table2[i];
-
-                    if (v != null) {
-                        if ((other.table1[i] != null && other.table1[i].equals(v))
-                                || (other.table2 != null && other.table2[i] != null && other.table2[i].equals(v))) {
-                            if (newTable1[i] == null) {
+                            if (newTable1[pos] == null) {
                                 newTable1[i] = v;
                                 table1count++;
                             } else {
-                                newTable2[i] = v;
-                                table2count++;
+                                for (int k = pos;; k++) {
+                                    if (newTable2[k] == null) {
+                                        newTable2[k] = v;
+                                        table2count++;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            newFlat[count] = v;
+                            count++;
+                        }
+                    }
+                }
+            }
+
+            if (count == 0) {
+                return empty();
+            } else if (count == 1) {
+                return new OneElementSet<E>((E) newFlat[0]);
+            } else if (count == 2) {
+                return new TwoElementSet<E>((E) newFlat[0], (E) newFlat[1]);
+            } else if (count < size) {
+                if (table2count == 0) {
+                    return new HashArrayBackedSet<E>(tableSize, count, newTable1, null, newFlat);
+                } else if (table1count == 0) {
+                    return new HashArrayBackedSet<E>(tableSize, count, newTable2, null, newFlat);
+                } else {
+                    return new HashArrayBackedSet<E>(tableSize, count, newTable1, newTable2, newFlat);
+                }
+            } else {
+                return this;
+            }
+        }
+
+        @Override
+        public ImmutableSet<E> intersection(Set<E> other) {
+            if (other.isEmpty()) {
+                return empty();
+            }
+
+            if (other == this) {
+                return this;
+            }
+
+            if (other instanceof ImmutableSet && other.size() < this.size()) {
+                return ((ImmutableSet<E>) other).intersection(this);
+            }
+
+            if (other instanceof HashArrayBackedSet && ((HashArrayBackedSet<E>) other).tableSize == tableSize) {
+                return intersection((HashArrayBackedSet<E>) other);
+            }
+
+            return matching((e) -> other.contains(e));
+        }
+
+        private ImmutableSet<E> intersection(HashArrayBackedSet<E> other) {
+            int table1count = 0;
+            int table2count = 0;
+
+            E[] newTable1 = createTable1();
+            E[] newTable2 = table2 != null ? createTable2() : null;
+
+            for (int i = 0; i < tableSize; i++) {
+                E v = this.table1[i];
+
+                if (v != null) {
+                    if (other.contains(v, i)) {
+                        newTable1[i] = v;
+                        table1count++;
+                    }
+                }
+            }
+
+            if (this.table2 != null) {
+                for (int i = 0; i < this.table2.length; i++) {
+                    E v = this.table2[i];
+
+                    if (v != null) {
+                        int pos = i == 0 ? 0 : hashPosition(v);
+
+                        if (other.contains(v, pos)) {
+                            if (newTable1[pos] == null) {
+                                newTable1[i] = v;
+                                table1count++;
+                            } else {
+                                for (int k = pos;; k++) {
+                                    if (newTable2[k] == null) {
+                                        newTable2[k] = v;
+                                        table2count++;
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }
@@ -2168,11 +1319,11 @@ public interface ImmutableSet<E> extends Set<E> {
                 return new OneElementSet<E>((E) findFirstNonNull(newTable1, newTable2));
             } else if (count < size) {
                 if (table2count == 0) {
-                    return new HashArray64BackedSet<E>(count, newTable1, null);
+                    return new HashArrayBackedSet<E>(tableSize, count, newTable1, null);
                 } else if (table1count == 0) {
-                    return new HashArray64BackedSet<E>(count, newTable2, null);
+                    return new HashArrayBackedSet<E>(tableSize, count, newTable2, null);
                 } else {
-                    return new HashArray64BackedSet<E>(count, newTable1, newTable2);
+                    return new HashArrayBackedSet<E>(tableSize, count, newTable1, newTable2);
                 }
             } else {
                 return this;
@@ -2216,26 +1367,32 @@ public interface ImmutableSet<E> extends Set<E> {
                     return this;
                 } else if (this.table2 != null) {
                     if (this.table2[pos] != null) {
-                        if (other.equals(this.table2[pos])) {
+                        int check = checkTable2(other, pos);
+
+                        if (check < 0) {
                             // already contained
                             return this;
-                        } else {
+                        } else if (check == NO_SPACE) {
                             return new WithSet<>(this, other);
+                        } else {
+                            E[] newTable2 = this.table2.clone();
+                            newTable2[check] = other;
+                            return new HashArrayBackedSet<>(tableSize, size + 1, this.table1, newTable2);
                         }
                     } else {
-                        Object[] newTable2 = this.table2.clone();
+                        E[] newTable2 = this.table2.clone();
                         newTable2[pos] = other;
-                        return new HashArray64BackedSet<>(size + 1, this.table1, newTable2);
+                        return new HashArrayBackedSet<>(tableSize, size + 1, this.table1, newTable2);
                     }
                 } else {
-                    Object[] newTable2 = new Object[TABLE_SIZE];
+                    E[] newTable2 = createTable2();
                     newTable2[pos] = other;
-                    return new HashArray64BackedSet<>(size + 1, this.table1, newTable2);
+                    return new HashArrayBackedSet<>(tableSize, size + 1, this.table1, newTable2);
                 }
             } else {
-                Object[] newTable1 = this.table1.clone();
+                E[] newTable1 = this.table1.clone();
                 newTable1[pos] = other;
-                return new HashArray64BackedSet<>(size + 1, newTable1, this.table2);
+                return new HashArrayBackedSet<>(tableSize, size + 1, newTable1, this.table2);
             }
         }
 
@@ -2248,15 +1405,14 @@ public interface ImmutableSet<E> extends Set<E> {
             } else if (otherSize == 1) {
                 return this.with(other.only());
             } else {
-                HashArray64BackedSet.Builder<E> builder = new HashArray64BackedSet.Builder<E>(this);
-                builder.with(other);
+                InternalBuilder<E> builder = new HashArrayBackedSet.Builder<E>(this);
+                builder = builder.with(other);
                 return builder.build();
             }
         }
 
-        @SuppressWarnings("unchecked")
         @Override
-        public ImmutableSet<E> with(E... other) {
+        public ImmutableSet<E> with(@SuppressWarnings("unchecked") E... other) {
             int otherSize = other.length;
 
             if (otherSize == 0) {
@@ -2264,7 +1420,7 @@ public interface ImmutableSet<E> extends Set<E> {
             } else if (otherSize == 1) {
                 return this.with(other[0]);
             } else {
-                InternalBuilder<E> builder = new HashArray64BackedSet.Builder<E>(this);
+                InternalBuilder<E> builder = new HashArrayBackedSet.Builder<E>(this);
 
                 for (int i = 0; i < other.length; i++) {
                     builder = builder.with(other[i]);
@@ -2283,32 +1439,63 @@ public interface ImmutableSet<E> extends Set<E> {
                     return empty();
                 }
 
-                Object[] newTable1 = this.table1.clone();
+                E[] newTable1 = this.table1.clone();
                 newTable1[pos] = null;
-                return new HashArray64BackedSet<>(size - 1, newTable1, this.table2);
-            } else if (this.table2 != null && this.table2[pos] != null && other.equals(this.table1[pos])) {
-                if (size == 1) {
-                    return empty();
+                return new HashArrayBackedSet<>(tableSize, size - 1, newTable1, this.table2);
+            } else if (this.table2 != null && this.table2[pos] != null) {
+                int check = checkTable2(other, pos);
+
+                if (check < 0) {
+                    // Contained
+
+                    if (size == 1) {
+                        return empty();
+                    }
+
+                    int actualPos = -check - 1;
+
+                    E[] newTable2 = this.table2.clone();
+                    newTable2[actualPos] = null;
+                    repositionCollisions(tableSize, newTable2, actualPos);
+                    return new HashArrayBackedSet<>(tableSize, size - 1, this.table1, newTable2);
+                } else {
+                    // Not contained
+                    return this;
                 }
 
-                Object[] newTable2 = this.table2.clone();
-                newTable2[pos] = null;
-                return new HashArray64BackedSet<>(size - 1, this.table1, newTable2);
             } else {
                 return this;
             }
         }
 
-        Object[] getFlatArray() {
+        private static <E> void repositionCollisions(int tableSize, E[] table2, int start) {
+            assert table2[start] == null;
+
+            for (int i = start + 1; i < table2.length; i++) {
+                if (table2[i] == null) {
+                    // done
+                    return;
+                }
+
+                int pos = hashPosition(tableSize, table2[i]);
+
+                if (pos != i) {
+                    table2[i - 1] = table2[i];
+                    table2[i] = null;
+                }
+            }
+        }
+
+        E[] getFlatArray() {
             if (flat != null) {
                 return flat;
             }
 
-            Object[] flat = new Object[size];
+            E[] flat = createEArray(size);
             int k = 0;
 
             for (int i = 0; i < table1.length; i++) {
-                Object v = table1[i];
+                E v = table1[i];
 
                 if (v != null) {
                     flat[k] = v;
@@ -2318,7 +1505,7 @@ public interface ImmutableSet<E> extends Set<E> {
 
             if (table2 != null) {
                 for (int i = 0; i < table2.length; i++) {
-                    Object v = table2[i];
+                    E v = table2[i];
 
                     if (v != null) {
                         flat[k] = v;
@@ -2332,7 +1519,33 @@ public interface ImmutableSet<E> extends Set<E> {
             return flat;
         }
 
-        static Object findFirstNonNull(Object[] array) {
+        @SuppressWarnings("unchecked")
+        private E[] createTable1() {
+            return (E[]) new Object[tableSize];
+        }
+
+        @SuppressWarnings("unchecked")
+        private E[] createTable2() {
+            return (E[]) new Object[tableSize + COLLISION_HEAD_ROOM];
+        }
+
+        @SuppressWarnings("unchecked")
+        private static <E> E[] createTable1(int tableSize) {
+            return (E[]) new Object[tableSize];
+        }
+
+        @SuppressWarnings("unchecked")
+        private static <E> E[] createTable2(int tableSize) {
+            return (E[]) new Object[tableSize + COLLISION_HEAD_ROOM];
+        }
+
+        @SuppressWarnings("unchecked")
+        private E[] createEArray(int size) {
+            return (E[]) new Object[size];
+
+        }
+
+        static <E> E findFirstNonNull(E[] array) {
             for (int i = 0; i < array.length; i++) {
                 if (array[i] != null) {
                     return array[i];
@@ -2342,8 +1555,8 @@ public interface ImmutableSet<E> extends Set<E> {
             return null;
         }
 
-        static Object findFirstNonNull(Object[] array1, Object[] array2) {
-            Object result = findFirstNonNull(array1);
+        static <E> E findFirstNonNull(E[] array1, E[] array2) {
+            E result = findFirstNonNull(array1);
 
             if (result == null && array2 != null) {
                 result = findFirstNonNull(array2);
@@ -2362,31 +1575,79 @@ public interface ImmutableSet<E> extends Set<E> {
             return -1;
         }
 
-        static int hashPosition(Object e) {
+        int hashPosition(Object e) {
+            return hashPosition(tableSize, e);
+        }
+
+        static int hashPosition(int tableSize, Object e) {
             if (e == null) {
                 throw new IllegalArgumentException("ImmutableSet does not support null values");
             }
 
             int hash = e.hashCode();
-            int pos = (hash & 0x3f) ^ (hash >> 6 & 0x3f) ^ (hash >> 12 & 0x3f) ^ (hash >> 18 & 0x3f) ^ (hash >> 24 & 0xf) ^ (hash >> 28 & 0xf);
-            return pos;
+
+            switch (tableSize) {
+            case 16:
+                return (hash & 0xf) ^ (hash >> 4 & 0xf) ^ (hash >> 8 & 0xf) ^ (hash >> 12 & 0xf) ^ (hash >> 16 & 0xf) ^ (hash >> 20 & 0xf)
+                        ^ (hash >> 24 & 0xf) ^ (hash >> 28 & 0xf);
+            case 64:
+                return (hash & 0x3f) ^ (hash >> 6 & 0x3f) ^ (hash >> 12 & 0x3f) ^ (hash >> 18 & 0x3f) ^ (hash >> 24 & 0xf) ^ (hash >> 28 & 0xf);
+            case 256:
+                return (hash & 0xff) ^ (hash >> 8 & 0xff) ^ (hash >> 16 & 0xff) ^ (hash >> 24 & 0xff);
+            default:
+                throw new RuntimeException("Invalid tableSize " + tableSize);
+            }
+
+        }
+
+        /** 
+         * If e is contained in table2: returns the position as negative value calculated by -1 - position.
+         * If e is not contained in table2: returns a possible free slot in table2 as positive value. If no slot is free, NO_SPACE is returned.
+         */
+        int checkTable2(Object e, int hashPosition) {
+            return checkTable2(table2, e, hashPosition);
+        }
+
+        /** 
+         * If e is contained in table2: returns the position as negative value calculated by -1 - position.
+         * If e is not contained in table2: returns a possible free slot in table2 as positive value. If no slot is free, NO_SPACE is returned.
+         */
+        static <E> int checkTable2(E[] table2, Object e, int hashPosition) {
+            if (table2[hashPosition] == null) {
+                return hashPosition;
+            } else if (table2[hashPosition].equals(e)) {
+                return -1 - hashPosition;
+            }
+
+            int max = hashPosition + COLLISION_HEAD_ROOM;
+
+            for (int i = hashPosition + 1; i <= max; i++) {
+                if (table2[i] == null) {
+                    return i;
+                } else if (table2[i].equals(e)) {
+                    return -1 - i;
+                }
+            }
+
+            return NO_SPACE;
         }
 
         static class Builder<E> extends InternalBuilder<E> {
             private E first;
-            private Object[] tail1;
-            private Object[] tail2;
+            private E[] tail1;
+            private E[] tail2;
             private int size = 0;
+            private final int tableSize;
 
-            public Builder() {
-
+            public Builder(int tableSize) {
+                this.tableSize = tableSize;
             }
 
-            @SuppressWarnings("unchecked")
-            public Builder(HashArray64BackedSet<E> initialContent) {
+            public Builder(HashArrayBackedSet<E> initialContent) {
                 this.tail1 = initialContent.table1.clone();
                 this.tail2 = initialContent.table2 != null ? initialContent.table2.clone() : null;
                 this.size = initialContent.size;
+                this.tableSize = initialContent.tableSize;
 
                 int firstIndex = findIndexOfNextNonNull(tail1, size);
 
@@ -2409,7 +1670,7 @@ public interface ImmutableSet<E> extends Set<E> {
                     // done
                     return this;
                 } else if (tail1 == null) {
-                    tail1 = new Object[TABLE_SIZE];
+                    tail1 = createTable1(tableSize);
                     tail1[hashPosition(e)] = e;
                     size++;
                     return this;
@@ -2427,7 +1688,7 @@ public interface ImmutableSet<E> extends Set<E> {
                         // collision
 
                         if (tail2 == null) {
-                            tail2 = new Object[TABLE_SIZE];
+                            tail2 = createTable2(tableSize);
                             tail2[position] = e;
                             size++;
                             return this;
@@ -2435,13 +1696,27 @@ public interface ImmutableSet<E> extends Set<E> {
                             tail2[position] = e;
                             size++;
                             return this;
-                        } else if (tail2[position].equals(e)) {
-                            // done     
-                            return this;
                         } else {
-                            // collision
+                            int check = checkTable2(tail2, e, position);
 
-                            return new SetBackedSet.Builder<>(build()).with(e);
+                            if (check < 0) {
+                                // done     
+                                return this;
+                            } else if (check == NO_SPACE) {
+                                // collision
+                                if (tableSize < 64) {
+                                    return new HashArrayBackedSet.Builder<E>(64).with(build()).with(e);
+                                } else if (tableSize < 256) {
+                                    return new HashArrayBackedSet.Builder<E>(256).with(build()).with(e);                                    
+                                } else {
+                                    return new SetBackedSet.Builder<>(build()).with(e);                                    
+                                }
+                                
+                            } else {
+                                tail2[check] = e;
+                                size++;
+                                return this;
+                            }
                         }
                     }
                 }
@@ -2458,12 +1733,11 @@ public interface ImmutableSet<E> extends Set<E> {
                 return builder;
             }
 
-            @SuppressWarnings("unchecked")
             public ImmutableSet<E> build() {
                 if (size == 0) {
                     return ImmutableSet.empty();
                 } else if (first == null) {
-                    return new HashArray64BackedSet<>(size, tail1, tail2);
+                    return new HashArrayBackedSet<>(tableSize, size, tail1, tail2);
                 } else if (size == 1) {
                     return new OneElementSet<>(first);
                 } else if (size == 2) {
@@ -2474,16 +1748,27 @@ public interface ImmutableSet<E> extends Set<E> {
 
                     if (this.tail1[firstPos] == null) {
                         this.tail1[firstPos] = first;
-                        return new HashArray64BackedSet<>(size, tail1, tail2);
+                        return new HashArrayBackedSet<>(tableSize, size, tail1, tail2);
                     } else if (this.tail2 == null) {
-                        this.tail2 = new Object[TABLE_SIZE];
+                        this.tail2 = createTable2(tableSize);
                         this.tail2[firstPos] = first;
-                        return new HashArray64BackedSet<>(size, tail1, tail2);
+                        return new HashArrayBackedSet<>(tableSize, size, tail1, tail2);
                     } else if (this.tail2[firstPos] == null) {
                         this.tail2[firstPos] = first;
-                        return new HashArray64BackedSet<>(size, tail1, tail2);
+                        return new HashArrayBackedSet<>(tableSize, size, tail1, tail2);
                     } else {
-                        return new WithSet<>(new HashArray64BackedSet<>(size, tail1, tail2), first);
+                        int check = checkTable2(tail2, first, firstPos);
+
+                        if (check < 0) {
+                            // this should not happen
+                            throw new RuntimeException("Table corrupted " + this);
+                        } else if (check == NO_SPACE) {
+                            // collision
+                            return new WithSet<>(new HashArrayBackedSet<>(tableSize, size - 1, tail1, tail2), first);
+                        } else {
+                            this.tail2[check] = first;
+                            return new HashArrayBackedSet<>(tableSize, size, tail1, tail2);
+                        }
                     }
 
                 }
@@ -2508,13 +1793,23 @@ public interface ImmutableSet<E> extends Set<E> {
                         tail1[position] = null;
                         size--;
                         return true;
-                    } else if (tail2 != null && tail2[position] != null && tail2[position].equals(e)) {
-                        tail2[position] = null;
-                        size--;
-                        return true;
+                    } else if (tail2 != null && tail2[position] != null) {
+
+                        int check = checkTable2(tail2, e, position);
+
+                        if (check < 0) {
+                            // Contained
+                            int actualPos = -check - 1;
+                            tail2[actualPos] = null;
+                            size--;
+                            repositionCollisions(tableSize, tail2, actualPos);
+
+                            return true;
+                        }
                     }
                 }
 
+                // Not contained
                 return false;
             }
 
@@ -2539,8 +1834,10 @@ public interface ImmutableSet<E> extends Set<E> {
 
                     if (tail1[position] != null && tail1[position].equals(e)) {
                         return true;
-                    } else if (tail2 != null && tail2[position] != null && tail2[position].equals(e)) {
-                        return true;
+                    } else if (tail2 != null && tail2[position] != null) {
+                        int check = checkTable2(tail2, e, position);
+
+                        return check < 0;
                     }
                 }
 
@@ -2549,8 +1846,8 @@ public interface ImmutableSet<E> extends Set<E> {
 
             @Override
             boolean containsAny(Set<E> set) {
-                if (set instanceof HashArray64BackedSet) {
-                    return containsAny((HashArray64BackedSet<E>) set);
+                if (set instanceof HashArrayBackedSet && ((HashArrayBackedSet<E>) set).tableSize == tableSize) {
+                    return containsAny((HashArrayBackedSet<E>) set);
                 } else {
                     for (E e : set) {
                         if (contains(e)) {
@@ -2562,8 +1859,8 @@ public interface ImmutableSet<E> extends Set<E> {
                 return false;
             }
 
-            private boolean containsAny(HashArray64BackedSet<E> set) {
-                for (int i = 0; i < TABLE_SIZE; i++) {
+            private boolean containsAny(HashArrayBackedSet<E> set) {
+                for (int i = 0; i < tableSize; i++) {
                     if (set.table1[i] != null) {
                         if (contains(set.table1[i], i)) {
                             return true;
@@ -2582,8 +1879,8 @@ public interface ImmutableSet<E> extends Set<E> {
 
             @Override
             boolean containsAll(Set<E> set) {
-                if (set instanceof HashArray64BackedSet) {
-                    return containsAll((HashArray64BackedSet<E>) set);
+                if (set instanceof HashArrayBackedSet && ((HashArrayBackedSet<E>) set).tableSize == tableSize) {
+                    return containsAll((HashArrayBackedSet<E>) set);
                 } else {
                     for (E e : set) {
                         if (!contains(e)) {
@@ -2595,8 +1892,8 @@ public interface ImmutableSet<E> extends Set<E> {
                 }
             }
 
-            private boolean containsAll(HashArray64BackedSet<E> set) {
-                for (int i = 0; i < TABLE_SIZE; i++) {
+            private boolean containsAll(HashArrayBackedSet<E> set) {
+                for (int i = 0; i < tableSize; i++) {
                     if (set.table1[i] != null) {
                         if (!contains(set.table1[i], i)) {
                             return false;
@@ -2616,9 +1913,13 @@ public interface ImmutableSet<E> extends Set<E> {
             private boolean contains(Object e, int hashPosition) {
                 if (tail1 != null && tail1[hashPosition] != null && tail1[hashPosition].equals(e)) {
                     return true;
-                } else if (tail2 != null && tail2[hashPosition] != null && tail2[hashPosition].equals(e)) {
-                    return true;
-                } else if (first.equals(e)) {
+                } else if (tail2 != null && tail2[hashPosition] != null) {
+                    int check = checkTable2(tail2, e, hashPosition);
+
+                    return check < 0;
+                }
+
+                if (first.equals(e)) {
                     return true;
                 } else {
                     return false;
@@ -2626,7 +1927,7 @@ public interface ImmutableSet<E> extends Set<E> {
             }
 
             @Override
-            Iterator<E> iterator() {
+            public Iterator<E> iterator() {
                 if (size == 0) {
                     return Collections.emptyIterator();
                 }
@@ -2634,6 +1935,7 @@ public interface ImmutableSet<E> extends Set<E> {
                 return new Iterator<E>() {
 
                     int state = 0;
+                    int nextState = 0;
                     int nextPos = 0;
                     int nextNextPos = 0;
                     E next;
@@ -2688,17 +1990,18 @@ public interface ImmutableSet<E> extends Set<E> {
 
                     }
 
-                    @SuppressWarnings("unchecked")
                     private void initNext() {
-                        if (state == 0) {
-                            state = 1;
+                        if (nextState == 0) {
+                            state = 0;
+                            nextState = 1;
                             if (first != null) {
                                 next = first;
                                 return;
                             }
                         }
 
-                        if (state == 1) {
+                        if (nextState == 1) {
+                            state = 1;
                             if (tail1 != null) {
                                 int nextIndex = findIndexOfNextNonNull(tail1, nextNextPos);
 
@@ -2709,14 +2012,15 @@ public interface ImmutableSet<E> extends Set<E> {
                                     return;
                                 } else {
                                     this.nextNextPos = 0;
-                                    this.state = 2;
+                                    this.nextState = 2;
                                 }
                             } else {
-                                this.state = 2;
+                                this.nextState = 2;
                             }
                         }
 
-                        if (state == 2) {
+                        if (nextState == 2) {
+                            state = 2;
                             if (tail2 != null) {
                                 int nextIndex = findIndexOfNextNonNull(tail2, nextNextPos);
 
@@ -2727,10 +2031,10 @@ public interface ImmutableSet<E> extends Set<E> {
                                     return;
                                 } else {
                                     this.nextNextPos = 0;
-                                    this.state = 2;
+                                    this.nextState = 2;
                                 }
                             } else {
-                                this.state = 3;
+                                this.nextState = 3;
                             }
                         }
 
@@ -2740,7 +2044,6 @@ public interface ImmutableSet<E> extends Set<E> {
                 };
             }
 
-            @SuppressWarnings("unchecked")
             @Override
             E any() {
                 if (first != null) {
@@ -2750,6 +2053,9 @@ public interface ImmutableSet<E> extends Set<E> {
                 return (E) findFirstNonNull(tail1, tail2);
             }
 
+            private int hashPosition(Object e) {
+                return HashArrayBackedSet.hashPosition(tableSize, e);
+            }
         }
     }
 
@@ -2931,7 +2237,7 @@ public interface ImmutableSet<E> extends Set<E> {
             }
 
             @Override
-            Iterator<E> iterator() {
+            public Iterator<E> iterator() {
                 return delegate.iterator();
             }
 
@@ -2943,6 +2249,11 @@ public interface ImmutableSet<E> extends Set<E> {
             @Override
             void clear() {
                 delegate.clear();
+            }
+
+            @Override
+            public String toString() {
+                return delegate.toString();
             }
 
         }

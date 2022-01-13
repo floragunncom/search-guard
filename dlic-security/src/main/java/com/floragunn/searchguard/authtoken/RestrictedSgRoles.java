@@ -26,6 +26,8 @@ import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult;
@@ -72,32 +74,15 @@ public class RestrictedSgRoles extends SgRoles {
     }
 
     @Override
-    public ImmutableSet<String> reduce(ResolvedIndices requestedResolved, User user, Set<String> strings, IndexNameExpressionResolver resolver,
-            ClusterService clusterService) {
-        ImmutableSet<String> restrictedIndexes = restrictionSgRoles.reduce(requestedResolved, user, strings, resolver, clusterService);
+    public PrivilegesEvaluationResult impliesIndexPrivilege(PrivilegesEvaluationContext privilegesEvaluationContext, ResolvedIndices resolved, ImmutableSet<String> actions) throws PrivilegesEvaluationException {
+        PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles.impliesIndexPrivilege(privilegesEvaluationContext, resolved, actions);
 
-        if (restrictedIndexes.isEmpty()) {
-            // Don't calculate base indexes if we already know we will get an empty set
-            return ImmutableSet.empty();
-        }
-
-        ImmutableSet<String> baseIndexes = base.reduce(requestedResolved, user, strings, resolver, clusterService);
-
-        return baseIndexes.intersection(restrictedIndexes);
-    }
-
-    @Override
-    public PrivilegesEvaluationResult impliesTypePermGlobal(ResolvedIndices requestedResolved, User user, ImmutableSet<String> allIndexPermsRequiredA, IndexNameExpressionResolver resolver,
-            ClusterService clusterService) {
-        PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver,
-                clusterService);
-
-        if (restrictedPermission.getStatus() != PrivilegesEvaluationResult.Status.PASS) {
+        if (restrictedPermission.getStatus() != PrivilegesEvaluationResult.Status.OK) {
             // Don't calculate base permission if we already know we will get an empty set
             return restrictedPermission;
         }
 
-        return base.impliesTypePermGlobal(requestedResolved, user, allIndexPermsRequiredA, resolver, clusterService);
+        return base.impliesIndexPrivilege(privilegesEvaluationContext, resolved, actions);
     }
     
     @Override
@@ -105,7 +90,6 @@ public class RestrictedSgRoles extends SgRoles {
         return Sets.intersection(base.getClusterPermissions(user), restrictionSgRoles.getClusterPermissions(user));
     }
 
-    @Override
     public EvaluatedDlsFlsConfig getDlsFls(User user, IndexNameExpressionResolver resolver,
             ClusterService clusterService, NamedXContentRegistry namedXContentRegistry) {
         // not implemented
