@@ -1681,18 +1681,9 @@ public class ConfigModelV7 extends ConfigModel {
 
                     if (caller.address() != null
                             && (hostResolverMode.equalsIgnoreCase("ip-hostname") || hostResolverMode.equalsIgnoreCase("ip-hostname-lookup"))) {
-                        final String hostName = caller.address().getHostString();
+                        final String hostName = caller.address().getHostName();
 
                         for (String p : WildcardMatcher.getAllMatchingPatterns(hosts.keySet(), hostName)) {
-                            sgRoles.addAll(hosts.get(p));
-                        }
-                    }
-
-                    if (caller.address() != null && hostResolverMode.equalsIgnoreCase("ip-hostname-lookup")) {
-
-                        final String resolvedHostName = caller.address().getHostName();
-
-                        for (String p : WildcardMatcher.getAllMatchingPatterns(hosts.keySet(), resolvedHostName)) {
                             sgRoles.addAll(hosts.get(p));
                         }
                     }

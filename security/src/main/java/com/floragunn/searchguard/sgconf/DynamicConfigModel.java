@@ -28,14 +28,11 @@ public abstract class DynamicConfigModel implements ComponentStateProvider {
     public abstract boolean isXffEnabled();
     public abstract String getInternalProxies();
     public abstract String getRemoteIpHeader();
-    public abstract boolean isRestAuthDisabled();
-    public abstract boolean isInterTransportAuthDisabled();
     public abstract boolean isRespectRequestIndicesEnabled();
     public abstract String getKibanaServerUsername();
     public abstract String getKibanaIndexname();
     public abstract boolean isKibanaMultitenancyEnabled();
     public abstract boolean isDnfofEnabled();
-    public abstract String getFilteredAliasMode();
     public abstract String getHostsResolverMode();
     public abstract boolean isDnfofForEmptyResultsEnabled();
     public abstract String getFieldAnonymizationSalt2();    

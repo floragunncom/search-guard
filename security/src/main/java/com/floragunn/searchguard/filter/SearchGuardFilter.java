@@ -62,7 +62,6 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.CompatConfig;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluatorResponse;
@@ -90,14 +89,12 @@ public class SearchGuardFilter implements ActionFilter {
     private final ThreadContext threadContext;
     private final ClusterService cs;
     private final ComplianceConfig complianceConfig;
-    private final CompatConfig compatConfig;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
     private final ExtendedActionHandlingService extendedActionHandlingService;
     private final DiagnosticContext diagnosticContext;
-    private final NamedXContentRegistry namedXContentRegistry;
 
     public SearchGuardFilter(final PrivilegesEvaluator evalp, final AdminDNs adminDns, DlsFlsRequestValve dlsFlsValve, AuditLog auditLog,
-            ThreadPool threadPool, ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, final CompatConfig compatConfig,
+            ThreadPool threadPool, ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, 
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ExtendedActionHandlingService extendedActionHandlingService,
             NamedXContentRegistry namedXContentRegistry) {
         this.evalp = evalp;
@@ -107,11 +104,9 @@ public class SearchGuardFilter implements ActionFilter {
         this.threadContext = threadPool.getThreadContext();
         this.cs = cs;
         this.complianceConfig = complianceConfig;
-        this.compatConfig = compatConfig;
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         this.extendedActionHandlingService = extendedActionHandlingService;
         this.diagnosticContext = diagnosticContext;
-        this.namedXContentRegistry = namedXContentRegistry;
     }
 
     @Override
@@ -259,12 +254,6 @@ public class SearchGuardFilter implements ActionFilter {
             if (user == null) {
 
                 if (action.startsWith("cluster:monitor/state")) {
-                    chain.proceed(task, action, request, listener);
-                    return;
-                }
-
-                if ((interClusterRequest || trustedClusterRequest || request.remoteAddress() == null)
-                        && !compatConfig.transportInterClusterAuthEnabled()) {
                     chain.proceed(task, action, request, listener);
                     return;
                 }
