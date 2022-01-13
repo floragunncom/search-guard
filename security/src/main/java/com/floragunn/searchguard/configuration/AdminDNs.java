@@ -39,33 +39,19 @@ public class AdminDNs {
 
     protected final Logger log = LogManager.getLogger(AdminDNs.class);
     private final Set<LdapName> adminDn = new HashSet<LdapName>();
-    private final Set<String> adminUsernames = new HashSet<String>();
     private final ListMultimap<LdapName, String> allowedImpersonations = ArrayListMultimap.<LdapName, String> create();
     private final ListMultimap<String, String> allowedRestImpersonations = ArrayListMultimap.<String, String> create();
-    private boolean injectUserEnabled;
-    private boolean injectAdminUserEnabled;
     
     public AdminDNs(final Settings settings) {
 
-        this.injectUserEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_INJECT_USER_ENABLED, false);
-        this.injectAdminUserEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_INJECT_ADMIN_USER_ENABLED, false);
-
         final List<String> adminDnsA = settings.getAsList(ConfigConstants.SEARCHGUARD_AUTHCZ_ADMIN_DN, Collections.emptyList());
-        
-        for (String dn:adminDnsA) {
+
+        for (String dn : adminDnsA) {
             try {
                 log.debug("{} is registered as an admin dn", dn);
                 adminDn.add(new LdapName(dn));
             } catch (final InvalidNameException e) {
-                // make sure to log correctly depending on user injection settings
-                if (injectUserEnabled && injectAdminUserEnabled) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Admin DN not an LDAP name, but admin user injection enabled. Will add {} to admin usernames", dn);
-                    }
-                    adminUsernames.add(dn);    
-                } else {
-                    log.error("Unable to parse admin dn {}",dn, e);    
-                }
+                log.error("Unable to parse admin dn {}", dn, e);
             }
         }
        
@@ -97,10 +83,6 @@ public class AdminDNs {
             return true;
         }
 
-        // ThreadContext injected user, may be admin user, only if both flags are enabled and user is injected
-        if (injectUserEnabled && injectAdminUserEnabled && user.isInjected() && adminUsernames.contains(user.getName())) {
-            return true;
-        }
         return false;
     }
     
