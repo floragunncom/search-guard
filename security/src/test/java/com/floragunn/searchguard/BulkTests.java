@@ -27,9 +27,9 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 
 public class BulkTests {
 

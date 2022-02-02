@@ -17,6 +17,12 @@
 
 package com.floragunn.searchguard.test.helper.certificate.utils;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.StringWriter;
+import java.security.PrivateKey;
+import java.security.SecureRandom;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
@@ -29,16 +35,22 @@ import org.bouncycastle.operator.OutputEncryptor;
 import org.bouncycastle.util.io.pem.PemGenerationException;
 import org.bouncycastle.util.io.pem.PemObject;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.security.PrivateKey;
-import java.security.SecureRandom;
-
 public class CertificateAndPrivateKeyWriter {
 
     private static final Logger log = LogManager.getLogger(CertificateAndPrivateKeyWriter.class);
     private static final SecureRandom secureRandom = new SecureRandom();
 
+    public static String writeCertificate(X509CertificateHolder certificate) {
+        StringWriter stringWriter = new StringWriter();
+        try (JcaPEMWriter writer = new JcaPEMWriter(stringWriter)) {
+            writer.writeObject(certificate);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return stringWriter.toString();
+    }
+    
     public static void saveCertificate(File certificateFile, X509CertificateHolder certificate) {
         try (JcaPEMWriter writer = new JcaPEMWriter(new FileWriter(certificateFile))) {
             writer.writeObject(certificate);

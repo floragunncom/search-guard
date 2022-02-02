@@ -71,7 +71,7 @@ public class ConfigVarApi {
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(StandardRequests.IdRequest request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         ConfigVar value = configVarService.getFromIndex(request.getId());
 
@@ -230,7 +230,7 @@ public class ConfigVarApi {
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(EmptyRequest request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         return new StandardResponse(200).data(configVarService.getAllFromIndex());
                     } catch (Exception e) {

@@ -27,9 +27,9 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.configuration.SearchGuardLicense;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.license.SearchGuardLicenseKey;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class LicenseTest extends AbstractRestApiUnitTest {
 
@@ -64,45 +64,45 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		
 		// check license exists - has to be trial license
 		 Map<?, ?> settingsAsMap = getCurrentLicense();
-		 Assert.assertEquals(SearchGuardLicense.Type.TRIAL.name(), settingsAsMap.get("type"));
+		 Assert.assertEquals(SearchGuardLicenseKey.Type.TRIAL.name(), settingsAsMap.get("type"));
 		 Assert.assertEquals("unlimited", settingsAsMap.get("allowed_node_count_per_cluster"));
 		 Assert.assertEquals("true", String.valueOf(settingsAsMap.get("is_valid")));
 		 Assert.assertEquals("false", String.valueOf(settingsAsMap.get("is_expired")));
 
 		// upload new licenses - all valid forever
 		uploadAndCheckValidLicense("full_valid_forever.txt", HttpStatus.SC_CREATED); // first license upload, hence 201 return code
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 
 		uploadAndCheckValidLicense("sme_valid_forever.txt");
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.SME, Boolean.TRUE, "5", validStartDate, validExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.SME, Boolean.TRUE, "5", validStartDate, validExpiryDate);
 
 		uploadAndCheckValidLicense("oem_valid_forever.txt");
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.OEM, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.OEM, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 
 		uploadAndCheckValidLicense("academic_valid_forever.txt");
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.ACADEMIC, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.ACADEMIC, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 		
 		// invalid - we run 3 nodes, but license has only one node allowed
 		Settings result = uploadAndCheckInvalidLicense("single_valid_forever.txt", HttpStatus.SC_BAD_REQUEST);
 		// Make sure license was rejected and old values are still in place
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.ACADEMIC, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.ACADEMIC, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 		Assert.assertEquals("License invalid due to: Only 1 node(s) allowed but you run 3 node(s)", result.get("message"));
 		
 		// license not started - deemed valid, we don't issue licenses in advance
 		uploadAndCheckValidLicense("full_not_started.txt");
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", notStartedStartDate, notStartedExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.FULL, Boolean.TRUE, "unlimited", notStartedStartDate, notStartedExpiryDate);
 
 		// license expired
 		result = uploadAndCheckInvalidLicense("sme_expired.txt", HttpStatus.SC_BAD_REQUEST);
 		// Make sure license was rejected and old values are still in place
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", notStartedStartDate, notStartedExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.FULL, Boolean.TRUE, "unlimited", notStartedStartDate, notStartedExpiryDate);
 		Assert.assertTrue(result.get("message").contains("License is expired"));
 		Assert.assertTrue(result.get("message").contains("Only 1 node(s) allowed"));
 		
 		// Error cases. In each case, previous license the following uploaded license needs to stay intact:
 		// upload new licenses - all valid forever
 		uploadAndCheckValidLicense("full_valid_forever.txt"); // first license upload, hence 201 return code
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 
 		
 		// no JSON payload
@@ -111,7 +111,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		String msg = settings.get("reason");
 		Assert.assertEquals("Request body required for this action.", msg);
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 		
 		// missing license in JSON payload
 		response = rh.executePutRequest("/_searchguard/api/license", "{ \"sg_license\": \"\"}", new Header[0]);
@@ -119,7 +119,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		msg = settings.get("message");
 		Assert.assertEquals("License must not be null.", msg);
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 		
 		// no no body
 		response = rh.executePutRequest("/_searchguard/api/license", "{ }", new Header[0]);
@@ -127,7 +127,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		msg = settings.get("reason");
 		Assert.assertEquals("Request body required for this action.", msg);
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 		
 		// invalid, unparseable license in JSON payload
 		response = rh.executePutRequest("/_searchguard/api/license", "{ \"sg_license\": \"lalala\"}", new Header[0]);
@@ -135,7 +135,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		msg = settings.get("message");
 		Assert.assertEquals("License could not be decoded due to: org.bouncycastle.openpgp.PGPException: Cannot find license signature", msg);		
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicenseKey.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 	}
 
 	private final String createLicenseRequestBody(String licenseString) throws Exception {
@@ -146,7 +146,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		return FileHelper.loadFile("restapi/license/" + filename);
 	}
 	
-	protected final void checkCurrentLicenseProperties(SearchGuardLicense.Type type, Boolean isValid, String nodeCount,LocalDate startDate, LocalDate expiryDate ) throws Exception {
+	protected final void checkCurrentLicenseProperties(SearchGuardLicenseKey.Type type, Boolean isValid, String nodeCount,LocalDate startDate, LocalDate expiryDate ) throws Exception {
 	     Map<?, ?> settingsAsMap = getCurrentLicense();
 		 Assert.assertEquals(type.name(), settingsAsMap.get("type"));
 		 Assert.assertEquals(nodeCount, settingsAsMap.get("allowed_node_count_per_cluster"));

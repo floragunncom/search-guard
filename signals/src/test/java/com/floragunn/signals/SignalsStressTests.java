@@ -31,9 +31,9 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
+import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
 import com.floragunn.searchsupport.junit.AsyncAssert;
 import com.floragunn.searchsupport.junit.LoggingTestWatcher;
@@ -161,7 +161,7 @@ public class SignalsStressTests {
 
             }, Duration.ofSeconds(80));
 
-            com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse response = restClient.get(watchPath + "/_state");
+            com.floragunn.searchguard.test.GenericRestClient.HttpResponse response = restClient.get(watchPath + "/_state");
 
             String watchRunsOnNodeNow = response.toJsonNode().path("node").asText();
 

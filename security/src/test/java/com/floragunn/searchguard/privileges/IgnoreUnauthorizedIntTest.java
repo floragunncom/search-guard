@@ -37,74 +37,62 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestData.TestDocument;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 
 public class IgnoreUnauthorizedIntTest {
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
-    private static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A").roles(//
+    static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A").roles(//
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*"));
 
-    private static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B").roles(//
+    static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B").roles(//
             new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("b*"));
 
-    private static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C").roles(//
+    static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C").roles(//
             new Role("limited_user_c_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("c*"));
 
-    private static TestSgConfig.User LIMITED_USER_D = new TestSgConfig.User("limited_user_D").roles(//
+    static TestSgConfig.User LIMITED_USER_D = new TestSgConfig.User("limited_user_D").roles(//
             new Role("limited_user_d_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")
                     .indexPermissions("SGS_CRUD", "indices:admin/refresh", "indices:data/write/delete/byquery").on("d*"));
 
-    private static TestSgConfig.User LIMITED_USER_A_B1 = new TestSgConfig.User("limited_user_A_B1").roles(//
+    static TestSgConfig.User LIMITED_USER_A_B1 = new TestSgConfig.User("limited_user_A_B1").roles(//
             new Role("limited_user_a_b1_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*")
                     .indexPermissions("SGS_CRUD").on("b1"));
 
-    private static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user").roles(//
+    static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user").roles(//
             new Role("unlimited_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("*"));
+
+    static TestIndex index_a1 = TestIndex.name("a1").documentCount(100).seed(1).attr("prefix", "a").build();
+    static TestIndex index_a2 = TestIndex.name("a2").documentCount(110).seed(2).attr("prefix", "a").build();
+    static TestIndex index_a3 = TestIndex.name("a3").documentCount(120).seed(3).attr("prefix", "a").build();
+    static TestIndex index_b1 = TestIndex.name("b1").documentCount(51).seed(4).attr("prefix", "b").build();
+    static TestIndex index_b2 = TestIndex.name("b2").documentCount(52).seed(5).attr("prefix", "b").build();
+    static TestIndex index_b3 = TestIndex.name("b3").documentCount(53).seed(6).attr("prefix", "b").build();
+    static TestIndex index_c1 = TestIndex.name("c1").documentCount(5).seed(7).attr("prefix", "c").build();
+
+    static TestAlias xalias_ab1 = new TestAlias("xalias_ab1", index_a1, index_a2, index_a3, index_b1);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().filterSgIndex()
-            .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")
-            .users(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_C, LIMITED_USER_D, LIMITED_USER_A_B1, UNLIMITED_USER).build();
-
-    @ClassRule
-    public static TestIndex index_a1 = TestIndex.name("a1").documentCount(100).seed(1).attr("prefix", "a").cluster(cluster).build();
-
-    @ClassRule
-    public static TestIndex index_a2 = TestIndex.name("a2").documentCount(110).seed(2).attr("prefix", "a").cluster(cluster).build();
-
-    @ClassRule
-    public static TestIndex index_a3 = TestIndex.name("a3").documentCount(120).seed(3).attr("prefix", "a").cluster(cluster).build();
-
-    @ClassRule
-    public static TestIndex index_b1 = TestIndex.name("b1").documentCount(51).seed(4).attr("prefix", "b").cluster(cluster).build();
-
-    @ClassRule
-    public static TestIndex index_b2 = TestIndex.name("b2").documentCount(52).seed(5).attr("prefix", "b").cluster(cluster).build();
-
-    @ClassRule
-    public static TestIndex index_b3 = TestIndex.name("b3").documentCount(53).seed(6).attr("prefix", "b").cluster(cluster).build();
-
-    @ClassRule
-    public static TestIndex index_c1 = TestIndex.name("c1").documentCount(5).seed(7).attr("prefix", "c").cluster(cluster).build();
-
-    @ClassRule
-    public static TestAlias xalias_ab1 = new TestAlias("xalias_ab1", cluster, index_a1, index_a2, index_a3, index_b1);
+            .users(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_C, LIMITED_USER_D, LIMITED_USER_A_B1, UNLIMITED_USER)//
+            .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1)//
+            .aliases(xalias_ab1)//
+            .build();
 
     @Test
     public void search_noPattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get("/_search?size=1000");
-            
+
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse,
                     json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
@@ -363,7 +351,7 @@ public class IgnoreUnauthorizedIntTest {
 
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.postJson("/_mget", mget);
-            
+
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("docs[*]._index", containsInAnyOrder("a1", "b1"))));
         }

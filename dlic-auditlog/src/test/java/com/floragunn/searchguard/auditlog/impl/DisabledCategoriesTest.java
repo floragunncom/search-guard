@@ -39,8 +39,8 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.helper.MockRestRequest;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.integration.TestAuditlogImpl;
+import com.floragunn.searchguard.legacy.test.AbstractSGUnitTest;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.AbstractSGUnitTest;
 import com.floragunn.searchguard.user.UserInformation;
 import com.google.common.base.Joiner;
 

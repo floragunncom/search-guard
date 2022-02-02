@@ -56,7 +56,7 @@ import org.opensaml.saml.saml2.core.NameIDType;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.util.FakeRestRequest;
 import com.google.common.collect.ImmutableMap;

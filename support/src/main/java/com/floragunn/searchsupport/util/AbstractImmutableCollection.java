@@ -25,7 +25,7 @@ public abstract class AbstractImmutableCollection<E> extends AbstractCollection<
 
     protected String cachedToString;
 
-    E any() {
+    public E any() {
         return iterator().next();
     }
 

@@ -78,6 +78,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 
 import com.floragunn.codova.config.net.TLSConfig;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.google.common.collect.ImmutableMap;
@@ -89,6 +90,7 @@ public class MockIpdServer implements Closeable {
     final static String CTX_DISCOVER = "/discover";
     final static String CTX_KEYS = "/api/oauth/keys";
     final static String CTX_TOKEN = "/token";
+    final static String CTX_USERINFO = "/userinfo";
 
     public static Builder forKeySet(JsonWebKeys jwks) {
         return new Builder(jwks);
@@ -104,6 +106,7 @@ public class MockIpdServer implements Closeable {
     private boolean requirePkce = false;
 
     private Map<String, AuthCodeContext> validCodes = new ConcurrentHashMap<>();
+    private Map<String, Map<String, Object>> accessTokenToUserInfoMap = new ConcurrentHashMap<>();
 
     private InetAddress acceptConnectionsOnlyFromInetAddress;
     private TLSConfig tlsConfig;
@@ -161,6 +164,14 @@ public class MockIpdServer implements Closeable {
             public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
 
                 handleTokenRequest(request, response, context);
+
+            }
+        }).registerHandler(CTX_USERINFO, new HttpRequestHandler() {
+
+            @Override
+            public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
+
+                handleUserInfoRequest(request, response, context);
 
             }
         });
@@ -226,9 +237,10 @@ public class MockIpdServer implements Closeable {
 
         response.setStatusCode(200);
         response.setHeader("Cache-Control", "public, max-age=31536000");
-        response.setEntity(new StringEntity("{\"jwks_uri\": \"" + uri + CTX_KEYS + "\",\n" + "\"issuer\": \"" + uri
-                + "\", \"unknownPropertyToBeIgnored\": 42, \"token_endpoint\": \"" + uri + CTX_TOKEN + "\", \"authorization_endpoint\": \"" + uri
-                + "/auth\", \"end_session_endpoint\": \"" + uri + "/logout\"}"));
+        response.setEntity(new StringEntity(DocNode
+                .of("jwks_uri", uri + CTX_KEYS, "issuer", uri, "unknownPropertyToBeIgnored", 42, "token_endpoint", uri + CTX_TOKEN,
+                        "authorization_endpoint", uri + "/auth", "end_session_endpoint", uri + "/logout", "userinfo_endpoint", uri + CTX_USERINFO)
+                .toJsonString(), ContentType.APPLICATION_JSON));
     }
 
     protected void handleKeysRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
@@ -241,93 +253,144 @@ public class MockIpdServer implements Closeable {
     }
 
     protected void handleTokenRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
+        try {
+            if (!checkAccess(request, response, context)) {
+                return;
+            }
+
+            if (!"POST".equalsIgnoreCase(request.getRequestLine().getMethod())) {
+                response.setStatusCode(400);
+                response.setEntity(new StringEntity("Not a POST request"));
+                return;
+            }
+
+            if (request.getFirstHeader("Content-Type") == null) {
+                response.setStatusCode(400);
+                response.setEntity(new StringEntity("Content-Type header is missing"));
+                return;
+            }
+
+            if (!request.getFirstHeader("Content-Type").getValue().toLowerCase().startsWith("application/x-www-form-urlencoded")) {
+                response.setStatusCode(400);
+                response.setEntity(new StringEntity("Content-Type is not application/x-www-form-urlencoded"));
+                return;
+            }
+
+            if (!(request instanceof HttpEntityEnclosingRequest)) {
+                response.setStatusCode(400);
+                response.setEntity(new StringEntity("Missing entity"));
+                return;
+            }
+
+            HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
+            String entityBody = EntityUtils.toString(entity);
+
+            Map<String, String> entityParams = getFormUrlEncodedValues(entityBody);
+
+            log.info("Got entity params: " + entityParams + "; " + entityBody);
+
+            if (!entityParams.containsKey("grant_type")) {
+                response.setStatusCode(400);
+                response.setEntity(new StringEntity("Missing grant_type"));
+                return;
+            }
+
+            String code = entityParams.get("code");
+            String idToken;
+            String accessToken;
+
+            if (requireValidCodes) {
+                AuthCodeContext authCodeContext = this.validCodes.remove(code);
+
+                if (authCodeContext == null) {
+                    response.setStatusCode(400);
+                    response.setEntity(new StringEntity("Invalid code " + code));
+                    return;
+                }
+
+                if (authCodeContext.codeChallenge != null) {
+                    String codeVerifier = entityParams.get("code_verifier");
+                    String hashed = applySHA256(codeVerifier);
+
+                    if (!hashed.equals(authCodeContext.codeChallenge)) {
+                        response.setStatusCode(400);
+                        response.setEntity(new StringEntity(
+                                "Invalid code_challenge " + authCodeContext.codeChallenge + "; expected: " + hashed + " (" + codeVerifier + ")"));
+                        return;
+                    }
+                }
+
+                idToken = authCodeContext.userJwt;
+                accessToken = RandomStringUtils.randomAlphabetic(20);
+
+                if (authCodeContext.userInfo != null) {
+                    accessTokenToUserInfoMap.put(accessToken, authCodeContext.userInfo);
+                }
+
+                String oldRedirectUri = authCodeContext.redirectUri;
+                String currentRedirectUri = entityParams.get("redirect_uri");
+
+                System.out.println("redirect uri: " + oldRedirectUri + "; " + currentRedirectUri);
+
+                if (!oldRedirectUri.equals(currentRedirectUri)) {
+                    response.setStatusCode(400);
+                    response.setEntity(new StringEntity("Invalid redirect_uri " + currentRedirectUri + "; expected: " + oldRedirectUri));
+                    return;
+                }
+            } else {
+                idToken = TestJwts.MC_COY_SIGNED_OCT_1;
+                accessToken = "dummy_access_token";
+            }
+
+            response.setStatusCode(200);
+
+            Map<String, Object> responseBody = ImmutableMap.of("access_token", accessToken, "token_type", "bearer", "expires_in", 3600, "scope",
+                    "profile app:read app:write", "id_token", idToken);
+
+            response.setEntity(new StringEntity(DocWriter.json().writeAsString(responseBody), ContentType.APPLICATION_JSON));
+        } catch (Exception e) {
+            log.error("Error in handleTokenRequest()", e);
+            response.setStatusCode(500);
+            response.setEntity(new StringEntity(e.toString()));
+        }
+    }
+
+    protected void handleUserInfoRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
         if (!checkAccess(request, response, context)) {
             return;
         }
 
-        if (!"POST".equalsIgnoreCase(request.getRequestLine().getMethod())) {
+        if (!"POST".equalsIgnoreCase(request.getRequestLine().getMethod()) && !"GET".equalsIgnoreCase(request.getRequestLine().getMethod())) {
             response.setStatusCode(400);
-            response.setEntity(new StringEntity("Not a POST request"));
+            response.setEntity(new StringEntity("Not a GET or POST request"));
             return;
         }
 
-        if (request.getFirstHeader("Content-Type") == null) {
+        if (request.getFirstHeader("Authorization") == null) {
             response.setStatusCode(400);
-            response.setEntity(new StringEntity("Content-Type header is missing"));
+            response.setEntity(new StringEntity("Authorization header is missing"));
             return;
         }
 
-        if (!request.getFirstHeader("Content-Type").getValue().toLowerCase().startsWith("application/x-www-form-urlencoded")) {
+        String authorization = request.getFirstHeader("Authorization").getValue();
+
+        if (!authorization.toLowerCase().startsWith("bearer ")) {
             response.setStatusCode(400);
-            response.setEntity(new StringEntity("Content-Type is not application/x-www-form-urlencoded"));
+            response.setEntity(new StringEntity("Needs to use bearer authorization"));
             return;
         }
 
-        if (!(request instanceof HttpEntityEnclosingRequest)) {
+        String accessToken = authorization.substring("bearer ".length());
+
+        Map<String, Object> userInfo = accessTokenToUserInfoMap.get(accessToken);
+
+        if (userInfo == null) {
             response.setStatusCode(400);
-            response.setEntity(new StringEntity("Missing entity"));
+            response.setEntity(new StringEntity("Invalid access token " + accessToken));
             return;
         }
 
-        HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
-        String entityBody = EntityUtils.toString(entity);
-
-        Map<String, String> entityParams = getFormUrlEncodedValues(entityBody);
-
-        log.info("Got entity params: " + entityParams + "; " + entityBody);
-
-        if (!entityParams.containsKey("grant_type")) {
-            response.setStatusCode(400);
-            response.setEntity(new StringEntity("Missing grant_type"));
-            return;
-        }
-
-        String code = entityParams.get("code");
-        String idToken;
-
-        if (requireValidCodes) {
-            AuthCodeContext authCodeContext = this.validCodes.remove(code);
-
-            if (authCodeContext == null) {
-                response.setStatusCode(400);
-                response.setEntity(new StringEntity("Invalid code " + code));
-                return;
-            }
-
-            if (authCodeContext.codeChallenge != null) {
-                String codeVerifier = entityParams.get("code_verifier");
-                String hashed = applySHA256(codeVerifier);
-
-                if (!hashed.equals(authCodeContext.codeChallenge)) {
-                    response.setStatusCode(400);
-                    response.setEntity(new StringEntity(
-                            "Invalid code_challenge " + authCodeContext.codeChallenge + "; expected: " + hashed + " (" + codeVerifier + ")"));
-                    return;
-                }
-            }
-
-            idToken = authCodeContext.userJwt;
-
-            String oldRedirectUri = authCodeContext.redirectUri;
-            String currentRedirectUri = entityParams.get("redirect_uri");
-
-            System.out.println("redirect uri: " + oldRedirectUri + "; " + currentRedirectUri);
-
-            if (!oldRedirectUri.equals(currentRedirectUri)) {
-                response.setStatusCode(400);
-                response.setEntity(new StringEntity("Invalid redirect_uri " + currentRedirectUri + "; expected: " + oldRedirectUri));
-                return;
-            }
-        } else {
-            idToken = TestJwts.MC_COY_SIGNED_OCT_1;
-        }
-
-        response.setStatusCode(200);
-
-        Map<String, Object> responseBody = ImmutableMap.of("access_token", "totototototo", "token_type", "bearer", "expires_in", 3600, "scope",
-                "profile app:read app:write", "id_token", idToken);
-
-        response.setEntity(new StringEntity(DocWriter.json().writeAsString(responseBody), ContentType.APPLICATION_JSON));
+        response.setEntity(new StringEntity(DocWriter.json().writeAsString(userInfo), ContentType.APPLICATION_JSON));
     }
 
     private SSLContext createSSLContext() {
@@ -397,6 +460,11 @@ public class MockIpdServer implements Closeable {
     }
 
     public String handleSsoGetRequestURI(String ssoLocation, String userJwt) throws URISyntaxException, UnsupportedEncodingException {
+        return handleSsoGetRequestURI(ssoLocation, userJwt, null);
+    }
+
+    public String handleSsoGetRequestURI(String ssoLocation, String userJwt, Map<String, Object> userInfo)
+            throws URISyntaxException, UnsupportedEncodingException {
         Map<String, String> ssoParams = getUriParams(ssoLocation);
 
         String scope = ssoParams.get("scope");
@@ -418,13 +486,14 @@ public class MockIpdServer implements Closeable {
         authCodeContext.userJwt = userJwt;
         authCodeContext.redirectUri = redirectUri;
         authCodeContext.codeChallenge = codeChallenge;
+        authCodeContext.userInfo = userInfo;
 
         if (codeChallenge != null) {
             Assert.assertEquals(ssoLocation, "S256", codeChallengeMethod);
         } else if (requirePkce) {
             return null;
         }
-        
+
         validCodes.put(code, authCodeContext);
 
         URIBuilder uriBuilder = new URIBuilder(redirectUri);
@@ -477,7 +546,7 @@ public class MockIpdServer implements Closeable {
             mockIdpServer.requirePkce = requirePkce;
             return this;
         }
-         
+
         public Builder requireTlsClientCertAuth() {
             mockIdpServer.requireTlsClientCertAuth = true;
             return this;
@@ -509,6 +578,7 @@ public class MockIpdServer implements Closeable {
         private String userJwt;
         private String redirectUri;
         private String codeChallenge;
+        private Map<String, Object> userInfo;
 
     }
 }

@@ -16,7 +16,7 @@ package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 
 public interface KeyProvider {
 	public JsonWebKey getKey(String kid) throws AuthenticatorUnavailableException, BadCredentialsException;

@@ -94,6 +94,14 @@ public class TLSConfig implements Document<TLSConfig> {
     private static final Logger log = LoggerFactory.getLogger(TLSConfig.class);
 
     public static TLSConfig parse(Map<String, Object> config) throws ConfigValidationException {
+        return parse(config, false);
+    }
+
+    public static TLSConfig parseInclStartTlsSupport(Map<String, Object> config) throws ConfigValidationException {
+        return parse(config, true);
+    }
+
+    private static TLSConfig parse(Map<String, Object> config, boolean startTlsSupported) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables("file", VariableResolvers.FILE);
         TLSConfig tlsConfig = new TLSConfig();
@@ -107,6 +115,10 @@ public class TLSConfig implements Document<TLSConfig> {
             tlsConfig.trustedCas = vNode.get("trusted_cas").asListOfStrings();
         }
         tlsConfig.clientCertAuthConfig = vNode.get("client_auth").by(ClientCertAuthConfig::parse);
+
+        if (startTlsSupported) {
+            tlsConfig.startTlsEnabled = vNode.get("start_tls").withDefault(false).asBoolean();
+        }
 
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
@@ -161,7 +173,7 @@ public class TLSConfig implements Document<TLSConfig> {
                 } catch (ConfigValidationException e) {
                     validationErrors.add("trusted_cas", e);
                 }
-                tlsConfig.trustedCas = Collections.singletonList("${file:" + file.getAbsolutePath() + "}");
+                tlsConfig.trustedCas = Collections.singletonList("#{file:" + file.getAbsolutePath() + "}");
             } else {
                 tlsConfig.truststore = null;
                 tlsConfig.trustedCas = null;
@@ -297,7 +309,11 @@ public class TLSConfig implements Document<TLSConfig> {
                 ks.setCertificateEntry("certificate_" + i, certificate);
                 i++;
             }
-
+            
+            if (i == 0) {
+                throw new ConfigValidationException(new ValidationError(null, "Contains no certificates"));
+            }
+ 
             return ks;
         } catch (KeyStoreException | CertificateException | NoSuchAlgorithmException | IOException e) {
             // This should not happen
@@ -314,6 +330,11 @@ public class TLSConfig implements Document<TLSConfig> {
     private KeyStore truststore;
     private List<String> trustedCas;
     private ClientCertAuthConfig clientCertAuthConfig;
+
+    /**
+     * Important: Start TLS is NOT supported by toSSLIOSessionStrategy() and toSSLConnectionSocketFactory(). It must be externally realized
+     */
+    private boolean startTlsEnabled;
 
     private TLSConfig() {
 
@@ -508,8 +529,8 @@ public class TLSConfig implements Document<TLSConfig> {
 
             ClientCertAuthConfig result = new ClientCertAuthConfig();
 
-            result.certficate = "${file:" + certficatePem.getAbsolutePath() + "}";
-            result.privateKey = "${file:" + privateKeyPem.getAbsolutePath() + "}";
+            result.certficate = "#{file:" + certficatePem.getAbsolutePath() + "}";
+            result.privateKey = "#{file:" + privateKeyPem.getAbsolutePath() + "}";
             result.password = privateKeyPassword;
 
             Collection<? extends Certificate> certificateChain = null;
@@ -579,7 +600,6 @@ public class TLSConfig implements Document<TLSConfig> {
             }
         }
 
-   
         public Collection<? extends Certificate> getCertificateChain() {
             return certificateChain;
         }
@@ -649,6 +669,10 @@ public class TLSConfig implements Document<TLSConfig> {
             }
             return socket;
         }
+    }
+
+    public boolean isStartTlsEnabled() {
+        return startTlsEnabled;
     }
 
 }

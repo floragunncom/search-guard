@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
+ * Copyright 2020-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -16,9 +16,12 @@ package com.floragunn.searchguard.authtoken;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -33,8 +36,13 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 
-import com.fasterxml.jackson.core.JsonPointer;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.BaseDependencies;
+import com.floragunn.searchguard.SearchGuardModule;
+import com.floragunn.searchguard.authc.AuthenticationDomain;
+import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
+import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.authtoken.api.AuthTokenInfoAction;
 import com.floragunn.searchguard.authtoken.api.AuthTokenInfoRestAction;
 import com.floragunn.searchguard.authtoken.api.AuthTokenRestAction;
@@ -50,35 +58,44 @@ import com.floragunn.searchguard.authtoken.api.TransportRevokeAuthTokenAction;
 import com.floragunn.searchguard.authtoken.api.TransportSearchAuthTokensAction;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
 import com.floragunn.searchguard.authtoken.update.TransportPushAuthTokenUpdateAction;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
-import com.floragunn.searchguard.modules.SearchGuardModule;
 import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
-import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
+import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.util.ImmutableList;
 
-public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig>, ComponentStateProvider {
+public class AuthTokenModule implements SearchGuardModule, ComponentStateProvider {
+    private static final Logger log = LogManager.getLogger(AuthTokenModule.class);
 
     private AuthTokenService authTokenService;
     private ConfigVarService configVarService;
     private final ComponentState componentState = new ComponentState(1000, null, "auth_token_service", AuthTokenModule.class);
+    private AuthTokenAuthenticationDomain authenticationDomain;
 
     @Override
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
-        return Arrays.asList(new AuthTokenRestAction(), new SearchAuthTokenRestAction(), new AuthTokenInfoRestAction());
+        return Arrays.asList(new AuthTokenRestAction(), new SearchAuthTokenRestAction(), new AuthTokenInfoRestAction(),
+                AuthTokenServiceConfigApi.REST_API);
     }
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return Arrays.asList(new ActionHandler<>(CreateAuthTokenAction.INSTANCE, TransportCreateAuthTokenAction.class),
-                new ActionHandler<>(PushAuthTokenUpdateAction.INSTANCE, TransportPushAuthTokenUpdateAction.class),
-                new ActionHandler<>(GetAuthTokenAction.INSTANCE, TransportGetAuthTokenAction.class),
-                new ActionHandler<>(RevokeAuthTokenAction.INSTANCE, TransportRevokeAuthTokenAction.class),
-                new ActionHandler<>(SearchAuthTokensAction.INSTANCE, TransportSearchAuthTokensAction.class),
-                new ActionHandler<>(AuthTokenInfoAction.INSTANCE, TransportAuthTokenInfoAction.class));
+        return ImmutableList
+                .of(new ActionHandler<>(CreateAuthTokenAction.INSTANCE, TransportCreateAuthTokenAction.class),
+                        new ActionHandler<>(PushAuthTokenUpdateAction.INSTANCE, TransportPushAuthTokenUpdateAction.class),
+                        new ActionHandler<>(GetAuthTokenAction.INSTANCE, TransportGetAuthTokenAction.class),
+                        new ActionHandler<>(RevokeAuthTokenAction.INSTANCE, TransportRevokeAuthTokenAction.class),
+                        new ActionHandler<>(SearchAuthTokensAction.INSTANCE, TransportSearchAuthTokensAction.class),
+                        new ActionHandler<>(AuthTokenInfoAction.INSTANCE, TransportAuthTokenInfoAction.class))
+                .with(AuthTokenServiceConfigApi.ACTION_HANDLERS);
     }
 
     @Override
@@ -99,13 +116,44 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
                 baseDependencies.getThreadPool(), baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService(), null,
                 componentState);
 
-        AuthTokenAuthenticationBackend authenticationBackend = new AuthTokenAuthenticationBackend(authTokenService);
+        AuthTokenAuthenticationDomain authenticationBackend = new AuthTokenAuthenticationDomain(authTokenService);
 
         baseDependencies.getSpecialPrivilegesEvaluationContextProviderRegistry().add(authTokenService);
 
-        AuthTokenHttpJwtAuthenticator httpAuthenticator = new AuthTokenHttpJwtAuthenticator(authTokenService);
+        authenticationDomain = new AuthTokenAuthenticationDomain(authTokenService);
 
-        return Arrays.asList(authTokenService, configHistoryService, authenticationBackend, httpAuthenticator);
+        baseDependencies.getConfigurationRepository().subscribeOnChange(new ConfigurationChangeListener() {
+
+            @Override
+            public void onChange(ConfigMap configMap) {
+                SgDynamicConfiguration<AuthTokenServiceConfig> config = configMap.get(AuthTokenServiceConfig.TYPE);
+                SgDynamicConfiguration<LegacySgConfig> sgConfig = configMap.get(CType.CONFIG);
+
+                if (config != null && config.getCEntry("default") != null) {
+                    authTokenService.setConfig(config.getCEntry("default"));
+                    componentState.setConfigVersion(config.getDocVersion());
+                    componentState.setState(State.INITIALIZED, "using_config");
+                } else if (sgConfig != null && sgConfig.getCEntry("sg_config") != null) {
+                    DocNode docNode = sgConfig.getCEntry("sg_config").getSource().getAsNode("dynamic", "auth_token_provider");
+
+                    if (!docNode.isNull()) {
+                        try {
+                            AuthTokenServiceConfig authTokenServiceConfig = AuthTokenServiceConfig.parse(docNode, null).get();
+
+                            authTokenService.setConfig(authTokenServiceConfig);
+                            componentState.setConfigVersion(sgConfig.getDocVersion());
+                            componentState.setState(State.INITIALIZED, "using_legacy_config");
+                        } catch (ConfigValidationException e) {
+                            log.error("Invalid config for AuthTokenService", e);
+                        }
+                    }
+                } else {
+                    componentState.setState(State.SUSPENDED, "not_configured");
+                }
+            }
+        });
+
+        return Arrays.asList(authTokenService, configHistoryService, authenticationBackend);
     }
 
     @Override
@@ -116,14 +164,13 @@ public class AuthTokenModule implements SearchGuardModule<AuthTokenServiceConfig
     }
 
     @Override
-    public SgConfigMetadata<AuthTokenServiceConfig> getSgConfigMetadata() {
-        return new SgConfigMetadata<AuthTokenServiceConfig>(ConfigV7.class, "sg_config", JsonPointer.compile("/dynamic/auth_token_provider"),
-                (config) -> AuthTokenServiceConfig.parse(config), authTokenService::setConfig);
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
     @Override
-    public ComponentState getComponentState() {
-        return componentState;
+    public List<AuthenticationDomain<HTTPAuthenticator>> getImplicitHttpAuthenticationDomains() {
+        return Collections.singletonList(authenticationDomain);
     }
 
 }

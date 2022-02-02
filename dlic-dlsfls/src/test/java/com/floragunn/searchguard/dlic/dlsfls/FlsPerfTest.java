@@ -30,7 +30,7 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 
 @Ignore
 public class FlsPerfTest extends AbstractDlsFlsTest{

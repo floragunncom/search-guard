@@ -1,0 +1,21 @@
+---
+
+# This is the main Search Guard configuration file where authentication for the REST interface of Elasticsearch is defined.
+# 
+# You need to configure at least one authentication domain in this file.
+# An authentication domain is responsible for extracting the user credentials from 
+# the request and for validating them against an authentication backend like Active Directory for example. 
+#
+# If more than one authentication domain is configured the first one which succeeds wins. 
+# If all authentication domains fail then the request is unauthenticated.
+# In this case an exception is thrown and/or the HTTP status is set to 401.
+# 
+# For authentication for the transport client, see sg_authc_transport.yml.
+# 
+# See the documentation for more details: 
+# https://docs.search-guard.com/latest/authentication-authorization
+#
+
+debug: false
+auth_domains:
+- type: basic/internal_users_db

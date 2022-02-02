@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -48,6 +47,10 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.documents.jackson.JacksonJsonNodeAdapter;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateNodeResponse;
@@ -213,7 +216,21 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		}
 		
 		boolean existed = existingConfiguration.exists(name);
-		existingConfiguration.putCEntry(name, DefaultObjectMapper.readTree(content, existingConfiguration.getImplementingClass()));
+		Parser.ReturningValidationResult<?, ConfigurationRepository.Context> parser = getConfigName().getParser();
+		
+		if (parser != null) {
+		    ValidationResult<?> validatedConfig = parser.parse(new JacksonJsonNodeAdapter(content), cl.getParserContext());
+		    
+		    try {
+                existingConfiguration.putCEntry(name, validatedConfig.get());
+            } catch (ConfigValidationException e) {
+                badRequestResponse(channel, e.toJsonString());
+                return;
+            }
+		} else {
+	        existingConfiguration.putCEntry(name, DefaultObjectMapper.readTree(content, existingConfiguration.getImplementingClass()));		    
+		}
+		
 		
 		saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<IndexResponse>(channel) {
 
@@ -259,7 +276,10 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 			filter(configuration);
 
 			// no specific resource requested, return complete config
-			if (resourcename == null || resourcename.length() == 0) {
+			if (resourcename == null || resourcename.length() == 0) {			    
+			    // The legacy REST API also returns static configuration. This is a bit weird if you cannot modify it by PUT or DELETE. 
+			    // Anyway, we keep this here to support for example the Search Guard config UI
+		        staticSgConfig.addTo(configuration);
 
 				successResponse(channel, configuration);
 				return;
@@ -386,7 +406,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         // not 400
         consumeParameters(request);
         
-        // FIXME dirty hack to avoid "request does not support having a body" error
+        // dirty hack to avoid "request does not support having a body" error
         request.content();
 
         // check if SG index has been initialized
@@ -486,7 +506,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected void successResponse(RestChannel channel, SgDynamicConfiguration<?> response) {	    
         try {
             final XContentBuilder builder = channel.newBuilder();
-            builder.value(response.toRedactedBasicObject());
+            builder.value(response.toRedactedLegacyBasicObject());
             channel.sendResponse(new BytesRestResponse(RestStatus.OK, builder));
         } catch (Exception e) {
             log.error(e.toString(), e);

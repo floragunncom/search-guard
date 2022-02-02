@@ -53,10 +53,10 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 
 /**
  * Tests TLQ DLS with CCS
@@ -78,9 +78,8 @@ public class DlsTermsLookupCrossClusterTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup(); 
     
     @ClassRule
-    public static LocalCluster remote = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates)//
+    public static LocalCluster remote = new LocalCluster.Builder().singleNode().resources("dlsfls").sslEnabled(testCertificates)//
             .nodeSettings("searchguard.logging.context.extended", true)//
-            .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")//
             .clusterName("remote")//
             .enterpriseModulesEnabled()//
             .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*").on("tlqdummy").indexPermissions("*")
@@ -96,9 +95,8 @@ public class DlsTermsLookupCrossClusterTest {
             .build();
 
     @ClassRule
-    public static LocalCluster coordinating = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates).remote(CLUSTER_ALIAS, remote)//
+    public static LocalCluster coordinating = new LocalCluster.Builder().singleNode().resources("dlsfls").sslEnabled(testCertificates).remote(CLUSTER_ALIAS, remote)//
             .nodeSettings("searchguard.logging.context.extended", true)//
-            .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")//
             .clusterName("coordinating")//
             .enterpriseModulesEnabled()//
             .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*")

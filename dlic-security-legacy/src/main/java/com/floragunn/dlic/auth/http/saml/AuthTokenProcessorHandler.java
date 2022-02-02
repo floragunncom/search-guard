@@ -62,7 +62,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.google.common.base.Strings;
 import com.onelogin.saml2.authn.SamlResponse;
 import com.onelogin.saml2.exception.SettingsException;
@@ -91,7 +91,7 @@ class AuthTokenProcessorHandler {
     private JsonMapObjectReaderWriter jsonMapReaderWriter = new JsonMapObjectReaderWriter();
     private Pattern subjectPattern;
 
-    AuthTokenProcessorHandler(Settings settings, Settings jwtSettings, Saml2SettingsProvider saml2SettingsProvider) throws Exception {
+    AuthTokenProcessorHandler(Settings settings, Settings jwtSettings, Saml2SettingsProvider saml2SettingsProvider) {
         this.saml2SettingsProvider = saml2SettingsProvider;
 
         this.jwtRolesKey = jwtSettings.get("roles_key", "roles");
@@ -245,7 +245,7 @@ class AuthTokenProcessorHandler {
         }
     }
 
-    JsonWebKey createJwkFromSettings(Settings settings, Settings jwtSettings) throws Exception {
+    JsonWebKey createJwkFromSettings(Settings settings, Settings jwtSettings) {
 
         String exchangeKey = settings.get("exchange_key");
 
@@ -264,7 +264,7 @@ class AuthTokenProcessorHandler {
             Settings jwkSettings = jwtSettings.getAsSettings("key");
 
             if (jwkSettings.isEmpty()) {
-                throw new Exception("Settings for key exchange missing. Please specify at least the option exchange_key with a shared secret.");
+                throw new RuntimeException("Settings for key exchange missing. Please specify at least the option exchange_key with a shared secret.");
             }
 
             JsonWebKey jwk = new JsonWebKey();

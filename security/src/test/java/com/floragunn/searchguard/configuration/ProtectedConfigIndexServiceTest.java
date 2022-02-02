@@ -26,7 +26,6 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchsupport.junit.AsyncAssert;
 import com.google.common.collect.ImmutableMap;

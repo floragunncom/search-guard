@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,16 +45,18 @@ import org.elasticsearch.rest.action.RestResponseListener;
 
 import com.floragunn.codova.documents.ContentType;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchsupport.client.rest.Responses;
+import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class RestApi extends BaseRestHandler {
     private static final Logger log = LogManager.getLogger(RestApi.class);
 
     private final Map<RestRequest.Method, List<Endpoint>> methodToEndpointMap = new EnumMap<>(RestRequest.Method.class);
+    private ImmutableMap<String, String> staticResponseHeaders = ImmutableMap.empty();
     private String name;
 
     public RestApi() {
@@ -79,6 +81,17 @@ public class RestApi extends BaseRestHandler {
         }
 
         return routes;
+    }
+
+    public RestApi responseHeaders(Map<String, String> responseHeaders) {
+        this.staticResponseHeaders = this.staticResponseHeaders.with(ImmutableMap.of(responseHeaders));
+        return this;
+    }
+    
+
+    public RestApi responseHeader(String name, String value) {
+        this.staticResponseHeaders = this.staticResponseHeaders.with(name, value);
+        return this;
     }
 
     public Endpoint handlesGet(String routes) {
@@ -220,6 +233,12 @@ public class RestApi extends BaseRestHandler {
                                 restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
                             }
                             
+                            if (!staticResponseHeaders.isEmpty()) {
+                                staticResponseHeaders.forEach((k, v) -> {
+                                    restResponse.addHeader(k, v);
+                                });
+                            }
+                            
                             return restResponse;
                         }
 
@@ -291,6 +310,12 @@ public class RestApi extends BaseRestHandler {
                                 restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
                             }
                             
+                            if (!staticResponseHeaders.isEmpty()) {
+                                staticResponseHeaders.forEach((k,v) -> {
+                                   restResponse.addHeader(k, v); 
+                                });
+                            }
+
                             return restResponse;
                         }
 

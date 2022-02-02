@@ -1,0 +1,37 @@
+# This file defines the authentication frontends for Kibana. 
+#
+# If you want to login a username/password login form, you can leave this file as it is. The authentication backends used for 
+# verifying the username and password, are configured in sg_authc.yml.
+#
+# If you want to use SAML or OIDC based authentication, you have to provide additional configuration here. You can use the configuration 
+# examples below as a starting point.
+# 
+# NOTE: For using SAML or OIDC based authentication on production systems, you have to obtain a license.
+# See:  https://docs.search-guard.com/latest/search-guard-enterprise-edition
+# 
+# You can use any number of authentication methods at once. Search Guard will present you a selection of all available authentication methods in the browser.
+#
+# If you use more than one Kibana instance, you can add additonal root entries besides the default entry. In kibana.yml you can then select the configuration
+# to be used by the config option searchguard.sg_frontend_config_id
+#
+# See https://docs.search-guard.com/tech-preview/kibana-authentication-types for detailed documentation
+
+default:
+  debug: false
+  auth_domains:
+  - type: basic
+  - type: saml
+    enabled: false
+    label: "SAML Login"
+    saml.idp.metadata_url: "https://your.idp.example.com/saml-metadata.xml"
+    saml.idp.entity_id: urn:saml-metadata-entity-id
+    saml.sp.entity_id: service-provider-id
+    user_mapping.roles.from: saml_response.roles
+  - type: oidc
+    enabled: false
+    label: "OIDC Login"
+    oidc.client_id: "your-oidc-client-id"
+    oidc.client_secret: "your-oidc-client-secret"
+    oidc.idp.openid_configuration_url: "https://your.idp.example.com/auth/realms/master/.well-known/openid-configuration"
+    user_mapping.roles.from: jwt.roles
+    

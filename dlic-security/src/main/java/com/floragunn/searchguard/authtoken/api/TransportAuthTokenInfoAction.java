@@ -22,7 +22,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
-import com.floragunn.searchguard.auth.AuthInfoService;
+import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authtoken.AuthTokenService;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 
@@ -41,7 +41,7 @@ public class TransportAuthTokenInfoAction extends HandledTransportAction<AuthTok
 
     @Override
     protected final void doExecute(Task task, AuthTokenInfoRequest request, ActionListener<AuthTokenInfoResponse> listener) {
-        listener.onResponse(new AuthTokenInfoResponse(authTokenService.getConfig().isEnabled(), authTokenService.isInitialized()));
-
+        listener.onResponse(new AuthTokenInfoResponse(authTokenService.getConfig() != null ? authTokenService.getConfig().isEnabled() : false,
+                authTokenService.isInitialized()));
     }
 }

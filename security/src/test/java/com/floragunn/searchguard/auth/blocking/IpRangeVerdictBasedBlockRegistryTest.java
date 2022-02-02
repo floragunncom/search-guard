@@ -7,6 +7,8 @@ import org.hamcrest.core.Is;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.authc.blocking.IpRangeVerdictBasedBlockRegistry;
+
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddress;
 import inet.ipaddr.IPAddressString;

@@ -25,18 +25,22 @@ import org.apache.cxf.rs.security.jose.jwk.KeyType;
 import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidatingFunction;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.authtoken.RequestedPrivileges.ExcludedIndexPermissions;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
+import com.floragunn.searchguard.sgconf.impl.CType;
 
 public class AuthTokenServiceConfig {
-
+    public static CType<AuthTokenServiceConfig> TYPE = new CType<AuthTokenServiceConfig>("auth_token_service", "Auth Token Service", 10021, AuthTokenServiceConfig.class,
+            AuthTokenServiceConfig::parse, CType.Storage.OPTIONAL);
+    
     public static final String DEFAULT_AUDIENCE = "searchguard_tokenauth";
 
     private boolean enabled;
@@ -105,9 +109,9 @@ public class AuthTokenServiceConfig {
         this.excludeIndexPermissions = excludeIndexPermissions;
     }
 
-    public static AuthTokenServiceConfig parse(DocNode jsonNode) throws ConfigValidationException {
+    public static ValidationResult<AuthTokenServiceConfig> parse(DocNode jsonNode, Parser.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors, context);
 
         AuthTokenServiceConfig result = new AuthTokenServiceConfig();
         result.enabled = vJsonNode.get("enabled").withDefault(false).asBoolean();
@@ -140,13 +144,11 @@ public class AuthTokenServiceConfig {
             // TODO create test JWT for more thorough validation (some things are only checked then)
         }
 
-        validationErrors.throwExceptionForPresentErrors();
-
-        return result;
-    }
-
-    public static AuthTokenServiceConfig parseYaml(String yaml) throws ConfigValidationException {
-        return parse(DocNode.parse(Format.YAML).from(yaml));
+        if (!validationErrors.hasErrors()) {
+            return new ValidationResult<AuthTokenServiceConfig>(result);
+        } else {
+            return new ValidationResult<AuthTokenServiceConfig>(validationErrors);
+        }
     }
 
     private static final ValidatingFunction<DocNode, JsonWebKey> JWK_SIGNING_KEY_PARSER = new ValidatingFunction<DocNode, JsonWebKey>() {

@@ -37,9 +37,9 @@ import org.elasticsearch.ExceptionsHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.ssl.test.helper.file.FileHelper;
 import com.floragunn.searchguard.ssl.util.CertificateValidator;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class CertificateValidatorTest {
     

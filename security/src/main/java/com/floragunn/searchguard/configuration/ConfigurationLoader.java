@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 floragunn GmbH
+ * Copyright 2015-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,6 @@ import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.get.MultiGetResponse.Failure;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
@@ -48,7 +47,9 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
 
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -59,23 +60,22 @@ public class ConfigurationLoader {
 
     private final PrivilegedConfigClient client;
     private final String searchguardIndex;
-    private final ClusterService clusterService;
     private final Settings settings;
-    private final ComponentState componentState;
     private final Map<CType<?>, ComponentState> typeToStateMap;
     private final ConfigurationRepository configRepository;
+    private final StaticSgConfig staticSgConfig;
 
     public ConfigurationLoader(Client client, Settings settings, ConfigurationRepository configRepository) {
-        this(client, settings, null, null, configRepository);
+        this(client, settings, null, configRepository, null);
     }
 
-    public ConfigurationLoader(Client client, Settings settings, ClusterService clusterService, ComponentState componentState, ConfigurationRepository configRepository) {
+    public ConfigurationLoader(Client client, Settings settings, ComponentState componentState, ConfigurationRepository configRepository,
+            StaticSgConfig staticSgConfig) {
         this.client = PrivilegedConfigClient.adapt(client);
         this.settings = settings;
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
-        this.clusterService = clusterService;
-        this.componentState = componentState;
         this.configRepository = configRepository;
+        this.staticSgConfig = staticSgConfig;
 
         if (componentState != null) {
             typeToStateMap = new HashMap<>(CType.all().size());
@@ -141,7 +141,7 @@ public class ConfigurationLoader {
 
                 if (cType.isOptional()) {
                     optionalTypes.add(cType);
-                } 
+                }
             }
         }
 
@@ -160,7 +160,8 @@ public class ConfigurationLoader {
                                 .map(r -> r.getId() + ": failure: " + r.getFailure() + "; exists: " + r.getResponse().isExists() + "; sourceEmpty: "
                                         + r.getResponse().isSourceEmpty() + "; version: " + r.getResponse().getVersion() + "; seqno: "
                                         + r.getResponse().getSeqNo() + "; pt: " + r.getResponse().getPrimaryTerm() + "; size: "
-                                        + (r.getResponse().getSourceAsBytes() != null ? r.getResponse().getSourceAsBytes().length : "null")).collect(Collectors.toList()));
+                                        + (r.getResponse().getSourceAsBytes() != null ? r.getResponse().getSourceAsBytes().length : "null"))
+                                .collect(Collectors.toList()));
                     }
 
                     List<Failure> failures = new ArrayList<>();
@@ -168,17 +169,27 @@ public class ConfigurationLoader {
 
                     for (MultiGetItemResponse item : response.getResponses()) {
                         CType<?> type = item.getId() != null ? CType.fromString(item.getId()) : null;
-                       
+
                         if (item.isFailed()) {
                             failures.add(item.getFailure());
                             failure(type, item.getFailure(), typeToStateMap);
                             continue;
                         }
-                    
+
                         try {
                             SgDynamicConfiguration<?> config = toConfig(type, item.getResponse());
+                            
+                            if (staticSgConfig != null) {
+                                staticSgConfig.addTo(config);
+                            }
+                            
                             configMapBuilder.with(config);
                             success(config, typeToStateMap);
+                        } catch (ConfigValidationException e) {
+                            Failure failure = new Failure(searchguardIndex, item.getResponse().getType(), item.getResponse().getId(),
+                                    new Exception(e.getValidationErrors().toString(), e));
+                            failures.add(failure);
+                            failure(type, failure, typeToStateMap);
                         } catch (Exception e) {
                             Failure failure = new Failure(searchguardIndex, item.getResponse().getType(), item.getResponse().getId(), e);
                             failures.add(failure);

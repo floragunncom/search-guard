@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -697,7 +698,7 @@ public abstract class DocNode implements Map<String, Object>, Document<Object> {
         @Override
         public List<DocNode> getAsListOfNodes(String attribute) {
             if (delegate.containsKey(attribute)) {
-                return delegate.getAsListOfNodes(attribute);
+                return delegate.getAsListOfNodes(attribute).stream().map((n) -> new AttributeNormalizingAdapter(n)).collect(Collectors.toList());
             }
 
             int dot = attribute.indexOf('.');
@@ -850,7 +851,7 @@ public abstract class DocNode implements Map<String, Object>, Document<Object> {
     public Object toBasicObject() {
         return get(null);
     }
-    
+ 
     public Map<String, DocNode> toMapOfNodes() {
         return new ValueRewritingMapWrapper<>(toMap(), (o) -> DocNode.wrap(o));
     }

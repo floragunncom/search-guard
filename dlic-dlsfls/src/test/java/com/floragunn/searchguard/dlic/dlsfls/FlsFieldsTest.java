@@ -25,8 +25,8 @@ import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class FlsFieldsTest extends AbstractDlsFlsTest{
     

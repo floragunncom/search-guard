@@ -57,7 +57,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.PartsStats;
 import com.google.common.collect.ArrayListMultimap;

@@ -78,7 +78,7 @@ public class ValidatingDocumentNodeTest {
 
         Assert.assertEquals("1.234", vNode.get("a").asBigDecimal().toString());
         Assert.assertNull(vNode.get("b").asBigDecimal());
-        Assert.assertTrue(validationErrors.toDebugString(), validationErrors.toString().contains("invalid value; expected: number"));
+        Assert.assertTrue(validationErrors.toDebugString(), validationErrors.toString().contains("Invalid value; expected: number"));
     }
 
     @Test

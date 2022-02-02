@@ -26,7 +26,7 @@ import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.google.common.base.Strings;
 
 public class SelfRefreshingKeySet implements KeyProvider {
@@ -217,7 +217,7 @@ public class SelfRefreshingKeySet implements KeyProvider {
 							throw new RuntimeException("Refresh function " + keySetProvider + " yielded null");
 						}
 
-						log.info("KeySetProvider finished");
+						log.info("KeySetProvider finished; got: " + newKeys);
 
 						synchronized (SelfRefreshingKeySet.this) {
 							jsonWebKeys = newKeys;

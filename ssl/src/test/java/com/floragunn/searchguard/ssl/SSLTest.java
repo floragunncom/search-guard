@@ -56,12 +56,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import com.floragunn.searchguard.ssl.test.SingleClusterTest;
+import com.floragunn.searchguard.ssl.test.helper.file.FileHelper;
+import com.floragunn.searchguard.ssl.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
-import com.floragunn.searchguard.test.SingleClusterTest;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
 
 import io.netty.util.internal.PlatformDependent;
 

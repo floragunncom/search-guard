@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
 
+import com.floragunn.searchguard.authc.limiting.UserNameBasedRateLimiter;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class AddressBasedRateLimiterTest {
