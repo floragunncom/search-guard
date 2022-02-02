@@ -28,13 +28,13 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-import com.floragunn.searchguard.test.AbstractSGUnitTest;
-import com.floragunn.searchguard.test.DynamicSgConfig;
+import com.floragunn.searchguard.legacy.test.AbstractSGUnitTest;
+import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 @RunWith(Parameterized.class)
 public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{

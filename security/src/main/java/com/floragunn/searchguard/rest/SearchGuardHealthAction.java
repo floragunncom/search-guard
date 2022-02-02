@@ -33,16 +33,16 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.auth.BackendRegistry;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.google.common.collect.ImmutableList;
 
 public class SearchGuardHealthAction extends BaseRestHandler {
 
-    private final BackendRegistry registry;
+    private final ConfigurationRepository configRepository;
 
-    public SearchGuardHealthAction(final Settings settings, final RestController controller, final BackendRegistry registry) {
+    public SearchGuardHealthAction(final Settings settings, final RestController controller, ConfigurationRepository configRepository) {
         super();
-        this.registry = registry;
+        this.configRepository = configRepository;
     }
 
     @Override
@@ -68,7 +68,7 @@ public class SearchGuardHealthAction extends BaseRestHandler {
 
                     builder.startObject();
 
-                    if ("strict".equalsIgnoreCase(mode) && registry.isInitialized() == false) {
+                    if ("strict".equalsIgnoreCase(mode) && configRepository.isInitialized() == false) {
                         status = "DOWN";
                         message = "Not initialized";
                         restStatus = RestStatus.SERVICE_UNAVAILABLE;

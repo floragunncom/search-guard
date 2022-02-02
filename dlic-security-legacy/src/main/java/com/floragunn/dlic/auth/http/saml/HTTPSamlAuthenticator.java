@@ -39,11 +39,15 @@ import org.opensaml.saml.metadata.resolver.MetadataResolver;
 import org.opensaml.saml.metadata.resolver.impl.AbstractReloadingMetadataResolver;
 
 import com.floragunn.dlic.auth.http.jwt.AbstractHTTPJwtAuthenticator;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.auth.Destroyable;
-import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
+import com.floragunn.searchguard.TypedComponent;
+import com.floragunn.searchguard.TypedComponent.Factory;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.Destroyable;
+import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.oidc.BadCredentialsException;
 import com.floragunn.searchguard.enterprise.auth.oidc.KeyProvider;
+import com.floragunn.searchguard.legacy.LegacyComponentFactory;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PemKeyReader;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -56,9 +60,10 @@ import com.onelogin.saml2.util.Util;
 
 import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
 import net.shibboleth.utilities.java.support.component.DestructableComponent;
+import net.shibboleth.utilities.java.support.resolver.ResolverException;
 
 @Deprecated
-public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
+public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyable {
     protected final static Logger log = LogManager.getLogger(HTTPSamlAuthenticator.class);
     private static boolean openSamlInitialized = false;
 
@@ -103,11 +108,11 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
             }
 
             if (kibanaRootUrl == null) {
-                throw new Exception("kibana_url is unconfigured");
+                throw new RuntimeException("kibana_url is unconfigured");
             }
 
             if (idpMetadataUrl == null && idpMetadataFile == null) {
-                throw new Exception("idp.metadata_url and idp.metadata_file are unconfigured");
+                throw new RuntimeException("idp.metadata_url and idp.metadata_file are unconfigured");
             }
 
             this.metadataResolver = createMetadataResolver(settings, configPath);
@@ -127,8 +132,9 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
 
             this.httpJwtAuthenticator = new HTTPJwtAuthenticator(this.jwtSettings, configPath);
 
-        } catch (Exception e) {
+        } catch (ResolverException | SSLConfigException | ComponentInitializationException e) {
             log.error("Error creating HTTPSamlAuthenticator: " + e + ". SAML authentication will not work", e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -208,7 +214,7 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
         return new AuthnRequest(saml2Settings, forceAuthn, false, true);
     }
 
-    private PrivateKey getSpSignaturePrivateKey(Settings settings, Path configPath) throws Exception {
+    private PrivateKey getSpSignaturePrivateKey(Settings settings, Path configPath) {
         try {
             PrivateKey result = PemKeyReader.loadKeyFromStream(settings.get("sp.signature_private_key_password"),
                     PemKeyReader.resolveStream("sp.signature_private_key", settings));
@@ -220,7 +226,7 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
 
             return result;
         } catch (Exception e) {
-            throw new Exception("Invalid value for sp.signature_private_key", e);
+            throw new RuntimeException("Invalid value for sp.signature_private_key", e);
         }
     }
 
@@ -284,8 +290,8 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
         }
     }
 
-    private AbstractReloadingMetadataResolver createMetadataResolver(final Settings settings, final Path configPath)
-            throws Exception {
+    private AbstractReloadingMetadataResolver createMetadataResolver(final Settings settings, final Path configPath) throws ResolverException, SSLConfigException, ComponentInitializationException
+             {
         final AbstractReloadingMetadataResolver metadataResolver;
 
         if (idpMetadataUrl != null) {
@@ -442,4 +448,23 @@ public class HTTPSamlAuthenticator implements HTTPAuthenticator, Destroyable {
     private enum IdpEndpointType {
         SSO, SLO
     }
+
+
+    public static TypedComponent.Info<LegacyHTTPAuthenticator> INFO = new TypedComponent.Info<LegacyHTTPAuthenticator>() {
+
+        @Override
+        public Class<LegacyHTTPAuthenticator> getType() {
+            return LegacyHTTPAuthenticator.class;
+        }
+
+        @Override
+        public String getName() {
+            return "saml";
+        }
+
+        @Override
+        public Factory<LegacyHTTPAuthenticator> getFactory() {
+            return LegacyComponentFactory.adapt(HTTPSamlAuthenticator::new);
+        }
+    };
 }

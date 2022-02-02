@@ -27,7 +27,9 @@ import org.elasticsearch.common.settings.Settings;
 import org.opensaml.saml.metadata.resolver.impl.HTTPMetadataResolver;
 
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
+import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
 
+import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
 import net.shibboleth.utilities.java.support.resolver.ResolverException;
 import net.shibboleth.utilities.java.support.xml.BasicParserPool;
 
@@ -35,7 +37,7 @@ import net.shibboleth.utilities.java.support.xml.BasicParserPool;
 public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
     private static int componentIdCounter = 0;
 
-    SamlHTTPMetadataResolver(Settings esSettings, Path configPath) throws Exception {
+    SamlHTTPMetadataResolver(Settings esSettings, Path configPath) throws ResolverException, SSLConfigException, ComponentInitializationException {
         super(createHttpClient(esSettings, configPath), esSettings.get("idp.metadata_url"));
         setId(HTTPSamlAuthenticator.class.getName() + "_" + (++componentIdCounter));
         setRequireValidMetadata(true);
@@ -67,12 +69,11 @@ public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
         }
     }
 
-    private static SettingsBasedSSLConfigurator.SSLConfig getSSLConfig(Settings settings, Path configPath)
-            throws Exception {
+    private static SettingsBasedSSLConfigurator.SSLConfig getSSLConfig(Settings settings, Path configPath) throws SSLConfigException {
         return new SettingsBasedSSLConfigurator(settings, configPath, "idp").buildSSLConfig();
     }
 
-    private static HttpClient createHttpClient(Settings settings, Path configPath) throws Exception {
+    private static HttpClient createHttpClient(Settings settings, Path configPath) throws SSLConfigException {
         try {
             final SecurityManager sm = System.getSecurityManager();
 
@@ -87,15 +88,15 @@ public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
                 }
             });
         } catch (PrivilegedActionException e) {
-            if (e.getCause() instanceof Exception) {
-                throw (Exception) e.getCause();
+            if (e.getCause() instanceof SSLConfigException) {
+                throw (SSLConfigException) e.getCause();
             } else {
                 throw new RuntimeException(e);
             }
         }
     }
 
-    private static HttpClient createHttpClient0(Settings settings, Path configPath) throws Exception {
+    private static HttpClient createHttpClient0(Settings settings, Path configPath) throws SSLConfigException {
 
         HttpClientBuilder builder = HttpClients.custom();
 

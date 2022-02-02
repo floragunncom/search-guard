@@ -1,0 +1,5 @@
+default:
+  auth_domains:
+  - type: basic/internal_users_db
+    user_mapping.attrs.from:
+      dept_no: user_entry.attributes.dept_no

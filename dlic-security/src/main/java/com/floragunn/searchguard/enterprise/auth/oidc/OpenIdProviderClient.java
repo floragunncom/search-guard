@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -16,9 +16,6 @@ package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import java.io.IOException;
 import java.net.URI;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,7 +24,6 @@ import java.util.Map;
 import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
-import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -52,13 +48,18 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.SpecialPermission;
 
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationResult;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(KeySetRetriever.class);
@@ -76,6 +77,7 @@ public class OpenIdProviderClient {
     private int oidcCacheModuleResponses = 0;
     private long oidcRequests = 0;
     private long lastCacheStatusLog = 0;
+    private final JwksProviderClient jwkProviderClient;
 
     public OpenIdProviderClient(URI openIdConnectEndpoint, TLSConfig tlsConfig, ProxyConfig proxyConfig, boolean useCacheForOidConnectEndpoint) {
         this.openIdConnectEndpoint = openIdConnectEndpoint;
@@ -86,238 +88,234 @@ public class OpenIdProviderClient {
             cacheConfig = CacheConfig.custom().setMaxCacheEntries(10).setMaxObjectSize(1024L * 1024L).build();
             oidcHttpCacheStorage = new BasicHttpCacheStorage(cacheConfig);
         }
+
+        this.jwkProviderClient = new JwksProviderClient(tlsConfig, proxyConfig);
     }
 
-    public OidcProviderConfig getOidcConfiguration() throws AuthenticatorUnavailableException {
-        final SecurityManager sm = System.getSecurityManager();
+    public ValidationResult<OidcProviderConfig> getOidcConfiguration() throws AuthenticatorUnavailableException {
+        return PrivilegedCode.execute(() -> {
 
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
+            try (CloseableHttpClient httpClient = createHttpClient(oidcHttpCacheStorage)) {
 
-        try {
-            return AccessController.doPrivileged((PrivilegedExceptionAction<OidcProviderConfig>) () -> {
-                try (CloseableHttpClient httpClient = createHttpClient(oidcHttpCacheStorage)) {
+                HttpGet httpGet = new HttpGet(openIdConnectEndpoint);
 
-                    HttpGet httpGet = new HttpGet(openIdConnectEndpoint);
+                RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
+                        .setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
 
-                    RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
-                            .setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
+                httpGet.setConfig(requestConfig);
 
-                    httpGet.setConfig(requestConfig);
+                HttpCacheContext httpContext = null;
 
-                    HttpCacheContext httpContext = null;
-
-                    if (oidcHttpCacheStorage != null) {
-                        httpContext = new HttpCacheContext();
-                    }
-
-                    try (CloseableHttpResponse response = httpClient.execute(httpGet, httpContext)) {
-                        if (httpContext != null) {
-                            logCacheResponseStatus(httpContext);
-                        }
-
-                        StatusLine statusLine = response.getStatusLine();
-
-                        if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-                            throw new AuthenticatorUnavailableException("Error while retrieving OIDC config",
-                                    statusLine + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""))
-                                            .details("openid_configuration_url", openIdConnectEndpoint);
-                        }
-
-                        HttpEntity httpEntity = response.getEntity();
-
-                        if (httpEntity == null) {
-                            throw new AuthenticatorUnavailableException("Error while retrieving OIDC config", "Empty response")
-                                    .details("openid_configuration_url", openIdConnectEndpoint);
-                        }
-
-                        return new OidcProviderConfig(DocReader.json().readObject(httpEntity.getContent()));
-                    }
-                } catch (SSLHandshakeException e) {
-                    throw new AuthenticatorUnavailableException("Error while retrieving OIDC config", e).details("openid_configuration_url",
-                            openIdConnectEndpoint);
-                } catch (IOException e) {
-                    throw new AuthenticatorUnavailableException("Error while retrieving OIDC config", e).details("openid_configuration_url",
-                            openIdConnectEndpoint);
+                if (oidcHttpCacheStorage != null) {
+                    httpContext = new HttpCacheContext();
                 }
-            });
-        } catch (PrivilegedActionException e) {
-            if (e.getCause() instanceof AuthenticatorUnavailableException) {
-                throw (AuthenticatorUnavailableException) e.getCause();
-            } else if (e.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) e.getCause();
-            } else {
-                throw new RuntimeException(e.getCause());
+
+                try (CloseableHttpResponse response = httpClient.execute(httpGet, httpContext)) {
+                    if (httpContext != null) {
+                        logCacheResponseStatus(httpContext);
+                    }
+
+                    StatusLine statusLine = response.getStatusLine();
+
+                    if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
+                        throw new AuthenticatorUnavailableException("Error while retrieving OIDC config",
+                                statusLine + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""))
+                                        .details("openid_configuration_url", openIdConnectEndpoint);
+                    }
+
+                    HttpEntity httpEntity = response.getEntity();
+
+                    if (httpEntity == null) {
+                        throw new AuthenticatorUnavailableException("Error while retrieving OIDC config", "Empty response")
+                                .details("openid_configuration_url", openIdConnectEndpoint);
+                    }
+
+                    return OidcProviderConfig.parse(DocNode.parse(Format.JSON).from(httpEntity.getContent()));
+                }
+            } catch (SSLHandshakeException e) {
+                throw new AuthenticatorUnavailableException("Error while retrieving OIDC config", e).details("openid_configuration_url",
+                        openIdConnectEndpoint);
+            } catch (IOException e) {
+                throw new AuthenticatorUnavailableException("Error while retrieving OIDC config", e).details("openid_configuration_url",
+                        openIdConnectEndpoint);
+            } catch (DocumentParseException e) {
+                throw new AuthenticatorUnavailableException("Error while retrieving OIDC config", e).details("openid_configuration_url",
+                        openIdConnectEndpoint);
             }
-        }
+        }, AuthenticatorUnavailableException.class);
 
     }
 
     public JsonWebKeys getJsonWebKeys() throws AuthenticatorUnavailableException {
-        String uri = getJwksUri();
-
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
-        try {
-            return AccessController.doPrivileged((PrivilegedExceptionAction<JsonWebKeys>) () -> {
-                try (CloseableHttpClient httpClient = createHttpClient(null)) {
-
-                    HttpGet httpGet = new HttpGet(uri);
-
-                    RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
-                            .setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
-
-                    httpGet.setConfig(requestConfig);
-
-                    try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
-                        StatusLine statusLine = response.getStatusLine();
-
-                        if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-                            throw new AuthenticatorUnavailableException("Error while retrieving JWKS OIDC config",
-                                    statusLine + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""))
-                                            .details("openid_configuration_url", openIdConnectEndpoint, "jwks_uri", uri);
-                        }
-
-                        HttpEntity httpEntity = response.getEntity();
-
-                        if (httpEntity == null) {
-                            throw new AuthenticatorUnavailableException("Error while retrieving JWKS OIDC config", "Empty response")
-                                    .details("openid_configuration_url", openIdConnectEndpoint, "jwks_uri", uri);
-                        }
-
-                        JsonWebKeys keySet = JwkUtils.readJwkSet(httpEntity.getContent());
-
-                        return keySet;
-                    }
-                } catch (IOException e) {
-                    throw new AuthenticatorUnavailableException("Error while retrieving JWKS OIDC config", e).details("openid_configuration_url",
-                            openIdConnectEndpoint, "jwks_uri", uri);
-                }
-            });
-        } catch (PrivilegedActionException e) {
-            if (e.getCause() instanceof AuthenticatorUnavailableException) {
-                throw (AuthenticatorUnavailableException) e.getCause();
-            } else if (e.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) e.getCause();
-            } else {
-                throw new RuntimeException(e.getCause());
-            }
-        }
+        return jwkProviderClient.getJsonWebKeys(getJwksUri());
     }
 
-    public TokenResponse callTokenEndpoint(Map<String, String> params) 
-            throws AuthenticatorUnavailableException {
+    public TokenResponse callTokenEndpoint(Map<String, String> params) throws AuthenticatorUnavailableException {
         List<NameValuePair> request = new ArrayList<>(params.size() + 1);
-        
+
         request.add(new BasicNameValuePair("grant_type", "authorization_code"));
-        
+
         for (Map.Entry<String, String> entry : params.entrySet()) {
             request.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
         }
-        
-        OidcProviderConfig oidcProviderConfg = getOidcConfiguration();
-        String tokenEndpoint = oidcProviderConfg.getTokenEndpoint();
 
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
+        URI tokenEndpoint;
         try {
-            return AccessController.doPrivileged((PrivilegedExceptionAction<TokenResponse>) () -> {
-                try (CloseableHttpClient httpClient = createHttpClient(null)) {
-
-                    HttpPost httpPost = new HttpPost(tokenEndpoint);
-                    httpPost.setEntity(new UrlEncodedFormEntity(request, "utf-8"));
-
-                    RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
-                            .setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
-
-                    httpPost.setConfig(requestConfig);
-
-                    try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
-                        String responseBody = EntityUtils.toString(response.getEntity());
-                        StatusLine statusLine = response.getStatusLine();
-
-                        if (response.getStatusLine().getStatusCode() >= 300 || response.getStatusLine().getStatusCode() < 200) {
-                            throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code",
-                                    statusLine + (responseBody != null ? "\n" + responseBody : ""))
-                                            .details("openid_configuration_url", openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
-                        }
-
-                        Map<String, Object> responseJsonBody = DocReader.json().readObject(responseBody);
-
-                        return new TokenResponse(responseJsonBody);
-                    }
-                } catch (IOException e) {
-                    throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code", e).details("openid_configuration_url",
-                            openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
-                }
-            });
-        } catch (PrivilegedActionException e) {
-            if (e.getCause() instanceof AuthenticatorUnavailableException) {
-                throw (AuthenticatorUnavailableException) e.getCause();
-            } else if (e.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) e.getCause();
-            } else {
-                throw new RuntimeException(e.getCause());
-            }
+            tokenEndpoint = getOidcConfiguration().get().getTokenEndpoint();
+        } catch (ConfigValidationException e) {
+            throw new AuthenticatorUnavailableException("Invalid token endpoint in OIDC metadata", e).details("openid_configuration_url",
+                    openIdConnectEndpoint);
         }
+
+        return PrivilegedCode.execute(() -> {
+            try (CloseableHttpClient httpClient = createHttpClient(null)) {
+
+                HttpPost httpPost = new HttpPost(tokenEndpoint);
+                httpPost.setEntity(new UrlEncodedFormEntity(request, "utf-8"));
+
+                RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
+                        .setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
+
+                httpPost.setConfig(requestConfig);
+
+                try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+                    String responseBody = EntityUtils.toString(response.getEntity());
+                    StatusLine statusLine = response.getStatusLine();
+
+                    if (response.getStatusLine().getStatusCode() >= 300 || response.getStatusLine().getStatusCode() < 200) {
+                        throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code",
+                                statusLine + (responseBody != null ? "\n" + responseBody : "")).details("openid_configuration_url",
+                                        openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
+                    }
+
+                    Map<String, Object> responseJsonBody = DocReader.json().readObject(responseBody);
+
+                    return new TokenResponse(responseJsonBody);
+                }
+            } catch (IOException e) {
+                throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code", e).details("openid_configuration_url",
+                        openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
+            } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
+                throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code", e).details("openid_configuration_url",
+                        openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
+            }
+        }, AuthenticatorUnavailableException.class);
     }
 
     public HttpResponse callTokenEndpoint(byte[] body, ContentType contentType) throws AuthenticatorUnavailableException {
-        OidcProviderConfig oidcProviderConfg = getOidcConfiguration();
-        String tokenEndpoint = oidcProviderConfg.getTokenEndpoint();
-
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
+        URI tokenEndpoint;
+        try {
+            tokenEndpoint = getOidcConfiguration().get().getTokenEndpoint();
+        } catch (ConfigValidationException e) {
+            throw new AuthenticatorUnavailableException("Invalid token endpoint in OIDC metadata", e).details("openid_configuration_url",
+                    openIdConnectEndpoint);
         }
 
-        try {
-            return AccessController.doPrivileged((PrivilegedExceptionAction<HttpResponse>) () -> {
-                try (CloseableHttpClient httpClient = createHttpClient(null)) {
+        return PrivilegedCode.execute(() -> {
 
-                    HttpPost httpPost = new HttpPost(tokenEndpoint);
-                    httpPost.setEntity(new ByteArrayEntity(body, contentType));
+            try (CloseableHttpClient httpClient = createHttpClient(null)) {
 
-                    RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
-                            .setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
+                HttpPost httpPost = new HttpPost(tokenEndpoint);
+                httpPost.setEntity(new ByteArrayEntity(body, contentType));
 
-                    httpPost.setConfig(requestConfig);
+                RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
+                        .setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
 
-                    try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
-                        BasicHttpResponse copiedResponse = new BasicHttpResponse(response.getStatusLine());
-                        copiedResponse.setEntity(
-                                new ByteArrayEntity(EntityUtils.toByteArray(response.getEntity()), ContentType.getOrDefault(response.getEntity())));
+                httpPost.setConfig(requestConfig);
 
-                        return copiedResponse;
-                    }
-                } catch (IOException e) {
-                    throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code", e).details("openid_configuration_url",
-                            openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
+                try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+                    BasicHttpResponse copiedResponse = new BasicHttpResponse(response.getStatusLine());
+                    copiedResponse.setEntity(
+                            new ByteArrayEntity(EntityUtils.toByteArray(response.getEntity()), ContentType.getOrDefault(response.getEntity())));
+
+                    return copiedResponse;
                 }
-            });
-        } catch (PrivilegedActionException e) {
-            if (e.getCause() instanceof AuthenticatorUnavailableException) {
-                throw (AuthenticatorUnavailableException) e.getCause();
-            } else if (e.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) e.getCause();
-            } else {
-                throw new RuntimeException(e.getCause());
+            } catch (IOException e) {
+                throw new AuthenticatorUnavailableException("Error exchanging OIDC auth_code", e).details("openid_configuration_url",
+                        openIdConnectEndpoint, "token_endpoint", tokenEndpoint);
             }
+        }, AuthenticatorUnavailableException.class);
+    }
+
+    URI getJwksUri() throws AuthenticatorUnavailableException {
+        try {
+            return getOidcConfiguration().get().getJwksUri();
+        } catch (ConfigValidationException e) {
+            throw new AuthenticatorUnavailableException("Invalid jwk_uri in OIDC metadata", e).details("openid_configuration_url",
+                    openIdConnectEndpoint);
         }
     }
 
-    String getJwksUri() throws AuthenticatorUnavailableException {
-        return getOidcConfiguration().getJwksUri();
+    public Map<String, Object> callUserInfoEndpoint(String accessToken, JwtVerifier userInfoJwtVerifier) throws AuthenticatorUnavailableException {
+        URI userInfoEndpoint;
+        try {
+            userInfoEndpoint = getOidcConfiguration().get().getUserinfoEndpoint();
+        } catch (ConfigValidationException e) {
+            throw new AuthenticatorUnavailableException("Invalid userinfo endpoint in OIDC metadata", e).details("openid_configuration_url",
+                    openIdConnectEndpoint);
+        }
+
+        return PrivilegedCode.execute(() -> {
+
+            try (CloseableHttpClient httpClient = createHttpClient(null)) {
+
+                HttpGet httpGet = new HttpGet(userInfoEndpoint);
+                httpGet.setHeader("Authorization", "Bearer " + accessToken);
+
+                RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
+                        .setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
+
+                httpGet.setConfig(requestConfig);
+
+                try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
+                    StatusLine statusLine = response.getStatusLine();
+
+                    if (statusLine.getStatusCode() == 200) {
+                        HttpEntity entity = response.getEntity();
+                        String entityString = EntityUtils.toString(entity);
+
+                        if (entity.getContentType() == null) {
+                            throw new AuthenticatorUnavailableException("Error calling OIDC userinfo endpoint",
+                                    "Response did not specify Content-Type").details("openid_configuration_url", openIdConnectEndpoint,
+                                            "userinfo_endpoint", userInfoEndpoint, "response", EntityUtils.toString(entity));
+                        }
+
+                        if (entity.getContentType().getValue().startsWith("application/json")) {
+                            try {
+                                return DocReader.json().readObject(entityString);
+                            } catch (DocumentParseException | UnexpectedDocumentStructureException | UnsupportedOperationException e) {
+                                throw new AuthenticatorUnavailableException("Error parsing OIDC userinfo response",
+                                        "Unexpected response Content-Type " + entity.getContentType().getValue()).details("openid_configuration_url",
+                                                openIdConnectEndpoint, "userinfo_endpoint", userInfoEndpoint, "response", entityString);
+                            }
+                        } else if (entity.getContentType().getValue().startsWith("application/jwt")) {
+                            try {
+                                return userInfoJwtVerifier.getVerifiedJwtToken(entityString).getClaims().asMap();
+                            } catch (BadCredentialsException e) {
+                                throw new AuthenticatorUnavailableException("Error calling OIDC userinfo endpoint", e).details(
+                                        "openid_configuration_url", openIdConnectEndpoint, "userinfo_endpoint", userInfoEndpoint, "response",
+                                        entityString);
+                            }
+                        } else {
+                            throw new AuthenticatorUnavailableException("Error calling OIDC userinfo endpoint",
+                                    "Unexpected response Content-Type " + entity.getContentType().getValue()).details("openid_configuration_url",
+                                            openIdConnectEndpoint, "userinfo_endpoint", userInfoEndpoint, "response", entityString);
+                        }
+                    } else {
+                        String wwwAuthenticateError = response.getFirstHeader("WWW-Authenticate") != null
+                                ? response.getFirstHeader("WWW-Authenticate").getValue()
+                                : null;
+
+                        throw new AuthenticatorUnavailableException("Error calling OIDC userinfo endpoint", statusLine.toString()).details(
+                                "openid_configuration_url", openIdConnectEndpoint, "userinfo_endpoint", userInfoEndpoint, "response",
+                                EntityUtils.toString(response.getEntity()), "www_authenticate_header", wwwAuthenticateError);
+                    }
+                }
+            } catch (IOException e) {
+                throw new AuthenticatorUnavailableException("Error calling OIDC userinfo endpoint", e).details("openid_configuration_url",
+                        openIdConnectEndpoint, "userinfo_endpoint", userInfoEndpoint);
+            }
+        }, AuthenticatorUnavailableException.class);
     }
 
     public int getRequestTimeoutMs() {
@@ -326,6 +324,7 @@ public class OpenIdProviderClient {
 
     public void setRequestTimeoutMs(int httpTimeoutMs) {
         this.requestTimeoutMs = httpTimeoutMs;
+        this.jwkProviderClient.setRequestTimeoutMs(httpTimeoutMs);
     }
 
     private void logCacheResponseStatus(HttpCacheContext httpContext) {

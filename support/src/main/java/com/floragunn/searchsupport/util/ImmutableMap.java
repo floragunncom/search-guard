@@ -30,8 +30,11 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import com.floragunn.searchsupport.util.ImmutableSet.Builder;
 
 public interface ImmutableMap<K, V> extends Map<K, V> {
 
@@ -117,6 +120,83 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         }
     }
 
+    public static <K, V> ImmutableMap<K, V> of(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5) {
+        if (k1.equals(k2)) {
+            if (k2.equals(k3)) {
+                if (k3.equals(k4)) {
+                    if (k4.equals(k5)) {
+                        return new SingleElementMap<>(k1, v1);
+                    } else {
+                        return new TwoElementMap<>(k1, v1, k4, v4);
+                    }
+                } else {
+                    // k3 != k4
+
+                    if (k4.equals(k5)) {
+                        return new TwoElementMap<>(k1, v1, k4, v4);
+                    } else {
+                        return new ArrayBackedMap<>(k1, v1, k4, v4, k5, v5);
+                    }
+                }
+            } else {
+                // k2 != k3
+
+                if (k3.equals(k4)) {
+                    if (k4.equals(k5)) {
+                        return new TwoElementMap<>(k1, v1, k3, v3);
+                    } else {
+                        return new ArrayBackedMap<>(k1, v1, k3, v3, k5, v5);
+                    }
+                } else {
+                    // k3 != k4
+
+                    if (k4.equals(k5)) {
+                        return new ArrayBackedMap<>(k1, v1, k3, v3, k4, v4);
+                    } else {
+                        return new ArrayBackedMap<>(k1, v1, k3, v3, k4, v4, k5, v5);
+                    }
+                }
+            }
+        } else {
+            // k1 != k2
+
+            if (k2.equals(k3)) {
+                if (k3.equals(k4)) {
+                    if (k4.equals(k5)) {
+                        return new TwoElementMap<>(k1, v1, k2, v2);
+                    } else {
+                        return new ArrayBackedMap<>(k1, v1, k2, v2, k4, v4, k5, v5);
+                    }
+                } else {
+                    // k3 != k4
+                    if (k4.equals(k5)) {
+                        return new ArrayBackedMap<>(k1, v1, k2, v2, k4, v4);
+                    } else {
+                        return new ArrayBackedMap<>(k1, v1, k2, v2, k4, v4, k5, v5);
+                    }
+                }
+            } else {
+                // k2 != k3
+
+                if (k3.equals(k4)) {
+                    if (k4.equals(k5)) {
+                        return new ArrayBackedMap<>(k1, v1, k2, v2, k3, v3);
+                    } else {
+                        return new ArrayBackedMap<>(k1, v1, k2, v2, k3, v3, k5, v5);
+                    }
+                } else {
+                    // k3 != k4
+
+                    if (k4.equals(k5)) {
+                        return new ArrayBackedMap<>(k1, v1, k2, v2, k3, v3, k4, v4);
+                    } else {
+                        return new ArrayBackedMap<>(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5);
+                    }
+                }
+            }
+        }
+    }
+
     public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1) {
         if (k1 != null && v1 != null) {
             return of(k1, v1);
@@ -138,65 +218,94 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
     }
 
     public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1, K k2, V v2, K k3, V v3) {
+        if (k3 == null || v3 == null) {
+            return ofNonNull(k1, v1, k2, v2);
+        }
+
         if (k1 != null && v1 != null) {
             if (k2 != null && v2 != null) {
-                if (k3 != null && v3 != null) {
-                    return of(k1, v1, k2, v2, k3, v3);
-                } else {
-                    return of(k1, v1, k2, v2);
-                }
+                return of(k1, v1, k2, v2, k3, v3);
             } else {
-                if (k3 != null && v3 != null) {
-                    return of(k1, v1, k3, v3);
-                } else {
-                    return of(k1, v1);
-                }
+                return of(k1, v1, k3, v3);
             }
         } else {
             if (k2 != null && v2 != null) {
-                if (k3 != null && v3 != null) {
-                    return of(k2, v2, k3, v3);
-                } else {
-                    return of(k2, v2);
-                }
+                return of(k2, v2, k3, v3);
             } else {
-                if (k3 != null && v3 != null) {
-                    return of(k3, v3);
-                } else {
-                    return empty();
-                }
+                return of(k3, v3);
+
             }
         }
     }
 
     public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4) {
+        if (k4 == null || v4 == null) {
+            return ofNonNull(k1, v1, k2, v2, k3, v3);
+        }
+
+        if (k1 != null && v1 != null) {
+            if (k2 != null && v2 != null) {
+                if (k3 != null && v3 != null) {
+                    return of(k1, v1, k2, v2, k3, v3, k4, v4);
+                } else {
+                    return of(k1, v1, k2, v2, k4, v4);
+                }
+            } else {
+                if (k3 != null && v3 != null) {
+                    return of(k1, v1, k3, v3, k4, v4);
+                } else {
+                    return of(k1, v1, k4, v4);
+                }
+            }
+        } else {
+            if (k2 != null && v2 != null) {
+                if (k3 != null && v3 != null) {
+                    return of(k2, v2, k3, v3, k4, v4);
+                } else {
+                    return of(k2, v2, k4, v4);
+                }
+            } else {
+                if (k3 != null && v3 != null) {
+                    return of(k3, v3, k4, v4);
+                } else {
+                    return of(k4, v4);
+                }
+            }
+        }
+    }
+
+    public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5) {
+        if (k5 == null || v5 == null) {
+            return ofNonNull(k1, v1, k2, v2, k3, v3, k4, v4);
+        }
+
         if (k1 != null && v1 != null) {
             if (k2 != null && v2 != null) {
                 if (k3 != null && v3 != null) {
                     if (k4 != null && v4 != null) {
-                        return of(k1, v1, k2, v2, k3, v3, k4, v4);
+                        return of(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5);
                     } else {
-                        return of(k1, v1, k2, v2, k3, v3);
+                        return of(k1, v1, k2, v2, k3, v3, k5, v5);
                     }
                 } else {
                     if (k4 != null && v4 != null) {
-                        return of(k1, v1, k2, v2, k4, v4);
+                        return of(k1, v1, k2, v2, k4, v4, k5, v5);
                     } else {
-                        return of(k1, v1, k2, v2);
+                        return of(k1, v1, k2, v2, k5, v5);
                     }
                 }
             } else {
                 if (k3 != null && v3 != null) {
                     if (k4 != null && v4 != null) {
-                        return of(k1, v1, k3, v3, k4, v4);
+                        return of(k1, v1, k3, v3, k4, v4, k5, v5);
                     } else {
-                        return of(k1, v1, k3, v3);
+                        return of(k1, v1, k3, v3, k5, v5);
                     }
                 } else {
                     if (k4 != null && v4 != null) {
-                        return of(k1, v1, k4, v4);
+                        return of(k1, v1, k4, v4, k5, v5);
                     } else {
-                        return of(k1, v1);
+                        return of(k1, v1, k5, v5);
                     }
                 }
             }
@@ -204,27 +313,27 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             if (k2 != null && v2 != null) {
                 if (k3 != null && v3 != null) {
                     if (k4 != null && v4 != null) {
-                        return of(k2, v2, k3, v3, k4, v4);
+                        return of(k2, v2, k3, v3, k4, v4, k5, v5);
                     } else {
-                        return of(k2, v2, k3, v3);
+                        return of(k2, v2, k3, v3, k5, v5);
                     }
                 } else {
                     if (k4 != null && v4 != null) {
-                        return of(k2, v2, k4, v4);
+                        return of(k2, v2, k4, v4, k5, v5);
                     } else {
-                        return of(k2, v2);
+                        return of(k2, v2, k5, v5);
                     }
                 }
             } else {
                 if (k3 != null && v3 != null) {
                     if (k4 != null && v4 != null) {
-                        return of(k3, v3, k4, v4);
+                        return of(k3, v3, k4, v4, k5, v5);
                     } else {
-                        return of(k3, v3);
+                        return of(k3, v3, k5, v5);
                     }
                 } else {
                     if (k4 != null && v4 != null) {
-                        return of(k4, v4);
+                        return of(k4, v4, k5, v5);
                     } else {
                         return empty();
                     }
@@ -257,16 +366,50 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         }
     }
 
-    public static <K, V> Map<K, V> without(Map<K, V> map, K key) {
+    public static <K, V> ImmutableMap<K, V> without(Map<K, V> map, K key) {
         if (map.containsKey(key)) {
             if (map.size() == 1) {
-                return Collections.emptyMap();
+                return empty();
             } else {
                 return new WithoutMap<K, V>(map, key);
             }
         } else {
-            return map;
+            return ImmutableMap.of(map);
         }
+    }
+
+    public static <C, K, V> ImmutableMap<K, V> map(Collection<C> collection, Function<C, Map.Entry<K, V>> mappingFunction) {
+        ImmutableMap.Builder<K, V> builder = new ImmutableMap.Builder<>(collection.size());
+
+        for (C c : collection) {
+            Map.Entry<K, V> entry = mappingFunction.apply(c);
+
+            if (entry != null) {
+                builder.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return builder.build();
+    }
+
+    public static <KS, VS, KT, VT> ImmutableMap<KT, VT> map(Map<KS, VS> source, Function<KS, KT> keyMappingFunction,
+            Function<VS, VT> valueMappingFunction) {
+        ImmutableMap.Builder<KT, VT> builder = new ImmutableMap.Builder<>(source.size());
+
+        for (Map.Entry<KS, VS> entry : source.entrySet()) {
+            KT newKey = keyMappingFunction.apply(entry.getKey());
+            VT newValue = valueMappingFunction.apply(entry.getValue());
+
+            if (newKey != null && newValue != null) {
+                builder.put(newKey, newValue);
+            }
+        }
+
+        return builder.build();
+    }
+
+    public static <K, V> Map.Entry<K, V> entry(K k1, V v1) {
+        return new AbstractMap.SimpleImmutableEntry<>(k1, v1);
     }
 
     @SuppressWarnings("unchecked")
@@ -316,6 +459,9 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         }
 
         public Builder<K, V> with(K key, V value) {
+            if (key == null) {
+                throw new IllegalArgumentException("null keys are not allowed");
+            }
             internalBuilder = internalBuilder.with(key, value);
             return this;
         }
@@ -323,6 +469,18 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         public Builder<K, V> with(Map<K, V> map) {
             internalBuilder = internalBuilder.with(map);
             return this;
+        }
+
+        public void put(K key, V value) {
+            if (key == null) {
+                throw new IllegalArgumentException("null keys are not allowed");
+            }
+
+            internalBuilder = internalBuilder.with(key, value);
+        }
+
+        public void putAll(Map<K, V> map) {
+            internalBuilder = internalBuilder.with(map);
         }
 
         public boolean remove(K e) {
@@ -333,12 +491,20 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             return internalBuilder.contains(e);
         }
 
+        public V get(K k) {
+            return internalBuilder.get(k);
+        }
+
         public ImmutableMap<K, V> build() {
             return internalBuilder.build();
         }
 
         public int size() {
             return internalBuilder.size();
+        }
+
+        public Set<K> keySet() {
+            return internalBuilder.keySet();
         }
     }
 
@@ -351,9 +517,13 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
 
         abstract boolean contains(K e);
 
+        abstract V get(K k);
+
         abstract ImmutableMap<K, V> build();
 
         abstract int size();
+
+        abstract Set<K> keySet();
 
     }
 
@@ -462,6 +632,11 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             } else {
                 return empty();
             }
+        }
+
+        @Override
+        public void forEach(BiConsumer<? super K, ? super V> action) {
+            action.accept(key, value);
         }
 
     }
@@ -588,6 +763,13 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 return empty();
             }
         }
+
+        @Override
+        public void forEach(BiConsumer<? super K, ? super V> action) {
+            action.accept(key1, value1);
+            action.accept(key2, value2);
+        }
+
     }
 
     static class HashArray16BackedMap<K, V> extends AbstractImmutableMap<K, V> {
@@ -654,7 +836,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         @Override
         public Set<K> keySet() {
             if (keySet == null) {
-                keySet = new ImmutableSet.HashArrayBackedSet<K>(16, size, (K []) table1, (K []) table2);
+                keySet = new ImmutableSet.HashArrayBackedSet<K>(16, size, (K[]) table1, (K[]) table2);
             }
 
             return keySet;
@@ -885,7 +1067,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 return flatEntries;
             }
 
-            Entry<K, V>[] flatEntries = (Entry<K, V>[]) new Object[size];
+            Entry<K, V>[] flatEntries = (Entry<K, V>[]) new Entry[size];
 
             int k = 0;
 
@@ -903,15 +1085,39 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                     Object key = table2[i];
 
                     if (key != null) {
-                        flatEntries[k] = new AbstractMap.SimpleEntry<K, V>((K) key, values1[i]);
+                        flatEntries[k] = new AbstractMap.SimpleEntry<K, V>((K) key, values2[i]);
                         k++;
                     }
                 }
             }
 
+            assert size == k;
+
             this.flatEntries = flatEntries;
 
             return flatEntries;
+        }
+
+        @Override
+        public void forEach(BiConsumer<? super K, ? super V> action) {
+
+            for (int i = 0; i < table1.length; i++) {
+                Object key = table1[i];
+
+                if (key != null) {
+                    action.accept((K) key, values1[i]);
+                }
+            }
+
+            if (table2 != null) {
+                for (int i = 0; i < table2.length; i++) {
+                    Object key = table2[i];
+
+                    if (key != null) {
+                        action.accept((K) key, values2[i]);
+                    }
+                }
+            }
         }
 
         static Object findFirstNonNull(Object[] array) {
@@ -956,6 +1162,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         }
 
         static class Builder<K, V> extends InternalBuilder<K, V> {
+            // TODO sash hashPos of first to save equals calls below
             private K first;
             private V firstValue;
             private Object[] tail1;
@@ -1005,6 +1212,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                     return this;
                 } else if (tail1 == null) {
                     tail1 = new Object[TABLE_SIZE];
+                    tail1values = (V[]) new Object[TABLE_SIZE];
                     int pos = hashPosition(key);
                     tail1[pos] = key;
                     tail1values[pos] = value;
@@ -1026,6 +1234,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
 
                         if (tail2 == null) {
                             tail2 = new Object[TABLE_SIZE];
+                            tail2values = (V[]) new Object[TABLE_SIZE];
                             tail2[pos] = key;
                             tail2values[pos] = value;
                             size++;
@@ -1039,16 +1248,49 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                             tail2values[pos] = value;
                             return this;
                         } else {
-                            // collision
+                            // collision and overflow
 
-                            return new MapBackedMap.Builder<>(build()).with(key, value);
+                            HashMap<K, V> jdkMap = buildJdkHashMap();
+                            jdkMap.put(key, value);
+
+                            return new MapBackedMap.Builder<>(jdkMap);
                         }
                     }
                 }
             }
 
+            private HashMap<K, V> buildJdkHashMap() {
+                HashMap<K, V> result = new HashMap<>(size);
+
+                if (first != null) {
+                    result.put(first, firstValue);
+                }
+
+                if (tail1 != null) {
+                    for (int i = 0; i < TABLE_SIZE; i++) {
+                        if (tail1[i] != null) {
+                            result.put((K) tail1[i], tail1values[i]);
+                        }
+                    }
+                }
+
+                if (tail2 != null) {
+                    for (int i = 0; i < TABLE_SIZE; i++) {
+                        if (tail2[i] != null) {
+                            result.put((K) tail2[i], tail2values[i]);
+                        }
+                    }
+                }
+
+                return result;
+            }
+
             @Override
             InternalBuilder<K, V> with(Map<K, V> map) {
+                if (map instanceof HashArray16BackedMap) {
+                    return with((HashArray16BackedMap<K, V>) map);
+                }
+
                 InternalBuilder<K, V> builder = this;
 
                 for (Map.Entry<K, V> entry : map.entrySet()) {
@@ -1056,6 +1298,141 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 }
 
                 return builder;
+            }
+
+            @SuppressWarnings("unchecked")
+            InternalBuilder<K, V> with(HashArray16BackedMap<K, V> map) {
+                for (int i = 0; i < TABLE_SIZE; i++) {
+                    if (map.table1[i] == null) {
+                        continue;
+                    }
+
+                    K key = (K) map.table1[i];
+                    V value = map.values1[i];
+
+                    if (first == null) {
+                        first = key;
+                        firstValue = value;
+                        size++;
+                    } else if (first.equals(key)) {
+                        firstValue = value;
+                    } else if (this.tail1 == null) {
+                        tail1 = new Object[TABLE_SIZE];
+                        tail1values = (V[]) new Object[TABLE_SIZE];
+                        tail1[i] = key;
+                        tail1values[i] = value;
+                        size++;
+                    } else if (this.tail1[i] == null) {
+                        this.tail1[i] = key;
+                        this.tail1values[i] = value;
+                        size++;
+                    } else if (this.tail1[i].equals(key)) {
+                        this.tail1values[i] = value;
+                    } else {
+                        // collision
+
+                        if (this.tail2 == null) {
+                            tail2 = new Object[TABLE_SIZE];
+                            tail2values = (V[]) new Object[TABLE_SIZE];
+                            tail2[i] = map.table1[i];
+                            tail2values[i] = map.values1[i];
+                            size++;
+                        } else if (this.tail2[i] == null) {
+                            tail2[i] = map.table1[i];
+                            tail2values[i] = map.values1[i];
+                            size++;
+                        } else if (this.tail2[i].equals(map.table1[i])) {
+                            tail2values[i] = map.values1[i];
+                        } else {
+                            // collision and overflow
+                            return handleOverflow(new MapBackedMap.Builder<>(build()).with(key, value), map, 1, i);
+                        }
+                    }
+                }
+
+                if (map.table2 != null) {
+                    for (int i = 0; i < TABLE_SIZE; i++) {
+                        if (map.table2[i] == null) {
+                            continue;
+                        }
+
+                        K key = (K) map.table2[i];
+                        V value = map.values2[i];
+
+                        if (first == null) {
+                            first = key;
+                            firstValue = value;
+                            size++;
+                        } else if (first.equals(key)) {
+                            firstValue = value;
+                        } else if (this.tail1 == null) {
+                            tail1 = new Object[TABLE_SIZE];
+                            tail1values = (V[]) new Object[TABLE_SIZE];
+                            tail1[i] = key;
+                            tail1values[i] = value;
+                            size++;
+                        } else if (this.tail1[i] == null) {
+                            this.tail1[i] = key;
+                            this.tail1values[i] = value;
+                            size++;
+                        } else if (this.tail1[i].equals(key)) {
+                            this.tail1values[i] = value;
+                        } else {
+                            // collision
+
+                            if (this.tail2 == null) {
+                                tail2 = new Object[TABLE_SIZE];
+                                tail2values = (V[]) new Object[TABLE_SIZE];
+                                tail2[i] = key;
+                                tail2values[i] = value;
+                                size++;
+                            } else if (this.tail2[i] == null) {
+                                tail2[i] = key;
+                                tail2values[i] = value;
+                                size++;
+                            } else if (this.tail2[i].equals(key)) {
+                                tail2values[i] = value;
+                            } else {
+                                // collision and overflow
+                                return handleOverflow(new MapBackedMap.Builder<>(build()).with(key, value), map, 2, i);
+                            }
+                        }
+                    }
+                }
+
+                return this;
+            }
+
+            InternalBuilder<K, V> handleOverflow(InternalBuilder<K, V> newBuilder, HashArray16BackedMap<K, V> map, int state, int startPos) {
+                if (state == 1) {
+                    for (int i = startPos + 1; i < TABLE_SIZE; i++) {
+                        if (map.table1[i] == null) {
+                            continue;
+                        }
+
+                        @SuppressWarnings("unchecked")
+                        K key = (K) map.table1[i];
+                        V value = map.values1[i];
+
+                        newBuilder = newBuilder.with(key, value);
+                    }
+                }
+
+                if (map.table2 != null) {
+                    for (int i = state == 2 ? startPos + 1 : 0; i < TABLE_SIZE; i++) {
+                        if (map.table2[i] == null) {
+                            continue;
+                        }
+
+                        @SuppressWarnings("unchecked")
+                        K key = (K) map.table2[i];
+                        V value = map.values2[i];
+
+                        newBuilder = newBuilder.with(key, value);
+                    }
+                }
+
+                return newBuilder;
             }
 
             @SuppressWarnings("unchecked")
@@ -1079,6 +1456,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                         return new HashArray16BackedMap<>(size, tail1, tail1values, tail2, tail2values);
                     } else if (this.tail2 == null) {
                         this.tail2 = new Object[TABLE_SIZE];
+                        this.tail2values = (V[]) new Object[TABLE_SIZE];
                         this.tail2[firstPos] = first;
                         this.tail2values[firstPos] = firstValue;
                         return new HashArray16BackedMap<>(size, tail1, tail1values, tail2, tail2values);
@@ -1087,7 +1465,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                         this.tail2values[firstPos] = firstValue;
                         return new HashArray16BackedMap<>(size, tail1, tail1values, tail2, tail2values);
                     } else {
-                        return new WithMap<>(new HashArray16BackedMap<>(size, tail1, tail1values, tail2, tail2values), first, firstValue);
+                        return new WithMap<>(new HashArray16BackedMap<>(size - 1, tail1, tail1values, tail2, tail2values), first, firstValue);
                     }
 
                 }
@@ -1104,17 +1482,51 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                     first = null;
                     size--;
 
+                    if (size == 0) {
+                        return true;
+
+                    }
+
+                    if (this.tail2 != null) {
+                        int i = findIndexOfNextNonNull(tail2, 0);
+
+                        if (i != -1) {
+                            this.first = (K) this.tail2[i];
+                            this.firstValue = this.tail2values[i];
+                            this.tail2[i] = null;
+                            this.tail2values[i] = null;
+                            return true;
+                        }
+                    }
+
+                    int i = findIndexOfNextNonNull(tail1, 0);
+
+                    if (i != -1) {
+                        this.first = (K) this.tail1[i];
+                        this.firstValue = this.tail1values[i];
+                        this.tail1[i] = null;
+                        this.tail1values[i] = null;
+                    }
+
                     return true;
                 } else {
                     int position = hashPosition(key);
 
-                    if (tail1[position] != null && tail1[position].equals(key)) {
-                        tail1[position] = null;
-                        size--;
-                        return true;
-                    } else if (tail2 != null && tail2[position] != null && tail2[position].equals(key)) {
+                    if (tail2 != null && tail2[position] != null && tail2[position].equals(key)) {
                         tail2[position] = null;
                         size--;
+                        return true;
+                    } else if (tail1[position] != null && tail1[position].equals(key)) {
+                        tail1[position] = null;
+                        size--;
+                        
+                        if (tail2 != null && tail2[position] != null) {
+                            tail1[position] = tail2[position];
+                            tail1values[position] = tail2values[position];
+                            tail2[position] = null;
+                            tail2values[position] = null;
+                        }
+                        
                         return true;
                     }
                 }
@@ -1139,6 +1551,55 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 return false;
             }
 
+            @Override
+            V get(K key) {
+                if (key.equals(first)) {
+                    return firstValue;
+                } else {
+                    int position = hashPosition(key);
+
+                    if (tail1[position] != null && tail1[position].equals(key)) {
+                        return tail1values[position];
+                    } else if (tail2 != null && tail2[position] != null && tail2[position].equals(key)) {
+                        return tail2values[position];
+                    }
+                }
+
+                return null;
+            }
+
+            @Override
+            Set<K> keySet() {
+                if (size == 0) {
+                    return ImmutableSet.empty();
+                } else {
+                    ImmutableSet.Builder<K> result = new ImmutableSet.Builder<>();
+
+                    if (first != null) {
+                        result.add(first);
+                    }
+
+                    if (this.tail1 != null) {
+                        for (int i = 0; i < TABLE_SIZE; i++) {
+                            if (this.tail1[i] != null) {
+                                result.add((K) this.tail1[i]);
+                            }
+                        }
+                    }
+
+                    if (this.tail2 != null) {
+                        for (int i = 0; i < TABLE_SIZE; i++) {
+                            if (this.tail2[i] != null) {
+                                result.add((K) this.tail2[i]);
+                            }
+                        }
+                    }
+
+                    return result.build();
+
+                }
+            }
+
         }
 
     }
@@ -1158,6 +1619,11 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         ArrayBackedMap(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4) {
             this.keys = new Object[] { k1, k2, k3, k4 };
             this.values = new Object[] { v1, v2, v3, v4 };
+        }
+
+        ArrayBackedMap(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5) {
+            this.keys = new Object[] { k1, k2, k3, k4, k5 };
+            this.values = new Object[] { v1, v2, v3, v4, v5 };
         }
 
         ArrayBackedMap(Map<K, V> map) {
@@ -1220,6 +1686,15 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             }
             return null;
 
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public void forEach(BiConsumer<? super K, ? super V> action) {
+            for (int i = 0; i < keys.length; i++) {
+                action.accept((K) keys[i], (V) values[i]);
+
+            }
         }
 
         @Override
@@ -1379,8 +1854,6 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             }
         }
 
-
-
     }
 
     static class MapBackedMap<K, V> extends AbstractImmutableMap<K, V> {
@@ -1499,6 +1972,21 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 return delegate.containsKey(e);
             }
 
+            @Override
+            V get(K k) {
+                return delegate.get(k);
+            }
+
+            @Override
+            Set<K> keySet() {
+                return delegate.keySet();
+            }
+
+        }
+
+        @Override
+        public void forEach(BiConsumer<? super K, ? super V> action) {
+            delegate.forEach(action);
         }
 
     }
@@ -1789,6 +2277,15 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         }
 
         @Override
+        public V get(Object key) {
+            if (additional.equals(key)) {
+                return additionalEntry.getValue();
+            } else {
+                return base.get(key);
+            }
+        }
+
+        @Override
         public boolean containsKey(Object o) {
             return Objects.equals(o, additional) || this.base.containsKey(o);
         }
@@ -1814,6 +2311,12 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         @Override
         public Set<Entry<K, V>> entrySet() {
             return ((ImmutableSet<Entry<K, V>>) base.entrySet()).with(additionalEntry);
+        }
+
+        @Override
+        public void forEach(BiConsumer<? super K, ? super V> action) {
+            base.forEach(action);
+            action.accept(additional, additionalEntry.getValue());
         }
     }
 
@@ -1943,16 +2446,16 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 return new MapBackedMap<>(map);
             }
         }
-        
+
         @Override
         public ImmutableMap<K, V> intersection(ImmutableSet<K> keys) {
             int otherSize = keys.size();
-            
+
             if (otherSize == 0) {
                 return empty();
             } else if (otherSize == 1) {
                 K otherKey = keys.only();
-                
+
                 if (containsKey(otherKey)) {
                     return new SingleElementMap<>(otherKey, get(otherKey));
                 } else {
@@ -1960,17 +2463,18 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 }
             } else {
                 Builder<K, V> builder = new Builder<>();
-                
+
                 for (K key : keys) {
                     if (containsKey(key)) {
                         builder.with(key, get(key));
                     }
                 }
-                
+
                 return builder.build();
             }
 
         }
 
     }
+
 }

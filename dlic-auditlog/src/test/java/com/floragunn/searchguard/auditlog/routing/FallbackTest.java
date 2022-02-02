@@ -31,8 +31,8 @@ import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class FallbackTest extends AbstractAuditlogiUnitTest {
 

@@ -30,11 +30,14 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.auth.BackendRegistry;
+import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
+import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
+import com.floragunn.searchguard.authc.internal_users_db.InternalUsersDatabase;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
@@ -59,18 +62,24 @@ public class BaseDependencies {
     private final InternalAuthTokenProvider internalAuthTokenProvider;
     private final StaticSgConfig staticSgConfig;
     private final DiagnosticContext diagnosticContext;
-    private final BackendRegistry backendRegistry;
     private final ConfigVarService configVarService;
-    private final VariableResolvers configVariableProviders;
+    private final VariableResolvers variableResolvers;
     private final AuditLog auditLog;
+    private final PrivilegesEvaluator privilegesEvaluator;
+    private final BlockedIpRegistry blockedIpRegistry;
+    private final BlockedUserRegistry blockedUserRegistry;
+    private final SearchGuardModulesRegistry modulesRegistry;
+    private final InternalUsersDatabase internalUsersDatabase;
 
     public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
             DynamicConfigFactory dynamicConfigFactory, StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository,
             ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, BackendRegistry backendRegistry,
-            ConfigVarService configVarService, VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog) {
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ConfigVarService configVarService,
+            VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog,
+            PrivilegesEvaluator privilegesEvaluator, BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry,
+            SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase) {
         super();
         this.settings = settings;
         this.localClient = localClient;
@@ -88,11 +97,15 @@ public class BaseDependencies {
         this.protectedConfigIndexService = protectedConfigIndexService;
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         this.internalAuthTokenProvider = internalAuthTokenProvider;
-        this.backendRegistry = backendRegistry;
         this.configVarService = configVarService;
         this.diagnosticContext = diagnosticContext;
-        this.configVariableProviders = configVariableProviders;
+        this.variableResolvers = configVariableProviders;
         this.auditLog = auditLog;
+        this.privilegesEvaluator = privilegesEvaluator;
+        this.blockedIpRegistry = blockedIpRegistry;
+        this.blockedUserRegistry = blockedUserRegistry;
+        this.modulesRegistry = modulesRegistry;
+        this.internalUsersDatabase = internalUsersDatabase;
     }
 
     public Settings getSettings() {
@@ -163,20 +176,36 @@ public class BaseDependencies {
         return diagnosticContext;
     }
 
-    public BackendRegistry getBackendRegistry() {
-        return backendRegistry;
-    }
-
     public ConfigVarService getConfigVarService() {
         return configVarService;
     }
 
     public VariableResolvers getConfigVarResolvers() {
-        return configVariableProviders;
+        return variableResolvers;
     }
 
     public AuditLog getAuditLog() {
         return auditLog;
+    }
+
+    public PrivilegesEvaluator getPrivilegesEvaluator() {
+        return privilegesEvaluator;
+    }
+
+    public BlockedIpRegistry getBlockedIpRegistry() {
+        return blockedIpRegistry;
+    }
+
+    public BlockedUserRegistry getBlockedUserRegistry() {
+        return blockedUserRegistry;
+    }
+
+    public SearchGuardModulesRegistry getModulesRegistry() {
+        return modulesRegistry;
+    }
+
+    public InternalUsersDatabase getInternalUsersDatabase() {
+        return internalUsersDatabase;
     }
 
 }

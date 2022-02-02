@@ -22,8 +22,8 @@ import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.searchguard.test.DynamicSgConfig;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 
 public class Fls983Test extends AbstractDlsFlsTest{
     

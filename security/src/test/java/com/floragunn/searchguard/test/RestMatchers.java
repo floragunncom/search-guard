@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.google.common.collect.ImmutableMap;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;

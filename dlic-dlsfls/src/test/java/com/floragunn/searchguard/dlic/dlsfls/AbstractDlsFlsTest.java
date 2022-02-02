@@ -17,10 +17,10 @@ package com.floragunn.searchguard.dlic.dlsfls;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 
+import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.DynamicSgConfig;
-import com.floragunn.searchguard.test.SingleClusterTest;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
 
 public abstract class AbstractDlsFlsTest extends SingleClusterTest {
 

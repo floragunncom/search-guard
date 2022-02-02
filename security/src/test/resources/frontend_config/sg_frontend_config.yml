@@ -3,20 +3,20 @@ _sg_meta:
   config_version: 2
     
 default:
-  authcz: 
+  auth_domains: 
   - type: basic
     label: "Login Customized"
   - type: oidc
     enabled: false
     label: "Hallo OIDC"
-    client_id: "Id"
-    client_secret: "Secret"
-    idp.openid_configuration_url: http://oidc.example.com/   
-    user_mapping.roles: roles
+    oidc.client_id: "Id"
+    oidc.client_secret: "Secret"
+    oidc.idp.openid_configuration_url: http://oidc.example.com/   
+    user_mapping.roles.from: jwt.roles
   - type: saml
     enabled: false
     label: "Hallo SAML"
-    idp:
+    oidc.idp:
       metadata_url: https://idp.example.com
       entity_id: "entity_id"
-    user_mapping.roles: roles                  
+    user_mapping.roles.from: saml_response.roles                  

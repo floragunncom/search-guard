@@ -43,16 +43,18 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.configuration.LicenseChangeListener;
-import com.floragunn.searchguard.configuration.SearchGuardLicense;
-import com.floragunn.searchguard.configuration.SearchGuardLicense.Feature;
+import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
+import com.floragunn.searchguard.authz.AuthorizationConfig;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.license.LicenseChangeListener;
+import com.floragunn.searchguard.license.SearchGuardLicenseKey;
+import com.floragunn.searchguard.license.SearchGuardLicenseKey.Feature;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
-import com.floragunn.searchguard.sgconf.DynamicConfigModel;
-import com.floragunn.searchguard.sgconf.InternalUsersModel;
+import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.google.common.cache.CacheBuilder;
@@ -60,7 +62,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
 
-public class ComplianceConfig implements LicenseChangeListener, DCFListener {
+public class ComplianceConfig implements LicenseChangeListener {
 
     private final Logger log = LogManager.getLogger(getClass());
     private final Settings settings;
@@ -87,7 +89,7 @@ public class ComplianceConfig implements LicenseChangeListener, DCFListener {
     private final Client client;
     private final byte[] maskPrefix;
     
-    public ComplianceConfig(final Environment environment, ActionRequestIntrospector actionRequestIntrospector, final AuditLog auditLog, final Client client) {
+    public ComplianceConfig(final Environment environment, ActionRequestIntrospector actionRequestIntrospector, final AuditLog auditLog, final Client client, ConfigurationRepository configRepository) {
         super();
         this.settings = environment.settings();
         this.environment = environment;
@@ -168,10 +170,30 @@ public class ComplianceConfig implements LicenseChangeListener, DCFListener {
                         return getFieldsForIndex0(index);
                     }
                 });
+
+        configRepository.subscribeOnChange((configMap) -> {
+            SgDynamicConfiguration<AuthorizationConfig> config = configMap.get(CType.AUTHZ);
+            SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
+
+            if (config != null && config.getCEntry("default") != null) {
+                AuthorizationConfig privilegesConfig = config.getCEntry("default");
+                setFieldAnonymizationSalt2(privilegesConfig.getFieldAnonymizationSalt());
+                log.info("Got authz config:\n" + privilegesConfig);
+            } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
+                try {
+                    LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
+                    AuthorizationConfig privilegesConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null);
+                    setFieldAnonymizationSalt2(privilegesConfig.getFieldAnonymizationSalt());
+                    log.info("Got legacy authz config:\n" + privilegesConfig);
+                } catch (ConfigValidationException e) {
+                    log.error("Error while parsing sg_config:\n" + e);
+                }
+            }
+        });
     }
     
     @Override
-    public void onChange(SearchGuardLicense license) {
+    public void onChange(SearchGuardLicenseKey license) {
         
         if(license == null) {
             this.enabled = false;
@@ -341,17 +363,16 @@ public class ComplianceConfig implements LicenseChangeListener, DCFListener {
         return localHashingEnabled;
     }
 
-    @Override
-    public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
-    		
+    private void setFieldAnonymizationSalt2(String fieldAnonymizationSalt2) {
+
     	if (log.isTraceEnabled()) {
         	log.trace("ComplianceConfiguration#onChanged called");
         	log.trace("isLocalHashingEnabled? " + isLocalHashingEnabled());
-        	log.trace("FieldAnonymizationSalt2: " + dcm.getFieldAnonymizationSalt2());    		
+        	log.trace("FieldAnonymizationSalt2: " + fieldAnonymizationSalt2);    		
     	}
-    	
-        if(isLocalHashingEnabled() && dcm.getFieldAnonymizationSalt2() != null) {
-            final String salt2AsString = dcm.getFieldAnonymizationSalt2();
+    	    	
+        if(isLocalHashingEnabled() && fieldAnonymizationSalt2 != null) {
+            final String salt2AsString = fieldAnonymizationSalt2;
                
             if(salt2AsString != null && !salt2AsString.isEmpty()) {
                 final byte[] salt2AsBytes = salt2AsString.getBytes(StandardCharsets.UTF_8);

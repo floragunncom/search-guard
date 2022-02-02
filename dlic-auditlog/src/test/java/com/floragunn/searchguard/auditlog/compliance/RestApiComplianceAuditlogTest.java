@@ -23,9 +23,9 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.auditlog.integration.TestAuditlogImpl;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 

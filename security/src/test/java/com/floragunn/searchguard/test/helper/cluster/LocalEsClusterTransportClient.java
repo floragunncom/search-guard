@@ -17,10 +17,10 @@
 
 package com.floragunn.searchguard.test.helper.cluster;
 
+import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.SearchGuardPlugin;
-import com.floragunn.searchguard.modules.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;

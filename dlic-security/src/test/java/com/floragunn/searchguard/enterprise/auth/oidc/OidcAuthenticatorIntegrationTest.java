@@ -29,12 +29,13 @@ import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
+import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class OidcAuthenticatorIntegrationTest {
     protected static MockIpdServer mockIdpServer;
@@ -67,14 +68,13 @@ public class OidcAuthenticatorIntegrationTest {
         httpProxy.setMitmDisabled(true);
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
 
-        TestSgConfig testSgConfig = new TestSgConfig().resources("oidc")
-                .frontendAuthcz(new TestSgConfig.FrontendAuthcz("oidc").label("Label").config("idp.openid_configuration_url",
-                        mockIdpServer.getDiscoverUri().toString(), "client_id", "Der Klient", "client_secret", "Das Geheimnis", "user_mapping.roles",
-                        "roles", "idp.proxy.host", "127.0.0.8", "idp.proxy.port", httpProxy.getPort(), "idp.proxy.scheme", "http",
-                        "idp.tls.trusted_cas", "${file:" + FileHelper.getAbsoluteFilePathFromClassPath("oidc/idp/root-ca.pem") + "}",
-                        "idp.tls.verify_hostnames", false));
+        TestSgConfig testSgConfig = new TestSgConfig().resources("oidc").frontendAuthcz(new TestSgConfig.FrontendAuthcz("oidc").label("Label").config(
+                "oidc.idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "oidc.client_id", "Der Klient", "oidc.client_secret",
+                "Das Geheimnis", "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","), "oidc.idp.proxy.host",
+                "127.0.0.8", "oidc.idp.proxy.port", httpProxy.getPort(), "oidc.idp.proxy.scheme", "http", "oidc.idp.tls.trusted_cas",
+                "#{file:" + FileHelper.getAbsoluteFilePathFromClassPath("oidc/idp/root-ca.pem") + "}", "oidc.idp.tls.verify_hostnames", false));
 
-        cluster = new LocalCluster.Builder().sslEnabled().singleNode().resources("oidc").sgConfig(testSgConfig).build();
+        cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().singleNode().resources("oidc").sgConfig(testSgConfig).start();
     }
 
     @AfterClass
@@ -134,7 +134,7 @@ public class OidcAuthenticatorIntegrationTest {
 
             try (GenericRestClient tokenClient = cluster.getRestClient(tokenAuth)) {
 
-                response = tokenClient.get("/_searchguard/authinfo");
+                response = tokenClient.get("/_searchguard/auth/session");
 
                 System.out.println(response.getBody());
 

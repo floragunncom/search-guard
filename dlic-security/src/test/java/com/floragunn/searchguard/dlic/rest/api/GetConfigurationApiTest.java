@@ -22,7 +22,7 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 
 public class GetConfigurationApiTest extends AbstractRestApiUnitTest {
 

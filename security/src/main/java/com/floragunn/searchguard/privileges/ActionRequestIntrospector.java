@@ -693,8 +693,11 @@ public class ActionRequestIntrospector {
                         // For some reason, concreteIndexNames() also throws IndexNotFoundException in some cases when ALLOW_NO_INDICES is specified. 
                         // We catch this and just return the raw index names as fallback
 
-                        if (log.isDebugEnabled()) {
-                            log.debug("Exception in resolveIndicesNow()" + this, e);
+                        if (log.isTraceEnabled()) {
+                            log.trace(
+                                    "Exception in resolveIndicesNow(). This is expected due to weird implementation choices in concreteIndexNames(). Recovering: "
+                                            + this,
+                                    e);
                         }
 
                         return resolveWithoutWildcards();

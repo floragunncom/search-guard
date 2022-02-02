@@ -1,3 +1,20 @@
+/*
+ * Copyright 2021-2022 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.test;
 
 import java.util.stream.Collectors;
@@ -5,38 +22,22 @@ import java.util.stream.Collectors;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.client.Client;
-import org.junit.rules.ExternalResource;
 
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchsupport.util.ImmutableSet;
 
-public class TestAlias extends ExternalResource {
+public class TestAlias {
 
     private final String name;
     private final ImmutableSet<TestIndex> indices;
-    private final LocalCluster cluster;
 
-    public TestAlias(String name, LocalCluster cluster, TestIndex... indices) {
+    public TestAlias(String name, TestIndex... indices) {
         this.name = name;
-        this.cluster = cluster;
         this.indices = ImmutableSet.ofArray(indices);
     }
 
-    @Override
-    protected void before() throws Throwable {
-        if (!cluster.isStarted()) {
-            cluster.before();
-        }
-        
-        try (Client client = cluster.getInternalNodeClient()) {
-            
-            for (TestIndex index : indices) {
-                index.before();
-            }
-            
-            client.admin().indices()
-                    .aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices(getIndexNamesAsArray()).alias(name))).actionGet();
-        }
+    public void create(Client client) {
+        client.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices(getIndexNamesAsArray()).alias(name)))
+                .actionGet();
     }
 
     public String getName() {

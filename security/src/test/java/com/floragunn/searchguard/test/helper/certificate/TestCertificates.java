@@ -17,32 +17,37 @@
 
 package com.floragunn.searchguard.test.helper.certificate;
 
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import static com.floragunn.searchguard.test.helper.certificate.TestCertificateFactory.rsaBaseCertificateFactory;
+import static java.util.Collections.emptyList;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.function.Function;
 
-import static com.floragunn.searchguard.test.helper.certificate.TestCertificateFactory.rsaBaseCertificateFactory;
-import static java.util.Collections.emptyList;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class TestCertificates {
 
     private static final Logger log = LogManager.getLogger(TestCertificates.class);
 
+    private final TestCertificateFactory testCertificateFactory;
     private final TestCertificate caCertificate;
     private final List<TestCertificate> nodeCertificates;
     private final List<TestCertificate> clientCertificates;
-
-    private TestCertificates(TestCertificate caCertificate, List<TestCertificate> nodeCertificates,
-                             List<TestCertificate> clientCertificates) {
+    private final File resources;
+    
+    private TestCertificates(TestCertificate caCertificate, List<TestCertificate> nodeCertificates, List<TestCertificate> clientCertificates, TestCertificateFactory testCertificateFactory, File resources) {
         this.caCertificate = caCertificate;
         this.nodeCertificates = nodeCertificates;
         this.clientCertificates = clientCertificates;
+        this.testCertificateFactory = testCertificateFactory;
+        this.resources = resources;
     }
 
     public File getCaKeyFile() {
@@ -74,15 +79,23 @@ public class TestCertificates {
     }
 
     public TestCertificate getAdminCertificate() {
-        return clientCertificates.stream()
-                .filter(testCertificate -> testCertificate.getCertificateType() == CertificateType.admin_client)
-                .findFirst()
+        return clientCertificates.stream().filter(testCertificate -> testCertificate.getCertificateType() == CertificateType.admin_client).findFirst()
                 .orElseThrow(() -> {
                     log.error("No admin client certificate configured");
                     return new RuntimeException("No admin client certificate configured");
                 });
     }
 
+    public TestCertificate create(String dn) {
+        String privateKeyPassword = "secret_" + (new Random().nextInt());
+        TestCertificatesBuilder.CertificatesDefaults certificatesDefaults = new TestCertificatesBuilder.CertificatesDefaults();
+        
+        CertificateWithKeyPair certificateWithKeyPair = testCertificateFactory.createClientCertificate(dn, certificatesDefaults.validityDays,
+                caCertificate.getCertificate(), caCertificate.getKeyPair().getPrivate());
+        return new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(),
+                privateKeyPassword, CertificateType.other, resources);
+    }
+    
     /**
      * Uses: {@link TestCertificateFactory#rsaBaseCertificateFactory(java.security.Provider)} as {@link TestCertificateFactory}
      */
@@ -120,7 +133,7 @@ public class TestCertificates {
             if (nodesCertificates.isEmpty()) {
                 addNodes(DEFAULT_ONE_NODE_DN);
             }
-            return new TestCertificates(caCertificate, nodesCertificates, clientsCertificates);
+            return new TestCertificates(caCertificate, nodesCertificates, clientsCertificates, testCertificateFactory, resources);
         }
 
         public TestCertificatesBuilder defaults(Function<CertificatesDefaults, CertificatesDefaults> defaultsFunction) {
@@ -153,15 +166,14 @@ public class TestCertificates {
         }
 
         public TestCertificatesBuilder addNodes(List<String> dnList, int validityDays, String nodeOid, List<String> dnsList, List<String> ipList,
-                                                NodeCertificateType nodeCertificateType, String privateKeyPassword) {
+                NodeCertificateType nodeCertificateType, String privateKeyPassword) {
             validateCaCertificate();
 
             dnList.forEach(dn -> {
                 CertificateWithKeyPair certificateWithKeyPair = testCertificateFactory.createNodeCertificate(dn, validityDays, nodeOid, dnsList,
                         ipList, caCertificate.getCertificate(), caCertificate.getKeyPair().getPrivate());
-                this.nodesCertificates.add(
-                        new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(), privateKeyPassword,
-                                nodeCertificateType.getCertificateType(), resources));
+                this.nodesCertificates.add(new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(),
+                        privateKeyPassword, nodeCertificateType.getCertificateType(), resources));
             });
             return this;
         }
@@ -190,9 +202,8 @@ public class TestCertificates {
             dnList.forEach(dn -> {
                 CertificateWithKeyPair certificateWithKeyPair = testCertificateFactory.createClientCertificate(dn, validityDays,
                         caCertificate.getCertificate(), caCertificate.getKeyPair().getPrivate());
-                this.clientsCertificates.add(
-                        new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(), privateKeyPassword,
-                                admin ? CertificateType.admin_client : CertificateType.client, resources));
+                this.clientsCertificates.add(new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(),
+                        privateKeyPassword, admin ? CertificateType.admin_client : CertificateType.client, resources));
             });
         }
 

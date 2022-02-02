@@ -71,11 +71,7 @@ import org.elasticsearch.xcontent.XContentType;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
 import com.floragunn.searchguard.test.helper.network.PortAllocator;
-import com.floragunn.searchguard.test.helper.rest.SSLContextProvider;
-import com.floragunn.searchguard.test.helper.rest.TestCertificateBasedSSLContextProvider;
-import com.floragunn.searchguard.test.helper.utils.UnitTestForkNumberProvider;
 import com.google.common.net.InetAddresses;
 
 /**
@@ -118,7 +114,7 @@ public class LocalEsCluster {
     public void start() throws Exception {
         log.info("Starting {}", clusterName);
 
-        int forkNumber = UnitTestForkNumberProvider.getUnitTestForkNumber();
+        int forkNumber = getUnitTestForkNumber();
         int masterNodeCount = clusterConfiguration.getMasterNodes();
         int nonMasterNodeCount = clusterConfiguration.getDataNodes() + clusterConfiguration.getClientNodes();
 
@@ -581,6 +577,16 @@ public class LocalEsCluster {
         @Override
         public TestCertificates getTestCertificates() {
             return testCertificates;
+        }
+    }
+    
+    private static int getUnitTestForkNumber() {
+        String forkno = System.getProperty("forkno");
+
+        if (forkno != null && forkno.length() > 0) {
+            return Integer.parseInt(forkno.split("_")[1]);
+        } else {
+            return 42;
         }
     }
 

@@ -151,7 +151,7 @@ import org.opensaml.xmlsec.signature.support.Signer;
 import org.opensaml.xmlsec.signature.support.impl.ExplicitKeySignatureTrustEngine;
 import org.w3c.dom.Document;
 
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.PortAllocator;
 
 import net.shibboleth.utilities.java.support.codec.Base64Support;

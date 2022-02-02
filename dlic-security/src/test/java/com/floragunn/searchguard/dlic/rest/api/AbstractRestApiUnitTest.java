@@ -20,11 +20,11 @@ import org.apache.http.Header;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 
-import com.floragunn.searchguard.test.DynamicSgConfig;
-import com.floragunn.searchguard.test.SingleClusterTest;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.legacy.test.SingleClusterTest;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public abstract class AbstractRestApiUnitTest extends SingleClusterTest {
 

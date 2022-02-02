@@ -21,16 +21,13 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.floragunn.searchguard.auth.HTTPAuthenticator;
-import com.floragunn.searchguard.auth.api.AuthenticationBackend;
-import com.floragunn.searchguard.auth.api.AuthorizationBackend;
-import com.floragunn.searchguard.auth.internal.InternalAuthenticationBackend;
-import com.floragunn.searchguard.auth.internal.NoOpAuthenticationBackend;
-import com.floragunn.searchguard.auth.internal.NoOpAuthorizationBackend;
-import com.floragunn.searchguard.http.HTTPBasicAuthenticator;
-import com.floragunn.searchguard.http.HTTPClientCertAuthenticator;
-import com.floragunn.searchguard.http.HTTPProxyAuthenticator;
-import com.floragunn.searchguard.http.HTTPProxyAuthenticator2;
+import com.floragunn.searchguard.authc.AuthenticationBackend;
+import com.floragunn.searchguard.authc.internal_users_db.InternalUsersAuthenticationBackend;
+import com.floragunn.searchguard.authc.legacy.LegacyAuthenticationBackend;
+import com.floragunn.searchguard.authc.legacy.LegacyAuthorizationBackend;
+import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticator;
+import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.rest.authenticators.HTTPClientCertAuthenticator;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 
@@ -39,19 +36,15 @@ public enum ModuleType implements Serializable {
 	REST_MANAGEMENT_API("REST Management API", "com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions", Boolean.TRUE),
 	DLSFLS("Document- and Field-Level Security", "com.floragunn.searchguard.dlsfls.lucene.SearchGuardFlsDlsIndexSearcherWrapper", Boolean.TRUE),
 	AUDITLOG("Audit Logging", "com.floragunn.searchguard.auditlog.impl.AuditLogImpl", Boolean.TRUE),
-	MULTITENANCY("Kibana Multitenancy", "com.floragunn.searchguard.configuration.PrivilegesInterceptorImpl", Boolean.TRUE),
+	MULTITENANCY("Kibana Multitenancy", "com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule", Boolean.TRUE),
 	LDAP_AUTHENTICATION_BACKEND("LDAP authentication backend", "com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend", Boolean.TRUE),
 	LDAP_AUTHORIZATION_BACKEND("LDAP authorization backend", "com.floragunn.dlic.auth.ldap.backend.LDAPAuthorizationBackend", Boolean.TRUE),
-	KERBEROS_AUTHENTICATION_BACKEND("Kerberos authentication backend", "com.floragunn.dlic.auth.http.kerberos.HTTPSpnegoAuthenticator", Boolean.TRUE),
+	KERBEROS_AUTHENTICATION_BACKEND("Kerberos authentication backend", "com.floragunn.searchguard.enterprise.auth.kerberos.HTTPSpnegoAuthenticator", Boolean.TRUE),
 	JWT_AUTHENTICATION_BACKEND("JWT authentication backend", "com.floragunn.dlic.auth.http.jwt.HTTPJwtAuthenticator", Boolean.TRUE),
 	OPENID_AUTHENTICATION_BACKEND("OpenID authentication backend", "com.floragunn.dlic.auth.http.jwt.keybyoidc.HTTPJwtKeyByOpenIdConnectAuthenticator", Boolean.TRUE),
 	SAML_AUTHENTICATION_BACKEND("SAML authentication backend", "com.floragunn.dlic.auth.http.saml.HTTPSamlAuthenticator", Boolean.TRUE),
-	INTERNAL_USERS_AUTHENTICATION_BACKEND("Internal users authentication backend", InternalAuthenticationBackend.class.getName(), Boolean.FALSE),
-	NOOP_AUTHENTICATION_BACKEND("Noop authentication backend", NoOpAuthenticationBackend.class.getName(), Boolean.FALSE),
-	NOOP_AUTHORIZATION_BACKEND("Noop authorization backend", NoOpAuthorizationBackend.class.getName(), Boolean.FALSE),
-	HTTP_BASIC_AUTHENTICATOR("HTTP Basic Authenticator", HTTPBasicAuthenticator.class.getName(), Boolean.FALSE),
-	HTTP_PROXY_AUTHENTICATOR("HTTP Proxy Authenticator", HTTPProxyAuthenticator.class.getName(), Boolean.FALSE),
-	HTTP_PROXY_AUTHENTICATOR2("HTTP Proxy Authenticator 2", HTTPProxyAuthenticator2.class.getName(), Boolean.FALSE),
+	INTERNAL_USERS_AUTHENTICATION_BACKEND("Internal users authentication backend", InternalUsersAuthenticationBackend.class.getName(), Boolean.FALSE),
+	HTTP_BASIC_AUTHENTICATOR("HTTP Basic Authenticator", BasicAuthenticator.class.getName(), Boolean.FALSE),
 	HTTP_CLIENTCERT_AUTHENTICATOR("HTTP Client Certificate Authenticator", HTTPClientCertAuthenticator.class.getName(), Boolean.FALSE),
 	CUSTOM_HTTP_AUTHENTICATOR("Custom HTTP authenticator", null, Boolean.TRUE),
 	CUSTOM_AUTHENTICATION_BACKEND("Custom authentication backend", null, Boolean.TRUE),
@@ -60,6 +53,7 @@ public enum ModuleType implements Serializable {
 	CUSTOM_PRINCIPAL_EXTRACTOR("TLS Principal Extractor", null, Boolean.FALSE),
     AUTH_TOKEN_AUTHENTICATION_BACKEND("Search Guard Auth Token authentication backend", "com.floragunn.searchguard.authtoken.AuthTokenAuthenticationBackend", Boolean.TRUE),
     AUTH_TOKEN_HTTP_AUTHENTICATOR("Search Guard Auth Token HTTP authenticator", "com.floragunn.searchguard.authtoken.AuthTokenHttpJwtAuthenticator", Boolean.TRUE),
+    SG_STD_MODULE("Search Guard Standard Module", null, Boolean.FALSE),
 	//COMPLIANCE("Compliance", "com.floragunn.searchguard.compliance.ComplianceIndexingOperationListenerImpl", Boolean.TRUE),
 	UNKNOWN("Unknown type", null, Boolean.TRUE);
 
@@ -85,6 +79,10 @@ public enum ModuleType implements Serializable {
 	public static ModuleType getByDefaultImplClass(Class<?> clazz) {
 		ModuleType moduleType = modulesMap.get(clazz.getName());
     	if(moduleType == null) {
+    	    if (clazz.getName().startsWith("com.floragunn.searchguard")) {
+    	        return SG_STD_MODULE;
+    	    }
+    	    
     		if(HTTPAuthenticator.class.isAssignableFrom(clazz)) {
     			moduleType = ModuleType.CUSTOM_HTTP_AUTHENTICATOR;
     		}
@@ -93,11 +91,11 @@ public enum ModuleType implements Serializable {
     			moduleType = ModuleType.CUSTOM_AUTHENTICATION_BACKEND;
     		}
 
-    		if(AuthorizationBackend.class.isAssignableFrom(clazz)) {
+    		if(LegacyAuthorizationBackend.class.isAssignableFrom(clazz)) {
     			moduleType = ModuleType.CUSTOM_AUTHORIZATION_BACKEND;
     		}
 
-    		if(AuthorizationBackend.class.isAssignableFrom(clazz)) {
+    		if(LegacyAuthenticationBackend.class.isAssignableFrom(clazz)) {
     			moduleType = ModuleType.CUSTOM_AUTHORIZATION_BACKEND;
     		}
 

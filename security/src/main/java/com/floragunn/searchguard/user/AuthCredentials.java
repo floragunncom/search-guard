@@ -20,11 +20,13 @@ package com.floragunn.searchguard.user;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -33,6 +35,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 
+import com.floragunn.searchsupport.util.ImmutableMap;
+import com.floragunn.searchsupport.util.ImmutableSet;
 import com.jayway.jsonpath.JsonPath;
 
 /**
@@ -57,7 +61,8 @@ public final class AuthCredentials implements UserInformation {
      * Raw credentials like a unparsed token
      */
     private Object nativeCredentials;
-    private final Set<String> backendRoles;
+    private final ImmutableSet<String> backendRoles;
+    private final ImmutableSet<String> searchGuardRoles;
     private boolean complete;
     private final boolean authzComplete;
     private final byte[] internalPasswordHash;
@@ -71,28 +76,33 @@ public final class AuthCredentials implements UserInformation {
      */
     private final Map<String, String> attributes;
     private final Map<String, Object> structuredAttributes;
-    
+
     /**
      * Claims or assertions from the authc information. In contrast to attributes, these don't have prefixes and may be complex valued. This is for inter-module communication during the authz phase.
      *  These attributes won't be automatically made available in the user object. 
      */
     private final Map<String, Object> claims;
 
-    private AuthCredentials(String username, String subUserName, AuthDomainInfo authDomainInfo, byte[] password, Object nativeCredentials, Set<String> backendRoles,
-            boolean complete, boolean authzComplete, byte[] internalPasswordHash, Map<String, Object> structuredAttributes,
-            Map<String, String> attributes, Map<String, Object> claims, String redirectUri) {
+    private final ImmutableMap<String, Object> attributesForUserMapping;
+
+    private AuthCredentials(String username, String subUserName, AuthDomainInfo authDomainInfo, byte[] password, Object nativeCredentials,
+            ImmutableSet<String> backendRoles, ImmutableSet<String> searchGuardRoles, boolean complete, boolean authzComplete,
+            byte[] internalPasswordHash, Map<String, Object> structuredAttributes, Map<String, String> attributes,
+            ImmutableMap<String, Object> attributesForUserMapping, Map<String, Object> claims, String redirectUri) {
         super();
         this.username = username;
         this.subUserName = subUserName;
         this.authDomainInfo = authDomainInfo;
         this.password = password;
         this.nativeCredentials = nativeCredentials;
-        this.backendRoles = Collections.unmodifiableSet(backendRoles);
+        this.backendRoles = backendRoles;
+        this.searchGuardRoles = searchGuardRoles;
         this.complete = complete;
         this.authzComplete = authzComplete;
         this.internalPasswordHash = internalPasswordHash;
         this.attributes = Collections.unmodifiableMap(attributes);
         this.structuredAttributes = Collections.unmodifiableMap(structuredAttributes);
+        this.attributesForUserMapping = attributesForUserMapping;
         this.claims = Collections.unmodifiableMap(claims);
         this.redirectUri = redirectUri;
     }
@@ -156,11 +166,13 @@ public final class AuthCredentials implements UserInformation {
         nativeCredentials = null;
 
         if (backendRoles != null && backendRoles.length > 0) {
-            this.backendRoles = new HashSet<>(Arrays.asList(backendRoles));
+            this.backendRoles = ImmutableSet.ofArray(backendRoles);
         } else {
-            this.backendRoles = new HashSet<>();
+            this.backendRoles = ImmutableSet.empty();
         }
 
+        this.searchGuardRoles = ImmutableSet.empty();
+        this.attributesForUserMapping = ImmutableMap.empty();
         this.attributes = new HashMap<>();
         this.structuredAttributes = new HashMap<>();
         this.claims = new HashMap<>();
@@ -173,13 +185,13 @@ public final class AuthCredentials implements UserInformation {
         if (secretsCleared) {
             return;
         }
-        
+
         secretsCleared = true;
-        
+
         if (log.isDebugEnabled()) {
             secretsClearedAt = new Exception("clearSecrets() called at:");
         }
-        
+
         if (password != null) {
             Arrays.fill(password, (byte) '\0');
             password = null;
@@ -200,7 +212,7 @@ public final class AuthCredentials implements UserInformation {
         if (secretsCleared) {
             throw new IllegalStateException("Secrets for " + this + " have been already cleared", secretsClearedAt);
         }
-        
+
         // make defensive copy
         return password == null ? null : Arrays.copyOf(password, password.length);
     }
@@ -251,16 +263,6 @@ public final class AuthCredentials implements UserInformation {
         return true;
     }
 
-    @Override
-    public String toString() {
-        return "AuthCredentials [username=" + username + ", password empty=" + (password == null) + ", nativeCredentials empty="
-                + (nativeCredentials == null) + ",backendRoles=" + backendRoles + "]";
-    }
-
-    /**
-     *
-     * @return Defensive copy of the roles this user is member of.
-     */
     public Set<String> getBackendRoles() {
         return backendRoles;
     }
@@ -272,25 +274,34 @@ public final class AuthCredentials implements UserInformation {
     public boolean isAuthzComplete() {
         return authzComplete;
     }
-    
+
     public Map<String, String> getAttributes() {
         return this.attributes;
     }
 
+    public AuthCredentials userName(String newUserName) {
+        return new AuthCredentials(newUserName, subUserName, authDomainInfo, password, nativeCredentials, backendRoles, searchGuardRoles, complete,
+                authzComplete, internalPasswordHash, structuredAttributes, attributes, attributesForUserMapping, claims, redirectUri);
+    }
+
+    public AuthCredentials with(AuthCredentials other) {
+        if (other == this || other == null) {
+            return this;
+        }
+
+        return new AuthCredentials(username, subUserName, authDomainInfo, password, nativeCredentials, backendRoles.with(other.backendRoles),
+                searchGuardRoles.with(other.searchGuardRoles), complete, authzComplete, internalPasswordHash,
+                mergeMaps(structuredAttributes, other.structuredAttributes), attributes,
+                mergeMaps(attributesForUserMapping, other.attributesForUserMapping), claims, redirectUri);
+    }
+
+    public AuthCredentials with(AuthDomainInfo authDomainInfo) {
+        return new AuthCredentials(username, subUserName, authDomainInfo, password, nativeCredentials, backendRoles, searchGuardRoles, complete,
+                authzComplete, internalPasswordHash, structuredAttributes, attributes, attributesForUserMapping, claims, redirectUri);
+    }
+
     public Builder copy() {
-        Builder builder = new Builder();
-        builder.userName = this.username;
-        builder.subUserName = this.subUserName;
-        builder.password = this.password;
-        builder.nativeCredentials = this.nativeCredentials;
-        builder.backendRoles.addAll(this.backendRoles);
-        builder.complete = this.complete;
-        builder.internalPasswordHash = this.internalPasswordHash;
-        builder.attributes.putAll(this.attributes);
-        builder.structuredAttributes.putAll(this.structuredAttributes);
-        builder.authDomainInfo = this.authDomainInfo;
-        builder.redirectUri = this.redirectUri;
-        return builder;
+        return new Builder(this);
     }
 
     @Deprecated
@@ -312,21 +323,45 @@ public final class AuthCredentials implements UserInformation {
         private AuthDomainInfo authDomainInfo = AuthDomainInfo.UNKNOWN;
         private byte[] password;
         private Object nativeCredentials;
-        private Set<String> backendRoles = new HashSet<>();
+        private ImmutableSet.Builder<String> backendRoles;
+        private ImmutableSet.Builder<String> searchGuardRoles;
         private boolean complete;
         private boolean authzComplete;
         private byte[] internalPasswordHash;
-        private Map<String, String> attributes = new HashMap<>();
-        private Map<String, Object> structuredAttributes = new HashMap<>();
-        private Map<String, Object> claims = new HashMap<>();
+        private ImmutableMap.Builder<String, String> attributes;
+        private ImmutableMap.Builder<String, Object> structuredAttributes;
+        private ImmutableMap.Builder<String, Object> attributesForUserMapping;
+        private ImmutableMap.Builder<String, Object> claims;
         private String redirectUri;
-        
-        public Builder() {
 
+        public Builder() {
+            this.backendRoles = new ImmutableSet.Builder<>();
+            this.searchGuardRoles = new ImmutableSet.Builder<>();
+            this.structuredAttributes = new ImmutableMap.Builder<>();
+            this.attributes = new ImmutableMap.Builder<>();
+            this.claims = new ImmutableMap.Builder<>();
+            this.attributesForUserMapping = new ImmutableMap.Builder<>();
+        }
+
+        Builder(AuthCredentials authCredentials) {
+            this.userName = authCredentials.username;
+            this.subUserName = authCredentials.subUserName;
+            this.password = authCredentials.password;
+            this.backendRoles = new ImmutableSet.Builder<String>(authCredentials.backendRoles);
+            this.searchGuardRoles = new ImmutableSet.Builder<String>(authCredentials.searchGuardRoles);
+            this.complete = authCredentials.complete;
+            this.internalPasswordHash = authCredentials.internalPasswordHash;
+            this.attributes = new ImmutableMap.Builder<>(authCredentials.attributes);
+            this.structuredAttributes = new ImmutableMap.Builder<>(authCredentials.structuredAttributes);
+            this.attributesForUserMapping = new ImmutableMap.Builder<String, Object>(authCredentials.attributesForUserMapping);
+            this.authDomainInfo = authCredentials.authDomainInfo;
+            this.redirectUri = authCredentials.redirectUri;
+            this.claims = new ImmutableMap.Builder<String, Object>(authCredentials.claims);
         }
 
         public Builder userName(String userName) {
             this.userName = userName;
+            this.attributesForUserMapping.with("credentials", ImmutableMap.of("user_name", userName));
             return this;
         }
 
@@ -371,16 +406,25 @@ public final class AuthCredentials implements UserInformation {
                 return this;
             }
 
-            this.backendRoles.addAll(Arrays.asList(backendRoles));
+            this.backendRoles.addAll(backendRoles);
             return this;
         }
-        
+
         public Builder backendRoles(Collection<String> backendRoles) {
             if (backendRoles == null) {
                 return this;
             }
 
             this.backendRoles.addAll(backendRoles);
+            return this;
+        }
+
+        public Builder searchGuardRoles(Collection<String> searchGuardRoles) {
+            if (backendRoles == null) {
+                return this;
+            }
+
+            this.searchGuardRoles.addAll(searchGuardRoles);
             return this;
         }
 
@@ -420,8 +464,8 @@ public final class AuthCredentials implements UserInformation {
         }
 
         public Builder attribute(String name, Object value) {
-            UserAttributes.validate(value);
-           
+            Attributes.validate(value);
+
             if (name != null && !name.isEmpty()) {
                 this.structuredAttributes.put(name, value);
             }
@@ -429,16 +473,23 @@ public final class AuthCredentials implements UserInformation {
         }
 
         public Builder attributes(Map<String, Object> map) {
-            UserAttributes.validate(map);
+            Attributes.validate(map);
             this.structuredAttributes.putAll(map);
             return this;
         }
-        
-        public Builder attributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {     
-            UserAttributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);           
+
+        public Builder attributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {
+            Attributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);
             return this;
         }
-        
+
+        public Builder userMappingAttribute(String name, Object value) {
+            if (name != null && !name.isEmpty()) {
+                this.attributesForUserMapping.with(name, value);
+            }
+            return this;
+        }
+
         public Builder claims(Map<String, Object> map) {
             this.claims.putAll(map);
             return this;
@@ -448,11 +499,16 @@ public final class AuthCredentials implements UserInformation {
             this.authDomainInfo = this.authDomainInfo.authenticatorType(authDomainType);
             return this;
         }
-        
+
+        public Builder authDomainInfo(AuthDomainInfo authDomainInfo) {
+            this.authDomainInfo = this.authDomainInfo.add(authDomainInfo);
+            return this;
+        }
+
         public String getUserName() {
             return userName;
         }
-        
+
         public String getRedirectUri() {
             return redirectUri;
         }
@@ -461,10 +517,11 @@ public final class AuthCredentials implements UserInformation {
             this.redirectUri = redirectUri;
             return this;
         }
-               
+
         public AuthCredentials build() {
-            AuthCredentials result = new AuthCredentials(userName, subUserName, authDomainInfo, password, nativeCredentials, backendRoles, complete, authzComplete,
-                    internalPasswordHash, structuredAttributes, attributes, claims, redirectUri);
+            AuthCredentials result = new AuthCredentials(userName, subUserName, authDomainInfo, password, nativeCredentials, backendRoles.build(),
+                    searchGuardRoles.build(), complete, authzComplete, internalPasswordHash, structuredAttributes.build(), attributes.build(),
+                    attributesForUserMapping.build(), claims.build(), redirectUri);
             this.password = null;
             this.nativeCredentials = null;
             this.internalPasswordHash = null;
@@ -502,5 +559,64 @@ public final class AuthCredentials implements UserInformation {
     public String getRedirectUri() {
         return redirectUri;
     }
-   
+
+    public ImmutableMap<String, Object> getAttributesForUserMapping() {
+        return attributesForUserMapping;
+    }
+
+    public AuthCredentials attributesForUserMapping(ImmutableMap<String, Object> attributesForUserMapping) {
+        return new AuthCredentials(username, subUserName, authDomainInfo, password, nativeCredentials, backendRoles, searchGuardRoles, complete,
+                authzComplete, internalPasswordHash, structuredAttributes, attributes, this.attributesForUserMapping.with(attributesForUserMapping),
+                claims, redirectUri);
+    }
+
+    public ImmutableSet<String> getSearchGuardRoles() {
+        return searchGuardRoles;
+    }
+
+    @Override
+    public String toString() {
+        return "AuthCredentials [username=" + username + ", subUserName=" + subUserName + ", authDomainInfo=" + authDomainInfo + ", password="
+                + (password != null ? "REDACTED" : null) + ", nativeCredentials=" + (nativeCredentials != null ? "REDACTED" : null)
+                + ", backendRoles=" + backendRoles + ", searchGuardRoles=" + searchGuardRoles + ", complete=" + complete + ", authzComplete="
+                + authzComplete + ", redirectUri=" + redirectUri + ", attributes=" + attributes + ", structuredAttributes=" + structuredAttributes
+                + ", claims=" + claims + ", attributesForUserMapping=" + attributesForUserMapping + "]";
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ImmutableMap<String, Object> mergeMaps(Map<String, Object> map1, Map<String, Object> map2) {
+        if (map2 == null || map2.size() == 0) {
+            return ImmutableMap.of(map1);
+        }
+
+        if (map1 == null || map1.size() == 0) {
+            return ImmutableMap.of(map2);
+        }
+
+        HashMap<String, Object> result = new HashMap<String, Object>(map1);
+
+        for (Map.Entry<String, Object> entry : map2.entrySet()) {
+            String key = entry.getKey();
+            Object value2 = entry.getValue();
+            Object value1 = result.get(key);
+
+            if (value1 == null) {
+                result.put(key, value2);
+            } else if (value1 instanceof Collection && value2 instanceof Collection) {
+                if (value1 instanceof Set) {
+                    Set<Object> newValue = new HashSet<>((Set<?>) value1);
+                    newValue.addAll((Collection<?>) value2);
+                    result.put(key, newValue);
+                } else {
+                    List<Object> newValue = new ArrayList<>((Collection<?>) value1);
+                    newValue.addAll((Collection<?>) value2);
+                    result.put(key, newValue);
+                }
+            } else if (value1 instanceof Map && value2 instanceof Map) {
+                result.put(key, mergeMaps((Map<String, Object>) value1, (Map<String, Object>) value2));
+            }
+        }
+
+        return ImmutableMap.of(result);
+    }
 }

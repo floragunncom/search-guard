@@ -30,6 +30,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.StoredFieldsReader;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DirectoryReader;
@@ -94,6 +96,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 
 class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
+    private static final Logger log = LogManager.getLogger(DlsFlsFilterLeafReader.class);
 
     private static final String KEYWORD = ".keyword";
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
@@ -124,107 +127,107 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             final AuditLog auditlog, final Set<String> maskedFields, final ShardId shardId) {
         super(delegate);
         
-        maskFields = (complianceConfig.isEnabled() && maskedFields != null && maskedFields.size() > 0);
-        localHashingEnabled = complianceConfig.isLocalHashingEnabled();
-        
-        this.indexService = indexService;
-        this.threadContext = threadContext;
-        this.clusterService = clusterService;
-        this.complianceConfig = complianceConfig;
-        this.auditlog = auditlog;
-        this.maskedFieldsMap = maskFields?extractMaskedFields(maskedFields):null;
-        
-        if(maskedFieldsMap != null) {
-            maskedFieldsKeySet = maskedFieldsMap.keySet();
-        } else {
-            maskedFieldsKeySet = null;
-        }
-        
-        this.shardId = shardId;
-        flsEnabled = includesExcludes != null && !includesExcludes.isEmpty();
-
-        if (flsEnabled) {
-
-            final FieldInfos infos = delegate.getFieldInfos();
-            this.includesSet = new HashSet<>(includesExcludes.size());
-            this.excludesSet = new HashSet<>(includesExcludes.size());
-
-            for (final String incExc : includesExcludes) {
-                if (canOptimize && (incExc.indexOf('.') > -1 || incExc.indexOf('*') > -1)) {
-                    canOptimize = false;
-                }
-
-                final char firstChar = incExc.charAt(0);
-
-                if (firstChar == '!' || firstChar == '~') {
-                    excludesSet.add(incExc.substring(1));
-                } else {
-                    includesSet.add(incExc);
-                }
-            }
-
-            int i = 0;
-            final FieldInfo[] fa = new FieldInfo[infos.size()];
-
-            if (canOptimize) {
-                if (!excludesSet.isEmpty()) {
-                    for (final FieldInfo info : infos) {
-                        if (!excludesSet.contains(info.name)) {
-                            fa[i++] = info;
-                        }
-                    }
-                } else {
-                    for (final String inc : includesSet) {
-                        FieldInfo f;
-                        if ((f = infos.fieldInfo(inc)) != null) {
-                            fa[i++] = f;
-                        }
-                    }
-                }
-            } else {
-                if (!excludesSet.isEmpty()) {
-                    for (final FieldInfo info : infos) {
-                        if (!WildcardMatcher.matchAny(excludesSet, info.name)) {
-                            fa[i++] = info;
-                        }
-                    }
-
-                    this.excludes = excludesSet.toArray(EMPTY_STRING_ARRAY);
-
-                } else {
-                    for (final FieldInfo info : infos) {
-                        if (WildcardMatcher.matchAny(includesSet, info.name)) {
-                            fa[i++] = info;
-                        }
-                    }
-
-                    this.includes = includesSet.toArray(EMPTY_STRING_ARRAY);
-                }
-
-                if (!excludesSet.isEmpty()) {
-                    filterFunction = XContentMapValues.filter(null, excludes);
-                } else {
-                    filterFunction = XContentMapValues.filter(includes, null);
-                }
-            }
-
-            final FieldInfo[] tmp = new FieldInfo[i];
-            System.arraycopy(fa, 0, tmp, 0, i);
-            this.flsFieldInfos = new FieldInfos(tmp);
-
-
-
-        } else {
-            this.includesSet = null;
-            this.excludesSet = null;
-            this.flsFieldInfos = null;
-        }
-
-            
-
         try {
+            maskFields = (complianceConfig.isEnabled() && maskedFields != null && maskedFields.size() > 0);
+            localHashingEnabled = complianceConfig.isLocalHashingEnabled();
+
+            this.indexService = indexService;
+            this.threadContext = threadContext;
+            this.clusterService = clusterService;
+            this.complianceConfig = complianceConfig;
+            this.auditlog = auditlog;
+            this.maskedFieldsMap = maskFields ? extractMaskedFields(maskedFields) : null;
+
+            if (maskedFieldsMap != null) {
+                maskedFieldsKeySet = maskedFieldsMap.keySet();
+            } else {
+                maskedFieldsKeySet = null;
+            }
+
+            this.shardId = shardId;
+            flsEnabled = includesExcludes != null && !includesExcludes.isEmpty();
+
+            if (flsEnabled) {
+
+                final FieldInfos infos = delegate.getFieldInfos();
+                this.includesSet = new HashSet<>(includesExcludes.size());
+                this.excludesSet = new HashSet<>(includesExcludes.size());
+
+                for (final String incExc : includesExcludes) {
+                    if (canOptimize && (incExc.indexOf('.') > -1 || incExc.indexOf('*') > -1)) {
+                        canOptimize = false;
+                    }
+
+                    final char firstChar = incExc.charAt(0);
+
+                    if (firstChar == '!' || firstChar == '~') {
+                        excludesSet.add(incExc.substring(1));
+                    } else {
+                        includesSet.add(incExc);
+                    }
+                }
+
+                int i = 0;
+                final FieldInfo[] fa = new FieldInfo[infos.size()];
+
+                if (canOptimize) {
+                    if (!excludesSet.isEmpty()) {
+                        for (final FieldInfo info : infos) {
+                            if (!excludesSet.contains(info.name)) {
+                                fa[i++] = info;
+                            }
+                        }
+                    } else {
+                        for (final String inc : includesSet) {
+                            FieldInfo f;
+                            if ((f = infos.fieldInfo(inc)) != null) {
+                                fa[i++] = f;
+                            }
+                        }
+                    }
+                } else {
+                    if (!excludesSet.isEmpty()) {
+                        for (final FieldInfo info : infos) {
+                            if (!WildcardMatcher.matchAny(excludesSet, info.name)) {
+                                fa[i++] = info;
+                            }
+                        }
+
+                        this.excludes = excludesSet.toArray(EMPTY_STRING_ARRAY);
+
+                    } else {
+                        for (final FieldInfo info : infos) {
+                            if (WildcardMatcher.matchAny(includesSet, info.name)) {
+                                fa[i++] = info;
+                            }
+                        }
+
+                        this.includes = includesSet.toArray(EMPTY_STRING_ARRAY);
+                    }
+
+                    if (!excludesSet.isEmpty()) {
+                        filterFunction = XContentMapValues.filter(null, excludes);
+                    } else {
+                        filterFunction = XContentMapValues.filter(includes, null);
+                    }
+                }
+
+                final FieldInfo[] tmp = new FieldInfo[i];
+                System.arraycopy(fa, 0, tmp, 0, i);
+                this.flsFieldInfos = new FieldInfos(tmp);
+
+            } else {
+                this.includesSet = null;
+                this.excludesSet = null;
+                this.flsFieldInfos = null;
+            }
+
             dge = new DlsGetEvaluator(dlsQuery, in, applyDlsHere());
+        } catch (RuntimeException e) {
+            log.error("Got exception while initializing " + this, e);
+            throw e;
         } catch (IOException e) {
+            log.error("Got exception while initializing " + this, e);
             throw ExceptionsHelper.convertToElastic(e);
         }
 
@@ -1049,21 +1052,27 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
     private Terms wrapTerms(final String field, Terms terms) throws IOException {
         
-        if(terms == null) {
+        if (terms == null) {
             return null;
         }
 
-        Map<String, MaskedField> rtMask = getRuntimeMaskedFieldInfo();
-        if(!localHashingEnabled && rtMask != null && WildcardMatcher.matchAny(rtMask.keySet(), handleKeyword(field))) {
-            return null;
-        
-        } else {
-            
-            if("_field_names".equals(field)) {
-                return new FilteredTerms(terms);
+        try {
+
+            Map<String, MaskedField> rtMask = getRuntimeMaskedFieldInfo();
+            if (!localHashingEnabled && rtMask != null && WildcardMatcher.matchAny(rtMask.keySet(), handleKeyword(field))) {
+                return null;
+
+            } else {
+
+                if ("_field_names".equals(field)) {
+                    return new FilteredTerms(terms);
+                }
+
+                return terms;
             }
-            
-            return terms;
+        } catch (RuntimeException e) {
+            log.error("Got exception in wrapTerms(" + field +")", e);
+            throw e;
         }
     }
     

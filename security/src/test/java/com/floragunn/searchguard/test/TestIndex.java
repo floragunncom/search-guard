@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,30 +20,22 @@ package com.floragunn.searchguard.test;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
-import org.junit.rules.ExternalResource;
 
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+public class TestIndex {
 
-public class TestIndex extends ExternalResource {
-    
     private final String name;
     private final Settings settings;
-    private final LocalCluster cluster;
     private final TestData testData;
 
-    public TestIndex(String name, Settings settings, LocalCluster cluster, TestData testData) {
+    public TestIndex(String name, Settings settings, TestData testData) {
         this.name = name;
         this.settings = settings;
-        this.cluster = cluster;
         this.testData = testData;
     }
 
-    @Override
-    protected void before() throws Throwable {
-        try (Client client = cluster.getInternalNodeClient()) {
-            if (!client.admin().indices().exists(new IndicesExistsRequest(name)).actionGet().isExists()) {
-                testData.createIndex(client, name, settings);
-            }
+    public void create(Client client) {
+        if (!client.admin().indices().exists(new IndicesExistsRequest(name)).actionGet().isExists()) {
+            testData.createIndex(client, name, settings);
         }
     }
 
@@ -58,13 +50,12 @@ public class TestIndex extends ExternalResource {
     public static Builder name(String name) {
         return new Builder().name(name);
     }
-    
+
     public static class Builder {
         private String name;
         private Settings.Builder settings = Settings.builder();
         private TestData.Builder testDataBuilder = new TestData.Builder();
         private TestData testData;
-        private LocalCluster cluster;
 
         public Builder name(String name) {
             this.name = name;
@@ -78,11 +69,6 @@ public class TestIndex extends ExternalResource {
 
         public Builder shards(int value) {
             settings.put("index.number_of_shards", 5);
-            return this;
-        }
-
-        public Builder cluster(LocalCluster cluster) {
-            this.cluster = cluster;
             return this;
         }
 
@@ -131,7 +117,7 @@ public class TestIndex extends ExternalResource {
                 testData = testDataBuilder.get();
             }
 
-            return new TestIndex(name, settings.build(), cluster, testData);
+            return new TestIndex(name, settings.build(), testData);
         }
     }
 

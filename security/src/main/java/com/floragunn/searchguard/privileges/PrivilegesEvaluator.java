@@ -63,9 +63,14 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
+import com.floragunn.searchguard.authz.AuthorizationConfig;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult.Status;
@@ -73,11 +78,10 @@ import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfi
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfigRegistry;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
-import com.floragunn.searchguard.sgconf.DynamicConfigModel;
-import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.sgconf.SgRoles;
+import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.ReflectionHelper;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.util.ImmutableSet;
@@ -108,12 +112,13 @@ public class PrivilegesEvaluator implements DCFListener {
     private final SearchGuardIndexAccessEvaluator sgIndexAccessEvaluator;
     private final TermsAggregationEvaluator termsAggregationEvaluator;
     private final boolean enterpriseModulesEnabled;
-    private DynamicConfigModel dcm;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
     private final NamedXContentRegistry namedXContentRegistry;
     private final List<String> adminOnlyActions;
     private final List<String> adminOnlyActionExceptions;
     private final Client localClient;
+
+    private volatile boolean ignoreUnauthorizedIndices = true;
 
     // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
     private String kibanaServerUsername;
@@ -148,17 +153,35 @@ public class PrivilegesEvaluator implements DCFListener {
         this.adminOnlyActions = settings.getAsList(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY,
                 ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_DEFAULT);
         this.adminOnlyActionExceptions = settings.getAsList(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_EXCEPTIONS, Collections.emptyList());
+
+        configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
+
+            @Override
+            public void onChange(ConfigMap configMap) {
+                SgDynamicConfiguration<AuthorizationConfig> config = configMap.get(CType.AUTHZ);
+                SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
+
+                if (config != null && config.getCEntry("default") != null) {
+                    AuthorizationConfig privilegesConfig = config.getCEntry("default");
+                    ignoreUnauthorizedIndices = privilegesConfig.isIgnoreUnauthorizedIndices();
+                    log.info("Got privilegesConfig: " + privilegesConfig);
+                } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
+                    try {
+                        LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
+                        AuthorizationConfig privilegesConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null);
+                        ignoreUnauthorizedIndices = privilegesConfig.isIgnoreUnauthorizedIndices();
+                        log.info("Got legacy privilegesConfig: " + privilegesConfig);
+                    } catch (ConfigValidationException e) {
+                        log.error("Error while parsing sg_config:\n" + e);
+                    }
+                }                
+            }
+        });
     }
-
+    
     @Override
-    public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
-        this.dcm = dcm;
+    public void onChanged(ConfigModel cm) {
         this.configModel = cm;
-
-        this.privilegesInterceptor = ReflectionHelper.instantiatePrivilegesInterceptorImpl(cm, dcm);
-
-        this.kibanaServerUsername = dcm.getKibanaServerUsername();
-        this.kibanaIndexName = dcm.getKibanaIndexname();
     }
 
     private SgRoles getSgRoles(Set<String> roles) {
@@ -166,7 +189,7 @@ public class PrivilegesEvaluator implements DCFListener {
     }
 
     public boolean isInitialized() {
-        return configModel != null && configModel.getSgRoles() != null && dcm != null;
+        return configModel != null && configModel.getSgRoles() != null;
     }
 
     public PrivilegesEvaluatorResponse evaluate(User user, String action0, ActionRequest request, Task task,
@@ -203,13 +226,13 @@ public class PrivilegesEvaluator implements DCFListener {
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
             sgRoles = specialPrivilegesEvaluationContext.getSgRoles();
         }
-        
+
         if ("cluster:admin:searchguard:session/_own/delete".equals(action0)) {
             // Special case for deleting own session: This is always allowed
             presponse.allowed = true;
-            return presponse;            
+            return presponse;
         }
-        
+
         if (request instanceof BulkRequest && (com.google.common.base.Strings.isNullOrEmpty(user.getRequestedTenant()))) {
             // Shortcut for bulk actions. The details are checked on the lower level of the BulkShardRequests (Action indices:data/write/bulk[s]).
             // This shortcut is only possible if the default tenant is selected, as we might need to rewrite the request for non-default tenants.
@@ -244,7 +267,8 @@ public class PrivilegesEvaluator implements DCFListener {
             } else {
                 log.debug("### evaluate " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user
                         + "\nspecialPrivilegesEvaluationContext: " + specialPrivilegesEvaluationContext + "\nResolved: "
-                        + requestInfo.getResolvedIndices() + "\nUresolved: " + requestInfo.getUnresolved() + "\nDNFOF: " + dcm.isDnfofEnabled());
+                        + requestInfo.getResolvedIndices() + "\nUresolved: " + requestInfo.getUnresolved() + "\nIgnoreUnauthorizedIndices: "
+                        + ignoreUnauthorizedIndices);
             }
         }
 
@@ -430,7 +454,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
             PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, resolver, clusterService);
 
-            boolean dnfofPossible = dcm.isDnfofEnabled()
+            boolean dnfofPossible = ignoreUnauthorizedIndices
                     && (action0.startsWith("indices:data/read/") || action0.startsWith("indices:admin/mappings/fields/get")
                             || action0.equals("indices:admin/shards/search_shards") || action0.equals(ResolveIndexAction.NAME))
                     && (actionRequestInfo.ignoreUnavailable() || actionRequestInfo.containsWildcards());
@@ -526,7 +550,7 @@ public class PrivilegesEvaluator implements DCFListener {
         if (this.configModel == null) {
             throw new ElasticsearchSecurityException("SearchGuard is not yet initialized");
         }
-        
+
         return this.configModel.mapSgRoles(user, caller);
     }
 
@@ -535,19 +559,25 @@ public class PrivilegesEvaluator implements DCFListener {
     }
 
     public boolean multitenancyEnabled() {
-        return privilegesInterceptor != null && dcm.isKibanaMultitenancyEnabled();
+        return privilegesInterceptor != null && privilegesInterceptor.isEnabled();
+    }
+    
+    /**
+     * @deprecated Even though this does not really belong to privileges evaluation, this is necessary to support KibanaInfoAction. This should be somehow moved to the MT module.
+     */
+    public String getKibanaServerUser() {
+        return privilegesInterceptor != null ? privilegesInterceptor.getKibanaServerUser() : "kibanaserver";
+    }
+
+    /**
+     * @deprecated Even though this does not really belong to privileges evaluation, this is necessary to support KibanaInfoAction. This should be somehow moved to the MT module.
+     */
+    public String getKibanaIndex() {
+        return privilegesInterceptor != null ? privilegesInterceptor.getKibanaIndex() : null;
     }
 
     public boolean notFailOnForbiddenEnabled() {
-        return privilegesInterceptor != null && dcm.isDnfofEnabled();
-    }
-
-    public String kibanaIndex() {
-        return dcm.getKibanaIndexname();
-    }
-
-    public String kibanaServerUsername() {
-        return dcm.getKibanaServerUsername();
+        return ignoreUnauthorizedIndices;
     }
 
     private boolean isAdminOnlyAction(String action) {
@@ -568,7 +598,6 @@ public class PrivilegesEvaluator implements DCFListener {
 
                     return true;
                 }
-
             }
         }
 
@@ -665,11 +694,12 @@ public class PrivilegesEvaluator implements DCFListener {
         String requestedTenant = !Strings.isNullOrEmpty(user.getRequestedTenant()) ? user.getRequestedTenant() : "SGS_GLOBAL_TENANT";
 
         if (!multitenancyEnabled() && !"SGS_GLOBAL_TENANT".equals(requestedTenant)) {
+            log.warn("Denying request to non-default tenant because MT is disabled: " + requestedTenant);
             return false;
         }
-
+        
         if (!configModel.isTenantValid(requestedTenant)) {
-            log.info("Invalid tenant: " + requestedTenant + "; user: " + user);
+            log.warn("Invalid tenant: " + requestedTenant + "; user: " + user);
             return false;
         }
 
@@ -713,7 +743,7 @@ public class PrivilegesEvaluator implements DCFListener {
         if (permissions.isEmpty()) {
             return true;
         }
-                
+
         SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.provide(user,
                 threadContext);
 
@@ -731,7 +761,7 @@ public class PrivilegesEvaluator implements DCFListener {
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
             sgRoles = specialPrivilegesEvaluationContext.getSgRoles();
         }
-        
+
         for (String permission : permissions) {
             if (!sgRoles.impliesClusterPermissionPermission(permission)) {
                 return false;
@@ -740,7 +770,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
         return true;
     }
-    
+
     private boolean checkDocWhitelistHeader(User user, String action, ActionRequest request) {
         String docWhitelistHeader = threadContext.getHeader(ConfigConstants.SG_DOC_WHITELST_HEADER);
 
@@ -772,8 +802,12 @@ public class PrivilegesEvaluator implements DCFListener {
         }
     }
 
-    public boolean isKibanaRbacEnabled() {
-        return dcm.isKibanaRbacEnabled();
+    public PrivilegesInterceptor getPrivilegesInterceptor() {
+        return privilegesInterceptor;
+    }
+
+    public void setPrivilegesInterceptor(PrivilegesInterceptor privilegesInterceptor) {
+        this.privilegesInterceptor = privilegesInterceptor;
     }
 
 }

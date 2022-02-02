@@ -25,7 +25,7 @@ import com.floragunn.searchguard.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.auditlog.sink.DebugSink;
 import com.floragunn.searchguard.auditlog.sink.ExternalESSink;
 import com.floragunn.searchguard.auditlog.sink.InternalESSink;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class RoutingConfigurationTest extends AbstractAuditlogiUnitTest{
 

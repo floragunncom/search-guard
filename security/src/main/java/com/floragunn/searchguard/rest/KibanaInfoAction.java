@@ -77,9 +77,9 @@ public class KibanaInfoAction extends BaseRestHandler {
                     builder.field("user_name", user == null ? null : user.getName());
                     builder.field("not_fail_on_forbidden_enabled", evaluator.notFailOnForbiddenEnabled());
                     builder.field("kibana_mt_enabled", evaluator.multitenancyEnabled());
-                    builder.field("kibana_index", evaluator.kibanaIndex());
-                    builder.field("kibana_server_user", evaluator.kibanaServerUsername());
-                    builder.field("kibana_rbac_enabled", evaluator.isKibanaRbacEnabled());
+                    builder.field("kibana_index", evaluator.getKibanaIndex()); 
+                    builder.field("kibana_server_user", evaluator.getKibanaServerUser()); 
+                    builder.field("kibana_rbac_enabled", false);
                     builder.endObject();
 
                     response = new BytesRestResponse(RestStatus.OK, builder);

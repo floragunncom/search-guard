@@ -25,18 +25,17 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.opensaml.core.config.InitializationService;
 
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.searchguard.auth.AuthenticationFrontend;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.auth.CredentialsException;
-import com.floragunn.searchguard.auth.frontend.ActivatedFrontendConfig;
-import com.floragunn.searchguard.auth.frontend.GetFrontendConfigAction;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.CredentialsException;
+import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
+import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.modules.StandardComponents;
-import com.floragunn.searchguard.sgconf.impl.v7.FrontendConfig;
 import com.floragunn.searchguard.user.AuthCredentials;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
+import com.floragunn.searchsupport.util.ImmutableList;
+import com.floragunn.searchsupport.util.ImmutableMap;
+
 
 public class SamlAuthenticatorTest {
 
@@ -62,7 +61,7 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer = new MockSamlIdpServer();
         mockSamlIdpServer.start();
         basicIdpConfig = ImmutableMap.of("metadata_url", mockSamlIdpServer.getMetadataUri(), "entity_id", mockSamlIdpServer.getIdpEntityId());
-        basicAuthenticatorSettings = ImmutableMap.of("idp", basicIdpConfig, "user_mapping.roles", "roles");
+        basicAuthenticatorSettings = ImmutableMap.of("idp", basicIdpConfig);
     }
 
     @AfterClass
@@ -86,7 +85,7 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
 
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
@@ -107,14 +106,14 @@ public class SamlAuthenticatorTest {
 
         Map<String, Object> inlineMetadataIdpConfig = ImmutableMap.of("metadata_xml", " " + mockSamlIdpServer.createMetadata(), "entity_id",
                 mockSamlIdpServer.getIdpEntityId(), "frontend_base_url", FRONTEND_BASE_URL);
-        Map<String, Object> inlineMetadataAuthenticatorSettings = ImmutableMap.of("idp", inlineMetadataIdpConfig, "user_mapping.roles", "roles");
+        Map<String, Object> inlineMetadataAuthenticatorSettings = ImmutableMap.of("idp", inlineMetadataIdpConfig);
 
         System.out.println(inlineMetadataIdpConfig);
 
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(inlineMetadataAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
 
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
@@ -128,7 +127,7 @@ public class SamlAuthenticatorTest {
 
     @Test
     public void inlineXmlParsingTest() throws Exception {
-        String yml = "  authcz:\n" + "    - type: saml\n" + "      label: \"SAML Login\"\n" + "      idp:\n" + "        metadata_xml: | \n"
+        String yml = "      idp:\n" + "        metadata_xml: | \n"
                 + "            <EntityDescriptor entityID=\"urn:searchguard.eu.auth0.com\" xmlns=\"urn:oasis:names:tc:SAML:2.0:metadata\">\n"
                 + "              <IDPSSODescriptor protocolSupportEnumeration=\"urn:oasis:names:tc:SAML:2.0:protocol\">\n"
                 + "                <KeyDescriptor use=\"signing\">\n" + "                  <KeyInfo xmlns=\"http://www.w3.org/2000/09/xmldsig#\">\n"
@@ -148,13 +147,9 @@ public class SamlAuthenticatorTest {
                 + "                <Attribute Name=\"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname\" NameFormat=\"urn:oasis:names:tc:SAML:2.0:attrname-format:uri\" FriendlyName=\"Surname\" xmlns=\"urn:oasis:names:tc:SAML:2.0:assertion\"/>\n"
                 + "                <Attribute Name=\"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier\" NameFormat=\"urn:oasis:names:tc:SAML:2.0:attrname-format:uri\" FriendlyName=\"Name ID\" xmlns=\"urn:oasis:names:tc:SAML:2.0:assertion\"/>\n"
                 + "              </IDPSSODescriptor>\n" + "            </EntityDescriptor>\n" + "        entity_id: urn:searchguard.eu.auth0.com\n"
-                + "      sp:\n" + "        entity_id: es-saml\n"
-                + "      user_mapping.roles: http://schemas.auth0.com/https://kibana;example;com/roles";
+                + "      sp:\n" + "        entity_id: es-saml\n";
 
-        // TODO
-        //FrontendConfig frontendConfig = FrontendConfig.parse(DocReader.yaml().readObject(yml), StandardComponents.apiAuthenticationFrontends, null);
-
-        //Assert.assertTrue(frontendConfig.toString(), frontendConfig.getAuthcz().get(0).getAuthenticationFrontend() instanceof SamlAuthenticator);
+        new SamlAuthenticator(DocNode.parse(Format.YAML).from(yml), null);
     }
 
     @Test
@@ -208,7 +203,7 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
 
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         mockSamlIdpServer.loadSigningKeys("saml/spock-keystore.jks", "spock");
 
@@ -234,7 +229,7 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
 
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
@@ -260,7 +255,7 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
 
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
@@ -269,7 +264,7 @@ public class SamlAuthenticatorTest {
         AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
 
         Assert.assertEquals("horst", authCredentials.getUsername());
-        Assert.assertEquals(ImmutableSet.of("a", "b"), authCredentials.getBackendRoles());
+        Assert.assertEquals(ImmutableMap.of("roles", ImmutableList.of("a", "b")), authCredentials.getAttributesForUserMapping().get("saml_response"));
     }
 
     @Test
@@ -282,7 +277,7 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
 
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
@@ -291,30 +286,6 @@ public class SamlAuthenticatorTest {
         AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
 
         Assert.assertEquals("horst", authCredentials.getUsername());
-    }
-
-    @Test
-    public void commaSeparatedRolesTest() throws Exception {
-        mockSamlIdpServer.setAuthenticateUser("horst");
-        mockSamlIdpServer.setSignResponses(true);
-        mockSamlIdpServer.loadSigningKeys("saml/kirk-keystore.jks", "kirk");
-        mockSamlIdpServer.setAuthenticateUserRoles(Arrays.asList("a,b"));
-        mockSamlIdpServer.setEndpointQueryString(null);
-
-        Map<String, Object> config = ImmutableMap.of("idp", basicIdpConfig, "user_mapping.roles", "roles", "user_mapping.roles_seperator", ",");
-
-        SamlAuthenticator samlAuthenticator = new SamlAuthenticator(config, testContext);
-        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
-
-        String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
-
-        Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
-                "frontend_base_url", FRONTEND_BASE_URL);
-        AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
-
-        Assert.assertEquals("horst", authCredentials.getUsername());
-        Assert.assertEquals(ImmutableSet.of("a", "b"), authCredentials.getBackendRoles());
     }
 
     @Test
@@ -322,13 +293,13 @@ public class SamlAuthenticatorTest {
         try (MockSamlIdpServer mockSamlIdpServer = new MockSamlIdpServer()) {
             Map<String, Object> idpConfig = ImmutableMap.of("metadata_url", mockSamlIdpServer.getMetadataUri(), "entity_id",
                     mockSamlIdpServer.getIdpEntityId());
-            Map<String, Object> config = ImmutableMap.of("idp", idpConfig, "user_mapping.roles", "roles", "idp.min_refresh_delay", 100);
+            Map<String, Object> config = ImmutableMap.of("idp", idpConfig, "idp.min_refresh_delay", 100);
 
             SamlAuthenticator samlAuthenticator = new SamlAuthenticator(config, testContext);
             ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
 
             try {
-                authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+                authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
                 Assert.fail(authMethod.toString());
             } catch (AuthenticatorUnavailableException e) {
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("Error retrieving SAML metadata"));
@@ -354,7 +325,7 @@ public class SamlAuthenticatorTest {
             Thread.sleep(500);
 
             authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-            authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+            authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
             encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
             request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
@@ -363,29 +334,6 @@ public class SamlAuthenticatorTest {
 
             Assert.assertEquals("horst", authCredentials.getUsername());
         }
-    }
-
-    @Test
-    public void subjectPatternTest() throws Exception {
-        mockSamlIdpServer.setSignResponses(true);
-        mockSamlIdpServer.loadSigningKeys("saml/kirk-keystore.jks", "kirk");
-        mockSamlIdpServer.setAuthenticateUser("leonard@example.com");
-        mockSamlIdpServer.setEndpointQueryString(null);
-
-        Map<String, Object> config = ImmutableMap.of("idp", basicIdpConfig, "user_mapping.roles", "roles", "user_mapping.subject_pattern",
-                "^(.+)@(?:.+)$");
-
-        SamlAuthenticator samlAuthenticator = new SamlAuthenticator(config, testContext);
-        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
-
-        String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
-
-        Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
-                "frontend_base_url", FRONTEND_BASE_URL);
-        AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
-
-        Assert.assertEquals("leonard", authCredentials.getUsername());
     }
 
     static void ensureOpenSamlInitialization() {

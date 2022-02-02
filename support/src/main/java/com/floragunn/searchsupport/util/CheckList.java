@@ -80,6 +80,8 @@ public interface CheckList<E> {
     ImmutableSet<E> getCheckedElements();
 
     ImmutableSet<E> getUncheckedElements();
+    
+    String toDebugString();
 
     static class TwoElementCheckList<E> implements CheckList<E> {
 
@@ -383,6 +385,16 @@ public interface CheckList<E> {
                 }
             }
 
+            @Override
+            public String toDebugString() {
+                return "View " + e + ": " + delegate.toDebugString();
+            }
+
+        }
+
+        @Override
+        public String toDebugString() {
+            return e1 + " " + e1checked + "; " + e2 + " " + e2checked;
         }
 
     }
@@ -691,6 +703,16 @@ public interface CheckList<E> {
                 }
             }
 
+            @Override
+            public String toDebugString() {
+                return "View " + elements + ": " + delegate.toDebugString();
+            }
+
+        }
+
+        @Override
+        public String toDebugString() {
+            return unchecked.toDebugString() + " " + uncheckedCount;
         }
 
     }
@@ -777,6 +799,11 @@ public interface CheckList<E> {
         @Override
         public void uncheckIfPresent(Object element) {
 
+        }
+
+        @Override
+        public String toDebugString() {
+            return null;
         }
 
     };

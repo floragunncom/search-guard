@@ -31,8 +31,8 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.helper.RetrySink;
 import com.floragunn.searchguard.auditlog.integration.TestAuditlogImpl;
+import com.floragunn.searchguard.legacy.test.AbstractSGUnitTest;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.AbstractSGUnitTest;
 
 public class AuditlogTest {
 

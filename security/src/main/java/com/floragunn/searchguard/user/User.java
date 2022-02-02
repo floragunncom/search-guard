@@ -26,6 +26,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.collect.Lists;
 import com.jayway.jsonpath.JsonPath;
 
@@ -35,7 +38,8 @@ import com.jayway.jsonpath.JsonPath;
  * <b>Do not subclass from this class!</b>
  *
  */
-public class User implements Serializable, CustomAttributesAware, UserInformation {
+public class User implements Serializable, UserInformation, AttributeSource {
+    private static final Logger log = LogManager.getLogger(User.class);
 
     public static Builder forUser(String username) {
         return new Builder().name(username);
@@ -207,7 +211,36 @@ public class User implements Serializable, CustomAttributesAware, UserInformatio
     }
 
     public final String toStringWithAttributes() {
-        return toString(true);
+        StringBuilder result = new StringBuilder("User ").append(name);
+
+        if (subName != null && subName.length() > 0) {
+            result.append(" (").append(subName).append(")");
+        }
+
+        if (authDomain != null && authDomain.length() > 0) {
+            result.append(" <").append(authDomain).append(">");
+        }
+        
+        if (roles != null) {
+            result.append(" ").append(roles);
+        } else {
+            result.append(" []");
+        }
+
+        if (searchGuardRoles != null) {
+            result.append("/").append(searchGuardRoles);
+        } else {
+            result.append("/[]");
+        }
+        
+        if (structuredAttributes != null) {
+            result.append(" ").append(structuredAttributes);
+        } else {
+            result.append("{}");
+        }
+
+        return result.toString();
+        
     }
 
     @Override
@@ -339,7 +372,7 @@ public class User implements Serializable, CustomAttributesAware, UserInformatio
     }
 
     public void addStructuredAttributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {
-        UserAttributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);
+        Attributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);
     }
 
     public final void addSearchGuardRoles(final Collection<String> sgRoles) {
@@ -427,6 +460,7 @@ public class User implements Serializable, CustomAttributesAware, UserInformatio
         public Builder with(AuthCredentials authCredentials) {
             this.authDomainInfo(authCredentials.getAuthDomainInfo());
             this.backendRoles(authCredentials.getBackendRoles());
+            this.searchGuardRoles(authCredentials.getSearchGuardRoles());
             this.oldAttributes(authCredentials.getAttributes());
             this.attributes(authCredentials.getStructuredAttributes());
             return this;
@@ -461,19 +495,19 @@ public class User implements Serializable, CustomAttributesAware, UserInformatio
         }
 
         public Builder attributes(Map<String, Object> attributes) {
-            UserAttributes.validate(attributes);
+            Attributes.validate(attributes);
             this.structuredAttributes.putAll(attributes);
             return this;
         }
 
         public Builder attribute(String key, Object value) {
-            UserAttributes.validate(value);
+            Attributes.validate(value);
             this.structuredAttributes.put(key, value);
             return this;
         }
 
         public Builder attributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {
-            UserAttributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);
+            Attributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);
             return this;
         }
 
@@ -515,5 +549,26 @@ public class User implements Serializable, CustomAttributesAware, UserInformatio
 
         this.authDomain = authDomain;
     }
-
+    
+    @Override
+    public Object getAttributeValue(String attributeName) {
+        if (attributeName.equals("user.name") || attributeName.equals("user_name")) {
+            return getName();
+        } else if (attributeName.equals("user.roles") || attributeName.equals("user_roles")) {
+            return getRoles();
+        } else if (attributeName.equals("user.attrs")) {
+            return getStructuredAttributes();
+        } else if (attributeName.startsWith("user.attrs.")) {
+            return getStructuredAttributes().get(attributeName.substring("user.attrs.".length()));
+        } else if (attributeName.startsWith("attr.") || attributeName.startsWith("_")) {
+            log.warn("The attribute ${" + attributeName + "} could not be mapped to a value. "
+                    + "For backwards compatibility, the resulting string will contain the unmapped attribute unchanged. "
+                    + "You should consider changing the configuration to the new Search Guard user attributes which provide default values for this case. "
+                    + "The old attribute syntax will be removed in a future major Search Guard release.\n" + "\nAvailable attributes: "
+                    + getCustomAttributesMap().keySet());
+            return "${" + attributeName + "}";
+        } else {
+            return null;
+        }
+    }
 }

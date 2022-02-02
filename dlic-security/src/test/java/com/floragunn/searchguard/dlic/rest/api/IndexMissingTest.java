@@ -19,9 +19,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.support.SgJsonNode;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 
 public class IndexMissingTest extends AbstractRestApiUnitTest {	
