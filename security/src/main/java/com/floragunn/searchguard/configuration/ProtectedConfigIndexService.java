@@ -153,31 +153,28 @@ public class ProtectedConfigIndexService {
 
             if (configIndex.mappingUpdates.size() != 0) {
                 int mappingVersion = getMappingVersion(configIndex, clusterState);
-
+                
                 if (log.isTraceEnabled()) {
                     log.trace("Mapping version of index: " + mappingVersion);
                 }
-
-                SortedMap<Integer, Map<String, Object>> availableUpdates = configIndex.mappingUpdates.tailMap(mappingVersion);
-
-                if (availableUpdates.size() != 0) {
-                    Integer patchFrom = availableUpdates.firstKey();
-
+                
+                Integer patchFrom = configIndex.mappingUpdates.tailMap(mappingVersion).firstKey();
+               
+                if (patchFrom != null) {
                     Map<String, Object> patch = configIndex.mappingUpdates.get(patchFrom);
-
+              
                     if (log.isInfoEnabled()) {
-                        log.info("Updating mapping of index " + configIndex.getName() + " from version " + mappingVersion + " to version "
-                                + configIndex.mappingVersion);
+                        log.info("Updating mapping of index " + configIndex.getName() + " from version " + mappingVersion + " to version " + configIndex.mappingVersion);
                     }
-
+                    
                     configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "mapping_update");
 
                     PutMappingRequest putMappingRequest = new PutMappingRequest(configIndex.getName()).type("_doc").source(patch);
-
+                    
                     if (log.isDebugEnabled()) {
                         log.debug(Strings.toString(putMappingRequest));
                     }
-
+                    
                     client.admin().indices().putMapping(putMappingRequest, new ActionListener<AcknowledgedResponse>() {
 
                         @Override
@@ -198,14 +195,14 @@ public class ProtectedConfigIndexService {
                             log.error("Mapping update failed for " + configIndex, e);
                             configIndex.moduleState.setFailed(e);
                             configIndex.moduleState.setState(ComponentState.State.FAILED, "mapping_update_failed");
-
+                            
                         }
                     });
-
+                    
                     return;
                 }
             }
-
+            
             completedIndices.add(configIndex);
             configIndex.setCreated(true);
 
@@ -278,27 +275,27 @@ public class ProtectedConfigIndexService {
     private int getMappingVersion(ConfigIndexState configIndex, ClusterState clusterState) {
         IndexMetadata index = clusterState.getMetadata().getIndices().get(configIndex.getName());
         MappingMetadata mapping = index.mapping();
-
+        
         if (mapping == null) {
             return 0;
         }
-
-        Object meta = mapping.getSourceAsMap().get("_meta");
-
-        if (!(meta instanceof Map)) {
-            return 0;
-        }
-
-        Object version = ((Map<?, ?>) meta).get("version");
-
-        if (version instanceof Number) {
-            return ((Number) version).intValue();
-        } else {
-            return 0;
-        }
+        
+       Object meta = mapping.getSourceAsMap().get("_meta");
+              
+       if (!(meta instanceof Map)) {
+           return 0;
+       }
+       
+       Object version = ((Map<?,?>) meta).get("version");
+       
+       if (version instanceof Number) {
+           return ((Number) version).intValue();
+       } else {
+           return 0;
+       }
 
     }
-
+    
     private final ClusterStateListener clusterStateListener = new ClusterStateListener() {
 
         @Override
@@ -499,23 +496,23 @@ public class ProtectedConfigIndexService {
             this.mappingVersion = 1;
             return this;
         }
-
+        
         public ConfigIndex mapping(Map<String, Object> mapping, int mappingVersion) {
             this.mapping = new HashMap<>(mapping);
             this.mappingVersion = mappingVersion;
-
+            
             this.mapping.put("_meta", ImmutableMap.of("version", mappingVersion));
-
+            
             return this;
         }
-
+        
         public ConfigIndex mappingUpdate(int fromVersion, Map<String, Object> mappingDelta) {
             if (this.mappingVersion == 0) {
                 throw new IllegalStateException("A mapping needs to be defined first");
             }
-
-            mappingDelta = new HashMap<>(mappingDelta);
-            mappingDelta.put("_meta", ImmutableMap.of("version", this.mappingVersion));
+            
+            mappingDelta = new HashMap<>(mappingDelta);            
+            mappingDelta.put("_meta", ImmutableMap.of("version", this.mappingVersion));            
             this.mappingUpdates.put(fromVersion, mappingDelta);
             return this;
         }
