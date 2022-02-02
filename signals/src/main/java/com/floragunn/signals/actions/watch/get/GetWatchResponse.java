@@ -1,6 +1,8 @@
 package com.floragunn.signals.actions.watch.get;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.get.GetResponse;
@@ -8,10 +10,13 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.mapper.SourceFieldMapper;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
+
+import com.floragunn.signals.watch.checks.StaticInput;
 
 public class GetWatchResponse extends ActionResponse implements ToXContentObject {
 
@@ -85,8 +90,13 @@ public class GetWatchResponse extends ActionResponse implements ToXContentObject
             builder.field("_version", version);
             builder.field("_seq_no", seqNo);
             builder.field("_primary_term", primaryTerm);
-
-            XContentHelper.writeRawField(SourceFieldMapper.NAME, source, XContentType.JSON, builder, params);
+            
+            Tuple<XContentType, Map<String, Object>> parsedSource = XContentHelper.convertToMap(source,  true, XContentType.JSON);
+            Map<String, Object> source = new LinkedHashMap<>(parsedSource.v2());
+            
+            StaticInput.unpatchForIndexMappingBugFix(source);
+            
+            builder.field(SourceFieldMapper.NAME, source);
         }
 
         builder.endObject();

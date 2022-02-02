@@ -104,9 +104,11 @@ public class Signals extends AbstractLifecycleComponent {
             }
 
             this.accountRegistry = new AccountRegistry(signalsSettings);
-
-            dynamicConfigFactory.registerDCFListener(dcfListener);
-
+            
+            if (dynamicConfigFactory != null) {
+                dynamicConfigFactory.registerDCFListener(dcfListener);
+            }
+            
             return Collections.singletonList(this);
 
         } catch (Exception e) {
@@ -155,7 +157,8 @@ public class Signals extends AbstractLifecycleComponent {
                 indexNames.getAccounts(), indexNames.getSettings() };
 
         componentState.addPart(protectedConfigIndexService.createIndex(
-                new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping()).dependsOnIndices(allIndexes).onIndexReady(this::init)));
+                new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping(), 2).mappingUpdate(0, Watch.getIndexMappingUpdate())
+                        .dependsOnIndices(allIndexes).onIndexReady(this::init)));
         componentState.addPart(
                 protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesState()).mapping(WatchState.getIndexMapping())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesTriggerState())));

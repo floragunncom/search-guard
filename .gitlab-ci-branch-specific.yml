@@ -1,0 +1,5 @@
+variables:
+  SG_KI_PLUGIN: "b-master-SNAPSHOT"
+  IT_BRANCH: "sg-7.52.6-es-7.16.3"
+  KI_VERSION: "7.16.3"
+

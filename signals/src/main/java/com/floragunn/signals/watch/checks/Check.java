@@ -66,8 +66,7 @@ public abstract class Check extends WatchElement {
         case "transform":
             return Transform.create(watchInitService, jsonNode);
         default:
-            throw new ConfigValidationException(
-                    new InvalidAttributeValue("type", type, "search|static|http|condition|calc|transform", jsonNode));
+            throw new ConfigValidationException(new InvalidAttributeValue("type", type, "search|static|http|condition|calc|transform", jsonNode));
         }
     }
 
@@ -78,6 +77,18 @@ public abstract class Check extends WatchElement {
 
         NestedValueMap properties = new NestedValueMap();
         SearchInput.addIndexMappingProperties(properties);
+        StaticInput.addIndexMappingProperties(properties);
+
+        result.put("properties", properties);
+
+        return result;
+    }
+
+    public static Map<String, Object> getIndexMappingUpdate() {
+        NestedValueMap result = new NestedValueMap();
+
+        NestedValueMap properties = new NestedValueMap();
+        StaticInput.addIndexMappingProperties(properties);
 
         result.put("properties", properties);
 

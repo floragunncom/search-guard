@@ -1237,8 +1237,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public static final class ProtectedIndices {
         final Set<String> protectedPatterns;
 
-        private ProtectedIndices() {
-            protectedPatterns = null;
+        public ProtectedIndices() {
+            protectedPatterns = new HashSet<>();
         }
 
         private ProtectedIndices(Settings settings, String... patterns) {
