@@ -60,6 +60,8 @@ public class JwtAuthenticator implements HTTPAuthenticator {
     private final JwtVerifier jwtVerifier;
     private final String jwtHeaderName;
     private final String jwtUrlParameter;
+    private final String requiredAudience;
+    private final String requiredIssuer;
 
     public JwtAuthenticator(DocNode docNode, ConfigurationRepository.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -67,6 +69,8 @@ public class JwtAuthenticator implements HTTPAuthenticator {
 
         this.jwtHeaderName = vNode.get("header").withDefault("Authorization").asString();
         this.jwtUrlParameter = vNode.get("url_parameter").asString();
+        this.requiredAudience = vNode.get("required_audience").asString();
+        this.requiredIssuer = vNode.get("required_issuer").asString();
 
         JsonWebKeys jwks = vNode.get("jwks").expected("A JWKS document").by((n) -> JwkUtils.readJwkSet(n.toJsonString()));
 
@@ -120,7 +124,7 @@ public class JwtAuthenticator implements HTTPAuthenticator {
 
         validationErrors.throwExceptionForPresentErrors();
 
-        this.jwtVerifier = new JwtVerifier(KeyProvider.combined(staticKeySet, openIdKeySet, jwksKeySet));
+        this.jwtVerifier = new JwtVerifier(KeyProvider.combined(staticKeySet, openIdKeySet, jwksKeySet), requiredAudience, requiredIssuer);
     }
 
     @Override

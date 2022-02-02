@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -74,7 +74,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private JwtVerifier jwtVerifier;
     private final String logoutUrl;
     private final boolean usePkce;
-
+    
     public OidcAuthenticator(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
 
         ValidationErrors validationErrors = new ValidationErrors();
@@ -99,7 +99,9 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         TLSConfig tlsConfig = vNode.get("idp.tls").by(TLSConfig::parse);
 
         boolean cacheJwksEndpoint = vNode.get("cache_jwks_endpoint").withDefault(false).asBoolean();
-
+        String requiredAudience = vNode.get("required_audience").asString();
+        String requiredIssuer = vNode.get("required_issuer").asString();
+        
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
@@ -115,7 +117,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         selfRefreshingKeySet.setRefreshRateLimitTimeWindowMs(refreshRateLimitTimeWindowMs);
         selfRefreshingKeySet.setRefreshRateLimitCount(refreshRateLimitCount);
 
-        jwtVerifier = new JwtVerifier(selfRefreshingKeySet);
+        jwtVerifier = new JwtVerifier(selfRefreshingKeySet, requiredAudience, requiredIssuer);
     }
 
     @Override
