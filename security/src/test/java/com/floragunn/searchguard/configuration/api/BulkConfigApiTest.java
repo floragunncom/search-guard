@@ -28,11 +28,11 @@ import org.junit.Test;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.google.common.collect.ImmutableMap;
 
 public class BulkConfigApiTest {
@@ -105,20 +105,20 @@ public class BulkConfigApiTest {
             Assert.assertEquals(response.getBody(), "bar", responseDoc.get("config_vars", "content", "bulk_test", "value"));
             Assert.assertNotNull(response.getBody(), responseDoc.get("config_vars", "content", "bulk_test_encrypted", "encrypted"));
             Assert.assertNull(response.getBody(), responseDoc.get("config_vars", "content", "bulk_test_encrypted", "value"));
-            
+
             response = client.delete("/_searchguard/config/vars/bulk_test_encrypted");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            
+
             Thread.sleep(20);
             response = client.get("/_searchguard/config/vars/bulk_test_encrypted");
             Assert.assertEquals(response.getBody(), 404, response.getStatusCode());
-            
+
             DocNode updateRequestDoc = DocNode.of("config_vars.content", responseDoc.get("config_vars", "content"));
             System.out.println(updateRequestDoc.toJsonString());
             HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc);
 
             Assert.assertEquals(updateResponse.getBody(), 200, updateResponse.getStatusCode());
-            
+
             Thread.sleep(20);
             response = client.get("/_searchguard/config/vars/bulk_test_encrypted");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
@@ -196,7 +196,7 @@ public class BulkConfigApiTest {
     @Test
     public void getTestWithoutAdminCertWithAllowedAction() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().user(ADMIN_USER)
-                .nodeSettings("searchguard.actions.admin_only", Collections.emptyList()).build()) {
+                .nodeSettings("searchguard.actions.admin_only", Collections.emptyList()).start()) {
             try (GenericRestClient client = cluster.getRestClient(ADMIN_USER)) {
 
                 HttpResponse updateResponse = client.get("/_searchguard/config");

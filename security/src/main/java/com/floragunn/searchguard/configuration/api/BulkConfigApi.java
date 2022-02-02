@@ -32,6 +32,8 @@ import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocUtils;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -125,7 +127,19 @@ public class BulkConfigApi {
                             Map<String, Object> resultEntry = new LinkedHashMap<>();
 
                             if (config.getUninterpolatedJson() != null) {
-                                resultEntry.put("content", UnparsedDocument.fromJson(config.getUninterpolatedJson()));
+                                if (config.getCType().getArity() == CType.Arity.SINGLE) {
+                                    try {
+                                        DocNode parsedConfig = DocNode.parse(Format.JSON).from(config.getUninterpolatedJson());
+                                        
+                                        if (parsedConfig.hasNonNull("default")) {
+                                            resultEntry.put("content", parsedConfig.get("default"));                                            
+                                        }
+                                    } catch (DocumentParseException e) {
+                                        throw new ConfigUnavailableException(e);
+                                    }
+                                } else {
+                                    resultEntry.put("content", UnparsedDocument.fromJson(config.getUninterpolatedJson()));
+                                }
                             } else {
                                 resultEntry.put("content", ObjectTreeXContent.toObjectTree(config, OMIT_DEFAULTS_PARAMS));
                             }
@@ -264,7 +278,7 @@ public class BulkConfigApi {
                     }
 
                     Object value = parsedJson.get(configTypeName);
-
+                                        
                     if (!(value instanceof Map)) {
                         validationErrors.add(new InvalidAttributeValue(configTypeName, value, "A config JSON document"));
                         continue;
@@ -283,6 +297,10 @@ public class BulkConfigApi {
                     }
 
                     Map<String, ?> contentMap = DocUtils.toStringKeyedMap((Map<?, ?>) content);
+                    
+                    if (ctype.getArity() == CType.Arity.SINGLE) {
+                        contentMap = ImmutableMap.of("default", contentMap);
+                    }
 
                     if (ctype == CType.CONFIG_VARS) {
                         Map<String, ConfigVar> parsedContentMap = new LinkedHashMap<>(contentMap.size());

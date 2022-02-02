@@ -34,7 +34,7 @@ import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.srv.LdapServer;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.unboundid.ldap.sdk.Attribute;
@@ -373,7 +373,7 @@ public class LdapBackendTestOldStyleConfig2 {
                     .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
             Assert.fail("Expected exception");
         } catch (final Exception e) {
-            Assert.assertEquals(IllegalStateException.class, e.getCause().getClass());
+            Assert.assertEquals(IllegalStateException.class, e.getCause().getCause().getClass());
         }
     }
 

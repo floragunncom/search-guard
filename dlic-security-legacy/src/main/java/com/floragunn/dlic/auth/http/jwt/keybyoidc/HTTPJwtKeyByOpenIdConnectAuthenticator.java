@@ -33,9 +33,14 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.codova.config.net.ProxyConfig;
-import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
+import com.floragunn.dlic.auth.http.jwt.HTTPJwtAuthenticator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
+import com.floragunn.searchguard.TypedComponent;
+import com.floragunn.searchguard.TypedComponent.Factory;
+import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
+import com.floragunn.searchguard.enterprise.auth.oidc.OidcProviderConfig;
+import com.floragunn.searchguard.legacy.LegacyComponentFactory;
 import com.floragunn.searchsupport.rest.Responses;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
@@ -99,7 +104,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
 
                 oidcProviderConfigMap.put("token_endpoint_proxy", generalRequestPathComponent + "/token");
 
-                Responses.sendJson(restChannel, oidcProviderConfigMap);
+                Responses.send(restChannel, RestStatus.OK, oidcProviderConfigMap);
             } else if ("token".equals(specificRequestPathComponent)) {
                 ContentType contentType = ContentType.APPLICATION_FORM_URLENCODED;
 
@@ -123,4 +128,23 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
         return "openid";
     }
 
+
+    public static TypedComponent.Info<LegacyHTTPAuthenticator> INFO = new TypedComponent.Info<LegacyHTTPAuthenticator>() {
+
+        @Override
+        public Class<LegacyHTTPAuthenticator> getType() {
+            return LegacyHTTPAuthenticator.class;
+        }
+
+        @Override
+        public String getName() {
+            return "openid";
+        }
+
+        @Override
+        public Factory<LegacyHTTPAuthenticator> getFactory() {
+            return LegacyComponentFactory.adapt(HTTPJwtKeyByOpenIdConnectAuthenticator::new);
+        }
+    };
 }
+

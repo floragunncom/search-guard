@@ -71,7 +71,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfig;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 
 public class SettingsBasedSSLConfiguratorTest {

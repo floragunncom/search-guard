@@ -97,7 +97,6 @@ import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.xcontent.json.JsonXContent;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -118,7 +117,6 @@ import com.floragunn.searchguard.ssl.util.config.ClientAuthCredentials;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.floragunn.searchguard.ssl.util.config.TrustStore;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.ConfigHelper;
 import com.floragunn.searchguard.support.SgJsonNode;
 import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient;
@@ -394,12 +392,6 @@ public class SearchGuardAdmin {
             return -1;
         }
         
-        
-        if(validateConfig != null) {
-            System.out.println("Validate configuration for Version "+validateConfig.intValue());
-            return validateConfig(cd, file, type, validateConfig.intValue());
-        }
-
         if (reloadHttpCerts || reloadTransportCerts) {
             TrustStore trustStore = null;
 
@@ -911,26 +903,8 @@ public class SearchGuardAdmin {
                 
         if(legacy) {
             type = "sg";
-            id = _id;
-            
-            try {
-                ConfigHelper.fromYamlFile(filepath, CType.fromString(_id), 1);
-            } catch (Exception e) {
-                System.out.println("ERR: Seems "+filepath+" is not in legacy format: "+e);
-                return false;
-            }
-            
-        } else {
-            try {
-                ConfigHelper.fromYamlFile(filepath, CType.fromString(_id), 2);
-            } catch (ConfigValidationException e) {
-                System.out.println("ERR: " + filepath + " is invalid:\n" + e.getMessage() + "\n" + e.getValidationErrors());
-                return false;
-            } catch (Exception e) {
-                System.out.println("ERR: Seems "+filepath+" is not in SG 7 format: "+e);
-                return false;
-            }
-        }
+            id = _id;            
+        } 
         
         System.out.println("Will update '"+type+"/" + id + "' with " + filepath+" "+(legacy?"(legacy mode)":""));
         
@@ -1270,11 +1244,6 @@ public class SearchGuardAdmin {
     
     private static int upload(TransportClient tc, String index, String cd, boolean legacy, NodesInfoResponse nodesInfo, boolean resolveEnvVars) {
         
-        if(validateConfig(cd, null, null, legacy?6:7) != 0) {
-            System.out.println("ERR: cannot upload configuration because of invalid files, see errors above");
-            return -1;
-        }
-        
         boolean success = uploadFile(tc, cd+"sg_config.yml", index, "config", legacy, resolveEnvVars);
         success = uploadFile(tc, cd+"sg_roles.yml", index, "roles", legacy, resolveEnvVars) && success;
         success = uploadFile(tc, cd+"sg_roles_mapping.yml", index, "rolesmapping", legacy, resolveEnvVars) && success;
@@ -1317,62 +1286,6 @@ public class SearchGuardAdmin {
         return new SgJsonNode(jsonNode).get("_sg_meta").get("type").asString();
     }
 
-    private static int validateConfig(String cd, String file, String type, int version) {
-        if (file != null) {
-            try {
-                
-                if(type == null) {
-                    type = readTypeFromFile(new File(file));
-                }
-                
-                if(type == null) {
-                    System.out.println("ERR: Unable to read type from "+file);
-                    return -1;
-                }
-                
-                ConfigHelper.fromYamlFile(file, CType.fromString(type), version==7?2:1);
-                return 0;
-            } catch (Exception e) {
-                System.out.println("ERR: Seems "+file+" is not in SG "+version+" format: "+e);
-                return -1;
-            }
-        } else if(cd != null) {
-            boolean success = validateConfigFile(cd+"sg_action_groups.yml", CType.ACTIONGROUPS, version);
-            success = validateConfigFile(cd+"sg_internal_users.yml", CType.INTERNALUSERS, version) && success;
-            success = validateConfigFile(cd+"sg_roles.yml", CType.ROLES, version) && success;
-            success = validateConfigFile(cd+"sg_roles_mapping.yml", CType.ROLESMAPPING, version) && success;
-            success = validateConfigFile(cd+"sg_config.yml", CType.CONFIG, version) && success;
-            
-            if(new File(cd+"sg_tenants.yml").exists() && version != 6) {
-                success = validateConfigFile(cd+"sg_tenants.yml", CType.TENANTS, version) && success;
-            }
-
-            if(new File(cd+"sg_blocks.yml").exists() && version != 6) {
-                success = validateConfigFile(cd+"sg_blocks.yml", CType.BLOCKS, version) && success;
-            }
-            
-            if(new File(cd+"sg_frontend_config.yml").exists() && version != 6) {
-                success = validateConfigFile(cd+"sg_frontend_config.yml", CType.FRONTEND_CONFIG, version) && success;
-            }
-            
-            return success?0:-1;
-
-        }
-        
-        return -1;
-    }
-    
-    private static boolean validateConfigFile(String file, CType<?> cType, int version) {
-        try {
-            ConfigHelper.fromYamlFile(file, cType, version==7?2:1);
-            System.out.println(file+" OK" );
-            return true;
-        } catch (Exception e) {
-            System.out.println("ERR: Seems "+file+" is not in SG "+version+" format: "+e);
-            return false;
-        }
-    }
-    
     private static String[] getTypes(boolean legacy) {
         if(legacy) {
             return new String[]{"config","roles","rolesmapping","internalusers","actiongroups"};

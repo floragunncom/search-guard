@@ -7,22 +7,7 @@ sg_config:
     debug: true
     kibana:
       server_username: kibanaserver
-    authc:
-      saml:
-        http_enabled: true
-        session_enabled: true
-        order: 0
-        http_authenticator:
-          type: "saml"
-          config:
-            idp: {}
-#               filled in by test          
-#               metadata_url: "metadata_url"
-#               entity_id: "entity_id"
-            kibana_url: https://kibana.example.com:5601/
-            roles_key: roles              
-        authentication_backend:
-          type: "noop"         
+    authc:        
       authentication_internal:
         http_enabled: true
         transport_enabled: true

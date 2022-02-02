@@ -1,0 +1,3 @@
+default:
+  auth_domains:
+  - type: basic/internal_users_db

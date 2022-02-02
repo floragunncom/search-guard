@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,19 @@
 package com.floragunn.codova.documents;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.VariableResolvers;
 
 @FunctionalInterface
 public interface Parser<T, C extends Parser.Context> {
-    T parse(Object basicObject, C context) throws ConfigValidationException;
+    T parse(DocNode docNode, C context) throws ConfigValidationException;
 
     interface Context {
         VariableResolvers variableResolvers();
     }
 
+    @FunctionalInterface
+    interface ReturningValidationResult<T, C extends Parser.Context> {
+        ValidationResult<T> parse(DocNode docNode, C context);
+    }
 }

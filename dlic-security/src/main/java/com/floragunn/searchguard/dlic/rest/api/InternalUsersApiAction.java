@@ -42,10 +42,10 @@ import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authc.internal_users_db.InternalUser;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.internal_users.InternalUser;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.InternalUsersValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
@@ -163,7 +163,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
 
         // checks complete, create or update the user
         try {
-            internaluser.putCEntry(username, InternalUser.parse(DocReader.json().readObject(newJson), cl.getParserContext()));
+            internaluser.putCEntry(username, InternalUser.parse(DocReader.json().readObject(newJson), cl.getParserContext()).get());
         } catch (ConfigValidationException e) {
             throw new RuntimeException(e);
         }

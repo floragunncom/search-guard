@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -25,10 +25,10 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.google.common.collect.ImmutableMap;
 
 public class SamlAuthenticatorIntegrationTest {
@@ -55,10 +55,10 @@ public class SamlAuthenticatorIntegrationTest {
         mockSamlIdpServer.setEndpointQueryString(null);
 
         TestSgConfig testSgConfig = new TestSgConfig().resources("saml")
-                .frontendAuthcz(new TestSgConfig.FrontendAuthcz("saml").label("SAML Label").config("user_mapping.roles", "roles", "idp.metadata_url",
-                        mockSamlIdpServer.getMetadataUri(), "idp.entity_id", mockSamlIdpServer.getIdpEntityId()));
+                .frontendAuthcz(new TestSgConfig.FrontendAuthcz("saml").label("SAML Label").config("user_mapping.roles.from", "saml_response.roles",
+                        "saml.idp.metadata_url", mockSamlIdpServer.getMetadataUri(), "saml.idp.entity_id", mockSamlIdpServer.getIdpEntityId()));
 
-        cluster = new LocalCluster.Builder().sslEnabled().singleNode().resources("saml").sgConfig(testSgConfig).build();
+        cluster = new LocalCluster.Builder().sslEnabled().singleNode().resources("saml").enterpriseModulesEnabled().sgConfig(testSgConfig).start();
     }
 
     @AfterClass
@@ -111,7 +111,7 @@ public class SamlAuthenticatorIntegrationTest {
 
             try (GenericRestClient tokenClient = cluster.getRestClient(tokenAuth)) {
 
-                response = tokenClient.get("/_searchguard/authinfo");
+                response = tokenClient.get("/_searchguard/auth/session");
 
                 System.out.println(response.getBody());
 

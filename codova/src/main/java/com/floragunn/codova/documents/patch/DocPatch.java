@@ -26,11 +26,16 @@ import com.floragunn.codova.validation.errors.ValidationError;
 
 public interface DocPatch extends Document<Object> {
     DocNode apply(DocNode targetDocument);
+
     String getMediaType();
 
     static DocPatch parse(String contentType, String content) throws ConfigValidationException {
         if (contentType.equalsIgnoreCase(MergePatch.MEDIA_TYPE)) {
             return new MergePatch(DocNode.parse(Format.JSON).from(content));
+        } else if (contentType.equalsIgnoreCase(JsonPathPatch.MEDIA_TYPE)) {
+            return new JsonPathPatch(DocNode.parse(Format.JSON).from(content));
+        } else if (contentType.equalsIgnoreCase(SimplePathPatch.MEDIA_TYPE)) {
+            return new SimplePathPatch(DocNode.parse(Format.JSON).from(content));
         } else {
             throw new ConfigValidationException(new ValidationError(null, "Unsupported patch type: " + contentType));
         }
@@ -39,6 +44,10 @@ public interface DocPatch extends Document<Object> {
     static DocPatch parse(UnparsedDocument<?> unparsedDoc) throws ConfigValidationException {
         if (unparsedDoc.getMediaType().equalsIgnoreCase(MergePatch.MEDIA_TYPE)) {
             return new MergePatch(DocNode.parse(unparsedDoc));
+        } else if (unparsedDoc.getMediaType().equalsIgnoreCase(JsonPathPatch.MEDIA_TYPE)) {
+            return new JsonPathPatch(DocNode.parse(unparsedDoc));
+        } else if (unparsedDoc.getMediaType().equalsIgnoreCase(SimplePathPatch.MEDIA_TYPE)) {
+            return new SimplePathPatch(DocNode.parse(unparsedDoc));  
         } else {
             throw new ConfigValidationException(new ValidationError(null, "Unsupported patch type: " + unparsedDoc.getMediaType()));
         }
@@ -49,6 +58,10 @@ public interface DocPatch extends Document<Object> {
 
         if (contentType.equalsIgnoreCase(MergePatch.MEDIA_TYPE)) {
             return new MergePatch(docNode.getAsNode("content"));
+        } else if (contentType.equalsIgnoreCase(JsonPathPatch.MEDIA_TYPE)) {
+            return new JsonPathPatch(docNode.getAsNode("content"));
+        } else if (contentType.equalsIgnoreCase(SimplePathPatch.MEDIA_TYPE)) {
+            return new SimplePathPatch(docNode.getAsNode("content"));
         } else {
             throw new ConfigValidationException(new ValidationError(null, "Unsupported patch type: " + contentType));
         }

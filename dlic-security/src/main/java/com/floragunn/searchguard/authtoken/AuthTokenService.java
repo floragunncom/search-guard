@@ -929,4 +929,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         return componentState;
     }
 
+    public boolean isEnabled() {
+        return config != null && config.isEnabled();
+    }
 }

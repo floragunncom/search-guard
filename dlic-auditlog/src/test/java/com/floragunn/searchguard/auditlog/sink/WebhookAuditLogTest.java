@@ -40,9 +40,9 @@ import com.floragunn.searchguard.auditlog.helper.TestHttpHandler;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.auditlog.sink.WebhookSink.WebhookFormat;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.PortAllocator;
+import com.floragunn.searchguard.support.ConfigConstants;
 
 public class WebhookAuditLogTest {
     

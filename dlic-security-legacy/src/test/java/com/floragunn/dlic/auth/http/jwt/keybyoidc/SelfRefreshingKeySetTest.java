@@ -24,7 +24,7 @@ import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 
 public class SelfRefreshingKeySetTest {
 

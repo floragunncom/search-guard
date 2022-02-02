@@ -17,6 +17,12 @@
 
 package com.floragunn.codova.documents;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 public interface Document<T> {
     Object toBasicObject();
 
@@ -25,7 +31,7 @@ public interface Document<T> {
     }
 
     default byte[] toBytes(Format format) {
-        return DocWriter.format(format).writeAsBytes(this.toBasicObject());        
+        return DocWriter.format(format).writeAsBytes(this.toBasicObject());
     }
 
     default String toJsonString() {
@@ -35,7 +41,7 @@ public interface Document<T> {
     default String toYamlString() {
         return toString(Format.YAML);
     }
-    
+
     default byte[] toSmile() {
         return toBytes(Format.SMILE);
     }
@@ -49,9 +55,37 @@ public interface Document<T> {
             return null;
         }
     }
-    
+
+    default Object toDeepBasicObject() {
+        return toDeepBasicObject(toBasicObject());
+    }
+
     @SuppressWarnings("unchecked")
     static <T> Document<T> assertedType(Object object, Class<T> type) {
         return (Document<T>) DocNode.wrap(object);
-    }    
+    }
+
+    static Object toDeepBasicObject(Object object) {
+        if (object instanceof Document) {
+            return ((Document<?>) object).toDeepBasicObject();
+        } else if (object instanceof Collection) {
+            List<Object> result = new ArrayList<>(((Collection<?>) object).size());
+
+            for (Object subObject : ((Collection<?>) object)) {
+                result.add(toDeepBasicObject(subObject));
+            }
+
+            return result;
+        } else if (object instanceof Map) {
+            Map<String, Object> result = new LinkedHashMap<>(((Map<?, ?>) object).size());
+
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) object).entrySet()) {
+                result.put(String.valueOf(entry.getKey()), toDeepBasicObject(entry.getValue()));
+            }
+
+            return result;
+        } else {
+            return object;
+        }
+    }
 }

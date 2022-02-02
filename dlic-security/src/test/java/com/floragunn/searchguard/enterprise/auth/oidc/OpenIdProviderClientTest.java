@@ -31,9 +31,8 @@ import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.google.common.collect.ImmutableMap;
 
 public class OpenIdProviderClientTest {

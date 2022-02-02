@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -27,7 +27,6 @@ import java.util.Map;
 import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
-import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -57,8 +56,7 @@ import org.elasticsearch.SpecialPermission;
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(KeySetRetriever.class);
@@ -76,6 +74,7 @@ public class OpenIdProviderClient {
     private int oidcCacheModuleResponses = 0;
     private long oidcRequests = 0;
     private long lastCacheStatusLog = 0;
+    private final JwksProviderClient jwkProviderClient;
 
     public OpenIdProviderClient(URI openIdConnectEndpoint, TLSConfig tlsConfig, ProxyConfig proxyConfig, boolean useCacheForOidConnectEndpoint) {
         this.openIdConnectEndpoint = openIdConnectEndpoint;
@@ -86,6 +85,8 @@ public class OpenIdProviderClient {
             cacheConfig = CacheConfig.custom().setMaxCacheEntries(10).setMaxObjectSize(1024L * 1024L).build();
             oidcHttpCacheStorage = new BasicHttpCacheStorage(cacheConfig);
         }
+        
+        this.jwkProviderClient = new JwksProviderClient(tlsConfig, proxyConfig);
     }
 
     public OidcProviderConfig getOidcConfiguration() throws AuthenticatorUnavailableException {
@@ -155,59 +156,7 @@ public class OpenIdProviderClient {
     }
 
     public JsonWebKeys getJsonWebKeys() throws AuthenticatorUnavailableException {
-        String uri = getJwksUri();
-
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
-        try {
-            return AccessController.doPrivileged((PrivilegedExceptionAction<JsonWebKeys>) () -> {
-                try (CloseableHttpClient httpClient = createHttpClient(null)) {
-
-                    HttpGet httpGet = new HttpGet(uri);
-
-                    RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(getRequestTimeoutMs())
-                            .setConnectTimeout(getRequestTimeoutMs()).setSocketTimeout(getRequestTimeoutMs()).build();
-
-                    httpGet.setConfig(requestConfig);
-
-                    try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
-                        StatusLine statusLine = response.getStatusLine();
-
-                        if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-                            throw new AuthenticatorUnavailableException("Error while retrieving JWKS OIDC config",
-                                    statusLine + (response.getEntity() != null ? "\n" + EntityUtils.toString(response.getEntity()) : ""))
-                                            .details("openid_configuration_url", openIdConnectEndpoint, "jwks_uri", uri);
-                        }
-
-                        HttpEntity httpEntity = response.getEntity();
-
-                        if (httpEntity == null) {
-                            throw new AuthenticatorUnavailableException("Error while retrieving JWKS OIDC config", "Empty response")
-                                    .details("openid_configuration_url", openIdConnectEndpoint, "jwks_uri", uri);
-                        }
-
-                        JsonWebKeys keySet = JwkUtils.readJwkSet(httpEntity.getContent());
-
-                        return keySet;
-                    }
-                } catch (IOException e) {
-                    throw new AuthenticatorUnavailableException("Error while retrieving JWKS OIDC config", e).details("openid_configuration_url",
-                            openIdConnectEndpoint, "jwks_uri", uri);
-                }
-            });
-        } catch (PrivilegedActionException e) {
-            if (e.getCause() instanceof AuthenticatorUnavailableException) {
-                throw (AuthenticatorUnavailableException) e.getCause();
-            } else if (e.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) e.getCause();
-            } else {
-                throw new RuntimeException(e.getCause());
-            }
-        }
+        return jwkProviderClient.getJsonWebKeys(getJwksUri());
     }
 
     public TokenResponse callTokenEndpoint(Map<String, String> params) 
@@ -316,7 +265,7 @@ public class OpenIdProviderClient {
         }
     }
 
-    String getJwksUri() throws AuthenticatorUnavailableException {
+    URI getJwksUri() throws AuthenticatorUnavailableException {
         return getOidcConfiguration().getJwksUri();
     }
 
@@ -326,6 +275,7 @@ public class OpenIdProviderClient {
 
     public void setRequestTimeoutMs(int httpTimeoutMs) {
         this.requestTimeoutMs = httpTimeoutMs;
+        this.jwkProviderClient.setRequestTimeoutMs(httpTimeoutMs);
     }
 
     private void logCacheResponseStatus(HttpCacheContext httpContext) {

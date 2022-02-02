@@ -31,7 +31,6 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -56,10 +55,12 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
-import com.floragunn.searchguard.auth.blocking.IpRangeVerdictBasedBlockRegistry;
-import com.floragunn.searchguard.auth.blocking.VerdictBasedBlockRegistry;
-import com.floragunn.searchguard.auth.blocking.WildcardVerdictBasedBlockRegistry;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchguard.authc.blocking.ClientBlockRegistry;
+import com.floragunn.searchguard.authc.blocking.IpRangeVerdictBasedBlockRegistry;
+import com.floragunn.searchguard.authc.blocking.VerdictBasedBlockRegistry;
+import com.floragunn.searchguard.authc.blocking.WildcardVerdictBasedBlockRegistry;
+import com.floragunn.searchguard.authz.RoleMapping;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
@@ -70,7 +71,6 @@ import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7.ExcludeIndex;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7.Index;
@@ -78,13 +78,11 @@ import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.support.WildcardMatcher;
+import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.StringInterpolationException;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchguard.user.UserAttributes;
 import com.floragunn.searchsupport.util.CheckTable;
 import com.floragunn.searchsupport.util.ImmutableSet;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Sets;
 
 import inet.ipaddr.AddressStringException;
@@ -102,18 +100,16 @@ public class ConfigModelV7 extends ConfigModel {
     private ConfigConstants.RolesMappingResolution rolesMappingResolution;
     private ActionGroups actionGroups;
     private SgRoles sgRoles;
-    private RoleMappingHolder roleMappingHolder;
-    private SgDynamicConfiguration<RoleV7> roles;
+    private RoleMapping.InvertedIndex invertedRoleMappings;
     private SgDynamicConfiguration<TenantV7> tenants;
     private ClientBlockRegistry<InetAddress> blockedIpAddresses;
     private ClientBlockRegistry<String> blockedUsers;
     private ClientBlockRegistry<IPAddress> blockeNetmasks;
 
-    public ConfigModelV7(SgDynamicConfiguration<RoleV7> roles, SgDynamicConfiguration<RoleMappingsV7> rolemappings,
+    public ConfigModelV7(SgDynamicConfiguration<RoleV7> roles, SgDynamicConfiguration<RoleMapping> rolemappings,
             SgDynamicConfiguration<ActionGroupsV7> actiongroups, SgDynamicConfiguration<TenantV7> tenants, SgDynamicConfiguration<BlocksV7> blocks,
-            DynamicConfigModel dcm, Settings esSettings) {
+            Settings esSettings) {
 
-        this.roles = roles;
         this.tenants = tenants;
 
         try {
@@ -127,7 +123,7 @@ public class ConfigModelV7 extends ConfigModel {
 
         actionGroups = new ActionGroups(actiongroups);
         sgRoles = reload(roles);
-        roleMappingHolder = new RoleMappingHolder(rolemappings, dcm.getHostsResolverMode());
+        invertedRoleMappings = new RoleMapping.InvertedIndex(rolemappings);
         blockedIpAddresses = reloadBlockedIpAddresses(blocks);
         blockedUsers = reloadBlockedUsers(blocks);
         blockeNetmasks = reloadBlockedNetmasks(blocks);
@@ -283,7 +279,7 @@ public class ConfigModelV7 extends ConfigModel {
     //beans
     public static class SgRoles extends com.floragunn.searchguard.sgconf.SgRoles implements ToXContentObject {
 
-        public static SgRoles create(SgDynamicConfiguration<RoleV7> settings, ActionGroups actionGroups) {
+        public static SgRoles create(SgDynamicConfiguration<RoleV7> settings, ActionGroups actionGroups) throws ConfigValidationException {
 
             SgRoles result = new SgRoles(settings.getCEntries().size());
 
@@ -506,6 +502,7 @@ public class ConfigModelV7 extends ConfigModel {
         @Override
         public PrivilegesEvaluationResult impliesIndexPrivilege(PrivilegesEvaluationContext context, ResolvedIndices resolved,
                 ImmutableSet<String> actions) throws PrivilegesEvaluationException {
+
             ImmutableSet<PrivilegesEvaluationResult.Error> errors = ImmutableSet.empty();
 
             if (resolved.isLocalAll()) {
@@ -532,15 +529,20 @@ public class ConfigModelV7 extends ConfigModel {
 
                 if (checkTable.isComplete() && !exclusionsPresent(context, resolved, checkTable)) {
                     return PrivilegesEvaluationResult.OK;
-                } 
-                
+                }
+
                 if (!context.isResolveLocalAll()) {
                     if (!checkTable.isComplete()) {
                         return PrivilegesEvaluationResult.INSUFFICIENT.reason("Insufficient privileges").with(checkTable);
                     } else {
-                        return PrivilegesEvaluationResult.INSUFFICIENT.reason("Privileges excluded").with(checkTable);                        
+                        return PrivilegesEvaluationResult.INSUFFICIENT.reason("Privileges excluded").with(checkTable);
                     }
                 }
+            }
+
+            if (resolved.getLocalIndices().isEmpty()) {
+                log.debug("No local indices; grant the request");
+                return PrivilegesEvaluationResult.OK;
             }
 
             CheckTable<String, String> checkTable = CheckTable.create(resolved.getLocalIndices(), actions);
@@ -548,8 +550,8 @@ public class ConfigModelV7 extends ConfigModel {
             top: for (SgRole role : roles.values()) {
                 for (IndexPattern indexPattern : role.ipatterns) {
                     try {
-                        String[] resolvedIndexPatterns = indexPattern.getResolvedIndexPatterns(context.getUser(),
-                                context.getResolver(), context.getClusterService(), true);
+                        String[] resolvedIndexPatterns = indexPattern.getResolvedIndexPatterns(context.getUser(), context.getResolver(),
+                                context.getClusterService(), true);
                         Set<String> matchingIndices = resolved.getLocalIndices()
                                 .matching((index) -> WildcardMatcher.matchAny(resolvedIndexPatterns, index));
 
@@ -569,18 +571,19 @@ public class ConfigModelV7 extends ConfigModel {
 
             if (checkTable.isComplete()) {
                 return PrivilegesEvaluationResult.OK;
-            } 
-            
-            ImmutableSet<String> availableIndices = checkTable.getCompleteRows();            
-            
+            }
+
+            ImmutableSet<String> availableIndices = checkTable.getCompleteRows();
+
             if (!availableIndices.isEmpty()) {
                 return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(availableIndices, checkTable);
             }
-                        
-            return PrivilegesEvaluationResult.INSUFFICIENT.with(checkTable, errors);            
+
+            return PrivilegesEvaluationResult.INSUFFICIENT.with(checkTable, errors);
         }
 
-        private void uncheckExclusions(PrivilegesEvaluationContext context, ResolvedIndices resolved, CheckTable<String, String> checkTable) throws PrivilegesEvaluationException {
+        private void uncheckExclusions(PrivilegesEvaluationContext context, ResolvedIndices resolved, CheckTable<String, String> checkTable)
+                throws PrivilegesEvaluationException {
 
             for (SgRole sgRole : roles.values()) {
                 for (ExcludedIndexPermissions indexPattern : sgRole.indexPermissionExclusions) {
@@ -599,7 +602,7 @@ public class ConfigModelV7 extends ConfigModel {
                             if (log.isDebugEnabled()) {
                                 log.debug(message, e);
                             }
-                            
+
                             throw new PrivilegesEvaluationException(message, e);
                         }
                     }
@@ -607,7 +610,7 @@ public class ConfigModelV7 extends ConfigModel {
                 }
             }
         }
-        
+
         private boolean exclusionsPresent(PrivilegesEvaluationContext privilegesEvaluationContext, ResolvedIndices resolved,
                 CheckTable<String, String> checkTable) {
 
@@ -722,35 +725,6 @@ public class ConfigModelV7 extends ConfigModel {
             return Collections.unmodifiableMap(result);
         }
 
-        private PrivilegesEvaluationResult checkIndexActionExclusion(ResolvedIndices requestedResolved, User user, Set<String> actions,
-                IndexNameExpressionResolver resolver, ClusterService cs) {
-            for (SgRole sgRole : roles.values()) {
-                for (ExcludedIndexPermissions indexPattern : sgRole.indexPermissionExclusions) {
-                    for (String requestedAction : actions) {
-                        if (indexPattern.perms.matches(requestedAction)) {
-                            try {
-                                if (requestedResolved.isLocalAll() || indexPattern.matches(requestedResolved.getLocalIndices(), user, resolver, cs)) {
-                                    return PrivilegesEvaluationResult.INSUFFICIENT.reason("Privilege exclusion rule");
-                                }
-                            } catch (StringInterpolationException e) {
-                                // For interpolation errors we go here for the strict path and also exclude the action. Otherwise, exclusions might break unexpectedly.
-
-                                String message = "Invalid index pattern " + indexPattern.indexPattern + " in permission exclusion.\n"
-                                        + "In order to fail safely, the requested actions will be denied for all indices.";
-
-                                if (log.isDebugEnabled()) {
-                                    log.debug(message, e);
-                                }
-                                return PrivilegesEvaluationResult.INSUFFICIENT.reason(message, new PrivilegesEvaluationResult.Error(message, e));
-                            }
-                        }
-                    }
-                }
-            }
-
-            return PrivilegesEvaluationResult.OK;
-        }
-
         private boolean containsDlsFlsConfig() {
             for (SgRole sgr : roles.values()) {
                 for (IndexPattern ip : sgr.getIpatterns()) {
@@ -784,7 +758,7 @@ public class ConfigModelV7 extends ConfigModel {
 
     public static class SgRole implements ToXContentObject {
 
-        static SgRole create(String roleName, RoleV7 roleConfig, ActionGroups actionGroups) {
+        static SgRole create(String roleName, RoleV7 roleConfig, ActionGroups actionGroups) throws ConfigValidationException {
             SgRole result = new SgRole(roleName);
 
             final Set<String> permittedClusterActions = actionGroups.resolve(roleConfig.getCluster_permissions());
@@ -1266,7 +1240,7 @@ public class ConfigModelV7 extends ConfigModel {
         private final Pattern perms;
         private final Set<String> permsAsString;
 
-        public ExcludedIndexPermissions(String indexPattern, Set<String> perms) {
+        public ExcludedIndexPermissions(String indexPattern, Set<String> perms) throws ConfigValidationException {
             super();
             this.indexPattern = Objects.requireNonNull(indexPattern);
             this.perms = Pattern.create(perms);
@@ -1276,7 +1250,7 @@ public class ConfigModelV7 extends ConfigModel {
         public boolean matches(Set<String> indices, User user, IndexNameExpressionResolver resolver, ClusterService cs)
                 throws StringInterpolationException {
             // Note: This does not process the obsolete user attributes any more
-            String indexPattern = UserAttributes.replaceAttributes(this.indexPattern, user);
+            String indexPattern = Attributes.replaceAttributes(this.indexPattern, user);
 
             if (log.isTraceEnabled()) {
                 log.trace("matches(" + indices + ") on " + this.indexPattern + " => " + indexPattern);
@@ -1348,7 +1322,7 @@ public class ConfigModelV7 extends ConfigModel {
         public ImmutableSet<String> removeMatches(ImmutableSet<String> indices, User user, IndexNameExpressionResolver resolver, ClusterService cs)
                 throws StringInterpolationException {
             // Note: This does not process the obsolete user attributes any more
-            String indexPattern = UserAttributes.replaceAttributes(this.indexPattern, user);
+            String indexPattern = Attributes.replaceAttributes(this.indexPattern, user);
 
             if (log.isTraceEnabled()) {
                 log.trace("removeMatches(" + indices + ") on " + this.indexPattern + " => " + indexPattern);
@@ -1411,10 +1385,9 @@ public class ConfigModelV7 extends ConfigModel {
             return indices;
         }
 
-        public void uncheckMatches(PrivilegesEvaluationContext context, CheckTable<String, String> checkTable)
-                throws StringInterpolationException {
+        public void uncheckMatches(PrivilegesEvaluationContext context, CheckTable<String, String> checkTable) throws StringInterpolationException {
             // Note: This does not process the obsolete user attributes any more
-            String indexPattern = UserAttributes.replaceAttributes(this.indexPattern, context.getUser());
+            String indexPattern = Attributes.replaceAttributes(this.indexPattern, context.getUser());
 
             if (log.isTraceEnabled()) {
                 log.trace("removeMatches(" + checkTable.getRows() + ") on " + this.indexPattern + " => " + indexPattern);
@@ -1545,7 +1518,7 @@ public class ConfigModelV7 extends ConfigModel {
         private Tenant(String tenant, Set<String> permissions) {
             super();
             this.tenantPattern = tenant;
-            this.tenantPatternNeedsAttributeReplacement = UserAttributes.needsAttributeReplacement(tenant);
+            this.tenantPatternNeedsAttributeReplacement = Attributes.needsAttributeReplacement(tenant);
             this.permissions = Collections.unmodifiableSet(permissions);
             this.readWrite = containsKibanaWritePermission(permissions);
         }
@@ -1556,7 +1529,7 @@ public class ConfigModelV7 extends ConfigModel {
 
         public String getEvaluatedTenantPattern(User user) throws StringInterpolationException {
             if (tenantPatternNeedsAttributeReplacement) {
-                return UserAttributes.replaceAttributes(tenantPattern, user);
+                return Attributes.replaceAttributes(tenantPattern, user);
             } else {
                 return tenantPattern;
             }
@@ -1641,7 +1614,7 @@ public class ConfigModelV7 extends ConfigModel {
 
         String result = replaceObsoleteProperties(orig, user);
 
-        result = UserAttributes.replaceAttributes(result, user);
+        result = Attributes.replaceAttributes(result, user);
 
         return result;
     }
@@ -1667,113 +1640,9 @@ public class ConfigModelV7 extends ConfigModel {
         return orig;
     }
 
-    private class RoleMappingHolder {
-
-        private ListMultimap<String, String> users;
-        private ListMultimap<Set<String>, String> abars;
-        private ListMultimap<String, String> bars;
-        private ListMultimap<String, String> hosts;
-        private final String hostResolverMode;
-
-        private RoleMappingHolder(final SgDynamicConfiguration<RoleMappingsV7> rolemappings, final String hostResolverMode) {
-
-            this.hostResolverMode = hostResolverMode;
-
-            if (roles != null) {
-
-                final ListMultimap<String, String> users_ = ArrayListMultimap.create();
-                final ListMultimap<Set<String>, String> abars_ = ArrayListMultimap.create();
-                final ListMultimap<String, String> bars_ = ArrayListMultimap.create();
-                final ListMultimap<String, String> hosts_ = ArrayListMultimap.create();
-
-                for (final Entry<String, RoleMappingsV7> roleMap : rolemappings.getCEntries().entrySet()) {
-
-                    for (String u : roleMap.getValue().getUsers()) {
-                        users_.put(u, roleMap.getKey());
-                    }
-
-                    final Set<String> abar = new HashSet<String>(roleMap.getValue().getAnd_backend_roles());
-
-                    if (!abar.isEmpty()) {
-                        abars_.put(abar, roleMap.getKey());
-                    }
-
-                    for (String bar : roleMap.getValue().getBackend_roles()) {
-                        bars_.put(bar, roleMap.getKey());
-                    }
-
-                    for (String host : roleMap.getValue().getHosts()) {
-                        hosts_.put(host, roleMap.getKey());
-                    }
-                }
-
-                users = users_;
-                abars = abars_;
-                bars = bars_;
-                hosts = hosts_;
-            }
-        }
-
-        private Set<String> map(final User user, final TransportAddress caller) {
-
-            if (user == null || users == null || abars == null || bars == null || hosts == null) {
-                return Collections.emptySet();
-            }
-
-            final Set<String> sgRoles = new TreeSet<String>(user.getSearchGuardRoles());
-
-            if (rolesMappingResolution == ConfigConstants.RolesMappingResolution.BOTH
-                    || rolesMappingResolution == ConfigConstants.RolesMappingResolution.BACKENDROLES_ONLY) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Pass backendroles from {}", user);
-                }
-                sgRoles.addAll(user.getRoles());
-            }
-
-            if (((rolesMappingResolution == ConfigConstants.RolesMappingResolution.BOTH
-                    || rolesMappingResolution == ConfigConstants.RolesMappingResolution.MAPPING_ONLY))) {
-
-                for (String p : WildcardMatcher.getAllMatchingPatterns(users.keySet(), user.getName())) {
-                    sgRoles.addAll(users.get(p));
-                }
-
-                for (String p : WildcardMatcher.getAllMatchingPatterns(bars.keySet(), user.getRoles())) {
-                    sgRoles.addAll(bars.get(p));
-                }
-
-                for (Set<String> p : abars.keySet()) {
-                    if (WildcardMatcher.allPatternsMatched(p, user.getRoles())) {
-                        sgRoles.addAll(abars.get(p));
-                    }
-                }
-
-                if (caller != null) {
-                    //IPV4 or IPv6 (compressed and without scope identifiers)
-                    final String ipAddress = caller.getAddress();
-
-                    for (String p : WildcardMatcher.getAllMatchingPatterns(hosts.keySet(), ipAddress)) {
-                        sgRoles.addAll(hosts.get(p));
-                    }
-
-                    if (caller.address() != null
-                            && (hostResolverMode.equalsIgnoreCase("ip-hostname") || hostResolverMode.equalsIgnoreCase("ip-hostname-lookup"))) {
-                        final String hostName = caller.address().getHostName();
-
-                        for (String p : WildcardMatcher.getAllMatchingPatterns(hosts.keySet(), hostName)) {
-                            sgRoles.addAll(hosts.get(p));
-                        }
-                    }
-                }
-            }
-
-            return Collections.unmodifiableSet(sgRoles);
-
-        }
-    }
-
     @Override
     public Set<String> mapSgRoles(User user, TransportAddress caller) {
-        return roleMappingHolder.map(user, caller);
+        return invertedRoleMappings.evaluate(user, caller, rolesMappingResolution);
     }
 
     public static class TenantPermissionsImpl implements TenantPermissions {

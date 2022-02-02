@@ -3,4 +3,4 @@ _sg_meta:
   config_version: 2
     
 default:
-  authcz: []
+  auth_domains: []

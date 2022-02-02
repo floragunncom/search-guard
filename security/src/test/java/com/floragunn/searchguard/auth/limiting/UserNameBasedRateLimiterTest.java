@@ -25,6 +25,8 @@ import java.net.InetAddress;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
 
+import com.floragunn.searchguard.authc.limiting.AddressBasedRateLimiter;
+
 public class UserNameBasedRateLimiterTest {
 
     @Test

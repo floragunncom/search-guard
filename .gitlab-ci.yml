@@ -111,6 +111,27 @@ test_security:
       - .m2/repository
     policy: pull
 
+test_security_legacy:
+  stage: test
+  interruptible: true
+  tags:
+    - openstack-runner
+  script:
+    - find .
+    - mvn $MAVEN_CLI_OPTS -pl security-legacy test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo
+    paths:
+      - .m2/repository
+    policy: pull
+
 test_ssl:
   stage: test
   interruptible: true
@@ -280,6 +301,26 @@ test_dlic_dlsfls:
     - aws-runner
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo
+    paths:
+      - .m2/repository
+    policy: pull
+
+test_dlic_femt:
+  stage: test
+  interruptible: true
+  tags:
+    - aws-runner
+  script:
+    - mvn $MAVEN_CLI_OPTS -pl dlic-fe-multi-tenancy test
   artifacts:
     when: always
     reports:

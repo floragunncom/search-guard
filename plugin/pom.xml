@@ -159,6 +159,12 @@
 					<artifactId>search-guard-suite-security</artifactId>
 					<version>${project.version}</version>
 				</dependency>
+				
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>search-guard-suite-security-legacy</artifactId>
+					<version>${project.version}</version>
+				</dependency>				
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
@@ -213,7 +219,13 @@
 					<groupId>${project.groupId}</groupId>
 					<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
 					<version>${project.version}</version>
-				</dependency>					
+				</dependency>		
+				
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-suite-fe-multi-tenancy</artifactId>
+					<version>${project.version}</version>
+				</dependency>								
 				
 				<!-- necessary for sgadmin-standalone. we should find a different solution for this -->
 				<dependency>
@@ -263,6 +275,12 @@
 					<artifactId>search-guard-suite-security</artifactId>
 					<version>${project.version}</version>
 				</dependency>
+				
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>search-guard-suite-security-legacy</artifactId>
+					<version>${project.version}</version>
+				</dependency>				
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
@@ -312,6 +330,12 @@
 					<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
 					<version>${project.version}</version>
 				</dependency>								
+
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-suite-fe-multi-tenancy</artifactId>
+					<version>${project.version}</version>
+				</dependency>	
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 floragunn GmbH
+ * Copyright 2020-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ public class ValidationError implements Document<ValidationError> {
 
     private String attribute;
     private String message;
-    private Exception cause;
+    private Throwable cause;
     private Object docNode;
     private Object expected;
 
@@ -65,7 +65,7 @@ public class ValidationError implements Document<ValidationError> {
         return this;
     }
 
-    public ValidationError cause(Exception cause) {
+    public ValidationError cause(Throwable cause) {
         this.cause = cause;
         return this;
     }
@@ -75,7 +75,7 @@ public class ValidationError implements Document<ValidationError> {
         return this;
     }
 
-    public Exception getCause() {
+    public Throwable getCause() {
         return cause;
     }
 

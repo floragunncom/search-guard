@@ -26,10 +26,10 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.execution.ActionExecutionException;
@@ -182,7 +182,10 @@ public class ActionTest {
             .enableModule(SignalsModule.class).build();
 
     @BeforeClass
-    public static void setupTestData() {
+    public static void setupTestData() throws Throwable {
+
+        // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
+        cluster.before();
 
         try (Client client = cluster.getAdminCertClient()) {
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))

@@ -20,6 +20,7 @@ package com.floragunn.searchguard.configuration;
 /**
  * Callback function on change particular configuration
  */
+@FunctionalInterface
 public interface ConfigurationChangeListener {
 
     /**

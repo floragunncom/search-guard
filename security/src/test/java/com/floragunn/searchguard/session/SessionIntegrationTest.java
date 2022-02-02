@@ -25,12 +25,12 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.BearerAuthorization;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 
 public class SessionIntegrationTest {
 
@@ -67,7 +67,7 @@ public class SessionIntegrationTest {
         try (GenericRestClient restClient = cluster.getRestClient(new BearerAuthorization(token))) {
             HttpResponse response = restClient.get("/_searchguard/authinfo");
 
-            System.out.println(response.getBody());
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
             Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
         }
@@ -100,7 +100,7 @@ public class SessionIntegrationTest {
         try (GenericRestClient restClient = cluster.getRestClient(new BearerAuthorization(token))) {
             HttpResponse response = restClient.get("/_searchguard/authinfo");
 
-            System.out.println(response.getBody());
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
             Assert.assertEquals(response.getBody(), "test_user", response.toJsonNode().path("user_name").textValue());
             Assert.assertEquals(response.getBody(), "backend_role_all_access", response.toJsonNode().path("backend_roles").path(0).textValue());
@@ -138,7 +138,7 @@ public class SessionIntegrationTest {
 
     @Test
     public void justBasicAuthWithoutFrontendConfigTest() throws Exception {
-        try (LocalCluster cluster = new LocalCluster.Builder().resources("session").user(BASIC_USER).sslEnabled().singleNode().build()) {
+        try (LocalCluster cluster = new LocalCluster.Builder().resources("session").user(BASIC_USER).sslEnabled().singleNode().start()) {
             String token;
 
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
@@ -162,8 +162,8 @@ public class SessionIntegrationTest {
 
             try (GenericRestClient restClient = cluster.getRestClient(new BearerAuthorization(token))) {
                 HttpResponse response = restClient.get("/_searchguard/authinfo");
-
-                System.out.println(response.getBody());
+                
+                Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
                 Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
             }

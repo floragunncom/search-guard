@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import com.floragunn.searchguard.test.helper.network.PortAllocator;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchguard.test.helper.network.SocketUtils.SocketType;
 
 public class PortAllocator {

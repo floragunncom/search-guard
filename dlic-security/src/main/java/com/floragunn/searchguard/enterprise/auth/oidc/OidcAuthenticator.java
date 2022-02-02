@@ -19,16 +19,11 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
@@ -40,32 +35,29 @@ import org.apache.logging.log4j.Logger;
 
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
-import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidatingFunction;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
-import com.floragunn.dlic.util.Roles;
-import com.floragunn.searchguard.auth.AuthczResult;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.auth.CredentialsException;
-import com.floragunn.searchguard.auth.frontend.ActivatedFrontendConfig;
-import com.floragunn.searchguard.auth.frontend.GetFrontendConfigAction;
-import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.TypedComponent;
+import com.floragunn.searchguard.TypedComponent.Factory;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.CredentialsException;
+import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
+import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auth.oidc.OpenIdProviderClient.TokenResponse;
+import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchguard.user.UserAttributes;
 import com.google.common.base.Strings;
 import com.google.common.hash.Hashing;
 import com.google.common.io.BaseEncoding;
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
-import com.jayway.jsonpath.PathNotFoundException;
 
 public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(OidcAuthenticator.class);
@@ -80,36 +72,22 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private final String clientSecret;
     private final String scope;
     private JwtVerifier jwtVerifier;
-    private final Pattern subjectPattern;
-    private final JsonPath jsonSubjectPath;
-    private final JsonPath jsonRolesPath;
     private final String logoutUrl;
     private final boolean usePkce;
-    private Configuration jsonPathConfig;
-    private Map<String, JsonPath> attributeMapping;
 
     public OidcAuthenticator(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
 
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context);
+        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors, context);
 
         this.clientId = vNode.get("client_id").required().asString();
         this.usePkce = vNode.get("pkce").withDefault(true).asBoolean();
         this.clientSecret = vNode.get("client_secret").required(!this.usePkce).asString();
 
         this.scope = vNode.get("scope").withDefault("openid profile email address phone").asString();
-        this.proxyConfig = vNode.get("idp.proxy").by(ProxyConfig::parse);
+        this.proxyConfig = vNode.get("idp.proxy").by((ValidatingFunction<DocNode, ProxyConfig>) ProxyConfig::parse);
 
-        jsonRolesPath = vNode.get("user_mapping.roles").asJsonPath();
-        jsonSubjectPath = vNode.get("user_mapping.subject").asJsonPath();
-        subjectPattern = vNode.get("user_mapping.subject_pattern").asPattern();
         logoutUrl = vNode.get("logout_url").asString();
-
-        try {
-            attributeMapping = UserAttributes.getAttributeMapping(vNode.get("user_mapping.attrs").asMap());
-        } catch (ConfigValidationException e) {
-            validationErrors.add("user_mapping.attrs", e);
-        }
 
         int idpRequestTimeoutMs = vNode.get("idp_request_timeout_ms").withDefault(5000).asInt();
         int idpQueuedThreadTimeoutMs = vNode.get("idp_queued_thread_timeout_ms").withDefault(2500).asInt();
@@ -138,13 +116,11 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         selfRefreshingKeySet.setRefreshRateLimitCount(refreshRateLimitCount);
 
         jwtVerifier = new JwtVerifier(selfRefreshingKeySet);
-
-        jsonPathConfig = BasicJsonPathDefaultConfiguration.builder().options(Option.ALWAYS_RETURN_LIST).build();
     }
 
     @Override
     public ActivatedFrontendConfig.AuthMethod activateFrontendConfig(ActivatedFrontendConfig.AuthMethod frontendConfig,
-            GetFrontendConfigAction.Request request) throws AuthenticatorUnavailableException {
+            GetActivatedFrontendConfigAction.Request request) throws AuthenticatorUnavailableException {
         try {
             OidcProviderConfig oidcProviderConfig = openIdProviderClient.getOidcConfiguration();
 
@@ -314,16 +290,9 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
         debugDetails.put("claims", claims.asMap());
 
-        String subject = extractSubject(claims);
-        List<String> roles = extractRoles(claims, debugDetails);
-
-        if (log.isTraceEnabled()) {
-            log.trace("From JWT:\nSubject: " + subject + "\nRoles: " + roles);
-        }
-
-        return AuthCredentials.forUser(subject).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
-                .attribute(UserAttributes.AUTH_TYPE, "oidc").attribute("__oidc_id", jwtString).attribute("__fe_base_url", frontendBaseUrl.toString())
-                .claims(claims.asMap()).complete().redirectUri(frontendRedirectUri).build();
+        return AuthCredentials.forUser(claims.getSubject()).userMappingAttribute("jwt", claims.asMap()).attribute(Attributes.AUTH_TYPE, "oidc")
+                .attribute("__oidc_id", jwtString).attribute("__fe_base_url", frontendBaseUrl.toString()).claims(claims.asMap()).complete()
+                .redirectUri(frontendRedirectUri).build();
     }
 
     @Override
@@ -396,91 +365,6 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         return "oidc";
     }
 
-    protected String extractSubject(JwtClaims claims) throws CredentialsException {
-        String subject = claims.getSubject();
-        Map<String, Object> debugDetails = new HashMap<>();
-
-        debugDetails.put("claims", claims.asMap());
-        debugDetails.put("user_mapping.subject", jsonSubjectPath);
-
-        if (jsonSubjectPath != null) {
-            try {
-                Object subjectObject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims.asMap())
-                        .read(jsonSubjectPath);
-
-                if (subjectObject == null) {
-                    throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "The JWT contains a null subject", debugDetails));
-                }
-
-                if (subjectObject instanceof Collection) {
-                    Collection<?> subjectCollection = (Collection<?>) subjectObject;
-
-                    if (subjectCollection.size() == 0) {
-                        throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "The subject array is empty", debugDetails));
-                    }
-
-                    if (subjectCollection.size() > 1) {
-                        throw new CredentialsException(
-                                new AuthczResult.DebugInfo(getType(), false, "The subject array contains more than one element.", debugDetails));
-                    }
-
-                    subject = String.valueOf(subjectCollection.iterator().next());
-                } else {
-                    subject = String.valueOf(subjectObject);
-                }
-
-            } catch (PathNotFoundException e) {
-                log.error("The provided JSON path {} could not be found ", jsonSubjectPath.getPath());
-                throw new CredentialsException(
-                        new AuthczResult.DebugInfo(getType(), false, "The configured JSON Path could not be found in the JWT", debugDetails));
-            }
-        }
-
-        if (subject != null && subjectPattern != null) {
-            Matcher matcher = subjectPattern.matcher(subject);
-
-            if (!matcher.matches()) {
-                log.warn("Subject " + subject + " does not match subject_pattern " + subjectPattern);
-                throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                        "Subject " + subject + " does not match subject_pattern " + subjectPattern, debugDetails));
-            }
-
-            if (matcher.groupCount() == 1) {
-                subject = matcher.group(1);
-            } else if (matcher.groupCount() > 1) {
-                StringBuilder subjectBuilder = new StringBuilder();
-
-                for (int i = 1; i <= matcher.groupCount(); i++) {
-                    if (matcher.group(i) != null) {
-                        subjectBuilder.append(matcher.group(i));
-                    }
-                }
-
-                if (subjectBuilder.length() != 0) {
-                    subject = subjectBuilder.toString();
-                } else {
-                    throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                            "subject_pattern " + subjectPattern + " extracted empty subject. Original subject: " + subject, debugDetails));
-                }
-            }
-        }
-
-        return subject;
-    }
-
-    protected List<String> extractRoles(JwtClaims claims, Map<String, Object> debugInfo) throws CredentialsException {
-        if (jsonRolesPath != null) {
-            try {
-                return Arrays.asList(Roles.split(JsonPath.using(jsonPathConfig).parse(claims.asMap()).read(jsonRolesPath)));
-            } catch (PathNotFoundException e) {
-                throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                        "The roles JSON path was not found in the Id token claims: " + jsonRolesPath.getPath(), debugInfo));
-            }
-        } else {
-            return Collections.emptyList();
-        }
-    }
-
     private String createOpaqueToken(int byteCount) {
         byte[] b = new byte[byteCount];
         SECURE_RANDOM.nextBytes(b);
@@ -503,4 +387,21 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         return ssoContext.substring(valueIndex, endIndex == -1 ? ssoContext.length() : endIndex).trim();
     }
 
+    public static TypedComponent.Info<ApiAuthenticationFrontend> INFO = new TypedComponent.Info<ApiAuthenticationFrontend>() {
+
+        @Override
+        public Class<ApiAuthenticationFrontend> getType() {
+            return ApiAuthenticationFrontend.class;
+        }
+
+        @Override
+        public String getName() {
+            return "oidc";
+        }
+
+        @Override
+        public Factory<ApiAuthenticationFrontend> getFactory() {
+            return OidcAuthenticator::new;
+        }
+    };
 }

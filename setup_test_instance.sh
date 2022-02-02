@@ -225,6 +225,7 @@ cluster.routing.allocation.disk.threshold_enabled: false
 xpack.security.enabled: false
 EOM
 
+mkdir -p ~/.searchguard
 cat >~/.searchguard/cluster_test.yml << EOM
 server: "localhost"
 port: 9200

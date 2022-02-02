@@ -20,14 +20,14 @@ package com.floragunn.searchguard.sgconf;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 
 public class FrontendConfigIntegrationTests {
 
     @Test
     public void testLegacy() throws Exception {
-        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config_legacy").build()) {
+        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config_legacy").start()) {
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
                 GenericRestClient.HttpResponse response = restClient.get("/_searchguard/auth/config");
 
@@ -40,23 +40,22 @@ public class FrontendConfigIntegrationTests {
             }
         }
     }
-    
-    
+
     @Test
     public void testNonLegacy() throws Exception {
-        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config").build()) {
+        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config").start()) {
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
                 GenericRestClient.HttpResponse response = restClient.get("/_searchguard/auth/config");
 
                 System.out.println(response.getBody());
 
-
                 Assert.assertTrue(response.getBody(),
                         response.toJsonNode().path("auth_methods").isArray() && response.toJsonNode().path("auth_methods").size() == 1);
                 Assert.assertEquals(response.getBody(), "basic", response.toJsonNode().path("auth_methods").path(0).path("method").asText());
-                Assert.assertEquals(response.getBody(), "Login Customized", response.toJsonNode().path("auth_methods").path(0).path("label").asText());
+                Assert.assertEquals(response.getBody(), "Login Customized",
+                        response.toJsonNode().path("auth_methods").path(0).path("label").asText());
                 Assert.assertTrue(response.getBody(), response.toJsonNode().path("auth_methods").path(0).path("id").isMissingNode());
-                
+
             }
         }
     }
