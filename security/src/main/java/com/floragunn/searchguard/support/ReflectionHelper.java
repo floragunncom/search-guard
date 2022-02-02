@@ -45,21 +45,20 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.GuiceDependencies;
+import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
-import com.floragunn.searchguard.auth.AuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.AuthczComponentContext;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
-import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.DynamicConfigModel;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.ssl.transport.DefaultPrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -303,29 +302,8 @@ public class ReflectionHelper {
         }
     }
 
-    public static PrivilegesInterceptor instantiatePrivilegesInterceptorImpl(ConfigModel configModel, DynamicConfigModel dynamicConfigModel) {
-
-        if (enterpriseModulesDisabled()) {
-            return null;
-        }
-
-        try {
-            final Class<?> clazz = Class.forName("com.floragunn.searchguard.configuration.PrivilegesInterceptorImpl");
-            final PrivilegesInterceptor ret = (PrivilegesInterceptor) clazz.getConstructor(ConfigModel.class, DynamicConfigModel.class)
-                    .newInstance(configModel, dynamicConfigModel);
-            addLoadedModule(clazz);
-            return ret;
-        } catch (final Throwable e) {
-            log.warn("Unable to enable Kibana Module due to {}", e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            return null;
-        }
-    }
-
     @SuppressWarnings("unchecked")
-    public static <T> T instantiateAAA(final String clazz, final Settings settings, final Path configPath, final boolean checkEnterprise) throws ConfigValidationException {
+    public static <T> T instantiateAAA(final String clazz, final Settings settings, final Path configPath, final boolean checkEnterprise) throws ConfigValidationException, NoSuchComponentException {
 
         if (checkEnterprise && enterpriseModulesDisabled()) {
             throw new ElasticsearchException("Can not load '{}' because enterprise modules are disabled", clazz);
@@ -348,6 +326,8 @@ public class ReflectionHelper {
                 }
                 throw new ElasticsearchException(e);
             }
+        } catch (ClassNotFoundException e) {
+            throw new NoSuchComponentException(clazz, e);
         } catch (final Throwable e) {
             log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
             if (log.isDebugEnabled()) {
@@ -403,6 +383,54 @@ public class ReflectionHelper {
             throw new ElasticsearchException(e);
         }
     }
+    
+    @SuppressWarnings("unchecked")
+    public static <T> T instantiateAAA(String clazz, DocNode config, AuthczComponentContext context, boolean checkEnterprise) throws ConfigValidationException, ClassNotFoundException {
+
+        if (checkEnterprise && enterpriseModulesDisabled()) {
+            throw new ElasticsearchException("Can not load '{}' because enterprise modules are disabled", clazz);
+        }
+
+        try {
+            final Class<?> clazz0 = Class.forName(clazz);
+            T ret;
+            
+            try {
+                ret = (T) clazz0.getConstructor(DocNode.class, AuthczComponentContext.class).newInstance(config, context);
+            } catch (NoSuchMethodException e) {
+                Settings.Builder settings = Settings.builder().loadFromMap(config);
+                
+                if (context.getEsSettings() != null) {
+                    settings.put(context.getEsSettings());
+                }
+                
+                ret = (T) clazz0.getConstructor(Settings.class, Path.class).newInstance(settings.build(), context.getConfigPath());
+            }
+            
+            addLoadedModule(clazz0);
+
+            return ret;
+        } catch (ClassNotFoundException e) {
+            throw e;
+        } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof ConfigValidationException) {
+                throw (ConfigValidationException) e.getCause();
+            } else {
+                log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
+                if (log.isDebugEnabled()) {
+                    log.debug("Stacktrace: ", e);
+                }
+                throw new ElasticsearchException(e);
+            }
+        } catch (final Throwable e) {
+            log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
+            if (log.isDebugEnabled()) {
+                log.debug("Stacktrace: ", e);
+            }
+            throw new ElasticsearchException(e);
+        }
+    }
+
 
     public static InterClusterRequestEvaluator instantiateInterClusterRequestEvaluator(final String clazz, final Settings settings) {
 
@@ -488,21 +516,29 @@ public class ReflectionHelper {
 
         try {
 
-            final String classPath = impl.getResource(impl.getSimpleName() + ".class").toString();
-            moduleInfo.setClasspath(classPath);
+            // TODO this does not work for anon classes
+            // Also, as it uses getSimpleName(), it disregards package names. If there are classes with the same name on the classpath, this will get confused. 
+            URL classPathUrl = impl.getResource(impl.getSimpleName() + ".class");
+            
+            if (classPathUrl != null) {
+                String classPath = classPathUrl.toString();
+                moduleInfo.setClasspath(classPath);
 
-            if (!classPath.startsWith("jar")) {
-                return moduleInfo;
-            }
+                if (!classPath.startsWith("jar")) {
+                    return moduleInfo;
+                }
 
-            final String manifestPath = classPath.substring(0, classPath.lastIndexOf("!") + 1) + "/META-INF/MANIFEST.MF";
+                final String manifestPath = classPath.substring(0, classPath.lastIndexOf("!") + 1) + "/META-INF/MANIFEST.MF";
 
-            try (InputStream stream = new URL(manifestPath).openStream()) {
-                final Manifest manifest = new Manifest(stream);
-                final Attributes attr = manifest.getMainAttributes();
-                moduleInfo.setVersion(attr.getValue("Implementation-Version"));
-                moduleInfo.setBuildTime(attr.getValue("Build-Time"));
-                moduleInfo.setGitsha1(attr.getValue("git-sha1"));
+                try (InputStream stream = new URL(manifestPath).openStream()) {
+                    final Manifest manifest = new Manifest(stream);
+                    final Attributes attr = manifest.getMainAttributes();
+                    moduleInfo.setVersion(attr.getValue("Implementation-Version"));
+                    moduleInfo.setBuildTime(attr.getValue("Build-Time"));
+                    moduleInfo.setGitsha1(attr.getValue("git-sha1"));
+                }
+            } else {
+                log.error("Unable to retrieve module info for " + impl);               
             }
         } catch (final Throwable e) {
             log.error("Unable to retrieve module info for " + impl, e);

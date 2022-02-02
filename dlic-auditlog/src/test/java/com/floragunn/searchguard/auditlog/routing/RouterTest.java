@@ -31,8 +31,8 @@ import com.floragunn.searchguard.auditlog.sink.DebugSink;
 import com.floragunn.searchguard.auditlog.sink.ExternalESSink;
 import com.floragunn.searchguard.auditlog.sink.InternalESSink;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
 
 public class RouterTest extends AbstractAuditlogiUnitTest{
 

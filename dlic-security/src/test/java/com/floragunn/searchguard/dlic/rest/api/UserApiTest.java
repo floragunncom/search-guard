@@ -29,10 +29,10 @@ import org.junit.Test;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 
 public class UserApiTest {
 
@@ -80,7 +80,7 @@ public class UserApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             System.out.println(response.getBody());
             settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertEquals(4, settings.size());
+            Assert.assertEquals(5, settings.size());
             // hash must be filtered
             Assert.assertEquals(null, settings.get("admin.hash"));
 
@@ -327,7 +327,7 @@ public class UserApiTest {
                 .nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin",
                         ConfigConstants.SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_ERROR_MESSAGE, "xxx",
                         ConfigConstants.SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_REGEX, "(?=.*[A-Z])(?=.*[^a-zA-Z\\\\d])(?=.*[0-9])(?=.*[a-z]).{8,}")
-                .resources("restapi").singleNode().sslEnabled().enterpriseModulesEnabled().build();
+                .resources("restapi").singleNode().sslEnabled().enterpriseModulesEnabled().start();
                 GenericRestClient adminClient = cluster.getAdminCertRestClient().trackResources()) {
 
             // initial configuration, 5 users

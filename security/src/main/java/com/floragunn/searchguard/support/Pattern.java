@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,20 @@ package com.floragunn.searchguard.support;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.regex.PatternSyntaxException;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.searchsupport.util.ImmutableList;
 import com.floragunn.searchsupport.util.ImmutableSet;
 
-public interface Pattern {
+public interface Pattern extends Document<Pattern> {
 
-    public static Pattern create(String pattern) {
+    public static Pattern create(String pattern) throws ConfigValidationException {
         if ("*".equals(pattern)) {
             return WILDCARD;
         } else if (pattern.startsWith("/") && pattern.endsWith("/")) {
@@ -36,13 +44,21 @@ public interface Pattern {
         }
     }
 
-    public static Pattern create(Collection<String> patterns) {
+    public static Pattern create(Collection<String> patterns) throws ConfigValidationException {
         if (patterns.size() == 0) {
             return BLANK;
         } else if (patterns.size() == 1) {
             return create(patterns.iterator().next());
         } else {
             return CompoundPattern.create(patterns);
+        }
+    }
+
+    public static Pattern parse(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        if (docNode.isList()) {
+            return create(docNode.toListOfStrings());
+        } else {
+            return create(docNode.toString());
         }
     }
 
@@ -53,6 +69,10 @@ public interface Pattern {
     ImmutableSet<String> getMatching(ImmutableSet<String> strings);
 
     Iterable<String> iterateMatching(Iterable<String> strings);
+
+    ImmutableSet<String> getConstants();
+
+    ImmutableSet<String> getPatterns();
 
     static class Constant extends AbstractPattern {
         private final String value;
@@ -86,6 +106,25 @@ public interface Pattern {
             return super.iterateMatching(strings);
         }
 
+        @Override
+        public ImmutableSet<String> getConstants() {
+            return ImmutableSet.of(value);
+        }
+
+        @Override
+        public ImmutableSet<String> getPatterns() {
+            return ImmutableSet.empty();
+        }
+
+        String getValue() {
+            return value;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return value;
+        }
+
     }
 
     static class SimplePattern extends AbstractPattern {
@@ -116,15 +155,39 @@ public interface Pattern {
 
             return ((SimplePattern) obj).pattern.equals(this.pattern);
         }
+
+        @Override
+        public String toString() {
+            return pattern;
+        }
+
+        @Override
+        public ImmutableSet<String> getConstants() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public ImmutableSet<String> getPatterns() {
+            return ImmutableSet.of(pattern);
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableList.of(pattern);
+        }
     }
 
     static class JavaPattern extends AbstractPattern {
         private final java.util.regex.Pattern javaPattern;
         private final String patternString;
 
-        JavaPattern(String pattern) {
-            this.javaPattern = java.util.regex.Pattern.compile(pattern);
-            this.patternString = pattern;
+        JavaPattern(String pattern) throws ConfigValidationException {
+            try {
+                this.javaPattern = java.util.regex.Pattern.compile(pattern);
+                this.patternString = pattern;
+            } catch (PatternSyntaxException e) {
+                throw new ConfigValidationException(new InvalidAttributeValue(null, pattern, "A regular expression pattern"));
+            }
         }
 
         @Override
@@ -148,25 +211,61 @@ public interface Pattern {
 
             return ((JavaPattern) obj).patternString.equals(this.patternString);
         }
+
+        @Override
+        public String toString() {
+            return patternString;
+        }
+
+        @Override
+        public ImmutableSet<String> getConstants() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public ImmutableSet<String> getPatterns() {
+            return ImmutableSet.of(patternString);
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableList.of(patternString);
+        }
     }
 
     static class CompoundPattern extends AbstractPattern {
 
-        static Pattern create(Collection<String> patterns) {
+        private final String asString;
+        private final ImmutableList<String> source;
+
+        static Pattern create(Collection<String> patterns) throws ConfigValidationException {
+            ValidationErrors validationErrors = new ValidationErrors();
+
             ImmutableSet.Builder<Pattern> patternSet = new ImmutableSet.Builder<>();
             ImmutableSet.Builder<String> constantSet = new ImmutableSet.Builder<>();
 
-            for (String patternString : patterns) {
-                Pattern pattern = Pattern.create(patternString);
+            int i = 0;
 
-                if (pattern == WILDCARD) {
-                    return pattern;
-                } else if (pattern instanceof Constant) {
-                    constantSet.with(patternString);
-                } else {
-                    patternSet.with(pattern);
+            for (String patternString : patterns) {
+                try {
+                    Pattern pattern = Pattern.create(patternString);
+
+                    if (pattern == WILDCARD) {
+                        return pattern;
+                    } else if (pattern instanceof Constant) {
+                        constantSet.with(patternString);
+                    } else {
+                        patternSet.with(pattern);
+                    }
+
+                    i++;
+                } catch (ConfigValidationException e) {
+                    validationErrors.add(String.valueOf(i), e);
+
                 }
             }
+
+            validationErrors.throwExceptionForPresentErrors();
 
             int totalCount = patternSet.size() + constantSet.size();
 
@@ -180,15 +279,17 @@ public interface Pattern {
                 }
             }
 
-            return new CompoundPattern(patternSet.build(), constantSet.build());
+            return new CompoundPattern(patternSet.build(), constantSet.build(), patterns.toString(), ImmutableList.of(patterns));
         }
 
         private final ImmutableSet<Pattern> patterns;
         private final ImmutableSet<String> constants;
 
-        CompoundPattern(ImmutableSet<Pattern> patterns, ImmutableSet<String> constants) {
+        CompoundPattern(ImmutableSet<Pattern> patterns, ImmutableSet<String> constants, String asString, ImmutableList<String> source) {
             this.constants = constants;
             this.patterns = patterns;
+            this.asString = asString;
+            this.source = source;
         }
 
         @Override
@@ -223,6 +324,29 @@ public interface Pattern {
             return ((CompoundPattern) obj).patterns.equals(this.patterns);
         }
 
+        @Override
+        public String toString() {
+            return asString;
+        }
+
+        @Override
+        public ImmutableSet<String> getConstants() {
+            return constants;
+        }
+
+        @Override
+        public ImmutableSet<String> getPatterns() {
+            return patterns.mapFlat(p -> p.getPatterns());
+        }
+
+        ImmutableSet<Pattern> getPatternObjects() {
+            return patterns;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return source;
+        }
     }
 
     static abstract class AbstractPattern implements Pattern {
@@ -311,6 +435,26 @@ public interface Pattern {
                 return false;
             }
         }
+
+        @Override
+        public String toString() {
+            return "*";
+        }
+
+        @Override
+        public ImmutableSet<String> getConstants() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public ImmutableSet<String> getPatterns() {
+            return ImmutableSet.of("*");
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableList.of("*");
+        }
     };
 
     static Pattern BLANK = new Pattern() {
@@ -335,6 +479,25 @@ public interface Pattern {
             return false;
         }
 
+        @Override
+        public String toString() {
+            return "-/-";
+        }
+
+        @Override
+        public ImmutableSet<String> getConstants() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public ImmutableSet<String> getPatterns() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableList.empty();
+        }
     };
 
 }

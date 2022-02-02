@@ -18,20 +18,20 @@ _sg_meta:
   config_version: 2
     
 default:
-  authcz:
+  auth_domains:
   - type: basic
   - type: saml
     enabled: false
     label: "SAML Login"
-    idp.metadata_url: "https://your.idp.example.com/saml-metadata.xml"
-    idp.entity_id: urn:saml-metadata-entity-id
-    sp.entity_id: service-provider-id
-    user_mapping.roles: roles
+    saml.idp.metadata_url: "https://your.idp.example.com/saml-metadata.xml"
+    saml.idp.entity_id: urn:saml-metadata-entity-id
+    saml.sp.entity_id: service-provider-id
+    user_mapping.roles.from: saml_response.roles
   - type: oidc
     enabled: false
     label: "OIDC Login"
-    client_id: "your-oidc-client-id"
-    client_secret: "your-oidc-client-secret"
-    idp.openid_configuration_url: "https://your.idp.example.com/auth/realms/master/.well-known/openid-configuration"
-    user_mapping.roles: roles
+    oidc.client_id: "your-oidc-client-id"
+    oidc.client_secret: "your-oidc-client-secret"
+    oidc.idp.openid_configuration_url: "https://your.idp.example.com/auth/realms/master/.well-known/openid-configuration"
+    user_mapping.roles.from: jwt.roles
     

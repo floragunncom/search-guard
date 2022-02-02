@@ -55,6 +55,7 @@
 
 	<modules>
 		<module>security</module>
+		<module>security-legacy</module>		
 		<module>scheduler</module>
 		<module>signals</module>
 		<module>support</module>
@@ -270,6 +271,12 @@
 			
 			<dependency>
 				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-security-legacy</artifactId>
+				<version>${project.version}</version>
+			</dependency>			
+			
+			<dependency>
+				<groupId>com.floragunn</groupId>
 				<artifactId>search-guard-suite-ssl</artifactId>
 				<version>${project.version}</version>
 			</dependency>
@@ -280,6 +287,13 @@
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
 			</dependency>
+			
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>search-guard-suite-security-legacy</artifactId>
+				<version>${project.version}</version>
+				<classifier>tests</classifier>
+			</dependency>			
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
@@ -296,6 +310,12 @@
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>dlic-search-guard-suite-security</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>dlic-search-guard-suite-fe-multi-tenancy</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
@@ -657,6 +677,7 @@
 			</activation>
 			<modules>
 				<module>security</module>
+				<module>security-legacy</module>		
 				<module>scheduler</module>
 				<module>signals</module>
 				<module>support</module>
@@ -665,7 +686,8 @@
 				<module>dlic-signals</module>	
 				<module>dlic-auditlog</module>		
 				<module>dlic-dlsfls</module>											
-				<module>dlic-security-legacy</module>				
+				<module>dlic-security-legacy</module>		
+				<module>dlic-fe-multi-tenancy</module>										
 				<module>plugin</module>
 				<module>codova</module>					
 			</modules>

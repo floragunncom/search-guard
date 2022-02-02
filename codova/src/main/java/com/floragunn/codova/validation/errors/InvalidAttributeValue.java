@@ -51,17 +51,21 @@ public class InvalidAttributeValue extends ValidationError {
 
     @Override
     public String toString() {
-        return "invalid value" + (getExpected() != null ? ("; expected: " + getExpectedAsString()) : "") + "; value: " + value + "; attribute: "
+        return getMessage() + " " + (getExpected() != null ? ("; expected: " + getExpectedAsString()) : "") + "; value: " + value + "; attribute: "
                 + getAttribute();
     }
 
     @Override
     public String toValidationErrorsOverviewString() {
+        StringBuilder result = new StringBuilder(getMessage());
+
         if (getExpected() != null) {
-            return "invalid value; expected: " + getExpectedAsString();
-        } else {
-            return "invalid value";
+            result.append("; expected: ").append(getExpectedAsString());
         }
+
+        result.append("; got: ").append(value);
+
+        return result.toString();
     }
 
     public InvalidAttributeValue expected(Object expected) {

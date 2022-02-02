@@ -78,8 +78,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 
 import com.floragunn.codova.documents.DocWriter;
-
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.google.common.collect.ImmutableMap;
 

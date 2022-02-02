@@ -19,8 +19,8 @@ import org.apache.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.support.SgJsonNode;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class TenantsApiTest extends AbstractRestApiUnitTest {
 

@@ -32,7 +32,7 @@ sg_config:
           type: "basic"
           config: {}
         authentication_backend:
-          type: "com.floragunn.dlic.auth.ldap2.LDAPAuthenticationBackend2"
+          type: "ldap2"
           config:
             hosts: "localhost:${ldapsPort}"
             usersearch: "(uid={0})"

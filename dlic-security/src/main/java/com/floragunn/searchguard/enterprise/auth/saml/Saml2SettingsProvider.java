@@ -45,7 +45,7 @@ import org.opensaml.security.credential.UsageType;
 import org.opensaml.xmlsec.signature.X509Certificate;
 import org.opensaml.xmlsec.signature.X509Data;
 
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.onelogin.saml2.settings.Saml2Settings;

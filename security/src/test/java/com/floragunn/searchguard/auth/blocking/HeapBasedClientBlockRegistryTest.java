@@ -22,6 +22,8 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import com.floragunn.searchguard.authc.blocking.HeapBasedClientBlockRegistry;
+
 public class HeapBasedClientBlockRegistryTest {
     
     @Test

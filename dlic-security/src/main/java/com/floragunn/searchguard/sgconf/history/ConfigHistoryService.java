@@ -44,6 +44,7 @@ import org.elasticsearch.index.IndexNotFoundException;
 
 import com.fasterxml.jackson.core.Base64Variants;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchguard.authz.RoleMapping;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
@@ -54,14 +55,11 @@ import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.ConfigModelV7;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
-import com.floragunn.searchguard.sgconf.DynamicConfigModel;
-import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleMappingsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -88,7 +86,6 @@ public class ConfigHistoryService implements ComponentStateProvider {
     private final Cache<ConfigVersion, SgDynamicConfiguration<?>> configCache;
     private final Cache<ConfigVersionSet, ConfigModel> configModelCache;
 
-    private volatile DynamicConfigModel currentDynamicConfigModel;
     private volatile ConfigModel currentConfigModel;
     private final ComponentState componentState = new ComponentState(1000, null, "config_history_service", ConfigHistoryService.class);
 
@@ -272,7 +269,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
 
     private ConfigModel createConfigModelForSnapshot(ConfigSnapshot configSnapshot) {
         SgDynamicConfiguration<RoleV7> roles = configSnapshot.getConfigByType(RoleV7.class).copy();
-        SgDynamicConfiguration<RoleMappingsV7> roleMappings = configSnapshot.getConfigByType(RoleMappingsV7.class);
+        SgDynamicConfiguration<RoleMapping> roleMappings = configSnapshot.getConfigByType(RoleMapping.class);
         SgDynamicConfiguration<ActionGroupsV7> actionGroups = configSnapshot.getConfigByType(ActionGroupsV7.class).copy();
         SgDynamicConfiguration<TenantV7> tenants = configSnapshot.getConfigByType(TenantV7.class).copy();
         SgDynamicConfiguration<BlocksV7> blocks = configSnapshot.getConfigByType(BlocksV7.class);
@@ -285,7 +282,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
         staticSgConfig.addTo(actionGroups);
         staticSgConfig.addTo(tenants);
 
-        ConfigModel configModel = new ConfigModelV7(roles, roleMappings, actionGroups, tenants, blocks, currentDynamicConfigModel, settings);
+        ConfigModel configModel = new ConfigModelV7(roles, roleMappings, actionGroups, tenants, blocks, settings);
 
         configModelCache.put(configSnapshot.getConfigVersions(), configModel);
 
@@ -431,8 +428,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
     private final DCFListener dcfListener = new DCFListener() {
 
         @Override
-        public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
-            ConfigHistoryService.this.currentDynamicConfigModel = dcm;
+        public void onChanged(ConfigModel cm) {
             ConfigHistoryService.this.currentConfigModel = cm;
         }
     };

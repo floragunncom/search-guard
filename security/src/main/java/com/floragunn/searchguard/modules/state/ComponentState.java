@@ -45,9 +45,9 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.searchguard.license.SearchGuardLicenseKey;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.searchguard.configuration.SearchGuardLicense;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 
@@ -76,7 +76,7 @@ public class ComponentState implements Writeable, ToXContentObject {
     private String jarBuildTime;
     private String nodeId;
     private String nodeName;
-    private SearchGuardLicense license;
+    private SearchGuardLicenseKey license;
     private boolean enterprise;
     private int sortPrio;
     private String configVersion;
@@ -132,7 +132,7 @@ public class ComponentState implements Writeable, ToXContentObject {
         this.lastExceptions = in.readMap(StreamInput::readString, ExceptionRecord::new);
 
         if (in.readBoolean()) {
-            this.license = new SearchGuardLicense(in);
+            this.license = new SearchGuardLicenseKey(in);
         }
 
         this.enterprise = in.readBoolean();
@@ -849,11 +849,11 @@ public class ComponentState implements Writeable, ToXContentObject {
         this.nodeName = nodeName;
     }
 
-    public SearchGuardLicense getLicense() {
+    public SearchGuardLicenseKey getLicense() {
         return license;
     }
 
-    public void setLicense(SearchGuardLicense license) {
+    public void setLicense(SearchGuardLicenseKey license) {
         this.license = license;
     }
 

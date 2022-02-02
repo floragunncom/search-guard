@@ -42,7 +42,7 @@ import org.elasticsearch.transport.TransportRequestHandler;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.auth.BackendRegistry;
+import com.floragunn.searchguard.authc.transport.AuthenticatingTransportRequestHandler;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLRequestHandler;
@@ -58,7 +58,7 @@ import com.google.common.base.Strings;
 public class SearchGuardRequestHandler<T extends TransportRequest> extends SearchGuardSSLRequestHandler<T> {
 
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
-    private final BackendRegistry backendRegistry;
+    private final AuthenticatingTransportRequestHandler authenticatingHandler;
     private final AuditLog auditLog;
     private final InterClusterRequestEvaluator requestEvalProvider;
     private final ClusterService cs;
@@ -66,14 +66,14 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
     SearchGuardRequestHandler(String action,
             final TransportRequestHandler<T> actualHandler,
             final ThreadPool threadPool,
-            final BackendRegistry backendRegistry,
+            final AuthenticatingTransportRequestHandler authenticatingHandler,
             final AuditLog auditLog,
             final PrincipalExtractor principalExtractor,
             final InterClusterRequestEvaluator requestEvalProvider,
             final ClusterService cs,
             final SslExceptionHandler sslExceptionHandler) {
         super(action, actualHandler, threadPool, principalExtractor, sslExceptionHandler);
-        this.backendRegistry = backendRegistry;
+        this.authenticatingHandler = authenticatingHandler;
         this.auditLog = auditLog;
         this.requestEvalProvider = requestEvalProvider;
         this.cs = cs;
@@ -220,7 +220,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
 
                     User user;
                     //try {
-                        if((user = backendRegistry.authenticate(request, principal, task, task.getAction())) == null) {
+                        if((user = authenticatingHandler.authenticate(request, principal, task, task.getAction())) == null) {
                             org.apache.logging.log4j.ThreadContext.remove("user");
                            
                             if(task.getAction().equals(WhoAmIAction.NAME)) {

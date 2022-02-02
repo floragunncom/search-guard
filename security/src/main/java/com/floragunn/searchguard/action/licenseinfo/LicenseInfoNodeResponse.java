@@ -27,21 +27,21 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 
-import com.floragunn.searchguard.configuration.SearchGuardLicense;
+import com.floragunn.searchguard.license.SearchGuardLicenseKey;
 import com.floragunn.searchguard.support.ModuleInfo;
 
 public class LicenseInfoNodeResponse extends BaseNodeResponse {
 
-	private SearchGuardLicense license;
+	private SearchGuardLicenseKey license;
 	private Set<ModuleInfo> modules;
 
 	public LicenseInfoNodeResponse(StreamInput in) throws IOException {
 	    super(in);
-	    license = in.readOptionalWriteable(SearchGuardLicense::new);
+	    license = in.readOptionalWriteable(SearchGuardLicenseKey::new);
         modules = new HashSet<>(in.readList(ModuleInfo::new));
 	}
 
-	public LicenseInfoNodeResponse(final DiscoveryNode node, SearchGuardLicense license, Set<ModuleInfo> modules) {
+	public LicenseInfoNodeResponse(final DiscoveryNode node, SearchGuardLicenseKey license, Set<ModuleInfo> modules) {
 		super(node);
 		this.license = license;
 		this.modules = modules;
@@ -51,7 +51,7 @@ public class LicenseInfoNodeResponse extends BaseNodeResponse {
 		return new LicenseInfoNodeResponse(in);
 	}
 
-	public SearchGuardLicense getLicense() {
+	public SearchGuardLicenseKey getLicense() {
 		return license;
 	}
 

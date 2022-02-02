@@ -195,6 +195,8 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_ENTERPRISE_MODULES_ENABLED = "searchguard.enterprise_modules_enabled";
     public static final String SEARCHGUARD_NODES_DN = "searchguard.nodes_dn";
     public static final String SEARCHGUARD_DISABLED = "searchguard.disabled";
+    
+    @Deprecated
     public static final String SEARCHGUARD_CACHE_TTL_MINUTES = "searchguard.cache.ttl_minutes";
     public static final String SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES = "searchguard.allow_unsafe_democertificates";
     public static final String SEARCHGUARD_ALLOW_DEFAULT_INIT_SGINDEX = "searchguard.allow_default_init_sgindex";
@@ -221,7 +223,6 @@ public class ConfigConstants {
     
     public static final String SEARCHGUARD_SSL_ONLY = "searchguard.ssl_only";
     
-    public static final String SEARCHGUARD_DISABLE_ENVVAR_REPLACEMENT = "searchguard.disable_envvar_replacement";
     public static final String SEARCHGUARD_SSL_CERT_RELOAD_ENABLED = "searchguard.ssl.cert_reload_enabled";
 
     public enum RolesMappingResolution {

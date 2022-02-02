@@ -18,13 +18,10 @@ import java.nio.file.Path;
 import java.util.List;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
@@ -37,20 +34,14 @@ import com.floragunn.searchguard.action.licenseinfo.LicenseInfoRequest;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.SearchGuardLicense;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.LicenseValidator;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.ConfigV7;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.support.LicenseHelper;
-import com.floragunn.searchguard.support.SgJsonNode;
 import com.google.common.collect.ImmutableList;
 
 public class LicenseApiAction extends AbstractApiAction {
@@ -98,76 +89,7 @@ public class LicenseApiAction extends AbstractApiAction {
 
     @Override
     protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
-
-        String licenseString = new SgJsonNode(content).get("sg_license").asString();
-
-        if (licenseString == null || licenseString.length() == 0) {
-            badRequestResponse(channel, "License must not be null.");
-            return;
-        }
-
-        // try to decode the license String as base 64, armored PGP encoded String
-        String plaintextLicense;
-
-        try {
-            plaintextLicense = LicenseHelper.validateLicense(licenseString);
-        } catch (Exception e) {
-            log.error("Could not decode license {} due to", licenseString, e);
-            badRequestResponse(channel, "License could not be decoded due to: " + e.getMessage());
-            return;
-        }
-
-        SearchGuardLicense license = new SearchGuardLicense(XContentHelper.convertToMap(XContentType.JSON.xContent(), plaintextLicense, true), cs);
-
-        // check if license is valid at all, honor unsupported switch in es.yml 
-        if (!license.isValid() && !acceptInvalidLicense) {
-            badRequestResponse(channel, "License invalid due to: " + String.join(",", license.getMsgs()));
-            return;
-        }
-
-        final SgDynamicConfiguration<?> existing;
-        final boolean licenseExists;
-
-        // load existing configuration into new map
-        SgDynamicConfiguration<ConfigV7> existingV7;
-		try {
-			existingV7 = (SgDynamicConfiguration<ConfigV7>) load(getConfigName(), false);
-		} catch (ConfigUnavailableException e) {
-			internalErrorResponse(channel, e.getMessage());
-			return;
-		}
-
-        if (log.isTraceEnabled()) {
-            log.trace(existingV7.toString());
-        }
-
-        if (existingV7.getCEntries().get("sg_config") == null) {
-            badRequestResponse(channel, "Can not operate on configuration version for ES 6. You need to migrate your configuration.");
-            return;
-        }
-
-        // license already present?     
-        licenseExists = existingV7.getCEntries().get("sg_config").dynamic.license != null;
-
-        // license is valid, overwrite old value
-        existingV7.getCEntry("sg_config").dynamic.license = licenseString;
-        existing = existingV7;
-
-        saveAnUpdateConfigs(client, request, getConfigName(), existing, new OnSucessActionListener<IndexResponse>(channel) {
-
-            @Override
-            public void onResponse(IndexResponse response) {
-                if (licenseExists) {
-                    successResponse(channel, "License updated.");
-                } else {
-                    // fallback, should not happen since we always have at least a trial license
-                    log.warn("License created via REST API.");
-                    createdResponse(channel, "License created.");
-                }
-
-            }
-        });
-
+        notImplemented(channel, Method.PUT);
     }
 
     protected void handlePost(RestChannel channel, final RestRequest request, final Client client, final Settings.Builder additionalSettings)
@@ -187,7 +109,7 @@ public class LicenseApiAction extends AbstractApiAction {
     }
 
     @Override
-    protected CType getConfigName() {
+    protected CType<?> getConfigName() {
         return CType.CONFIG;
     }
 

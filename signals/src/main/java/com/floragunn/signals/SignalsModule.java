@@ -22,7 +22,7 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 
 import com.floragunn.searchguard.BaseDependencies;
-import com.floragunn.searchguard.modules.SearchGuardModule;
+import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerAction;
@@ -86,7 +86,7 @@ import com.floragunn.signals.watch.checks.Condition;
 import com.floragunn.signals.watch.checks.Transform;
 import com.floragunn.signals.watch.severity.SeverityMapping;
 
-public class SignalsModule implements SearchGuardModule<Void>, ComponentStateProvider {
+public class SignalsModule implements SearchGuardModule, ComponentStateProvider {
 
     private final boolean enabled;
     private final ComponentState moduleState = new ComponentState(100, null, "signals", SignalsModule.class);

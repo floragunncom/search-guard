@@ -16,7 +16,7 @@ package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 
 @FunctionalInterface
 public interface KeySetProvider {

@@ -33,25 +33,26 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.SearchGuardLicense;
+import com.floragunn.searchguard.license.LicenseRepository;
+import com.floragunn.searchguard.license.SearchGuardLicenseKey;
 import com.floragunn.searchguard.support.ReflectionHelper;
 
 public class TransportLicenseInfoAction
 extends
 TransportNodesAction<LicenseInfoRequest, LicenseInfoResponse, TransportLicenseInfoAction.NodeLicenseRequest, LicenseInfoNodeResponse> {
 
-    private final ConfigurationRepository configurationRepository;
+    private final LicenseRepository licenseRepository;
     
     @Inject
     public TransportLicenseInfoAction(final Settings settings,
             final ThreadPool threadPool, final ClusterService clusterService, final TransportService transportService,
-            final ConfigurationRepository configurationRepository, final ActionFilters actionFilters) {
+            final LicenseRepository licenseRepository, final ActionFilters actionFilters) {
         
         super(LicenseInfoAction.NAME, threadPool, clusterService, transportService, actionFilters,
                 LicenseInfoRequest::new, TransportLicenseInfoAction.NodeLicenseRequest::new,
                 ThreadPool.Names.MANAGEMENT, LicenseInfoNodeResponse.class);
 
-        this.configurationRepository = configurationRepository;
+        this.licenseRepository = licenseRepository;
     }
 
     public static class NodeLicenseRequest extends BaseNodeRequest {
@@ -88,7 +89,7 @@ TransportNodesAction<LicenseInfoRequest, LicenseInfoResponse, TransportLicenseIn
 	
     @Override
     protected LicenseInfoNodeResponse nodeOperation(final NodeLicenseRequest request) {
-        final SearchGuardLicense license = configurationRepository.getLicense();
+        final SearchGuardLicenseKey license = licenseRepository.getLicense();
         return new LicenseInfoNodeResponse(clusterService.localNode(), license, ReflectionHelper.getModulesLoaded()); 
     }
 

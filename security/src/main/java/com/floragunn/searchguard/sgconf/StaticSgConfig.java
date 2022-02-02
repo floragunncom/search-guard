@@ -76,7 +76,9 @@ public class StaticSgConfig {
         overridenKeys.retainAll(original.getCEntries().keySet());
         
         if (!overridenKeys.isEmpty()) {
-            log.warn("The " + original.getCType().toLCString() + " config tries to override static configuration. This is not possible. Affected config keys: " + overridenKeys);
+            log.warn("The " + original.getCType().toLCString()
+                    + " config tries to override static configuration. This is not possible. Affected config keys: " + overridenKeys + "; type: "
+                    + original.getCType() + "; v: " + original.getDocVersion(), new Exception());
         }
     }
 

@@ -54,9 +54,8 @@ import org.elasticsearch.SpecialPermission;
 
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfig;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(OpenIdProviderClient.class);
@@ -147,7 +146,7 @@ public class OpenIdProviderClient {
     }
 
     public JsonWebKeys getJsonWebKeys() throws AuthenticatorUnavailableException {
-        String uri = getJwksUri();
+        URI uri = getJwksUri();
 
         final SecurityManager sm = System.getSecurityManager();
 
@@ -297,7 +296,7 @@ public class OpenIdProviderClient {
         }
     }
 
-    String getJwksUri() throws AuthenticatorUnavailableException {
+    URI getJwksUri() throws AuthenticatorUnavailableException {
         return getOidcConfiguration().getJwksUri();
     }
 

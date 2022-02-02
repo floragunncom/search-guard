@@ -41,9 +41,9 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
@@ -395,7 +395,7 @@ public class DlsTermsLookupTest {
     public void testDlsWithTermsLookupGetTLQDisabled() throws Exception {
 
         try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls").nodeSettings("searchguard.dls.mode", "lucene_level")
-                .enterpriseModulesEnabled().build()) {
+                .enterpriseModulesEnabled().start()) {
 
             try (Client client = cluster.getInternalNodeClient()) {
 

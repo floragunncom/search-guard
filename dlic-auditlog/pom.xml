@@ -87,6 +87,19 @@
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security-legacy</artifactId>
+			<classifier>tests</classifier>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-suite-security-legacy</artifactId>
+			<scope>test</scope>
+		</dependency>
+
     	<dependency>
 	   		<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-suite-support</artifactId>

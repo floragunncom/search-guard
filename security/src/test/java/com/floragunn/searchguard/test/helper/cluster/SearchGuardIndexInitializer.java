@@ -23,6 +23,8 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.client.Client;
 import org.junit.Assert;
 
+import com.floragunn.searchguard.test.TestSgConfig;
+
 import java.util.function.Supplier;
 
 class SearchGuardIndexInitializer {

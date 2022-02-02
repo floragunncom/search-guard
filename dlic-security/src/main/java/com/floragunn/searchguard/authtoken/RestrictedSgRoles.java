@@ -25,6 +25,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
@@ -47,7 +48,11 @@ public class RestrictedSgRoles extends SgRoles {
     RestrictedSgRoles(SgRoles base, RequestedPrivileges restriction, ActionGroups actionGroups) {
         this.base = base;
         this.restriction = restriction;
-        this.restrictionSgRoles = com.floragunn.searchguard.sgconf.ConfigModelV7.SgRoles.create(restriction.toRolesConfig(), actionGroups);
+        try {
+            this.restrictionSgRoles = com.floragunn.searchguard.sgconf.ConfigModelV7.SgRoles.create(restriction.toRolesConfig(), actionGroups);
+        } catch (ConfigValidationException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

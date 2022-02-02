@@ -84,6 +84,10 @@ public class ValidationErrors implements Document<ValidationErrors> {
 
         return this;
     }
+    
+    public ValidationErrors add(String attribute, ValidationResult<?> validationResult) {
+        return add(attribute, validationResult.getValidationErrors());
+    }
 
     public ValidationErrors add(String attribute, ValidationErrors validationErrors) {
         for (Map.Entry<String, ValidationError> entry : validationErrors.attributeToErrorMap.entries()) {
@@ -169,7 +173,7 @@ public class ValidationErrors implements Document<ValidationErrors> {
         }
     }
 
-    public Exception getCause() {
+    public Throwable getCause() {
         for (ValidationError validationError : attributeToErrorMap.values()) {
             if (validationError.getCause() != null) {
                 return validationError.getCause();
@@ -267,7 +271,7 @@ public class ValidationErrors implements Document<ValidationErrors> {
 
         return result;
     }
-
+    
     private static class SplitKey {
         final String group;
         final String key;

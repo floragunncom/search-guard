@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
+ * Copyright 2015-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,19 +23,18 @@ import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIn
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
 
-public class PrivilegesInterceptor {
+public interface PrivilegesInterceptor {
 
-    public PrivilegesInterceptor() {
-    }
-
-    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user, final ResolvedIndices requestedResolved,
-            SgRoles sgRoles) {
-        return InterceptionResult.NORMAL;
-    }
+    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user,
+            final ResolvedIndices requestedResolved, SgRoles sgRoles);
     
+    public boolean isEnabled();
+    
+    public String getKibanaIndex();
+    
+    public String getKibanaServerUser();
+
     public enum InterceptionResult {
-        ALLOW,
-        DENY,
-        NORMAL
+        ALLOW, DENY, NORMAL
     }
 }

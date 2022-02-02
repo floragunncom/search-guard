@@ -1,3 +1,20 @@
+/*
+ * Copyright 2015-2022 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard;
 
 import java.io.IOException;
@@ -52,18 +69,28 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 
 public class ResourceOwnerServiceTests {
 
+    private static TestSgConfig.Role ROLE_OWN_INDEX = new TestSgConfig.Role("own_index")//
+            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")//
+            .indexPermissions("SGS_CRUD").on("${user_name}", "${user_name}_*");
+
+    private static TestSgConfig.User SULU = new TestSgConfig.User("sulu").roles(ROLE_OWN_INDEX);
+
+    private static TestSgConfig.User EVIL_SULU = new TestSgConfig.User("evil_sulu").roles(ROLE_OWN_INDEX);
+
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().plugin(MockActionPlugin.class).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(SULU, EVIL_SULU).plugin(MockActionPlugin.class)
+            .build();
 
     @Test
     public void testAsyncSearch() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient("sulu", "nagilum")) {
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU)) {
             SearchSourceBuilder searchSource = new SearchSourceBuilder().query(QueryBuilders.matchAllQuery());
             SubmitAsyncSearchRequest request = new SubmitAsyncSearchRequest(searchSource, "test1", "test2");
             request.setWaitForCompletionTimeout(TimeValue.timeValueMillis(1));
@@ -88,8 +115,8 @@ public class ResourceOwnerServiceTests {
     @Test
     public void testAsyncSearchUserMismatch() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient("sulu", "nagilum");
-                RestHighLevelClient client2 = cluster.getRestHighLevelClient("evil_sulu", "nagilum");) {
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU);
+                RestHighLevelClient client2 = cluster.getRestHighLevelClient(EVIL_SULU);) {
             SearchSourceBuilder searchSource = new SearchSourceBuilder().query(QueryBuilders.matchAllQuery());
             SubmitAsyncSearchRequest request = new SubmitAsyncSearchRequest(searchSource, "test1", "test2");
             request.setWaitForCompletionTimeout(TimeValue.timeValueMillis(1));
@@ -108,8 +135,8 @@ public class ResourceOwnerServiceTests {
     @Test
     public void testAsyncSearchUserMismatchForDelete() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient("sulu", "nagilum");
-                RestHighLevelClient client2 = cluster.getRestHighLevelClient("evil_sulu", "nagilum");) {
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU);
+                RestHighLevelClient client2 = cluster.getRestHighLevelClient(EVIL_SULU);) {
             SearchSourceBuilder searchSource = new SearchSourceBuilder().query(QueryBuilders.matchAllQuery());
             SubmitAsyncSearchRequest request = new SubmitAsyncSearchRequest(searchSource, "test1", "test2");
             request.setWaitForCompletionTimeout(TimeValue.timeValueMillis(1));

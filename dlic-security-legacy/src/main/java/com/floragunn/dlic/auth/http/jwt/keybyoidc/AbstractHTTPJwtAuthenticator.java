@@ -40,16 +40,16 @@ import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.dlic.util.Roles;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.auth.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
+import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchguard.user.UserAttributes;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.PathNotFoundException;
 
-public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator {
+public abstract class AbstractHTTPJwtAuthenticator implements LegacyHTTPAuthenticator {
     private final static Logger log = LogManager.getLogger(AbstractHTTPJwtAuthenticator.class);
 
     private static final String BEARER = "bearer ";
@@ -87,7 +87,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
                     + " Please provide only one combination.");
         }
         jsonPathConfig = BasicJsonPathDefaultConfiguration.builder().options(Option.ALWAYS_RETURN_LIST).build();
-        attributeMapping = UserAttributes.getAttributeMapping(settings.getAsSettings("map_claims_to_user_attrs"));
+        attributeMapping = Attributes.getAttributeMapping(settings.getAsSettings("map_claims_to_user_attrs"));
     }
 
     @Override

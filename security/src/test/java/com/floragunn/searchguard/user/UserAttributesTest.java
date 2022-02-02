@@ -26,7 +26,7 @@ public class UserAttributesTest {
     public void testReplaceAttributesBasic() throws StringInterpolationException {
 
         String input = "User: ${user.name}\nRoles: ${user.roles}\nAttributes: ${user.attrs}\nMap1: ${user.attrs.map1}\n";
-        String result = UserAttributes.replaceAttributes(input, user1);
+        String result = Attributes.replaceAttributes(input, user1);
 
         Assert.assertEquals(result, user1.getName(), getStringSegment("User: (.*)", result));
         Assert.assertEquals(result, toQuotedCommaSeparatedString(user1.getRoles()), getStringSegment("Roles: (.*)", result));
@@ -38,7 +38,7 @@ public class UserAttributesTest {
     public void testReplaceAttributesJson() throws StringInterpolationException, IOException {
 
         String input = "User: ${user.name|toJson}\nRoles: ${user.roles|toJson}\nAttributes: ${user.attrs|toJson}\nMap1: ${user.attrs.map1|toJson}\n";
-        String result = UserAttributes.replaceAttributes(input, user1);
+        String result = Attributes.replaceAttributes(input, user1);
 
         Assert.assertThat(result, segment("User: (.*)", equalsAsJson(user1.getName())));
         Assert.assertThat(result, segment("Roles: (.*)", equalsAsJson(user1.getRoles())));
@@ -50,7 +50,7 @@ public class UserAttributesTest {
     public void testReplaceAttributesToList() throws StringInterpolationException, IOException {
 
         String input = "User: ${user.name|toList|toJson}\nRoles: ${user.roles|toList|toJson}\nAttributes: ${user.attrs|toList|toJson}\nMap1: ${user.attrs.map1|toList|toJson}\n";
-        String result = UserAttributes.replaceAttributes(input, user1);
+        String result = Attributes.replaceAttributes(input, user1);
 
         Assert.assertThat(result, segment("User: (.*)", equalsAsJson(Arrays.asList(user1.getName()))));
         Assert.assertThat(result, segment("Roles: (.*)", equalsAsJson(user1.getRoles())));
@@ -62,7 +62,7 @@ public class UserAttributesTest {
     public void testReplaceAttributesHeadOfList() throws StringInterpolationException, IOException {
 
         String input = "User: ${user.name|head|toJson}\nRoles: ${user.roles|head|toJson}\nAttributes: ${user.attrs|head|toJson}\nMap1: ${user.attrs.map1|head|toJson}\n";
-        String result = UserAttributes.replaceAttributes(input, user1);
+        String result = Attributes.replaceAttributes(input, user1);
 
         Assert.assertThat(result, segment("User: (.*)", equalsAsJson(user1.getName())));
         Assert.assertThat(result, segment("Roles: (.*)", equalsAsJson(user1.getRoles().iterator().next())));
@@ -74,7 +74,7 @@ public class UserAttributesTest {
     public void testReplaceAttributesTailOfList() throws StringInterpolationException, IOException {
 
         String input = "User: ${user.name|tail|toJson}\nRoles: ${user.roles|tail|toJson}\nAttributes: ${user.attrs|tail|toJson}\nMap1: ${user.attrs.map1|tail|toJson}\n";
-        String result = UserAttributes.replaceAttributes(input, user1);
+        String result = Attributes.replaceAttributes(input, user1);
 
         Set<String> rolesTail = new HashSet<String>(user1.getRoles());
         rolesTail.remove(user1.getRoles().iterator().next());
@@ -90,7 +90,7 @@ public class UserAttributesTest {
 
         String input = "A1: ${user.attrs.foo|toJson:-1}\nA2: ${user.attrs.bar|toJson:-\"blub\"}\n";
 
-        String result = UserAttributes.replaceAttributes(input, user1);
+        String result = Attributes.replaceAttributes(input, user1);
 
         Set<String> rolesTail = new HashSet<String>(user1.getRoles());
         rolesTail.remove(user1.getRoles().iterator().next());
@@ -104,7 +104,7 @@ public class UserAttributesTest {
 
         String input = "A1: ${user.attrs.foo?:{\"a\": 1}|toJson}\nA2: ${user.attrs.bar?:true|toJson}\nA3: ${user.attrs.bar?:[1,2,3]|toJson}\n";
 
-        String result = UserAttributes.replaceAttributes(input, user1);
+        String result = Attributes.replaceAttributes(input, user1);
 
         Set<String> rolesTail = new HashSet<String>(user1.getRoles());
         rolesTail.remove(user1.getRoles().iterator().next());

@@ -23,7 +23,7 @@ import java.util.Set;
 
 import org.elasticsearch.common.transport.TransportAddress;
 
-import com.floragunn.searchguard.auth.blocking.ClientBlockRegistry;
+import com.floragunn.searchguard.authc.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.user.User;
 
 import inet.ipaddr.IPAddress;

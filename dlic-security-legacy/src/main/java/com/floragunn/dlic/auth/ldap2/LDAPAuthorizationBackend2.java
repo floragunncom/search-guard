@@ -41,8 +41,11 @@ import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.auth.ldap.util.Utils;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
-import com.floragunn.searchguard.auth.Destroyable;
-import com.floragunn.searchguard.auth.api.SyncAuthorizationBackend;
+import com.floragunn.searchguard.TypedComponent;
+import com.floragunn.searchguard.TypedComponent.Factory;
+import com.floragunn.searchguard.authc.Destroyable;
+import com.floragunn.searchguard.authc.legacy.LegacyAuthorizationBackend;
+import com.floragunn.searchguard.legacy.LegacyComponentFactory;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -54,7 +57,7 @@ import com.unboundid.ldap.sdk.ResultCode;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 import com.unboundid.ldap.sdk.SearchScope;
 
-public class LDAPAuthorizationBackend2 implements SyncAuthorizationBackend, Destroyable {
+public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, Destroyable {
 
     static final int ZERO_PLACEHOLDER = 0;
     static final int ONE_PLACEHOLDER = 1;
@@ -69,10 +72,14 @@ public class LDAPAuthorizationBackend2 implements SyncAuthorizationBackend, Dest
     private final List<Map.Entry<String, Settings>> roleBaseSettings;
     private final LDAPConnectionManager lcm;
 
-    public LDAPAuthorizationBackend2(final Settings settings, final Path configPath) throws SSLConfigException, LDAPException {
+    public LDAPAuthorizationBackend2(final Settings settings, final Path configPath) {
         this.settings = settings;
         this.roleBaseSettings = getRoleSearchSettings(settings);
-        this.lcm = new LDAPConnectionManager(settings, configPath);
+        try {
+            this.lcm = new LDAPConnectionManager(settings, configPath);
+        } catch (LDAPException | SSLConfigException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static List<Map.Entry<String, Settings>> getRoleSearchSettings(Settings settings) {
@@ -556,5 +563,24 @@ public class LDAPAuthorizationBackend2 implements SyncAuthorizationBackend, Dest
             }
         }
     }
+    
+    public static TypedComponent.Info<LegacyAuthorizationBackend> INFO = new TypedComponent.Info<LegacyAuthorizationBackend>() {
+
+        @Override
+        public Class<LegacyAuthorizationBackend> getType() {
+            return LegacyAuthorizationBackend.class;
+        }
+
+        @Override
+        public String getName() {
+            return "ldap2";
+        }
+
+        @Override
+        public Factory<LegacyAuthorizationBackend> getFactory() {
+            return LegacyComponentFactory.adapt(LDAPAuthorizationBackend2::new);
+        }
+    };    
+    
 
 }
