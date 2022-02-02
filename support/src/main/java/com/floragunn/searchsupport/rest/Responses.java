@@ -112,7 +112,7 @@ public class Responses {
         }
     }
 
-    public static void sendJson(RestChannel channel, Object json) {
+    public static void send(RestChannel channel, RestStatus status, Object json) {
         try {
             if (json instanceof ToXContent) {
                 ToXContent toxContent = (ToXContent) json;
@@ -127,9 +127,9 @@ public class Responses {
                 if (toxContent.isFragment()) {
                     builder.endObject();
                 }
-                channel.sendResponse(new BytesRestResponse(RestStatus.OK, builder));
+                channel.sendResponse(new BytesRestResponse(status, builder));
             } else {
-                channel.sendResponse(new BytesRestResponse(RestStatus.OK, "application/json", DocWriter.json().writeAsString(json)));
+                channel.sendResponse(new BytesRestResponse(status, "application/json", DocWriter.json().writeAsString(json)));
             }
         } catch (Exception e) {
             log.error(e.toString(), e);

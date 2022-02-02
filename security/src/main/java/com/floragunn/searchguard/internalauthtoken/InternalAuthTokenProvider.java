@@ -32,8 +32,6 @@ import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.ConfigModelV7;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
-import com.floragunn.searchguard.sgconf.DynamicConfigModel;
-import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -145,7 +143,7 @@ public class InternalAuthTokenProvider implements DCFListener {
     }
 
     @Override
-    public void onChanged(ConfigModel configModel, DynamicConfigModel dynamicConfigModel, InternalUsersModel internalUsersModel) {
+    public void onChanged(ConfigModel configModel) {
         this.configModel = configModel;
         this.sgRoles = configModel.getSgRoles();
     }

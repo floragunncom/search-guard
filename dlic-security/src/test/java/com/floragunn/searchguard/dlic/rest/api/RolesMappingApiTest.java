@@ -24,8 +24,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class RolesMappingApiTest extends AbstractRestApiUnitTest {
 

@@ -14,11 +14,55 @@
 
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 
 public interface KeyProvider {
 	public JsonWebKey getKey(String kid) throws AuthenticatorUnavailableException, BadCredentialsException;
 	public JsonWebKey getKeyAfterRefresh(String kid) throws AuthenticatorUnavailableException, BadCredentialsException;
+	
+	
+	public static KeyProvider combined(KeyProvider... providers) {
+	    List<KeyProvider> providersList = new ArrayList<>();
+	    
+	    for (KeyProvider keyProvider : providers) {
+	        if (keyProvider != null) {
+	            providersList.add(keyProvider);
+	        }
+	    }
+	    
+	    return new KeyProvider() {
+            
+            @Override
+            public JsonWebKey getKeyAfterRefresh(String kid) throws AuthenticatorUnavailableException, BadCredentialsException {
+                for (KeyProvider keyProvider : providersList) {
+                    JsonWebKey result = keyProvider.getKeyAfterRefresh(kid);
+                    
+                    if (result != null) {
+                        return result;
+                    }
+                }
+                
+                return null;
+            }
+            
+            @Override
+            public JsonWebKey getKey(String kid) throws AuthenticatorUnavailableException, BadCredentialsException {
+                for (KeyProvider keyProvider : providersList) {
+                    JsonWebKey result = keyProvider.getKey(kid);
+                    
+                    if (result != null) {
+                        return result;
+                    }
+                }
+                
+                return null;
+            }
+        };
+	}
+	
 }

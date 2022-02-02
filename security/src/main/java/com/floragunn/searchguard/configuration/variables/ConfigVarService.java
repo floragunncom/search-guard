@@ -613,6 +613,11 @@ public class ConfigVarService implements ComponentStateProvider {
             this.valueSupplier = valueSupplier;
             this.scope = scope;
         }
+
+        @Override
+        public String toString() {
+            return "RequestedValue [valueSupplier=" + valueSupplier + ", scope=" + scope + "]";
+        }
     }
 
 }

@@ -37,17 +37,20 @@ import com.floragunn.dlic.auth.ldap.LdapUser.DirEntry;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.auth.ldap.util.Utils;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
-import com.floragunn.searchguard.auth.Destroyable;
-import com.floragunn.searchguard.auth.api.SyncAuthenticationBackend;
+import com.floragunn.searchguard.TypedComponent;
+import com.floragunn.searchguard.TypedComponent.Factory;
+import com.floragunn.searchguard.authc.Destroyable;
+import com.floragunn.searchguard.authc.legacy.LegacyAuthenticationBackend;
+import com.floragunn.searchguard.legacy.LegacyComponentFactory;
+import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchguard.user.UserAttributes;
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 
-public class LDAPAuthenticationBackend2 implements SyncAuthenticationBackend, Destroyable {
+public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, Destroyable {
 
     protected static final Logger log = LogManager.getLogger(LDAPAuthenticationBackend2.class);
 
@@ -58,15 +61,18 @@ public class LDAPAuthenticationBackend2 implements SyncAuthenticationBackend, De
     private final List<String> whitelistedAttributes;
     private Map<String, String> attributeMapping;
 
-    public LDAPAuthenticationBackend2(final Settings settings, final Path configPath) throws SSLConfigException, LDAPException {
-        this.settings = settings;
-        this.lcm = new LDAPConnectionManager(settings, configPath);
-        customAttrMaxValueLen = settings.getAsInt(ConfigConstants.LDAP_CUSTOM_ATTR_MAXVAL_LEN, 36);
-        whitelistedAttributes = settings.getAsList(ConfigConstants.LDAP_CUSTOM_ATTR_WHITELIST,
-                null);
-        attributeMapping = UserAttributes.getFlatAttributeMapping(settings.getAsSettings("map_ldap_attrs_to_user_attrs"));
+    public LDAPAuthenticationBackend2(final Settings settings, final Path configPath) {
+        try {
+            this.settings = settings;
+            this.lcm = new LDAPConnectionManager(settings, configPath);
+            customAttrMaxValueLen = settings.getAsInt(ConfigConstants.LDAP_CUSTOM_ATTR_MAXVAL_LEN, 36);
+            whitelistedAttributes = settings.getAsList(ConfigConstants.LDAP_CUSTOM_ATTR_WHITELIST, null);
+            attributeMapping = Attributes.getFlatAttributeMapping(settings.getAsSettings("map_ldap_attrs_to_user_attrs"));
+        } catch (LDAPException | SSLConfigException e) {
+            throw new RuntimeException(e);
+        }
     }
-    
+
     @Override
     public User authenticate(final AuthCredentials credentials) throws ElasticsearchSecurityException {
         final SecurityManager sm = System.getSecurityManager();
@@ -164,25 +170,6 @@ public class LDAPAuthenticationBackend2 implements SyncAuthenticationBackend, De
     public String getType() {
         return "ldap";
     }
-
-    
-    @Override
-    public boolean exists(final User user) {
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
-     
-        return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-            @Override
-            public Boolean run() {
-                return exists0(user);
-            }
-        });
-        
-    }
     
     private void processAttributeMapping(User user, SearchResultEntry ldapEntry) {
         for (Map.Entry<String, String> entry : attributeMapping.entrySet()) {
@@ -203,33 +190,7 @@ public class LDAPAuthenticationBackend2 implements SyncAuthenticationBackend, De
         }
     }
     
-    private boolean exists0(final User user) {
-
-        String userName = user.getName();
-
-        if (user instanceof LdapUser) {
-            userName = ((LdapUser) user).getUserEntry().getDN();
-        }
-
-        try (LDAPConnection con = lcm.getConnection()) {
-            SearchResultEntry userEntry = lcm.exists(con, userName);
-            
-            boolean exists = userEntry != null;
-            
-            if(exists) {
-                user.addAttributes(LdapUser.extractLdapAttributes(userName, new DirEntry(userEntry), customAttrMaxValueLen, whitelistedAttributes));
-                processAttributeMapping(user, userEntry);
-            }
-            
-            return exists;
-        } catch (final Exception e) {
-            log.warn("User {} does not exist due to " + e, userName);
-            if (log.isDebugEnabled()) {
-                log.debug("User does not exist due to ", e);
-            }
-            return false;
-        }
-    }
+  
 
     @Override
     public void destroy() {
@@ -241,5 +202,68 @@ public class LDAPAuthenticationBackend2 implements SyncAuthenticationBackend, De
             }
         }
     }
+
+    @Override
+    public boolean exists(User user) {
+        final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+            @Override
+            public Boolean run() {
+                return impersonate0(user);
+            }
+        });
+
+    }
+
+    private boolean impersonate0(final User user) {
+
+        String userName = user.getName();
+
+        if (user instanceof LdapUser) {
+            userName = ((LdapUser) user).getUserEntry().getDN();
+        }
+
+        try (LDAPConnection con = lcm.getConnection()) {
+            SearchResultEntry userEntry = lcm.exists(con, userName);
+
+            boolean exists = userEntry != null;
+
+            if (exists) {
+                user.addAttributes(LdapUser.extractLdapAttributes(userName, new DirEntry(userEntry), customAttrMaxValueLen, whitelistedAttributes));
+                processAttributeMapping(user, userEntry);
+            }
+
+            return exists;
+        } catch (final Exception e) {
+            log.warn("User {} does not exist due to " + e, userName);
+            if (log.isDebugEnabled()) {
+                log.debug("User does not exist due to ", e);
+            }
+            return false;
+        }
+    }
+    
+    public static TypedComponent.Info<LegacyAuthenticationBackend> INFO = new TypedComponent.Info<LegacyAuthenticationBackend>() {
+
+        @Override
+        public Class<LegacyAuthenticationBackend> getType() {
+            return LegacyAuthenticationBackend.class;
+        }
+
+        @Override
+        public String getName() {
+            return "ldap2";
+        }
+
+        @Override
+        public Factory<LegacyAuthenticationBackend> getFactory() {
+            return LegacyComponentFactory.adapt(LDAPAuthenticationBackend2::new);
+        }
+    };    
 
 }

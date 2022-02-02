@@ -23,13 +23,13 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.dlic.auth.ldap.srv.LdapServer;
+import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.legacy.test.SingleClusterTest;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.DynamicSgConfig;
-import com.floragunn.searchguard.test.SingleClusterTest;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper.HttpResponse;
 
 public class LdapBackendIntegTest2 extends SingleClusterTest {
     

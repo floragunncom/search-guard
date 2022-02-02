@@ -21,11 +21,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 public interface ImmutableList<E> extends List<E> {
@@ -41,7 +44,6 @@ public interface ImmutableList<E> extends List<E> {
     }
 
     public static <E> ImmutableList<E> of(E e1, E e2) {
-
         return new TwoElementList<E>(e1, e2);
     }
 
@@ -69,15 +71,17 @@ public interface ImmutableList<E> extends List<E> {
         }
     }
 
-    public static <E> ImmutableList<E> of(Collection<E> collection) {
+    public static <E> ImmutableList<E> of(Collection<? extends E> collection) {
         if (collection == null || collection.size() == 0) {
             return empty();
         } else if (collection instanceof ImmutableList) {
-            return (ImmutableList<E>) collection;
+            @SuppressWarnings("unchecked")
+            ImmutableList<E> result = (ImmutableList<E>) collection;
+            return result;
         } else if (collection.size() == 1) {
             return new OneElementList<>(collection.iterator().next());
         } else if (collection.size() == 2) {
-            Iterator<E> iter = collection.iterator();
+            Iterator<? extends E> iter = collection.iterator();
             E e1 = iter.next();
             E e2 = iter.next();
 
@@ -87,9 +91,129 @@ public interface ImmutableList<E> extends List<E> {
         }
     }
 
+    public static <E> ImmutableList<E> ofNonNull(E e) {
+        if (e != null) {
+            return new OneElementList<E>(e);
+        } else {
+            return empty();
+        }
+    }
+
+    public static <E> ImmutableList<E> ofNonNull(E e1, E e2) {
+        if (e1 != null) {
+            if (e2 != null) {
+                return of(e1, e2);
+            } else {
+                return of(e1);
+            }
+        } else {
+            if (e2 != null) {
+                return of(e2);
+            } else {
+                return empty();
+            }
+        }
+    }
+
+    @SafeVarargs
+    public static <E> ImmutableList<E> ofNonNull(E e1, E e2, E... more) {
+        if (more == null || more.length == 0) {
+            return ofNonNull(e1, e2);
+        }
+        
+        Builder<E> builder = new Builder<>(more.length + 2);
+        
+        if (e1 != null) {
+            builder.with(e1);
+        }
+        
+        if (e2 != null) {
+            builder.with(e2);
+        }
+
+        for (E e : more) {
+            if (e != null) {
+                builder.with(e);
+            }
+        }
+        
+        return builder.build();
+    }
+
+    public static <E> ImmutableList<E> concat(Collection<? extends E> c1, Collection<? extends E> c2) {
+        if (c1 == null || c1.size() == 0) {
+            return of(c2);
+        } else if (c2 == null || c2.size() == 0) {
+            return of(c1);
+        } else {
+            Object[] array = new Object[c1.size() + c2.size()];
+
+            int i = 0;
+
+            for (E e : c1) {
+                array[i] = e;
+                i++;
+            }
+
+            for (E e : c2) {
+                array[i] = e;
+                i++;
+            }
+
+            return new ArrayBackedList<>(array);
+        }
+    }
+
+    public static <E> ImmutableList<E> concat(Collection<? extends E> c1, Collection<? extends E> c2, Collection<? extends E> c3) {
+        if (c1 == null || c1.size() == 0) {
+            return concat(c2, c3);
+        } else if (c2 == null || c2.size() == 0) {
+            return concat(c1, c3);
+        } else if (c3 == null || c3.size() == 0) {
+            return concat(c1, c2);
+        } else {
+            Object[] array = new Object[c1.size() + c2.size() + c3.size()];
+
+            int i = 0;
+
+            for (E e : c1) {
+                array[i] = e;
+                i++;
+            }
+
+            for (E e : c2) {
+                array[i] = e;
+                i++;
+            }
+
+            for (E e : c3) {
+                array[i] = e;
+                i++;
+            }
+
+            return new ArrayBackedList<>(array);
+        }
+    }
+
+    public static <C, E> ImmutableList<E> map(Collection<C> collection, Function<C, E> mappingFunction) {
+        ImmutableList.Builder<E> builder = new ImmutableList.Builder<>(collection.size());
+
+        for (C c : collection) {
+            E value = mappingFunction.apply(c);
+
+            if (value != null) {
+                builder.with(value);
+            }
+        }
+
+        return builder.build();
+    }
+
     ImmutableList<E> with(E other);
 
     ImmutableList<E> with(Collection<E> other);
+
+    ImmutableList<E> with(Optional<E> other);
 
     ImmutableList<E> with(@SuppressWarnings("unchecked") E... other);
 
@@ -97,12 +221,18 @@ public interface ImmutableList<E> extends List<E> {
 
     ImmutableList<E> without(Collection<E> other);
 
+    <O> ImmutableList<O> map(Function<E, O> mappingFunction);
+
     E only();
 
     String toShortString();
 
     public static class Builder<E> {
         private ArrayList<E> list;
+
+        public Builder() {
+            this(10);
+        }
 
         public Builder(int expectedNumberOfElements) {
             this.list = new ArrayList<>(expectedNumberOfElements);
@@ -117,6 +247,13 @@ public interface ImmutableList<E> extends List<E> {
             return this;
         }
 
+        public Builder<E> with(Optional<E> optional) {
+            if (optional.isPresent()) {
+                list.add(optional.get());
+            }
+            return this;
+        }
+
         public Builder<E> with(Collection<E> collection) {
             list.addAll(collection);
             return this;
@@ -125,6 +262,12 @@ public interface ImmutableList<E> extends List<E> {
         public ImmutableList<E> build() {
             return of(list);
         }
+
+        public ImmutableList<E> build(Comparator<E> sortedBy) {
+            list.sort(sortedBy);
+            return of(list);
+        }
+
     }
 
     static abstract class AbstractImmutableList<E> extends AbstractImmutableCollection<E> implements ImmutableList<E> {
@@ -155,6 +298,15 @@ public interface ImmutableList<E> extends List<E> {
                 return with(other.iterator().next());
             } else {
                 return new Builder<E>(this).with(other).build();
+            }
+        }
+
+        @Override
+        public ImmutableList<E> with(Optional<E> other) {
+            if (other.isPresent()) {
+                return with(other.get());
+            } else {
+                return this;
             }
         }
 
@@ -285,7 +437,7 @@ public interface ImmutableList<E> extends List<E> {
         }
 
         @Override
-        E any() {
+        public E any() {
             return e1;
         }
 
@@ -410,6 +562,26 @@ public interface ImmutableList<E> extends List<E> {
                 throw new IndexOutOfBoundsException("fromIndex: " + fromIndex + "; toIndex: " + toIndex);
             }
         }
+
+        @Override
+        public <O> ImmutableList<O> map(Function<E, O> mappingFunction) {
+            O o1 = mappingFunction.apply(e1);
+
+            if (o1 != null) {
+                return new OneElementList<O>(o1);
+            } else {
+                return empty();
+            }
+        }
+
+        @Override
+        public ImmutableList<E> with(Optional<E> other) {
+            if (other.isPresent()) {
+                return new TwoElementList<>(e1, other.get());
+            } else {
+                return this;
+            }
+        }
     }
 
     static class TwoElementList<E> extends AbstractImmutableList<E> {
@@ -423,7 +595,7 @@ public interface ImmutableList<E> extends List<E> {
         }
 
         @Override
-        E any() {
+        public E any() {
             return e1;
         }
 
@@ -587,6 +759,26 @@ public interface ImmutableList<E> extends List<E> {
                 throw new IndexOutOfBoundsException("fromIndex: " + fromIndex + "; toIndex: " + toIndex);
             }
         }
+
+        @Override
+        public <O> ImmutableList<O> map(Function<E, O> mappingFunction) {
+            O o1 = mappingFunction.apply(e1);
+            O o2 = mappingFunction.apply(e2);
+
+            if (o1 != null) {
+                if (o2 != null) {
+                    return new TwoElementList<O>(o1, o2);
+                } else {
+                    return new OneElementList<O>(o1);
+                }
+            } else if (o2 != null) {
+                return new OneElementList<O>(o2);
+            } else {
+                return empty();
+            }
+
+        }
+
     }
 
     static class ArrayBackedList<E> extends AbstractImmutableList<E> {
@@ -669,7 +861,7 @@ public interface ImmutableList<E> extends List<E> {
 
         @SuppressWarnings("unchecked")
         @Override
-        E any() {
+        public E any() {
             return (E) elements[0];
         }
 
@@ -789,6 +981,34 @@ public interface ImmutableList<E> extends List<E> {
 
             return new ArrayBackedList<>(newElements);
         }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public <O> ImmutableList<O> map(Function<E, O> mappingFunction) {
+            Object[] newArray = new Object[elements.length];
+
+            int k = 0;
+
+            for (int i = 0; i < elements.length; i++) {
+                O newValue = mappingFunction.apply((E) elements[i]);
+
+                if (newValue != null) {
+                    newArray[k] = newValue;
+                    k++;
+                }
+            }
+
+            if (k == 0) {
+                return empty();
+            } else if (k == elements.length) {
+                return new ArrayBackedList<O>(newArray);
+            } else {
+                Object[] subArray = new Object[k];
+                System.arraycopy(newArray, 0, subArray, 0, k);
+                return new ArrayBackedList<O>(subArray);
+            }
+
+        }
     }
 
     static class EmptyList<E> extends AbstractImmutableList<E> {
@@ -799,7 +1019,7 @@ public interface ImmutableList<E> extends List<E> {
         }
 
         @Override
-        E any() {
+        public E any() {
             throw new IllegalStateException();
         }
 
@@ -884,6 +1104,11 @@ public interface ImmutableList<E> extends List<E> {
             } else {
                 throw new IndexOutOfBoundsException("fromIndex: " + fromIndex + "; toIndex: " + toIndex);
             }
+        }
+
+        @Override
+        public <O> ImmutableList<O> map(Function<E, O> mappingFunction) {
+            return empty();
         }
 
     }

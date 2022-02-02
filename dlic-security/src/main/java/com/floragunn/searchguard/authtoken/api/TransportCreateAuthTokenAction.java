@@ -23,7 +23,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
-import com.floragunn.searchguard.auth.AuthInfoService;
+import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authtoken.AuthTokenService;
 import com.floragunn.searchguard.authtoken.TokenCreationException;
 import com.floragunn.searchguard.user.User;

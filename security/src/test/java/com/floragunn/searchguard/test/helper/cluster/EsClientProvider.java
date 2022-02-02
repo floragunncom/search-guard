@@ -43,10 +43,8 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
 import org.elasticsearch.client.RestHighLevelClient;
 
+import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.SSLContextProvider;
-import com.floragunn.searchguard.test.helper.rest.TestCertificateBasedSSLContextProvider;
 
 public interface EsClientProvider {
 
@@ -66,7 +64,7 @@ public interface EsClientProvider {
         return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), getTestCertificates().getAnyClientCertificate());
     }
 
-    default GenericRestClient getRestClient(TestSgConfig.User user, Header... headers) {
+    default GenericRestClient getRestClient(UserCredentialsHolder user, Header... headers) {
         return getRestClient(user.getName(), user.getPassword(), headers);
     }
 
@@ -95,7 +93,7 @@ public interface EsClientProvider {
         return createGenericAdminRestClient(Collections.emptyList());
     }
 
-    default RestHighLevelClient getRestHighLevelClient(TestSgConfig.User user) {
+    default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user) {
         return getRestHighLevelClient(user.getName(), user.getPassword());
     }
 
@@ -154,4 +152,9 @@ public interface EsClientProvider {
                 "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
     }
 
+    
+    public interface UserCredentialsHolder {
+        String getName();
+        String getPassword();
+    }
 }

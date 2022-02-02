@@ -31,9 +31,8 @@ import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.dlic.auth.http.jwt.oidc.json.OidcProviderConfig;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.google.common.collect.ImmutableMap;
 
 public class OpenIdProviderClientTest {
@@ -97,9 +96,9 @@ public class OpenIdProviderClientTest {
             OpenIdProviderClient openIdProviderClient = new OpenIdProviderClient(proxyOnlyMockIdpServer.getDiscoverUri(), null,
                     ProxyConfig.parse(proxySettings, "proxy"), true);
 
-            OidcProviderConfig oidcProviderConfig = openIdProviderClient.getOidcConfiguration();
+            OidcProviderConfig oidcProviderConfig = openIdProviderClient.getOidcConfiguration().get();
 
-            Assert.assertTrue(oidcProviderConfig.getParsedJson() + "", oidcProviderConfig.getParsedJson().containsKey("token_endpoint"));
+            Assert.assertTrue(oidcProviderConfig.toJsonString(), oidcProviderConfig.toBasicObject().containsKey("token_endpoint"));
 
             String tokenEndpointRequest = "grant_type=authorization_code&code=wusch";
 

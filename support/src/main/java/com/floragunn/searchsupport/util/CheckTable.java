@@ -31,7 +31,9 @@ import com.google.common.base.Strings;
 public interface CheckTable<R, C> {
 
     static <R, C> CheckTable<R, C> create(R row, Set<C> columns) {
-        if (columns.size() == 1) {
+        if (columns.size() == 0) {
+            throw new RuntimeException("Trying to create empty CheckTable: " + columns);
+        } else if (columns.size() == 1) {
             return new SingleCellCheckTable<R, C>(row, columns.iterator().next(), ImmutableSet.of(row), ImmutableSet.of(columns));
         } else {
             return new SingleRowCheckTable<R, C>(row, columns);
@@ -39,7 +41,9 @@ public interface CheckTable<R, C> {
     }
 
     static <R, C> CheckTable<R, C> create(Set<R> rows, C column) {
-        if (rows.size() == 1) {
+        if (rows.size() == 0) {
+            throw new RuntimeException("Trying to create empty CheckTable: " + rows);
+        } else if (rows.size() == 1) {
             return new SingleCellCheckTable<R, C>(rows.iterator().next(), column, ImmutableSet.of(rows), ImmutableSet.of(column));
         } else {
             return new SingleColumnCheckTable<R, C>(rows, column);
@@ -47,7 +51,9 @@ public interface CheckTable<R, C> {
     }
 
     static <R, C> CheckTable<R, C> create(Set<R> rows, Set<C> columns) {
-        if (rows.size() == 1) {
+        if (rows.size() == 0 || columns.size() == 0) {
+            throw new RuntimeException("Trying to create empty CheckTable: " + rows + " " + columns);
+        } else if (rows.size() == 1) {
             if (columns.size() == 1) {
                 return new SingleCellCheckTable<R, C>(rows.iterator().next(), columns.iterator().next(), ImmutableSet.of(rows),
                         ImmutableSet.of(columns));
@@ -641,6 +647,7 @@ public interface CheckTable<R, C> {
         public void uncheckRowIfPresent(R row) {
             this.rows.uncheckIfPresent(row);
         }
+
     }
 
     static class TwoColumnCheckTable<R, C> extends AbstractCheckTable<R, C> {
@@ -1545,7 +1552,7 @@ public interface CheckTable<R, C> {
 
                 }
 
-                return result.toString();               
+                return result.toString();
             }
 
             @Override
@@ -1590,7 +1597,7 @@ public interface CheckTable<R, C> {
 
                 return result.build();
             }
-            
+
             private boolean isRowCompleted(int row) {
                 int columnCount = columns.size();
 

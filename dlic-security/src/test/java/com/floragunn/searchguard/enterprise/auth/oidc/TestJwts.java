@@ -27,6 +27,7 @@ import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.util.Strings;
 
+import com.floragunn.searchsupport.util.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 public class TestJwts {
@@ -38,14 +39,16 @@ public class TestJwts {
 
     public static final String MCCOY_SUBJECT = "Leonard McCoy";
 
-    static final JwtToken MC_COY = create(MCCOY_SUBJECT, TEST_AUDIENCE, ROLES_CLAIM, TEST_ROLES_STRING);
+    public static final JwtToken MC_COY = create(MCCOY_SUBJECT, TEST_AUDIENCE, ROLES_CLAIM, TEST_ROLES_STRING);
 
-    static final JwtToken MC_COY_EXPIRED = create(MCCOY_SUBJECT, TEST_AUDIENCE, ROLES_CLAIM, TEST_ROLES_STRING, JwtConstants.CLAIM_EXPIRY, 10);
+    public static final JwtToken MC_COY_EXPIRED = create(MCCOY_SUBJECT, TEST_AUDIENCE, ROLES_CLAIM, TEST_ROLES_STRING, JwtConstants.CLAIM_EXPIRY, 10);
 
-    static final JwtToken MC_LIST_CLAIM = create("McList", TEST_AUDIENCE, ROLES_CLAIM, TEST_ROLES_STRING, "n", Arrays.asList("mcl"));
-    
-    static final JwtToken MC_LIST_2_CLAIM = create("McList", TEST_AUDIENCE, ROLES_CLAIM, TEST_ROLES_STRING, "n", Arrays.asList("mcl", "mcl2"));
-    
+    public static final JwtToken MC_LIST_CLAIM = create("McList", TEST_AUDIENCE, ROLES_CLAIM, TEST_ROLES_STRING, "n", Arrays.asList("mcl"), "m",
+            ImmutableMap.of("a", 1, "b", 2));
+
+    public static final JwtToken MC_LIST_2_CLAIM = create("McList", TEST_AUDIENCE, ROLES_CLAIM, TEST_ROLES_STRING, "n", Arrays.asList("mcl", "mcl2"),
+            "m", ImmutableMap.of("a", 1, "b", 2));
+
     public static final String MC_COY_SIGNED_OCT_1 = createSigned(MC_COY, TestJwk.OCT_1);
 
     public static final String MC_COY_SIGNED_RSA_1 = createSigned(MC_COY, TestJwk.RSA_1);
@@ -54,11 +57,10 @@ public class TestJwts {
 
     public static final String MC_COY_EXPIRED_SIGNED_OCT_1 = createSigned(MC_COY_EXPIRED, TestJwk.OCT_1);
 
-    static final String MC_LIST_CLAIM_SIGNED_OCT_1 = createSigned(MC_LIST_CLAIM, TestJwk.OCT_1);
-    
-    static final String MC_LIST_2_CLAIM_SIGNED_OCT_1 = createSigned(MC_LIST_2_CLAIM, TestJwk.OCT_1);
+    public static final String MC_LIST_CLAIM_SIGNED_OCT_1 = createSigned(MC_LIST_CLAIM, TestJwk.OCT_1);
 
-    
+    public static final String MC_LIST_2_CLAIM_SIGNED_OCT_1 = createSigned(MC_LIST_2_CLAIM, TestJwk.OCT_1);
+
     static class NoKid {
         static final String MC_COY_SIGNED_RSA_1 = createSignedWithoutKeyId(MC_COY, TestJwk.RSA_1);
         static final String MC_COY_SIGNED_RSA_2 = createSignedWithoutKeyId(MC_COY, TestJwk.RSA_2);

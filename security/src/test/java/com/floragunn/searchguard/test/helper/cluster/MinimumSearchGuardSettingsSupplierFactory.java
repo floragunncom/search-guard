@@ -21,7 +21,7 @@ import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.certificate.CertificateType;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+
 import org.elasticsearch.common.settings.Settings;
 
 import java.io.FileNotFoundException;

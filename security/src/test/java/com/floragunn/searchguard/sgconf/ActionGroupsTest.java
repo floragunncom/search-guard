@@ -24,7 +24,7 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.codova.documents.Format;
+import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
@@ -62,8 +62,10 @@ public class ActionGroupsTest {
 
     @Test
     public void staticActionGroupsSmokeTest() throws Exception {
-        SgDynamicConfiguration<ActionGroupsV7> config = SgDynamicConfiguration.from(
-                new InputStreamReader(getClass().getResourceAsStream("/static_config/static_action_groups.yml")), CType.ACTIONGROUPS, Format.YAML, null);
+        SgDynamicConfiguration<ActionGroupsV7> config = SgDynamicConfiguration.fromNode(
+                DefaultObjectMapper.YAML_MAPPER
+                        .readTree(new InputStreamReader(getClass().getResourceAsStream("/static_config/static_action_groups.yml"))),
+                CType.ACTIONGROUPS, 2, 0, 0, 0, null);
 
         ActionGroups actionGroups = new ActionGroups(config);
 

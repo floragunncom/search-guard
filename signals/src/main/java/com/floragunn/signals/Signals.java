@@ -34,8 +34,6 @@ import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
-import com.floragunn.searchguard.sgconf.DynamicConfigModel;
-import com.floragunn.searchguard.sgconf.InternalUsersModel;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
@@ -387,7 +385,7 @@ public class Signals extends AbstractLifecycleComponent {
 
     private final DCFListener dcfListener = new DCFListener() {
         @Override
-        public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
+        public void onChanged(ConfigModel cm) {
             log.debug("Tenant config model changed");
             updateTenants(cm.getAllConfiguredTenantNames());
         }

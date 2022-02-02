@@ -33,7 +33,7 @@ import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.srv.LdapServer;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.unboundid.ldap.sdk.Attribute;
@@ -319,7 +319,7 @@ public class LdapBackendTestNewStyleConfig2 {
                     .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
             Assert.fail("Expected exception");
         } catch (final Exception e) {
-            Assert.assertEquals(IllegalStateException.class, e.getCause().getClass());
+            Assert.assertEquals(IllegalStateException.class, e.getCause().getCause().getClass());
         }
     }
 
@@ -791,20 +791,6 @@ public class LdapBackendTestNewStyleConfig2 {
 
         // Fails with ElasticsearchSecurityException because two possible instances are
         // found
-    }
-
-    @Test
-    public void testChainedLdapExists() throws Exception {
-
-        final Settings settings = createBaseSettings()
-                .putList(ConfigConstants.LDAP_HOSTS, "127.0.0.1:4", "localhost:" + plainTextLdapServer.getPort())
-                .put("users.u1.search", "(uid={0})").put("users.u2.search", "(uid={0})")
-                .put("users.u2.base", "ou=people2,o=TEST").build();
-
-        final LDAPAuthenticationBackend2 lbe = new LDAPAuthenticationBackend2(settings, null);
-        Assert.assertTrue(lbe.exists(new User("jacksonm")));
-        Assert.assertTrue(lbe.exists(new User("presleye")));
-        Assert.assertFalse(lbe.exists(new User("doesnotexist")));
     }
 
     @Test

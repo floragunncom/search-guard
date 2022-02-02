@@ -39,10 +39,10 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.TestData;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
 
 public class FieldMaskingAggregationTest {
 

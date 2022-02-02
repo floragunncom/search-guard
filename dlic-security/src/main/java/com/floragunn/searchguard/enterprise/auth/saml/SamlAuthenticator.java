@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -22,13 +22,8 @@ import java.security.AccessController;
 import java.security.PrivateKey;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.xml.xpath.XPathExpressionException;
 
@@ -48,18 +43,21 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchguard.auth.AuthczResult;
-import com.floragunn.searchguard.auth.AuthenticationFrontend;
-import com.floragunn.searchguard.auth.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.auth.CredentialsException;
-import com.floragunn.searchguard.auth.Destroyable;
-import com.floragunn.searchguard.auth.frontend.ActivatedFrontendConfig;
-import com.floragunn.searchguard.auth.frontend.GetFrontendConfigAction;
-import com.floragunn.searchguard.auth.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.TypedComponent;
+import com.floragunn.searchguard.TypedComponent.Factory;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.CredentialsException;
+import com.floragunn.searchguard.authc.Destroyable;
+import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
+import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchguard.user.UserAttributes;
+import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
+import com.floragunn.searchsupport.util.ImmutableMap;
 import com.google.common.base.Strings;
 import com.onelogin.saml2.authn.AuthnRequest;
 import com.onelogin.saml2.authn.SamlResponse;
@@ -78,10 +76,6 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
     protected final static Logger log = LogManager.getLogger(SamlAuthenticator.class);
     private static boolean openSamlInitialized = false;
 
-    private String subjectKey;
-    private String rolesKey;
-    private String rolesSeparator;
-
     private URI idpMetadataUrl;
     private String idpMetadataXml;
     private String spSignatureAlgorithm;
@@ -90,16 +84,13 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
     private Saml2SettingsProvider saml2SettingsProvider;
     private MetadataResolver metadataResolver;
     private boolean checkIssuer;
-    private Pattern subjectPattern;
 
     public SamlAuthenticator(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
         ensureOpenSamlInitialization();
 
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors).expandVariables(context);
+        ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors, context);
 
-        rolesKey = vNode.get("user_mapping.roles").asString();
-        subjectKey = vNode.get("user_mapping.subject").asString();
         idpMetadataUrl = vNode.get("idp.metadata_url").asURI();
         idpMetadataXml = vNode.get("idp.metadata_xml").asString();
 
@@ -108,17 +99,9 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
         spSignaturePrivateKey = vNode.get("sp.signature_private_key").byString((pem) -> TLSConfig.toPrivateKey(pem, spSignaturePrivateKeyPassword));
         useForceAuthn = vNode.get("sp.forceAuthn").asBoolean();
         checkIssuer = vNode.get("check_issuer").withDefault(true).asBoolean();
-        subjectPattern = vNode.get("user_mapping.subject_pattern").asPattern();
-        rolesSeparator = vNode.get("user_mapping.roles_seperator").asString();
 
         String idpEntityId = vNode.get("idp.entity_id").required().asString();
         String spEntityId = vNode.get("sp.entity_id").asString();
-
-        if (subjectKey == null || subjectKey.length() == 0) {
-            // If subjectKey == null, get subject from the NameID element.
-            // Thus, this is a valid configuration.
-            subjectKey = null;
-        }
 
         if (idpMetadataUrl == null && idpMetadataXml == null) {
             validationErrors.add(new com.floragunn.codova.validation.errors.ValidationError("idp.metadata_url",
@@ -178,7 +161,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
     @Override
     public ActivatedFrontendConfig.AuthMethod activateFrontendConfig(ActivatedFrontendConfig.AuthMethod frontendConfig,
-            GetFrontendConfigAction.Request request) throws AuthenticatorUnavailableException {
+            GetActivatedFrontendConfigAction.Request request) throws AuthenticatorUnavailableException {
         try {
             if (request.getFrontendBaseUrl() == null) {
                 throw new AuthenticatorUnavailableException("Configuration error", "frontend_base_url is required for SAML authentication")
@@ -257,64 +240,54 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             samlRequestId = null;
         }
 
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
         try {
-            return AccessController.doPrivileged((PrivilegedExceptionAction<AuthCredentials>) () -> {
+            SamlResponse samlResponse = createSamlResponse(saml2Settings, acsEndpoint, samlResponseBase64, debugDetails);
+
+            PrivilegedCode.execute(() -> {
                 try {
-
-                    SamlResponse samlResponse = new SamlResponse(saml2Settings, acsEndpoint, samlResponseBase64);
-
                     debugDetails.put("saml_response_attributes", samlResponse.getAttributes());
                     debugDetails.put("saml_response_issuer", samlResponse.getResponseIssuer());
                     debugDetails.put("saml_response_assertion_issuer", samlResponse.getAssertionIssuer());
                     debugDetails.put("saml_response_audiences", samlResponse.getAudiences());
                     debugDetails.put("saml_response_name_id_data", samlResponse.getNameIdData());
-
-                    if (checkIssuer) {
-                        this.ensureResponseFromConfiguredEntity(samlResponse, saml2Settings, debugDetails);
-                    }
-
-                    if (!samlResponse.isValid(samlRequestId)) {
-                        log.info("Error while validating SAML response " + samlRequestId, samlResponse.getValidationException());
-                        throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                                "Invalid SAML response: " + samlResponse.getValidationException(), debugDetails));
-                    }
-
-                    String subject = extractSubject(samlResponse);
-                    List<String> roles = extractRoles(samlResponse);
-                    String sessionIndex = samlResponse.getSessionIndex();
-                    String nameId = samlResponse.getNameId();
-                    String nameIdFormat;
-
-                    if (samlResponse.getNameIdFormat() != null) {
-                        nameIdFormat = SamlNameIdFormat.getByUri(samlResponse.getNameIdFormat()).getShortName();
-                    } else {
-                        nameIdFormat = null;
-                    }
-
-                    return AuthCredentials.forUser(subject).backendRoles(roles).attribute(UserAttributes.AUTH_TYPE, "saml")
-                            .attribute("__saml_si", sessionIndex).attribute("__saml_nif", nameIdFormat).attribute("__saml_nid", nameId)
-                            .attribute("__fe_base_url", frontendBaseUrl.toString()).complete().build();
-
-                } catch (ValidationError e) {
-                    log.warn("Error while validating SAML response", e);
-                    throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
-                            "Invalid SAML response: " + e.getMessage() + "; error_code: " + e.getErrorCode(), debugDetails), e);
+                } catch (Exception e) {
+                    log.warn("Got Exception while collecting debug details", e);
                 }
             });
-        } catch (PrivilegedActionException e) {
-            if (e.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) e.getCause();
-            } else if (e.getCause() instanceof CredentialsException) {
-                throw (CredentialsException) e.getCause();
-            } else {
-                throw new RuntimeException(e.getCause());
+
+            if (checkIssuer) {
+                this.ensureResponseFromConfiguredEntity(samlResponse, saml2Settings, debugDetails);
             }
+
+            if (!PrivilegedCode.execute(() -> samlResponse.isValid(samlRequestId))) {
+                log.info("Error while validating SAML response " + samlRequestId, samlResponse.getValidationException());
+                throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                        "Invalid SAML response: " + samlResponse.getValidationException(), debugDetails));
+            }
+
+            String sessionIndex;
+            String nameId;
+            String nameIdFormat;
+
+            try {
+                sessionIndex = PrivilegedCode.execute(() -> samlResponse.getSessionIndex(), XPathExpressionException.class);
+                nameId = PrivilegedCode.execute(() -> samlResponse.getNameId(), Exception.class);
+                nameIdFormat = PrivilegedCode.execute(
+                        () -> samlResponse.getNameIdFormat() != null ? SamlNameIdFormat.getByUri(samlResponse.getNameIdFormat()).getShortName()
+                                : null,
+                        Exception.class);
+            } catch (Exception e) {
+                throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                        "Error while extracting meta data from SAML response: " + e.getMessage(), debugDetails), e);
+            }
+
+            return AuthCredentials.forUser(nameId).userMappingAttribute("saml_response", extractAttributes(samlResponse))
+                    .attribute(Attributes.AUTH_TYPE, "saml").attribute("__saml_si", sessionIndex).attribute("__saml_nif", nameIdFormat)
+                    .attribute("__saml_nid", nameId).attribute("__fe_base_url", frontendBaseUrl.toString()).complete().build();
+        } catch (ValidationError e) {
+            log.warn("Error while validating SAML response", e);
+            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                    "Invalid SAML response: " + e.getMessage() + "; error_code: " + e.getErrorCode(), debugDetails), e);
         }
     }
 
@@ -368,11 +341,35 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
         return "saml";
     }
 
+    private SamlResponse createSamlResponse(Saml2Settings saml2Settings, String acsEndpoint, String samlResponseBase64,
+            Map<String, Object> debugDetails) throws ValidationError {
+        SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        try {
+            return AccessController.doPrivileged((PrivilegedExceptionAction<SamlResponse>) () -> {
+                return new SamlResponse(saml2Settings, acsEndpoint, samlResponseBase64);
+            });
+        } catch (PrivilegedActionException e) {
+            if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            } else if (e.getCause() instanceof ValidationError) {
+                throw (ValidationError) e.getCause();
+            } else {
+                throw new RuntimeException(e.getCause());
+            }
+        }
+    }
+
     private void ensureResponseFromConfiguredEntity(SamlResponse samlResponse, Saml2Settings saml2Settings, Map<String, Object> debugDetails)
             throws CredentialsException {
 
         try {
-            String issuer = samlResponse.getResponseIssuer();
+            String issuer = PrivilegedCode.<String, ValidationError, XPathExpressionException>execute(() -> samlResponse.getResponseIssuer(),
+                    ValidationError.class, XPathExpressionException.class);
             if (issuer != null) {
 
                 if (!issuer.equals(saml2Settings.getIdpEntityId())) {
@@ -424,99 +421,14 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
         }
     }
 
-    private String extractSubject(SamlResponse samlResponse) throws Exception {
-        if (this.subjectKey == null) {
-            return applySubjectPattern(samlResponse.getNameId());
+    private Map<String, ?> extractAttributes(SamlResponse samlResponse) {
+        try {
+            return PrivilegedCode.<Map<String, ?>, ValidationError, XPathExpressionException>execute(() -> samlResponse.getAttributes(),
+                    ValidationError.class, XPathExpressionException.class);
+        } catch (ValidationError | XPathExpressionException e) {
+            log.warn("Got exception while extracting attributes from " + samlResponse, e);
+            return ImmutableMap.empty();
         }
-
-        List<String> values = samlResponse.getAttributes().get(this.subjectKey);
-
-        if (values == null || values.size() == 0) {
-            return null;
-        }
-
-        return applySubjectPattern(values.get(0));
-    }
-
-    private String applySubjectPattern(String subject) {
-        if (subject == null) {
-            return null;
-        }
-
-        if (subjectPattern == null) {
-            return subject;
-        }
-
-        Matcher matcher = subjectPattern.matcher(subject);
-
-        if (!matcher.matches()) {
-            log.warn("Subject " + subject + " does not match subject_pattern " + subjectPattern);
-            return null;
-        }
-
-        if (matcher.groupCount() == 1) {
-            subject = matcher.group(1);
-        } else if (matcher.groupCount() > 1) {
-            StringBuilder subjectBuilder = new StringBuilder();
-
-            for (int i = 1; i <= matcher.groupCount(); i++) {
-                if (matcher.group(i) != null) {
-                    subjectBuilder.append(matcher.group(i));
-                }
-            }
-
-            if (subjectBuilder.length() != 0) {
-                subject = subjectBuilder.toString();
-            } else {
-                subject = null;
-            }
-        }
-
-        return subject;
-    }
-
-    private List<String> extractRoles(SamlResponse samlResponse) throws XPathExpressionException, ValidationError {
-        if (this.rolesKey == null) {
-            return Collections.emptyList();
-        }
-
-        List<String> values = samlResponse.getAttributes().get(this.rolesKey);
-
-        if (values == null || values.size() == 0) {
-            return null;
-        }
-
-        if (rolesSeparator != null) {
-            return splitRoles(values);
-        } else {
-            return trimRoles(values);
-        }
-    }
-
-    private List<String> splitRoles(List<String> values) {
-        ArrayList<String> result = new ArrayList<String>(values.size() * 5);
-
-        for (String role : values) {
-            if (role != null) {
-                for (String splitRole : role.split(rolesSeparator)) {
-                    result.add(splitRole.trim());
-                }
-            }
-        }
-
-        return result;
-    }
-
-    private List<String> trimRoles(List<String> values) {
-        ArrayList<String> result = new ArrayList<>(values);
-
-        for (int i = 0; i < result.size(); i++) {
-            if (result.get(i) != null) {
-                result.set(i, result.get(i).trim());
-            }
-        }
-
-        return result;
     }
 
     static void ensureOpenSamlInitialization() {
@@ -605,5 +517,23 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
     private enum IdpEndpointType {
         SSO, SLO
     }
+
+    public static TypedComponent.Info<ApiAuthenticationFrontend> INFO = new TypedComponent.Info<ApiAuthenticationFrontend>() {
+
+        @Override
+        public Class<ApiAuthenticationFrontend> getType() {
+            return ApiAuthenticationFrontend.class;
+        }
+
+        @Override
+        public String getName() {
+            return "saml";
+        }
+
+        @Override
+        public Factory<ApiAuthenticationFrontend> getFactory() {
+            return SamlAuthenticator::new;
+        }
+    };
 
 }

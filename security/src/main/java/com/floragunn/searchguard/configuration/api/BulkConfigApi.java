@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,8 @@ import org.elasticsearch.common.xcontent.ToXContent;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocUtils;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -39,11 +41,14 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.BaseDependencies;
+import com.floragunn.searchguard.SearchGuardVersion;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.configuration.ConcurrentConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.ConfigurationRepository.ConfigWithMetadata;
 import com.floragunn.searchguard.configuration.variables.ConfigVar;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.sgconf.impl.CType;
@@ -59,6 +64,7 @@ public class BulkConfigApi {
     private static final Logger log = LogManager.getLogger(BulkConfigApi.class);
 
     public static final RestApi REST_API = new RestApi()//
+            .responseHeaders(SearchGuardVersion.header())//
             .handlesGet("/_searchguard/config").with(GetAction.INSTANCE)//
             .handlesPut("/_searchguard/config").with(UpdateAction.INSTANCE)//
             .name("/_searchguard/config");
@@ -113,7 +119,7 @@ public class BulkConfigApi {
 
             @Override
             protected CompletableFuture<Response> doExecute(EmptyRequest request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         ConfigMap configMap = configurationRepository.getConfigurationsFromIndex(CType.all(), "GET Bulk API Request");
 
@@ -125,14 +131,32 @@ public class BulkConfigApi {
                             Map<String, Object> resultEntry = new LinkedHashMap<>();
 
                             if (config.getUninterpolatedJson() != null) {
-                                resultEntry.put("content", UnparsedDocument.fromJson(config.getUninterpolatedJson()));
+                                if (config.getCType().getArity() == CType.Arity.SINGLE) {
+                                    try {
+                                        DocNode parsedConfig = DocNode.parse(Format.JSON).from(config.getUninterpolatedJson());
+
+                                        if (parsedConfig.hasNonNull("default")) {
+                                            resultEntry.put("content", parsedConfig.get("default"));
+                                        }
+                                    } catch (DocumentParseException e) {
+                                        throw new ConfigUnavailableException(e);
+                                    }
+                                } else {
+                                    resultEntry.put("content", UnparsedDocument.fromJson(config.getUninterpolatedJson()));
+                                }
                             } else {
                                 resultEntry.put("content", ObjectTreeXContent.toObjectTree(config, OMIT_DEFAULTS_PARAMS));
                             }
 
-                            resultEntry.put("_version", config.getDocVersion());
-                            resultEntry.put("_seq_no", config.getSeqNo());
-                            resultEntry.put("_primary_term", config.getPrimaryTerm());
+                            if (config.getSeqNo() != -1 || config.getPrimaryTerm() != -1) {
+                                resultEntry.put("exists", true);
+                                resultEntry.put("_version", config.getDocVersion());
+                                resultEntry.put("_seq_no", config.getSeqNo());
+                                resultEntry.put("_primary_term", config.getPrimaryTerm());
+                                resultEntry.put("_etag", config.getETag());
+                            } else {
+                                resultEntry.put("exists", false);
+                            }
 
                             result.put(config.getCType().toLCString(), resultEntry);
                         }
@@ -143,7 +167,7 @@ public class BulkConfigApi {
                     } catch (ConfigUnavailableException e) {
                         throw new CompletionException(e);
                     }
-                }, getExecutor());
+                });
             }
 
             private void logComplianceEvent(ConfigMap configMap) {
@@ -206,18 +230,17 @@ public class BulkConfigApi {
 
             @Override
             protected final CompletableFuture<StandardResponse> doExecute(Request request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
-                        Map<CType<?>, Map<String, ?>> configMap = parseConfigJson(request.getConfig());
+                        Map<CType<?>, ConfigWithMetadata> configMap = parseConfigJson(request.getConfig());
 
-                        @SuppressWarnings("unchecked")
-                        Map<String, ConfigVar> configVars = (Map<String, ConfigVar>) configMap.get(CType.CONFIG_VARS);
+                        ConfigWithMetadata configVars = configMap.get(CType.CONFIG_VARS);
 
-                        if (configVars != null) {
+                        if (configVars != null && configVars.getContent() != null) {
                             configMap.remove(CType.CONFIG_VARS);
 
                             try {
-                                StandardResponse response = this.configVarService.updateAll(configVars).get();
+                                StandardResponse response = this.configVarService.updateAll((Map<String, ConfigVar>) configVars.getContent()).get();
 
                                 if (response.getStatus() >= 300) {
                                     return response;
@@ -241,6 +264,8 @@ public class BulkConfigApi {
                         return new StandardResponse(200).message("Configuration has been updated");
                     } catch (ConfigValidationException e) {
                         return new StandardResponse(400).error(e);
+                    } catch (ConcurrentConfigUpdateException e) {
+                        return new StandardResponse(412).error(e.getMessage());
                     } catch (ConfigUpdateException e) {
                         log.error("Error while updating configuration", e);
                         return new StandardResponse(500).error(null, e.getMessage(), e.getDetailsAsMap());
@@ -248,10 +273,10 @@ public class BulkConfigApi {
                 });
             }
 
-            private Map<CType<?>, Map<String, ?>> parseConfigJson(UnparsedDocument<?> unparsedDoc) throws ConfigValidationException {
+            private Map<CType<?>, ConfigWithMetadata> parseConfigJson(UnparsedDocument<?> unparsedDoc) throws ConfigValidationException {
                 Map<String, Object> parsedJson = unparsedDoc.parseAsMap();
                 ValidationErrors validationErrors = new ValidationErrors();
-                Map<CType<?>, Map<String, ?>> configTypeToConfigMap = new HashMap<>();
+                Map<CType<?>, ConfigWithMetadata> configTypeToConfigMap = new HashMap<>();
 
                 for (String configTypeName : parsedJson.keySet()) {
                     CType<?> ctype;
@@ -298,7 +323,9 @@ public class BulkConfigApi {
                         contentMap = parsedContentMap;
                     }
 
-                    configTypeToConfigMap.put(ctype, contentMap);
+                    String etag = ((Map<?, ?>) value).get("etag") != null ? String.valueOf(((Map<?, ?>) value).get("etag")) : null;
+
+                    configTypeToConfigMap.put(ctype, new ConfigWithMetadata(contentMap, etag));
                 }
 
                 validationErrors.throwExceptionForPresentErrors();
@@ -307,5 +334,4 @@ public class BulkConfigApi {
             }
         }
     }
-
 }

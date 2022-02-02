@@ -56,7 +56,7 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.auth.BackendRegistry;
+import com.floragunn.searchguard.authc.transport.AuthenticatingTransportRequestHandler;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -70,7 +70,7 @@ public class SearchGuardInterceptor {
 
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     protected final static Logger log = LogManager.getLogger(SearchGuardInterceptor.class);
-    private BackendRegistry backendRegistry;
+    private final AuthenticatingTransportRequestHandler authHandler;
     private AuditLog auditLog;
     private final ThreadPool threadPool;
     private final PrincipalExtractor principalExtractor;
@@ -82,11 +82,11 @@ public class SearchGuardInterceptor {
     private final DiagnosticContext diagnosticContext;
     private final GuiceDependencies guiceDependencies;
 
-    public SearchGuardInterceptor(Settings settings, ThreadPool threadPool, BackendRegistry backendRegistry, AuditLog auditLog,
+    public SearchGuardInterceptor(Settings settings, ThreadPool threadPool, AuthenticatingTransportRequestHandler authHandler, AuditLog auditLog,
             PrincipalExtractor principalExtractor, InterClusterRequestEvaluator requestEvalProvider, ClusterService cs,
             SslExceptionHandler sslExceptionHandler, ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies,
             DiagnosticContext diagnosticContext) {
-        this.backendRegistry = backendRegistry;
+        this.authHandler = authHandler;
         this.auditLog = auditLog;
         this.threadPool = threadPool;
         this.principalExtractor = principalExtractor;
@@ -101,7 +101,7 @@ public class SearchGuardInterceptor {
 
     public <T extends TransportRequest> SearchGuardRequestHandler<T> getHandler(String action,
             TransportRequestHandler<T> actualHandler) {
-        return new SearchGuardRequestHandler<T>(action, actualHandler, threadPool, backendRegistry, auditLog,
+        return new SearchGuardRequestHandler<T>(action, actualHandler, threadPool, authHandler, auditLog,
                 principalExtractor, requestEvalProvider, cs, sslExceptionHandler);
     }
 

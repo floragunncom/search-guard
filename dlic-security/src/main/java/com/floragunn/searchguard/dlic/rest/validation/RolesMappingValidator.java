@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -28,6 +28,7 @@ public class RolesMappingValidator extends AbstractConfigurationValidator {
 		allowedKeys.put("hosts", DataType.ARRAY);
 		allowedKeys.put("users", DataType.ARRAY);
 		allowedKeys.put("description", DataType.STRING);
+        allowedKeys.put("ips", DataType.ARRAY);
 
 		mandatoryOrKeys.add("backend_roles");
 		mandatoryOrKeys.add("and_backend_roles");

@@ -28,43 +28,31 @@ import org.elasticsearch.action.support.nodes.BaseNodeRequest;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
-import com.floragunn.searchguard.auth.BackendRegistry;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.SearchGuardLicense;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.support.LicenseHelper;
 
 public class TransportConfigUpdateAction
 extends
 TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigUpdateAction.NodeConfigUpdateRequest, ConfigUpdateNodeResponse> {
 
     protected Logger logger = LogManager.getLogger(getClass());
-    private final Provider<BackendRegistry> backendRegistry;
     private final ConfigurationRepository configurationRepository;
-    private DynamicConfigFactory dynamicConfigFactory;
     
     @Inject
     public TransportConfigUpdateAction(final Settings settings,
             final ThreadPool threadPool, final ClusterService clusterService, final TransportService transportService,
-            final ConfigurationRepository configurationRepository, final ActionFilters actionFilters,
-            Provider<BackendRegistry> backendRegistry, DynamicConfigFactory dynamicConfigFactory) {        
+            final ConfigurationRepository configurationRepository, final ActionFilters actionFilters) {        
         super(ConfigUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters,
                 ConfigUpdateRequest::new, TransportConfigUpdateAction.NodeConfigUpdateRequest::new,
                 ThreadPool.Names.MANAGEMENT, ConfigUpdateNodeResponse.class);
 
         this.configurationRepository = configurationRepository;
-        this.backendRegistry = backendRegistry;
-        this.dynamicConfigFactory = dynamicConfigFactory;
     }
 
     public static class NodeConfigUpdateRequest extends BaseNodeRequest {
@@ -103,35 +91,7 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
     protected ConfigUpdateNodeResponse nodeOperation(final NodeConfigUpdateRequest request) {
         try {
             configurationRepository.reloadConfiguration(CType.fromStringValues(request.request.getConfigTypes()), "Config Update " + request.request);
-            backendRegistry.get().invalidateCache();
-
-            /*final SearchGuardLicense license = configurationRepository.getLicense();
-            
-            if (license != null) {
-            if(!license.isValid()) {
-                logger.warn("License "+license.getUid()+" is invalid due to "+license.getMsgs());
-                //throw an exception here if loading of invalid license should be denied
-            }
-            }*/
-
-            final String licenseText = dynamicConfigFactory.getLicenseString();
-
-            if (licenseText != null && !licenseText.isEmpty()) {
-                try {
-                    final SearchGuardLicense license = new SearchGuardLicense(
-                            XContentHelper.convertToMap(XContentType.JSON.xContent(), LicenseHelper.validateLicense(licenseText), true),
-                            clusterService);
-
-                    if (!license.isValid()) {
-                        logger.warn("License " + license.getUid() + " is invalid due to " + license.getMsgs());
-                        //throw an exception here if loading of invalid license should be denied
-                    }
-                } catch (Exception e) {
-                    logger.error("Invalid license", e);
-                    return new ConfigUpdateNodeResponse(clusterService.localNode(), new String[0], "Invalid license: " + e);
-                }
-            }
-
+           
             return new ConfigUpdateNodeResponse(clusterService.localNode(), request.request.getConfigTypes(), null);
         } catch (Exception e) {
             logger.error("Error in TransportConfigUpdateAction nodeOperation for " + request, e);

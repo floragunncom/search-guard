@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
@@ -272,6 +273,10 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
 
         protected Executor getExecutor() {
             return executor;
+        }
+        
+        protected <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier) {
+            return CompletableFuture.supplyAsync(supplier, executor);
         }
     }
 

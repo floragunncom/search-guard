@@ -28,10 +28,10 @@ import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.routing.AuditMessageRouter;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
-import com.floragunn.searchguard.test.DynamicSgConfig;
-import com.floragunn.searchguard.test.SingleClusterTest;
-import com.floragunn.searchguard.test.helper.file.FileHelper;
-import com.floragunn.searchguard.test.helper.rest.RestHelper;
+import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.legacy.test.SingleClusterTest;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
 

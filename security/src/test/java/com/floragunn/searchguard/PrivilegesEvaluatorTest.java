@@ -8,7 +8,6 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -38,12 +37,13 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.google.common.collect.ImmutableMap;
 
 public class PrivilegesEvaluatorTest {
@@ -66,34 +66,29 @@ public class PrivilegesEvaluatorTest {
             new Role("neg_lookahead_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ").on("/^(?!t.*).*/"));
 
     private static TestSgConfig.User REGEX_USER = new TestSgConfig.User("regex_user")
-            .roles(new Role("regex_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ").on("/^[a-z].*/"));
+            .roles(new Role("regex_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ").on("/[^a-z].*/"));
 
     private static TestSgConfig.User SEARCH_TEMPLATE_LEGACY_USER = new TestSgConfig.User("search_template_legacy_user")
             .roles(new Role("search_template_legacy_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ")
                     .on("resolve_test_*").indexPermissions("indices:data/read/search/template").on("*"));
-    
+
     private static TestSgConfig.User HIDDEN_TEST_USER = new TestSgConfig.User("hidden_test_user").roles(
             new Role("hidden_test_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("*").on("hidden_test_not_hidden"));
 
-    private static TestCertificates certificatesContext = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
+    private static TestCertificates certificatesContext = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard").build();
 
-    @ClassRule 
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     @ClassRule
     public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
-            .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")
             .user("resolve_test_user", "secret", new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*"))//
             .build();
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).remote("my_remote", anotherCluster)
-            .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "true")
             .user("resolve_test_user", "secret",
                     new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*").indexPermissions("*")
                             .on("/alias_resolve_test_index_allow_.*/")) //
@@ -120,8 +115,8 @@ public class PrivilegesEvaluatorTest {
             .users(SEARCH_TEMPLATE_USER, SEARCH_NO_TEMPLATE_USER, SEARCH_TEMPLATE_LEGACY_USER).build();
 
     @ClassRule
-    public static LocalCluster clusterFof = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).remote("my_remote", anotherCluster)
-            .setInSgConfig("sg_config.dynamic.do_not_fail_on_forbidden", "false")
+    public static LocalCluster clusterFof = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+            .remote("my_remote", anotherCluster).ignoreUnauthorizedIndices(false)
             .user("resolve_test_user", "secret",
                     new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*").indexPermissions("*")
                             .on("/alias_resolve_test_index_allow_.*/")) //            
@@ -193,13 +188,15 @@ public class PrivilegesEvaluatorTest {
                     .aliases(new IndicesAliasesRequest()
                             .addAliasAction(new AliasActions(AliasActions.Type.ADD).alias("resolve_test_allow_alias").indices("resolve_test_*")))
                     .actionGet();
-            
+
             client.index(new IndexRequest("hidden_test_not_hidden").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "hidden_test_not_hidden", "b", "y", "date", "1985/01/01")).actionGet();
-            
-            client.admin().indices().create(new CreateIndexRequest(".hidden_test_actually_hidden").settings(ImmutableMap.of("index.hidden", true))).actionGet();
-            client.index(new IndexRequest(".hidden_test_actually_hidden").id("test").source("a", "b").setRefreshPolicy(RefreshPolicy.IMMEDIATE)).actionGet();
-            
+
+            client.admin().indices().create(new CreateIndexRequest(".hidden_test_actually_hidden").settings(ImmutableMap.of("index.hidden", true)))
+                    .actionGet();
+            client.index(new IndexRequest(".hidden_test_actually_hidden").id("test").source("a", "b").setRefreshPolicy(RefreshPolicy.IMMEDIATE))
+                    .actionGet();
+
             client.index(new IndexRequest("exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "exclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
@@ -583,7 +580,7 @@ public class PrivilegesEvaluatorTest {
             HttpResponse httpResponse = restClient.get("*/_search");
 
             Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
-            
+
             httpResponse = restClient.get("r*/_search");
 
             Assert.assertEquals(httpResponse.getBody(), 200, httpResponse.getStatusCode());
@@ -598,13 +595,9 @@ public class PrivilegesEvaluatorTest {
             HttpResponse httpResponse = restClient.get("*/_search");
 
             Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
-            
-            httpResponse = restClient.get("r*/_search");
-
-            Assert.assertEquals(httpResponse.getBody(), 200, httpResponse.getStatusCode());
-        }
+         }
     }
-    
+
     @Test
     public void resolveTestHidden() throws Exception {
 

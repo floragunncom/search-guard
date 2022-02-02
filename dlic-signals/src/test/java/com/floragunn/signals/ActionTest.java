@@ -48,7 +48,10 @@ public class ActionTest {
             .resources("sg_config/signals").enterpriseModulesEnabled().enableModule(SignalsModule.class).build();
 
     @BeforeClass
-    public static void setupTestData() {
+    public static void setupTestData() throws Throwable {
+        
+        // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
+        cluster.before();
 
         try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))

@@ -31,10 +31,10 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.google.common.collect.ImmutableMap;
 
 public class InternalUsersConfigApiTest {

@@ -63,11 +63,11 @@ import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
 import com.floragunn.searchsupport.junit.LoggingTestWatcher;
 import com.floragunn.signals.support.JsonBuilder;
 import com.floragunn.signals.util.WatchLogSearch;
@@ -108,7 +108,7 @@ public class RestApiTest {
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals__main_log", "signals.enterprise.enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
                     "signals.watch_log.sync_indexing", true)
-            .dependsOn(javaSecurity).enableModule(SignalsModule.class).build();
+            .dependsOn(javaSecurity).enableModule(SignalsModule.class).enterpriseModulesEnabled().build();
 
     @BeforeClass
     public static void setupTestData() {

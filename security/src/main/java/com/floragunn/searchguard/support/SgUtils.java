@@ -126,11 +126,7 @@ public final class SgUtils {
         if(in == null || in.isEmpty()) {
             return in;
         }
-        
-        if(settings == null || settings.getAsBoolean(ConfigConstants.SEARCHGUARD_DISABLE_ENVVAR_REPLACEMENT, false)) {
-            return in;
-        }
-        
+              
         return replaceEnvVarsBC(replaceEnvVarsNonBC(replaceEnvVarsBase64(in)));
     }
     
