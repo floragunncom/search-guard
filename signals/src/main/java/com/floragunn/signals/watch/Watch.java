@@ -500,6 +500,16 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
         return result;
     }
+    
+    public static Map<String, Object> getIndexMappingUpdate() {
+        NestedValueMap result = new NestedValueMap();
+
+        result.put("dynamic", true);
+        result.put(new NestedValueMap.Path("properties", "checks"), Check.getIndexMappingUpdate());
+        result.put(new NestedValueMap.Path("properties", "actions", "properties", "checks"), Check.getIndexMappingUpdate());
+
+        return result;
+    }
 
     public static class Meta implements ToXContentObject {
         private String authToken;

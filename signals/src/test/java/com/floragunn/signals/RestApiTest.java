@@ -1,3 +1,20 @@
+/*
+ * Copyright 2020-2022 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals;
 
 import java.net.InetAddress;
@@ -2215,6 +2232,44 @@ public class RestApiTest {
             } finally {
                 restClient.putJson("/_signals/settings/http.allowed_endpoints", "\"*\"");
             }
+        }
+    }
+
+    @Test
+    public void staticInputMapping() throws Exception {
+        String tenant = "_main";
+        String watchId1 = "static_input_mapping1";
+        String watchPath1 = "/_signals/watch/" + tenant + "/" + watchId1;
+        String watchId2 = "static_input_mapping2";
+        String watchPath2 = "/_signals/watch/" + tenant + "/" + watchId2;
+        String testSink = "testsink_" + watchId1;
+
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId1).atMsInterval(100).put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink)
+                    .throttledFor("1000h").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath1, watch);
+            
+            Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
+            
+            watch = new WatchBuilder(watchId1).atMsInterval(100).put("{\"bla\": \"now_a_different_type\"}").as("teststatic").then().index(testSink)
+                    .throttledFor("1000h").name("testsink").build();
+            response = restClient.putJson(watchPath1, watch);         
+            
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            
+            watch = new WatchBuilder(watchId2).atMsInterval(100).put("{\"bla\": 1234}").as("teststatic").then().index(testSink)
+                    .throttledFor("1000h").name("testsink").build();
+            response = restClient.putJson(watchPath2, watch);         
+            
+            Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
+            
+            response = restClient.get(watchPath2);
+            
+            Assert.assertEquals(response.getBody(), 1234, response.getBodyAsDocNode().getAsNode("_source").getAsListOfNodes("checks").get(0).getAsNode("value").get("bla"));
+            
         }
     }
 

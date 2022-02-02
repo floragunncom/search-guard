@@ -950,4 +950,15 @@ public class ComponentState implements Writeable, ToXContentObject {
             return builder;
         }
     }
+
+    @Override
+    public String toString() {
+        return "ComponentState [type=" + type + ", name=" + name + ", className=" + className + ", state=" + state + ", subState=" + subState
+                + ", tries=" + tries + ", message=" + message + ", detailJson=" + detailJson + ", detailJsonElements=" + detailJsonElements
+                + ", initException=" + initException + ", startedAt=" + startedAt + ", initializedAt=" + initializedAt + ", changedAt=" + changedAt
+                + ", failedAt=" + failedAt + ", nextTryAt=" + nextTryAt + ", lastExceptions=" + lastExceptions + ", mandatory=" + mandatory
+                + ", jarFileName=" + jarFileName + ", jarVersion=" + jarVersion + ", jarBuildTime=" + jarBuildTime + ", nodeId=" + nodeId
+                + ", nodeName=" + nodeName + ", license=" + license + ", enterprise=" + enterprise + ", sortPrio=" + sortPrio + ", configVersion="
+                + configVersion + ", configJson=" + configJson + ", metrics=" + metrics + ", parts=" + parts + "]";
+    }
 }
