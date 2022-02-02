@@ -75,12 +75,24 @@ public abstract class Check extends WatchElement {
 
         NestedValueMap properties = new NestedValueMap();
         SearchInput.addIndexMappingProperties(properties);
+        StaticInput.addIndexMappingProperties(properties);
 
         result.put("properties", properties);
 
         return result;
     }
 
+    public static Map<String, Object> getIndexMappingUpdate() {
+        NestedValueMap result = new NestedValueMap();
+
+        NestedValueMap properties = new NestedValueMap();
+        StaticInput.addIndexMappingProperties(properties);
+
+        result.put("properties", properties);
+
+        return result;
+    }
+    
     public static List<Check> create(WatchInitializationService watchInitService, List<?> checkNodes) throws ConfigValidationException {
         ArrayList<Check> result = new ArrayList<>(checkNodes.size());
 
