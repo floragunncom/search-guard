@@ -75,7 +75,7 @@ public class InternalUsersConfigApi {
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(StandardRequests.IdRequest request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         SgConfigEntry<InternalUser> user = this.configRepository.getConfigEntryFromIndex(CType.INTERNALUSERS, request.getId(),
                                 "API GET /_searchguard/internal_users/");
@@ -145,7 +145,7 @@ public class InternalUsersConfigApi {
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(PutAction.Request request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         InternalUser internalUser = InternalUser.parse(request.getValue().toDocNode(), configRepository.getParserContext()).get();
                         
@@ -190,7 +190,7 @@ public class InternalUsersConfigApi {
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(StandardRequests.IdRequest request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         return this.configRepository.delete(CType.INTERNALUSERS, request.getId());
                     } catch (NoSuchConfigEntryException e) {
@@ -261,7 +261,7 @@ public class InternalUsersConfigApi {
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(PatchAction.Request request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         return this.configRepository.applyPatch(CType.INTERNALUSERS, request.getId(), request.getPatch(),
                                 request.getIfMatch());

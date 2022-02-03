@@ -96,7 +96,7 @@ public abstract class TypeLevelConfigApi {
 
             @Override
             protected CompletableFuture<Response> doExecute(EmptyRequest request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         SgDynamicConfiguration<T> config = configurationRepository.getConfigurationFromIndex(configType, "GET API Request");
 
@@ -126,7 +126,7 @@ public abstract class TypeLevelConfigApi {
                     } catch (ConfigUnavailableException e) {
                         throw new CompletionException(e);
                     }
-                }, getExecutor());
+                });
             }
 
             private void logComplianceEvent(SgDynamicConfiguration<?> config) {
@@ -185,7 +185,7 @@ public abstract class TypeLevelConfigApi {
 
             @Override
             protected final CompletableFuture<StandardResponse> doExecute(Request request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         SgDynamicConfiguration<T> config = SgDynamicConfiguration.fromMap(request.getConfig(), configType,
                                 configurationRepository.getParserContext());
@@ -266,7 +266,7 @@ public abstract class TypeLevelConfigApi {
                         log.error("Error while adding user", e);
                         return new StandardResponse(500).error(e.getMessage());
                     }
-                });
+                }, getExecutor());
             }
         }
     }

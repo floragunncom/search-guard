@@ -115,7 +115,7 @@ public class BulkConfigApi {
 
             @Override
             protected CompletableFuture<Response> doExecute(EmptyRequest request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         ConfigMap configMap = configurationRepository.getConfigurationsFromIndex(CType.all(), "GET Bulk API Request");
 
@@ -157,7 +157,7 @@ public class BulkConfigApi {
                     } catch (ConfigUnavailableException e) {
                         throw new CompletionException(e);
                     }
-                }, getExecutor());
+                });
             }
 
             private void logComplianceEvent(ConfigMap configMap) {
@@ -220,7 +220,7 @@ public class BulkConfigApi {
 
             @Override
             protected final CompletableFuture<StandardResponse> doExecute(Request request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         Map<CType<?>, Map<String, ?>> configMap = parseConfigJson(request.getConfig());
 

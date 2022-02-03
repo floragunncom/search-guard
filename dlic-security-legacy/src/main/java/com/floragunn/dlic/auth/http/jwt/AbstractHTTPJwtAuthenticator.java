@@ -45,8 +45,8 @@ import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.oidc.BadCredentialsException;
 import com.floragunn.searchguard.enterprise.auth.oidc.JwtVerifier;
 import com.floragunn.searchguard.enterprise.auth.oidc.KeyProvider;
-import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.Attributes;
+import com.floragunn.searchguard.user.AuthCredentials;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
@@ -80,7 +80,7 @@ public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator 
 
         try {
             this.keyProvider = this.initKeyProvider(settings, configPath);
-            jwtVerifier = new JwtVerifier(keyProvider);
+            jwtVerifier = new JwtVerifier(keyProvider, null, null);
         } catch (Exception e) {
             log.error("Error creating JWT authenticator: " + e + ". JWT authentication will not work", e);
         }

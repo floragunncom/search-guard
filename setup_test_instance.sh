@@ -47,7 +47,7 @@ cd "$INSTALL_DIR"
 echo "-Xms1g" >>config/jvm.options
 echo "-Xmx1g" >>config/jvm.options
 
-bin/elasticsearch-plugin install -b file:///$SG_SNAPSHOT
+bin/elasticsearch-plugin install -v -b file:///$SG_SNAPSHOT
 
 for param in "$@"
 do
@@ -230,10 +230,10 @@ cat >~/.searchguard/cluster_test.yml << EOM
 server: "localhost"
 port: 9200
 tls:
-  trusted_cas: "\${file:$INSTALL_DIR/config/root-ca.pem}"
+  trusted_cas: "#{file:$INSTALL_DIR/config/root-ca.pem}"
   client_auth:
-    certificate: "\${file:$INSTALL_DIR/config/kirk.pem}"
-    private_key: "\${file:$INSTALL_DIR/config/kirk-key.pem}"
+    certificate: "#{file:$INSTALL_DIR/config/kirk.pem}"
+    private_key: "#{file:$INSTALL_DIR/config/kirk-key.pem}"
 EOM
 
 echo >~/.searchguard/sgctl-selected-config.txt test

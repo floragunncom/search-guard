@@ -73,7 +73,7 @@ public class SessionApi {
             protected final CompletableFuture<StandardResponse> doExecute(EmptyRequest request) {
                 User user = authInfoService.getCurrentUser();
 
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     String authTokenId = null; // request.getAuthTokenId();
 
                     try {
@@ -101,7 +101,7 @@ public class SessionApi {
                         log.error("Error while updating " + authTokenId, e);
                         return new StandardResponse(500, new StandardResponse.Error(e.getMessage()));
                     }
-                }, getExecutor());
+                });
 
             }
         }

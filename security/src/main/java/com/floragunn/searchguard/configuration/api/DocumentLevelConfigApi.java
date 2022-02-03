@@ -66,7 +66,7 @@ public abstract class DocumentLevelConfigApi {
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(IdRequest request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         SgConfigEntry<T> entry = configurationRepository.getConfigEntryFromIndex(configType, request.getId(), "GET API Request");
 
@@ -78,7 +78,7 @@ public abstract class DocumentLevelConfigApi {
                         log.error("Error while getting user", e);
                         return new StandardResponse(500).error(e.getMessage());
                     }
-                }, getExecutor());
+                });
             }
 
         }
@@ -137,7 +137,7 @@ public abstract class DocumentLevelConfigApi {
 
             @Override
             protected final CompletableFuture<StandardResponse> doExecute(Request request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         T entry = configType.getParser().parse(DocNode.wrap(request.getConfig()), configurationRepository.getParserContext()).get();
 
@@ -210,7 +210,7 @@ public abstract class DocumentLevelConfigApi {
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(PatchAction.Request request) {
-                return CompletableFuture.supplyAsync(() -> {
+                return supplyAsync(() -> {
                     try {
                         return this.configRepository.applyPatch(configType, request.getId(), request.getPatch(), request.getIfMatch());
                     } catch (ConfigValidationException e) {
