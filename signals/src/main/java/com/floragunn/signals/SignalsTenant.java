@@ -58,6 +58,7 @@ import com.floragunn.signals.execution.WatchRunner;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.support.ToXParams;
 import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.checks.StaticInput;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.result.WatchLog;
 import com.floragunn.signals.watch.result.WatchLogIndexWriter;
@@ -303,6 +304,8 @@ public class SignalsTenant implements Closeable {
         watchJson.put("_tenant", watch.getTenant());
         watchJson.set("_meta", watch.getMeta().toJsonNode());
         watchJson.put("_name", watchId);
+        
+        StaticInput.patchForIndexMappingBugFix(watchJson);
 
         String newWatchJsonString = DefaultObjectMapper.writeJsonTree(watchJson);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 floragunn GmbH
+ * Copyright 2020-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,12 @@
 package com.floragunn.searchguard.configuration;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
@@ -31,11 +34,15 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
@@ -44,6 +51,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.modules.state.ComponentState;
+import com.google.common.collect.ImmutableMap;
 
 public class ProtectedConfigIndexService {
     private final static Logger log = LogManager.getLogger(ProtectedConfigIndexService.class);
@@ -142,6 +150,60 @@ public class ProtectedConfigIndexService {
                 log.trace(configIndex + " does already exist.");
             }
 
+            if (configIndex.mappingUpdates.size() != 0) {
+                int mappingVersion = getMappingVersion(configIndex, clusterState);
+                
+                if (log.isTraceEnabled()) {
+                    log.trace("Mapping version of index: " + mappingVersion);
+                }
+                
+                SortedMap<Integer, Map<String, Object>> availableUpdates = configIndex.mappingUpdates.tailMap(mappingVersion);
+                               
+                if (availableUpdates.size() != 0) {
+                    Integer patchFrom = availableUpdates.firstKey();
+
+                    Map<String, Object> patch = configIndex.mappingUpdates.get(patchFrom);
+              
+                    if (log.isInfoEnabled()) {
+                        log.info("Updating mapping of index " + configIndex.getName() + " from version " + mappingVersion + " to version " + configIndex.mappingVersion);
+                    }
+                    
+                    configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "mapping_update");
+
+                    PutMappingRequest putMappingRequest = new PutMappingRequest(configIndex.getName()).type("_doc").source(patch);
+                    
+                    if (log.isDebugEnabled()) {
+                        log.debug(Strings.toString(putMappingRequest));
+                    }
+                    
+                    client.admin().indices().putMapping(putMappingRequest, new ActionListener<AcknowledgedResponse>() {
+
+                        @Override
+                        public void onResponse(AcknowledgedResponse response) {
+                            configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "mapping_updated");
+                            completedIndices.add(configIndex);
+                            configIndex.setCreated(true);
+
+                            if (configIndex.getListener() != null) {
+                                configIndex.waitForYellowStatus();
+                            } else {
+                                configIndex.moduleState.setInitialized();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            log.error("Mapping update failed for " + configIndex, e);
+                            configIndex.moduleState.setFailed(e);
+                            configIndex.moduleState.setState(ComponentState.State.FAILED, "mapping_update_failed");
+                            
+                        }
+                    });
+                    
+                    return;
+                }
+            }
+            
             completedIndices.add(configIndex);
             configIndex.setCreated(true);
 
@@ -211,6 +273,30 @@ public class ProtectedConfigIndexService {
 
     }
 
+    private int getMappingVersion(ConfigIndexState configIndex, ClusterState clusterState) {
+        IndexMetadata index = clusterState.getMetadata().getIndices().get(configIndex.getName());
+        MappingMetadata mapping = index.mapping();
+        
+        if (mapping == null) {
+            return 0;
+        }
+        
+       Object meta = mapping.getSourceAsMap().get("_meta");
+              
+       if (!(meta instanceof Map)) {
+           return 0;
+       }
+       
+       Object version = ((Map<?,?>) meta).get("version");
+       
+       if (version instanceof Number) {
+           return ((Number) version).intValue();
+       } else {
+           return 0;
+       }
+
+    }
+    
     private final ClusterStateListener clusterStateListener = new ClusterStateListener() {
 
         @Override
@@ -222,6 +308,8 @@ public class ProtectedConfigIndexService {
     private class ConfigIndexState {
         private final String name;
         private final Map<String, Object> mapping;
+        private final int mappingVersion;
+        private final SortedMap<Integer, Map<String, Object>> mappingUpdates;
         private final IndexReadyListener listener;
         private final String[] allIndices;
         private final ComponentState moduleState;
@@ -230,8 +318,10 @@ public class ProtectedConfigIndexService {
         ConfigIndexState(ConfigIndex configIndex) {
             this.name = configIndex.name;
             this.mapping = configIndex.mapping;
+            this.mappingVersion = configIndex.mappingVersion;
             this.listener = configIndex.listener;
             this.moduleState = new ComponentState(5, "index", configIndex.name);
+            this.mappingUpdates = configIndex.mappingUpdates;
 
             if (configIndex.indexDependencies == null || configIndex.indexDependencies.length == 0) {
                 allIndices = new String[] { name };
@@ -388,8 +478,10 @@ public class ProtectedConfigIndexService {
     public static class ConfigIndex {
         private String name;
         private Map<String, Object> mapping;
+        private int mappingVersion;
         private IndexReadyListener listener;
         private String[] indexDependencies = new String[0];
+        private SortedMap<Integer, Map<String, Object>> mappingUpdates = new TreeMap<>();
 
         public ConfigIndex(String name) {
             this.name = name;
@@ -397,6 +489,27 @@ public class ProtectedConfigIndexService {
 
         public ConfigIndex mapping(Map<String, Object> mapping) {
             this.mapping = mapping;
+            this.mappingVersion = 1;
+            return this;
+        }
+        
+        public ConfigIndex mapping(Map<String, Object> mapping, int mappingVersion) {
+            this.mapping = new HashMap<>(mapping);
+            this.mappingVersion = mappingVersion;
+            
+            this.mapping.put("_meta", ImmutableMap.of("version", mappingVersion));
+            
+            return this;
+        }
+        
+        public ConfigIndex mappingUpdate(int fromVersion, Map<String, Object> mappingDelta) {
+            if (this.mappingVersion == 0) {
+                throw new IllegalStateException("A mapping needs to be defined first");
+            }
+            
+            mappingDelta = new HashMap<>(mappingDelta);            
+            mappingDelta.put("_meta", ImmutableMap.of("version", this.mappingVersion));            
+            this.mappingUpdates.put(fromVersion, mappingDelta);
             return this;
         }
 
@@ -416,6 +529,10 @@ public class ProtectedConfigIndexService {
 
         public Map<String, Object> getMapping() {
             return mapping;
+        }
+
+        public SortedMap<Integer, Map<String, Object>> getMappingUpdates() {
+            return mappingUpdates;
         }
 
     }

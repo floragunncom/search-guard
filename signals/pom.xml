@@ -54,6 +54,7 @@
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
+				
 
 		<!-- Security -->
 		<dependency>
