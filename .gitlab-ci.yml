@@ -43,8 +43,8 @@ build:
   interruptible: true
   rules:
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-      when: never  
-    - when: always      
+      when: never
+    - when: always
   tags:
     - openstack-runner
   script:
@@ -299,8 +299,8 @@ deploy_staging:
           IT_BRANCH="$MAJOR.x"
         fi
       fi
-      echo "SG_ES_PLUGIN_URI=$SG_ES_PLUGIN_URI" >> build.env
-      echo "SG_ADMIN_URI=$SG_ADMIN_URI" >> build.env
+      echo "SG_ES_PLUGIN=$SG_ES_PLUGIN_URI" >> build.env
+      echo "SG_ADMIN=$SG_ADMIN_URI" >> build.env
       echo "ES_VERSION=$ES_VERSION" >>build.env
       echo "SG_KI_PLUGIN_URI=$SG_KI_PLUGIN_URI" >>build.env
       echo "KI_VERSION=$KI_VERSION" >>build.env
