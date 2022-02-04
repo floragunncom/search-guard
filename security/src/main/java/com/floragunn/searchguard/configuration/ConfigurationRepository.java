@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 floragunn GmbH
+ * Copyright 2015-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,7 @@ import org.elasticsearch.xcontent.XContentFactory;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.Parser;
@@ -73,6 +74,7 @@ import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
@@ -138,7 +140,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.componentState.setMandatory(true);
         this.mainConfigLoader = new ConfigurationLoader(client, settings, componentState, this, staticSgConfig);
-        this.externalUseConfigLoader = new ConfigurationLoader(client, settings,  null, this, staticSgConfig);
+        this.externalUseConfigLoader = new ConfigurationLoader(client, settings,  null, this, null);
         this.variableResolvers = VariableResolvers.ALL_PRIVILEGED.with("var", (key) -> configVarService.get(key));
         this.parserContext = new Context(variableResolvers, modulesRegistry, settings, configPath);
 
@@ -166,8 +168,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
                             String lookupDir = System.getProperty("sg.default_init.dir");
                             final String cd = lookupDir != null ? (lookupDir + "/")
                                     : new Environment(settings, configPath).pluginsFile().toAbsolutePath().toString() + "/search-guard-7/sgconfig/";
-                            File confFile = new File(cd + "sg_config.yml");
-                            if (confFile.exists()) {
+                            File confFile = new File(cd + "sg_authc.yml");
+                            File legacyConfFile = new File(cd + "sg_config.yml");
+
+                            if (confFile.exists() || legacyConfFile.exists()) {
                                 final ThreadContext threadContext = threadPool.getThreadContext();
                                 try (StoredContext ctx = threadContext.stashContext()) {
                                     threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
@@ -179,7 +183,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
                                     LOGGER.info("Index {} created?: {}", searchguardIndex, ok);
                                     if (ok) {
-                                        uploadFile(client, cd + "sg_config.yml", searchguardIndex, CType.CONFIG, parserContext);
+                                        if (new File(cd + "sg_authc.yml").exists()) {                                        
+                                            uploadFile(client, cd + "sg_authc.yml", searchguardIndex, CType.AUTHC, parserContext);
+                                        } else if (new File(cd + "sg_config.yml").exists()) {                                        
+                                            uploadFile(client, cd + "sg_config.yml", searchguardIndex, CType.CONFIG, parserContext);
+                                        }
+                                        
                                         uploadFile(client, cd + "sg_roles.yml", searchguardIndex, CType.ROLES, parserContext);
                                         uploadFile(client, cd + "sg_roles_mapping.yml", searchguardIndex, CType.ROLESMAPPING, parserContext);
                                         uploadFile(client, cd + "sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS, parserContext);
@@ -187,6 +196,19 @@ public class ConfigurationRepository implements ComponentStateProvider {
                                         uploadFile(client, cd + "sg_tenants.yml", searchguardIndex, CType.TENANTS, parserContext);
                                         uploadFile(client, cd + "sg_blocks.yml", searchguardIndex, CType.BLOCKS, parserContext);
                                         uploadFile(client, cd + "sg_frontend_config.yml", searchguardIndex, CType.FRONTEND_CONFIG, parserContext);
+                                        
+                                        if (new File(cd + "sg_authc_transport.yml").exists()) {
+                                            uploadFile(client, cd + "sg_authc_transport.yml", searchguardIndex, CType.AUTHC_TRANSPORT, parserContext);                                           
+                                        }
+                                        
+                                        if (new File(cd + "sg_authz.yml").exists()) {
+                                            uploadFile(client, cd + "sg_authz.yml", searchguardIndex, CType.AUTHZ, parserContext);                                           
+                                        }
+                                        
+                                        if (new File(cd + "sg_license_key.yml").exists()) {
+                                            uploadFile(client, cd + "sg_license_key.yml", searchguardIndex, CType.LICENSE_KEY, parserContext);                                           
+                                        }
+                                        
                                         LOGGER.info("Default config applied");
                                     } else {
                                         LOGGER.error("Can not create {} index", searchguardIndex);
@@ -650,6 +672,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 validationErrors.add(new InvalidAttributeValue(ctype.toLCString(), null, "A config JSON document"));
                 continue;
             }
+            
+            if (ctype.getArity() == CType.Arity.SINGLE) {
+                configMap = ImmutableMap.of("default", configMap);
+            }
 
             try {
                 SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype, parserContext);
@@ -756,8 +782,19 @@ public class ConfigurationRepository implements ComponentStateProvider {
         LOGGER.info("Will update '" + cType + "' with " + filepath);
 
         try (Reader reader = new FileReader(filepath)) {
+            SgDynamicConfiguration<T> config;
 
-            SgDynamicConfiguration<T> config = SgDynamicConfiguration.from(reader, cType, Format.YAML, parserContext);
+            if (cType.getParser() != null) {
+                Map<String, Object> map = DocReader.format(Format.YAML).readObject(reader);
+
+                if (cType.getArity() == CType.Arity.SINGLE) {
+                    map = ImmutableMap.of("default", map);
+                }
+
+                config = SgDynamicConfiguration.fromMap(map, cType, parserContext);
+            } else {
+                config = SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(reader), cType, 2, 0, 0, 0, parserContext);
+            }
 
             String res = tc.index(new IndexRequest(index).id(cType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(cType.toLCString(),
                     toBytesReference(config))).actionGet().getId();
@@ -770,6 +807,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
             throw e;
         }
     }
+    
+   
 
     private static BytesReference toBytesReference(ToXContent toXContent) throws IOException {
         XContentBuilder builder = XContentFactory.jsonBuilder();

@@ -187,7 +187,15 @@ public abstract class TypeLevelConfigApi {
             protected final CompletableFuture<StandardResponse> doExecute(Request request) {
                 return supplyAsync(() -> {
                     try {
-                        SgDynamicConfiguration<T> config = SgDynamicConfiguration.fromMap(request.getConfig(), configType,
+                        Map<String, Object> configMap;
+                        
+                        if (configType.getArity() == CType.Arity.SINGLE) {
+                            configMap = ImmutableMap.of("default", request.getConfig());
+                        } else {
+                            configMap = request.getConfig();
+                        }
+                        
+                        SgDynamicConfiguration<T> config = SgDynamicConfiguration.fromMap(configMap, configType,
                                 configurationRepository.getParserContext());
 
                         this.configurationRepository.update(configType, config, request.getIfMatch());

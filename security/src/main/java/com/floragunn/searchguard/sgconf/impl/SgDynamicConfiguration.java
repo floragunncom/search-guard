@@ -84,15 +84,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         result.ctype = type;
         return result;
     }
-        
-    public static <T> SgDynamicConfiguration<T> from(Reader reader, CType<T> ctype, Format docType, ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
-        if (ctype.getParser() != null) {
-            return fromMap(DocReader.format(docType).readObject(reader), ctype, parserContext);
-        } else {
-            return SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(reader), ctype, 2, 0, 0, 0, parserContext);
-        }
-    }
-    
+            
     public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo, long primaryTerm, Settings settings, ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
         // TODO do replacement only for legacy config
         // TODO remove unnecessary readTree()

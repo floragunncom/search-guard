@@ -118,7 +118,15 @@ public class AuthczResult implements ToXContentObject {
     }
 
     public RestStatus getRestStatus() {
-        return restStatus;
+        if (restStatus != null) {
+            return restStatus;
+        }
+        
+        if (status == Status.PASS) {
+            return RestStatus.OK;
+        } else {
+            return RestStatus.UNAUTHORIZED;
+        }
     }
 
     public String getRestStatusMessage() {
