@@ -61,7 +61,7 @@ public class GroupSearch {
         this.searchBaseDn = vNode.get("base_dn").required().asString();
         this.searchScope = vNode.get("scope").withDefault(SearchScope.SUB).byString(LDAP::getSearchScope);
         this.searchFilter = vNode.get("filter").withDefault(SearchFilter.DEFAULT_GROUP_SEARCH).by(SearchFilter::parse);
-        this.roleNameAttribute = vNode.get("role_name_attribute").withDefault("cn").asString();
+        this.roleNameAttribute = vNode.get("role_name_attribute").withDefault("dn").asString();
         this.recursive = vNode.get("recursive.enabled").withDefault(false).asBoolean();
         this.recursiveSearchFilter = vNode.get("recursive.filter").withDefault(this.searchFilter).by(SearchFilter::parse);
         this.recursivePattern = vNode.get("recursive.enabled_for").by(Pattern::parse);
