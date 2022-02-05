@@ -40,7 +40,8 @@ public interface AuthenticationDomain<AuthenticatorType extends AuthenticationFr
 
     boolean isEnabled();
 
-    CompletableFuture<User> authenticate(AuthCredentials authCredentials) throws AuthenticatorUnavailableException, CredentialsException;
+    CompletableFuture<User> authenticate(AuthCredentials authCredentials, AuthenticationDebugLogger debugInfoConsumer)
+            throws AuthenticatorUnavailableException, CredentialsException;
 
     CompletableFuture<User> impersonate(User originalUser, AuthCredentials authCredentials)
             throws AuthenticatorUnavailableException, CredentialsException;
@@ -50,7 +51,7 @@ public interface AuthenticationDomain<AuthenticatorType extends AuthenticationFr
     @FunctionalInterface
     interface CredentialsMapper {
         AuthCredentials mapCredentials(AuthCredentials authCredentials) throws CredentialsException;
-        
+
         static final CredentialsMapper DIRECT = (authCredentials) -> authCredentials;
     }
 

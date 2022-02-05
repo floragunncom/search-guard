@@ -18,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.elasticsearch.ElasticsearchSecurityException;
 
+import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
@@ -42,7 +43,7 @@ public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HTTPA
     }
 
     @Override
-    public CompletableFuture<User> authenticate(AuthCredentials credentials) {
+    public CompletableFuture<User> authenticate(AuthCredentials credentials, AuthenticationDebugLogger debug) {
 
         try {
 

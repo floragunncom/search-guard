@@ -123,36 +123,36 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             if (k2.equals(k3)) {
                 if (k3.equals(k4)) {
                     if (k4.equals(k5)) {
-                        return new SingleElementMap<>(k1, v1);                        
+                        return new SingleElementMap<>(k1, v1);
                     } else {
-                        return new TwoElementMap<>(k1, v1, k4, v4);                        
+                        return new TwoElementMap<>(k1, v1, k4, v4);
                     }
-                } else {
-                    // k3 != k4
-                    
-                    if (k4.equals(k5)) {
-                        return new TwoElementMap<>(k1, v1, k4, v4);                        
-                    } else {
-                        return new ArrayBackedMap<>(k1, v1, k4, v4, k5, v5);                        
-                    }                    
-                }
-            } else {
-                // k2 != k3
-                
-                if (k3.equals(k4)) {
-                    if (k4.equals(k5)) {
-                        return new TwoElementMap<>(k1, v1, k3, v3);                        
-                    } else {
-                        return new ArrayBackedMap<>(k1, v1, k3, v3, k5, v5);                        
-                    }                      
                 } else {
                     // k3 != k4
 
                     if (k4.equals(k5)) {
-                        return new ArrayBackedMap<>(k1, v1, k3, v3, k4, v4);                        
+                        return new TwoElementMap<>(k1, v1, k4, v4);
                     } else {
-                        return new ArrayBackedMap<>(k1, v1, k3, v3, k4, v4, k5, v5);                        
-                    }                      
+                        return new ArrayBackedMap<>(k1, v1, k4, v4, k5, v5);
+                    }
+                }
+            } else {
+                // k2 != k3
+
+                if (k3.equals(k4)) {
+                    if (k4.equals(k5)) {
+                        return new TwoElementMap<>(k1, v1, k3, v3);
+                    } else {
+                        return new ArrayBackedMap<>(k1, v1, k3, v3, k5, v5);
+                    }
+                } else {
+                    // k3 != k4
+
+                    if (k4.equals(k5)) {
+                        return new ArrayBackedMap<>(k1, v1, k3, v3, k4, v4);
+                    } else {
+                        return new ArrayBackedMap<>(k1, v1, k3, v3, k4, v4, k5, v5);
+                    }
                 }
             }
         } else {
@@ -164,38 +164,37 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                         return new TwoElementMap<>(k1, v1, k2, v2);
                     } else {
                         return new ArrayBackedMap<>(k1, v1, k2, v2, k4, v4, k5, v5);
-                    }                    
+                    }
                 } else {
                     // k3 != k4
                     if (k4.equals(k5)) {
                         return new ArrayBackedMap<>(k1, v1, k2, v2, k4, v4);
                     } else {
                         return new ArrayBackedMap<>(k1, v1, k2, v2, k4, v4, k5, v5);
-                    }                    
+                    }
                 }
             } else {
                 // k2 != k3
-                
+
                 if (k3.equals(k4)) {
                     if (k4.equals(k5)) {
                         return new ArrayBackedMap<>(k1, v1, k2, v2, k3, v3);
                     } else {
                         return new ArrayBackedMap<>(k1, v1, k2, v2, k3, v3, k5, v5);
-                    }                    
+                    }
                 } else {
                     // k3 != k4
-                    
+
                     if (k4.equals(k5)) {
                         return new ArrayBackedMap<>(k1, v1, k2, v2, k3, v3, k4, v4);
                     } else {
                         return new ArrayBackedMap<>(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5);
-                    }                    
+                    }
                 }
             }
         }
     }
 
-    
     public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1) {
         if (k1 != null && v1 != null) {
             return of(k1, v1);
@@ -217,65 +216,94 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
     }
 
     public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1, K k2, V v2, K k3, V v3) {
+        if (k3 == null || v3 == null) {
+            return ofNonNull(k1, v1, k2, v2);
+        }
+
+        if (k1 != null && v1 != null) {
+            if (k2 != null && v2 != null) {
+                return of(k1, v1, k2, v2, k3, v3);
+            } else {
+                return of(k1, v1, k3, v3);
+            }
+        } else {
+            if (k2 != null && v2 != null) {
+                return of(k2, v2, k3, v3);
+            } else {
+                return of(k3, v3);
+
+            }
+        }
+    }
+
+    public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4) {        
+        if (k4 == null || v4 == null) {
+            return ofNonNull(k1, v1, k2, v2, k3, v3);
+        }
+
         if (k1 != null && v1 != null) {
             if (k2 != null && v2 != null) {
                 if (k3 != null && v3 != null) {
-                    return of(k1, v1, k2, v2, k3, v3);
+                    return of(k1, v1, k2, v2, k3, v3, k4, v4);
                 } else {
-                    return of(k1, v1, k2, v2);
+                    return of(k1, v1, k2, v2, k4, v4);
                 }
             } else {
                 if (k3 != null && v3 != null) {
-                    return of(k1, v1, k3, v3);
+                    return of(k1, v1, k3, v3, k4, v4);
                 } else {
-                    return of(k1, v1);
+                    return of(k1, v1, k4, v4);
                 }
             }
         } else {
             if (k2 != null && v2 != null) {
                 if (k3 != null && v3 != null) {
-                    return of(k2, v2, k3, v3);
+                    return of(k2, v2, k3, v3, k4, v4);
                 } else {
-                    return of(k2, v2);
+                    return of(k2, v2, k4, v4);
                 }
             } else {
                 if (k3 != null && v3 != null) {
-                    return of(k3, v3);
+                    return of(k3, v3, k4, v4);
                 } else {
-                    return empty();
+                    return of(k4, v4);
                 }
             }
         }
     }
 
-    public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4) {
+    public static <K, V> ImmutableMap<K, V> ofNonNull(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5) {
+        if (k5 == null || v5 == null) {
+            return ofNonNull(k1, v1, k2, v2, k3, v3, k4, v4);
+        }
+
         if (k1 != null && v1 != null) {
             if (k2 != null && v2 != null) {
                 if (k3 != null && v3 != null) {
                     if (k4 != null && v4 != null) {
-                        return of(k1, v1, k2, v2, k3, v3, k4, v4);
+                        return of(k1, v1, k2, v2, k3, v3, k4, v4, k5, v5);
                     } else {
-                        return of(k1, v1, k2, v2, k3, v3);
+                        return of(k1, v1, k2, v2, k3, v3, k5, v5);
                     }
                 } else {
                     if (k4 != null && v4 != null) {
-                        return of(k1, v1, k2, v2, k4, v4);
+                        return of(k1, v1, k2, v2, k4, v4, k5, v5);
                     } else {
-                        return of(k1, v1, k2, v2);
+                        return of(k1, v1, k2, v2, k5, v5);
                     }
                 }
             } else {
                 if (k3 != null && v3 != null) {
                     if (k4 != null && v4 != null) {
-                        return of(k1, v1, k3, v3, k4, v4);
+                        return of(k1, v1, k3, v3, k4, v4, k5, v5);
                     } else {
-                        return of(k1, v1, k3, v3);
+                        return of(k1, v1, k3, v3, k5, v5);
                     }
                 } else {
                     if (k4 != null && v4 != null) {
-                        return of(k1, v1, k4, v4);
+                        return of(k1, v1, k4, v4, k5, v5);
                     } else {
-                        return of(k1, v1);
+                        return of(k1, v1, k5, v5);
                     }
                 }
             }
@@ -283,27 +311,27 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             if (k2 != null && v2 != null) {
                 if (k3 != null && v3 != null) {
                     if (k4 != null && v4 != null) {
-                        return of(k2, v2, k3, v3, k4, v4);
+                        return of(k2, v2, k3, v3, k4, v4, k5, v5);
                     } else {
-                        return of(k2, v2, k3, v3);
+                        return of(k2, v2, k3, v3, k5, v5);
                     }
                 } else {
                     if (k4 != null && v4 != null) {
-                        return of(k2, v2, k4, v4);
+                        return of(k2, v2, k4, v4, k5, v5);
                     } else {
-                        return of(k2, v2);
+                        return of(k2, v2, k5, v5);
                     }
                 }
             } else {
                 if (k3 != null && v3 != null) {
                     if (k4 != null && v4 != null) {
-                        return of(k3, v3, k4, v4);
+                        return of(k3, v3, k4, v4, k5, v5);
                     } else {
-                        return of(k3, v3);
+                        return of(k3, v3, k5, v5);
                     }
                 } else {
                     if (k4 != null && v4 != null) {
-                        return of(k4, v4);
+                        return of(k4, v4, k5, v5);
                     } else {
                         return empty();
                     }
@@ -361,14 +389,15 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
 
         return builder.build();
     }
-    
-    public static <KS, VS, KT, VT> ImmutableMap<KT, VT> map(Map<KS, VS> source, Function<KS, KT> keyMappingFunction, Function<VS, VT> valueMappingFunction) {
+
+    public static <KS, VS, KT, VT> ImmutableMap<KT, VT> map(Map<KS, VS> source, Function<KS, KT> keyMappingFunction,
+            Function<VS, VT> valueMappingFunction) {
         ImmutableMap.Builder<KT, VT> builder = new ImmutableMap.Builder<>(source.size());
 
         for (Map.Entry<KS, VS> entry : source.entrySet()) {
             KT newKey = keyMappingFunction.apply(entry.getKey());
             VT newValue = valueMappingFunction.apply(entry.getValue());
-            
+
             if (newKey != null && newValue != null) {
                 builder.put(newKey, newValue);
             }
@@ -720,13 +749,13 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 return empty();
             }
         }
-        
+
         @Override
         public void forEach(BiConsumer<? super K, ? super V> action) {
             action.accept(key1, value1);
             action.accept(key2, value2);
         }
-      
+
     }
 
     static class HashArray16BackedMap<K, V> extends AbstractImmutableMap<K, V> {
@@ -1055,7 +1084,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
 
         @Override
         public void forEach(BiConsumer<? super K, ? super V> action) {
-            
+
             for (int i = 0; i < table1.length; i++) {
                 Object key = table1[i];
 
@@ -1074,7 +1103,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
                 }
             }
         }
-        
+
         static Object findFirstNonNull(Object[] array) {
             for (int i = 0; i < array.length; i++) {
                 if (array[i] != null) {
@@ -1492,7 +1521,6 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
             this.keys = new Object[] { k1, k2, k3, k4 };
             this.values = new Object[] { v1, v2, v3, v4 };
         }
-        
 
         ArrayBackedMap(K k1, V v1, K k2, V v2, K k3, V v3, K k4, V v4, K k5, V v5) {
             this.keys = new Object[] { k1, k2, k3, k4, k5 };
@@ -1569,7 +1597,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
 
             }
         }
-        
+
         @Override
         public Set<K> keySet() {
             if (keySet == null) {
@@ -2175,7 +2203,7 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         public Set<Entry<K, V>> entrySet() {
             return ((ImmutableSet<Entry<K, V>>) base.entrySet()).with(additionalEntry);
         }
-        
+
         @Override
         public void forEach(BiConsumer<? super K, ? super V> action) {
             base.forEach(action);

@@ -38,6 +38,7 @@ import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
+import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.AuthDomainInfo;
@@ -283,7 +284,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
     }
 
     @Override
-    public CompletableFuture<User> authenticate(AuthCredentials authCredentials) throws AuthenticatorUnavailableException, CredentialsException {
+    public CompletableFuture<User> authenticate(AuthCredentials authCredentials, AuthenticationDebugLogger debug) throws AuthenticatorUnavailableException, CredentialsException {
         try {
             authCredentials = authenticationBackend.authenticate(authCredentials).get();
         } catch (InterruptedException e) {
@@ -325,8 +326,10 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
             }
         }
 
+        debug.success(getType(), "Backends successful", "user_mapping_attributes", authCredentials.getAttributesForUserMapping());
+        
         User authenticatedUser;
-
+        
         if (userMapping != null) {
             authenticatedUser = userMapping.map(authCredentials);
         } else {

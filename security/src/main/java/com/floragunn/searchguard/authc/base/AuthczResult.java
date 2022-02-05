@@ -30,9 +30,11 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.util.ImmutableMap;
 
-public class AuthczResult implements ToXContentObject {
+public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
     public static final AuthczResult STOP = new AuthczResult(Status.STOP);
     public static final AuthczResult PASS_ANONYMOUS = new AuthczResult(User.ANONYMOUS, Status.PASS);
     public static final AuthczResult PASS_WITHOUT_AUTH = new AuthczResult(null, Status.PASS);
@@ -42,15 +44,23 @@ public class AuthczResult implements ToXContentObject {
     }
 
     public static AuthczResult stop(RestStatus restStatus, String message, List<DebugInfo> debug) {
-        return new AuthczResult(Status.STOP, restStatus, message, null, debug);
+        return new AuthczResult(Status.STOP, restStatus, message, null, ImmutableMap.empty(), debug);
+    }
+
+    public static AuthczResult stop(RestStatus restStatus, String message, ImmutableMap<String, String> headers, List<DebugInfo> debug) {
+        return new AuthczResult(Status.STOP, restStatus, message, null, headers, debug);
     }
 
     public static AuthczResult pass(User user) {
         return new AuthczResult(user, Status.PASS);
     }
-    
+
     public static AuthczResult pass(User user, String redirectUri) {
         return new AuthczResult(user, Status.PASS, redirectUri);
+    }
+    
+    public static AuthczResult pass(User user, String redirectUri, List<DebugInfo> debug) {
+        return new AuthczResult(user, Status.PASS, redirectUri, debug);
     }
 
     private final User user;
@@ -59,6 +69,7 @@ public class AuthczResult implements ToXContentObject {
     private final String restStatusMessage;
     private final String redirectUri;
     private final List<DebugInfo> debug;
+    private final Map<String, String> headers;
 
     public AuthczResult(User user, Status status) {
         this.user = user;
@@ -67,8 +78,9 @@ public class AuthczResult implements ToXContentObject {
         this.restStatusMessage = null;
         this.debug = null;
         this.redirectUri = null;
+        this.headers = ImmutableMap.empty();
     }
-    
+
     public AuthczResult(User user, Status status, String redirectUri) {
         this.user = user;
         this.status = status;
@@ -76,6 +88,17 @@ public class AuthczResult implements ToXContentObject {
         this.restStatusMessage = null;
         this.debug = null;
         this.redirectUri = redirectUri;
+        this.headers = ImmutableMap.empty();
+    }
+    
+    public AuthczResult(User user, Status status, String redirectUri, List<DebugInfo> debug) {
+        this.user = user;
+        this.status = status;
+        this.restStatus = null;
+        this.restStatusMessage = null;
+        this.debug = debug;
+        this.redirectUri = redirectUri;
+        this.headers = ImmutableMap.empty();
     }
 
     public AuthczResult(Status status) {
@@ -85,6 +108,7 @@ public class AuthczResult implements ToXContentObject {
         this.restStatusMessage = null;
         this.debug = null;
         this.redirectUri = null;
+        this.headers = ImmutableMap.empty();
     }
 
     public AuthczResult(Status status, RestStatus restStatus, String restStatusMessage) {
@@ -94,15 +118,18 @@ public class AuthczResult implements ToXContentObject {
         this.restStatusMessage = restStatusMessage;
         this.debug = null;
         this.redirectUri = null;
+        this.headers = ImmutableMap.empty();
     }
 
-    public AuthczResult(Status status, RestStatus restStatus, String restStatusMessage, String redirectUri, List<DebugInfo> debug) {
+    public AuthczResult(Status status, RestStatus restStatus, String restStatusMessage, String redirectUri, ImmutableMap<String, String> headers,
+            List<DebugInfo> debug) {
         this.user = null;
         this.status = status;
         this.restStatus = restStatus;
         this.restStatusMessage = restStatusMessage;
         this.debug = debug != null ? Collections.unmodifiableList(new ArrayList<>(debug)) : null;
         this.redirectUri = redirectUri;
+        this.headers = headers;
     }
 
     public static enum Status {
@@ -121,7 +148,7 @@ public class AuthczResult implements ToXContentObject {
         if (restStatus != null) {
             return restStatus;
         }
-        
+
         if (status == Status.PASS) {
             return RestStatus.OK;
         } else {
@@ -136,8 +163,8 @@ public class AuthczResult implements ToXContentObject {
     public String getRedirectUri() {
         return redirectUri;
     }
-    
-    public static class DebugInfo implements ToXContentObject {
+
+    public static class DebugInfo implements ToXContentObject, Document<DebugInfo> {
         private final String authcMethod;
         private final boolean success;
         private final String message;
@@ -188,7 +215,13 @@ public class AuthczResult implements ToXContentObject {
             builder.endObject();
             return builder;
         }
-              
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap.ofNonNull("method", authcMethod, "success", success, "message", message, "details",
+                    details != null && details.size() > 0 ? details : null);
+        }
+
     }
 
     public List<DebugInfo> getDebug() {
@@ -202,7 +235,7 @@ public class AuthczResult implements ToXContentObject {
         if (restStatus != null) {
             builder.field("status", restStatus);
         }
-        
+
         if (restStatusMessage != null) {
             builder.field("error", restStatusMessage);
         }
@@ -210,14 +243,27 @@ public class AuthczResult implements ToXContentObject {
         if (debug != null) {
             builder.field("debug", debug);
         }
-        
+
         if (redirectUri != null) {
             builder.field("redirect_uri", redirectUri);
+        }
+
+        if (headers != null) {
+            builder.field("headers", headers);
         }
 
         builder.endObject();
         return builder;
     }
 
+    public Map<String, String> getHeaders() {
+        return headers;
+    }
+
+    @Override
+    public Object toBasicObject() {
+        return ImmutableMap.ofNonNull("status", restStatus, "error", restStatusMessage, "debug", debug, "redirect_uri", redirectUri, "headers",
+                headers);
+    }
 
 }

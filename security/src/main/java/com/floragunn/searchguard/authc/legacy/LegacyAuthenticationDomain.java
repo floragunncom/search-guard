@@ -32,6 +32,7 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.TypedComponentRegistry;
+import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
@@ -261,7 +262,7 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
     }
 
     @Override
-    public CompletableFuture<User> authenticate(AuthCredentials authCredentials) throws AuthenticatorUnavailableException, CredentialsException {
+    public CompletableFuture<User> authenticate(AuthCredentials authCredentials, AuthenticationDebugLogger debug) throws AuthenticatorUnavailableException, CredentialsException {
         User user = backend.authenticate(authCredentials);
 
         if (user == null) {

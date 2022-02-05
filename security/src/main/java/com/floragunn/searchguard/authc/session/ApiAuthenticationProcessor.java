@@ -36,17 +36,16 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.base.AuthczResult;
-import com.floragunn.searchguard.authc.base.AuthenticationProcessor;
+import com.floragunn.searchguard.authc.base.RequestAuthenticationProcessor;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchguard.user.Attributes;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 
-public class ApiAuthenticationProcessor extends AuthenticationProcessor<ApiAuthenticationFrontend> {
+public class ApiAuthenticationProcessor extends RequestAuthenticationProcessor<ApiAuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(ApiAuthenticationProcessor.class);
 
     private final Map<String, Object> request;
@@ -76,29 +75,27 @@ public class ApiAuthenticationProcessor extends AuthenticationProcessor<ApiAuthe
         final AuthCredentials ac;
         try {
             ac = authenticationFrontend.extractCredentials(request);
-
         } catch (CredentialsException e) {
             if (log.isDebugEnabled()) {
                 log.debug("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
             }
 
-            addDebugInfo(e.getDebugInfo());
+            debug.add(e.getDebugInfo());
             return AuthDomainState.SKIP;
         } catch (ConfigValidationException e) {
             log.error("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
 
-            addDebugInfo(new AuthczResult.DebugInfo(authenticationFrontend.getType(), false, "Bad API request",
-                    ImmutableMap.of("validation_errors", e.getValidationErrors())));
+            debug.failure(authenticationFrontend.getType(), "Bad API request", "validation_errors", e.getValidationErrors());
             return AuthDomainState.SKIP;
         } catch (AuthenticatorUnavailableException e) {
             log.warn("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
 
-            addDebugInfo(new AuthczResult.DebugInfo(authenticationFrontend.getType(), false, e.getMessage()));
+            debug.failure(authenticationFrontend.getType(), e.getMessage());
             return AuthDomainState.SKIP;
         } catch (Exception e) {
             log.error("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
 
-            addDebugInfo(new AuthczResult.DebugInfo(authenticationFrontend.getType(), false, e.toString()));
+            debug.failure(authenticationFrontend.getType(), e.toString());
             return AuthDomainState.SKIP;
         }
 
@@ -107,7 +104,7 @@ public class ApiAuthenticationProcessor extends AuthenticationProcessor<ApiAuthe
                 log.debug("Rejecting REST request because of blocked user: " + ac.getUsername() + "; authDomain: " + authenticationDomain);
             }
             auditLog.logBlockedUser(ac, false, ac, super.request.getRequest());
-            addDebugInfo(new AuthczResult.DebugInfo(authenticationFrontend.getType(), false, "User " + ac.getUsername() + " is blocked"));
+            debug.failure(authenticationFrontend.getType(), "User " + ac.getUsername() + " is blocked");
 
             return AuthDomainState.SKIP;
         }
@@ -115,22 +112,20 @@ public class ApiAuthenticationProcessor extends AuthenticationProcessor<ApiAuthe
         authCredentials = ac;
 
         if (ac == null) {
-            addDebugInfo(new AuthczResult.DebugInfo(authenticationFrontend.getType(), false, "No credentials extracted"));
+            debug.failure(authenticationFrontend.getType(), "No credentials extracted");
 
             return AuthDomainState.SKIP;
         } else {
-            addDebugInfo(
-                    new AuthczResult.DebugInfo(authenticationFrontend.getType(), true, "User has been identified by auth frontend: " + ac.getName(),
-                            ImmutableMap.of("username", ac.getUsername(), "roles", ac.getBackendRoles(), "attributes", ac.getStructuredAttributes(),
-                                    "claims", ac.getClaims() != null ? ac.getClaims() : Collections.emptyMap())));
+            debug.success(authenticationFrontend.getType(), "User has been identified by auth frontend", "username", ac.getUsername(), "roles",
+                    ac.getBackendRoles(), "attributes", ac.getStructuredAttributes(), "claims",
+                    ac.getClaims() != null ? ac.getClaims() : Collections.emptyMap());
 
             if (!authenticationDomain.accept(ac)) {
                 if (log.isDebugEnabled()) {
                     log.debug("Skipped authentication of user {}", ac.getUsername());
                 }
 
-                addDebugInfo(new AuthczResult.DebugInfo(authenticationFrontend.getType(), false,
-                        "User " + ac.getUsername() + " is skipped according to auth domain settings"));
+                debug.failure(authenticationFrontend.getType(), "User " + ac.getUsername() + " is skipped according to auth domain settings");
 
                 ac.clearSecrets();
 

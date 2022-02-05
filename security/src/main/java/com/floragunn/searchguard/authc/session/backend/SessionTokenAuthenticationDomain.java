@@ -36,6 +36,7 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
+import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
@@ -210,7 +211,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
     }
 
     @Override
-    public CompletableFuture<User> authenticate(AuthCredentials credentials) throws AuthenticatorUnavailableException, CredentialsException {
+    public CompletableFuture<User> authenticate(AuthCredentials credentials, AuthenticationDebugLogger debug) throws AuthenticatorUnavailableException, CredentialsException {
         try {
             CompletableFuture<User> result = new CompletableFuture<User>();
 

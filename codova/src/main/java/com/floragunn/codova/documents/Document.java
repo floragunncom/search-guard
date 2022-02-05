@@ -37,6 +37,10 @@ public interface Document<T> {
     default String toJsonString() {
         return toString(Format.JSON);
     }
+    
+    default String toPrettyJsonString() {
+        return DocWriter.format(Format.JSON).pretty().writeAsString(this.toBasicObject());
+    }
 
     default String toYamlString() {
         return toString(Format.YAML);

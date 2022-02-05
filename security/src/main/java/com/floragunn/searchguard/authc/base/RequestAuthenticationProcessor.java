@@ -16,7 +16,6 @@
  */
 package com.floragunn.searchguard.authc.base;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -31,6 +30,7 @@ import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
+import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
 import com.floragunn.searchguard.authc.CredentialsException;
@@ -42,13 +42,13 @@ import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.util.ImmutableMap;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 
-public abstract class AuthenticationProcessor<AuthenticatorType extends AuthenticationFrontend> {
-    private static final Logger log = LogManager.getLogger(AuthenticationProcessor.class);
+public abstract class RequestAuthenticationProcessor<AuthenticatorType extends AuthenticationFrontend> {
+    private static final Logger log = LogManager.getLogger(RequestAuthenticationProcessor.class);
 
     protected final RequestMetaData<RestRequest> request;
     protected final ThreadContext threadContext;
@@ -62,15 +62,14 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
     private final Cache<AuthCredentials, User> userCache;
     private final Cache<String, User> impersonationCache;
     private final PrivilegesEvaluator privilegesEvaluator;
-    private final List<AuthczResult.DebugInfo> debugInfoList = new ArrayList<>();
-    private final boolean debug;
+    protected final AuthenticationDebugLogger debug;
     private final List<String> requiredLoginPrivileges;
 
     private boolean cacheResult = true;
 
     protected AuthCredentials authCredentials = null;
 
-    public AuthenticationProcessor(RequestMetaData<RestRequest> request, ThreadContext threadContext,
+    public RequestAuthenticationProcessor(RequestMetaData<RestRequest> request, ThreadContext threadContext,
             Collection<AuthenticationDomain<AuthenticatorType>> authenticationDomains, AdminDNs adminDns, PrivilegesEvaluator privilegesEvaluator,
             Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache, AuditLog auditLog,
             Multimap<String, AuthFailureListener> authBackendFailureListeners, BlockedUserRegistry blockedUserRegistry,
@@ -88,8 +87,8 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
         this.impersonationCache = impersonationCache;
         this.auditLog = auditLog;
         this.privilegesEvaluator = privilegesEvaluator;
-        this.debug = debug;
         this.requiredLoginPrivileges = requiredLoginPrivileges;
+        this.debug = AuthenticationDebugLogger.create(debug);
     }
 
     public void authenticate(Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
@@ -196,7 +195,7 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
 
             return AuthDomainState.SKIP;
         }
-       
+
         authCredentials = ac;
 
         if (!authenticationDomain.accept(ac)) {
@@ -208,11 +207,11 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
 
             return AuthDomainState.SKIP;
         }
-        
+
         log.trace("Calling {} backends", authenticationDomain.getType());
 
         final AuthCredentials pendingCredentials = ac;
-        
+
         callAuthczBackends(ac, authenticationDomain, (authenticatedUser) -> {
             try {
 
@@ -222,17 +221,17 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
                     if (adminDns.isAdmin(authenticatedUser)) {
                         log.error("Cannot authenticate rest user because admin user is not permitted to login via HTTP");
                         auditLog.logFailedLogin(authenticatedUser, true, null, request.getRequest());
-                        addDebugInfo(new AuthczResult.DebugInfo(authenticationDomain.getId(), false,
-                                "User name is associated with an administrator. These are only allowed to login via certificate."));
+                        debug.failure(authenticationDomain.getType(),
+                                "User name is associated with an administrator. These are only allowed to login via certificate.");
                         onResult.accept(AuthczResult.stop(RestStatus.FORBIDDEN,
-                                "Cannot authenticate user because admin user is not permitted to login via HTTP", debugInfoList));
+                                "Cannot authenticate user because admin user is not permitted to login via HTTP", debug.get()));
                         return;
                     }
 
                     if (!userHasRoles(authenticatedUser)) {
-                        addDebugInfo(new AuthczResult.DebugInfo(authenticationDomain.getId(), false,
+                        debug.failure(authenticationDomain.getType(),
                                 "User does not have any roles. Please verify the configuration of the authentication frontend and backend.",
-                                ImmutableMap.of("source_mapping", pendingCredentials.getAttributesForUserMapping())));
+                                "user_mapping_attributes", pendingCredentials.getAttributesForUserMapping());
                     }
 
                     if (!checkLoginPrivileges(authenticatedUser)) {
@@ -240,13 +239,12 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
                                 + requiredLoginPrivileges + "; " + authenticatedUser + "; backend roles: " + authenticatedUser.getRoles()
                                 + "; sg roles: " + authenticatedUser.getSearchGuardRoles() + "; source attributes: "
                                 + pendingCredentials.getAttributesForUserMapping());
-                        addDebugInfo(new AuthczResult.DebugInfo(authenticationDomain.getId(), false,
-                                "User does not have the necessary login privileges: " + requiredLoginPrivileges,
-                                ImmutableMap.of("backend_roles", authenticatedUser.getRoles(), "sg_roles", authenticatedUser.getSearchGuardRoles(),
-                                        "source_attributes", pendingCredentials.getAttributesForUserMapping())));
+                        debug.failure(authenticationDomain.getType(), "User does not have the necessary login privileges: " + requiredLoginPrivileges,
+                                "backend_roles", authenticatedUser.getRoles(), "sg_roles", authenticatedUser.getSearchGuardRoles(),
+                                "source_attributes", pendingCredentials.getAttributesForUserMapping());
 
-                        onResult.accept(
-                                AuthczResult.stop(RestStatus.FORBIDDEN, "The user '" + pendingCredentials.getName() + "' is not allowed to log in.", debugInfoList));
+                        onResult.accept(AuthczResult.stop(RestStatus.FORBIDDEN,
+                                "The user '" + pendingCredentials.getName() + "' is not allowed to log in.", debug.get()));
                         return;
                     }
 
@@ -272,29 +270,31 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
 
                         threadContext.putTransient(ConfigConstants.SG_USER, authenticatedUser);
                         auditLog.logSucceededLogin(authenticatedUser, false, authenticatedUser, request.getRequest());
-                        addDebugInfo(new AuthczResult.DebugInfo(authenticationDomain.getId(), true, "User " + pendingCredentials.getUsername() + " is logged in"));
-                        onResult.accept(AuthczResult.pass(authenticatedUser, pendingCredentials.getRedirectUri()));
+                        if (debug.isEnabled()) {
+                            debug.success(authenticationDomain.getType(), "User is logged in", "user",
+                                    ImmutableMap.of("name", authenticatedUser.getName(), "roles", authenticatedUser.getRoles(), "search_guard_roles",
+                                            authenticatedUser.getSearchGuardRoles(), "attributes", authenticatedUser.getStructuredAttributes()));
+                        }
+                        onResult.accept(AuthczResult.pass(authenticatedUser, pendingCredentials.getRedirectUri(), debug.get()));
                     }
 
                 } else {
                     if (log.isTraceEnabled()) {
                         log.trace("Could not authenticate user with " + authenticationDomain.getType());
                     }
-                    
-                    addDebugInfo(new AuthczResult.DebugInfo(authenticationDomain.getId(), false,
-                            "User " + pendingCredentials.getUsername() + " could not be authenticated by auth backend"));
+
+                    debug.failure(authenticationDomain.getType(),
+                            "User " + pendingCredentials.getUsername() + " could not be authenticated by auth backend");
                     handleAuthFailure(pendingCredentials, authenticationDomain, null);
                     checkNextAuthenticationDomains(onResult, onFailure);
                 }
             } catch (Exception e) {
-                addDebugInfo(new AuthczResult.DebugInfo(authenticationDomain.getId(), false,
-                        "Exception while authenticating " + pendingCredentials.getUsername() + ": " + e));
+                debug.failure(authenticationDomain.getType(), "Exception while authenticating " + pendingCredentials.getUsername() + ": " + e);
                 log.error(e);
                 onFailure.accept(e);
             }
         }, (e) -> {
-            addDebugInfo(
-                    new AuthczResult.DebugInfo(authenticationDomain.getId(), false, "Exception while authenticating " + pendingCredentials.getUsername() + ": " + e));
+            debug.failure(authenticationDomain.getType(), "Exception while authenticating " + pendingCredentials.getUsername() + ": " + e);
 
             if (e instanceof ElasticsearchSecurityException || e instanceof CredentialsException) {
                 handleAuthFailure(pendingCredentials, authenticationDomain, e);
@@ -323,10 +323,10 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
                 return challengeHandled;
             }
 
-            return AuthczResult.stop(RestStatus.UNAUTHORIZED, "Authentication failed", debugInfoList);
+            return AuthczResult.stop(RestStatus.UNAUTHORIZED, "Authentication failed", debug.get());
         } catch (Exception e) {
             log.error("Error while handling auth failure", e);
-            return AuthczResult.stop(RestStatus.UNAUTHORIZED, "Authentication failed", debugInfoList);
+            return AuthczResult.stop(RestStatus.UNAUTHORIZED, "Authentication failed", debug.get());
         }
     }
 
@@ -336,13 +336,15 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
 
         try {
 
+            debug.success(authenticationDomain.getType(), "Extracted credentials", "user_name", ac.getUsername(), "user_mapping_attributes",
+                    ac.getAttributesForUserMapping());
+
             if (userCache == null || !authenticationDomain.cacheUser()) {
-                authenticationDomain.authenticate(ac).whenComplete((authenticatedUser, e) -> {
+                authenticationDomain.authenticate(ac, debug).whenComplete((authenticatedUser, e) -> {
                     if (e != null) {
                         onFailure.accept((Exception) e);
                     } else if (authenticatedUser != null) {
-                        addDebugInfo(new AuthczResult.DebugInfo(authenticationDomain.getType(), true,
-                                "User has been successfully authenticated by auth backend."));
+                        debug.success(authenticationDomain.getType(), "User has been successfully authenticated by auth backend.");
 
                         onSuccess.accept(authenticatedUser);
                     } else {
@@ -354,12 +356,11 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
                 User user = userCache.getIfPresent(ac);
 
                 if (user != null) {
-                    addDebugInfo(new AuthczResult.DebugInfo(authenticationDomain.getType(), true,
-                            "User has been successfully authenticated by user cache"));
+                    debug.success(authenticationDomain.getType(), "User has been successfully authenticated by user cache");
 
                     onSuccess.accept(user);
                 } else {
-                    authenticationDomain.authenticate(ac).whenComplete((authenticatedUser, e) -> {
+                    authenticationDomain.authenticate(ac, debug).whenComplete((authenticatedUser, e) -> {
                         if (e != null) {
                             onFailure.accept((Exception) e);
                         } else if (authenticatedUser != null) {
@@ -415,12 +416,6 @@ public abstract class AuthenticationProcessor<AuthenticatorType extends Authenti
 
     protected boolean isUserBlocked(String authBackend, String userName) {
         return blockedUserRegistry.isUserBlocked(userName);
-    }
-
-    protected void addDebugInfo(AuthczResult.DebugInfo debugInfo) {
-        if (debug) {
-            this.debugInfoList.add(debugInfo);
-        }
     }
 
     protected static enum AuthDomainState {

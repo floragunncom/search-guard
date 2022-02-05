@@ -61,7 +61,7 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
             return authCredentials;
         }
 
-        ImmutableMap<String, Object> debugDetails = ImmutableMap.of("user_mapping_source_attributes", authCredentials.getAttributesForUserMapping(),
+        ImmutableMap<String, Object> debugDetails = ImmutableMap.of("user_mapping_attributes", authCredentials.getAttributesForUserMapping(),
                 "user_mapping", source);
 
         ImmutableSet<String> newUserNames = MappingSpecification.apply(userName, authCredentials);
@@ -88,7 +88,7 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
         }
 
         AuthCredentials.Builder result = authCredentials.copy();
-        ImmutableMap<String, Object> debugDetails = ImmutableMap.of("user_mapping_source_attributes", authCredentials.getAttributesForUserMapping(),
+        ImmutableMap<String, Object> debugDetails = ImmutableMap.of("user_mapping_attributes", authCredentials.getAttributesForUserMapping(),
                 "user_mapping", source);
 
         if (roles != null && !roles.isEmpty()) {

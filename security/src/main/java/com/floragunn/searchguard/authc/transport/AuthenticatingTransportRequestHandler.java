@@ -28,6 +28,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
@@ -296,14 +297,14 @@ public class AuthenticatingTransportRequestHandler implements ComponentStateProv
 
         try {
             if (!authDomain.cacheUser() || authenticatedUserCache == null) {
-                return authDomain.authenticate(ac).get();
+                return authDomain.authenticate(ac, AuthenticationDebugLogger.DISABLED).get();
             }
 
             return authenticatedUserCache.get(ac, () -> {
                 if (log.isTraceEnabled()) {
                     log.trace("Credentials for user " + ac.getUsername() + " not cached, return from " + authDomain + " backend directly");
                 }
-                final User authenticatedUser = authDomain.authenticate(ac).get();
+                final User authenticatedUser = authDomain.authenticate(ac, AuthenticationDebugLogger.DISABLED).get();
 
                 if (authenticatedUser == null) {
                     throw new CredentialsException("Could not authenticate " + ac);

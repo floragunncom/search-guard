@@ -1,10 +1,10 @@
 /*
- * Copyright 2021 floragunn GmbH
- *
+ * Copyright 2015-2022 floragunn GmbH
+ * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,13 +12,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ * 
  */
 
 package com.floragunn.searchguard.authc.rest;
 
-import java.util.Collection;
-import java.util.LinkedHashSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -30,195 +29,128 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.base.AuthczResult;
-import com.floragunn.searchguard.authc.base.AuthenticationProcessor;
+import com.floragunn.searchguard.authc.base.IPAddressAcceptanceRules;
+import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
+import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.filter.TenantAwareRestHandler;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.util.ImmutableList;
 import com.floragunn.searchsupport.util.ImmutableMap;
 import com.google.common.cache.Cache;
 import com.google.common.collect.Multimap;
 
-public class RestAuthenticationProcessor extends AuthenticationProcessor<HTTPAuthenticator> {
-    private static final Logger log = LogManager.getLogger(RestAuthenticationProcessor.class);
+import inet.ipaddr.IPAddress;
 
-    private final MetaRequestInfo authDomainMetaRequest;
-    private final boolean isAuthDomainMetaRequest;
-    private final RestHandler restHandler;
-    private final RestRequest restRequest;
-    private final RestChannel restChannel;
+public interface RestAuthenticationProcessor {
 
-    private LinkedHashSet<String> challenges = new LinkedHashSet<>(2);
+    void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthczResult> onResult,
+            Consumer<Exception> onFailure);
 
-    public RestAuthenticationProcessor(RestHandler restHandler, RequestMetaData<RestRequest> request, RestChannel restChannel,
-            ThreadContext threadContext, Collection<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains, AdminDNs adminDns,
-            PrivilegesEvaluator privilegesEvaluator, Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache,
-            AuditLog auditLog, Multimap<String, AuthFailureListener> authBackendFailureListeners, BlockedUserRegistry blockedUserRegistry,
-            List<AuthFailureListener> ipAuthFailureListeners, List<String> requiredLoginPrivileges, boolean debug) {
-        super(request, threadContext, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog,
-                authBackendFailureListeners, blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, debug);
+    boolean isDebugEnabled();
 
-        this.restHandler = restHandler;
-        this.restRequest = request.getRequest();
-        this.restChannel = restChannel;
-        this.authDomainMetaRequest = checkAuthDomainMetaRequest(restRequest);
-        this.isAuthDomainMetaRequest = authDomainMetaRequest != null;
-    }
+    public static class Default implements RestAuthenticationProcessor {
 
-    @Override
-    protected AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<HTTPAuthenticator> authenticationDomain,
-            Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
-        HTTPAuthenticator httpAuthenticator = authenticationDomain.getFrontend();
+        private static final Logger log = LogManager.getLogger(RestAuthenticationProcessor.class);
 
-        if (isAuthDomainMetaRequest && authDomainMetaRequest.authDomainType.equals(httpAuthenticator.getType())
-                && ("_first".equals(authDomainMetaRequest.authDomainId) || authenticationDomain.getId().equals(authDomainMetaRequest.authDomainId))) {
+        private final AuditLog auditLog;
+        private final ThreadContext threadContext;
+        private final AdminDNs adminDns;
+        private final Cache<AuthCredentials, User> userCache;
+        private final Cache<String, User> impersonationCache;
+        private final PrivilegesEvaluator privilegesEvaluator;
+        private final BlockedIpRegistry blockedIpRegistry;
+        private final BlockedUserRegistry blockedUserRegistry;
+        private final boolean debug;
 
-            if (httpAuthenticator.handleMetaRequest(restRequest, restChannel, authDomainMetaRequest.authDomainPath,
-                    authDomainMetaRequest.remainingPath, threadContext)) {
-                return AuthDomainState.STOP;
+        private final RestAuthcConfig authczConfig;
+        private final List<AuthenticationDomain<HTTPAuthenticator>> authenticators;
+        private final ClientAddressAscertainer clientAddressAscertainer;
+        private final IPAddressAcceptanceRules ipAddressAcceptanceRules;
+        private final List<String> requiredLoginPrivileges = Collections.emptyList();
+
+        private List<AuthFailureListener> ipAuthFailureListeners = ImmutableList.empty();
+        private Multimap<String, AuthFailureListener> authBackendFailureListeners;
+
+        public Default(RestAuthcConfig config, SearchGuardModulesRegistry modulesRegistry, AdminDNs adminDns, BlockedIpRegistry blockedIpRegistry,
+                BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool, PrivilegesEvaluator privilegesEvaluator) {
+            this.authczConfig = config;
+            this.authenticators = authczConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
+            this.clientAddressAscertainer = ClientAddressAscertainer.create(authczConfig.getNetwork());
+            this.ipAddressAcceptanceRules = authczConfig.getNetwork() != null ? authczConfig.getNetwork().getIpAddressAcceptanceRules()
+                    : IPAddressAcceptanceRules.ANY;
+            this.debug = config.isDebugEnabled();
+
+            this.auditLog = auditLog;
+            this.threadContext = threadPool.getThreadContext();
+            this.adminDns = adminDns;
+            this.privilegesEvaluator = privilegesEvaluator;
+            this.blockedIpRegistry = blockedIpRegistry;
+            this.blockedUserRegistry = blockedUserRegistry;
+
+            this.userCache = authczConfig.getUserCacheConfig().build();
+            this.impersonationCache = authczConfig.getUserCacheConfig().build();
+        }
+
+        public void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthczResult> onResult,
+                Consumer<Exception> onFailure) {
+            String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
+
+            ClientIpInfo clientInfo = clientAddressAscertainer.getActualRemoteAddress(request);
+            RequestMetaData<RestRequest> requestMetaData = new RequestMetaData<RestRequest>(request, clientInfo, sslPrincipal);
+            IPAddress remoteIpAddress = clientInfo.getOriginatingIpAddress();
+
+            if (!ipAddressAcceptanceRules.accept(requestMetaData)) {
+                log.info("Not accepting request from {}", requestMetaData);
+                onResult.accept(AuthczResult.stop(RestStatus.FORBIDDEN, "Forbidden",
+                        ImmutableList.of(new AuthczResult.DebugInfo("-/-", false,
+                                "Request denied because client IP address is denied by authc.network.accept configuration",
+                                ImmutableMap.of("direct_ip_address", clientInfo.getDirectIpAddress(), "originating_ip_address",
+                                        clientInfo.getOriginatingIpAddress(), "trusted_proxy", clientInfo.isTrustedProxy())))));
+                return;
             }
-        }
 
-        if (log.isTraceEnabled()) {
-            log.trace("Try to extract auth creds from {} http authenticator", httpAuthenticator.getType());
-        }
-
-        AuthCredentials ac;
-        try {
-            ac = httpAuthenticator.extractCredentials(restRequest, threadContext);
-        } catch (Exception e1) {
-            log.warn("'{}' extracting credentials from {} http authenticator", e1.toString(), httpAuthenticator.getType(), e1);
-            return AuthDomainState.SKIP;
-        }
-
-        if (ac != null && isUserBlocked(authenticationDomain.getType(), ac.getUsername())) {
-            if (log.isDebugEnabled()) {
-                log.debug("Rejecting REST request because of blocked user: " + ac.getUsername() + "; authDomain: " + authenticationDomain);
-            }
-            auditLog.logBlockedUser(ac, false, ac, restRequest);
-            return AuthDomainState.SKIP;
-        }
-
-        if (ac == null) {
-            log.debug("no {} credentials found in request", authenticationDomain.getFrontend().getType());
-
-            String challenge = httpAuthenticator.getChallenge(ac);
-
-            if (challenge != null) {
-                challenges.add(challenge);
+            if (log.isTraceEnabled()) {
+                log.trace("Rest authentication request from {} [original: {}]", remoteIpAddress, request.getHttpChannel().getRemoteAddress());
             }
 
-            return AuthDomainState.SKIP;
-        } else {
-            org.apache.logging.log4j.ThreadContext.put("user", ac.getUsername());
-            if (!ac.isComplete()) {
-                //credentials found in request but we need anot)her client challenge
+            if (clientInfo.isTrustedProxy()) {
+                threadContext.putTransient(ConfigConstants.SG_XFF_DONE, Boolean.TRUE);
+            }
 
-                String challenge = httpAuthenticator.getChallenge(ac);
+            threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, clientInfo.getOriginatingTransportAddress());
 
-                if (challenge != null) {
-                    challenges.add(challenge);
-                    ac.clearSecrets();
-                    return AuthDomainState.STOP;
+            if (blockedIpRegistry.isIpBlocked(remoteIpAddress)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Rejecting REST request because of blocked address: " + request.getHttpChannel().getRemoteAddress());
                 }
+                auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
+                channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
+                onResult.accept(new AuthczResult(AuthczResult.Status.STOP));
+                return;
             }
 
-            ac = ac.attributesForUserMapping(ImmutableMap.of("request", ImmutableMap.of("headers", restRequest.getHeaders(), "direct_ip_address",
-                    String.valueOf(request.getDirectIpAddress()), "originating_ip_address", String.valueOf(request.getOriginatingIpAddress()))));
+            new RestRequestAuthenticationProcessor(restHandler, requestMetaData, channel, threadContext, authenticators, adminDns,
+                    privilegesEvaluator, userCache, impersonationCache, auditLog, authBackendFailureListeners, blockedUserRegistry,
+                    ipAuthFailureListeners, requiredLoginPrivileges, debug).authenticate(onResult, onFailure);
 
-            return proceed(ac, authenticationDomain, onResult, onFailure);
         }
 
-    }
-
-    @Override
-    protected AuthczResult handleChallenge() {
-
-        if (challenges.size() == 0) {
-            return null;
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("Sending WWW-Authenticate: " + String.join(", ", challenges));
-        }
-
-        BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "Unauthorized");
-        wwwAuthenticateResponse.addHeader("WWW-Authenticate", String.join(", ", challenges));
-
-        restChannel.sendResponse(wwwAuthenticateResponse);
-
-        return AuthczResult.STOP;
-    }
-
-    @Override
-    protected String getRequestedTenant() {
-        if (restHandler instanceof TenantAwareRestHandler) {
-            return ((TenantAwareRestHandler) restHandler).getTenantName(restRequest);
-        } else {
-            return restRequest.header("sgtenant") != null ? restRequest.header("sgtenant") : restRequest.header("sg_tenant");
-        }
-    }
-
-    @Override
-    protected String getImpersonationUser() {
-        return restRequest.header("sg_impersonate_as");
-    }
-
-    private MetaRequestInfo checkAuthDomainMetaRequest(RestRequest restRequest) {
-        String prefix = "/_searchguard/auth_domain/";
-        String path = restRequest.path();
-
-        if (!path.startsWith(prefix)) {
-            return null;
-        }
-
-        int nextSlash = path.indexOf('/', prefix.length());
-
-        if (nextSlash <= 0) {
-            return null;
-        }
-
-        String authDomainId = path.substring(prefix.length(), nextSlash);
-
-        int nextNextSlash = path.indexOf('/', nextSlash + 1);
-
-        String authDomainType = null;
-        String authDomainPath = null;
-        String remainingPath = "";
-
-        if (nextNextSlash > 0) {
-            authDomainPath = path.substring(0, nextNextSlash);
-            authDomainType = path.substring(nextSlash + 1, nextNextSlash);
-            remainingPath = path.substring(nextNextSlash + 1);
-        } else {
-            authDomainPath = path;
-            authDomainType = path.substring(nextSlash + 1);
-        }
-
-        return new MetaRequestInfo(authDomainId, authDomainType, authDomainPath, remainingPath);
-    }
-
-    private static class MetaRequestInfo {
-
-        final String authDomainId;
-        final String authDomainType;
-        final String authDomainPath;
-        final String remainingPath;
-
-        public MetaRequestInfo(String authDomainId, String authDomainType, String authDomainPath, String remainingPath) {
-            this.authDomainId = authDomainId;
-            this.authDomainType = authDomainType;
-            this.authDomainPath = authDomainPath;
-            this.remainingPath = remainingPath;
+        @Override
+        public boolean isDebugEnabled() {
+            return debug;
         }
     }
 }
