@@ -14,8 +14,17 @@
 
 package com.floragunn.searchguard.enterprise.auth.jwt;
 
+import java.io.ByteArrayInputStream;
+import java.io.StringReader;
 import java.net.URI;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.cert.CertificateFactory;
+import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.X509EncodedKeySpec;
 
+import org.apache.cxf.rs.security.jose.jwa.AlgorithmUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
@@ -23,6 +32,8 @@ import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
@@ -30,10 +41,14 @@ import org.elasticsearch.rest.RestRequest;
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidatingFunction;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
@@ -49,6 +64,7 @@ import com.floragunn.searchguard.enterprise.auth.oidc.OpenIdProviderClient;
 import com.floragunn.searchguard.enterprise.auth.oidc.SelfRefreshingKeySet;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.util.ImmutableList;
 import com.google.common.base.Strings;
 
 public class JwtAuthenticator implements HTTPAuthenticator {
@@ -72,9 +88,25 @@ public class JwtAuthenticator implements HTTPAuthenticator {
         this.requiredAudience = vNode.get("required_audience").asString();
         this.requiredIssuer = vNode.get("required_issuer").asString();
 
-        JsonWebKeys jwks = vNode.get("jwks").expected("A JWKS document").by((n) -> JwkUtils.readJwkSet(n.toJsonString()));
+        JsonWebKeys jwks = vNode.get("signing.jwks").expected("A JWKS document").by((n) -> JwkUtils.readJwkSet(n.toJsonString()));
+        JsonWebKey rsaJwk = vNode.get("signing.rsa").by(JwtAuthenticator::parseRsa);
+        JsonWebKey ecJwk = vNode.get("signing.ec").by(JwtAuthenticator::parseEc);
 
-        if (jwks != null) {
+        JsonWebKeys joinedJwks;
+        
+        if (rsaJwk != null || ecJwk != null) {
+            ImmutableList<JsonWebKey> jwkList = ImmutableList.ofNonNull(rsaJwk, ecJwk);
+            
+            if (jwks != null) {
+                jwkList = jwkList.with(jwks.getKeys());
+            }
+            
+            joinedJwks = new JsonWebKeys(jwkList);
+        } else {
+            joinedJwks = jwks;
+        }
+                
+        if (joinedJwks != null) {
             this.staticKeySet = new KeyProvider() {
 
                 @Override
@@ -85,9 +117,9 @@ public class JwtAuthenticator implements HTTPAuthenticator {
                 @Override
                 public JsonWebKey getKey(String kid) throws AuthenticatorUnavailableException, BadCredentialsException {
                     if (Strings.isNullOrEmpty(kid)) {
-                        return jwks.getKeys().size() != 0 ? jwks.getKeys().get(0) : null;
+                        return joinedJwks.getKeys().size() != 0 ? joinedJwks.getKeys().get(0) : null;
                     } else {
-                        return jwks.getKey(kid);
+                        return joinedJwks.getKey(kid);
                     }
                 }
             };
@@ -95,12 +127,12 @@ public class JwtAuthenticator implements HTTPAuthenticator {
             this.staticKeySet = null;
         }
 
-        URI openidConnectUrl = vNode.get("keys_from_openid_configuration.url").asURI();
+        URI openidConnectUrl = vNode.get("signing.jwks_from_openid_configuration.url").asURI();
 
         if (openidConnectUrl != null) {
-            boolean cacheJwksEndpoint = vNode.get("keys_from_openid_configuration.cache_jwks_endpoint").withDefault(false).asBoolean();
-            TLSConfig tlsConfig = vNode.get("keys_from_openid_configuration.tls").by(TLSConfig::parse);
-            ProxyConfig proxyConfig = vNode.get("keys_from_openid_configuration.proxy")
+            boolean cacheJwksEndpoint = vNode.get("signing.keys_from_openid_configuration.cache_jwks_endpoint").withDefault(false).asBoolean();
+            TLSConfig tlsConfig = vNode.get("signing.keys_from_openid_configuration.tls").by(TLSConfig::parse);
+            ProxyConfig proxyConfig = vNode.get("signing.keys_from_openid_configuration.proxy")
                     .by((ValidatingFunction<DocNode, ProxyConfig>) ProxyConfig::parse);
 
             OpenIdProviderClient openIdProviderClient = new OpenIdProviderClient(openidConnectUrl, tlsConfig, proxyConfig, cacheJwksEndpoint);
@@ -110,11 +142,11 @@ public class JwtAuthenticator implements HTTPAuthenticator {
             this.openIdKeySet = null;
         }
 
-        URI jwksUrl = vNode.get("jwks_endpoint.url").asURI();
+        URI jwksUrl = vNode.get("signing.jwks_endpoint.url").asURI();
 
         if (jwksUrl != null) {
-            TLSConfig tlsConfig = vNode.get("jwks_endpoint.tls").by(TLSConfig::parse);
-            ProxyConfig proxyConfig = vNode.get("jwks_endpoint.proxy").by((ValidatingFunction<DocNode, ProxyConfig>) ProxyConfig::parse);
+            TLSConfig tlsConfig = vNode.get("signing.jwks_endpoint.tls").by(TLSConfig::parse);
+            ProxyConfig proxyConfig = vNode.get("signing.jwks_endpoint.proxy").by((ValidatingFunction<DocNode, ProxyConfig>) ProxyConfig::parse);
 
             JwksProviderClient jwksProviderClient = new JwksProviderClient(tlsConfig, proxyConfig);
             this.jwksKeySet = new SelfRefreshingKeySet(() -> jwksProviderClient.getJsonWebKeys(jwksUrl));
@@ -161,6 +193,119 @@ public class JwtAuthenticator implements HTTPAuthenticator {
     @Override
     public boolean reRequestAuthentication(RestChannel channel, AuthCredentials credentials) {
         return false;
+    }
+
+    private static JsonWebKey parseRsa(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        ValidationErrors validationErrors = new ValidationErrors();
+        ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
+        RSAPublicKey rsaPublicKey = null;
+
+        String certificate = vNode.get("certificate").asString();
+
+        if (certificate != null) {
+            try {
+                PublicKey publicKey = CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certificate.getBytes()))
+                        .getPublicKey();
+
+                if (publicKey instanceof RSAPublicKey) {
+                    rsaPublicKey = (RSAPublicKey) publicKey;
+                } else {
+                    validationErrors.add(
+                            new InvalidAttributeValue("certificate", publicKey.getClass(), "An RSA certificate").message("Not an RSA certificate"));
+                }
+            } catch (Exception e) {
+                validationErrors.add(new ValidationError("certificate", e.getMessage()).cause(e));
+            }
+        }
+
+        String publicKeyString = vNode.get("public_key").asString();
+
+        if (publicKeyString != null) {
+            try {
+                PemObject pemObject = new PemReader(new StringReader(publicKeyString)).readPemObject();
+                PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(pemObject.getContent()));
+                if (publicKey instanceof RSAPublicKey) {
+                    rsaPublicKey = (RSAPublicKey) publicKey;
+                } else {
+                    validationErrors
+                            .add(new InvalidAttributeValue("public_key", publicKey.getClass(), "An RSA public key").message("Not an RSA public key"));
+                }
+            } catch (Exception e) {
+                validationErrors.add(new ValidationError("public_key", e.getMessage()).cause(e));
+            }
+        }
+
+        String algo = vNode.get("algorithm").validatedBy(AlgorithmUtils::isRsa).asString();
+        String kid = vNode.get("kid").asString();
+
+        validationErrors.throwExceptionForPresentErrors();
+
+        if (rsaPublicKey == null) {
+            throw new ConfigValidationException(new MissingAttribute("certificate"));
+        }
+
+        try {
+            return JwkUtils.fromRSAPublicKey(rsaPublicKey, algo, kid);
+        } catch (Exception e) {
+            throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
+        }
+    }
+    
+
+    private static JsonWebKey parseEc(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        ValidationErrors validationErrors = new ValidationErrors();
+        ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
+        ECPublicKey ecPublicKey = null;
+
+        String certificate = vNode.get("certificate").asString();
+
+        if (certificate != null) {
+            try {
+                PublicKey publicKey = CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certificate.getBytes()))
+                        .getPublicKey();
+
+                if (publicKey instanceof ECPublicKey) {
+                    ecPublicKey = (ECPublicKey) publicKey;
+                } else {
+                    validationErrors.add(
+                            new InvalidAttributeValue("certificate", publicKey.getClass(), "An EC certificate").message("Not an EC certificate"));
+                }
+            } catch (Exception e) {
+                validationErrors.add(new ValidationError("certificate", e.getMessage()).cause(e));
+            }
+        }
+
+        String publicKeyString = vNode.get("public_key").asString();
+
+        if (publicKeyString != null) {
+            try {
+                PemObject pemObject = new PemReader(new StringReader(publicKeyString)).readPemObject();
+                PublicKey publicKey = KeyFactory.getInstance("EC").generatePublic(new X509EncodedKeySpec(pemObject.getContent()));
+                if (publicKey instanceof ECPublicKey) {
+                    ecPublicKey = (ECPublicKey) publicKey;
+                } else {
+                    validationErrors
+                            .add(new InvalidAttributeValue("public_key", publicKey.getClass(), "An EC public key").message("Not an EC public key"));
+                }
+            } catch (Exception e) {
+                validationErrors.add(new ValidationError("public_key", e.getMessage()).cause(e));
+            }
+        }
+
+        String curve = vNode.get("curve").validatedBy(AlgorithmUtils::isRsa).asString();
+        String kid = vNode.get("kid").asString();
+
+        validationErrors.throwExceptionForPresentErrors();
+
+        if (ecPublicKey == null) {
+            throw new ConfigValidationException(new MissingAttribute("certificate"));
+        }
+
+        try {
+            return JwkUtils.fromECPublicKey(ecPublicKey, curve, kid);
+        } catch (Exception e) {
+            throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
+        }
     }
 
     private static final String BEARER = "bearer ";

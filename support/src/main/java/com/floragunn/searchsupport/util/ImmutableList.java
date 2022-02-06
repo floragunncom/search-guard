@@ -44,7 +44,6 @@ public interface ImmutableList<E> extends List<E> {
     }
 
     public static <E> ImmutableList<E> of(E e1, E e2) {
-
         return new TwoElementList<E>(e1, e2);
     }
 
@@ -90,6 +89,55 @@ public interface ImmutableList<E> extends List<E> {
         } else {
             return new ArrayBackedList<>(collection.toArray());
         }
+    }
+
+    public static <E> ImmutableList<E> ofNonNull(E e) {
+        if (e != null) {
+            return new OneElementList<E>(e);
+        } else {
+            return empty();
+        }
+    }
+
+    public static <E> ImmutableList<E> ofNonNull(E e1, E e2) {
+        if (e1 != null) {
+            if (e2 != null) {
+                return of(e1, e2);
+            } else {
+                return of(e1);
+            }
+        } else {
+            if (e2 != null) {
+                return of(e2);
+            } else {
+                return empty();
+            }
+        }
+    }
+
+    @SafeVarargs
+    public static <E> ImmutableList<E> ofNonNull(E e1, E e2, E... more) {
+        if (more == null || more.length == 0) {
+            return ofNonNull(e1, e2);
+        }
+        
+        Builder<E> builder = new Builder<>(more.length + 2);
+        
+        if (e1 != null) {
+            builder.with(e1);
+        }
+        
+        if (e2 != null) {
+            builder.with(e2);
+        }
+
+        for (E e : more) {
+            if (e != null) {
+                builder.with(e);
+            }
+        }
+        
+        return builder.build();
     }
 
     public static <E> ImmutableList<E> concat(Collection<? extends E> c1, Collection<? extends E> c2) {

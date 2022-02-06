@@ -40,11 +40,11 @@ import com.floragunn.searchsupport.util.ImmutableSet;
 public class RestAuthenticationIntegrationTests {
 
     static TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(
-            new Authc.Domain("jwt").frontend(DocNode.of("jwks", Jose.toBasicObject(TestJwk.OCT_1_2_3)))//
+            new Authc.Domain("jwt").frontend(DocNode.of("signing.jwks", Jose.toBasicObject(TestJwk.OCT_1_2_3)))//
                     .skipIps("127.0.0.4")//
                     .userMapping(new UserMapping().rolesFrom("jwt.n").attrsFrom("a_n", "jwt.n").attrsFrom("a_m", "jwt.m")),
 
-            new Authc.Domain("jwt").frontend(DocNode.of("jwks", Jose.toBasicObject(TestJwk.OCT_1_2_3)))//
+            new Authc.Domain("jwt").frontend(DocNode.of("signing.jwks", Jose.toBasicObject(TestJwk.OCT_1_2_3)))//
                     .acceptIps("127.0.0.4")//
                     .userMapping(new UserMapping().rolesFromCommaSeparatedString("jwt.roles")));
 
