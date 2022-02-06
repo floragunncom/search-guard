@@ -1,17 +1,4 @@
 
-community:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "community"
-    TEST_ENVIRONMENT: "community"
-
-enterprise_1:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_1"
-    TEST_ENVIRONMENT: "enterprise_1"
 
 enterprise_2:
   extends:
@@ -20,19 +7,6 @@ enterprise_2:
     TEST: "enterprise_2"
     TEST_ENVIRONMENT: "enterprise_2"
 
-enterprise_3:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_3"
-    TEST_ENVIRONMENT: "enterprise_3"
-
-enterprise_1_clientnode:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_1_clientnode"
-    TEST_ENVIRONMENT: "enterprise_1"
 
 enterprise_2_clientnode:
   extends:
@@ -41,12 +15,6 @@ enterprise_2_clientnode:
     TEST: "enterprise_2_clientnode"
     TEST_ENVIRONMENT: "enterprise_2"
 
-enterprise_3_clientnode:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_3_clientnode"
-    TEST_ENVIRONMENT: "enterprise_3"
 
 ccs_1_roundtrips_false:
   extends:
