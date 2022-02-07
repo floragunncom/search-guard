@@ -24,7 +24,7 @@ SG_VERSION="${1:-$SG_VERSION_PRE}"
 SGSF_VERSION="${2:-$SG_VERSION_PRE}"
 SG_REPOSITORY="${3:-search-guard-suite-alpha}"
 SG_PLUGIN_NAME="search-guard"
-SGCTL_VERSION="0.1.1"
+SGCTL_VERSION="0.2.0"
 
 if [[ $SG_VERSION =~ .*-os-.* ]]; then
   OS_VERSION=$(echo $SG_VERSION | cut -d- -f3)
