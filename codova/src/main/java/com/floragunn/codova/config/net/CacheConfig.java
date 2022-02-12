@@ -30,7 +30,8 @@ import com.google.common.cache.CacheBuilder;
 
 public class CacheConfig implements Document<CacheConfig> {
 
-    public static CacheConfig DEFAULT = new CacheConfig(true, Duration.ofMinutes(5), null, 1000);
+    public static CacheConfig OFF = new CacheConfig(false, null, null, null);
+    public static CacheConfig DEFAULT = new CacheConfig(true, Duration.ofMinutes(2), null, 1000);
 
     private final Duration expireAfterWrite;
     private final Duration expireAfterAccess;
