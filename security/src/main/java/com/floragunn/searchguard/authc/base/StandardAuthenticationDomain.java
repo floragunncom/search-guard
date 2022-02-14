@@ -24,6 +24,8 @@ import java.util.concurrent.ExecutionException;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Metadata;
+import com.floragunn.codova.documents.Metadata.Attribute;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -31,14 +33,15 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.TypedComponentRegistry;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
+import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
+import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.UserInformationBackend;
-import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
-import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
+import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.AuthDomainInfo;
@@ -48,6 +51,17 @@ import com.google.common.hash.Hashing;
 
 public class StandardAuthenticationDomain<AuthenticatorType extends AuthenticationFrontend> implements AuthenticationDomain<AuthenticatorType>,
         Comparable<StandardAuthenticationDomain<AuthenticatorType>>, Document<StandardAuthenticationDomain<AuthenticatorType>> {
+
+    public static final Metadata<StandardAuthenticationDomain> HTTP_META = Metadata.create(StandardAuthenticationDomain.class, "auth_domain",
+            "Authentication domains", (n, c) -> parse(n, HTTPAuthenticator.class, (ConfigurationRepository.Context) c),
+            Attribute.required("type", String.class, "<authentication_frontend_type/authentication_backend_type> or <authentication_frontend_type>"),
+            Attribute.optional("id", String.class, "A string to identify this authentication domain"),
+            Attribute.optional("description", String.class, null),
+            Attribute.optional("enabled", Boolean.class, "Set to false to disable this auth domain"),
+
+            Attribute.optional("debug", Boolean.class, "Enables authc debug mode. If true, /_searchguard/auth/debug provides debug information."),
+            Attribute.optional("network", Object.class, "Network-specific configuration."),
+            Attribute.optional("user_cache", Object.class, "User cache configuration."));
 
     private final DocNode source;
     private final String type;
@@ -97,7 +111,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
     }
 
     @Override
-    public int compareTo(final StandardAuthenticationDomain<AuthenticatorType> o) {
+    public int compareTo(StandardAuthenticationDomain<AuthenticatorType> o) {
         return Integer.compare(this.order, o.order);
     }
 
@@ -130,7 +144,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         return result.toString();
     }
 
-    public static <AuthenticatorType extends AuthenticationFrontend> AuthenticationDomain<AuthenticatorType> parse(DocNode documentNode,
+    public static <AuthenticatorType extends AuthenticationFrontend> StandardAuthenticationDomain<AuthenticatorType> parse(DocNode documentNode,
             Class<AuthenticatorType> authenticatorType, ConfigurationRepository.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(documentNode, validationErrors);
@@ -138,7 +152,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         return parse(vNode, validationErrors, authenticatorType, context);
     }
 
-    public static <AuthenticatorType extends AuthenticationFrontend> AuthenticationDomain<AuthenticatorType> parse(ValidatingDocNode vNode,
+    public static <AuthenticatorType extends AuthenticationFrontend> StandardAuthenticationDomain<AuthenticatorType> parse(ValidatingDocNode vNode,
             ValidationErrors validationErrors, Class<AuthenticatorType> authenticatorType, ConfigurationRepository.Context context)
             throws ConfigValidationException {
         TypedComponentRegistry typedComponentRegistry = context.modulesRegistry().getTypedComponentRegistry();
@@ -270,7 +284,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
             return UserMapper.DIRECT;
         }
     }
-    
+
     public CredentialsMapper getCredentialsMapper() {
         if (userMapping != null) {
             return userMapping;
@@ -278,13 +292,14 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
             return CredentialsMapper.DIRECT;
         }
     }
- 
+
     public ImmutableList<UserInformationBackend> getAdditionalUserInformationBackends() {
         return additionalUserInformationBackends;
     }
 
     @Override
-    public CompletableFuture<User> authenticate(AuthCredentials authCredentials, AuthenticationDebugLogger debug) throws AuthenticatorUnavailableException, CredentialsException {
+    public CompletableFuture<User> authenticate(AuthCredentials authCredentials, AuthenticationDebugLogger debug)
+            throws AuthenticatorUnavailableException, CredentialsException {
         try {
             authCredentials = authenticationBackend.authenticate(authCredentials).get();
         } catch (InterruptedException e) {
@@ -304,7 +319,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         if (authCredentials == null) {
             return null;
         }
-        
+
         authCredentials = authCredentials.with(AuthDomainInfo.forAuthenticatorType(authenticationFrontend.getType())
                 .authBackendType(authenticationBackend != null ? authenticationBackend.getType() : null));
 
@@ -327,9 +342,9 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         }
 
         debug.success(getType(), "Backends successful", "user_mapping_attributes", authCredentials.getAttributesForUserMapping());
-        
+
         User authenticatedUser;
-        
+
         if (userMapping != null) {
             authenticatedUser = userMapping.map(authCredentials);
         } else {

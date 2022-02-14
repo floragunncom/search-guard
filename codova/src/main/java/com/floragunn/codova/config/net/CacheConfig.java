@@ -52,9 +52,9 @@ public class CacheConfig implements Document<CacheConfig> {
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors);
 
         this.enabled = vNode.get("enabled").withDefault(true).asBoolean();
-        this.expireAfterWrite = vNode.get("expire_after_write").asDuration();
+        this.expireAfterWrite = vNode.get("expire_after_write").withDefault(DEFAULT.expireAfterWrite).asDuration();
         this.expireAfterAccess = vNode.get("expire_after_access").asDuration();
-        this.maxSize = vNode.get("max_size").asInteger();
+        this.maxSize = vNode.get("max_size").withDefault(DEFAULT.maxSize).asInteger();
         this.source = config;
 
         vNode.checkForUnusedAttributes();

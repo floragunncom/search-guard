@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ public interface Document<T> {
     default String toJsonString() {
         return toString(Format.JSON);
     }
-    
+
     default String toPrettyJsonString() {
         return DocWriter.format(Format.JSON).pretty().writeAsString(this.toBasicObject());
     }
@@ -62,6 +62,10 @@ public interface Document<T> {
 
     default Object toDeepBasicObject() {
         return toDeepBasicObject(toBasicObject());
+    }
+
+    default Metadata<T> meta() {
+        return null;
     }
 
     @SuppressWarnings("unchecked")

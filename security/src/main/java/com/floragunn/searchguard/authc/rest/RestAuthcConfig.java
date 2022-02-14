@@ -22,6 +22,8 @@ import java.util.regex.Pattern;
 
 import com.floragunn.codova.config.net.CacheConfig;
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Metadata;
+import com.floragunn.codova.documents.Metadata.Attribute;
 import com.floragunn.codova.documents.Parser.Context;
 import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -37,6 +39,13 @@ import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchsupport.util.ImmutableList;
 
 public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig> {
+
+    public static final Metadata<RestAuthcConfig> META = Metadata.create(RestAuthcConfig.class, "sg_authc",
+            "Authentication configuration for the REST API", (n, c) -> parse(n, (ConfigurationRepository.Context) c).get(),
+            Attribute.list("auth_domains", Object.class, "The authentication domains to use."),
+            Attribute.optional("debug", Boolean.class, "Enables authc debug mode. If true, /_searchguard/auth/debug provides debug information."),
+            Attribute.optional("network", Object.class, "Network-specific configuration."),
+            Attribute.optional("user_cache", Object.class, "User cache configuration."));
 
     private final DocNode source;
     private final ImmutableList<AuthenticationDomain<HTTPAuthenticator>> authenticators;
@@ -180,6 +189,11 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig> {
     @Override
     public RestAuthcConfig parseI(DocNode docNode, Context context) throws ConfigValidationException {
         return parse(docNode, (ConfigurationRepository.Context) context).get();
+    }
+
+    @Override
+    public Metadata<RestAuthcConfig> meta() {
+        return META;
     }
 
 }
