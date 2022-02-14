@@ -79,6 +79,7 @@ public interface Metadata<T> extends Document<Metadata<T>> {
 
     interface ListAttribute<AttributeType> extends Attribute<List<AttributeType>> {
         Metadata<AttributeType> elementMeta();
+
         ListAttribute<AttributeType> withEmptyListAsDefault();
     }
 
@@ -114,14 +115,16 @@ public interface Metadata<T> extends Document<Metadata<T>> {
 
                 attributeBasicObject.put("cardinality", attribute.cardinalityAsString());
 
-                for (Map.Entry<String, Object> entry : attribute.meta().toBasicObject().entrySet()) {
-                    if (entry.getKey().equals("description")) {
-                        continue;
+                if (attribute.meta() != null) {
+                    for (Map.Entry<String, Object> entry : attribute.meta().toBasicObject().entrySet()) {
+                        if (entry.getKey().equals("description")) {
+                            continue;
+                        }
+
+                        attributeBasicObject.put(entry.getKey(), entry.getValue());
                     }
-
-                    attributeBasicObject.put(entry.getKey(), entry.getValue());
                 }
-
+                
                 attributesBasicObject.put(attribute.name(), attributeBasicObject);
             }
 
