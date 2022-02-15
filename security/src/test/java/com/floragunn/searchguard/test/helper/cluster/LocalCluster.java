@@ -81,6 +81,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         this.clusterName = clusterName;
         this.minimumSearchGuardSettingsSupplierFactory = new MinimumSearchGuardSettingsSupplierFactory(resourceFolder, testCertificates);
         this.testCertificates = testCertificates;
+        
+        painlessWhitelistKludge();
+        
         start();
     }
 
