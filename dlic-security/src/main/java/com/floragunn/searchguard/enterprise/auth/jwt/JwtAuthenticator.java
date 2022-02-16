@@ -35,7 +35,6 @@ import org.apache.logging.log4j.Logger;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.config.net.ProxyConfig;
@@ -189,12 +188,12 @@ public class JwtAuthenticator implements HTTPAuthenticator {
         return AuthCredentials.forUser(claims.getSubject()).attribute(Attributes.AUTH_TYPE, "jwt")
                 .userMappingAttribute("jwt", Jose.toBasicObject(claims)).complete().build();
     }
-
+    
     @Override
-    public boolean reRequestAuthentication(RestChannel channel, AuthCredentials credentials) {
-        return false;
+    public String getChallenge(AuthCredentials credentials) {
+        return "Bearer realm=\"Search Guard\"";
     }
-
+    
     private static JsonWebKey parseRsa(DocNode docNode, Parser.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);

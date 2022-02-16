@@ -27,7 +27,6 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
@@ -147,11 +146,6 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
         }
 
         return subject;
-    }
-
-    @Override
-    public boolean reRequestAuthentication(RestChannel channel, AuthCredentials authCredentials) {
-        return false;
     }
 
 }

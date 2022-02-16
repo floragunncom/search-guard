@@ -29,7 +29,6 @@ import javax.naming.ldap.Rdn;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.DocNode;
@@ -65,11 +64,6 @@ public class HTTPClientCertAuthenticator implements HTTPAuthenticator {
             log.error("Client cert had no properly formed DN (was: {})", principal, e);
             return null;
         }
-    }
-
-    @Override
-    public boolean reRequestAuthentication(final RestChannel channel, AuthCredentials creds) {
-        return false;
     }
 
     @Override

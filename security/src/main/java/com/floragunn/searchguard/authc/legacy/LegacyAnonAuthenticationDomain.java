@@ -21,15 +21,14 @@ import java.util.concurrent.CompletableFuture;
 
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
+import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
-import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -66,11 +65,6 @@ public class LegacyAnonAuthenticationDomain implements AuthenticationDomain<HTTP
         @Override
         public String getType() {
             return "anon";
-        }
-
-        @Override
-        public boolean reRequestAuthentication(RestChannel channel, AuthCredentials credentials) {
-            return false;
         }
 
         @Override
