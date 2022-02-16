@@ -33,11 +33,13 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.AliasesRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -144,7 +146,8 @@ public class ActionRequestIntrospector {
                 log.warn("Unknown action request: " + request.getClass().getName());
                 return UNKNOWN;
             }
-
+        } else if (request instanceof IndicesAliasesRequest) {            
+            return new ActionRequestInfo(((IndicesAliasesRequest) request).getAliasActions());
         } else if (request instanceof RestoreSnapshotRequest) {
 
             if (clusterInfoHolder.isLocalNodeElectedMaster() == Boolean.FALSE) {
@@ -225,6 +228,12 @@ public class ActionRequestIntrospector {
 
                 return true;
             }
+        } else if (request instanceof IndicesAliasesRequest) {
+            for (AliasesRequest aliasesRequest : ((IndicesAliasesRequest) request).getAliasActions()) {
+                if (!reduceIndices(aliasesRequest, keepIndices, actionRequestInfo)) {
+                    return false;
+                }
+            }
         }
 
         return false;
@@ -272,6 +281,12 @@ public class ActionRequestIntrospector {
                 }
 
                 return true;
+            }
+        } else if (request instanceof IndicesAliasesRequest) {
+            for (AliasesRequest aliasesRequest : ((IndicesAliasesRequest) request).getAliasActions()) {
+                if (!replaceIndices(aliasesRequest, replacementFunction, actionRequestInfo)) {
+                    return false;
+                }
             }
         }
 
