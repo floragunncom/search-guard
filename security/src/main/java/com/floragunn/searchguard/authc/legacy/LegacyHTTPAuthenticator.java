@@ -17,8 +17,13 @@
 
 package com.floragunn.searchguard.authc.legacy;
 
+import org.elasticsearch.rest.RestChannel;
+
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.user.AuthCredentials;
 
 public interface LegacyHTTPAuthenticator extends HTTPAuthenticator {
-
+    default boolean reRequestAuthentication(RestChannel channel, AuthCredentials credentials) {
+        return false;
+    }
 }

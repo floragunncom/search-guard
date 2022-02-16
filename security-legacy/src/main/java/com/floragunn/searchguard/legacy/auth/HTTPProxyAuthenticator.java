@@ -25,7 +25,6 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.TypedComponent;
@@ -76,11 +75,6 @@ public class HTTPProxyAuthenticator implements LegacyHTTPAuthenticator {
             }
             return null;
         }
-    }
-
-    @Override
-    public boolean reRequestAuthentication(final RestChannel channel, AuthCredentials creds) {
-        return false;
     }
 
     @Override

@@ -18,7 +18,6 @@
 package com.floragunn.searchguard.authc.rest.authenticators;
 
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
@@ -36,11 +35,6 @@ public class AnonymousAuthenticator  implements HTTPAuthenticator {
     public AuthCredentials extractCredentials(RestRequest request, ThreadContext context)
             throws AuthenticatorUnavailableException, CredentialsException {
         return AuthCredentials.forUser("anonymous").build();
-    }
-
-    @Override
-    public boolean reRequestAuthentication(RestChannel channel, AuthCredentials credentials) {
-        return false;
     }
 
 }
