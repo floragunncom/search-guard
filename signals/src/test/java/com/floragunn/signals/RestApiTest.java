@@ -496,7 +496,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), "cannot resolve symbol [x]",
                     parsedResponse.path("detail").path("checks[].source").path(0).path("error").asText());
             Assert.assertTrue(response.getBody(),
-                    parsedResponse.path("detail").path("trigger.schedule.cron").path(0).path("error").asText().contains("Invalid cron expression"));
+                    parsedResponse.path("detail").path("trigger.schedule.cron.0").path(0).path("error").asText().contains("Invalid cron expression"));
             Assert.assertTrue(response.getBody(),
                     parsedResponse.path("detail").path("trigger.schedule.x").path(0).path("error").asText().contains("Unsupported attribute"));
             Assert.assertEquals(response.getBody(), "Required attribute is missing",
