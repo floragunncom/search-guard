@@ -31,8 +31,6 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
@@ -194,15 +192,6 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
 
             return subject;
         }
-
-        @Override
-        public boolean reRequestAuthentication(RestChannel channel, AuthCredentials authCredentials) {
-            final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "");
-            wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Bearer realm=\"Search Guard\"");
-            channel.sendResponse(wwwAuthenticateResponse);
-            return true;
-        }
-
     }
 
     @Override

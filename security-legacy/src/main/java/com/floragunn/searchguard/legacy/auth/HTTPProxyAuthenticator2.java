@@ -26,7 +26,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.TypedComponent;
@@ -216,11 +215,6 @@ public class HTTPProxyAuthenticator2 implements LegacyHTTPAuthenticator {
                 log.trace("No additional attributes send.");
             }
         }
-    }
-
-    @Override
-    public boolean reRequestAuthentication(RestChannel restChannel, AuthCredentials authCredentials) {
-        return false;
     }
 
     @Override

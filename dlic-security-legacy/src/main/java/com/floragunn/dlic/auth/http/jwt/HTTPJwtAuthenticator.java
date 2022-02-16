@@ -37,10 +37,7 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -253,14 +250,6 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
             }
             return null;
         }
-    }
-
-    @Override
-    public boolean reRequestAuthentication(final RestChannel channel, AuthCredentials creds) {
-        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED,"");
-        wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Bearer realm=\"Search Guard\"");
-        channel.sendResponse(wwwAuthenticateResponse);
-        return true;
     }
 
     @Override
