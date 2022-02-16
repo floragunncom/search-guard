@@ -269,43 +269,6 @@ public class MultitenancyTests {
     }
 
     @Test
-    public void testAliasCreationKibana_7_12() throws Exception {
-        try {
-            try (RestHighLevelClient tenantClient = cluster.getRestHighLevelClient("admin", "admin", "kibana_7_12_alias_creation_test");
-                    Client client = cluster.getInternalNodeClient()) {
-                IndexResponse indexResponse = tenantClient.index(new IndexRequest(".kibana_7.12.0_001").id("test")
-                        .source(ImmutableMap.of("buildNum", 15460)).setRefreshPolicy(RefreshPolicy.IMMEDIATE), RequestOptions.DEFAULT);
-                Assert.assertEquals(indexResponse.toString(), indexResponse.getResult(), DocWriteResponse.Result.CREATED);
-                Assert.assertEquals(indexResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", indexResponse.getIndex());
-
-                AcknowledgedResponse ackResponse = tenantClient.indices().updateAliases(
-                        new IndicesAliasesRequest().addAliasAction(AliasActions.add().index(".kibana_7.12.0_001").alias(".kibana_7.12.0")),
-                        RequestOptions.DEFAULT);
-
-                Assert.assertTrue(ackResponse.toString(), ackResponse.isAcknowledged());
-
-                GetResponse getResponse = tenantClient.get(new GetRequest(".kibana_7.12.0", "test"), RequestOptions.DEFAULT);
-
-                Assert.assertEquals(getResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", getResponse.getIndex());
-
-                GetAliasesResponse getAliasesResponse = client.admin().indices()
-                        .getAliases(new GetAliasesRequest(".kibana_1482524924_kibana712aliascreationtest_7.12.0")).actionGet();
-
-                Assert.assertNotNull(getAliasesResponse.getAliases().toString(),
-                        getAliasesResponse.getAliases().get(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001"));
-                Assert.assertEquals(getAliasesResponse.getAliases().toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0",
-                        getAliasesResponse.getAliases().get(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001").get(0).alias());
-
-            }
-        } finally {
-            try (Client tc = cluster.getInternalNodeClient()) {
-                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001")).actionGet();
-            } catch (Exception ignored) {
-            }
-        }
-    }
-
-    @Test
     public void testMgetWithKibanaAlias() throws Exception {
         String indexName = ".kibana_1592542611_humanresources";
         String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
