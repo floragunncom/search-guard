@@ -137,9 +137,9 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
         protected CompletableFuture<Response> doExecute(Request request) {
             String configId = request.getConfigId() != null ? request.getConfigId() : "default";
 
-            FrontendAuthcConfig frontendConfig = configRepository.getConfiguration(CType.FRONTEND_CONFIG).getCEntry(configId);
+            FrontendAuthcConfig frontendConfig = configRepository.getConfiguration(CType.FRONTEND_AUTHC).getCEntry(configId);
 
-            if (frontendConfig == null && configRepository.getConfiguration(CType.FRONTEND_CONFIG).getCEntries().isEmpty()) {
+            if (frontendConfig == null && configRepository.getConfiguration(CType.FRONTEND_AUTHC).getCEntries().isEmpty()) {
                 frontendConfig = getFallbackFrontendConfig();
             }
 

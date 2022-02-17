@@ -963,7 +963,7 @@ public interface ImmutableSet<E> extends Set<E> {
             }
 
             for (Object other : c) {
-                if (e1 != other && e2 != other) {
+                if (!e1.equals(other) && !e2.equals(other)) {
                     return false;
                 }
             }

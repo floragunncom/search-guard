@@ -16,7 +16,6 @@
 # https://docs.search-guard.com/latest/authentication-authorization
 #
 
+debug: false
 auth_domains:
 - type: basic/internal_users_db
-  
-debug: false
