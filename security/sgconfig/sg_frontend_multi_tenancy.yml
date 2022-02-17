@@ -1,0 +1,15 @@
+# This file configures multi-tenancy for Dashboards/Kibana. 
+#
+# NOTE: For using this on production systems, you have to obtain a license.
+# See:  https://docs.search-guard.com/latest/search-guard-enterprise-edition
+# 
+# In normal configurations, it is sufficient to set `enabled` to true. 
+# 
+# The major configuration needs to be done in the `kibana.yml` file.
+# 
+# See https://docs.search-guard.com/tech-preview/kibana-multi-tenancy for details
+
+default:
+  enabled: true
+  index: .kibana
+  server_user: kibanaserver

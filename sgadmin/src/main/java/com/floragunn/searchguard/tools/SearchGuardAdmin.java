@@ -821,7 +821,7 @@ public class SearchGuardAdmin {
                 if(!legacy) {
                     success = retrieveFile(tc, cd+"sg_tenants_"+date+".yml", index, "tenants", legacy) && success;
                     success = retrieveFile(tc, cd+"sg_blocks_"+date+".yml", index, "blocks", legacy) && success;
-                    success = retrieveFile(tc, cd+"sg_frontend_config_"+date+".yml", index, "frontend_config", legacy) && success;
+                    success = retrieveFile(tc, cd+"sg_frontend_authc_"+date+".yml", index, "frontend_authc", legacy) && success;
                 }
                 return (success?0:-1);
             }
@@ -1236,7 +1236,7 @@ public class SearchGuardAdmin {
         if(!legacy) {
             success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_tenants.yml", index, "tenants", legacy) && success;
             success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_blocks.yml", index, "blocks", legacy) && success;
-            success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_frontend_config.yml", index, "frontend_config", legacy) && success;
+            success = retrieveFile(tc, backupDir.getAbsolutePath()+"/sg_frontend_authc.yml", index, "frontend_authc", legacy) && success;
         }
         
         return success?0:-1;
@@ -1259,8 +1259,8 @@ public class SearchGuardAdmin {
                 success = uploadFile(tc, cd + "sg_blocks.yml", index, "blocks", legacy, resolveEnvVars) && success;
             }
 
-            if (new File(cd + "sg_frontend_config.yml").exists()) {
-                success = uploadFile(tc, cd + "sg_frontend_config.yml", index, "frontend_config", legacy, resolveEnvVars) && success;
+            if (new File(cd + "sg_frontend_authc.yml").exists()) {
+                success = uploadFile(tc, cd + "sg_frontend_authc.yml", index, "frontend_authc", legacy, resolveEnvVars) && success;
             }
         }
         

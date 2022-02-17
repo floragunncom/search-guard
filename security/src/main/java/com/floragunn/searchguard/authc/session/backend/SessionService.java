@@ -201,7 +201,7 @@ public class SessionService {
 
             @Override
             public void onChange(ConfigMap configMap) {
-                SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig = configMap.get(CType.FRONTEND_CONFIG);
+                SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig = configMap.get(CType.FRONTEND_AUTHC);
                 SgDynamicConfiguration<RestAuthcConfig> config = configMap.get(CType.AUTHC);
                 SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
                 RestAuthcConfig restAuthczConfig = null;

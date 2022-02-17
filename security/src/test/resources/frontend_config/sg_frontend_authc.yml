@@ -1,5 +1,5 @@
 _sg_meta:
-  type: "frontend_config"
+  type: "frontend_authc"
   config_version: 2
     
 default:
