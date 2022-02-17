@@ -62,7 +62,7 @@ public class CType<T> {
     public static final CType<ConfigVar> CONFIG_VARS = new CType<ConfigVar>("config_vars", "Config Variable", 7, ConfigVar.class, null,
             Storage.EXTERNAL);
 
-    public static final CType<FrontendAuthcConfig> FRONTEND_CONFIG = new CType<FrontendAuthcConfig>("frontend_config", "Frontend Config", 8,
+    public static final CType<FrontendAuthcConfig> FRONTEND_AUTHC = new CType<FrontendAuthcConfig>("frontend_authc", "Frontend Authc", 8,
             FrontendAuthcConfig.class, FrontendAuthcConfig::parse, Storage.OPTIONAL);
 
     public static final CType<RestAuthcConfig> AUTHC = new CType<RestAuthcConfig>("authc", "Authc", 10, RestAuthcConfig.class, RestAuthcConfig::parse,

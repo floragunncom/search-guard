@@ -297,7 +297,7 @@ public class TestSgConfig {
         writeConfigToIndex(client, CType.ACTIONGROUPS, "sg_action_groups.yml");
         writeConfigToIndex(client, CType.TENANTS, "sg_tenants.yml");
         writeOptionalConfigToIndex(client, CType.BLOCKS, "sg_blocks.yml", null);
-        writeOptionalConfigToIndex(client, CType.FRONTEND_CONFIG, "sg_frontend_config.yml", overrideFrontendConfigSettings);
+        writeOptionalConfigToIndex(client, CType.FRONTEND_AUTHC, "sg_frontend_authc.yml", overrideFrontendConfigSettings);
         writeOptionalConfigToIndex(client, "frontend_multi_tenancy", "sg_frontend_multi_tenancy.yml", null);
 
         if (authc != null) {

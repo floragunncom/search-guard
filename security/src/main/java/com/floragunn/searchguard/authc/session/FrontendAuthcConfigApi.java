@@ -52,7 +52,7 @@ public class FrontendAuthcConfigApi {
                 @Inject
                 public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository,
                         BaseDependencies baseDependencies) {
-                    super(INSTANCE, CType.FRONTEND_CONFIG, handlerDependencies, configurationRepository, baseDependencies);
+                    super(INSTANCE, CType.FRONTEND_AUTHC, handlerDependencies, configurationRepository, baseDependencies);
                 }
             }
 
@@ -69,7 +69,7 @@ public class FrontendAuthcConfigApi {
             public static class Handler extends TypeLevelConfigApi.PutAction.Handler<FrontendAuthcConfig> {
                 @Inject
                 public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
-                    super(INSTANCE, CType.FRONTEND_CONFIG, handlerDependencies, configurationRepository);
+                    super(INSTANCE, CType.FRONTEND_AUTHC, handlerDependencies, configurationRepository);
                 }
             }
         }
@@ -85,7 +85,7 @@ public class FrontendAuthcConfigApi {
             public static class Handler extends TypeLevelConfigApi.PatchAction.Handler<FrontendAuthcConfig> {
                 @Inject
                 public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
-                    super(INSTANCE, CType.FRONTEND_CONFIG, handlerDependencies, configurationRepository);
+                    super(INSTANCE, CType.FRONTEND_AUTHC, handlerDependencies, configurationRepository);
                 }
             }
         }
@@ -114,7 +114,7 @@ public class FrontendAuthcConfigApi {
                 @Inject
                 public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository,
                         BaseDependencies baseDependencies) {
-                    super(INSTANCE, CType.FRONTEND_CONFIG, handlerDependencies, configurationRepository, baseDependencies);
+                    super(INSTANCE, CType.FRONTEND_AUTHC, handlerDependencies, configurationRepository, baseDependencies);
                 }
             }
 
@@ -131,7 +131,7 @@ public class FrontendAuthcConfigApi {
             public static class Handler extends DocumentLevelConfigApi.PutAction.Handler<FrontendAuthcConfig> {
                 @Inject
                 public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
-                    super(INSTANCE, CType.FRONTEND_CONFIG, handlerDependencies, configurationRepository);
+                    super(INSTANCE, CType.FRONTEND_AUTHC, handlerDependencies, configurationRepository);
                 }
             }
         }
@@ -147,7 +147,7 @@ public class FrontendAuthcConfigApi {
             public static class Handler extends DocumentLevelConfigApi.PatchAction.Handler<FrontendAuthcConfig> {
                 @Inject
                 public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
-                    super(INSTANCE, CType.FRONTEND_CONFIG, handlerDependencies, configurationRepository);
+                    super(INSTANCE, CType.FRONTEND_AUTHC, handlerDependencies, configurationRepository);
                 }
             }
         }
