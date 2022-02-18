@@ -1,10 +1,6 @@
 ---
 # This is the internal user database
 # The hash value is a bcrypt hash and can be generated with plugin/tools/hash.sh
-
-_sg_meta:
-  type: "internalusers"
-  config_version: 2
   
 # Define your internal users here
 # See https://docs.search-guard.com/latest/internal-users-database

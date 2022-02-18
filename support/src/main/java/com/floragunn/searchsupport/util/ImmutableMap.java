@@ -34,8 +34,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchsupport.util.ImmutableSet.Builder;
-
 public interface ImmutableMap<K, V> extends Map<K, V> {
 
     public static <K, V> ImmutableMap<K, V> of(Map<K, V> map) {
@@ -2381,6 +2379,11 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         @Override
         public ImmutableMap<Object, Object> with(Object key, Object value) {
             return ImmutableMap.of(key, value);
+        }
+        
+        @Override
+        public ImmutableMap<Object, Object> with(ImmutableMap<Object, Object> other) {
+            return other;
         }
     };
 
