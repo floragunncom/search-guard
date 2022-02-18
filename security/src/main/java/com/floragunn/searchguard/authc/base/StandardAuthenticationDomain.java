@@ -58,7 +58,8 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
             Attribute.optional("id", String.class, "A string to identify this authentication domain"),
             Attribute.optional("description", String.class, null),
             Attribute.optional("enabled", Boolean.class, "Set to false to disable this auth domain"),
-
+            Attribute.optional("accept", AcceptanceRules.Criteria.META, "Criteria which decide whether this auth domain will process a request"),
+            Attribute.optional("skip", AcceptanceRules.Criteria.META, "Criteria which decide whether this auth domain will NOT process a request"),
             Attribute.optional("debug", Boolean.class, "Enables authc debug mode. If true, /_searchguard/auth/debug provides debug information."),
             Attribute.optional("network", Object.class, "Network-specific configuration."),
             Attribute.optional("user_cache", Object.class, "User cache configuration."));

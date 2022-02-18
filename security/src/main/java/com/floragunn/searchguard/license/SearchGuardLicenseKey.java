@@ -423,6 +423,10 @@ public final class SearchGuardLicenseKey implements Writeable {
 
         ValidationResult<SearchGuardLicenseKey> result = vNode.get("license").by((node) -> SearchGuardLicenseKey.parseLicenseString(node.toString()));
 
-        return new ValidationResult<SearchGuardLicenseKey>(result.peek(), validationErrors);
+        if (result != null) {
+            validationErrors.add("license", result);
+        }
+        
+        return new ValidationResult<SearchGuardLicenseKey>(result != null ? result.peek() : null, validationErrors);
     }
 }

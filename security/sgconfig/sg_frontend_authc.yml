@@ -16,10 +16,6 @@
 #
 # See https://docs.search-guard.com/tech-preview/kibana-authentication-types for detailed documentation
 
-_sg_meta:
-  type: "frontend_authc"
-  config_version: 2
-    
 default:
   debug: false
   auth_domains:
