@@ -18,6 +18,9 @@
 package com.floragunn.searchguard.authc.base;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Metadata;
+import com.floragunn.codova.documents.Metadata.Attribute;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -111,14 +114,26 @@ public class AcceptanceRules {
         return true;
     }
 
-    public static class Criteria {
+    public static class Criteria implements Document<Criteria> {
+        public static final Metadata<Criteria> META = Metadata.create(Criteria.class, "Acceptance rules criteria", Criteria::parse, //
+                Attribute.list("originating_ips", String.class,
+                        "Matches the actual IP address of the client where request originates from. You can specify CIDR expressions like 10.10.10.0/24"),
+                Attribute.list("ips", String.class,
+                        "Matches the direct IP address of the host connecting to the node. You can specify CIDR expressions like 10.10.10.0/24"),
+                Attribute.optional("trusted_ips", Boolean.class, "Matches only trusted IPs according to network.trusted_proxies").defaultValue(false),
+                Attribute.list("users", String.class, "Matches the user names"),
+                Attribute.list("client_certs", String.class, "Matches the DNs of client certificates"));
+
+        private final DocNode source;
         private final IPAddressCollection originatingIps;
         private final IPAddressCollection directIps;
         private final Pattern users;
         private final Pattern clientCerts;
         private final boolean trustedIps;
 
-        public Criteria(IPAddressCollection originatingIps, IPAddressCollection directIps, boolean trustedIps, Pattern users, Pattern clientCerts) {
+        public Criteria(DocNode source, IPAddressCollection originatingIps, IPAddressCollection directIps, boolean trustedIps, Pattern users,
+                Pattern clientCerts) {
+            this.source = source;
             this.originatingIps = originatingIps;
             this.directIps = directIps;
             this.users = users;
@@ -138,7 +153,7 @@ public class AcceptanceRules {
 
             validationErrors.throwExceptionForPresentErrors();
 
-            return new Criteria(originatingIps, directIps, trustedIps, users, clientCerts);
+            return new Criteria(docNode, originatingIps, directIps, trustedIps, users, clientCerts);
         }
 
         public Pattern getUsers() {
@@ -159,6 +174,11 @@ public class AcceptanceRules {
 
         public boolean isTrustedIps() {
             return trustedIps;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return source;
         }
     }
 }

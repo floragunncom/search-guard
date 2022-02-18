@@ -11,11 +11,6 @@
 # Kibana multitenancy is NOT FREE FOR COMMERCIAL use, you need to obtain an enterprise license
 # https://docs.search-guard.com/latest/kibana-multi-tenancy
 
-
-_sg_meta:
-  type: "roles"
-  config_version: 2
-
 # Define your own search guard roles here
 # or use the built-in search guard roles
 # See https://docs.search-guard.com/latest/roles-permissions

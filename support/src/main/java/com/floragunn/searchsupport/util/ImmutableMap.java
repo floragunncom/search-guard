@@ -2273,6 +2273,11 @@ public interface ImmutableMap<K, V> extends Map<K, V> {
         public ImmutableMap<Object, Object> with(Object key, Object value) {
             return ImmutableMap.of(key, value);
         }
+        
+        @Override
+        public ImmutableMap<Object, Object> with(ImmutableMap<Object, Object> other) {
+            return other;
+        }
     };
 
     abstract static class AbstractImmutableMap<K, V> extends AbstractMap<K, V> implements ImmutableMap<K, V> {
