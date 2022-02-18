@@ -90,15 +90,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         // TODO remove unnecessary readTree()
         String jsonString = SgUtils.replaceEnvVars(uninterpolatedJson, settings);
       
-        JsonNode jsonNode = DefaultObjectMapper.readTree(jsonString);
-        int configVersion = 1;
-        
-        if (jsonNode.get("_sg_meta") != null) {
-            if (!jsonNode.get("_sg_meta").get("type").asText().equals(ctype.toLCString())) {
-                throw new RuntimeException("Illegal config: _sg_meta does not match ctype: " + ctype + "; " + jsonNode.get("_sg_meta"));
-            }
-            configVersion = jsonNode.get("_sg_meta").get("config_version").asInt();
-        }
+        int configVersion = 2;
 
         if (log.isDebugEnabled()) {
             log.debug("Load " + ctype + " with version " + configVersion);
@@ -106,17 +98,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         
         if (ctype.getParser() != null) {
             return fromJsonWithParser(jsonString, uninterpolatedJson, ctype, docVersion, seqNo, primaryTerm, parserContext);
-        } 
-
-        if (CType.ACTIONGROUPS == ctype) {
-            try {
-                return SgDynamicConfiguration.fromJson(jsonString, uninterpolatedJson, ctype, configVersion, docVersion, seqNo, primaryTerm, parserContext);
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Unable to load " + ctype + " with version " + configVersion + " - Try loading legacy format ...");
-                }
-                return SgDynamicConfiguration.fromJson(jsonString, uninterpolatedJson, ctype, 0, docVersion, seqNo, primaryTerm, parserContext);
-            }
         }
 
         return SgDynamicConfiguration.fromJson(jsonString, uninterpolatedJson, ctype, configVersion, docVersion, seqNo, primaryTerm, parserContext);
