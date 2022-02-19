@@ -740,8 +740,13 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
 
         if (!configTypesWithConcurrentModifications.isEmpty()) {
-            throw new ConcurrentConfigUpdateException("The configurations "
-                    + (configTypesWithConcurrentModifications.stream().collect(Collectors.joining(", "))) + " have been concurrently modified.");
+            if (configTypesWithConcurrentModifications.size() == 1) {
+                throw new ConcurrentConfigUpdateException(
+                        "The configuration " + configTypesWithConcurrentModifications.get(0) + " has been concurrently modified.");
+            } else {
+                throw new ConcurrentConfigUpdateException("The configurations "
+                        + (configTypesWithConcurrentModifications.stream().collect(Collectors.joining(", "))) + " have been concurrently modified.");
+            }
         }
 
         validationErrors.throwExceptionForPresentErrors();
