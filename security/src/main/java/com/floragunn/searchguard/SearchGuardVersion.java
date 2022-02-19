@@ -69,7 +69,7 @@ public class SearchGuardVersion {
                 return version;
             }
         } catch (Exception e) {
-            log.error("Error while determining Search Guard version", e);
+            log.warn("Error while determining Search Guard version", e);
             return "<unknown_version>";
         }
     }
