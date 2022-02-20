@@ -397,6 +397,8 @@ public final class SearchGuardLicenseKey implements Writeable {
 
         try {
             jsonString = LicenseHelper.validateLicense(licenseString);
+        } catch (ConfigValidationException e) {
+            return new ValidationResult<SearchGuardLicenseKey>(null, e.getValidationErrors());            
         } catch (Exception e) {
             return new ValidationResult<SearchGuardLicenseKey>(null, new ValidationError(null, e.getMessage()).cause(e));
         }
@@ -421,11 +423,13 @@ public final class SearchGuardLicenseKey implements Writeable {
             return parseLicenseString(docNode.toString());
         }
 
-        ValidationResult<SearchGuardLicenseKey> result = vNode.get("license").by((node) -> SearchGuardLicenseKey.parseLicenseString(node.toString()));
+        ValidationResult<SearchGuardLicenseKey> result = vNode.get("key").by((node) -> SearchGuardLicenseKey.parseLicenseString(node.toString()));
 
         if (result != null) {
-            validationErrors.add("license", result);
+            validationErrors.add("key", result);
         }
+        
+        vNode.checkForUnusedAttributes();
         
         return new ValidationResult<SearchGuardLicenseKey>(result != null ? result.peek() : null, validationErrors);
     }

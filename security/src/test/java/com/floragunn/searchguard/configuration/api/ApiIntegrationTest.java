@@ -17,9 +17,11 @@
 
 package com.floragunn.searchguard.configuration.api;
 
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.patch.JsonPathPatch;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -38,6 +40,24 @@ public class ApiIntegrationTest {
     public void patchAuthc() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             client.patch("/_searchguard/config/authc", new JsonPathPatch(new JsonPathPatch.Operation(JsonPath.compile("debug"), true)));
+        }
+    }
+
+    @Test
+    public void putLicenseKeyBadEncoding() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+            GenericRestClient.HttpResponse response = client.putJson("/_searchguard/license/key", DocNode.of("key", "ggfgf"));
+            Assert.assertEquals(response.getBody(), 400, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Invalid base64 encoding"));
+        }
+    }
+    
+    @Test
+    public void putLicenseKeyBadContent() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+            GenericRestClient.HttpResponse response = client.putJson("/_searchguard/license/key",  DocNode.of("key", "aGVsbG8K"));
+            Assert.assertEquals(response.getBody(), 400, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Cannot find license signature"));
         }
     }
 }
