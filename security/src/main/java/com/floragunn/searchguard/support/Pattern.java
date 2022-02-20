@@ -19,6 +19,8 @@ package com.floragunn.searchguard.support;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.PatternSyntaxException;
 
 import com.floragunn.codova.documents.DocNode;
@@ -30,13 +32,15 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.searchsupport.util.ImmutableList;
 import com.floragunn.searchsupport.util.ImmutableSet;
 
-public interface Pattern extends Document<Pattern> {
+public interface Pattern extends Document<Pattern>, Predicate<String> {
 
     public static Pattern create(String pattern) throws ConfigValidationException {
         if ("*".equals(pattern)) {
             return WILDCARD;
         } else if (pattern.startsWith("/") && pattern.endsWith("/")) {
             return new JavaPattern(pattern.substring(1, pattern.length() - 1));
+        } else if (pattern.endsWith("*") && pattern.indexOf('*') == pattern.length() - 1 && !pattern.contains("?")) {
+            return new PrefixPattern(pattern.substring(0, pattern.length() - 1));
         } else if (pattern.contains("?") || pattern.contains("*")) {
             return new SimplePattern(pattern);
         } else {
@@ -54,11 +58,33 @@ public interface Pattern extends Document<Pattern> {
         }
     }
 
+    public static Pattern join(Collection<Pattern> patterns) {
+        if (patterns.size() == 0) {
+            return BLANK;
+        } else if (patterns.size() == 1) {
+            return patterns.iterator().next();
+        } else {
+            return CompoundPattern.join(patterns);
+        }
+    }
+
     public static Pattern parse(DocNode docNode, Parser.Context context) throws ConfigValidationException {
         if (docNode.isList()) {
             return create(docNode.toListOfStrings());
         } else {
             return create(docNode.toString());
+        }
+    }
+
+    public static boolean isConstant(String pattern) {
+        if ("*".equals(pattern)) {
+            return false;
+        } else if (pattern.startsWith("/") && pattern.endsWith("/")) {
+            return false;
+        } else if (pattern.contains("?") || pattern.contains("*")) {
+            return false;
+        } else {
+            return true;
         }
     }
 
@@ -73,6 +99,10 @@ public interface Pattern extends Document<Pattern> {
     ImmutableSet<String> getConstants();
 
     ImmutableSet<String> getPatterns();
+
+    <E> ImmutableSet<E> getMatching(ImmutableSet<E> set, Function<E, String> stringMappingFunction);
+
+    Pattern excluding(Pattern exludingPattern);
 
     static class Constant extends AbstractPattern {
         private final String value;
@@ -125,6 +155,58 @@ public interface Pattern extends Document<Pattern> {
             return value;
         }
 
+    }
+
+    static class PrefixPattern extends AbstractPattern {
+        private final String prefix;
+        private final String source;
+
+        PrefixPattern(String prefix) {
+            this.prefix = prefix;
+            this.source = prefix + "*";
+        }
+
+        @Override
+        public boolean matches(String string) {
+            return string.startsWith(string);
+        }
+
+        @Override
+        public int hashCode() {
+            return prefix.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (!(obj instanceof PrefixPattern)) {
+                return false;
+            }
+
+            return ((PrefixPattern) obj).prefix.equals(this.prefix);
+        }
+
+        @Override
+        public String toString() {
+            return source;
+        }
+
+        @Override
+        public ImmutableSet<String> getConstants() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public ImmutableSet<String> getPatterns() {
+            return ImmutableSet.of(source);
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableList.of(source);
+        }
     }
 
     static class SimplePattern extends AbstractPattern {
@@ -282,6 +364,38 @@ public interface Pattern extends Document<Pattern> {
             return new CompoundPattern(patternSet.build(), constantSet.build(), patterns.toString(), ImmutableList.of(patterns));
         }
 
+        static Pattern join(Collection<Pattern> patterns) {
+
+            ImmutableSet.Builder<Pattern> patternSet = new ImmutableSet.Builder<>();
+            ImmutableSet.Builder<String> constantSet = new ImmutableSet.Builder<>();
+
+            for (Pattern pattern : patterns) {
+
+                if (pattern == WILDCARD) {
+                    return pattern;
+                } else if (pattern instanceof Constant) {
+                    constantSet.with(((Constant) pattern).getValue());
+                } else {
+                    patternSet.with(pattern);
+                }
+
+            }
+
+            int totalCount = patternSet.size() + constantSet.size();
+
+            if (totalCount == 0) {
+                return BLANK;
+            } else if (totalCount == 1) {
+                if (constantSet.size() == 1) {
+                    return new Constant(constantSet.any());
+                } else if (patternSet.size() == 1) {
+                    return patternSet.any();
+                }
+            }
+
+            return new CompoundPattern(patternSet.build(), constantSet.build(), patterns.toString(), ImmutableList.empty());
+        }
+
         private final ImmutableSet<Pattern> patterns;
         private final ImmutableSet<String> constants;
 
@@ -349,10 +463,45 @@ public interface Pattern extends Document<Pattern> {
         }
     }
 
+    static class ExcludingPattern extends AbstractPattern {
+        private final Pattern exclusions;
+        private final Pattern base;
+
+        ExcludingPattern(Pattern exclusions, Pattern base) {
+            this.exclusions = exclusions;
+            this.base = base;
+        }
+
+        @Override
+        public boolean matches(String string) {
+            return !exclusions.matches(string) && base.matches(string);
+        }
+
+        @Override
+        public ImmutableSet<String> getConstants() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public ImmutableSet<String> getPatterns() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return base.toBasicObject();
+        }
+    }
+
     static abstract class AbstractPattern implements Pattern {
         @Override
         public ImmutableSet<String> getMatching(ImmutableSet<String> strings) {
             return strings.matching((s) -> matches(s));
+        }
+
+        @Override
+        public <E> ImmutableSet<E> getMatching(ImmutableSet<E> set, Function<E, String> stringMappingFunction) {
+            return set.matching((e) -> matches(stringMappingFunction.apply(e)));
         }
 
         @Override
@@ -363,6 +512,11 @@ public interface Pattern extends Document<Pattern> {
                 }
             }
             return false;
+        }
+
+        @Override
+        public boolean test(String string) {
+            return matches(string);
         }
 
         @Override
@@ -407,6 +561,15 @@ public interface Pattern extends Document<Pattern> {
                 }
 
             };
+        }
+
+        @Override
+        public Pattern excluding(Pattern exludingPattern) {
+            if (exludingPattern == BLANK) {
+                return this;
+            }
+
+            return new ExcludingPattern(exludingPattern, this);
         }
     }
 
@@ -455,6 +618,21 @@ public interface Pattern extends Document<Pattern> {
         public Object toBasicObject() {
             return ImmutableList.of("*");
         }
+
+        @Override
+        public <E> ImmutableSet<E> getMatching(ImmutableSet<E> set, Function<E, String> stringMappingFunction) {
+            return set;
+        }
+
+        @Override
+        public boolean test(String t) {
+            return true;
+        }
+
+        @Override
+        public Pattern excluding(Pattern exludingPattern) {
+            return new ExcludingPattern(exludingPattern, this);
+        }
     };
 
     static Pattern BLANK = new Pattern() {
@@ -497,6 +675,21 @@ public interface Pattern extends Document<Pattern> {
         @Override
         public Object toBasicObject() {
             return ImmutableList.empty();
+        }
+
+        @Override
+        public <E> ImmutableSet<E> getMatching(ImmutableSet<E> set, Function<E, String> stringMappingFunction) {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public boolean test(String t) {
+            return false;
+        }
+
+        @Override
+        public Pattern excluding(Pattern exludingPattern) {
+            return this;
         }
     };
 
