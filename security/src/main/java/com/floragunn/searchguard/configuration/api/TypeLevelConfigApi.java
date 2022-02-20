@@ -198,6 +198,11 @@ public abstract class TypeLevelConfigApi {
                         SgDynamicConfiguration<T> config = SgDynamicConfiguration.fromMap(configMap, configType,
                                 configurationRepository.getParserContext());
 
+                        if (config.getValidationErrors().hasErrors()) {
+                            // TODO clean up SgDynamicConfiguration API
+                            config.getValidationErrors().throwExceptionForPresentErrors();
+                        }
+                        
                         this.configurationRepository.update(configType, config, request.getIfMatch());
                         return new StandardResponse(200).message("Configuration has been updated");
                     } catch (ConfigValidationException e) {

@@ -54,6 +54,8 @@ import org.bouncycastle.openpgp.operator.KeyFingerPrintCalculator;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.google.common.io.BaseEncoding;
 
 public class LicenseHelper {
@@ -66,16 +68,23 @@ public class LicenseHelper {
      * @throws PGPException if validation fails
      * @throws SignatureException 
      * @throws IOException 
+     * @throws ConfigValidationException 
      */
-    public static String validateLicense(String licenseText) throws PGPException, SignatureException, IOException {
+    public static String validateLicense(String licenseText) throws PGPException, SignatureException, IOException, ConfigValidationException {
         
     	licenseText = licenseText.trim().replaceAll("\\r|\\n", "");
         licenseText = licenseText.replace("---- SCHNIPP (Armored PGP signed JSON as base64) ----","");
         licenseText = licenseText.replace("---- SCHNAPP ----","");
         
         try {
-            final byte[] armoredPgp = BaseEncoding.base64().decode(licenseText);
-
+            final byte[] armoredPgp;
+            
+            try {
+                armoredPgp = BaseEncoding.base64().decode(licenseText);
+            } catch (IllegalArgumentException e) {
+                throw new ConfigValidationException(new ValidationError(null, "Invalid base64 encoding").cause(e));
+            }
+            
             final ArmoredInputStream in = new ArmoredInputStream(new ByteArrayInputStream(armoredPgp));
 
             //
