@@ -37,6 +37,7 @@ import org.elasticsearch.common.io.stream.Writeable;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -47,7 +48,7 @@ import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.support.SgUtils;
 
-public final class SearchGuardLicenseKey implements Writeable {
+public final class SearchGuardLicenseKey implements Writeable, Document<SearchGuardLicenseKey> {
 
     private static final DateTimeFormatter DEFAULT_FOMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd").withLocale(SgUtils.EN_Locale);
 
@@ -68,6 +69,7 @@ public final class SearchGuardLicenseKey implements Writeable {
     private boolean valid = true;
     private String action;
     private String prodUsage;
+    private DocNode source;
 
     public static SearchGuardLicenseKey createTrialLicense(String issueDate, String msg) {
         final SearchGuardLicenseKey trialLicense = new SearchGuardLicenseKey("00000000-0000-0000-0000-000000000000", Type.TRIAL, Feature.values(),
@@ -133,6 +135,17 @@ public final class SearchGuardLicenseKey implements Writeable {
                 (String) (map == null ? null : map.get("issuer")), (String) (map == null ? null : map.get("start_date")),
                 (Integer) (map == null ? null : map.get("major_version")), (String) (map == null ? null : map.get("cluster_name")),
                 (Integer) (map == null ? 0 : map.get("allowed_node_count_per_cluster")));
+    }
+    
+    public SearchGuardLicenseKey(final Map<String, Object> map, DocNode source) {
+        this((String) (map == null ? null : map.get("uid")), (Type) (map == null ? null : Type.valueOf(((String) map.get("type")).toUpperCase())),
+                (map == null ? null : parseFeatures((List<?>) map.get("features"))), (String) (map == null ? null : map.get("issued_date")),
+                (String) (map == null ? null : map.get("expiry_date")), (String) (map == null ? null : map.get("issued_to")),
+                (String) (map == null ? null : map.get("issuer")), (String) (map == null ? null : map.get("start_date")),
+                (Integer) (map == null ? null : map.get("major_version")), (String) (map == null ? null : map.get("cluster_name")),
+                (Integer) (map == null ? 0 : map.get("allowed_node_count_per_cluster")));
+        
+        this.source = source;
     }
 
     private final static Feature[] parseFeatures(List<?> featuresAsString) {
@@ -382,6 +395,12 @@ public final class SearchGuardLicenseKey implements Writeable {
         return Arrays.asList(features).contains(feature);
     }
 
+
+    @Override
+    public Object toBasicObject() {
+        return source;
+    }
+    
     @Override
     public String toString() {
         return "SearchGuardLicense [uid=" + uid + ", type=" + type + ", features=" + Arrays.toString(features) + ", issueDate=" + issueDate
@@ -392,7 +411,7 @@ public final class SearchGuardLicenseKey implements Writeable {
                 + ", getAction()=" + getAction() + ", getProdUsage()=" + getProdUsage() + "]";
     }
 
-    public static ValidationResult<SearchGuardLicenseKey> parseLicenseString(String licenseString) {
+    private static ValidationResult<SearchGuardLicenseKey> parseLicenseString(String licenseString, DocNode source) {
         String jsonString;
 
         try {
@@ -410,7 +429,7 @@ public final class SearchGuardLicenseKey implements Writeable {
             return new ValidationResult<SearchGuardLicenseKey>(null, e.getValidationErrors());
         }
 
-        SearchGuardLicenseKey result = new SearchGuardLicenseKey(parsedJson);
+        SearchGuardLicenseKey result = new SearchGuardLicenseKey(parsedJson, source);
 
         return new ValidationResult<SearchGuardLicenseKey>(result, result.staticValidate());
     }
@@ -420,10 +439,10 @@ public final class SearchGuardLicenseKey implements Writeable {
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
         
         if (docNode.isString()) {
-            return parseLicenseString(docNode.toString());
+            return parseLicenseString(docNode.toString(), docNode);
         }
 
-        ValidationResult<SearchGuardLicenseKey> result = vNode.get("key").by((node) -> SearchGuardLicenseKey.parseLicenseString(node.toString()));
+        ValidationResult<SearchGuardLicenseKey> result = vNode.get("key").by((node) -> SearchGuardLicenseKey.parseLicenseString(node.toString(), docNode));
 
         if (result != null) {
             validationErrors.add("key", result);
@@ -433,4 +452,5 @@ public final class SearchGuardLicenseKey implements Writeable {
         
         return new ValidationResult<SearchGuardLicenseKey>(result != null ? result.peek() : null, validationErrors);
     }
+
 }
