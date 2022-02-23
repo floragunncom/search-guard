@@ -33,6 +33,7 @@ import com.floragunn.searchguard.authc.AuthFailureListener;
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
@@ -163,6 +164,10 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
             Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
 
         try {
+            if (!authenticationDomain.isEnabled()) {
+                return AuthDomainState.SKIP;
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("Checking authdomain " + authenticationDomain + " (total: " + this.authenticationDomains.size() + ")");
             }
@@ -294,11 +299,25 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                 onFailure.accept(e);
             }
         }, (e) -> {
-            debug.failure(authenticationDomain.getType(), "Exception while authenticating " + pendingCredentials.getUsername() + ": " + e);
 
-            if (e instanceof ElasticsearchSecurityException || e instanceof CredentialsException) {
+            if (e instanceof ElasticsearchSecurityException) {
+                debug.failure(authenticationDomain.getType(), e.getMessage());
+
                 handleAuthFailure(pendingCredentials, authenticationDomain, e);
+            } else if (e instanceof CredentialsException) {
+                if (((CredentialsException) e).getDebugInfo() != null) {                
+                    debug.add(((CredentialsException) e).getDebugInfo());
+                } else {
+                    debug.failure(authenticationDomain.getType(), e.getMessage());
+                }
+                handleAuthFailure(pendingCredentials, authenticationDomain, e);                
+            } else if (e instanceof AuthenticatorUnavailableException) {
+                debug.failure(authenticationDomain.getType(), "Authenticator unavailable: " + e.getMessage(),
+                        ((AuthenticatorUnavailableException) e).getDetails());
+
+                log.error("Error while authenticating " + pendingCredentials, e);
             } else {
+                debug.failure(authenticationDomain.getType(), "Exception while authenticating " + pendingCredentials.getUsername() + ": " + e);
                 log.error("Error while authenticating " + pendingCredentials, e);
             }
 

@@ -87,7 +87,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             
     public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo, long primaryTerm, Settings settings, ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
         // TODO do replacement only for legacy config
-        // TODO remove unnecessary readTree()
         String jsonString = SgUtils.replaceEnvVars(uninterpolatedJson, settings);
       
         int configVersion = 2;
@@ -187,7 +186,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             result._sg_meta = Meta.parse(docNode.getAsNode("_sg_meta"));
         }
         
-        Parser.ReturningValidationResult<?, ConfigurationRepository.Context> parser = ctype.getParser();
+        Parser.ReturningValidationResult<T, ConfigurationRepository.Context> parser = ctype.getParser();
 
         if (parser == null) {
             throw new IllegalArgumentException("Unsupported ctype " + ctype);
@@ -204,17 +203,16 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             }
 
             try {
-                @SuppressWarnings("unchecked")
-                ValidationResult<T> parsedEntry = (ValidationResult<T>) parser.parse(DocNode.wrap(entry.getValue()), parserContext);
+                ValidationResult<T> parsedEntry = parser.parse(DocNode.wrap(entry.getValue()), parserContext);
 
                 if (parsedEntry.hasResult()) {
                     result.centries.put(id, parsedEntry.peek());
                 }
                 
-                validationErrors.add(id, parsedEntry.getValidationErrors());                
+                validationErrors.add(ctype.getArity() == CType.Arity.SINGLE ? null : id, parsedEntry.getValidationErrors());                
             } catch (Exception e) {
                 log.error("Unexpected exception while parsing " + entry, e);
-                validationErrors.add(new ValidationError(id, e.getMessage()).cause(e));
+                validationErrors.add(new ValidationError(ctype.getArity() == CType.Arity.SINGLE ? null : id, e.getMessage()).cause(e));
             }
         }
 

@@ -181,7 +181,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
             this.authcMethod = authcMethod;
             this.success = success;
             this.message = message;
-            this.details = Collections.unmodifiableMap(new HashMap<>(details));
+            this.details = details != null ? ImmutableMap.of(details) : null;
         }
 
         public String getAuthcMethod() {
