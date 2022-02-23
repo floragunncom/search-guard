@@ -9,7 +9,7 @@ REPO_DIR=$(pwd)
 
 mvn install -Dmaven.test.skip.exec=true -Pquick
 
-SG_SNAPSHOT=$(echo $REPO_DIR/plugin/target/releases/search-guard-suite-plugin-*SNAPSHOT.zip)
+SG_SNAPSHOT=$(echo $REPO_DIR/plugin/target/releases/search-guard-*-plugin-*SNAPSHOT*.zip)
 
 echo "Search Guard Suite Snapshot: $SG_SNAPSHOT"
 
