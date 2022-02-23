@@ -318,7 +318,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         }
 
         if (authCredentials == null) {
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
 
         authCredentials = authCredentials.with(AuthDomainInfo.forAuthenticatorType(authenticationFrontend.getType())
@@ -381,7 +381,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         }
 
         if (authCredentials == null) {
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
 
         authCredentials = authCredentials.copy()

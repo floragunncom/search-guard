@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 floragunn GmbH
+ * Copyright 2016-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,14 @@
 
 package com.floragunn.searchguard.authc;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.floragunn.searchsupport.util.ImmutableMap;
+
 public class AuthenticatorUnavailableException extends Exception {
     private static final long serialVersionUID = -7007025852090301416L;
-    private Map<String, Object> details;
+    private ImmutableMap<String, Object> details;
     private String messageTitle;
     private String messageBody;
 
@@ -50,13 +51,13 @@ public class AuthenticatorUnavailableException extends Exception {
     }
 
     public AuthenticatorUnavailableException details(Map<String, Object> details) {
-        this.details = details;
+        this.details = ImmutableMap.of(details);
         return this;
     }
 
     public AuthenticatorUnavailableException details(String key, Object value, Object... moreDetails) {
         if (moreDetails == null || moreDetails.length == 0) {
-            this.details = Collections.singletonMap(key, convertToSimpleObject(value));
+            this.details = ImmutableMap.of(key, convertToSimpleObject(value));
         } else {
             Map<String, Object> details = new LinkedHashMap<>(moreDetails.length + 1);
             details.put(key, value);
@@ -65,13 +66,13 @@ public class AuthenticatorUnavailableException extends Exception {
                 details.put(String.valueOf(moreDetails[i]), convertToSimpleObject(moreDetails[i + 1]));
             }
 
-            this.details = details;
+            this.details = ImmutableMap.of(details);
         }
 
         return this;
     }
 
-    public Map<String, Object> getDetails() {
+    public ImmutableMap<String, Object> getDetails() {
         return details;
     }
 
