@@ -67,6 +67,8 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
+import com.floragunn.searchguard.authz.Action;
+import com.floragunn.searchguard.authz.Actions;
 import com.floragunn.searchguard.authz.AuthorizationConfig;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigMap;
@@ -117,6 +119,7 @@ public class PrivilegesEvaluator implements DCFListener {
     private final List<String> adminOnlyActions;
     private final List<String> adminOnlyActionExceptions;
     private final Client localClient;
+    private final Actions actions;
 
     private volatile boolean ignoreUnauthorizedIndices = true;
 
@@ -125,9 +128,9 @@ public class PrivilegesEvaluator implements DCFListener {
     private String kibanaIndexName;
     private volatile boolean kibanaIndexTemplateFixApplied = false;
 
-    public PrivilegesEvaluator(Client localClient, final ClusterService clusterService, final ThreadPool threadPool,
-            final ConfigurationRepository configurationRepository, final IndexNameExpressionResolver resolver, AuditLog auditLog,
-            final Settings settings, final ClusterInfoHolder clusterInfoHolder, ActionRequestIntrospector actionRequestIntrospector,
+    public PrivilegesEvaluator(Client localClient, ClusterService clusterService, ThreadPool threadPool,
+            ConfigurationRepository configurationRepository, IndexNameExpressionResolver resolver, AuditLog auditLog,
+            Settings settings, ClusterInfoHolder clusterInfoHolder, Actions actions, ActionRequestIntrospector actionRequestIntrospector,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
             GuiceDependencies guiceDependencies, NamedXContentRegistry namedXContentRegistry, boolean enterpriseModulesEnabled) {
         super();
@@ -144,6 +147,7 @@ public class PrivilegesEvaluator implements DCFListener {
         this.clusterInfoHolder = clusterInfoHolder;
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
 
+        this.actions = actions;
         this.actionRequestIntrospector = actionRequestIntrospector;
         snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog, guiceDependencies);
         sgIndexAccessEvaluator = new SearchGuardIndexAccessEvaluator(settings, auditLog, actionRequestIntrospector);
@@ -211,7 +215,15 @@ public class PrivilegesEvaluator implements DCFListener {
             presponse.allowed = false;
             return presponse;
         }
-
+        
+        if ("cluster:admin:searchguard:session/_own/delete".equals(action0)) {
+            // Special case for deleting own session: This is always allowed
+            presponse.allowed = true;
+            return presponse;
+        }
+        
+        Action action = actions.get(action0);
+        
         TransportAddress caller;
         Set<String> mappedRoles;
         SgRoles sgRoles;
@@ -227,11 +239,7 @@ public class PrivilegesEvaluator implements DCFListener {
             sgRoles = specialPrivilegesEvaluationContext.getSgRoles();
         }
 
-        if ("cluster:admin:searchguard:session/_own/delete".equals(action0)) {
-            // Special case for deleting own session: This is always allowed
-            presponse.allowed = true;
-            return presponse;
-        }
+      
 
         if (request instanceof BulkRequest && (com.google.common.base.Strings.isNullOrEmpty(user.getRequestedTenant()))) {
             // Shortcut for bulk actions. The details are checked on the lower level of the BulkShardRequests (Action indices:data/write/bulk[s]).

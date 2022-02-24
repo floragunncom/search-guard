@@ -46,7 +46,7 @@ public class Role implements Document<Role>, Hideable {
         ImmutableList<String> clusterPermissions = ImmutableList.of(vNode.get("cluster_permissions").asList().withEmptyListAsDefault().ofStrings());
         ImmutableList<String> excludeClusterPermissions = ImmutableList
                 .of(vNode.get("exclude_cluster_permissions").asList().withEmptyListAsDefault().ofStrings());
-        
+
         ImmutableList<Index> indexPermissions = ImmutableList.of(vNode.get("index_permissions").asList().ofObjectsParsedBy(Index::new));
         ImmutableList<Tenant> tenantPermissions = ImmutableList.of(vNode.get("tenant_permissions").asList().ofObjectsParsedBy(Tenant::new));
         ImmutableList<ExcludeIndex> excludeIndexPermissions = ImmutableList
@@ -102,7 +102,7 @@ public class Role implements Document<Role>, Hideable {
 
     public static class Index {
 
-        private final ImmutableList<String>  indexPatterns;
+        private final ImmutableList<String> indexPatterns;
         private final String dls;
         private final ImmutableList<String> fls;
         private final ImmutableList<String> maskedFields;
@@ -115,7 +115,7 @@ public class Role implements Document<Role>, Hideable {
             this.dls = vNode.get("dls").asString();
             this.fls = ImmutableList.of(vNode.get("fls").asListOfStrings());
             this.maskedFields = ImmutableList.of(vNode.get("masked_fields").asListOfStrings());
-            
+
             // Just for validation: TODO Replace any placeholders by empty strings
             vNode.get("allowed_actions").by(Pattern::parse);
             vNode.get("index_patterns").by(Pattern::parse);
@@ -125,7 +125,7 @@ public class Role implements Document<Role>, Hideable {
             validationErrors.throwExceptionForPresentErrors();
         }
 
-        public ImmutableList<String>  getIndexPatterns() {
+        public ImmutableList<String> getIndexPatterns() {
             return indexPatterns;
         }
 
@@ -167,18 +167,29 @@ public class Role implements Document<Role>, Hideable {
 
     public static class ExcludeIndex {
 
-        private final Pattern indexPatterns;
-        private final Pattern actions;
+        private final ImmutableList<String> indexPatterns;
+        private final ImmutableList<String> actions;
 
         public ExcludeIndex(DocNode docNode, Parser.Context context) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-            this.indexPatterns = vNode.get("index_patterns").by(Pattern::parse);
-            this.actions = vNode.get("actions").by(Pattern::parse);
+            vNode.get("index_patterns").by(Pattern::parse);
+            vNode.get("actions").by(Pattern::parse);
+
+            this.indexPatterns = ImmutableList.of(vNode.get("index_patterns").asList().withEmptyListAsDefault().ofStrings());
+            this.actions = ImmutableList.of(vNode.get("actions").asList().withEmptyListAsDefault().ofStrings());
 
             vNode.checkForUnusedAttributes();
             validationErrors.throwExceptionForPresentErrors();
+        }
+
+        public ImmutableList<String> getIndexPatterns() {
+            return indexPatterns;
+        }
+
+        public ImmutableList<String> getActions() {
+            return actions;
         }
     }
 
@@ -192,5 +203,9 @@ public class Role implements Document<Role>, Hideable {
 
     public ImmutableList<Index> getIndexPermissions() {
         return indexPermissions;
+    }
+
+    public ImmutableList<ExcludeIndex> getExcludeIndexPermissions() {
+        return excludeIndexPermissions;
     }
 }

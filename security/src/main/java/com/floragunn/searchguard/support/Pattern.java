@@ -168,7 +168,7 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
 
         @Override
         public boolean matches(String string) {
-            return string.startsWith(string);
+            return string.startsWith(this.prefix);
         }
 
         @Override
@@ -423,7 +423,7 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
 
         @Override
         public int hashCode() {
-            return patterns.hashCode();
+            return patterns.hashCode() + constants.hashCode();
         }
 
         @Override
@@ -435,7 +435,7 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
                 return false;
             }
 
-            return ((CompoundPattern) obj).patterns.equals(this.patterns);
+            return ((CompoundPattern) obj).patterns.equals(this.patterns) && ((CompoundPattern) obj).constants.equals(this.constants);
         }
 
         @Override
