@@ -10,7 +10,7 @@ Search Guard offers all basic security features for free. The community features
 
 ### Community features
 
-The files in the directories `dev`, `plugin`, `scheduler`, `security`, `signals`, `signals`, `support` and in the root directory are part of the community edition and are **[Apache 2 licensed](http://www.apache.org/licenses/LICENSE-2.0)**. 
+The files in the directories `ci`, `codova`, `dev`, `plugin`, `scheduler`, `security`, `sgadmin`, `signals`, `ssl`, `support` and in the root directory are part of the community edition and are **[Apache 2 licensed](http://www.apache.org/licenses/LICENSE-2.0)**. 
 
 **If you are looking for a repository, which only contains the Apache 2 licensed files of Search Guard, go to the repository [Search Guard Suite](https://git.floragunn.com/search-guard/search-guard-suite).**
 
@@ -30,7 +30,7 @@ The Community Edition includes:
 
 ### Enterprise features
 
-Enterprise source code is located in the directories `dlic-signals` and `dlic-security`. This code is **proprietarily licensed**; it is free of charge for non-commercial and academic use. For commercial use in a production environment you have to obtain a [paid license](https://search-guard.com/licensing/). We offer a [very flexible licensing model](https://search-guard.com/licensing/), based on productive clusters with an **unlimited number of nodes**. Non-productive systems like Development, Staging or QA are covered by the license at no additional cost.
+Enterprise source code is located in the directories `dlic-auditlog`, `dlic-dlsfls`, `dlic-signals` and `dlic-security`. This code is **proprietarily licensed**; it is free of charge for non-commercial and academic use. For commercial use in a production environment you have to obtain a [paid license](https://search-guard.com/licensing/). We offer a [very flexible licensing model](https://search-guard.com/licensing/), based on productive clusters with an **unlimited number of nodes**. Non-productive systems like Development, Staging or QA are covered by the license at no additional cost.
 
 The Enterprise Edition of Search Guard adds:
 
@@ -55,7 +55,7 @@ Please refer to the [Official documentation](http://docs.search-guard.com) for d
 
 ## License
 
-Copyright 2016-2021 by floragunn GmbH - All rights reserved
+Copyright 2016-2022 by floragunn GmbH - All rights reserved
 
 Unless required by applicable law or agreed to in writing, software
 distributed here is distributed on an "AS IS" BASIS,
