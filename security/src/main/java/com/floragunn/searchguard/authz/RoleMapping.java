@@ -41,6 +41,7 @@ import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.support.PatternMap;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.util.ImmutableList;
 import com.floragunn.searchsupport.util.ImmutableMap;
 import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.collect.ArrayListMultimap;
@@ -66,10 +67,15 @@ public class RoleMapping implements Document<RoleMapping>, Hideable, SgDynamicCo
         IPAddressCollection ips = vNode.get("ips").by(IPAddressCollection::parse);
         String description = vNode.get("description").asString();
 
+        ImmutableList<String> backendRolesAsStrings = ImmutableList.of(vNode.get("backend_roles").asListOfStrings());
+        ImmutableList<String> usersAsStrings = ImmutableList.of(vNode.get("users").asListOfStrings());
+        ImmutableList<String> hostsAsStrings = ImmutableList.of(vNode.get("hosts").asListOfStrings());
+        ImmutableList<String> andBackendRolesAsStrings = ImmutableList.of(vNode.get("and_backend_roles").asListOfStrings());
+
         vNode.checkForUnusedAttributes();
 
-        return new ValidationResult<RoleMapping>(
-                new RoleMapping(docNode, reserved, hidden, backendRoles, users, hosts, ips, andBackendRoles, description), validationErrors);
+        return new ValidationResult<RoleMapping>(new RoleMapping(docNode, reserved, hidden, backendRoles, users, hosts, ips, andBackendRoles,
+                backendRolesAsStrings, usersAsStrings, hostsAsStrings, andBackendRolesAsStrings, description), validationErrors);
     }
 
     private static final Logger log = LogManager.getLogger(RoleMapping.class);
@@ -82,6 +88,11 @@ public class RoleMapping implements Document<RoleMapping>, Hideable, SgDynamicCo
     private final Pattern hosts;
     private final IPAddressCollection ips;
     private final ImmutableSet<Pattern> andBackendRoles;
+    private final ImmutableList<String> backendRolesAsStrings;
+    private final ImmutableList<String> usersAsStrings;
+    private final ImmutableList<String> hostsAsStrings;
+    private final ImmutableList<String> andBackendRolesAsStrings;
+
     private final String description;
 
     public RoleMapping(DocNode docNode, ConfigurationRepository.Context context) throws ConfigValidationException {
@@ -99,13 +110,19 @@ public class RoleMapping implements Document<RoleMapping>, Hideable, SgDynamicCo
                 : null;
         this.ips = vNode.get("ips").by(IPAddressCollection::parse);
         this.description = vNode.get("description").asString();
+        this.backendRolesAsStrings = ImmutableList.of(vNode.get("backend_roles").asListOfStrings());
+        this.usersAsStrings = ImmutableList.of(vNode.get("users").asListOfStrings());
+        this.hostsAsStrings = ImmutableList.of(vNode.get("hosts").asListOfStrings());
+        this.andBackendRolesAsStrings = ImmutableList.of(vNode.get("and_backend_roles").asListOfStrings());
 
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
     }
 
     public RoleMapping(DocNode source, boolean reserved, boolean hidden, Pattern backendRoles, Pattern users, Pattern hosts, IPAddressCollection ips,
-            ImmutableSet<Pattern> andBackendRoles, String description) {
+            ImmutableSet<Pattern> andBackendRoles, ImmutableList<String> backendRolesAsStrings, ImmutableList<String> usersAsStrings,
+            ImmutableList<String> hostsAsStrings, ImmutableList<String> andBackendRolesAsStrings, String description) {
+        super();
         this.source = source;
         this.reserved = reserved;
         this.hidden = hidden;
@@ -114,6 +131,10 @@ public class RoleMapping implements Document<RoleMapping>, Hideable, SgDynamicCo
         this.hosts = hosts;
         this.ips = ips;
         this.andBackendRoles = andBackendRoles;
+        this.backendRolesAsStrings = backendRolesAsStrings;
+        this.usersAsStrings = usersAsStrings;
+        this.hostsAsStrings = hostsAsStrings;
+        this.andBackendRolesAsStrings = andBackendRolesAsStrings;
         this.description = description;
     }
 
@@ -160,15 +181,19 @@ public class RoleMapping implements Document<RoleMapping>, Hideable, SgDynamicCo
 
         result.put("reserved", reserved);
         result.put("hidden", hidden);
-        result.put("backend_roles", backendRoles != null ? Document.toDeepBasicObject(backendRoles) : Collections.emptyList());
-        result.put("hosts", hosts != null ? Document.toDeepBasicObject(hosts) : Collections.emptyList());
-        result.put("users", users != null ? Document.toDeepBasicObject(users) : Collections.emptyList());
+        result.put("backend_roles", backendRolesAsStrings);
+        result.put("hosts", hostsAsStrings);
+        result.put("users", usersAsStrings);
         result.put("ips", ips != null ? ips.toBasicObject() : Collections.emptyList());
         
+        if (andBackendRolesAsStrings != null) {
+            result.put("and_backend_roles", andBackendRolesAsStrings);
+        }
+
         if (description != null) {
             result.put("description", description);
         }
-        
+
         return result;
     }
 
