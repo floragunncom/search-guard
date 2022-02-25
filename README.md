@@ -5,11 +5,46 @@
 ## About this module
 This module for [Search Guard 6](https://github.com/floragunncom/search-guard) adds the following enterprise features:
 
-* Active Directory and LDAP Authentication/Authorisation
-* Kerberos/SPNEGO Authentication/Authorisation
-* JSON Web Token (JWT) Authentication/Authorisation
-* Document- and field level security
-* Audit logging
+This repository hosts the source code of the Search Guard Suite including both the community and enterprise features. 
+
+Search Guard offers all basic security features for free. The community features of Search Guard can be used for all projects, including commercial projects, at absolutely no cost. Enterprise features require a [paid license](https://search-guard.com/licensing/) if you are using it for commercial purposes in a production environment. It is free of charge for non-commercial and academic use. 
+
+### Community features
+
+The files in the directories `ci`, `codova`, `dev`, `plugin`, `scheduler`, `security`, `sgadmin`, `signals`, `ssl`, `support` and in the root directory are part of the community edition and are **[Apache 2 licensed](http://www.apache.org/licenses/LICENSE-2.0)**. 
+
+**If you are looking for a repository, which only contains the Apache 2 licensed files of Search Guard, go to the repository [Search Guard Suite](https://git.floragunn.com/search-guard/search-guard-suite).**
+
+The Community Edition includes:
+
+* Full data in transit encryption
+* Node-to-node encryption
+* Certificate revocation lists
+* Role-based cluster level access control
+* Role-based index level access control
+* User-, role- and permission management
+* Internal user database
+* HTTP basic authentication
+* PKI authentication
+* Proxy authentication
+* User Impersonation
+
+### Enterprise features
+
+Enterprise source code is located in the directories `dlic-auditlog`, `dlic-dlsfls`, `dlic-signals` and `dlic-security`. This code is **proprietarily licensed**; it is free of charge for non-commercial and academic use. For commercial use in a production environment you have to obtain a [paid license](https://search-guard.com/licensing/). We offer a [very flexible licensing model](https://search-guard.com/licensing/), based on productive clusters with an **unlimited number of nodes**. Non-productive systems like Development, Staging or QA are covered by the license at no additional cost.
+
+The Enterprise Edition of Search Guard adds:
+
+* Active Directory / LDAP
+* Kerberos / SPNEGO
+* JSON web token (JWT)
+* OpenID
+* SAML
+* Document-level security
+* Field-level security
+* Audit logging 
+* Compliance logging for GDPR, HIPAA, PCI, SOX and ISO compliance
+* True Kibana multi-tenancy
 * REST management API
 * Kibana multi tenancy module
 
@@ -21,7 +56,8 @@ Please refer to the official Search Guard documentation for installation and con
 This software is free of charge for non-commercial and academic use. For commercial use in a production environment you have to obtain a [license](https://search-guard.com/licensing/). 
 
 ## License
-Copyright 2016-2018 by floragunn GmbH - All rights reserved
+
+Copyright 2016-2022 by floragunn GmbH - All rights reserved
 
 Unless required by applicable law or agreed to in writing, software
 distributed here is distributed on an "AS IS" BASIS,
