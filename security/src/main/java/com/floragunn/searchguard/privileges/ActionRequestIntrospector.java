@@ -41,6 +41,8 @@ import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
+import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesRequest;
+import org.elasticsearch.action.admin.indices.template.put.PutComponentTemplateAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesIndexRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
@@ -178,8 +180,16 @@ public class ActionRequestIntrospector {
             return CLUSTER_REQUEST;
         } else if (request instanceof SearchScrollRequest) {
             return CLUSTER_REQUEST;
+        } else if (request instanceof PutComponentTemplateAction.Request) {
+            return CLUSTER_REQUEST;
+        } else if (request instanceof GetIndexTemplatesRequest) {
+            return CLUSTER_REQUEST;
         } else {
-            log.warn("Unknown action request: " + request.getClass().getName());
+            if (action.startsWith("index:")) {
+                log.warn("Unknown action request: " + request.getClass().getName());
+            } else {
+                log.debug("Unknown action request: " + request.getClass().getName());                
+            }
             return UNKNOWN;
         }
     }
