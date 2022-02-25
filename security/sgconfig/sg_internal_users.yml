@@ -1,9 +1,11 @@
 ---
 # This is the internal user database
-# The hash value is a bcrypt hash and can be generated with plugin/tools/hash.sh
-  
-# Define your internal users here
-# See https://docs.search-guard.com/latest/internal-users-database
+# 
+# This stores users along with password hash, roles and attributes.
+# The password hash is a bcrypt hash. See the documentation on details how
+# to add new users: 
+#
+# https://docs.search-guard.com/latest/internal-users-database 
 
 ## Demo users
 
