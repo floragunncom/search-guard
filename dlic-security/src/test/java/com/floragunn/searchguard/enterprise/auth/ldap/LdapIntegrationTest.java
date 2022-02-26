@@ -14,9 +14,11 @@
 
 package com.floragunn.searchguard.enterprise.auth.ldap;
 
+import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
 
+import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -47,8 +49,8 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class LdapIntegrationTest {
-   // @ClassRule
-   // public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+    // @ClassRule
+    // public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestCertificates certificatesContext = TestCertificates.builder().build();
 
@@ -107,9 +109,24 @@ public class LdapIntegrationTest {
                             "group_search.filter.raw", "(uniqueMember=${dn})", //
                             "group_search.role_name_attribute", "dn", //
                             "group_search.recursive.enabled", true))
+                    .skipIps("127.0.0.16/30")// 
                     .userMapping(new UserMapping()//
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
                             .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //
+            new Authc.Domain("basic/ldap")//
+                    .backend(DocNode.of(//
+                            "idp.hosts", "#{var:ldapHost}", //
+                            "idp.tls.trusted_cas", certificatesContext.getCaCertificate().getCertificateString(), //
+                            "idp.tls.verify_hostnames", false, //
+                            "user_search.filter.by_attribute", "uid", //
+                            "group_search.base_dn", TestLdapDirectory.GROUPS.getDn(), //
+                            "group_search.filter.by_attribute", "uniqueMember", //
+                            "group_search.role_name_attribute", "dn", //
+                            "group_search.recursive.enabled", true))
+                    .acceptIps("127.0.0.17")//
+                    .userMapping(new UserMapping()//
+                            .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
+                            .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //   
             new Authc.Domain("basic/internal_users_db")//
                     .additionalUserInformation(new AdditionalUserInformation("ldap", DocNode.of(//
                             "idp.hosts", "#{var:ldapHost}", //
@@ -150,6 +167,27 @@ public class LdapIntegrationTest {
                     XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("attr_test_e").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"e\", \"amount\": 5050}",
                     XContentType.JSON)).actionGet();
+        }
+    }
+    
+    @Test
+    public void roles() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(KARLOTTA)) {
+            client.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 17 }));
+
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), Arrays.asList("cn=all_access,ou=groups,o=TEST"), response.getBodyAsDocNode().get("backend_roles"));
+        }
+    }
+
+    
+    @Test
+    public void roles_rawQuery() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(KARLOTTA)) {
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), Arrays.asList("cn=all_access,ou=groups,o=TEST"), response.getBodyAsDocNode().get("backend_roles"));
         }
     }
 
