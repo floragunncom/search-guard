@@ -79,7 +79,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         this.connectionManager = vNode.get("idp").required().by(LDAPConnectionManager::new);
         this.userSearchBaseDn = vNode.get("user_search.base_dn").withDefault("").asString();
         this.userSearchScope = vNode.get("user_search.scope").withDefault(SearchScope.SUB).byString(LDAP::getSearchScope);
-        this.userSearchFilter = vNode.get("user_search.filter").withDefault(SearchFilter.DEFAULT).by(SearchFilter::parse);
+        this.userSearchFilter = vNode.get("user_search.filter").withDefault(SearchFilter.DEFAULT).by(SearchFilter::parseForUserSearch);
         this.groupSearch = vNode.get("group_search").by(GroupSearch::new);
         this.fakeLoginEnabled = vNode.get("fake_login.enabled").withDefault(false).asBoolean();
         this.fakeLoginDn = vNode.get("fake_login.password").asString();
@@ -93,7 +93,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
             throws AuthenticatorUnavailableException, CredentialsException {
         SearchResultEntry entry = PrivilegedCode.execute(() -> search(credentials), AuthenticatorUnavailableException.class);
 
-        // fake a user that no exists
+        // fake a user that does not exist
         // makes guessing if a user exists or not harder when looking on the
         // authentication delay time
         if (entry == null) {
