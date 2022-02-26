@@ -28,19 +28,21 @@ import com.unboundid.ldap.sdk.LDAPException;
 
 public class SearchFilter {
     
-    public static final SearchFilter DEFAULT = new SearchFilter("sAMAccountName", null);
-    public static final SearchFilter DEFAULT_GROUP_SEARCH = new SearchFilter("member", null);
+    public static final SearchFilter DEFAULT = new SearchFilter("sAMAccountName", null, "user.name");
+    public static final SearchFilter DEFAULT_GROUP_SEARCH = new SearchFilter("member", null, "dn");
 
     private final String byAttribute;
     private final String raw;
+    private final String byAttributeValueSource;
 
-    SearchFilter(String byAttribute, String raw) {
+    SearchFilter(String byAttribute, String raw, String byAttributeValueSource) {
         this.byAttribute = byAttribute;
         this.raw = raw;
+        this.byAttributeValueSource = byAttributeValueSource;
     }
 
     Filter toFilter(AttributeSource attributeSource) throws LDAPException, StringInterpolationException {
-        Object userName = attributeSource.getAttributeValue("user.name");
+        Object userName = attributeSource.getAttributeValue(byAttributeValueSource);
         
         if (byAttribute != null && raw != null) {
             return Filter.createANDFilter(Filter.createEqualityFilter(byAttribute, String.valueOf(userName)), createRawFilter(attributeSource));
@@ -55,7 +57,15 @@ public class SearchFilter {
         return Filter.create(Attributes.replaceAttributes(raw, attributeSource, Filter::encodeValue));
     }
 
-    public static SearchFilter parse(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+    public static SearchFilter parseForGroupSearch(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        return parse(docNode, context, "dn");
+    }
+    
+    public static SearchFilter parseForUserSearch(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        return parse(docNode, context, "user.name");
+    }
+
+    public static SearchFilter parse(DocNode docNode, Parser.Context context, String byAttributeValueSource) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
@@ -68,6 +78,6 @@ public class SearchFilter {
 
         validationErrors.throwExceptionForPresentErrors();
 
-        return new SearchFilter(byAttribute, raw);
+        return new SearchFilter(byAttribute, raw, byAttributeValueSource);
     }
 }
