@@ -41,7 +41,7 @@ public class TransportAuthTokenInfoAction extends HandledTransportAction<AuthTok
 
     @Override
     protected final void doExecute(Task task, AuthTokenInfoRequest request, ActionListener<AuthTokenInfoResponse> listener) {
-        listener.onResponse(new AuthTokenInfoResponse(authTokenService.getConfig().isEnabled(), authTokenService.isInitialized()));
-
+        listener.onResponse(new AuthTokenInfoResponse(authTokenService.getConfig() != null ? authTokenService.getConfig().isEnabled() : false,
+                authTokenService.isInitialized()));
     }
 }
