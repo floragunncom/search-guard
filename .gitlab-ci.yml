@@ -453,7 +453,7 @@ deploy_staging:
       SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)
       ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
-      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
+      DEPLOY_VERSION="$SG_VERSION-os-$ES_VERSION"
       echo "Deploying Release to Staging repo"
       mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging -DskipTests -B -Penterprise -Prelease -Drevision=$DEPLOY_VERSION | tee deploy.out
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-opensearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
