@@ -114,7 +114,7 @@ ccs_3_roundtrips_true:
     - aws-runner
   script:
     - |
-	   set
+       set
        echo "============================================="
        echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
        echo "TEST_SG_ES_PLUGIN: $TEST_SG_ES_PLUGIN"
