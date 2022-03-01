@@ -8,13 +8,6 @@ compliance_1:
     TEST: "compliance_1"
     TEST_ENVIRONMENT: "compliance_1"
 
-compliance_2:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "compliance_2"
-    TEST_ENVIRONMENT: "compliance_2"
-
 compliance_ccs:
   extends:
   - .be_integration_test_ext
