@@ -514,12 +514,6 @@ deploy_release:
       echo "Removing current release from Staging"
       curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-suite-staging/com/floragunn/search-guard-suite-signals/$DEPLOY_VERSION" || true
 
-      cd search-guard-integration-tests
-      git tag $CI_COMMIT_TAG || true
-      echo "Tag created in int repo"
-      git show-ref $CI_COMMIT_TAG
-      git push --tags || true
-      cd ..
       echo "Deploying Release to Production repo."
       mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
   allow_failure: false
