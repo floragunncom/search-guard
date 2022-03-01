@@ -20,9 +20,9 @@
 	<name>Search Guard Suite - Parent</name>
 
 	<properties>
-		<elasticsearch.version>7.10.2</elasticsearch.version>
+		<opensearch.version>1.2.4</opensearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
-		<revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
+		<revision>${sg-suite.version}-os-${opensearch.version}</revision>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -99,7 +99,7 @@
 			</snapshots>
 		</repository>
 		<repository>
-			<id>elasticsearch-releases</id>
+			<id>opensearch-releases</id>
 			<url>https://artifacts.elastic.co/maven</url>
 			<releases>
 				<enabled>true</enabled>
@@ -155,30 +155,30 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>percolator-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>parent-join-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>aggs-matrix-stats-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>reindex-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -187,9 +187,9 @@
 		<dependencies>
 
 			<dependency>
-				<groupId>org.elasticsearch</groupId>
-				<artifactId>elasticsearch</artifactId>
-				<version>${elasticsearch.version}</version>
+				<groupId>org.opensearch</groupId>
+				<artifactId>opensearch</artifactId>
+				<version>${opensearch.version}</version>
 			</dependency>
 
 			<dependency>
@@ -360,21 +360,21 @@
 			</dependency>
 			
 			<dependency>
-				<groupId>org.elasticsearch.plugin</groupId>
+				<groupId>org.opensearch.plugin</groupId>
 				<artifactId>lang-mustache-client</artifactId>
-				<version>${elasticsearch.version}</version>
+				<version>${opensearch.version}</version>
 			</dependency>
 
 			<dependency>
-    			<groupId>org.elasticsearch.plugin</groupId>
-    			<artifactId>elasticsearch-scripting-painless-spi</artifactId>
-    			<version>${elasticsearch.version}</version>
+    			<groupId>org.opensearch.plugin</groupId>
+    			<artifactId>opensearch-scripting-painless-spi</artifactId>
+    			<version>${opensearch.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>org.codelibs.elasticsearch.module</groupId>
+				<groupId>org.opensearch.plugin</groupId>
 				<artifactId>lang-painless</artifactId>
-				<version>${elasticsearch.version}</version>
+				<version>${opensearch.version}</version>
 			</dependency>
 			
 			<dependency>

@@ -27,8 +27,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
@@ -98,7 +98,7 @@ public class InternalAuthenticationBackend implements LegacyAuthenticationBacken
         final byte[] password = credentials.getPassword();
         
         if(password == null || password.length == 0) {
-            throw new ElasticsearchSecurityException("empty passwords not supported");
+            throw new OpenSearchSecurityException("empty passwords not supported");
         }
 
         ByteBuffer wrap = ByteBuffer.wrap(password);
@@ -124,7 +124,7 @@ public class InternalAuthenticationBackend implements LegacyAuthenticationBacken
          
                 return user;
             } else {
-                throw new ElasticsearchSecurityException("password does not match");
+                throw new OpenSearchSecurityException("password does not match");
             }
         } finally {
             Arrays.fill(wrap.array(), (byte)0);
@@ -139,7 +139,7 @@ public class InternalAuthenticationBackend implements LegacyAuthenticationBacken
     }
 
     @Override
-    public void fillRoles(User user, AuthCredentials credentials) throws ElasticsearchSecurityException, AuthenticatorUnavailableException {
+    public void fillRoles(User user, AuthCredentials credentials) throws OpenSearchSecurityException, AuthenticatorUnavailableException {
         InternalUser internalUser = internalUsersDatabase.get(user.getName());
 
         if (internalUser != null) {

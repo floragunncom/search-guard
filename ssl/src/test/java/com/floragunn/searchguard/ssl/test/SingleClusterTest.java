@@ -19,7 +19,7 @@ package com.floragunn.searchguard.ssl.test;
 
 import java.net.InetAddress;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 import org.junit.After;
 
 import com.floragunn.searchguard.ssl.test.helper.cluster.ClusterConfiguration;

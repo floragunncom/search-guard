@@ -15,14 +15,14 @@
  * 
  */
 
-package org.elasticsearch.node;
+package org.opensearch.node;
 
 import java.util.Arrays;
 
 import java.util.Collections;
 
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.Plugin;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.plugins.Plugin;
 
 public class PluginAwareNode extends Node {
     

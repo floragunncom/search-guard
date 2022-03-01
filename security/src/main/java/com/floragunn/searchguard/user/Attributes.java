@@ -30,8 +30,8 @@ import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.settings.Settings;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
@@ -141,7 +141,7 @@ public class Attributes {
             try {
                 Attributes.validate(values);
             } catch (IllegalArgumentException e) {
-                throw new ElasticsearchSecurityException(
+                throw new OpenSearchSecurityException(
                         "Error while initializing user attributes. Mapping for " + entry.getKey() + " produced invalid values:\n" + e.getMessage(),
                         e);
             }
@@ -156,7 +156,7 @@ public class Attributes {
             try {
                 Attributes.validate(values);
             } catch (IllegalArgumentException e) {
-                throw new ElasticsearchSecurityException(
+                throw new OpenSearchSecurityException(
                         "Error while initializing user attributes. Mapping for " + entry.getKey() + " produced invalid values:\n" + e.getMessage(),
                         e);
             }

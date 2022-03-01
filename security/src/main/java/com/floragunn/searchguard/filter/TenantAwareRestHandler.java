@@ -1,7 +1,7 @@
 package com.floragunn.searchguard.filter;
 
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.rest.RestHandler;
+import org.opensearch.rest.RestRequest;
 
 public interface TenantAwareRestHandler extends RestHandler {
     default String getTenantParamName() {

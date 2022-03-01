@@ -17,12 +17,12 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.component.LifecycleListener;
-import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.index.query.QueryBuilder;
+import org.opensearch.SpecialPermission;
+import org.opensearch.client.Client;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.component.LifecycleListener;
+import org.opensearch.env.NodeEnvironment;
+import org.opensearch.index.query.QueryBuilder;
 import org.quartz.Calendar;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;

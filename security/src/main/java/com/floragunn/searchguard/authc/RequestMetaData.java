@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.authc;
 
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
 

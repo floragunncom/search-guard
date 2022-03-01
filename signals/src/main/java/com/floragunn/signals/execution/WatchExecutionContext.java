@@ -3,9 +3,9 @@ package com.floragunn.signals.execution;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.script.ScriptService;
+import org.opensearch.client.Client;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.script.ScriptService;
 
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;

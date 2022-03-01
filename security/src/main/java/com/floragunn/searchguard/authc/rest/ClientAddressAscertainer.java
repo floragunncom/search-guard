@@ -24,10 +24,10 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchStatusException;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.searchguard.support.IPAddressCollection;
 import com.google.common.base.Splitter;
@@ -120,7 +120,7 @@ public abstract class ClientAddressAscertainer {
                     }
                 } catch (AddressStringException | IncompatibleAddressException e) {
                     log.warn("Unparseable IP in XFF headers of request: " + xffHeaders, e);
-                    throw new ElasticsearchStatusException("Invalid " + remoteIpHeader + "header", RestStatus.BAD_REQUEST);
+                    throw new OpenSearchStatusException("Invalid " + remoteIpHeader + "header", RestStatus.BAD_REQUEST);
                 }
             }
 
@@ -134,7 +134,7 @@ public abstract class ClientAddressAscertainer {
                 return ClientIpInfo.trusted(directIpAddress, ipAddressStrings.get(0).toAddress(), request.getHttpChannel().getRemoteAddress());
             } catch (AddressStringException | IncompatibleAddressException e) {
                 log.warn("Unparseable IP in XFF headers of request: " + xffHeaders, e);
-                throw new ElasticsearchStatusException("Invalid " + remoteIpHeader + "header", RestStatus.BAD_REQUEST);
+                throw new OpenSearchStatusException("Invalid " + remoteIpHeader + "header", RestStatus.BAD_REQUEST);
             }
         }
     }
@@ -188,7 +188,7 @@ public abstract class ClientAddressAscertainer {
                     }
                 } catch (AddressStringException | IncompatibleAddressException e) {
                     log.warn("Unparseable IP in XFF headers of request: " + xffHeaders, e);
-                    throw new ElasticsearchStatusException("Invalid " + remoteIpHeader + "header", RestStatus.BAD_REQUEST);
+                    throw new OpenSearchStatusException("Invalid " + remoteIpHeader + "header", RestStatus.BAD_REQUEST);
                 }
             }
 
@@ -201,7 +201,7 @@ public abstract class ClientAddressAscertainer {
                 return ClientIpInfo.trusted(directIpAddress, ipAddressStrings.get(0).toAddress(), request.getHttpChannel().getRemoteAddress());
             } catch (AddressStringException | IncompatibleAddressException e) {
                 log.warn("Unparseable IP in XFF headers of request: " + xffHeaders, e);
-                throw new ElasticsearchStatusException("Invalid " + remoteIpHeader + "header", RestStatus.BAD_REQUEST);
+                throw new OpenSearchStatusException("Invalid " + remoteIpHeader + "header", RestStatus.BAD_REQUEST);
             }
         }
     }

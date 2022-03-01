@@ -23,11 +23,11 @@ import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.SpecialPermission;
+import org.opensearch.common.Strings;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -50,7 +50,7 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
     }
 
     @Override
-    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
+    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws OpenSearchSecurityException {
 
         // TODO check whether this is really necessary
         final SecurityManager sm = System.getSecurityManager();
@@ -62,7 +62,7 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
         return AccessController.doPrivileged((PrivilegedAction<AuthCredentials>) () -> extractCredentials0(request));
     }
 
-    private AuthCredentials extractCredentials0(RestRequest request) throws ElasticsearchSecurityException {
+    private AuthCredentials extractCredentials0(RestRequest request) throws OpenSearchSecurityException {
 
         String encodedJwt = getJwtTokenString(request);
 

@@ -19,8 +19,8 @@ package com.floragunn.searchguard.configuration;
 
 import java.time.Duration;
 
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.threadpool.ThreadPool;
 import org.junit.ClassRule;
 import org.junit.Test;
 

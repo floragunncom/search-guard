@@ -23,25 +23,25 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.delete.DeleteResponse;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.action.support.WriteRequest;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Setting.Property;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.OpenSearchException;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.action.delete.DeleteResponse;
+import org.opensearch.action.get.GetResponse;
+import org.opensearch.action.index.IndexResponse;
+import org.opensearch.action.support.ActionFilterChain;
+import org.opensearch.action.support.WriteRequest;
+import org.opensearch.client.Client;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.settings.Setting;
+import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.unit.TimeValue;
+import org.opensearch.rest.RestStatus;
+import org.opensearch.tasks.Task;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig.NewResource;
@@ -141,7 +141,7 @@ public class ResourceOwnerService {
                     if (isUserEqual(currentUser, storedUserName)) {
                         actionListener.onResponse(new CheckOwnerResponse(response));
                     } else {
-                        actionListener.onFailure(new ElasticsearchSecurityException(
+                        actionListener.onFailure(new OpenSearchSecurityException(
                                 "Resource " + resourceType + ":" + id + " is not owned by user " + currentUser.getName(), RestStatus.FORBIDDEN));
                     }
 
@@ -162,7 +162,7 @@ public class ResourceOwnerService {
                     if (log.isTraceEnabled()) {
                         log.trace("checkOwner for " + resourceType + ":" + id + " failed: " + response);
                     }
-                    actionListener.onFailure(new ElasticsearchSecurityException(
+                    actionListener.onFailure(new OpenSearchSecurityException(
                             "Owner information of " + resourceType + ":" + id + " could not be found", RestStatus.NOT_FOUND));
                 }
             }
@@ -187,7 +187,7 @@ public class ResourceOwnerService {
                         log.warn("checkOwner for " + resourceType + ":" + id + " failed: ", e);
                     }
 
-                    actionListener.onFailure(new ElasticsearchException("Checking owner of " + resourceType + ":" + id + " failed", e));
+                    actionListener.onFailure(new OpenSearchException("Checking owner of " + resourceType + ":" + id + " failed", e));
                 }
             }
         });
@@ -243,7 +243,7 @@ public class ResourceOwnerService {
 
                         @Override
                         public void onFailure(Exception e) {
-                            actionListener.onFailure(new ElasticsearchException("Failed to store owner of " + newResource.getType() + ":" + id, e));
+                            actionListener.onFailure(new OpenSearchException("Failed to store owner of " + newResource.getType() + ":" + id, e));
                         }
 
                     });

@@ -18,8 +18,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.TreeSet;
 
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.settings.Settings;
 import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -87,7 +87,7 @@ public class LdapBackendTest {
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapAuthenticationFakeLogin() throws Exception {
 
 
@@ -100,7 +100,7 @@ public class LdapBackendTest {
         new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("unknown").password("unknown").build());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapInjection() throws Exception {
 
 
@@ -132,7 +132,7 @@ public class LdapBackendTest {
         Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapAuthenticationWrongBindDn() throws Exception {
 
 
@@ -147,7 +147,7 @@ public class LdapBackendTest {
         new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapAuthenticationBindFail() throws Exception {
 
 
@@ -158,7 +158,7 @@ public class LdapBackendTest {
         new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("jacksonm").password("wrong").build());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapAuthenticationNoUser() throws Exception {
 
 
@@ -169,7 +169,7 @@ public class LdapBackendTest {
         new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("UNKNOWN").password("UNKNOWN").build());
     }
 
-    @Test(expected = ElasticsearchSecurityException.class)
+    @Test(expected = OpenSearchSecurityException.class)
     public void testLdapAuthenticationFail() throws Exception {
 
 

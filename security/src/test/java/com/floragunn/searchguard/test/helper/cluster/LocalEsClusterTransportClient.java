@@ -21,11 +21,11 @@ import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.transport.Netty4Plugin;
+import org.opensearch.client.transport.TransportClient;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.plugins.Plugin;
+import org.opensearch.transport.Netty4Plugin;
 
 import java.io.FileNotFoundException;
 import java.net.InetSocketAddress;

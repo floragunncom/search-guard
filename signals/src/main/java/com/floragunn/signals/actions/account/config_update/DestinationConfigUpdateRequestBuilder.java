@@ -1,8 +1,8 @@
 package com.floragunn.signals.actions.account.config_update;
 
-import org.elasticsearch.action.support.nodes.NodesOperationRequestBuilder;
-import org.elasticsearch.client.ClusterAdminClient;
-import org.elasticsearch.client.ElasticsearchClient;
+import org.opensearch.action.support.nodes.NodesOperationRequestBuilder;
+import org.opensearch.client.ClusterAdminClient;
+import org.opensearch.client.OpenSearchClient;
 
 public class DestinationConfigUpdateRequestBuilder
         extends NodesOperationRequestBuilder<DestinationConfigUpdateRequest, DestinationConfigUpdateResponse, DestinationConfigUpdateRequestBuilder> {
@@ -10,7 +10,7 @@ public class DestinationConfigUpdateRequestBuilder
         this(client, DestinationConfigUpdateAction.INSTANCE);
     }
 
-    public DestinationConfigUpdateRequestBuilder(final ElasticsearchClient client, final DestinationConfigUpdateAction action) {
+    public DestinationConfigUpdateRequestBuilder(final OpenSearchClient client, final DestinationConfigUpdateAction action) {
         super(client, action, new DestinationConfigUpdateRequest());
     }
 }

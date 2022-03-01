@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Set;
 
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
 
 public class RoleNames implements ToXContentObject {
     private final Set<String> backendRoles;

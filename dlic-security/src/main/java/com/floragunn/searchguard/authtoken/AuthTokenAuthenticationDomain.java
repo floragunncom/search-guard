@@ -16,7 +16,7 @@ package com.floragunn.searchguard.authtoken;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.elasticsearch.ElasticsearchSecurityException;
+import org.opensearch.OpenSearchSecurityException;
 
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
@@ -52,7 +52,7 @@ public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HTTPA
             authTokenService.getByClaims(credentials.getClaims(), (authToken) -> {
 
                 if (authToken.isRevoked()) {
-                    result.completeExceptionally(new ElasticsearchSecurityException("Auth token " + authToken.getId() + " has been revoked"));
+                    result.completeExceptionally(new OpenSearchSecurityException("Auth token " + authToken.getId() + " has been revoked"));
                 } else if (authToken.getBase().getConfigVersions() == null && authToken.getRequestedPrivileges().isTotalWildcard()) {
                     // This auth token has no restrictions and no snapshotted base. We can use the current roles. Thus, we can completely initialize the user
 
@@ -71,7 +71,7 @@ public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HTTPA
                             .specialAuthzConfig(authToken.getId()).attributes(authToken.getBase().getAttributes()).authzComplete().build());
                 }
             }, (noSuchAuthTokenException) -> {
-                result.completeExceptionally(new ElasticsearchSecurityException(noSuchAuthTokenException.getMessage(), noSuchAuthTokenException));
+                result.completeExceptionally(new OpenSearchSecurityException(noSuchAuthTokenException.getMessage(), noSuchAuthTokenException));
             }, (e) -> {
                 result.completeExceptionally(e);
             });

@@ -3,7 +3,7 @@ package com.floragunn.searchguard.sgconf;
 import java.io.IOException;
 import java.util.Arrays;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -47,11 +47,11 @@ import javax.net.ssl.SSLParameters;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.env.Environment;
+import org.opensearch.OpenSearchException;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.SpecialPermission;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.env.Environment;
 
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLCertificateHelper;
@@ -166,23 +166,23 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
         if (transportSSLEnabled && (getEnabledSSLCiphers(sslTransportClientProvider, false).isEmpty()
                 || getEnabledSSLCiphers(sslTransportServerProvider, false).isEmpty())) {
-            throw new ElasticsearchSecurityException("no valid cipher suites for transport protocol");
+            throw new OpenSearchSecurityException("no valid cipher suites for transport protocol");
         }
 
         if (httpSSLEnabled && getEnabledSSLCiphers(sslHTTPProvider, true).isEmpty()) {
-            throw new ElasticsearchSecurityException("no valid cipher suites for https");
+            throw new OpenSearchSecurityException("no valid cipher suites for https");
         }
 
         if (transportSSLEnabled && getEnabledSSLCiphers(sslTransportServerProvider, false).isEmpty()) {
-            throw new ElasticsearchSecurityException("no ssl protocols for transport protocol");
+            throw new OpenSearchSecurityException("no ssl protocols for transport protocol");
         }
 
         if (transportSSLEnabled && getEnabledSSLCiphers(sslTransportClientProvider, false).isEmpty()) {
-            throw new ElasticsearchSecurityException("no ssl protocols for transport protocol");
+            throw new OpenSearchSecurityException("no ssl protocols for transport protocol");
         }
 
         if (httpSSLEnabled && getEnabledSSLCiphers(sslHTTPProvider, true).isEmpty()) {
-            throw new ElasticsearchSecurityException("no ssl protocols for https");
+            throw new OpenSearchSecurityException("no ssl protocols for https");
         }
     }
 
@@ -256,7 +256,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                     SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, true);
 
             if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, null) == null) {
-                throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH
+                throw new OpenSearchException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH
                         + " must be set if transport ssl is requested.");
             }
 
@@ -282,12 +282,12 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                                 : keyPassword.toCharArray());
 
                 if (transportKeystoreKey == null) {
-                    throw new ElasticsearchException(
+                    throw new OpenSearchException(
                             "No key found in " + keystoreFilePath + " with alias " + keystoreAlias);
                 }
 
                 if (transportKeystoreCert == null || transportKeystoreCert.length == 0) {
-                    throw new ElasticsearchException(
+                    throw new OpenSearchException(
                             "No certificates found in " + keystoreFilePath + " with alias " + keystoreAlias);
                 }
 
@@ -300,7 +300,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                         .exportRootCertificates(ts, truststoreAlias);
 
                 if (trustedTransportCertificates == null || trustedTransportCertificates.length == 0) {
-                    throw new ElasticsearchException("No truststore configured for server");
+                    throw new OpenSearchException("No truststore configured for server");
                 }
 
                 onNewCerts("Transport", currentTransportCerts, transportKeystoreCert, currentTransportTrustedCerts, trustedTransportCertificates);
@@ -315,7 +315,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
             } catch (final Exception e) {
                 logExplanation(e);
-                throw new ElasticsearchSecurityException(
+                throw new OpenSearchSecurityException(
                         "Error while initializing transport SSL layer: " + e.toString(), e);
             }
 
@@ -362,12 +362,12 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
             } catch (final Exception e) {
                 logExplanation(e);
-                throw new ElasticsearchSecurityException(
+                throw new OpenSearchSecurityException(
                         "Error while initializing transport SSL layer from PEM: " + e.toString(), e);
             }
 
         } else {
-            throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH + " or "
+            throw new OpenSearchException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH + " or "
                     + SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH
                     + " must be set if transport ssl is reqested.");
         }
@@ -401,21 +401,21 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
             log.info("HTTPS client auth mode {}", httpClientAuthMode);
 
             if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH, null) == null) {
-                throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH
+                throw new OpenSearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH
                         + " must be set if https is reqested.");
             }
 
             if (httpClientAuthMode == ClientAuth.REQUIRE) {
 
                 if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH, null) == null) {
-                    throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH
+                    throw new OpenSearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH
                             + " must be set if http ssl and client auth is reqested.");
                 }
 
             }
             
             if ("BKS-V1".equalsIgnoreCase(keystoreType)) {
-                throw new ElasticsearchException("Keystores of type BKS-V1 are not supported");
+                throw new OpenSearchException("Keystores of type BKS-V1 are not supported");
             }
 
             try {
@@ -433,12 +433,12 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                                 : keyPassword.toCharArray());
 
                 if (httpKeystoreKey == null) {
-                    throw new ElasticsearchException(
+                    throw new OpenSearchException(
                             "No key found in " + keystoreFilePath + " with alias " + keystoreAlias);
                 }
 
                 if (httpKeystoreCert == null || httpKeystoreCert.length == 0) {
-                    throw new ElasticsearchException(
+                    throw new OpenSearchException(
                             "No certificates found in " + keystoreFilePath + " with alias " + keystoreAlias);
                 }
 
@@ -473,7 +473,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
             } catch (final Exception e) {
                 logExplanation(e);
-                throw new ElasticsearchSecurityException("Error while initializing HTTP SSL layer: " + e.toString(),
+                throw new OpenSearchSecurityException("Error while initializing HTTP SSL layer: " + e.toString(),
                         e);
             }
 
@@ -521,12 +521,12 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
             } catch (final Exception e) {
                 logExplanation(e);
-                throw new ElasticsearchSecurityException(
+                throw new OpenSearchSecurityException(
                         "Error while initializing http SSL layer from PEM: " + e.toString(), e);
             }
 
         } else {
-            throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH + " or "
+            throw new OpenSearchException(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH + " or "
                     + SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH
                     + " must be set if http ssl is reqested.");
         }
@@ -705,7 +705,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         }
 
         if(jdkSupportedCiphers == null || jdkSupportedCiphers.isEmpty() || jdkSupportedProtocols == null || jdkSupportedProtocols.isEmpty()) {
-            throw new ElasticsearchException("Unable to determine supported ciphers or protocols");
+            throw new OpenSearchException("Unable to determine supported ciphers or protocols");
         }
 
         enabledHttpCiphersJDKProvider = new ArrayList<String>(jdkSupportedCiphers);
@@ -788,16 +788,16 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
     private static void checkPath(String keystoreFilePath, String fileNameLogOnly) {
 
         if (keystoreFilePath == null || keystoreFilePath.length() == 0) {
-            throw new ElasticsearchException("Empty file path for " + fileNameLogOnly);
+            throw new OpenSearchException("Empty file path for " + fileNameLogOnly);
         }
 
         if (Files.isDirectory(Paths.get(keystoreFilePath), LinkOption.NOFOLLOW_LINKS)) {
-            throw new ElasticsearchException(
+            throw new OpenSearchException(
                     "Is a directory: " + keystoreFilePath + " Expected a file for " + fileNameLogOnly);
         }
 
         if (!Files.isReadable(Paths.get(keystoreFilePath))) {
-            throw new ElasticsearchException("Unable to read " + keystoreFilePath + " (" + Paths.get(keystoreFilePath)
+            throw new OpenSearchException("Unable to read " + keystoreFilePath + " (" + Paths.get(keystoreFilePath)
                     + "). Please make sure this files exists and is readable regarding to permissions. Property: "
                     + fileNameLogOnly);
         }

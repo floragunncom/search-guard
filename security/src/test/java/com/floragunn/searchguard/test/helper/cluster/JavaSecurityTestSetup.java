@@ -31,9 +31,9 @@ import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.bootstrap.BootstrapInfo;
-import org.elasticsearch.monitor.jvm.JvmInfo;
-import org.elasticsearch.secure_sm.SecureSM;
+import org.opensearch.bootstrap.BootstrapInfo;
+import org.opensearch.monitor.jvm.JvmInfo;
+import org.opensearch.secure_sm.SecureSM;
 import org.junit.rules.ExternalResource;
 
 /**
@@ -194,7 +194,7 @@ public class JavaSecurityTestSetup extends ExternalResource {
         private String getProtectionDomainKey(ProtectionDomain protectionDomain) {
             String uri = protectionDomain.getCodeSource().getLocation().toExternalForm();
 
-            if (uri.contains("/org/elasticsearch/") && uri.endsWith(".jar")) {
+            if (uri.contains("/org.opensearch/") && uri.endsWith(".jar")) {
                 return "es";
             }
 

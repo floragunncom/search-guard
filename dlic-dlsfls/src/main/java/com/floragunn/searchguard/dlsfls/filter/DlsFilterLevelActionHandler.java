@@ -26,39 +26,39 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.get.MultiGetItemResponse;
-import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.get.MultiGetResponse;
-import org.elasticsearch.action.search.MultiSearchRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchScrollAction;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.document.DocumentField;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.index.IndexService;
-import org.elasticsearch.index.get.GetResult;
-import org.elasticsearch.index.mapper.MapperService;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.TermsQueryBuilder;
-import org.elasticsearch.index.seqno.SequenceNumbers;
-import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.script.mustache.MultiSearchTemplateAction;
-import org.elasticsearch.script.mustache.SearchTemplateAction;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
+import org.opensearch.action.get.GetRequest;
+import org.opensearch.action.get.GetResponse;
+import org.opensearch.action.get.MultiGetItemResponse;
+import org.opensearch.action.get.MultiGetRequest;
+import org.opensearch.action.get.MultiGetResponse;
+import org.opensearch.action.search.MultiSearchRequest;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.action.search.SearchScrollAction;
+import org.opensearch.client.Client;
+import org.opensearch.cluster.metadata.IndexMetadata;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.document.DocumentField;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.opensearch.index.IndexService;
+import org.opensearch.index.get.GetResult;
+import org.opensearch.index.mapper.MapperService;
+import org.opensearch.index.query.BoolQueryBuilder;
+import org.opensearch.index.query.QueryBuilder;
+import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.index.query.TermsQueryBuilder;
+import org.opensearch.index.seqno.SequenceNumbers;
+import org.opensearch.indices.IndicesService;
+import org.opensearch.script.mustache.MultiSearchTemplateAction;
+import org.opensearch.script.mustache.SearchTemplateAction;
+import org.opensearch.search.SearchHit;
+import org.opensearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.searchguard.dlsfls.DlsQueryParser;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
@@ -155,7 +155,7 @@ public class DlsFilterLevelActionHandler {
 
             } catch (Exception e) {
                 log.error("Unable to handle filter level DLS", e);
-                listener.onFailure(new ElasticsearchSecurityException("Unable to handle filter level DLS", e));
+                listener.onFailure(new OpenSearchSecurityException("Unable to handle filter level DLS", e));
                 return false;
             }
 
@@ -173,7 +173,7 @@ public class DlsFilterLevelActionHandler {
                 return handle((ClusterSearchShardsRequest) request, ctx);
             } else {
                 log.error("Unsupported request type for filter level DLS: " + request);
-                listener.onFailure(new ElasticsearchSecurityException(
+                listener.onFailure(new OpenSearchSecurityException(
                         "Unsupported request type for filter level DLS: " + action + "; " + request.getClass().getName()));
                 return false;
             }
@@ -192,7 +192,7 @@ public class DlsFilterLevelActionHandler {
                 createQueryExtension(localClusterAlias);
             } catch (Exception e) {
                 log.error("Unable to handle filter level DLS", e);
-                listener.onFailure(new ElasticsearchSecurityException("Unable to handle filter level DLS", e));
+                listener.onFailure(new OpenSearchSecurityException("Unable to handle filter level DLS", e));
                 return false;
             }
         }
@@ -254,7 +254,7 @@ public class DlsFilterLevelActionHandler {
                                 SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, -1, false, null, null, null)));
                     } else {
                         log.error("Unexpected hit count " + hits + " in " + response);
-                        listener.onFailure(new ElasticsearchSecurityException("Internal error when performing DLS"));
+                        listener.onFailure(new OpenSearchSecurityException("Internal error when performing DLS"));
                     }
 
                 } catch (Exception e) {
@@ -335,7 +335,7 @@ public class DlsFilterLevelActionHandler {
     }
 
     private boolean handle(ClusterSearchShardsRequest request, StoredContext ctx) {
-        listener.onFailure(new ElasticsearchSecurityException(
+        listener.onFailure(new OpenSearchSecurityException(
                 "Filter-level DLS via cross cluster search is not available for scrolling and minimize_roundtrips=true"));
         return false;
     }

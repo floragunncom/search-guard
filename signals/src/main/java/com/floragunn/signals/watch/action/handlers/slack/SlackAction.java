@@ -13,8 +13,8 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.script.TemplateScript;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.script.TemplateScript;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;

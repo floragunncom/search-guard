@@ -19,8 +19,8 @@ package com.floragunn.searchguard.authc.rest.authenticators;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;

@@ -18,7 +18,7 @@ package com.floragunn.searchguard.authc.legacy;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.elasticsearch.ElasticsearchSecurityException;
+import org.opensearch.OpenSearchSecurityException;
 
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.UserInformationBackend;
@@ -34,7 +34,7 @@ public interface LegacyAuthorizationBackend extends UserInformationBackend {
      * @param user The authenticated user to populate with backend roles, never null
      * @param credentials Credentials to authenticate to the authorization backend, maybe null.
      * <em>This parameter is for future usage, currently always empty credentials are passed!</em> 
-     * @throws ElasticsearchSecurityException in case when the authorization backend cannot be reached 
+     * @throws OpenSearchSecurityException in case when the authorization backend cannot be reached 
      * or the {@code credentials} are insufficient to authenticate to the authorization backend.
      */
     void fillRoles(User user, AuthCredentials credentials) throws AuthenticatorUnavailableException;

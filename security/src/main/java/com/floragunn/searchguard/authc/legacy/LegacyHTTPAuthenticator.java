@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.authc.legacy;
 
-import org.elasticsearch.rest.RestChannel;
+import org.opensearch.rest.RestChannel;
 
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.user.AuthCredentials;

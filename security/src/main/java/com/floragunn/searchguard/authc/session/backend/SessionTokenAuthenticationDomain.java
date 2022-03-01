@@ -27,12 +27,12 @@ import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.SpecialPermission;
+import org.opensearch.common.Strings;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
@@ -97,7 +97,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
         }
 
         @Override
-        public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
+        public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws OpenSearchSecurityException {
 
             // TODO check whether this is really necessary
             final SecurityManager sm = System.getSecurityManager();
@@ -109,7 +109,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
             return AccessController.doPrivileged((PrivilegedAction<AuthCredentials>) () -> extractCredentials0(request));
         }
 
-        private AuthCredentials extractCredentials0(RestRequest request) throws ElasticsearchSecurityException {
+        private AuthCredentials extractCredentials0(RestRequest request) throws OpenSearchSecurityException {
 
             String encodedJwt = getJwtTokenString(request);
 
@@ -206,7 +206,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
 
             sessionService.getByClaims(credentials.getClaims(), (sessionToken) -> {
                 if (sessionToken.isRevoked()) {
-                    result.completeExceptionally(new ElasticsearchSecurityException(
+                    result.completeExceptionally(new OpenSearchSecurityException(
                             "Session " + sessionToken.getId() + " has been expired or deleted", RestStatus.UNAUTHORIZED));
                 } else {
                     sessionService.checkExpiryAndTrackAccess(sessionToken, (ok) -> {
@@ -216,7 +216,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
                                     .searchGuardRoles(sessionToken.getBase().getSearchGuardRoles()).specialAuthzConfig(sessionToken.getId())
                                     .attributes(sessionToken.getBase().getAttributes()).authzComplete().build());
                         } else {
-                            result.completeExceptionally(new ElasticsearchSecurityException("Session " + sessionToken.getId() + " has been expired",
+                            result.completeExceptionally(new OpenSearchSecurityException("Session " + sessionToken.getId() + " has been expired",
                                     RestStatus.UNAUTHORIZED));
                         }
                     }, (e) -> {

@@ -29,31 +29,31 @@ import java.util.Set;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
-import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
-import org.elasticsearch.action.bulk.BulkAction;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.MultiGetAction;
-import org.elasticsearch.action.search.MultiSearchAction;
-import org.elasticsearch.action.search.SearchScrollAction;
-import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Setting.Property;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.index.reindex.ReindexAction;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.opensearch.action.admin.indices.create.CreateIndexAction;
+import org.opensearch.action.admin.indices.create.CreateIndexRequest;
+import org.opensearch.action.admin.indices.resolve.ResolveIndexAction;
+import org.opensearch.action.admin.indices.shrink.ResizeRequest;
+import org.opensearch.action.bulk.BulkAction;
+import org.opensearch.action.bulk.BulkRequest;
+import org.opensearch.action.get.GetRequest;
+import org.opensearch.action.get.MultiGetAction;
+import org.opensearch.action.search.MultiSearchAction;
+import org.opensearch.action.search.SearchScrollAction;
+import org.opensearch.action.termvectors.MultiTermVectorsAction;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.settings.Setting;
+import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.index.reindex.ReindexAction;
+import org.opensearch.tasks.Task;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.GuiceDependencies;
@@ -181,7 +181,7 @@ public class PrivilegesEvaluator implements DCFListener {
             SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
 
         if (!isInitialized()) {
-            throw new ElasticsearchSecurityException("Search Guard is not initialized.");
+            throw new OpenSearchSecurityException("Search Guard is not initialized.");
         }
 
         if (action0.startsWith("internal:indices/admin/upgrade")) {
@@ -491,7 +491,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
     public Set<String> mapSgRoles(final User user, final TransportAddress caller) {
         if (this.configModel == null) {
-            throw new ElasticsearchSecurityException("SearchGuard is not yet initialized");
+            throw new OpenSearchSecurityException("SearchGuard is not yet initialized");
         }
 
         return this.configModel.mapSgRoles(user, caller);

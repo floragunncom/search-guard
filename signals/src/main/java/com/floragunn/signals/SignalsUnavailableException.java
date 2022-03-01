@@ -1,8 +1,8 @@
 package com.floragunn.signals;
 
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchException;
+import org.opensearch.OpenSearchStatusException;
+import org.opensearch.rest.RestStatus;
 
 public class SignalsUnavailableException extends Exception {
 
@@ -42,8 +42,8 @@ public class SignalsUnavailableException extends Exception {
         return state == Signals.InitializationState.INITIALIZING ? RestStatus.SERVICE_UNAVAILABLE : RestStatus.INTERNAL_SERVER_ERROR;
     }
 
-    public ElasticsearchException toElasticsearchException() {
-        return new ElasticsearchStatusException(getLongMessage(), getRestStatus(), this);
+    public OpenSearchException toOpenSearchException() {
+        return new OpenSearchStatusException(getLongMessage(), getRestStatus(), this);
     }
 
     private String getLongMessage() {

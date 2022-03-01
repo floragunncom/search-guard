@@ -15,7 +15,7 @@
 
 package com.floragunn.searchguard.authtoken.update;
 
-import org.elasticsearch.action.ActionType;
+import org.opensearch.action.ActionType;
 
 public class PushAuthTokenUpdateAction extends ActionType<PushAuthTokenUpdateResponse> {
 

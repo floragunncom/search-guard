@@ -17,8 +17,8 @@
 
 package com.floragunn.searchguard.authtoken;
 
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
+import org.opensearch.common.inject.Inject;
+import org.opensearch.plugins.ActionPlugin.ActionHandler;
 
 import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.searchguard.BaseDependencies;

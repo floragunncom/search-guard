@@ -17,7 +17,7 @@ package com.floragunn.searchguard.dlsfls.lucene;
 //This implementation is based on
 //https://github.com/apache/lucene-solr/blob/branch_6_3/lucene/test-framework/src/java/org/apache/lucene/index/FieldFilterLeafReader.java
 //https://github.com/apache/lucene-solr/blob/branch_6_3/lucene/misc/src/java/org/apache/lucene/index/PKIndexSplitter.java
-//https://github.com/salyh/elasticsearch-security-plugin/blob/4b53974a43b270ae77ebe79d635e2484230c9d01/src/main/java/org/elasticsearch/plugins/security/filter/DlsWriteFilter.java
+//https://github.com/salyh/elasticsearch-security-plugin/blob/4b53974a43b270ae77ebe79d635e2484230c9d01/src/main/java/org.opensearch/plugins/security/filter/DlsWriteFilter.java
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -63,20 +63,20 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.automaton.CompiledAutomaton;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.common.lucene.index.SequentialStoredFieldsLeafReader;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.common.xcontent.support.XContentMapValues;
-import org.elasticsearch.index.IndexService;
-import org.elasticsearch.index.shard.ShardId;
+import org.opensearch.OpenSearchException;
+import org.opensearch.ExceptionsHelper;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.bytes.BytesArray;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.collect.Tuple;
+import org.opensearch.common.lucene.index.SequentialStoredFieldsLeafReader;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.common.xcontent.support.XContentMapValues;
+import org.opensearch.index.IndexService;
+import org.opensearch.index.shard.ShardId;
 
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.DocReader;
@@ -228,7 +228,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             throw e;
         } catch (IOException e) {
             log.error("Got exception while initializing " + this, e);
-            throw ExceptionsHelper.convertToElastic(e);
+            throw ExceptionsHelper.convertToOpenSearchException(e);
         }
 
     }
@@ -531,7 +531,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
                     delegate.binaryField(fieldInfo, DocWriter.json().writeAsBytes(filteredSource));
                 } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
-                    throw new ElasticsearchException("Cannot filter source of document", e);
+                    throw new OpenSearchException("Cannot filter source of document", e);
                 } 
                 
             } else {

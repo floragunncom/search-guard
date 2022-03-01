@@ -35,13 +35,13 @@ import java.util.stream.StreamSupport;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.node.PluginAwareNode;
-import org.elasticsearch.painless.PainlessPlugin;
-import org.elasticsearch.painless.spi.PainlessExtension;
-import org.elasticsearch.plugins.ExtensiblePlugin.ExtensionLoader;
-import org.elasticsearch.plugins.Plugin;
+import org.opensearch.client.Client;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.node.PluginAwareNode;
+import org.opensearch.painless.PainlessPlugin;
+import org.opensearch.painless.spi.PainlessExtension;
+import org.opensearch.plugins.ExtensiblePlugin.ExtensionLoader;
+import org.opensearch.plugins.Plugin;
 import org.junit.rules.ExternalResource;
 
 import com.floragunn.searchguard.SearchGuardModule;

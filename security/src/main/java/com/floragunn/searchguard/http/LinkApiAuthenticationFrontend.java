@@ -20,7 +20,7 @@ package com.floragunn.searchguard.http;
 import java.net.URI;
 import java.util.Map;
 
-import org.elasticsearch.ElasticsearchSecurityException;
+import org.opensearch.OpenSearchSecurityException;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -49,7 +49,7 @@ public class LinkApiAuthenticationFrontend implements ApiAuthenticationFrontend 
     }
 
     @Override
-    public AuthCredentials extractCredentials(Map<String, Object> request) throws ElasticsearchSecurityException, ConfigValidationException {
+    public AuthCredentials extractCredentials(Map<String, Object> request) throws OpenSearchSecurityException, ConfigValidationException {
         // This authentication frontend cannot authenticate anyone. It is just for providing a link in the login menu.
         return null;
     }

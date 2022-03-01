@@ -42,18 +42,18 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.cluster.metadata.IndexAbstraction.Type;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.ExceptionsHelper;
+import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.cluster.metadata.IndexAbstraction.Type;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.collect.Tuple;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.authc.blocking.ClientBlockRegistry;
@@ -272,7 +272,7 @@ public class ConfigModelV7 extends ConfigModel {
             return null;
         } catch (ExecutionException e) {
             log.error("Error while updating roles: {}", e.getCause(), e.getCause());
-            throw ExceptionsHelper.convertToElastic(e);
+            throw ExceptionsHelper.convertToOpenSearchException(e);
         }
     }
 
@@ -389,7 +389,7 @@ public class ConfigModelV7 extends ConfigModel {
                     try {
                         concreteIndices = ip.getResolvedIndexPatterns(user, resolver, cs, false);
                     } catch (StringInterpolationException e) {
-                        throw new ElasticsearchSecurityException("Invalid index pattern in role " + sgr.getName() + ": " + ip.indexPattern, e);
+                        throw new OpenSearchSecurityException("Invalid index pattern in role " + sgr.getName() + ": " + ip.indexPattern, e);
                     }
 
                     try {
@@ -405,7 +405,7 @@ public class ConfigModelV7 extends ConfigModel {
                         }
 
                     } catch (StringInterpolationException e) {
-                        throw new ElasticsearchSecurityException("Invalid DLS query in role " + sgr.getName() + ": " + ip.dlsQuery, e);
+                        throw new OpenSearchSecurityException("Invalid DLS query in role " + sgr.getName() + ": " + ip.dlsQuery, e);
                     }
 
                     Set<String> fls = ip.getFls();

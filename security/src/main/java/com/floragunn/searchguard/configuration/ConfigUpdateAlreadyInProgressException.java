@@ -19,10 +19,10 @@ package com.floragunn.searchguard.configuration;
 
 import java.io.IOException;
 
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.common.io.stream.StreamInput;
+import org.opensearch.OpenSearchException;
+import org.opensearch.common.io.stream.StreamInput;
 
-public class ConfigUpdateAlreadyInProgressException extends ElasticsearchException {
+public class ConfigUpdateAlreadyInProgressException extends OpenSearchException {
 
     private static final long serialVersionUID = 2305746004953146245L;
 

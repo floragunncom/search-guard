@@ -1,6 +1,6 @@
 package com.floragunn.signals.watch.common.auth;
 
-import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.ToXContentObject;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;

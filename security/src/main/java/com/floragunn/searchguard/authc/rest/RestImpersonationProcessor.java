@@ -22,8 +22,8 @@ import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
@@ -66,12 +66,12 @@ public class RestImpersonationProcessor<AuthenticatorType extends Authentication
 
         try {
             if (adminDns.isAdminDN(impersonatedUserHeader)) {
-                throw new ElasticsearchSecurityException("It is not allowed to impersonate as an adminuser  '" + impersonatedUserHeader + "'",
+                throw new OpenSearchSecurityException("It is not allowed to impersonate as an adminuser  '" + impersonatedUserHeader + "'",
                         RestStatus.FORBIDDEN);
             }
 
             if (!adminDns.isRestImpersonationAllowed(originalUser.getName(), impersonatedUserHeader)) {
-                throw new ElasticsearchSecurityException(
+                throw new OpenSearchSecurityException(
                         "'" + originalUser.getName() + "' is not allowed to impersonate as '" + impersonatedUserHeader + "'", RestStatus.FORBIDDEN);
             }
 
@@ -111,7 +111,7 @@ public class RestImpersonationProcessor<AuthenticatorType extends Authentication
             log.debug("Unable to impersonate rest user from '{}' to '{}' because the impersonated user does not exist", originalUser.getName(),
                     impersonatedUserHeader);
 
-            throw new ElasticsearchSecurityException("No such user:" + impersonatedUserHeader, RestStatus.FORBIDDEN);
+            throw new OpenSearchSecurityException("No such user:" + impersonatedUserHeader, RestStatus.FORBIDDEN);
         } catch (Exception e) {
             onFailure.accept(e);
         }

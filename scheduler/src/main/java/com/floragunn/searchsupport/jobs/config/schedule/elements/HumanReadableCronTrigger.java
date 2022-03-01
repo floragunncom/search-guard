@@ -4,7 +4,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 
-import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.ToXContentObject;
 import org.quartz.Calendar;
 import org.quartz.CronTrigger;
 import org.quartz.TimeOfDay;

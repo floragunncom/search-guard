@@ -3,10 +3,10 @@ package com.floragunn.signals.actions.watch.ack;
 
 import java.io.IOException;
 
-import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.support.nodes.BaseNodesRequest;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
+import org.opensearch.action.ActionRequestValidationException;
+import org.opensearch.action.support.nodes.BaseNodesRequest;
+import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.common.io.stream.StreamOutput;
 
 public class AckWatchRequest extends BaseNodesRequest<AckWatchRequest> {
 

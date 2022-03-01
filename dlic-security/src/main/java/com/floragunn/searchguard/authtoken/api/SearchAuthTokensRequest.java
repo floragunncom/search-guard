@@ -16,12 +16,12 @@ package com.floragunn.searchguard.authtoken.api;
 
 import java.io.IOException;
 
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.search.Scroll;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionRequestValidationException;
+import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.search.Scroll;
+import org.opensearch.search.builder.SearchSourceBuilder;
 
 public class SearchAuthTokensRequest extends ActionRequest {
 

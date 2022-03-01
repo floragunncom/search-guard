@@ -19,8 +19,8 @@ package com.floragunn.searchguard.test.helper.cluster;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.client.Client;
+import org.opensearch.action.get.GetRequest;
+import org.opensearch.client.Client;
 import org.junit.Assert;
 
 import com.floragunn.searchguard.test.TestSgConfig;
