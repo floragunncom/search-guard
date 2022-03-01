@@ -409,19 +409,19 @@ deploy_snapshot:
       if [ -z "$KI_VERSION" ]; then
         KI_VERSION=$ES_VERSION
       fi
-      if [[ ! "$SG_KI_PLUGIN" =~ ^https?:.*$ ]]; then
-        if [[ "$SG_KI_PLUGIN" =~ .*SNAPSHOT.* ]]; then
-          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-kibana-plugin-snapshot search-guard-kibana-plugin $SG_KI_PLUGIN .zip)
-          echo "Found: $SG_KI_PLUGIN"
-        else
-          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-kibana-plugin-release search-guard-kibana-plugin $SG_KI_PLUGIN .zip)
-          echo "Found: $SG_KI_PLUGIN"
-        fi
-      fi
+      #if [[ ! "$SG_KI_PLUGIN" =~ ^https?:.*$ ]]; then
+      #  if [[ "$SG_KI_PLUGIN" =~ .*SNAPSHOT.* ]]; then
+      #    SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-kibana-plugin-snapshot search-guard-kibana-plugin $SG_KI_PLUGIN .zip)
+      #    echo "Found: $SG_KI_PLUGIN"
+      #  else
+      #    SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-kibana-plugin-release search-guard-kibana-plugin $SG_KI_PLUGIN .zip)
+      #    echo "Found: $SG_KI_PLUGIN"
+      #  fi
+      #fi
       echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
       echo "SG_ADMIN=$SG_ADMIN" >> build.env
       echo "ES_VERSION=$ES_VERSION" >>build.env
-      echo "SG_KI_PLUGIN=$SG_KI_PLUGIN" >>build.env
+      echo "SG_KI_PLUGIN=none" >>build.env
       echo "KI_VERSION=$KI_VERSION" >>build.env
       echo "IT_BRANCH=$IT_BRANCH" >>build.env
       cat build.env
