@@ -80,7 +80,7 @@ import com.google.common.net.InetAddresses;
 public class LocalEsCluster {
 
     static {
-        System.setProperty("es.enforce.bootstrap.checks", "true");
+        System.setProperty("opensearch.enforce.bootstrap.checks", "true");
     }
 
     private static final Logger log = LogManager.getLogger(LocalEsCluster.class);

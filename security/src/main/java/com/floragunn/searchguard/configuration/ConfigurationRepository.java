@@ -168,7 +168,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         try {
                             String lookupDir = System.getProperty("sg.default_init.dir");
                             final String cd = lookupDir != null ? (lookupDir + "/")
-                                    : new Environment(settings, configPath).pluginsFile().toAbsolutePath().toString() + "/search-guard-7/sgconfig/";
+                                    : new Environment(settings, configPath).pluginsFile().toAbsolutePath().toString() + "/search-guard/sgconfig/";
                             File confFile = new File(cd + "sg_authc.yml");
                             File legacyConfFile = new File(cd + "sg_config.yml");
 

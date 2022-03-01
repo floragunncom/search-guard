@@ -60,7 +60,7 @@ import com.floragunn.searchguard.ssl.test.helper.network.SocketUtils;
 public final class ClusterHelper {
 
     static {
-        System.setProperty("es.enforce.bootstrap.checks", "true");
+        System.setProperty("opensearch.enforce.bootstrap.checks", "true");
         System.setProperty("sg.default_init.dir", new File("./sgconfig").getAbsolutePath());
     }
 
