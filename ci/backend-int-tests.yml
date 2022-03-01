@@ -95,7 +95,6 @@ ccs_3_roundtrips_true:
     - aws-runner
   script:
     - |
-       set
        echo "============================================="
        echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
        echo "TEST_SG_ES_PLUGIN: $TEST_SG_ES_PLUGIN"
@@ -110,7 +109,7 @@ ccs_3_roundtrips_true:
          echo "export SG_SOURCE=snapshot" >> environment.env
        fi	
        echo "export BASEIMAGE=0.9.3-open-jdk-11" >> environment.env
-       echo "export ES_VERSION=$TEST_ES_VERSION" >> environment.env
+       echo "export OS_VERSION=$TEST_ES_VERSION" >> environment.env
        echo "export KI_SOURCE=none" >> environment.env
        cat environment.env
        echo "============================================="
