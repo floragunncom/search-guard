@@ -33,11 +33,10 @@ if [[ $SG_VERSION =~ .*-os-.* ]]; then
   SF_NAME="OpenSearch Dashboards"
   SF_LC_NAME_CC="opensearch_dashboards"
   SF_LC_NAME="opensearch-dashboards" 
-  
-  OSD_VERSION
-  
+    
   if [[ "$OS_VERSION" == "1.2.4" || "$OS_VERSION" == "1.2.3" || "$OS_VERSION" == "1.2.2" || "$OS_VERSION" == "1.2.1" ]]; then
   	OSD_VERSION="1.2.0"
+  	SGSF_VERSION="${SGSF_VERSION/os-1\.2\.?/os-1.2.0}"
   else
   	OSD_VERSION="$OS_VERSION"
   fi
