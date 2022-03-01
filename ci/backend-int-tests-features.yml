@@ -29,21 +29,6 @@ compliance_1_clientnode:
     TEST: "compliance_1_clientnode"
     TEST_ENVIRONMENT: "compliance_1"
 
-compliance_2_clientnode:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "compliance_2_clientnode"
-    TEST_ENVIRONMENT: "compliance_2"
-
-signals_1:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "signals_1"
-    TEST_ENVIRONMENT: "signals_1"
-    TEST_COMPOSEFILE: "docker-compose-signals.yml"
-
 signals_2:
   extends:
   - .be_integration_test_ext
