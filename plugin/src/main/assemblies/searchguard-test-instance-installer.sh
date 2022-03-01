@@ -33,10 +33,18 @@ if [[ $SG_VERSION =~ .*-os-.* ]]; then
   SF_NAME="OpenSearch Dashboards"
   SF_LC_NAME_CC="opensearch_dashboards"
   SF_LC_NAME="opensearch-dashboards" 
+  
+  OSD_VERSION
+  
+  if [[ "$OS_VERSION" == "1.2.4" || "$OS_VERSION" == "1.2.3" || "$OS_VERSION" == "1.2.2" || "$OS_VERSION" == "1.2.1" ]]; then
+  	OSD_VERSION="1.2.0"
+  else
+  	OSD_VERSION="$OS_VERSION"
+  fi
   	  
   if [[ "$OSTYPE"  == "linux"* ]]; then
     SB_ARCHIVE="opensearch-min-$OS_VERSION-linux-x64.tar.gz"
-    SF_ARCHIVE="opensearch-dashboards-min-$OS_VERSION-linux-x64.tar.gz"
+    SF_ARCHIVE="opensearch-dashboards-min-$OSD_VERSION-linux-x64.tar.gz"
   else
     echo "OpenSearch is right now not available for type $OSTYPE"
     exit
@@ -92,7 +100,7 @@ if [[ $SG_VERSION =~ .*-os-.* ]]; then
   echo
 
   echo "Downloading OpenSearch Dashboards ... "
-  curl --fail "https://artifacts.opensearch.org/releases/core/opensearch-dashboards/$OS_VERSION/$SF_ARCHIVE" -o $SF_ARCHIVE
+  curl --fail "https://artifacts.opensearch.org/releases/core/opensearch-dashboards/$OSD_VERSION/$SF_ARCHIVE" -o $SF_ARCHIVE
 
 else
 
