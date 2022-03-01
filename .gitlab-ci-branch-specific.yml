@@ -1,4 +1,2 @@
 variables:
-  IT_BRANCH: "session-auth-es-7.10.2"
-  SG_KI_PLUGIN: "b-308-session-based-and-multiple-auth-for-7.10.x-SNAPSHOT"
-  KI_VERSION: "7.10.2"
+  IT_BRANCH: "session-auth-os"
