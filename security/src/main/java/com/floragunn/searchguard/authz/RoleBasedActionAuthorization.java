@@ -351,19 +351,30 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
                 CheckTable<String, Action> checkTable = CheckTable.create("*", actions);
 
-                for (Action action : actions) {
+                top: for (Action action : actions) {
                     ImmutableSet<String> rolesWithWildcardIndex = actionToRolesWithWildcardIndexPrivileges.get(action);
-                    
-                    if (rolesWithWildcardIndex != null && rolesWithWildcardIndex.containsAny(mappedRoles)) {
-                       if (checkTable.check("*", action)) {
-                           break;
-                       }
-                    } else if (!(action instanceof WellKnownAction)) {
-                        
-                    }
-                }            
 
-                if (checkTable.isComplete() && !exclusionsPresent(context, resolved, checkTable)) {
+                    if (rolesWithWildcardIndex != null && rolesWithWildcardIndex.containsAny(mappedRoles)) {
+                        if (checkTable.check("*", action)) {
+                            break;
+                        }
+                    } else if (!(action instanceof WellKnownAction)) {
+                        // Actions which are not "well known" cannot be completely resolved into the actionToRolesWithWildcardIndexPrivileges map.
+                        // Thus, we need to check the patterns from the roles
+
+                        for (String mappedRole : mappedRoles) {
+                            Pattern actionPattern = rolesWithWildcardIndexPrivilegesToActionPattern.get(mappedRole);
+
+                            if (actionPattern != null && actionPattern.matches(action.name())) {
+                                if (checkTable.check("*", action)) {
+                                    break top;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (checkTable.isComplete() && !exclusionsPresent(context, resolvedIndices, checkTable)) {
                     return PrivilegesEvaluationResult.OK;
                 }
 
@@ -376,29 +387,48 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                 }
             }
 
-            if (resolved.getLocalIndices().isEmpty()) {
+            if (resolvedIndices.getLocalIndices().isEmpty()) {
                 log.debug("No local indices; grant the request");
                 return PrivilegesEvaluationResult.OK;
             }
 
-            CheckTable<String, String> checkTable = CheckTable.create(resolved.getLocalIndices(), actions);
+            CheckTable<String, Action> checkTable = CheckTable.create(resolvedIndices.getLocalIndices(), actions);
 
-            top: for (SgRole role : roles.values()) {
-                for (IndexPattern indexPattern : role.ipatterns) {
-                    try {
-                        String[] resolvedIndexPatterns = indexPattern.getResolvedIndexPatterns(context.getUser(), context.getResolver(),
-                                context.getClusterService(), true);
-                        Set<String> matchingIndices = resolved.getLocalIndices()
-                                .matching((index) -> WildcardMatcher.matchAny(resolvedIndexPatterns, index));
+            top: for (Action action : actions) {
+                ImmutableMap<String, ImmutableSet<String>> indexToRoles = actionToIndexToRoles.get(action);
 
-                        if (checkTable.checkIf(matchingIndices, (action) -> WildcardMatcher.matchAny(indexPattern.perms, action))) {
-                            break top;
+                if (indexToRoles != null) {
+                    for (String index : resolvedIndices.getLocalIndices()) {
+                        ImmutableSet<String> rolesWithPrivileges = indexToRoles.get(index);
+
+                        if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)) {
+                            if (checkTable.check(index, action)) {
+                                break top;
+                            }
                         }
-                    } catch (StringInterpolationException e) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Invalid index pattern " + indexPattern.indexPattern, e);
+                    }
+                }
+
+                if (!(action instanceof WellKnownAction)) {
+                    // Actions which are not "well known" cannot be completely resolved into the actionToRolesWithWildcardIndexPrivileges map.
+                    // Thus, we need to check the patterns from the roles
+
+                    for (String mappedRole : mappedRoles) {
+                        ImmutableMap<String, Pattern> indexToActionPattern = rolesToIndexToActionPattern.get(mappedRole);
+
+                        if (indexToActionPattern == null) {
+                            continue;
                         }
-                        errors = errors.with(new PrivilegesEvaluationResult.Error("Invalid index pattern " + indexPattern.indexPattern, e));
+
+                        for (String index : resolvedIndices.getLocalIndices()) {
+                            Pattern actionPattern = indexToActionPattern.get(index);
+
+                            if (actionPattern != null && actionPattern.matches(action.name())) {
+                                if (checkTable.check(index, action)) {
+                                    break top;
+                                }
+                            }
+                        }
                     }
                 }
             }
