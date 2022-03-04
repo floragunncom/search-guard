@@ -31,7 +31,6 @@ import org.junit.Test;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.TestSgConfig.Authc;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.collect.ImmutableMap;

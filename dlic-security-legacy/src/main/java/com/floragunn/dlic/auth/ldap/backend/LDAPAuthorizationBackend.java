@@ -93,7 +93,6 @@ import com.floragunn.dlic.auth.ldap.util.LdapHelper;
 import com.floragunn.dlic.auth.ldap.util.Utils;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
-import com.floragunn.searchguard.authc.legacy.LegacyAuthenticationBackend;
 import com.floragunn.searchguard.authc.legacy.LegacyAuthorizationBackend;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;

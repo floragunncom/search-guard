@@ -24,8 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -39,7 +37,6 @@ import org.ldaptive.LdapEntry;
 import org.ldaptive.SearchFilter;
 import org.ldaptive.SearchScope;
 
-import com.floragunn.dlic.auth.http.saml.HTTPSamlAuthenticator;
 import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.LdapUser.DirEntry;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
@@ -47,14 +44,11 @@ import com.floragunn.dlic.auth.ldap.util.LdapHelper;
 import com.floragunn.dlic.auth.ldap.util.Utils;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
-import com.floragunn.searchguard.authc.AuthenticationBackend;
-import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.legacy.LegacyAuthenticationBackend;
-import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
+import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchguard.user.Attributes;
 
 public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
 

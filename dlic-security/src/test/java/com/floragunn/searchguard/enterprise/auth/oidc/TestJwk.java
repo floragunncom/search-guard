@@ -15,12 +15,7 @@
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.stream.Collectors;
 
-import org.apache.cxf.jaxrs.json.basic.JsonMapObject;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.cxf.rs.security.jose.jwk.KeyType;

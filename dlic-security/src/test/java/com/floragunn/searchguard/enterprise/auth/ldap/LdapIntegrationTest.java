@@ -18,7 +18,6 @@ import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -45,7 +44,6 @@ import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.AdditionalUserIn
 import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchsupport.util.ImmutableSet;
 

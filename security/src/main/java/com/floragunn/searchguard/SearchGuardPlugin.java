@@ -125,9 +125,7 @@ import com.floragunn.searchguard.authc.internal_users_db.InternalUsersAuthentica
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersDatabase;
 import com.floragunn.searchguard.authc.rest.AuthenticatingRestFilter;
-import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfigApi;
-import com.floragunn.searchguard.authc.session.FrontendAuthcConfig;
 import com.floragunn.searchguard.authc.session.FrontendAuthcConfigApi;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.authc.session.backend.SessionModule;

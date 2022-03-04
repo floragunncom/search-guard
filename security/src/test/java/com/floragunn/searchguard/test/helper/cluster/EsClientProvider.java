@@ -44,7 +44,6 @@ import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
 import org.elasticsearch.client.RestHighLevelClient;
 
 import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 
 public interface EsClientProvider {

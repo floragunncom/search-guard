@@ -29,7 +29,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.searchguard.legacy.test.AbstractSGUnitTest;
-import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
