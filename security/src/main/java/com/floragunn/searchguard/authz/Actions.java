@@ -1,11 +1,37 @@
+/*
+ * Copyright 2022 floragunn GmbH
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
+
 package com.floragunn.searchguard.authz;
 
-import static com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig.always;
-import static com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig.ifNotEmpty;
-import static com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig.xContentInstantFromMillis;
 import static com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors.objectAttr;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Predicate;
+
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainAction;
@@ -125,21 +151,26 @@ import org.elasticsearch.persistent.RemovePersistentTaskAction;
 import org.elasticsearch.persistent.StartPersistentTaskAction;
 import org.elasticsearch.persistent.UpdatePersistentTaskStatusAction;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
+import org.elasticsearch.xcontent.ToXContent;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
 import com.floragunn.searchguard.authz.Action.WellKnownAction;
-import com.floragunn.searchguard.authz.ActionsRegistry.Builder.ActionBuilder;
+import com.floragunn.searchguard.authz.Action.WellKnownAction.AdditionalPrivileges;
+import com.floragunn.searchguard.authz.Action.WellKnownAction.NewResource;
+import com.floragunn.searchguard.authz.Action.WellKnownAction.RequestPropertyModifier;
+import com.floragunn.searchguard.authz.Action.WellKnownAction.Resource;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
-import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig.Scope;
-import com.floragunn.searchsupport.util.ImmutableMap;
-import com.floragunn.searchsupport.util.ImmutableSet;
+import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
+import com.floragunn.searchsupport.xcontent.AttributeValueFromXContent;
 
 public class Actions {
     private final ImmutableMap<String, Action> actionMap;
@@ -147,9 +178,9 @@ public class Actions {
     private final ImmutableSet<WellKnownAction<?, ?, ?>> clusterActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions;
 
-    private ActionsRegistry.Builder builder = new ActionsRegistry.Builder();
+    private Builder builder = new Builder();
 
-    Actions(SearchGuardModulesRegistry modulesRegistry) {
+    public Actions(SearchGuardModulesRegistry modulesRegistry) {
         index(IndexAction.INSTANCE);
         index(GetAction.INSTANCE);
         index(TermVectorsAction.INSTANCE);
@@ -305,10 +336,6 @@ public class Actions {
         cluster(CompletionPersistentTaskAction.INSTANCE);
         cluster(RemovePersistentTaskAction.INSTANCE);
 
-        cluster(RetentionLeaseActions.Add.INSTANCE);
-        cluster(RetentionLeaseActions.Renew.INSTANCE);
-        cluster(RetentionLeaseActions.Remove.INSTANCE);
-
         cluster(ListDanglingIndicesAction.INSTANCE);
         cluster(ImportDanglingIndexAction.INSTANCE);
         cluster(DeleteDanglingIndexAction.INSTANCE);
@@ -316,9 +343,11 @@ public class Actions {
 
         cluster(TransportNodesSnapshotsStatus.ACTION_NAME);
 
+        open(RetentionLeaseActions.Add.INSTANCE);
+        open(RetentionLeaseActions.Renew.INSTANCE);
+        open(RetentionLeaseActions.Remove.INSTANCE);
+
         cluster(ConfigUpdateAction.INSTANCE);
-        cluster(LicenseInfoAction.INSTANCE);
-        cluster(WhoAmIAction.INSTANCE);
         cluster(GetComponentStateAction.INSTANCE);
         cluster(BulkConfigApi.GetAction.INSTANCE);
         cluster(BulkConfigApi.UpdateAction.INSTANCE);
@@ -333,11 +362,16 @@ public class Actions {
         cluster(InternalUsersConfigApi.PutAction.INSTANCE);
         cluster(InternalUsersConfigApi.PatchAction.INSTANCE);
 
-        for (ActionHandler<?, ?> action : modulesRegistry.getActions()) {
-            cluster(action.getAction().name());
+        open(LicenseInfoAction.INSTANCE);
+        open(WhoAmIAction.INSTANCE);
+
+        if (modulesRegistry != null) {
+            for (ActionHandler<?, ?> action : modulesRegistry.getActions()) {
+                cluster(action.getAction().name());
+            }
         }
 
-        actionMap = builder.build();
+        this.actionMap = builder.build();
 
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> clusterActions = new ImmutableSet.Builder<>(actionMap.size());
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> indexActions = new ImmutableSet.Builder<>(actionMap.size());
@@ -352,7 +386,7 @@ public class Actions {
                 indexActions.add((WellKnownAction<?, ?, ?>) action);
             }
         }
-        
+
         this.clusterActions = clusterActions.build();
         this.indexActions = indexActions.build();
         this.tenantActions = tenantActions.build();
@@ -404,6 +438,265 @@ public class Actions {
 
     private ActionBuilder<?, ?, ?> index(String action) {
         return builder.index(action);
+    }
+
+    private <RequestType extends ActionRequest> ActionBuilder<RequestType, Void, Void> open(ActionType<?> actionType) {
+        return builder.open(actionType);
+    }
+
+    private ActionBuilder<?, ?, ?> open(String action) {
+        return builder.open(action);
+    }
+
+    class Builder {
+
+        private Map<String, ActionBuilder<?, ?, ?>> builders = new HashMap<>(300);
+
+        <RequestType extends ActionRequest> ActionBuilder<RequestType, Void, Void> cluster(ActionType<?> actionType) {
+            ActionBuilder<RequestType, Void, Void> builder = new ActionBuilder<RequestType, Void, Void>(actionType.name(), Scope.CLUSTER);
+            builders.put(actionType.name(), builder);
+            return builder;
+        }
+
+        ActionBuilder<?, ?, ?> cluster(String action) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.CLUSTER);
+            builders.put(action, builder);
+            return builder;
+        }
+
+        ActionBuilder<?, ?, ?> index(ActionType<?> actionType) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(actionType.name(), Scope.INDEX);
+            builders.put(actionType.name(), builder);
+            return builder;
+        }
+
+        ActionBuilder<?, ?, ?> index(String action) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.INDEX);
+            builders.put(action, builder);
+            return builder;
+        }
+
+        <RequestType extends ActionRequest> ActionBuilder<RequestType, Void, Void> open(ActionType<?> actionType) {
+            ActionBuilder<RequestType, Void, Void> builder = new ActionBuilder<RequestType, Void, Void>(actionType.name(), Scope.OPEN);
+            builders.put(actionType.name(), builder);
+            return builder;
+        }
+
+        ActionBuilder<?, ?, ?> open(String action) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.OPEN);
+            builders.put(action, builder);
+            return builder;
+        }
+
+        ImmutableMap<String, Action> build() {
+            ImmutableMap.Builder<String, Action> result = new ImmutableMap.Builder<>(builders.size());
+
+            for (ActionBuilder<?, ?, ?> builder : builders.values()) {
+                Action action = builder.build();
+
+                result.with(builder.actionName, action);
+            }
+
+            builders = null;
+
+            return result.build();
+        }
+
+    }
+
+    public static enum Scope {
+        INDEX, CLUSTER, TENANT, OPEN;
+    }
+
+    class ActionBuilder<RequestType extends ActionRequest, RequestItem, RequestItemType> {
+
+        private Class<RequestType> requestType;
+        private String requestTypeName;
+
+        private String actionName;
+        private Class<Enum<?>> requestItemTypeEnum;
+        private boolean resolveIndices = true;
+        private NewResource createsResource;
+        private List<Resource> usesResources = new ArrayList<>();
+        private List<RequestPropertyModifier<?>> requestProperyModifiers = new ArrayList<>();
+        private List<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges = new ArrayList<>();
+        private Map<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType;
+        private Scope scope;
+        private Function<RequestType, Collection<RequestItem>> requestItemFunction;
+        private Function<RequestItem, RequestItemType> requestItemTypeFunction;
+
+        ActionBuilder(String actionName, Scope scope) {
+            this.actionName = actionName;
+            this.scope = scope;
+        }
+
+        <NewRequestType extends ActionRequest> ActionBuilder<NewRequestType, RequestItem, RequestItemType> requestType(
+                Class<NewRequestType> requestType) {
+            if (this.requestType != null && !this.requestType.equals(requestType)) {
+                throw new IllegalStateException("Request type was already set: " + requestType + " vs " + this.requestType);
+            }
+
+            @SuppressWarnings("unchecked")
+            ActionBuilder<NewRequestType, RequestItem, RequestItemType> newRequestTypeBuilder = (ActionBuilder<NewRequestType, RequestItem, RequestItemType>) this;
+            newRequestTypeBuilder.requestType = requestType;
+            return newRequestTypeBuilder;
+        }
+
+        @SuppressWarnings("unchecked")
+        ActionBuilder<RequestType, RequestItem, RequestItemType> requestType(String requestType) {
+            try {
+                this.requestType = (Class<RequestType>) Class.forName(requestType);
+            } catch (ClassNotFoundException e) {
+                requestTypeName = requestType;
+            }
+            return this;
+        }
+
+        <NewRequestItem> ActionBuilder<RequestType, NewRequestItem, RequestItemType> requestItems(
+                Function<RequestType, Collection<NewRequestItem>> function) {
+            @SuppressWarnings("unchecked")
+            ActionBuilder<RequestType, NewRequestItem, RequestItemType> newRequestTypeBuilder = (ActionBuilder<RequestType, NewRequestItem, RequestItemType>) this;
+
+            newRequestTypeBuilder.requestItemFunction = function;
+
+            return newRequestTypeBuilder;
+        }
+
+        <NewRequestItem, NewRequestItemType> ActionBuilder<RequestType, NewRequestItem, NewRequestItemType> requestItems(
+                Function<RequestType, Collection<NewRequestItem>> function, Function<NewRequestItem, NewRequestItemType> requestItemTypeFunction) {
+            @SuppressWarnings("unchecked")
+            ActionBuilder<RequestType, NewRequestItem, NewRequestItemType> newRequestTypeBuilder = (ActionBuilder<RequestType, NewRequestItem, NewRequestItemType>) this;
+
+            newRequestTypeBuilder.requestItemFunction = function;
+            newRequestTypeBuilder.requestItemTypeFunction = requestItemTypeFunction;
+
+            return newRequestTypeBuilder;
+        }
+
+        <NewRequestItem, NewRequestItemType> ActionBuilder<RequestType, NewRequestItem, NewRequestItemType> requestItemsA(
+                Function<RequestType, NewRequestItem[]> function, Function<NewRequestItem, NewRequestItemType> requestItemTypeFunction) {
+            @SuppressWarnings("unchecked")
+            ActionBuilder<RequestType, NewRequestItem, NewRequestItemType> newRequestTypeBuilder = (ActionBuilder<RequestType, NewRequestItem, NewRequestItemType>) this;
+
+            newRequestTypeBuilder.requestItemFunction = (r) -> Arrays.asList(function.apply(r));
+            newRequestTypeBuilder.requestItemTypeFunction = requestItemTypeFunction;
+
+            return newRequestTypeBuilder;
+        }
+
+        ActionBuilder<RequestType, RequestItem, RequestItemType> requiresAdditionalPrivileges(Predicate<RequestType> condition, String privilege,
+                String... morePrivileges) {
+            additionalPrivileges.add(new AdditionalPrivileges<RequestType, RequestItem>(ImmutableSet.of(privilege, morePrivileges), condition));
+
+            return this;
+        }
+
+        ActionBuilder<RequestType, RequestItem, RequestItemType> requiresAdditionalPrivilegesForItemType(RequestItemType requestItemType,
+                String privilege, String... morePrivileges) {
+            ImmutableSet<String> privileges = ImmutableSet.of(privilege, morePrivileges);
+
+            if (additionalPrivilegesByItemType == null) {
+                if (Enum.class.isAssignableFrom(requestItemType.getClass())) {
+                    @SuppressWarnings("unchecked")
+                    Class<RequestItemType> requestItemTypeClass = (Class<RequestItemType>) requestItemType.getClass();
+                    @SuppressWarnings({ "rawtypes", "unchecked" })
+                    Map<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType = new EnumMap(requestItemTypeClass);
+                    this.additionalPrivilegesByItemType = additionalPrivilegesByItemType;
+                    @SuppressWarnings("unchecked")
+                    Class<Enum<?>> enumClass = (Class<Enum<?>>) requestItemType.getClass();
+                    requestItemTypeEnum = enumClass;
+                } else {
+                    additionalPrivilegesByItemType = new HashMap<>();
+                }
+            }
+
+            ImmutableSet<String> existingPrivileges = additionalPrivilegesByItemType.get(requestItemType);
+
+            if (existingPrivileges == null) {
+                additionalPrivilegesByItemType.put(requestItemType, privileges);
+            } else {
+                additionalPrivilegesByItemType.put(requestItemType, privileges.with(existingPrivileges));
+            }
+
+            return this;
+        }
+
+        ActionBuilder<RequestType, RequestItem, RequestItemType> noIndexResolution() {
+            resolveIndices = false;
+            return this;
+        }
+
+        ActionBuilder<RequestType, RequestItem, RequestItemType> createsResource(String type, Function<ActionResponse, Object> id,
+                Function<ActionResponse, Instant> expiresAfter) {
+            createsResource = new NewResource(type, id, expiresAfter);
+            return this;
+        }
+
+        ActionBuilder<RequestType, RequestItem, RequestItemType> usesResource(String type, Function<ActionRequest, Object> id) {
+            usesResources.add(new Resource(type, id, false));
+            return this;
+        }
+
+        ActionBuilder<RequestType, RequestItem, RequestItemType> deletesResource(String type, Function<ActionRequest, Object> id) {
+            usesResources.add(new Resource(type, id, true));
+            return this;
+        }
+
+        <PropertyType> ActionBuilder<RequestType, RequestItem, RequestItemType> setRequestProperty(String name, Class<PropertyType> type,
+                Function<PropertyType, PropertyType> function) {
+            requestProperyModifiers.add(new RequestPropertyModifier<>(ReflectiveAttributeAccessors.objectAttr(name, type),
+                    ReflectiveAttributeAccessors.setObjectAttr(name, type), type, function));
+            return this;
+        }
+
+        Action build() {
+            Action.WellKnownAction.Resources resources = null;
+
+            if (createsResource != null || !usesResources.isEmpty()) {
+                resources = new Action.WellKnownAction.Resources(createsResource, usesResources);
+            }
+
+            Action.WellKnownAction.RequestItems<RequestType, RequestItem, RequestItemType> requestItems = null;
+
+            if (requestItemTypeFunction != null || requestItemTypeEnum != null || requestItemTypeFunction != null) {
+                requestItems = new Action.WellKnownAction.RequestItems<RequestType, RequestItem, RequestItemType>(requestItemTypeFunction,
+                        requestItemFunction, additionalPrivilegesByItemType, requestItemTypeEnum, Actions.this);
+            }
+
+            return new Action.WellKnownAction<RequestType, RequestItem, RequestItemType>(actionName, scope, requestType, requestTypeName,
+                    additionalPrivileges, ImmutableMap.of(additionalPrivilegesByItemType), requestItems, resources, Actions.this);
+        }
+
+    }
+
+    static <O> Function<O, Object> xContentAttr(String name) {
+        return (actionResponse) -> AttributeValueFromXContent.get((ToXContent) actionResponse, name);
+    }
+
+    static <O> Function<O, Instant> xContentInstantFromMillis(String name) {
+        return (actionResponse) -> {
+            Object value = AttributeValueFromXContent.get((ToXContent) actionResponse, name);
+
+            if (value instanceof Number) {
+                return Instant.ofEpochMilli(((Number) value).longValue());
+            } else if (value == null) {
+                return null;
+            } else {
+                throw new RuntimeException("Unexpected value " + value + " for attribute " + name);
+            }
+        };
+    }
+
+    static <T> Predicate<T> ifNotEmpty(Function<T, Collection<?>> itemFunction) {
+        return (t) -> {
+            Collection<?> items = itemFunction.apply(t);
+
+            return items != null && !items.isEmpty();
+        };
+    }
+
+    static <Request extends ActionRequest> Predicate<Request> always() {
+        return (request) -> true;
     }
 
 }

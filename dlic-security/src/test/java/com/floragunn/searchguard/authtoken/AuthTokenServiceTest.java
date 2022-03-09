@@ -30,9 +30,10 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
+import com.floragunn.searchguard.authz.Actions;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -50,7 +51,7 @@ import io.jsonwebtoken.io.Decoders;
 public class AuthTokenServiceTest {
 
     private static ConfigurationRepository configurationRepository;
-    private static DynamicConfigFactory dynamicConfigFactory;
+    private static PrivilegesEvaluator privilegesEvaluator;
     private static ProtectedConfigIndexService protectedConfigIndexService;
     private static ThreadPool threadPool;
     private static PrivilegedConfigClient privilegedConfigClient;
@@ -67,7 +68,7 @@ public class AuthTokenServiceTest {
     @BeforeClass
     public static void setupDependencies() {
         configurationRepository = cluster.getInjectable(ConfigurationRepository.class);
-        dynamicConfigFactory = cluster.getInjectable(DynamicConfigFactory.class);
+        privilegesEvaluator = cluster.getInjectable(PrivilegesEvaluator.class);
         protectedConfigIndexService = cluster.getInjectable(ProtectedConfigIndexService.class);
         clusterService = cluster.getInjectable(ClusterService.class);
         threadPool = cluster.getInjectable(ThreadPool.class);
@@ -79,6 +80,7 @@ public class AuthTokenServiceTest {
     public void basicTest() throws Exception {
         User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
         AuthTokenServiceConfig config = new AuthTokenServiceConfig();
+        Actions actions = new Actions(null);
 
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
@@ -86,9 +88,9 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
-                clusterService, protectedConfigIndexService, config);
+                protectedConfigIndexService, actions, Settings.EMPTY);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, Settings.EMPTY,
+                threadPool, clusterService, protectedConfigIndexService, actions, config);
         try {
             authTokenService.setSendTokenUpdates(false);
             authTokenService.waitForInitComplete(10000);
@@ -121,6 +123,8 @@ public class AuthTokenServiceTest {
     @Test
     public void reloadFromCacheTest() throws Exception {
         User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
+        Actions actions = new Actions(null);
+
         AuthTokenServiceConfig config = new AuthTokenServiceConfig();
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
@@ -128,9 +132,9 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
-                clusterService, protectedConfigIndexService, config);
+                protectedConfigIndexService, actions, Settings.EMPTY);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, Settings.EMPTY,
+                threadPool, clusterService, protectedConfigIndexService, actions, config);
 
         try {
             authTokenService.setSendTokenUpdates(false);
@@ -165,15 +169,17 @@ public class AuthTokenServiceTest {
     public void reloadFromIndexTest() throws Exception {
         User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
         AuthTokenServiceConfig config = new AuthTokenServiceConfig();
+        Actions actions = new Actions(null);
+
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
-                clusterService, protectedConfigIndexService, config);
+                protectedConfigIndexService, actions, Settings.EMPTY);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, Settings.EMPTY,
+                threadPool, clusterService, protectedConfigIndexService, actions, config);
 
         try {
             authTokenService.setSendTokenUpdates(false);
@@ -200,10 +206,10 @@ public class AuthTokenServiceTest {
             authTokenService.shutdown();
 
             ConfigHistoryService configHistoryService2 = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                    protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
+                    protectedConfigIndexService, actions, Settings.EMPTY);
 
-            AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient, configHistoryService2, Settings.EMPTY, threadPool,
-                    clusterService, protectedConfigIndexService, config);
+            AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService2,
+                    Settings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
             authTokenService2.setSendTokenUpdates(false);
             authTokenService2.waitForInitComplete(20000);
 
@@ -222,6 +228,7 @@ public class AuthTokenServiceTest {
     public void expiryTest() throws Exception {
         User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
         AuthTokenServiceConfig config = new AuthTokenServiceConfig();
+        Actions actions = new Actions(null);
 
         config.setEnabled(true);
         config.setJwtSigningKey(TestJwk.OCT_1);
@@ -231,9 +238,9 @@ public class AuthTokenServiceTest {
         Settings authTokenServiceSettings = Settings.builder().put(AuthTokenService.CLEANUP_INTERVAL.getKey(), TimeValue.timeValueSeconds(1)).build();
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, authTokenServiceSettings, threadPool,
-                clusterService, protectedConfigIndexService, config);
+                protectedConfigIndexService, actions, Settings.EMPTY);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService,
+                authTokenServiceSettings, threadPool, clusterService, protectedConfigIndexService, actions, config);
         try {
             authTokenService.setSendTokenUpdates(false);
             authTokenService.waitForInitComplete(10000);
@@ -284,6 +291,7 @@ public class AuthTokenServiceTest {
 
             User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
             AuthTokenServiceConfig config = new AuthTokenServiceConfig();
+            Actions actions = new Actions(null);
 
             config.setEnabled(true);
             config.setJwtSigningKey(TestJwk.OCT_1);
@@ -292,9 +300,9 @@ public class AuthTokenServiceTest {
             config.setExcludeClusterPermissions(Collections.emptyList());
 
             ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                    protectedConfigIndexService, dynamicConfigFactory, Settings.EMPTY);
-            AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, Settings.EMPTY, threadPool,
-                    clusterService, protectedConfigIndexService, config);
+                    protectedConfigIndexService, actions, Settings.EMPTY);
+            AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService,
+                    Settings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
             try {
                 authTokenService.setSendTokenUpdates(false);
                 authTokenService.waitForInitComplete(10000);

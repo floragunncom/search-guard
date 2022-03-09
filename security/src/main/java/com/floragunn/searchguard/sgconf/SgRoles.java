@@ -8,6 +8,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.ToXContentObject;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
@@ -15,7 +16,6 @@ import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequ
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableSet;
 
 public abstract class SgRoles implements ToXContentObject {
 

@@ -30,8 +30,8 @@ import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
     public static final AuthczResult STOP = new AuthczResult(Status.STOP);

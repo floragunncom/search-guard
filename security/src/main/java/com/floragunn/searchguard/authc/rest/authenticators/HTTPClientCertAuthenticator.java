@@ -32,10 +32,10 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchsupport.util.ImmutableMap;
 import com.google.common.base.Strings;
 
 public class HTTPClientCertAuthenticator implements HTTPAuthenticator {

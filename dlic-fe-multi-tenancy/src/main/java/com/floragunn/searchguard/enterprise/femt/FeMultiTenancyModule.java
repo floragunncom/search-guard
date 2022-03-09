@@ -37,23 +37,25 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
+import com.floragunn.searchguard.authz.Action;
+import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
-import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ReflectionHelper;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.collect.ImmutableList;
 
 public class FeMultiTenancyModule implements SearchGuardModule, ComponentStateProvider {
@@ -137,10 +139,10 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     private final PrivilegesInterceptor privilegesInterceptor = new PrivilegesInterceptor() {
 
         @Override
-        public InterceptionResult replaceKibanaIndex(ActionRequest request, String action, User user, ResolvedIndices requestedResolved,
-                SgRoles sgRoles) {
+        public InterceptionResult replaceKibanaIndex(ActionRequest request, Action action, User user, ResolvedIndices requestedResolved,
+                ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
             if (enabled && interceptorImpl != null) {
-                return interceptorImpl.replaceKibanaIndex(request, action, user, requestedResolved, sgRoles);
+                return interceptorImpl.replaceKibanaIndex(request, action, user, requestedResolved, mappedRoles, actionAuthorization);
             } else {
                 return InterceptionResult.NORMAL;
             }

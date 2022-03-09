@@ -20,7 +20,7 @@ package com.floragunn.searchguard;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchsupport.util.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableList;
 
 public class NoSuchComponentException extends Exception {
 

@@ -27,15 +27,20 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.Actions;
+import com.floragunn.searchguard.authz.DocumentAuthorization;
+import com.floragunn.searchguard.authz.Role;
+import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
+import com.floragunn.searchguard.authz.RoleBasedDocumentAuthorization;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.ConfigModelV7;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.AuthDomainInfo;
@@ -49,6 +54,9 @@ public class InternalAuthTokenProvider implements DCFListener {
 
     private static final Logger log = LogManager.getLogger(InternalAuthTokenProvider.class);
 
+    private final PrivilegesEvaluator privilegesEvaluator;
+    private final Actions actions;
+    
     private JsonWebKey encryptionKey;
     private JsonWebKey signingKey;
     private JoseJwtProducer jwtProducer;
@@ -57,8 +65,9 @@ public class InternalAuthTokenProvider implements DCFListener {
     private ConfigModel configModel;
     private SgRoles sgRoles;
 
-    public InternalAuthTokenProvider(DynamicConfigFactory dynamicConfigFactory) {
-        dynamicConfigFactory.registerDCFListener(this);
+    public InternalAuthTokenProvider(PrivilegesEvaluator privilegesEvaluator, Actions actions) {
+        this.privilegesEvaluator = privilegesEvaluator;
+        this.actions = actions;
     }
 
     public String getJwt(User user, String aud) throws IllegalStateException {
@@ -119,19 +128,14 @@ public class InternalAuthTokenProvider implements DCFListener {
             if (rolesMap == null) {
                 throw new JwtException("JWT does not contain claim sg_roles");
             }
-            SgDynamicConfiguration<?> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null);
-
-            if (rolesConfig.getVersion() == 1) {
-                throw new Exception("Unsupport version of sgconfig: " + rolesConfig);
-            }
-
-            @SuppressWarnings("unchecked")
-            SgDynamicConfiguration<RoleV7> rolesConfigV7 = (SgDynamicConfiguration<RoleV7>) rolesConfig;
-
-            SgRoles sgRoles = ConfigModelV7.SgRoles.create(rolesConfigV7, configModel.getActionGroups());
+            SgDynamicConfiguration<Role> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null);
+            ImmutableSet<String> roleNames = ImmutableSet.of(rolesConfig.getCEntries().keySet());
+            
+            ActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions, null, privilegesEvaluator.getAllConfiguredTenantNames());
+            DocumentAuthorization documentAuthorization = new RoleBasedDocumentAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions, null);
             String userName = verifiedToken.getClaims().getSubject();
             User user = User.forUser(userName).authDomainInfo(AuthDomainInfo.STORED_AUTH).searchGuardRoles(sgRoles.getRoleNames()).build();
-            AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, sgRoles);
+            AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, roleNames, actionAuthorization, documentAuthorization);
 
             return userAuth;
 
@@ -232,29 +236,29 @@ public class InternalAuthTokenProvider implements DCFListener {
     public static class AuthFromInternalAuthToken implements SpecialPrivilegesEvaluationContext {
 
         private final User user;
-        private final SgRoles sgRoles;
+        private final ImmutableSet<String> mappedRoles;
+        private final ActionAuthorization actionAuthorization;
+        private final DocumentAuthorization documentAuthorization;
 
-        AuthFromInternalAuthToken(User user, SgRoles sgRoles) {
+        AuthFromInternalAuthToken(User user, ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization, DocumentAuthorization documentAuthorization) {
             this.user = user;
-            this.sgRoles = sgRoles;
+            this.mappedRoles = mappedRoles;
+            this.actionAuthorization = actionAuthorization;
+            this.documentAuthorization = documentAuthorization;
         }
 
         public User getUser() {
             return user;
         }
 
-        public SgRoles getSgRoles() {
-            return sgRoles;
-        }
-
         @Override
         public String toString() {
-            return "AuthFromInternalAuthToken [user=" + user + ", sgRoles=" + sgRoles + "]";
+            return "AuthFromInternalAuthToken [user=" + user + "]";
         }
 
         @Override
-        public Set<String> getMappedRoles() {
-            return sgRoles.getRoleNames();
+        public  ImmutableSet<String> getMappedRoles() {
+            return mappedRoles;
         }
 
         @Override
@@ -265,6 +269,17 @@ public class InternalAuthTokenProvider implements DCFListener {
         @Override
         public boolean requiresPrivilegeEvaluationForLocalRequests() {
             return true;
+        }
+
+       
+        @Override
+        public ActionAuthorization getActionAuthorization() {
+            return actionAuthorization;
+        }
+
+        @Override
+        public DocumentAuthorization getDocumentAuthorization() {
+            return documentAuthorization;
         }
     }
 

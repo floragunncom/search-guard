@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
+ * Copyright 2020-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -73,6 +73,7 @@ import org.elasticsearch.xcontent.XContentFactory;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authtoken.AuthTokenServiceConfig.FreezePrivileges;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
@@ -80,15 +81,19 @@ import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateRequest;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateRequest.UpdateType;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateResponse;
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.Actions;
+import com.floragunn.searchguard.authz.DocumentAuthorization;
+import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.ExceptionRecord;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProvider;
-import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
+import com.floragunn.searchguard.sgconf.history.ConfigModel;
 import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -118,6 +123,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private final ConfigHistoryService configHistoryService;
     private final ComponentState componentState;
     private final ComponentState configComponentState;
+    private final PrivilegesEvaluator privilegesEvaluator;
+    private final Actions actions;
 
     private final Cache<String, AuthToken> idToAuthTokenMap = CacheBuilder.newBuilder().expireAfterWrite(60, TimeUnit.MINUTES).build();
     private JoseJwtProducer jwtProducer;
@@ -132,14 +139,16 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private IndexCleanupAgent indexCleanupAgent;
     private long maxTokensPerUser = 100;
 
-    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
-            ThreadPool threadPool, ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService,
-            AuthTokenServiceConfig config, ComponentState componentState) {
+    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, PrivilegesEvaluator privilegesEvaluator,
+            ConfigHistoryService configHistoryService, Settings settings, ThreadPool threadPool, ClusterService clusterService,
+            ProtectedConfigIndexService protectedConfigIndexService, Actions actions, AuthTokenServiceConfig config, ComponentState componentState) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
         this.componentState = componentState;
         this.configComponentState = componentState.getOrCreatePart("config", "sg_config");
+        this.privilegesEvaluator = privilegesEvaluator;
+        this.actions = actions;
 
         this.setConfig(config);
 
@@ -155,11 +164,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 clusterService, threadPool);
     }
 
-    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, ConfigHistoryService configHistoryService, Settings settings,
-            ThreadPool threadPool, ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService,
-            AuthTokenServiceConfig config) {
-        this(privilegedConfigClient, configHistoryService, settings, threadPool, clusterService, protectedConfigIndexService, config,
-                new ComponentState(1000, null, "auth_token_service"));
+    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, PrivilegesEvaluator privilegesEvaluator,
+            ConfigHistoryService configHistoryService, Settings settings, ThreadPool threadPool, ClusterService clusterService,
+            ProtectedConfigIndexService protectedConfigIndexService,  Actions actions, AuthTokenServiceConfig config) {
+        this(privilegedConfigClient, privilegesEvaluator, configHistoryService, settings, threadPool, clusterService, protectedConfigIndexService,
+                actions, config, new ComponentState(1000, null, "auth_token_service"));
     }
 
     public AuthToken getById(String id) throws NoSuchAuthTokenException {
@@ -827,7 +836,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 ConfigModel configModelSnapshot;
 
                 if (authToken.getBase().getConfigSnapshot() == null) {
-                    configModelSnapshot = configHistoryService.getCurrentConfigModel();
+                    configModelSnapshot = getCurrentConfigModel();
                 } else {
                     if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
                         throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
@@ -839,19 +848,20 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 User userWithRoles = user.copy().backendRoles(authToken.getBase().getBackendRoles())
                         .searchGuardRoles(authToken.getBase().getSearchGuardRoles()).build();
                 TransportAddress callerTransportAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-                Set<String> mappedBaseRoles = configModelSnapshot.mapSgRoles(userWithRoles, callerTransportAddress);
-                SgRoles filteredBaseSgRoles = configModelSnapshot.getSgRoles().filter(mappedBaseRoles);
+                Set<String> mappedBaseRoles = configModelSnapshot.getRoleMapping().evaluate(userWithRoles, callerTransportAddress,
+                        privilegesEvaluator.getRolesMappingResolution());
 
                 if (log.isDebugEnabled()) {
                     log.debug("AuthTokenService.provide returns SpecialPrivilegesEvaluationContext for " + user + "\nuserWithRoles: " + userWithRoles
-                            + "\nmappedBaseRoles: " + mappedBaseRoles + "\nfilteredBaseSgRoles: " + filteredBaseSgRoles);
+                            + "\nmappedBaseRoles: " + mappedBaseRoles);
                 }
 
-                RestrictedSgRoles restrictedSgRoles = new RestrictedSgRoles(filteredBaseSgRoles, authToken.getRequestedPrivileges(),
-                        configModelSnapshot.getActionGroups());
+                RestrictedActionAuthorization restrictedSgRoles = new RestrictedActionAuthorization(configModelSnapshot.getActionAuthorization(),
+                        authToken.getRequestedPrivileges(), configModelSnapshot.getActionGroups(), actions, null,
+                        ((RoleBasedActionAuthorization) privilegesEvaluator.getActionAuthorization()).getTenants());
 
                 onResult.accept(new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles,
-                        authToken.getRequestedPrivileges()));
+                        configModelSnapshot.getDocumentAuthorization(), authToken.getRequestedPrivileges()));
             } catch (Exception e) {
                 log.error("Error in provide(" + user + "); authTokenId: " + authTokenId, e);
                 onFailure.accept(e);
@@ -866,18 +876,26 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         this.indexCleanupAgent.shutdown();
     }
 
+    private ConfigModel getCurrentConfigModel() {
+        return new ConfigModel(privilegesEvaluator.getActionAuthorization(), privilegesEvaluator.getDocumentAuthorization(),
+                privilegesEvaluator.getRoleMapping(), privilegesEvaluator.getActionGroups());
+    }
+
     static class SpecialPrivilegesEvaluationContextImpl implements SpecialPrivilegesEvaluationContext {
 
         private final User user;
-        private final Set<String> mappedRoles;
-        private final SgRoles sgRoles;
+        private final ImmutableSet<String> mappedRoles;
+        private final ActionAuthorization actionAuthorization;
+        private final DocumentAuthorization documentAuthorization;
         private final RequestedPrivileges requestedPrivileges;
 
-        SpecialPrivilegesEvaluationContextImpl(User user, Set<String> mappedRoles, SgRoles sgRoles, RequestedPrivileges requestedPrivileges) {
+        SpecialPrivilegesEvaluationContextImpl(User user, Set<String> mappedRoles, ActionAuthorization actionAuthorization,
+                DocumentAuthorization documentAuthorization, RequestedPrivileges requestedPrivileges) {
             this.user = user;
-            this.mappedRoles = mappedRoles;
-            this.sgRoles = sgRoles;
+            this.mappedRoles = ImmutableSet.of(mappedRoles);
+            this.actionAuthorization = actionAuthorization;
             this.requestedPrivileges = requestedPrivileges;
+            this.documentAuthorization = documentAuthorization;
         }
 
         @Override
@@ -886,13 +904,13 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         }
 
         @Override
-        public Set<String> getMappedRoles() {
+        public ImmutableSet<String> getMappedRoles() {
             return mappedRoles;
         }
 
         @Override
-        public SgRoles getSgRoles() {
-            return sgRoles;
+        public ActionAuthorization getActionAuthorization() {
+            return actionAuthorization;
         }
 
         @Override
@@ -901,6 +919,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             return (requestedPrivileges.getClusterPermissions().contains("*")
                     || requestedPrivileges.getClusterPermissions().contains("cluster:admin:searchguard:configrestapi"))
                     && !requestedPrivileges.getExcludedClusterPermissions().contains("cluster:admin:searchguard:configrestapi");
+        }
+
+        @Override
+        public DocumentAuthorization getDocumentAuthorization() {
+            return documentAuthorization;
         }
 
     }

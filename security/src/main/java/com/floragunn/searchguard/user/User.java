@@ -29,6 +29,7 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.floragunn.codova.config.templates.AttributeSource;
 import com.google.common.collect.Lists;
 import com.jayway.jsonpath.JsonPath;
 

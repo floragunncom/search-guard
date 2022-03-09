@@ -16,12 +16,11 @@
  */
 package com.floragunn.searchguard.privileges;
 
-import java.util.Set;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.index.query.MatchNoneQueryBuilder;
@@ -30,24 +29,29 @@ import org.elasticsearch.index.query.TermsQueryBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.Action;
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.Actions;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
-import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class TermsAggregationEvaluator {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
 
-    private static final ImmutableSet<String> READ_ACTIONS = ImmutableSet.of("indices:data/read/msearch", "indices:data/read/mget",
-            "indices:data/read/get", "indices:data/read/search", "indices:data/read/field_caps*");
+    private final ImmutableSet<Action> READ_ACTIONS;
     
     private static final QueryBuilder NONE_QUERY = new MatchNoneQueryBuilder();
     
-    public TermsAggregationEvaluator() {
+    public TermsAggregationEvaluator(Actions actions) {
+        READ_ACTIONS = ImmutableSet.of(actions.get("indices:data/read/msearch"), actions.get("indices:data/read/mget"),
+                actions.get("indices:data/read/get"), actions.get("indices:data/read/search"), actions.get("indices:data/read/field_caps"));
     }
-    
-    public PrivilegesEvaluatorResponse evaluate(ActionRequestInfo requestInfo, final ActionRequest request, ClusterService clusterService, User user, SgRoles sgRoles,  IndexNameExpressionResolver resolver, PrivilegesEvaluatorResponse presponse, ActionRequestIntrospector actionRequestIntrospector) {
+   
+    public PrivilegesEvaluatorResponse evaluate(ActionRequestInfo requestInfo, ActionRequest request, ClusterService clusterService, User user,
+            ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization, IndexNameExpressionResolver resolver,
+            PrivilegesEvaluatorResponse presponse, ActionRequestIntrospector actionRequestIntrospector, PrivilegesEvaluationContext context) {
         try {
             
             if(request instanceof SearchRequest) {
@@ -66,12 +70,15 @@ public class TermsAggregationEvaluator {
                        if("_index".equals(((TermsAggregationBuilder) ab).field())
                                && ab.getPipelineAggregations().isEmpty()
                                && ab.getSubAggregations().isEmpty()) {
+                           
+                           PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(user, mappedRoles,
+                                   READ_ACTIONS, actionRequestIntrospector.create("*", IndicesOptions.LENIENT_EXPAND_OPEN).getResolvedIndices(),
+                                   context);
 
-                           final Set<String> allPermittedIndices = sgRoles.getAllPermittedIndicesForKibana(requestInfo, user, READ_ACTIONS, resolver, clusterService, actionRequestIntrospector);
-                           if(allPermittedIndices == null || allPermittedIndices.isEmpty()) {
+                           if (privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT) {
                                sr.source().query(NONE_QUERY);
-                           } else {
-                               sr.source().query(new TermsQueryBuilder("_index", allPermittedIndices));
+                           } else if (privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK) {
+                               sr.source().query(new TermsQueryBuilder("_index", privilegesEvaluationResult.getAvailableIndices()));
                            }
                            
                            presponse.allowed = true;

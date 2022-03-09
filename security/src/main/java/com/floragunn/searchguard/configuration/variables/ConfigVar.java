@@ -26,13 +26,13 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchsupport.indices.IndexMapping;
 import com.floragunn.searchsupport.indices.IndexMapping.BinaryProperty;
 import com.floragunn.searchsupport.indices.IndexMapping.DisabledIndexProperty;
 import com.floragunn.searchsupport.indices.IndexMapping.DynamicIndexMapping;
 import com.floragunn.searchsupport.indices.IndexMapping.KeywordProperty;
 import com.floragunn.searchsupport.indices.IndexMapping.ObjectProperty;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class ConfigVar implements Document<ConfigVar> {
 

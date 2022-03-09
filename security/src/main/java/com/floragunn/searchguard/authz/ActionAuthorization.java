@@ -17,15 +17,20 @@
 
 package com.floragunn.searchguard.authz;
 
-import java.util.Set;
-
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.user.User;
 
 public interface ActionAuthorization {
-    boolean hasClusterPermission(Action action, User user, Set<String> mappedRoles);
+    boolean hasClusterPermission(User user, ImmutableSet<String> mappedRoles, Action action) throws PrivilegesEvaluationException;
 
-    boolean hasIndexPermission(Action action, ResolvedIndices resolvedIndices, User user, Set<String> mappedRoles);
+    PrivilegesEvaluationResult hasIndexPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
+            ResolvedIndices resolvedIndices, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException;
 
-    boolean hasTenantPermission(Action action, String requestedTenant, User user, Set<String> mappedRoles);
+    boolean hasTenantPermission(User user, String requestedTenant, ImmutableSet<String> mappedRoles, Action action,
+            PrivilegesEvaluationContext context) throws PrivilegesEvaluationException;
+
 }

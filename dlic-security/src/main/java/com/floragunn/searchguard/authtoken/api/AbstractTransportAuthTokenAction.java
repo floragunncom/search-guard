@@ -14,6 +14,8 @@
 
 package com.floragunn.searchguard.authtoken.api;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilters;
@@ -22,11 +24,14 @@ import org.elasticsearch.common.io.stream.Writeable.Reader;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.user.User;
 
 abstract class AbstractTransportAuthTokenAction<Request extends ActionRequest, Response extends ActionResponse>
         extends HandledTransportAction<Request, Response> {
+    private static final Logger log = LogManager.getLogger(AbstractTransportAuthTokenAction.class);
+
     private final PrivilegesEvaluator privilegesEvaluator;
     private final String allActionName;
 
@@ -38,7 +43,12 @@ abstract class AbstractTransportAuthTokenAction<Request extends ActionRequest, R
     }
 
     protected boolean isAllowedToAccessAll(User user, TransportAddress callerTransportAddress) {
-        return this.privilegesEvaluator.hasClusterPermission(user, this.allActionName, callerTransportAddress);
+        try {
+            return this.privilegesEvaluator.hasClusterPermission(user, this.allActionName, callerTransportAddress);
+        } catch (PrivilegesEvaluationException e) {
+            log.error("Error in allowedToAccessAll(" + user + ")", e);
+            return false;
+        }
     }
 
     protected static String getAllActionName(String actionName) {

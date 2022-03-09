@@ -47,6 +47,7 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.rest.authenticators.AnonymousAuthenticator;
@@ -59,7 +60,6 @@ import com.floragunn.searchguard.http.LinkApiAuthenticationFrontend;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
-import com.floragunn.searchsupport.util.ImmutableList;
 
 public class SearchGuardModulesRegistry {
     // TODO moduleinfo see reflectionhelper

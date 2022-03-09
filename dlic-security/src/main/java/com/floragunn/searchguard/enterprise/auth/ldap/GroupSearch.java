@@ -22,15 +22,15 @@ import java.util.Map;
 import java.util.Set;
 
 import com.floragunn.codova.config.net.CacheConfig;
+import com.floragunn.codova.config.templates.AttributeSource;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.support.Pattern;
-import com.floragunn.searchguard.user.AttributeSource;
 import com.floragunn.searchguard.user.StringInterpolationException;
-import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.cache.Cache;
 import com.unboundid.ldap.sdk.DereferencePolicy;
 import com.unboundid.ldap.sdk.Entry;

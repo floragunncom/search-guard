@@ -19,22 +19,24 @@ package com.floragunn.searchguard.privileges;
 
 import org.elasticsearch.action.ActionRequest;
 
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.Action;
+import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.user.User;
 
 public interface PrivilegesInterceptor {
 
-    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user,
-            final ResolvedIndices requestedResolved, SgRoles sgRoles);
-    
-    public boolean isEnabled();
-    
-    public String getKibanaIndex();
-    
-    public String getKibanaServerUser();
+    InterceptionResult replaceKibanaIndex(ActionRequest request, Action action, User user, ResolvedIndices requestedResolved,
+            ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException;
 
-    public enum InterceptionResult {
+    boolean isEnabled();
+
+    String getKibanaIndex();
+
+    String getKibanaServerUser();
+
+    enum InterceptionResult {
         ALLOW, DENY, NORMAL
     }
 }

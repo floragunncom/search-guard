@@ -38,6 +38,7 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
@@ -68,7 +69,6 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.searchsupport.rest.Responses;
-import com.floragunn.searchsupport.util.ImmutableList;
 import com.google.common.collect.Multimap;
 
 public class AuthenticatingRestFilter implements ComponentStateProvider {

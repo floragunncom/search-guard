@@ -1,18 +1,20 @@
 package com.floragunn.searchguard.privileges;
 
-import java.util.Set;
-
 import org.elasticsearch.common.transport.TransportAddress;
 
-import com.floragunn.searchguard.sgconf.SgRoles;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.DocumentAuthorization;
 import com.floragunn.searchguard.user.User;
 
 public interface SpecialPrivilegesEvaluationContext {
     User getUser();
     
-    Set<String> getMappedRoles();
+    ImmutableSet<String> getMappedRoles();
 
-    SgRoles getSgRoles();
+    ActionAuthorization getActionAuthorization();
+    
+    DocumentAuthorization getDocumentAuthorization();
     
     default TransportAddress getCaller() {
         return null;

@@ -341,6 +341,12 @@
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
+				<artifactId>fluent-collections</artifactId>
+				<version>master-SNAPSHOT</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.floragunn</groupId>
 				<artifactId>dlic-search-guard-suite-security</artifactId>
 				<version>${project.version}</version>
 			</dependency>

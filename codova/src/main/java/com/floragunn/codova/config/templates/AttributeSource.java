@@ -15,12 +15,12 @@
  * 
  */
 
-package com.floragunn.searchguard.user;
+package com.floragunn.codova.config.templates;
 
 import java.util.Map;
 
-import com.floragunn.searchsupport.util.ImmutableList;
-import com.floragunn.searchsupport.util.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
 
 public interface AttributeSource {
     Object getAttributeValue(String attributeName);

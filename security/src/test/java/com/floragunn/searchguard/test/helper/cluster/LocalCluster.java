@@ -37,6 +37,7 @@ import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
 import org.junit.rules.ExternalResource;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
@@ -46,7 +47,6 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
 

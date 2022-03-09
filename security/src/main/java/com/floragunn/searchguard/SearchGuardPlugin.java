@@ -109,6 +109,7 @@ import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.validation.VariableResolvers;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.TransportConfigUpdateAction;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
@@ -131,6 +132,7 @@ import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.authc.session.backend.SessionModule;
 import com.floragunn.searchguard.authc.transport.AuthenticatingTransportRequestHandler;
 import com.floragunn.searchguard.authc.transport.TransportAuthcConfigApi;
+import com.floragunn.searchguard.authz.Actions;
 import com.floragunn.searchguard.authz.AuthorizationConfigApi;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
@@ -182,7 +184,6 @@ import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.SearchGuardInterceptor;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
-import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
@@ -873,9 +874,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         auditLog.setComplianceConfig(complianceConfig);
         licenseRepository.subscribeOnLicenseChange(complianceConfig);
         moduleRegistry.addComponentStateProvider(licenseRepository);
+        
+        Actions actions = new Actions(moduleRegistry);
 
-        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih, actionRequestIntrospector,
-                specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry, enterpriseModulesEnabled);
+        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih,
+                actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry,
+                enterpriseModulesEnabled);
 
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, settings, configPath, localClient, threadPool, cih, moduleRegistry, configVarService);
                 
@@ -885,14 +889,14 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         cr.setDynamicConfigFactory(dcf);
         moduleRegistry.addComponentStateProvider(dcf);
 
-        InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(dcf);
+        InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(evaluator, actions);
         specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);
         authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
 
         ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, settings);
         ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
         diagnosticContext = new DiagnosticContext(settings, threadPool.getThreadContext());
-        sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, diagnosticContext, complianceConfig, 
+        sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, diagnosticContext, complianceConfig, actions,
                 specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry);
         
         InternalUsersDatabase internalUsersDatabase = new InternalUsersDatabase(cr);
@@ -913,11 +917,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         
         AuthenticatingTransportRequestHandler authTransportRequestHandler = new AuthenticatingTransportRequestHandler(cr, settings, auditLog,
                 adminDns, blockedIpRegistry, blockedUserRegistry, threadPool.getThreadContext());
-        
+
         BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
                 scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, dcf, staticSgConfig, cr,
-                protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, 
-                configVarService, configVariableProviders, diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry, internalUsersDatabase);
+                protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, configVarService,
+                configVariableProviders, diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
+                internalUsersDatabase, actions);
 
         sgi = new SearchGuardInterceptor(settings, threadPool, authTransportRequestHandler, auditLog, principalExtractor, interClusterRequestEvaluator, cs,
                 Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), guiceDependencies, diagnosticContext);
@@ -939,9 +944,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(baseDependencies);
 
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
-
+        
         components.addAll(moduleComponents);
-
+        
         sgRestHandler = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool,
                 principalExtractor, evaluator, settings, configPath, diagnosticContext);
 
@@ -1173,8 +1178,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, Collections.emptyList(), Function.identity(),
                     Property.NodeScope));
-
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, false, Property.NodeScope, Property.Filtered));
 
             // system integration
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTORE_SGINDEX_ENABLED, false, Property.NodeScope,

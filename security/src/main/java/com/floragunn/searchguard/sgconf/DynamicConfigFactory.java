@@ -24,7 +24,6 @@ import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 
 
@@ -53,7 +52,6 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
     public void onChange(ConfigMap configMap) {
         SgDynamicConfiguration<ActionGroupsV7> actionGroups = configMap.get(CType.ACTIONGROUPS);
         config = cr.getConfiguration(CType.CONFIG);
-        SgDynamicConfiguration<RoleV7> roles = configMap.get(CType.ROLES);
         SgDynamicConfiguration<RoleMapping> rolesmapping = configMap.get(CType.ROLESMAPPING);
         SgDynamicConfiguration<TenantV7> tenants = configMap.get(CType.TENANTS);
         SgDynamicConfiguration<BlocksV7> blocks = configMap.get(CType.BLOCKS);
@@ -62,7 +60,6 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
             String logmsg = "current config\n"+
             " actionGroups: "+actionGroups.getImplementingClass()+" with "+actionGroups.getCEntries().size()+" entries\n"+
             " config: "+config.getImplementingClass()+" with "+config.getCEntries().size()+" entries\n"+
-            " roles: "+roles.getImplementingClass()+" with "+roles.getCEntries().size()+" entries\n"+
             " rolesmapping: "+rolesmapping.getImplementingClass()+" with "+rolesmapping.getCEntries().size()+" entries\n"+
             " tenants: "+tenants.getImplementingClass()+" with "+tenants.getCEntries().size()+" entries \n"+
             " blocks: "+blocks.getImplementingClass()+" with "+blocks.getCEntries().size()+" entries \n";
@@ -70,9 +67,7 @@ public class DynamicConfigFactory implements Initializable, ConfigurationChangeL
         }
 
         //rebuild v7 Models
-        ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<RoleV7>) roles, rolesmapping,
-                (SgDynamicConfiguration<ActionGroupsV7>) actionGroups, (SgDynamicConfiguration<TenantV7>) tenants,
-                (SgDynamicConfiguration<BlocksV7>) blocks, esSettings);
+        ConfigModel cm = new ConfigModelV7((SgDynamicConfiguration<BlocksV7>) blocks, esSettings);
 
         //notify listeners
 

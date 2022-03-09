@@ -20,6 +20,7 @@ package com.floragunn.searchguard.authz;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
@@ -27,9 +28,9 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchguard.support.Pattern;
-import com.floragunn.searchsupport.util.ImmutableList;
 
 public class Role implements Document<Role>, Hideable {
 
@@ -47,10 +48,11 @@ public class Role implements Document<Role>, Hideable {
         ImmutableList<String> excludeClusterPermissions = ImmutableList
                 .of(vNode.get("exclude_cluster_permissions").asList().withEmptyListAsDefault().ofStrings());
 
-        ImmutableList<Index> indexPermissions = ImmutableList.of(vNode.get("index_permissions").asList().ofObjectsParsedBy(Index::new));
-        ImmutableList<Tenant> tenantPermissions = ImmutableList.of(vNode.get("tenant_permissions").asList().ofObjectsParsedBy(Tenant::new));
+        ImmutableList<Index> indexPermissions = ImmutableList
+                .of(vNode.get("index_permissions").asList().ofObjectsParsedBy((Parser<Index, Parser.Context>) Index::new));
+        ImmutableList<Tenant> tenantPermissions = ImmutableList.of(vNode.get("tenant_permissions").asList().ofObjectsParsedBy((Parser<Tenant, Parser.Context>) Tenant::new));
         ImmutableList<ExcludeIndex> excludeIndexPermissions = ImmutableList
-                .of(vNode.get("exclude_index_permissions").asList().ofObjectsParsedBy(ExcludeIndex::new));
+                .of(vNode.get("exclude_index_permissions").asList().ofObjectsParsedBy((Parser<ExcludeIndex, Parser.Context>) ExcludeIndex::new));
         String description = vNode.get("description").asString();
 
         vNode.checkForUnusedAttributes();
@@ -102,8 +104,9 @@ public class Role implements Document<Role>, Hideable {
 
     public static class Index {
 
-        private final ImmutableList<String> indexPatterns;
-        private final String dls;
+        private final ImmutableList<Template<Pattern>> indexPatterns;
+
+        private final Template<String> dls;
         private final ImmutableList<String> fls;
         private final ImmutableList<String> maskedFields;
         private final ImmutableList<String> allowedActions;
@@ -112,24 +115,34 @@ public class Role implements Document<Role>, Hideable {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-            this.dls = vNode.get("dls").asString();
+            this.dls = vNode.get("dls").asTemplate();
             this.fls = ImmutableList.of(vNode.get("fls").asListOfStrings());
             this.maskedFields = ImmutableList.of(vNode.get("masked_fields").asListOfStrings());
 
-            // Just for validation: TODO Replace any placeholders by empty strings
+            // Just for validation: 
             vNode.get("allowed_actions").by(Pattern::parse);
-            vNode.get("index_patterns").by(Pattern::parse);
+            vNode.get("fls").asList().ofObjectsParsedByString(FlsPattern::new);
+
             this.allowedActions = ImmutableList.of(vNode.get("allowed_actions").asList().withEmptyListAsDefault().ofStrings());
-            this.indexPatterns = ImmutableList.of(vNode.get("index_patterns").asList().withEmptyListAsDefault().ofStrings());
+            this.indexPatterns = ImmutableList.of(vNode.get("index_patterns").asList().withEmptyListAsDefault().ofTemplates(Pattern::create));
 
             validationErrors.throwExceptionForPresentErrors();
         }
 
-        public ImmutableList<String> getIndexPatterns() {
+        public Index(ImmutableList<Template<Pattern>> indexPatterns, Template<String> dls, ImmutableList<String> fls,
+                ImmutableList<String> maskedFields, ImmutableList<String> allowedActions) {
+            this.indexPatterns = indexPatterns;
+            this.dls = dls;
+            this.fls = fls;
+            this.maskedFields = maskedFields;
+            this.allowedActions = allowedActions;
+        }
+
+        public ImmutableList<Template<Pattern>> getIndexPatterns() {
             return indexPatterns;
         }
 
-        public String getDls() {
+        public Template<String> getDls() {
             return dls;
         }
 
@@ -145,46 +158,78 @@ public class Role implements Document<Role>, Hideable {
             return allowedActions;
         }
 
+        static class FlsPattern {
+            boolean negate;
+            Pattern pattern;
+
+            FlsPattern(String string) throws ConfigValidationException {
+                if (string.startsWith("~") || string.startsWith("!")) {
+                    negate = true;
+                    pattern = Pattern.create(string.substring(1));
+                } else {
+                    pattern = Pattern.create(string);
+                }
+            }
+        }
+
     }
 
     public static class Tenant {
 
-        private final Pattern tenantPatterns;
-        private final Pattern allowedActions;
+        private final ImmutableList<Template<Pattern>> tenantPatterns;
+        private final ImmutableList<String> allowedActions;
 
         public Tenant(DocNode docNode, Parser.Context context) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
+            vNode.get("allowed_actions").by(Pattern::parse);
 
-            this.tenantPatterns = vNode.get("tenant_patterns").by(Pattern::parse);
-            this.allowedActions = vNode.get("allowed_actions").by(Pattern::parse);
+            this.tenantPatterns = ImmutableList.of(vNode.get("tenant_patterns").asList().withEmptyListAsDefault().ofTemplates(Pattern::create));
+            this.allowedActions = ImmutableList.of(vNode.get("allowed_actions").asList().withEmptyListAsDefault().ofStrings());
 
             vNode.checkForUnusedAttributes();
             validationErrors.throwExceptionForPresentErrors();
+        }
+
+        public Tenant(ImmutableList<Template<Pattern>> tenantPatterns, ImmutableList<String> allowedActions) {
+            this.tenantPatterns = tenantPatterns;
+            this.allowedActions = allowedActions;
+        }
+        
+        public ImmutableList<Template<Pattern>> getTenantPatterns() {
+            return tenantPatterns;
+        }
+
+        public ImmutableList<String> getAllowedActions() {
+            return allowedActions;
         }
 
     }
 
     public static class ExcludeIndex {
 
-        private final ImmutableList<String> indexPatterns;
+        private final ImmutableList<Template<Pattern>> indexPatterns;
         private final ImmutableList<String> actions;
 
         public ExcludeIndex(DocNode docNode, Parser.Context context) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-            vNode.get("index_patterns").by(Pattern::parse);
             vNode.get("actions").by(Pattern::parse);
 
-            this.indexPatterns = ImmutableList.of(vNode.get("index_patterns").asList().withEmptyListAsDefault().ofStrings());
+            this.indexPatterns = ImmutableList.of(vNode.get("index_patterns").asList().withEmptyListAsDefault().ofTemplates(Pattern::create));
             this.actions = ImmutableList.of(vNode.get("actions").asList().withEmptyListAsDefault().ofStrings());
 
             vNode.checkForUnusedAttributes();
             validationErrors.throwExceptionForPresentErrors();
         }
+        
+        public ExcludeIndex(ImmutableList<Template<Pattern>> indexPatterns, ImmutableList<String> actions) {
+            this.indexPatterns = indexPatterns;
+            this.actions = actions;
+        }
 
-        public ImmutableList<String> getIndexPatterns() {
+        public ImmutableList<Template<Pattern>> getIndexPatterns() {
             return indexPatterns;
         }
 
@@ -207,5 +252,13 @@ public class Role implements Document<Role>, Hideable {
 
     public ImmutableList<ExcludeIndex> getExcludeIndexPermissions() {
         return excludeIndexPermissions;
+    }
+
+    public ImmutableList<Tenant> getTenantPermissions() {
+        return tenantPermissions;
+    }
+
+    public String getDescription() {
+        return description;
     }
 }

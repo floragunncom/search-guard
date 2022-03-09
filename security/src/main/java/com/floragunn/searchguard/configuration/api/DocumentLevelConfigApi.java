@@ -29,6 +29,7 @@ import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.configuration.ConcurrentConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
@@ -39,7 +40,6 @@ import com.floragunn.searchguard.sgconf.impl.SgConfigEntry;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.StandardRequests.IdRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 public abstract class DocumentLevelConfigApi {
     private static final Logger log = LogManager.getLogger(DocumentLevelConfigApi.class);

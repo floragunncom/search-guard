@@ -39,6 +39,7 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
@@ -51,7 +52,6 @@ import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchsupport.util.ImmutableList;
 
 public class SessionModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(SessionModule.class);

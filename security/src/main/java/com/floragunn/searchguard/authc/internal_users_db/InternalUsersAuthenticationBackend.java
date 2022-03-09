@@ -25,13 +25,13 @@ import java.util.concurrent.CompletableFuture;
 
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class InternalUsersAuthenticationBackend implements AuthenticationBackend, UserInformationBackend {
 

@@ -29,8 +29,8 @@ import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.searchsupport.util.ImmutableList;
-import com.floragunn.searchsupport.util.ImmutableSet;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableSet;
 
 public interface Pattern extends Document<Pattern>, Predicate<String> {
 
@@ -87,6 +87,10 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
             return true;
         }
     }
+    
+    public static Pattern wildcard() {
+        return WILDCARD;
+    }
 
     boolean matches(String string);
 
@@ -104,6 +108,8 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
 
     Pattern excluding(Pattern exludingPattern);
 
+    boolean isWildcard();
+    
     static class Constant extends AbstractPattern {
         private final String value;
 
@@ -562,6 +568,11 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
 
             };
         }
+        
+        @Override
+        public boolean isWildcard() {
+            return false;
+        }
 
         @Override
         public Pattern excluding(Pattern exludingPattern) {
@@ -633,6 +644,11 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
         public Pattern excluding(Pattern exludingPattern) {
             return new ExcludingPattern(exludingPattern, this);
         }
+
+        @Override
+        public boolean isWildcard() {
+            return true;
+        }
     };
 
     static Pattern BLANK = new Pattern() {
@@ -690,6 +706,11 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
         @Override
         public Pattern excluding(Pattern exludingPattern) {
             return this;
+        }
+
+        @Override
+        public boolean isWildcard() {
+            return false;
         }
     };
 

@@ -24,7 +24,7 @@ import java.util.Map;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
-import com.floragunn.searchsupport.util.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableMap;
 
 public class IndexMapping implements Document<IndexMapping> {
 
