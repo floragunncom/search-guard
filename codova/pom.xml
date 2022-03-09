@@ -110,7 +110,6 @@
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>fluent-collections</artifactId>
-			<version>master-SNAPSHOT</version>
 		</dependency>
 	</dependencies>
 </project>
