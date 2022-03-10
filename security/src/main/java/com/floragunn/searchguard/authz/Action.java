@@ -76,6 +76,8 @@ public interface Action {
         
         private final Actions actions;
 
+        private final int hashCode;
+        
         public WellKnownAction(String actionName, Scope scope, Class<RequestType> requestType, String requestTypeName,
                 List<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
                 ImmutableMap<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType,
@@ -89,8 +91,33 @@ public interface Action {
             this.resources = resources;
             this.actions = actions;
             this.asImmutableSet = ImmutableSet.of(this);
+            this.hashCode = actionName.hashCode();
         }
 
+        @Override
+        public String toString() {
+            return actionName;
+        }
+        
+        @Override
+        public int hashCode() {
+           return hashCode;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (!(obj instanceof WellKnownAction)) {
+                return false;
+            }
+            WellKnownAction<?,?,?> other = (WellKnownAction<?,?,?>) obj;
+            
+            return other.hashCode == this.hashCode && other.actionName.equals(this.actionName);
+        }
+
+        
         @Override
         public String name() {
             return actionName;
@@ -113,7 +140,8 @@ public interface Action {
 
         @Override
         public ImmutableSet<Action> expandPrivileges(ActionRequest request) {
-            RequestType typedRequest = requestType.cast(request);
+            @SuppressWarnings("unchecked")
+            RequestType typedRequest = requestType != null ? requestType.cast(request) : (RequestType) request;
             
             if (additionalPrivileges.isEmpty() && (requestItems == null || requestItems.additionalPrivilegesByItemType == null)) {
                 return asImmutableSet;
@@ -349,6 +377,7 @@ public interface Action {
             return resources;
         }
 
+       
 
       
 
@@ -390,6 +419,25 @@ public interface Action {
         @Override
         public boolean requiresSpecialProcessing() {
             return false;
+        }
+        
+        @Override
+        public int hashCode() {
+            return actionName.hashCode();
+        }
+        
+        public boolean equals(Object other) {
+            if (other == this) {
+                return true;
+            }
+            
+            if (!(other instanceof OtherAction)) {
+                return false;
+            }
+            
+            OtherAction otherAction = (OtherAction) other;
+            
+            return actionName.equals(otherAction);
         }
     }
 }

@@ -76,7 +76,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     // XXX Hack to trigger early initialization of FeMultiTenancyConfig
     @SuppressWarnings("unused")
     private static final CType<FeMultiTenancyConfig> TYPE = FeMultiTenancyConfig.TYPE;
-    
+
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
 
@@ -114,12 +114,14 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
             SgDynamicConfiguration<TenantV7> tenantConfig = configMap.get(CType.TENANTS);
 
-            tenantNames = ImmutableSet.of(tenantConfig.getCEntries().keySet());
+            ImmutableSet<String> tenantNames = ImmutableSet.of(tenantConfig.getCEntries().keySet());
+
+            this.tenantNames = tenantNames;
 
             if (feMultiTenancyConfig != null) {
                 if (feMultiTenancyConfig.isEnabled()) {
                     enabled = true;
-                    interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, (t) -> User.USER_TENANT.equals(t) || tenantConfig.getCEntry(t) != null);
+                    interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, tenantNames);
                 } else {
                     enabled = false;
                     componentState.setState(State.SUSPENDED, "disabled_by_config");
@@ -128,12 +130,11 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                 enabled = false;
             }
 
-            
             if (log.isDebugEnabled()) {
                 log.debug("Using MT config: " + feMultiTenancyConfig + "\nenabled: " + enabled + "\ninterceptor: " + interceptorImpl);
             }
         });
-        
+
         ReflectionHelper.addLoadedModule(FeMultiTenancyModule.class);
 
         return Arrays.asList(privilegesInterceptor);
@@ -175,9 +176,9 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
         }
 
         @Override
-        public Map<String, Boolean> mapTenants(User user, Set<String> roles) {
+        public Map<String, Boolean> mapTenants(User user, ImmutableSet<String> roles, ActionAuthorization actionAuthorization) {
             if (enabled && interceptorImpl != null) {
-                return interceptorImpl.mapTenants(user, roles);
+                return interceptorImpl.mapTenants(user, roles, actionAuthorization);
             } else {
                 return ImmutableMap.empty();
             }
@@ -206,7 +207,8 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
-        return ImmutableList.of(new TenantInfoAction(settings, restController, this, threadPool, clusterService, adminDns), FeMultiTenancyConfigApi.REST_API);
+        return ImmutableList.of(new TenantInfoAction(settings, restController, this, threadPool, clusterService, adminDns),
+                FeMultiTenancyConfigApi.REST_API);
     }
 
     @Override

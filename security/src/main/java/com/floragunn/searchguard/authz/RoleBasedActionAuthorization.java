@@ -931,7 +931,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                             return true;
                         }
                     } catch (ExpressionEvaluationException e) {
-                        throw new PrivilegesEvaluationException("Invalid index pattern: " + patternTemplate, e);
+                        throw new PrivilegesEvaluationException("Error while evaluating dynamic index pattern: " + patternTemplate, e);
                     }
                 }
             }

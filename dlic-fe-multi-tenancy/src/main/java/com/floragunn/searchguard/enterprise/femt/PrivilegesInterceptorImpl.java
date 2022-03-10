@@ -20,9 +20,9 @@ import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.Interce
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -77,10 +77,10 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     private final String kibanaIndexNamePrefix;
     private final Pattern versionedKibanaIndexPattern;
     private final Pattern kibanaIndexPatternWithTenant;
-    private final Predicate<String> isTenantValid;
+    private final ImmutableSet<String> tenantNames;
     private final boolean enabled;
 
-    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, Predicate<String> isTenantValid) {
+    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, ImmutableSet<String> tenantNames) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
@@ -89,13 +89,13 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
                 .compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+)?(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)");
         this.kibanaIndexPatternWithTenant = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+(_[0-9]{3})?)");
 
-        this.isTenantValid = isTenantValid;
+        this.tenantNames = tenantNames;
     }
 
     private boolean isTenantAllowed(ActionRequest request, Action action, User user, String requestedTenant, ImmutableSet<String> mappedRoles,
             ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
 
-        if (!isTenantValid.test(requestedTenant)) {
+        if (!isTenantValid(requestedTenant)) {
             log.warn("Invalid tenant: " + requestedTenant + "; user: " + user);
 
             return false;
@@ -104,7 +104,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         if (requestedTenant.equals(USER_TENANT)) {
             return true;
         }
-        
+
         boolean hasReadPermission = actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, KIBANA_ALL_SAVED_OBJECTS_READ, null);
         boolean hasWritePermission = actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, KIBANA_ALL_SAVED_OBJECTS_WRITE,
                 null);
@@ -478,9 +478,39 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     }
 
     @Override
-    public Map<String, Boolean> mapTenants(User user, Set<String> roles) {
-        // TODO Auto-generated method stub
-        return Collections.emptyMap();
+    public Map<String, Boolean> mapTenants(User user, ImmutableSet<String> roles, ActionAuthorization actionAuthorization) {
+        if (user == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, Boolean> result = new HashMap<>(roles.size());
+        result.put(user.getName(), true);
+
+        for (String tenant : this.tenantNames) {
+            try {
+                boolean hasReadPermission = actionAuthorization.hasTenantPermission(user, tenant, roles, KIBANA_ALL_SAVED_OBJECTS_READ, null);
+                boolean hasWritePermission = actionAuthorization.hasTenantPermission(user, tenant, roles, KIBANA_ALL_SAVED_OBJECTS_WRITE, null);
+
+                if (hasWritePermission) {
+                    result.put(tenant, true);
+                } else if (hasReadPermission) {
+                    result.put(tenant, false);
+                }
+            } catch (PrivilegesEvaluationException e) {
+                log.error("Error while evaluating privileges for " + user + " " + tenant, e);
+            }
+        }
+
+        if (!result.containsKey("SGS_GLOBAL_TENANT")) {
+            result.put("SGS_GLOBAL_TENANT", true);
+        }
+
+        return Collections.unmodifiableMap(result);
+
+    }
+
+    private boolean isTenantValid(String tenant) {
+        return User.USER_TENANT.equals(tenant) || tenantNames.contains(tenant);
     }
 
 }

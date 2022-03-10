@@ -65,7 +65,7 @@ public class Template<T> {
 
                     PipeExpression.Parser pipeExpressionParser = new PipeExpression.Parser(string, openBracket + 2);
                     tokens.with(new Token.Placeholder(pipeExpressionParser.parse()));
-                    i = pipeExpressionParser.getParsePosition() + 1;
+                    i = pipeExpressionParser.getParsePosition();
                 }
             }
         } else {
@@ -177,6 +177,11 @@ public class Template<T> {
             String render(AttributeSource attributeSource, Function<String, String> stringEscapeFunction) {
                 return string;
             }
+            
+            @Override
+            public String toString() {
+                return string;
+            }
         }
 
         static class Placeholder extends Token {
@@ -208,6 +213,11 @@ public class Template<T> {
                 return stringEscapeFunction.apply((String) value);
             }
 
+            @Override
+            public String toString() {
+                return pipeExpression.toString();
+            }
+            
             private static String toQuotedCommaSeparatedString(Collection<?> values) {
                 return Joiner.on(',').join(Iterables.transform(values, s -> '"' + String.valueOf(s).replaceAll("\"", "\\\"") + '"'));
             }

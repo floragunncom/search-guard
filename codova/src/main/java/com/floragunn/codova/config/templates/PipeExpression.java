@@ -59,7 +59,7 @@ public class PipeExpression {
 
         return value;
     }
-    
+
     public Object evaluate(AttributeSource attributeSource) {
         Object value = attributeSource.getAttributeValue(attributeName);
 
@@ -209,7 +209,7 @@ public class PipeExpression {
 
             }
 
-            String source = string.substring(start, i);
+            String source = string.substring(start, i - 1);
 
             return new PipeExpression(attributeName, functions.build(), source);
         }
@@ -227,7 +227,7 @@ public class PipeExpression {
                 char c = string.charAt(i);
 
                 if (!Character.isLetter(c) && !Character.isDigit(c) && c != '.' && c != '_') {
-                    String attributeName = string.substring(openBracket + 2, i);
+                    String attributeName = string.substring(openBracket, i);
 
                     return attributeName;
                 }

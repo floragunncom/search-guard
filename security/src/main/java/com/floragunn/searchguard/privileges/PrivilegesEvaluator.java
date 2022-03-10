@@ -650,7 +650,8 @@ public class PrivilegesEvaluator implements DCFListener {
      * Only used for authinfo REST API
      */
     public Map<String, Boolean> mapTenants(User user, Set<String> roles) {
-        return privilegesInterceptor != null ? privilegesInterceptor.mapTenants(user, roles) : ImmutableMap.empty();
+        return privilegesInterceptor != null ? privilegesInterceptor.mapTenants(user, ImmutableSet.of(roles), actionAuthorization)
+                : ImmutableMap.empty();
     }
 
     public Map<String, Boolean> evaluateClusterAndTenantPrivileges(User user, TransportAddress caller, Collection<String> privilegesAskedFor) {
