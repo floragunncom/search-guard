@@ -20,6 +20,7 @@ import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.Interce
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -474,6 +475,12 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     @Override
     public String getKibanaServerUser() {
         return kibanaServerUsername;
+    }
+
+    @Override
+    public Map<String, Boolean> mapTenants(User user, Set<String> roles) {
+        // TODO Auto-generated method stub
+        return Collections.emptyMap();
     }
 
 }

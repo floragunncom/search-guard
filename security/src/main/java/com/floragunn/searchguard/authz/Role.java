@@ -30,9 +30,10 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.sgconf.Hideable;
+import com.floragunn.searchguard.sgconf.StaticDefinable;
 import com.floragunn.searchguard.support.Pattern;
 
-public class Role implements Document<Role>, Hideable {
+public class Role implements Document<Role>, Hideable, StaticDefinable {
 
     public static ValidationResult<Role> parse(DocNode docNode, Parser.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -40,6 +41,7 @@ public class Role implements Document<Role>, Hideable {
 
         boolean reserved = vNode.get("reserved").withDefault(false).asBoolean();
         boolean hidden = vNode.get("hidden").withDefault(false).asBoolean();
+        boolean isStatic = vNode.get("static").withDefault(false).asBoolean();
 
         // Just for validation:
         vNode.get("cluster_permissions").by(Pattern::parse);
@@ -50,15 +52,16 @@ public class Role implements Document<Role>, Hideable {
 
         ImmutableList<Index> indexPermissions = ImmutableList
                 .of(vNode.get("index_permissions").asList().ofObjectsParsedBy((Parser<Index, Parser.Context>) Index::new));
-        ImmutableList<Tenant> tenantPermissions = ImmutableList.of(vNode.get("tenant_permissions").asList().ofObjectsParsedBy((Parser<Tenant, Parser.Context>) Tenant::new));
+        ImmutableList<Tenant> tenantPermissions = ImmutableList
+                .of(vNode.get("tenant_permissions").asList().ofObjectsParsedBy((Parser<Tenant, Parser.Context>) Tenant::new));
         ImmutableList<ExcludeIndex> excludeIndexPermissions = ImmutableList
                 .of(vNode.get("exclude_index_permissions").asList().ofObjectsParsedBy((Parser<ExcludeIndex, Parser.Context>) ExcludeIndex::new));
         String description = vNode.get("description").asString();
 
         vNode.checkForUnusedAttributes();
 
-        return new ValidationResult<Role>(new Role(docNode, reserved, hidden, description, clusterPermissions, indexPermissions, tenantPermissions,
-                excludeClusterPermissions, excludeIndexPermissions), validationErrors);
+        return new ValidationResult<Role>(new Role(docNode, reserved, hidden, isStatic, description, clusterPermissions, indexPermissions,
+                tenantPermissions, excludeClusterPermissions, excludeIndexPermissions), validationErrors);
     }
 
     private static final Logger log = LogManager.getLogger(RoleMapping.class);
@@ -66,6 +69,7 @@ public class Role implements Document<Role>, Hideable {
     private final DocNode source;
     private final boolean reserved;
     private final boolean hidden;
+    private final boolean isStatic;
 
     private final String description;
     private final ImmutableList<String> clusterPermissions;
@@ -74,12 +78,13 @@ public class Role implements Document<Role>, Hideable {
     private final ImmutableList<String> excludeClusterPermissions;
     private final ImmutableList<ExcludeIndex> excludeIndexPermissions;
 
-    public Role(DocNode source, boolean reserved, boolean hidden, String description, ImmutableList<String> clusterPermissions,
+    public Role(DocNode source, boolean reserved, boolean hidden, boolean isStatic, String description, ImmutableList<String> clusterPermissions,
             ImmutableList<Index> indexPermissions, ImmutableList<Tenant> tenantPermissions, ImmutableList<String> excludeClusterPermissions,
             ImmutableList<ExcludeIndex> excludeIndexPermissions) {
         super();
         this.source = source;
         this.reserved = reserved;
+        this.isStatic = isStatic;
         this.hidden = hidden;
         this.description = description;
         this.clusterPermissions = clusterPermissions;
@@ -195,7 +200,7 @@ public class Role implements Document<Role>, Hideable {
             this.tenantPatterns = tenantPatterns;
             this.allowedActions = allowedActions;
         }
-        
+
         public ImmutableList<Template<Pattern>> getTenantPatterns() {
             return tenantPatterns;
         }
@@ -223,7 +228,7 @@ public class Role implements Document<Role>, Hideable {
             vNode.checkForUnusedAttributes();
             validationErrors.throwExceptionForPresentErrors();
         }
-        
+
         public ExcludeIndex(ImmutableList<Template<Pattern>> indexPatterns, ImmutableList<String> actions) {
             this.indexPatterns = indexPatterns;
             this.actions = actions;
@@ -260,5 +265,10 @@ public class Role implements Document<Role>, Hideable {
 
     public String getDescription() {
         return description;
+    }
+
+    @Override
+    public boolean isStatic() {
+        return isStatic;
     }
 }

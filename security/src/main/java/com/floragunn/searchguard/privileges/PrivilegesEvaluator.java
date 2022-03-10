@@ -20,7 +20,6 @@ package com.floragunn.searchguard.privileges;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -60,6 +59,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -82,12 +82,10 @@ import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult.Status;
 import com.floragunn.searchguard.sgconf.ActionGroups;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
-import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 
@@ -194,7 +192,7 @@ public class PrivilegesEvaluator implements DCFListener {
 
                 actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions,
                         clusterService.state().metadata().indices().keySet(), tenants.getCEntries().keySet());
-                
+
                 documentAuthorization = new RoleBasedDocumentAuthorization(roles, actionGroups, actions,
                         clusterService.state().metadata().indices().keySet());
 
@@ -211,9 +209,9 @@ public class PrivilegesEvaluator implements DCFListener {
                 if (actionAuthorization != null) {
                     actionAuthorization.updateIndices(event.state().metadata().indices().keySet());
                 }
-                
+
                 DocumentAuthorization documentAuthorization = PrivilegesEvaluator.this.documentAuthorization;
-                
+
                 if (documentAuthorization != null) {
                     documentAuthorization.updateIndices(event.state().metadata().indices().keySet());
                 }
@@ -226,12 +224,9 @@ public class PrivilegesEvaluator implements DCFListener {
         this.configModel = cm;
     }
 
-    private SgRoles getSgRoles(Set<String> roles) {
-        return configModel.getSgRoles().filter(roles);
-    }
-
     public boolean isInitialized() {
-        return configModel != null && configModel.getSgRoles() != null;
+        // TODO
+        return configModel != null;
     }
 
     public PrivilegesEvaluatorResponse evaluate(User user, String action0, ActionRequest request, Task task,
@@ -651,13 +646,11 @@ public class PrivilegesEvaluator implements DCFListener {
         return action0.startsWith("cluster:admin:searchguard:tenant:");
     }
 
-
     /**
      * Only used for authinfo REST API
      */
     public Map<String, Boolean> mapTenants(User user, Set<String> roles) {
-        SgRoles sgRoles = this.getSgRoles(roles);
-        return sgRoles.mapTenants(user, this.configModel.getAllConfiguredTenantNames());
+        return privilegesInterceptor != null ? privilegesInterceptor.mapTenants(user, roles) : ImmutableMap.empty();
     }
 
     public Map<String, Boolean> evaluateClusterAndTenantPrivileges(User user, TransportAddress caller, Collection<String> privilegesAskedFor) {
@@ -668,34 +661,45 @@ public class PrivilegesEvaluator implements DCFListener {
 
         // Note: This does not take authtokens into account yet. However, as this is only an API for Kibana and Kibana does not use authtokens, 
         // this does not really matter        
-        Set<String> mappedRoles = mapSgRoles(user, caller);
-        SgRoles sgRoles = getSgRoles(mappedRoles);
+        ImmutableSet<String> mappedRoles = mapSgRoles(user, caller);
         String requestedTenant = getRequestedTenant(user);
-        Set<String> privilegesGranted = new HashSet<>();
+        Map<String, Boolean> result = new HashMap<>();
 
-        if (configModel.isTenantValid(requestedTenant)) {
-            privilegesGranted.addAll(sgRoles.getTenantPermissions(user, requestedTenant).getPermissions());
-        } else {
+        boolean tenantValid = isTenantValid(requestedTenant);
+
+        if (!tenantValid) {
             log.info("Invalid tenant: " + requestedTenant + "; user: " + user);
         }
 
-        privilegesGranted.addAll(sgRoles.getClusterPermissions(user));
-
-        return matchPrivileges(privilegesGranted, privilegesAskedFor);
-    }
-
-    private Map<String, Boolean> matchPrivileges(Set<String> privilegesGranted, Collection<String> privilegesAskedFor) {
-        log.debug(() -> "Check " + privilegesGranted + " against " + privilegesAskedFor);
-        final Map<String, Boolean> result = new HashMap<>();
         for (String privilegeAskedFor : privilegesAskedFor) {
+            Action action = actions.get(privilegeAskedFor);
 
-            if (privilegesGranted == null || privilegesGranted.isEmpty()) {
+            try {
+                if (action.isTenantPrivilege()) {
+                    if (tenantValid) {
+                        result.put(privilegeAskedFor, actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, action, null));
+                    } else {
+                        result.put(privilegeAskedFor, false);
+                    }
+                } else {
+                    result.put(privilegeAskedFor, actionAuthorization.hasClusterPermission(user, mappedRoles, action));
+                }
+            } catch (PrivilegesEvaluationException e) {
+                log.error("Error while evaluating " + privilegeAskedFor + " for " + user, e);
                 result.put(privilegeAskedFor, false);
-            } else {
-                result.put(privilegeAskedFor, WildcardMatcher.matchAny(privilegesGranted, privilegeAskedFor));
             }
         }
-        return Collections.unmodifiableMap(result);
+
+        return result;
+    }
+
+    private boolean isTenantValid(String requestedTenant) {
+
+        if ("SGS_GLOBAL_TENANT".equals(requestedTenant) || ConfigModel.USER_TENANT.equals(requestedTenant)) {
+            return true;
+        }
+
+        return getAllConfiguredTenantNames().contains(requestedTenant);
     }
 
     private boolean hasTenantPermission(User user, ImmutableSet<String> mappedRoles, Action action, ActionAuthorization actionAuthorization,
@@ -739,11 +743,12 @@ public class PrivilegesEvaluator implements DCFListener {
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
             actionAuthorization = specialPrivilegesEvaluationContext.getActionAuthorization();
         }
-        
+
         return actionAuthorization.hasClusterPermission(user, mappedRoles, actions.get(action));
     }
 
-    public boolean hasClusterPermissions(User user, List<String> permissions, TransportAddress callerTransportAddress) throws PrivilegesEvaluationException {
+    public boolean hasClusterPermissions(User user, List<String> permissions, TransportAddress callerTransportAddress)
+            throws PrivilegesEvaluationException {
         if (permissions.isEmpty()) {
             return true;
         }

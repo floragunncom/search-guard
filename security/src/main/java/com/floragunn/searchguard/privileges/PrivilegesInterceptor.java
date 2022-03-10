@@ -17,6 +17,9 @@
 
 package com.floragunn.searchguard.privileges;
 
+import java.util.Map;
+import java.util.Set;
+
 import org.elasticsearch.action.ActionRequest;
 
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -29,6 +32,8 @@ public interface PrivilegesInterceptor {
 
     InterceptionResult replaceKibanaIndex(ActionRequest request, Action action, User user, ResolvedIndices requestedResolved,
             ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException;
+    
+    Map<String, Boolean> mapTenants(User user, Set<String> roles);
 
     boolean isEnabled();
 

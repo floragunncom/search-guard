@@ -37,7 +37,6 @@ import com.floragunn.searchguard.authz.RoleBasedDocumentAuthorization;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -47,7 +46,7 @@ import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
-public class InternalAuthTokenProvider implements DCFListener {
+public class InternalAuthTokenProvider {
 
     public static final String TOKEN_HEADER = ConfigConstants.SG_CONFIG_PREFIX + "internal_auth_token";
     public static final String AUDIENCE_HEADER = ConfigConstants.SG_CONFIG_PREFIX + "internal_auth_token_audience";
@@ -146,11 +145,6 @@ public class InternalAuthTokenProvider implements DCFListener {
         }
     }
 
-    @Override
-    public void onChanged(ConfigModel configModel) {
-        this.configModel = configModel;
-        this.sgRoles = configModel.getSgRoles();
-    }
 
     void initJwtProducer() {
         try {

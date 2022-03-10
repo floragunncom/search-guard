@@ -664,7 +664,9 @@ public class Actions {
             }
 
             return new Action.WellKnownAction<RequestType, RequestItem, RequestItemType>(actionName, scope, requestType, requestTypeName,
-                    additionalPrivileges, ImmutableMap.of(additionalPrivilegesByItemType), requestItems, resources, Actions.this);
+                    additionalPrivileges,
+                    additionalPrivilegesByItemType != null ? ImmutableMap.of(additionalPrivilegesByItemType) : ImmutableMap.empty(), requestItems,
+                    resources, Actions.this);
         }
 
     }

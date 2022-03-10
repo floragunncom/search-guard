@@ -168,16 +168,6 @@ public class ConfigModelV7 extends ConfigModel {
     public List<ClientBlockRegistry<IPAddress>> getBlockedNetmasks() {
         return Collections.singletonList(blockeNetmasks);
     }
-
-    @Override
-    public boolean isTenantValid(String requestedTenant) {
-
-        if ("SGS_GLOBAL_TENANT".equals(requestedTenant) || ConfigModel.USER_TENANT.equals(requestedTenant)) {
-            return true;
-        }
-
-        return getAllConfiguredTenantNames().contains(requestedTenant);
-    }
   
     @Override
     public Set<String> mapSgRoles(User user, TransportAddress caller) {

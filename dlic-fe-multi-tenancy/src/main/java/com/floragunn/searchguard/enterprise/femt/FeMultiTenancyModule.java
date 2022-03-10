@@ -17,6 +17,8 @@ package com.floragunn.searchguard.enterprise.femt;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
@@ -37,6 +39,7 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
@@ -168,6 +171,15 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                 return interceptorImpl.getKibanaServerUser();
             } else {
                 return "kibanaserver";
+            }
+        }
+
+        @Override
+        public Map<String, Boolean> mapTenants(User user, Set<String> roles) {
+            if (enabled && interceptorImpl != null) {
+                return interceptorImpl.mapTenants(user, roles);
+            } else {
+                return ImmutableMap.empty();
             }
         }
 
