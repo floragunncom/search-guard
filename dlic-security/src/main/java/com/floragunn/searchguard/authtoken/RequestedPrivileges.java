@@ -173,7 +173,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         ImmutableList<Role.Tenant> tenantPermissions = this.tenantPermissions.map((p) -> p.toRoleTenant());
         ImmutableList<Role.ExcludeIndex> excludeIndexPermissions = this.excludedIndexPermissions.map((p) -> p.toRoleExcludeIndex());
 
-        Role role = new Role(null, false, false, "requested privileges", clusterPermissions, indexPermissions, tenantPermissions,
+        Role role = new Role(null, false, false, false, "requested privileges", clusterPermissions, indexPermissions, tenantPermissions,
                 excludedClusterPermissions, excludeIndexPermissions);
 
         roles.putCEntry("_requested_privileges", role);
