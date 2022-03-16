@@ -595,7 +595,7 @@ public class PrivilegesEvaluatorTest {
             HttpResponse httpResponse = restClient.get("*/_search");
 
             Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
-         }
+        }
     }
 
     @Test

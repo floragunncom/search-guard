@@ -422,6 +422,11 @@ public interface Action {
         }
         
         @Override
+        public String toString() {
+            return actionName;
+        }
+        
+        @Override
         public int hashCode() {
             return actionName.hashCode();
         }
@@ -437,7 +442,7 @@ public interface Action {
             
             OtherAction otherAction = (OtherAction) other;
             
-            return actionName.equals(otherAction);
+            return actionName.equals(otherAction.actionName);
         }
     }
 }

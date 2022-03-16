@@ -33,9 +33,7 @@ public abstract class ConfigModel {
     public static final String USER_TENANT = "__user__";
 
     public abstract Set<String> mapSgRoles(User user, TransportAddress caller);
-    
-    public abstract Set<String> getAllConfiguredTenantNames();
-        
+            
     public abstract ActionGroups getActionGroups();
 
     public abstract List<ClientBlockRegistry<InetAddress>> getBlockIpAddresses();

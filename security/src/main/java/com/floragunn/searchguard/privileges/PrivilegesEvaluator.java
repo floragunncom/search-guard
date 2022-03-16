@@ -81,7 +81,6 @@ import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequ
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult.Status;
 import com.floragunn.searchguard.sgconf.ActionGroups;
 import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
@@ -89,7 +88,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 
-public class PrivilegesEvaluator implements DCFListener {
+public class PrivilegesEvaluator {
 
     public static final Setting<Boolean> INDEX_REDUCTION_FAST_PATH = Setting.boolSetting("searchguard.privilege_evaluation.index_reduction_fast_path",
             true, Property.NodeScope, Property.Filtered);
@@ -108,7 +107,6 @@ public class PrivilegesEvaluator implements DCFListener {
     private final boolean checkSnapshotRestoreWritePrivileges;
 
     private final ClusterInfoHolder clusterInfoHolder;
-    private ConfigModel configModel;
     private final ActionRequestIntrospector actionRequestIntrospector;
     private final SnapshotRestoreEvaluator snapshotRestoreEvaluator;
     private final SearchGuardIndexAccessEvaluator sgIndexAccessEvaluator;
@@ -219,14 +217,8 @@ public class PrivilegesEvaluator implements DCFListener {
         });
     }
 
-    @Override
-    public void onChanged(ConfigModel cm) {
-        this.configModel = cm;
-    }
-
     public boolean isInitialized() {
-        // TODO
-        return configModel != null;
+        return actionAuthorization != null;
     }
 
     public PrivilegesEvaluatorResponse evaluate(User user, String action0, ActionRequest request, Task task,
@@ -259,15 +251,20 @@ public class PrivilegesEvaluator implements DCFListener {
 
         TransportAddress caller;
         ImmutableSet<String> mappedRoles;
+        ActionAuthorization actionAuthorization;
+        DocumentAuthorization documentAuthorization;
 
         if (specialPrivilegesEvaluationContext == null) {
             caller = Objects.requireNonNull((TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
             mappedRoles = mapSgRoles(user, caller);
+            actionAuthorization = this.actionAuthorization;
+            documentAuthorization = this.documentAuthorization;
         } else {
             caller = specialPrivilegesEvaluationContext.getCaller() != null ? specialPrivilegesEvaluationContext.getCaller()
                     : (TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
-            // TODO  sgRoles = specialPrivilegesEvaluationContext.getSgRoles();
+            actionAuthorization = specialPrivilegesEvaluationContext.getActionAuthorization();
+            documentAuthorization = specialPrivilegesEvaluationContext.getDocumentAuthorization();
         }
 
         try {
@@ -322,12 +319,8 @@ public class PrivilegesEvaluator implements DCFListener {
 
             PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, resolver, clusterService);
 
-            if (enterpriseModulesEnabled) {
-                DocumentAuthorization documentAuthorization = this.documentAuthorization;
-
-                if (documentAuthorization != null) {
-                    presponse.evaluatedDlsFlsConfig = documentAuthorization.getDlsFlsConfig(user, mappedRoles);
-                }
+            if (enterpriseModulesEnabled && documentAuthorization != null) {
+                presponse.evaluatedDlsFlsConfig = documentAuthorization.getDlsFlsConfig(user, mappedRoles);
             }
 
             if (action.isClusterPrivilege()) {
@@ -342,7 +335,7 @@ public class PrivilegesEvaluator implements DCFListener {
                 if (request instanceof RestoreSnapshotRequest && checkSnapshotRestoreWritePrivileges) {
                     // Evaluate additional index privileges                
                     return evaluateIndexPrivileges(user, action0, action.expandPrivileges(request), request, task, requestInfo, mappedRoles,
-                            specialPrivilegesEvaluationContext, presponse, context);
+                            actionAuthorization, specialPrivilegesEvaluationContext, presponse, context);
                 }
 
                 if (privilegesInterceptor != null) {
@@ -408,7 +401,7 @@ public class PrivilegesEvaluator implements DCFListener {
             }
 
             return evaluateIndexPrivileges(user, action0, allIndexPermsRequired, request, task, requestInfo, mappedRoles,
-                    specialPrivilegesEvaluationContext, presponse, context);
+                    actionAuthorization, specialPrivilegesEvaluationContext, presponse, context);
         } catch (PrivilegesEvaluationException e) {
             log.error("Error while evaluating " + action0 + " (" + request.getClass().getName() + ")", e);
             presponse.allowed = false;
@@ -418,8 +411,8 @@ public class PrivilegesEvaluator implements DCFListener {
 
     private PrivilegesEvaluatorResponse evaluateIndexPrivileges(User user, String action0, ImmutableSet<Action> allIndexPermsRequired,
             ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles,
-            SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext, PrivilegesEvaluatorResponse presponse,
-            PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
+            ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
+            PrivilegesEvaluatorResponse presponse, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
 
         if (actionRequestInfo.getResolvedIndices().containsOnlyRemoteIndices()) {
             log.debug(

@@ -881,10 +881,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry,
                 enterpriseModulesEnabled);
 
-        final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, settings, configPath, localClient, threadPool, cih, moduleRegistry, configVarService);
-                
-        dcf.registerDCFListener(evaluator);
-       
+        final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, settings, configPath, localClient, threadPool, cih, moduleRegistry, configVarService);       
 
         cr.setDynamicConfigFactory(dcf);
         moduleRegistry.addComponentStateProvider(dcf);

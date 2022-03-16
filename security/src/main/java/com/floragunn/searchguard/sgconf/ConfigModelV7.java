@@ -41,7 +41,6 @@ import com.floragunn.searchguard.authc.blocking.WildcardVerdictBasedBlockRegistr
 import com.floragunn.searchguard.authz.RoleMapping;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
@@ -55,9 +54,7 @@ public class ConfigModelV7 extends ConfigModel {
 
     private ConfigConstants.RolesMappingResolution rolesMappingResolution;
     private ActionGroups actionGroups;
-    private SgRoles sgRoles;
     private RoleMapping.InvertedIndex invertedRoleMappings;
-    private SgDynamicConfiguration<TenantV7> tenants;
     private ClientBlockRegistry<InetAddress> blockedIpAddresses;
     private ClientBlockRegistry<String> blockedUsers;
     private ClientBlockRegistry<IPAddress> blockeNetmasks;
@@ -140,14 +137,6 @@ public class ConfigModelV7 extends ConfigModel {
             }
         }
         return new Tuple<>(allows, disallows);
-    }
-
-    public Set<String> getAllConfiguredTenantNames() {
-        return Collections.unmodifiableSet(tenants.getCEntries().keySet());
-    }
-
-    public SgRoles getSgRoles() {
-        return sgRoles;
     }
 
     public ActionGroups getActionGroups() {

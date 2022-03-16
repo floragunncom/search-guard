@@ -300,7 +300,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
                     for (String permission : permissions) {
                         if (Pattern.isConstant(permission)) {
-                            if (!excludedPattern.matches(permission)) {
+                            if (!excludedPattern.matches(permission) && isActionName(permission)) {
                                 actionToRoles.get(actions.get(permission)).add(roleName);
                             }
                         } else {
@@ -965,5 +965,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
     public ActionGroups getActionGroups() {
         return actionGroups;
     }
+    
+    
+    private static boolean isActionName(String actionName) {
+        return actionName.indexOf(':') != -1;
+    }
+
 
 }

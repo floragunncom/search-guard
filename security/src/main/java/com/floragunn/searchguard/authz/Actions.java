@@ -159,7 +159,9 @@ import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
+import com.floragunn.searchguard.authc.LoginPrivileges;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
+import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.authz.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.Action.WellKnownAction.AdditionalPrivileges;
 import com.floragunn.searchguard.authz.Action.WellKnownAction.NewResource;
@@ -361,6 +363,8 @@ public class Actions {
         cluster(InternalUsersConfigApi.DeleteAction.INSTANCE);
         cluster(InternalUsersConfigApi.PutAction.INSTANCE);
         cluster(InternalUsersConfigApi.PatchAction.INSTANCE);
+        cluster(GetActivatedFrontendConfigAction.INSTANCE);
+        cluster(LoginPrivileges.SESSION);
 
         open(LicenseInfoAction.INSTANCE);
         open(WhoAmIAction.INSTANCE);
