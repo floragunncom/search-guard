@@ -248,6 +248,11 @@ public class PrivilegesEvaluator {
         }
 
         Action action = actions.get(action0);
+        
+        if (action.isOpen()) {
+            presponse.allowed = true;
+            return presponse;            
+        }
 
         TransportAddress caller;
         ImmutableSet<String> mappedRoles;
@@ -409,7 +414,7 @@ public class PrivilegesEvaluator {
         }
     }
 
-    private PrivilegesEvaluatorResponse evaluateIndexPrivileges(User user, String action0, ImmutableSet<Action> allIndexPermsRequired,
+    private PrivilegesEvaluatorResponse evaluateIndexPrivileges(User user, String action0, ImmutableSet<Action> requiredPermissions,
             ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles,
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
             PrivilegesEvaluatorResponse presponse, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
@@ -423,8 +428,6 @@ public class PrivilegesEvaluator {
         }
 
         presponse.missingPrivileges.clear();
-        // TODO
-        //  presponse.missingPrivileges.addAll(allIndexPermsRequired);
 
         if (log.isDebugEnabled()) {
             log.debug("requested resolved indextypes: {}", actionRequestInfo);
@@ -499,6 +502,25 @@ public class PrivilegesEvaluator {
             context.setResolveLocalAll(false);
         }
 
+        ImmutableSet<Action> allIndexPermsRequired = requiredPermissions.matching(Action::isIndexPrivilege);
+        ImmutableSet<Action> clusterPermissions = requiredPermissions.matching(Action::isClusterPrivilege);
+        
+        if (!clusterPermissions.isEmpty()) {
+            for (Action clusterPermission : clusterPermissions) {
+                if (!actionAuthorization.hasClusterPermission(user, mappedRoles, clusterPermission)) {
+                    if (log.isEnabled(Level.INFO)) {
+                        log.info("### No cluster privileges for " + clusterPermission + " (" + request.getClass().getName() + ")\nUser: " + user
+                                + "\nResolved Indices: " + actionRequestInfo.getResolvedIndices() + "\nUnresolved: "
+                                + actionRequestInfo.getUnresolved() + "\nRoles: " + mappedRoles + "\nRequired Privileges: " + allIndexPermsRequired);
+                    }
+
+                    presponse.missingPrivileges.add(clusterPermission.name());
+                    presponse.allowed = false;
+                    return presponse;
+                }
+            }
+        }
+        
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(user, mappedRoles, allIndexPermsRequired,
                 actionRequestInfo.getResolvedIndices(), context);
 
@@ -551,6 +573,7 @@ public class PrivilegesEvaluator {
             }
 
             presponse.allowed = false;
+            presponse.missingPrivileges.addAll(requiredPermissions.map(Action::name));
             return presponse;
         }
 

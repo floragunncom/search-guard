@@ -39,9 +39,13 @@ public interface Action {
 
     String name();
 
+    boolean isIndexPrivilege();
+    
     boolean isClusterPrivilege();
 
     boolean isTenantPrivilege();
+    
+    boolean isOpen();
     
     ImmutableSet<Action> expandPrivileges(ActionRequest request);
     
@@ -124,6 +128,11 @@ public interface Action {
         }
 
         @Override
+        public boolean isIndexPrivilege() {
+            return scope == Scope.INDEX;
+        }
+        
+        @Override
         public boolean isClusterPrivilege() {
             return scope == Scope.CLUSTER;
         }
@@ -133,6 +142,11 @@ public interface Action {
             return scope == Scope.TENANT;
         }
 
+        @Override
+        public boolean isOpen() {
+            return scope == Scope.OPEN;
+        }
+        
         @Override
         public boolean requiresSpecialProcessing() {
             return resources != null && (resources.createsResource != null || !resources.usesResources.isEmpty());
@@ -402,6 +416,11 @@ public interface Action {
         }
 
         @Override
+        public boolean isIndexPrivilege() {
+            return scope == Scope.INDEX;
+        }
+        
+        @Override
         public boolean isClusterPrivilege() {
             return scope == Scope.CLUSTER;
         }
@@ -409,6 +428,11 @@ public interface Action {
         @Override
         public boolean isTenantPrivilege() {
             return scope == Scope.TENANT;
+        }
+        
+        @Override
+        public boolean isOpen() {
+            return scope == Scope.OPEN;
         }
 
         @Override

@@ -27,6 +27,8 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
+import com.floragunn.codova.documents.Document;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.Actions;
@@ -34,9 +36,11 @@ import com.floragunn.searchguard.authz.DocumentAuthorization;
 import com.floragunn.searchguard.authz.Role;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.RoleBasedDocumentAuthorization;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
-import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -61,12 +65,19 @@ public class InternalAuthTokenProvider {
     private JoseJwtProducer jwtProducer;
     private JwsSignatureVerifier jwsSignatureVerifier;
     private JweDecryptionProvider jweDecryptionProvider;
-    private ConfigModel configModel;
-    private SgRoles sgRoles;
+    private volatile SgDynamicConfiguration<Role> roles;
 
-    public InternalAuthTokenProvider(PrivilegesEvaluator privilegesEvaluator, Actions actions) {
+    public InternalAuthTokenProvider(PrivilegesEvaluator privilegesEvaluator, Actions actions, ConfigurationRepository configurationRepository) {
         this.privilegesEvaluator = privilegesEvaluator;
         this.actions = actions;
+        
+        configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
+
+            @Override
+            public void onChange(ConfigMap configMap) {             
+                InternalAuthTokenProvider.this.roles = configMap.get(CType.ROLES);
+            }
+        });
     }
 
     public String getJwt(User user, String aud) throws IllegalStateException {
@@ -133,7 +144,7 @@ public class InternalAuthTokenProvider {
             ActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions, null, privilegesEvaluator.getAllConfiguredTenantNames());
             DocumentAuthorization documentAuthorization = new RoleBasedDocumentAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions, null);
             String userName = verifiedToken.getClaims().getSubject();
-            User user = User.forUser(userName).authDomainInfo(AuthDomainInfo.STORED_AUTH).searchGuardRoles(sgRoles.getRoleNames()).build();
+            User user = User.forUser(userName).authDomainInfo(AuthDomainInfo.STORED_AUTH).searchGuardRoles(roleNames).build();
             AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, roleNames, actionAuthorization, documentAuthorization);
 
             return userAuth;
@@ -172,11 +183,10 @@ public class InternalAuthTokenProvider {
     }
 
     private Object getSgRolesForUser(User user) {
-        Set<String> sgRoles = this.configModel.mapSgRoles(user, null);
-
-        SgRoles userRoles = this.sgRoles.filter(sgRoles);
-
-        return ObjectTreeXContent.toObjectTree(userRoles);
+        ImmutableSet<String> userRoles = this.privilegesEvaluator.mapSgRoles(user, null);
+        ImmutableMap<String, Role> roles = ImmutableMap.of(this.roles.getCEntries()).intersection(userRoles);
+        
+        return Document.toDeepBasicObject(roles);
     }
 
     private JwtToken getVerifiedJwtToken(String encodedJwt, String authTokenAudience) throws JwtException {

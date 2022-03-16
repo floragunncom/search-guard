@@ -886,7 +886,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         cr.setDynamicConfigFactory(dcf);
         moduleRegistry.addComponentStateProvider(dcf);
 
-        InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(evaluator, actions);
+        InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(evaluator, actions, cr);
         specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);
         authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
 

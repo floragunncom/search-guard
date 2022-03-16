@@ -548,31 +548,6 @@ public class PrivilegesEvaluatorTest {
     }
 
     @Test
-    public void searchTemplateLegacy() throws Exception {
-
-        SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest(new SearchRequest("resolve_test_allow_*"));
-        searchTemplateRequest.setScriptType(ScriptType.INLINE);
-        searchTemplateRequest.setScript("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }");
-        searchTemplateRequest.setScriptParams(ImmutableMap.of("x", "yy"));
-
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_TEMPLATE_LEGACY_USER)) {
-            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
-            SearchResponse searchResponse = searchTemplateResponse.getResponse();
-
-            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.getHits().getTotalHits().value);
-        }
-
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_NO_TEMPLATE_USER)) {
-            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
-            SearchResponse searchResponse = searchTemplateResponse.getResponse();
-
-            Assert.fail(searchResponse.toString());
-        } catch (ElasticsearchStatusException e) {
-            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
-        }
-    }
-
-    @Test
     public void negativeLookaheadPattern() throws Exception {
 
         try (GenericRestClient restClient = clusterFof.getRestClient(NEG_LOOKAHEAD_USER)) {

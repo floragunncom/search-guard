@@ -885,8 +885,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                                             roleToActionToTenantPattern.get(roleName).get(action).add(tenantPatternTemplate);
                                         }
                                     }
-
-                                    // TODO
                                 }
 
                             }
