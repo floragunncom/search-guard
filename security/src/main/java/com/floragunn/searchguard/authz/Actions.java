@@ -370,8 +370,8 @@ public class Actions {
         open(WhoAmIAction.INSTANCE);
 
         if (modulesRegistry != null) {
-            for (ActionHandler<?, ?> action : modulesRegistry.getActions()) {
-                cluster(action.getAction().name());
+            for (ActionHandler<?, ?> action : modulesRegistry.getActions()) {                
+                builder.action(action.getAction());
             }
         }
 
@@ -489,6 +489,13 @@ public class Actions {
         ActionBuilder<?, ?, ?> open(String action) {
             ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.OPEN);
             builders.put(action, builder);
+            return builder;
+        }
+        
+
+        ActionBuilder<?, ?, ?> action(ActionType<?> actionType) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(actionType.name(), getScope(actionType.name()));
+            builders.put(actionType.name(), builder);
             return builder;
         }
 
