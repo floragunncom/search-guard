@@ -292,11 +292,11 @@ public class Actions {
         cluster(RestoreSnapshotAction.INSTANCE)//
                 .requestType(RestoreSnapshotRequest.class)//
                 .requiresAdditionalPrivileges(always(), "indices:admin/create", "indices:data/write/index");
-        
+
         cluster(SnapshotsStatusAction.INSTANCE);
 
         cluster(ReindexAction.INSTANCE);
-        
+
         cluster(PutIndexTemplateAction.INSTANCE);
         cluster(GetIndexTemplatesAction.INSTANCE);
         cluster(DeleteIndexTemplateAction.INSTANCE);
@@ -323,13 +323,13 @@ public class Actions {
         index(AliasesExistAction.INSTANCE);
         index(GetSettingsAction.INSTANCE);
 
+        index(FieldCapabilitiesAction.INSTANCE);
+
         cluster(PutStoredScriptAction.INSTANCE);
         cluster(GetStoredScriptAction.INSTANCE);
         cluster(DeleteStoredScriptAction.INSTANCE);
         cluster(GetScriptContextAction.INSTANCE);
         cluster(GetScriptLanguageAction.INSTANCE);
-
-        cluster(FieldCapabilitiesAction.INSTANCE);
 
         cluster(PutPipelineAction.INSTANCE);
         cluster(GetPipelineAction.INSTANCE);
@@ -376,7 +376,7 @@ public class Actions {
         open(WhoAmIAction.INSTANCE);
 
         if (modulesRegistry != null) {
-            for (ActionHandler<?, ?> action : modulesRegistry.getActions()) {                
+            for (ActionHandler<?, ?> action : modulesRegistry.getActions()) {
                 builder.action(action.getAction());
             }
         }
@@ -449,17 +449,13 @@ public class Actions {
     private ActionBuilder<?, ?, ?> index(String action) {
         return builder.index(action);
     }
-    
+
     private ActionBuilder<?, ?, ?> tenant(String action) {
         return builder.tenant(action);
     }
 
     private <RequestType extends ActionRequest> ActionBuilder<RequestType, Void, Void> open(ActionType<?> actionType) {
         return builder.open(actionType);
-    }
-
-    private ActionBuilder<?, ?, ?> open(String action) {
-        return builder.open(action);
     }
 
     class Builder {
@@ -495,7 +491,7 @@ public class Actions {
             builders.put(action, builder);
             return builder;
         }
-        
+
         <RequestType extends ActionRequest> ActionBuilder<RequestType, Void, Void> open(ActionType<?> actionType) {
             ActionBuilder<RequestType, Void, Void> builder = new ActionBuilder<RequestType, Void, Void>(actionType.name(), Scope.OPEN);
             builders.put(actionType.name(), builder);
@@ -507,7 +503,6 @@ public class Actions {
             builders.put(action, builder);
             return builder;
         }
-        
 
         ActionBuilder<?, ?, ?> action(ActionType<?> actionType) {
             ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(actionType.name(), getScope(actionType.name()));
@@ -542,7 +537,6 @@ public class Actions {
 
         private String actionName;
         private Class<Enum<?>> requestItemTypeEnum;
-        private boolean resolveIndices = true;
         private NewResource createsResource;
         private List<Resource> usesResources = new ArrayList<>();
         private List<RequestPropertyModifier<?>> requestProperyModifiers = new ArrayList<>();
@@ -645,11 +639,6 @@ public class Actions {
                 additionalPrivilegesByItemType.put(requestItemType, privileges.with(existingPrivileges));
             }
 
-            return this;
-        }
-
-        ActionBuilder<RequestType, RequestItem, RequestItemType> noIndexResolution() {
-            resolveIndices = false;
             return this;
         }
 

@@ -46,7 +46,7 @@ public class TermsAggregationEvaluator {
 
     public TermsAggregationEvaluator(Actions actions) {
         // Note: This must only contain index actions. 
-        READ_ACTIONS = ImmutableSet.of(actions.get("indices:data/read/get"), actions.get("indices:data/read/search"));
+        READ_ACTIONS = ImmutableSet.of(actions.get("indices:data/read/get"), actions.get("indices:data/read/search"), actions.get("indices:data/read/field_caps"));
     }
 
     public PrivilegesEvaluatorResponse evaluate(ActionRequestInfo requestInfo, ActionRequest request, ClusterService clusterService, User user,
