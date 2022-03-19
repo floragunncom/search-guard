@@ -64,7 +64,7 @@ public class TermsAggregationEvaluator {
                     if (ab instanceof TermsAggregationBuilder && "terms".equals(ab.getType()) && "indices".equals(ab.getName())) {
                         if ("_index".equals(((TermsAggregationBuilder) ab).field()) && ab.getPipelineAggregations().isEmpty()
                                 && ab.getSubAggregations().isEmpty()) {
-
+                            
                             PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(user, mappedRoles,
                                     READ_ACTIONS, actionRequestIntrospector.create("*", IndicesOptions.LENIENT_EXPAND_OPEN).getResolvedIndices(),
                                     context);
@@ -72,7 +72,8 @@ public class TermsAggregationEvaluator {
                             if (privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT) {
                                 sr.source().query(NONE_QUERY);
                             } else if (privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK) {
-                                sr.source().query(new TermsQueryBuilder("_index", privilegesEvaluationResult.getAvailableIndices()));
+                                sr.source().query(new TermsQueryBuilder("_index",
+                                        privilegesEvaluationResult.getAvailableIndices().with(requestInfo.getResolvedIndices().getRemoteIndices())));
                             }
 
                             presponse.allowed = true;

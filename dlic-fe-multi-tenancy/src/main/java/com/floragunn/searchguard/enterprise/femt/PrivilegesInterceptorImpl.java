@@ -59,7 +59,7 @@ import org.elasticsearch.rest.RestStatus;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.Action;
 import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.Actions.Scope;
+import com.floragunn.searchguard.authz.Actions;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
@@ -68,8 +68,9 @@ import com.floragunn.searchguard.user.User;
 public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
     private static final String USER_TENANT = "__user__";
-    private static final Action KIBANA_ALL_SAVED_OBJECTS_WRITE = new Action.OtherAction("kibana:saved_objects/*/write", Scope.TENANT);
-    private static final Action KIBANA_ALL_SAVED_OBJECTS_READ = new Action.OtherAction("kibana:saved_objects/*/read", Scope.TENANT);
+    
+    private final Action KIBANA_ALL_SAVED_OBJECTS_WRITE;
+    private final Action KIBANA_ALL_SAVED_OBJECTS_READ;
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final String kibanaServerUsername;
@@ -80,7 +81,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     private final ImmutableSet<String> tenantNames;
     private final boolean enabled;
 
-    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, ImmutableSet<String> tenantNames) {
+    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, ImmutableSet<String> tenantNames, Actions actions) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
@@ -90,6 +91,8 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         this.kibanaIndexPatternWithTenant = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+(_[0-9]{3})?)");
 
         this.tenantNames = tenantNames;
+        this.KIBANA_ALL_SAVED_OBJECTS_WRITE = actions.get("kibana:saved_objects/_/write");
+        this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
     }
 
     private boolean isTenantAllowed(ActionRequest request, Action action, User user, String requestedTenant, ImmutableSet<String> mappedRoles,

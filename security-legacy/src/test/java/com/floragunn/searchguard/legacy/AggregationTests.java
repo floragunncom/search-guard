@@ -106,9 +106,7 @@ public class AggregationTests extends SingleClusterTest {
         assertNotContains(res, "*earchguard*");
         assertNotContains(res, "*vulcangov*");
         assertNotContains(res, "*kirk*");
-        assertContains(res, "*starfleet*");
         assertContains(res, "*public*");
-        assertContains(res, "*xyz*");
         assertContains(res, "*\"failed\" : 0*");
         
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executePostRequest("_search?pretty", "{\"size\":0,\"aggs\":{\"myindices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",encodeBasicHeader("worf", "worf"))).getStatusCode());

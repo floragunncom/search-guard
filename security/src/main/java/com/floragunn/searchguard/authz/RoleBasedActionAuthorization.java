@@ -939,7 +939,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
         
         @Override
         public String toString() {
-            if (pattern != null && patternTemplates != null) {
+            if (pattern != null && patternTemplates != null && patternTemplates.size() != 0) {
                 return pattern + " " + patternTemplates;
             } else if (pattern != null) {
                 return pattern.toString();

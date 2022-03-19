@@ -369,6 +369,9 @@ public class Actions {
         cluster(GetActivatedFrontendConfigAction.INSTANCE);
         cluster(LoginPrivileges.SESSION);
 
+        tenant("kibana:saved_objects/_/read");
+        tenant("kibana:saved_objects/_/write");
+
         open(LicenseInfoAction.INSTANCE);
         open(WhoAmIAction.INSTANCE);
 
@@ -422,7 +425,7 @@ public class Actions {
     }
 
     private static Scope getScope(String action) {
-        if (action.startsWith("cluster:admin:searchguard:tenant:")) {
+        if (action.startsWith("cluster:admin:searchguard:tenant:") || action.startsWith("kibana:saved_objects/")) {
             return Scope.TENANT;
         } else if (action.startsWith("searchguard:cluster:") || action.startsWith("cluster:")) {
             return Scope.CLUSTER;
@@ -445,6 +448,10 @@ public class Actions {
 
     private ActionBuilder<?, ?, ?> index(String action) {
         return builder.index(action);
+    }
+    
+    private ActionBuilder<?, ?, ?> tenant(String action) {
+        return builder.tenant(action);
     }
 
     private <RequestType extends ActionRequest> ActionBuilder<RequestType, Void, Void> open(ActionType<?> actionType) {
@@ -483,6 +490,12 @@ public class Actions {
             return builder;
         }
 
+        ActionBuilder<?, ?, ?> tenant(String action) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.TENANT);
+            builders.put(action, builder);
+            return builder;
+        }
+        
         <RequestType extends ActionRequest> ActionBuilder<RequestType, Void, Void> open(ActionType<?> actionType) {
             ActionBuilder<RequestType, Void, Void> builder = new ActionBuilder<RequestType, Void, Void>(actionType.name(), Scope.OPEN);
             builders.put(actionType.name(), builder);
