@@ -145,6 +145,7 @@ import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
 import org.elasticsearch.action.termvectors.TermVectorsAction;
 import org.elasticsearch.action.update.UpdateAction;
+import org.elasticsearch.index.reindex.ReindexAction;
 import org.elasticsearch.index.seqno.RetentionLeaseActions;
 import org.elasticsearch.persistent.CompletionPersistentTaskAction;
 import org.elasticsearch.persistent.RemovePersistentTaskAction;
@@ -291,9 +292,11 @@ public class Actions {
         cluster(RestoreSnapshotAction.INSTANCE)//
                 .requestType(RestoreSnapshotRequest.class)//
                 .requiresAdditionalPrivileges(always(), "indices:admin/create", "indices:data/write/index");
-
+        
         cluster(SnapshotsStatusAction.INSTANCE);
 
+        cluster(ReindexAction.INSTANCE);
+        
         cluster(PutIndexTemplateAction.INSTANCE);
         cluster(GetIndexTemplatesAction.INSTANCE);
         cluster(DeleteIndexTemplateAction.INSTANCE);

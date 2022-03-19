@@ -31,6 +31,8 @@ import com.floragunn.codova.config.templates.Template;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.fluent.collections.ImmutableMap.Builder;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.sgconf.ActionGroups;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -60,7 +62,7 @@ public class RoleBasedDocumentAuthorization implements DocumentAuthorization {
     }
 
     @Override
-    public EvaluatedDlsFlsConfig getDlsFlsConfig(User user, ImmutableSet<String> mappedRoles) {
+    public EvaluatedDlsFlsConfig getDlsFlsConfig(User user, ImmutableSet<String> mappedRoles, PrivilegesEvaluationContext context) {
         StatefulIndexPermssions statefulIndex = this.statefulIndex;
 
         if (statefulIndex == null) {
@@ -141,10 +143,18 @@ public class RoleBasedDocumentAuthorization implements DocumentAuthorization {
         private final ImmutableMap<String, Pattern> rolesToIndexWithoutFls;
         private final ImmutableMap<String, Pattern> rolesToIndexWithoutFieldMasking;
 
+  //      private final ImmutableMap<String, ImmutableSet<Template<Pattern>>> rolesToIndexTemplatesWithoutDls;
+  //      private final ImmutableMap<String, ImmutableSet<Template<Pattern>>> rolesToIndexTemplatesWithoutFls;
+  //      private final ImmutableMap<String, ImmutableSet<Template<Pattern>>> rolesToIndexTemplatesWithoutFieldMasking;
+
         IndexPermissions(SgDynamicConfiguration<Role> roles) {
             ImmutableMap.Builder<String, Pattern> rolesToIndexWithoutDls = new ImmutableMap.Builder<>();
             ImmutableMap.Builder<String, Pattern> rolesToIndexWithoutFls = new ImmutableMap.Builder<>();
             ImmutableMap.Builder<String, Pattern> rolesToIndexWithoutFieldMasking = new ImmutableMap.Builder<>();
+
+            ImmutableMap.Builder<String, ImmutableSet<Template<Pattern>>> rolesToIndexTemplatesWithoutDls = new ImmutableMap.Builder<>();
+            ImmutableMap.Builder<String, ImmutableSet<Template<Pattern>>> rolesToIndexTemplatesWithoutFls = new ImmutableMap.Builder<>();
+            ImmutableMap.Builder<String, ImmutableSet<Template<Pattern>>> rolesToIndexTemplatesWithoutFieldMasking = new ImmutableMap.Builder<>();
 
             for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
                 try {
@@ -153,6 +163,10 @@ public class RoleBasedDocumentAuthorization implements DocumentAuthorization {
                     List<Pattern> indexPatternsWithoutDls = new ArrayList<>();
                     List<Pattern> indexPatternsWithoutFls = new ArrayList<>();
                     List<Pattern> indexPatternsWithoutFieldMasking = new ArrayList<>();
+                    
+                    List<Template<Pattern>> indexPatternTemplatesWithoutDls = new ArrayList<>();
+                    List<Template<Pattern>> indexPatternTemplatesWithoutFls = new ArrayList<>();
+                    List<Template<Pattern>> indexPatternTemplatesWithoutFieldMasking = new ArrayList<>();
 
                     for (Role.Index indexPermissions : role.getIndexPermissions()) {
                         if (indexPermissions.getDls() == null) {
@@ -160,7 +174,7 @@ public class RoleBasedDocumentAuthorization implements DocumentAuthorization {
                                 if (indexPatternTemplate.isConstant()) {
                                     indexPatternsWithoutDls.add(indexPatternTemplate.getConstantValue());
                                 } else {
-                                    // TODO
+                                    indexPatternTemplatesWithoutDls.add(indexPatternTemplate);
                                 }
                             }
                         }
@@ -170,7 +184,7 @@ public class RoleBasedDocumentAuthorization implements DocumentAuthorization {
                                 if (indexPatternTemplate.isConstant()) {
                                     indexPatternsWithoutFls.add(indexPatternTemplate.getConstantValue());
                                 } else {
-                                    // TODO
+                                    indexPatternTemplatesWithoutFls.add(indexPatternTemplate);
                                 }
                             }
                         }
@@ -180,7 +194,7 @@ public class RoleBasedDocumentAuthorization implements DocumentAuthorization {
                                 if (indexPatternTemplate.isConstant()) {
                                     indexPatternsWithoutFieldMasking.add(indexPatternTemplate.getConstantValue());
                                 } else {
-                                    // TODO
+                                    indexPatternTemplatesWithoutFieldMasking.add(indexPatternTemplate);
                                 }
                             }
                         }
@@ -197,6 +211,19 @@ public class RoleBasedDocumentAuthorization implements DocumentAuthorization {
                     if (!indexPatternsWithoutFieldMasking.isEmpty()) {
                         rolesToIndexWithoutFieldMasking.put(roleName, Pattern.join(indexPatternsWithoutFieldMasking));
                     }
+                    
+                    if (!indexPatternTemplatesWithoutDls.isEmpty()) {
+                        rolesToIndexTemplatesWithoutDls.put(roleName, ImmutableSet.of(indexPatternTemplatesWithoutDls));
+                    }
+
+                    if (!indexPatternTemplatesWithoutFls.isEmpty()) {
+                        rolesToIndexTemplatesWithoutFls.put(roleName, ImmutableSet.of(indexPatternTemplatesWithoutFls));
+                    }
+                    
+                    if (!indexPatternTemplatesWithoutFieldMasking.isEmpty()) {
+                        rolesToIndexTemplatesWithoutFieldMasking.put(roleName, ImmutableSet.of(indexPatternTemplatesWithoutFieldMasking));
+                    }
+                    
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
                 }
@@ -288,7 +315,5 @@ public class RoleBasedDocumentAuthorization implements DocumentAuthorization {
         }
 
     }
-
-  
 
 }

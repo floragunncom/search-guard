@@ -160,6 +160,11 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
         public Object toBasicObject() {
             return value;
         }
+        
+        @Override
+        public String toString() {
+            return value;
+        }
 
     }
 

@@ -20,11 +20,12 @@ package com.floragunn.searchguard.authz;
 import java.util.Set;
 
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.user.User;
 
 public interface DocumentAuthorization {
-    EvaluatedDlsFlsConfig getDlsFlsConfig(User user, ImmutableSet<String> mappedRoles);
+    EvaluatedDlsFlsConfig getDlsFlsConfig(User user, ImmutableSet<String> mappedRoles, PrivilegesEvaluationContext context);
 
     void updateIndices(Set<String> indices);
 }

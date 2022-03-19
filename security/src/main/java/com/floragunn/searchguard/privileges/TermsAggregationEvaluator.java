@@ -41,57 +41,51 @@ public class TermsAggregationEvaluator {
     protected final Logger log = LogManager.getLogger(this.getClass());
 
     private final ImmutableSet<Action> READ_ACTIONS;
-    
+
     private static final QueryBuilder NONE_QUERY = new MatchNoneQueryBuilder();
-    
+
     public TermsAggregationEvaluator(Actions actions) {
-        READ_ACTIONS = ImmutableSet.of(actions.get("indices:data/read/msearch"), actions.get("indices:data/read/mget"),
-                actions.get("indices:data/read/get"), actions.get("indices:data/read/search"), actions.get("indices:data/read/field_caps"));
+        // Note: This must only contain index actions. 
+        READ_ACTIONS = ImmutableSet.of(actions.get("indices:data/read/get"), actions.get("indices:data/read/search"));
     }
-   
+
     public PrivilegesEvaluatorResponse evaluate(ActionRequestInfo requestInfo, ActionRequest request, ClusterService clusterService, User user,
             ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization, IndexNameExpressionResolver resolver,
             PrivilegesEvaluatorResponse presponse, ActionRequestIntrospector actionRequestIntrospector, PrivilegesEvaluationContext context) {
         try {
-            
-            if(request instanceof SearchRequest) {
+
+            if (request instanceof SearchRequest) {
                 SearchRequest sr = (SearchRequest) request;
 
-                if(     sr.source() != null
-                        && sr.source().query() == null
-                        && sr.source().aggregations() != null
+                if (sr.source() != null && sr.source().query() == null && sr.source().aggregations() != null
                         && sr.source().aggregations().getAggregatorFactories() != null
-                        && sr.source().aggregations().getAggregatorFactories().size() == 1
-                        && sr.source().size() == 0) {
-                   AggregationBuilder ab = sr.source().aggregations().getAggregatorFactories().iterator().next();
-                   if(     ab instanceof TermsAggregationBuilder
-                           && "terms".equals(ab.getType())
-                           && "indices".equals(ab.getName())) {
-                       if("_index".equals(((TermsAggregationBuilder) ab).field())
-                               && ab.getPipelineAggregations().isEmpty()
-                               && ab.getSubAggregations().isEmpty()) {
-                           
-                           PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(user, mappedRoles,
-                                   READ_ACTIONS, actionRequestIntrospector.create("*", IndicesOptions.LENIENT_EXPAND_OPEN).getResolvedIndices(),
-                                   context);
+                        && sr.source().aggregations().getAggregatorFactories().size() == 1 && sr.source().size() == 0) {
+                    AggregationBuilder ab = sr.source().aggregations().getAggregatorFactories().iterator().next();
+                    if (ab instanceof TermsAggregationBuilder && "terms".equals(ab.getType()) && "indices".equals(ab.getName())) {
+                        if ("_index".equals(((TermsAggregationBuilder) ab).field()) && ab.getPipelineAggregations().isEmpty()
+                                && ab.getSubAggregations().isEmpty()) {
 
-                           if (privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT) {
-                               sr.source().query(NONE_QUERY);
-                           } else if (privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK) {
-                               sr.source().query(new TermsQueryBuilder("_index", privilegesEvaluationResult.getAvailableIndices()));
-                           }
-                           
-                           presponse.allowed = true;
-                           return presponse.markComplete();
-                       }
-                   }
+                            PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(user, mappedRoles,
+                                    READ_ACTIONS, actionRequestIntrospector.create("*", IndicesOptions.LENIENT_EXPAND_OPEN).getResolvedIndices(),
+                                    context);
+
+                            if (privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT) {
+                                sr.source().query(NONE_QUERY);
+                            } else if (privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK) {
+                                sr.source().query(new TermsQueryBuilder("_index", privilegesEvaluationResult.getAvailableIndices()));
+                            }
+
+                            presponse.allowed = true;
+                            return presponse.markComplete();
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
-            log.warn("Unable to evaluate terms aggregation",e);
+            log.warn("Unable to evaluate terms aggregation", e);
             return presponse;
         }
-        
+
         return presponse;
     }
 }

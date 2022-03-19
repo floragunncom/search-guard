@@ -936,6 +936,19 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
             return false;
         }
+        
+        @Override
+        public String toString() {
+            if (pattern != null && patternTemplates != null) {
+                return pattern + " " + patternTemplates;
+            } else if (pattern != null) {
+                return pattern.toString();
+            } else if (patternTemplates != null) {
+                return patternTemplates.toString();
+            } else {
+                return "-/-";
+            }
+        }
 
         static class Builder {
             private List<Pattern> constantPatterns = new ArrayList<>();

@@ -325,7 +325,7 @@ public class PrivilegesEvaluator {
             PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, resolver, clusterService);
 
             if (enterpriseModulesEnabled && documentAuthorization != null) {
-                presponse.evaluatedDlsFlsConfig = documentAuthorization.getDlsFlsConfig(user, mappedRoles);
+                presponse.evaluatedDlsFlsConfig = documentAuthorization.getDlsFlsConfig(user, mappedRoles, context);
             }
 
             if (action.isClusterPrivilege()) {
