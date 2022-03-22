@@ -88,7 +88,7 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, actions, Settings.EMPTY);
+                protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, Settings.EMPTY,
                 threadPool, clusterService, protectedConfigIndexService, actions, config);
         try {
@@ -132,7 +132,7 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, actions, Settings.EMPTY);
+                protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, Settings.EMPTY,
                 threadPool, clusterService, protectedConfigIndexService, actions, config);
 
@@ -177,7 +177,7 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, actions, Settings.EMPTY);
+                protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, Settings.EMPTY,
                 threadPool, clusterService, protectedConfigIndexService, actions, config);
 
@@ -206,7 +206,7 @@ public class AuthTokenServiceTest {
             authTokenService.shutdown();
 
             ConfigHistoryService configHistoryService2 = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                    protectedConfigIndexService, actions, Settings.EMPTY);
+                    protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
 
             AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService2,
                     Settings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
@@ -238,7 +238,7 @@ public class AuthTokenServiceTest {
         Settings authTokenServiceSettings = Settings.builder().put(AuthTokenService.CLEANUP_INTERVAL.getKey(), TimeValue.timeValueSeconds(1)).build();
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, actions, Settings.EMPTY);
+                protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService,
                 authTokenServiceSettings, threadPool, clusterService, protectedConfigIndexService, actions, config);
         try {
@@ -300,7 +300,7 @@ public class AuthTokenServiceTest {
             config.setExcludeClusterPermissions(Collections.emptyList());
 
             ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                    protectedConfigIndexService, actions, Settings.EMPTY);
+                    protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
             AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService,
                     Settings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
             try {

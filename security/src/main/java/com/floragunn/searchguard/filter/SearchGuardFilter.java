@@ -297,8 +297,9 @@ public class SearchGuardFilter implements ActionFilter {
                     threadContext.putHeader(ConfigConstants.SG_USER_NAME, user.getName());
                 }
 
-                if (!dlsFlsValve.invoke(actionName, request, listener, pres.getEvaluatedDlsFlsConfig(),
-                        complianceConfig != null && complianceConfig.isLocalHashingEnabled(), pres.getResolvedIndices())) {
+                if (!dlsFlsValve.invoke(user, pres.getMappedRoles(), actionName, request, listener,
+                        complianceConfig != null && complianceConfig.isLocalHashingEnabled(), pres.getResolvedIndices(),
+                        specialPrivilegesEvaluationContext)) {
                     return;
                 }
                 

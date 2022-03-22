@@ -645,7 +645,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                 }
             }
         }
-
     }
 
     static class StatefulIndexPermssions {

@@ -108,7 +108,7 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(baseDependencies.getConfigurationRepository(),
                 baseDependencies.getStaticSgConfig(), privilegedConfigClient, baseDependencies.getProtectedConfigIndexService(),
-                baseDependencies.getActions(), baseDependencies.getSettings());
+                baseDependencies.getActions(), baseDependencies.getSettings(), baseDependencies.getPrivilegesEvaluator());
 
         componentState.addPart(configHistoryService.getComponentState());
 

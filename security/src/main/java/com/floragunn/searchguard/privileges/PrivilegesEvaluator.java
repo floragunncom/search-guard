@@ -69,9 +69,9 @@ import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.Actions;
 import com.floragunn.searchguard.authz.AuthorizationConfig;
 import com.floragunn.searchguard.authz.DocumentAuthorization;
+import com.floragunn.searchguard.authz.LegacyRoleBasedDocumentAuthorization;
 import com.floragunn.searchguard.authz.Role;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
-import com.floragunn.searchguard.authz.RoleBasedDocumentAuthorization;
 import com.floragunn.searchguard.authz.RoleMapping;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigMap;
@@ -111,9 +111,7 @@ public class PrivilegesEvaluator {
     private final SnapshotRestoreEvaluator snapshotRestoreEvaluator;
     private final SearchGuardIndexAccessEvaluator sgIndexAccessEvaluator;
     private final TermsAggregationEvaluator termsAggregationEvaluator;
-    private final boolean enterpriseModulesEnabled;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
-    private final NamedXContentRegistry namedXContentRegistry;
     private final List<String> adminOnlyActions;
     private final List<String> adminOnlyActionExceptions;
     private final Client localClient;
@@ -154,8 +152,6 @@ public class PrivilegesEvaluator {
         snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog, guiceDependencies);
         sgIndexAccessEvaluator = new SearchGuardIndexAccessEvaluator(settings, auditLog, actionRequestIntrospector);
         termsAggregationEvaluator = new TermsAggregationEvaluator(actions);
-        this.enterpriseModulesEnabled = enterpriseModulesEnabled;
-        this.namedXContentRegistry = namedXContentRegistry;
         this.adminOnlyActions = settings.getAsList(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY,
                 ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_DEFAULT);
         this.adminOnlyActionExceptions = settings.getAsList(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_EXCEPTIONS, Collections.emptyList());
@@ -191,8 +187,7 @@ public class PrivilegesEvaluator {
                 actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions,
                         clusterService.state().metadata().indices().keySet(), tenants.getCEntries().keySet());
 
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, actionGroups, actions,
-                        clusterService.state().metadata().indices().keySet());
+                documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
 
                 roleMapping = new RoleMapping.InvertedIndex(configMap.get(CType.ROLESMAPPING));
             }
@@ -257,21 +252,20 @@ public class PrivilegesEvaluator {
         TransportAddress caller;
         ImmutableSet<String> mappedRoles;
         ActionAuthorization actionAuthorization;
-        DocumentAuthorization documentAuthorization;
 
         if (specialPrivilegesEvaluationContext == null) {
             caller = Objects.requireNonNull((TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
             mappedRoles = mapSgRoles(user, caller);
             actionAuthorization = this.actionAuthorization;
-            documentAuthorization = this.documentAuthorization;
         } else {
             caller = specialPrivilegesEvaluationContext.getCaller() != null ? specialPrivilegesEvaluationContext.getCaller()
                     : (TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
             actionAuthorization = specialPrivilegesEvaluationContext.getActionAuthorization();
-            documentAuthorization = specialPrivilegesEvaluationContext.getDocumentAuthorization();
         }
 
+        presponse.mappedRoles = mappedRoles;
+        
         try {
             if (request instanceof BulkRequest && (com.google.common.base.Strings.isNullOrEmpty(user.getRequestedTenant()))) {
                 // Shortcut for bulk actions. The details are checked on the lower level of the BulkShardRequests (Action indices:data/write/bulk[s]).
@@ -323,10 +317,6 @@ public class PrivilegesEvaluator {
             }
 
             PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, resolver, clusterService);
-
-            if (enterpriseModulesEnabled && documentAuthorization != null) {
-                presponse.evaluatedDlsFlsConfig = documentAuthorization.getDlsFlsConfig(user, mappedRoles, context);
-            }
 
             if (action.isClusterPrivilege()) {
                 if (!actionAuthorization.hasClusterPermission(user, mappedRoles, action)) {
@@ -865,5 +855,13 @@ public class PrivilegesEvaluator {
 
     public ActionGroups getActionGroups() {
         return actionAuthorization.getActionGroups();
+    }
+
+    public ClusterService getClusterService() {
+        return clusterService;
+    }
+
+    public IndexNameExpressionResolver getResolver() {
+        return resolver;
     }
 }

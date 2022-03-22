@@ -53,6 +53,7 @@ import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.Confi
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.ExceptionRecord;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -87,10 +88,11 @@ public class ConfigHistoryService implements ComponentStateProvider {
     private final ComponentState componentState = new ComponentState(1000, null, "config_history_service", ConfigHistoryService.class);
 
     private final Settings settings;
+    private final PrivilegesEvaluator privilegesEvaluator;
 
     public ConfigHistoryService(ConfigurationRepository configurationRepository, StaticSgConfig staticSgConfig,
             PrivilegedConfigClient privilegedConfigClient, ProtectedConfigIndexService protectedConfigIndexService, Actions actions,
-            Settings settings) {
+            Settings settings, PrivilegesEvaluator privilegesEvaluator) {
         this.indexName = INDEX_NAME.get(settings);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configurationRepository = configurationRepository;
@@ -100,6 +102,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
         this.configModelCache = CacheBuilder.newBuilder().maximumSize(MODEL_CACHE_MAX_SIZE.get(settings))
                 .expireAfterAccess(MODEL_CACHE_TTL.get(settings), TimeUnit.MINUTES).build();
         this.settings = settings;
+        this.privilegesEvaluator = privilegesEvaluator;
 
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexName).onIndexReady((f) -> {
             f.onSuccess();
@@ -279,7 +282,8 @@ public class ConfigHistoryService implements ComponentStateProvider {
         staticSgConfig.addTo(actionGroups);
         staticSgConfig.addTo(tenants);
 
-        ConfigModel configModel = new ConfigModel(roles, roleMappings, actionGroups, tenants, blocks, actions, settings);
+        ConfigModel configModel = new ConfigModel(roles, roleMappings, actionGroups, tenants, blocks, actions, settings,
+                privilegesEvaluator.getResolver(), privilegesEvaluator.getClusterService());
 
         configModelCache.put(configSnapshot.getConfigVersions(), configModel);
 

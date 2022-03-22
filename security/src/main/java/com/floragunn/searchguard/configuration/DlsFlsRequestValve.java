@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 floragunn GmbH
+ * Copyright 2015-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,10 @@ import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
+import com.floragunn.searchguard.user.User;
 
 public interface DlsFlsRequestValve {
 
@@ -35,16 +37,16 @@ public interface DlsFlsRequestValve {
      * @param listener
      * @return false to stop
      */
-    boolean invoke(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, boolean localHasingEnabled,
-            ResolvedIndices resolved);
+    boolean invoke(User user, ImmutableSet<String> mappedRoles, String action, ActionRequest request, ActionListener<?> listener,
+            boolean localHasingEnabled, ResolvedIndices resolved, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext);
 
     void handleSearchContext(SearchContext context, ThreadPool threadPool, NamedXContentRegistry namedXContentRegistry);
 
     public static class NoopDlsFlsRequestValve implements DlsFlsRequestValve {
 
         @Override
-        public boolean invoke(String action, ActionRequest request, ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
-                boolean localHasingEnabled, ResolvedIndices resolved) {
+        public boolean invoke(User user, ImmutableSet<String> mappedRoles, String action, ActionRequest request, ActionListener<?> listener,
+                boolean localHasingEnabled, ResolvedIndices resolved, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
             return true;
         }
 

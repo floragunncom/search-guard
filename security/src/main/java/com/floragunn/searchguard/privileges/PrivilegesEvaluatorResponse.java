@@ -25,15 +25,15 @@ import java.util.Set;
 
 import org.elasticsearch.action.support.ActionFilter;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 
 public class PrivilegesEvaluatorResponse {
     boolean allowed = false;
     Set<String> missingPrivileges = new HashSet<String>();
-    EvaluatedDlsFlsConfig evaluatedDlsFlsConfig;
     List<ActionFilter> additionalActionFilters;
+    ImmutableSet<String> mappedRoles;
 
     PrivilegesEvaluatorResponseState state = PrivilegesEvaluatorResponseState.PENDING;
     ActionRequestInfo actionRequestInfo;
@@ -74,16 +74,11 @@ public class PrivilegesEvaluatorResponse {
 
     @Override
     public String toString() {
-        return "PrivEvalResponse [allowed=" + allowed + ", missingPrivileges=" + missingPrivileges + ", evaluatedDlsFlsConfig="
-                + evaluatedDlsFlsConfig + "]";
+        return "PrivEvalResponse [allowed=" + allowed + ", missingPrivileges=" + missingPrivileges + "]";
     }
 
     public static enum PrivilegesEvaluatorResponseState {
         PENDING, COMPLETE;
-    }
-
-    public EvaluatedDlsFlsConfig getEvaluatedDlsFlsConfig() {
-        return evaluatedDlsFlsConfig;
     }
 
     void addAdditionalActionFilter(ActionFilter actionFilter) {
@@ -104,6 +99,10 @@ public class PrivilegesEvaluatorResponse {
         } else {
             return Collections.emptyList();
         }
+    }
+
+    public ImmutableSet<String> getMappedRoles() {
+        return mappedRoles;
     }
 
 }

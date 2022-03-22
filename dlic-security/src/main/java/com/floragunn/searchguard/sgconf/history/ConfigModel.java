@@ -14,14 +14,16 @@
 
 package com.floragunn.searchguard.sgconf.history;
 
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.Actions;
 import com.floragunn.searchguard.authz.DocumentAuthorization;
+import com.floragunn.searchguard.authz.LegacyRoleBasedDocumentAuthorization;
 import com.floragunn.searchguard.authz.Role;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
-import com.floragunn.searchguard.authz.RoleBasedDocumentAuthorization;
 import com.floragunn.searchguard.authz.RoleMapping;
 import com.floragunn.searchguard.sgconf.ActionGroups;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -43,7 +45,8 @@ public class ConfigModel {
 
     public ConfigModel(SgDynamicConfiguration<Role> roles, SgDynamicConfiguration<RoleMapping> roleMappingConfig,
             SgDynamicConfiguration<ActionGroupsV7> actionGroupsConfig, SgDynamicConfiguration<TenantV7> tenants,
-            SgDynamicConfiguration<BlocksV7> blocks, Actions actions, Settings esSettings) {
+            SgDynamicConfiguration<BlocksV7> blocks, Actions actions, Settings esSettings, IndexNameExpressionResolver resolver,
+            ClusterService clusterService) {
         this.rolesConfig = roles;
         this.roleMappingConfig = roleMappingConfig;
         this.actionGroupsConfig = actionGroupsConfig;
@@ -52,11 +55,10 @@ public class ConfigModel {
 
         this.actionGroups = new ActionGroups(actionGroupsConfig);
 
-        actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, null, tenantsConfig.getCEntries().keySet());
+        this.actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, null, tenantsConfig.getCEntries().keySet());
+        this.documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
 
-        documentAuthorization = new RoleBasedDocumentAuthorization(roles, actionGroups, actions, null);
-
-        roleMapping = new RoleMapping.InvertedIndex(roleMappingConfig);
+        this.roleMapping = new RoleMapping.InvertedIndex(roleMappingConfig);
     }
 
     public ConfigModel(ActionAuthorization actionAuthorization, DocumentAuthorization documentAuthorization, RoleMapping.InvertedIndex roleMapping,
@@ -86,5 +88,11 @@ public class ConfigModel {
 
     public ActionGroups getActionGroups() {
         return actionGroups;
+    }
+
+    @Override
+    public String toString() {
+        return "ConfigModel [rolesConfig=" + rolesConfig + ", roleMappingConfig=" + roleMappingConfig + ", actionGroupsConfig=" + actionGroupsConfig
+                + ", tenantsConfig=" + tenantsConfig + ", blocks=" + blocks + "]";
     }
 }

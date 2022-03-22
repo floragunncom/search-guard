@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.time.temporal.TemporalAmount;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
@@ -33,22 +32,20 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.Actions;
 import com.floragunn.searchguard.authz.DocumentAuthorization;
+import com.floragunn.searchguard.authz.LegacyRoleBasedDocumentAuthorization;
 import com.floragunn.searchguard.authz.Role;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
-import com.floragunn.searchguard.authz.RoleBasedDocumentAuthorization;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
-import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
 public class InternalAuthTokenProvider {
 
@@ -59,7 +56,7 @@ public class InternalAuthTokenProvider {
 
     private final PrivilegesEvaluator privilegesEvaluator;
     private final Actions actions;
-    
+
     private JsonWebKey encryptionKey;
     private JsonWebKey signingKey;
     private JoseJwtProducer jwtProducer;
@@ -70,11 +67,11 @@ public class InternalAuthTokenProvider {
     public InternalAuthTokenProvider(PrivilegesEvaluator privilegesEvaluator, Actions actions, ConfigurationRepository configurationRepository) {
         this.privilegesEvaluator = privilegesEvaluator;
         this.actions = actions;
-        
+
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
 
             @Override
-            public void onChange(ConfigMap configMap) {             
+            public void onChange(ConfigMap configMap) {
                 InternalAuthTokenProvider.this.roles = configMap.get(CType.ROLES);
             }
         });
@@ -109,7 +106,8 @@ public class InternalAuthTokenProvider {
         return encodedJwt;
     }
 
-    public void userAuthFromToken(User user, ThreadContext threadContext, Consumer<SpecialPrivilegesEvaluationContext> onResult, Consumer<Exception> onFailure) {
+    public void userAuthFromToken(User user, ThreadContext threadContext, Consumer<SpecialPrivilegesEvaluationContext> onResult,
+            Consumer<Exception> onFailure) {
         try {
             onResult.accept(userAuthFromToken(user, threadContext));
         } catch (Exception e) {
@@ -117,7 +115,7 @@ public class InternalAuthTokenProvider {
             onFailure.accept(e);
         }
     }
-    
+
     public AuthFromInternalAuthToken userAuthFromToken(User user, ThreadContext threadContext) {
         final String authToken = threadContext.getHeader(TOKEN_HEADER);
         final String authTokenAudience = HeaderHelper.getSafeFromHeader(threadContext, AUDIENCE_HEADER);
@@ -140,9 +138,11 @@ public class InternalAuthTokenProvider {
             }
             SgDynamicConfiguration<Role> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null);
             ImmutableSet<String> roleNames = ImmutableSet.of(rolesConfig.getCEntries().keySet());
-            
-            ActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions, null, privilegesEvaluator.getAllConfiguredTenantNames());
-            DocumentAuthorization documentAuthorization = new RoleBasedDocumentAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions, null);
+
+            ActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions,
+                    null, privilegesEvaluator.getAllConfiguredTenantNames());
+            DocumentAuthorization documentAuthorization = new LegacyRoleBasedDocumentAuthorization(rolesConfig, privilegesEvaluator.getResolver(),
+                    privilegesEvaluator.getClusterService());
             String userName = verifiedToken.getClaims().getSubject();
             User user = User.forUser(userName).authDomainInfo(AuthDomainInfo.STORED_AUTH).searchGuardRoles(roleNames).build();
             AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, roleNames, actionAuthorization, documentAuthorization);
@@ -155,7 +155,6 @@ public class InternalAuthTokenProvider {
             return null;
         }
     }
-
 
     void initJwtProducer() {
         try {
@@ -185,7 +184,7 @@ public class InternalAuthTokenProvider {
     private Object getSgRolesForUser(User user) {
         ImmutableSet<String> userRoles = this.privilegesEvaluator.mapSgRoles(user, null);
         ImmutableMap<String, Role> roles = ImmutableMap.of(this.roles.getCEntries()).intersection(userRoles);
-        
+
         return Document.toDeepBasicObject(roles);
     }
 
@@ -244,7 +243,8 @@ public class InternalAuthTokenProvider {
         private final ActionAuthorization actionAuthorization;
         private final DocumentAuthorization documentAuthorization;
 
-        AuthFromInternalAuthToken(User user, ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization, DocumentAuthorization documentAuthorization) {
+        AuthFromInternalAuthToken(User user, ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization,
+                DocumentAuthorization documentAuthorization) {
             this.user = user;
             this.mappedRoles = mappedRoles;
             this.actionAuthorization = actionAuthorization;
@@ -261,7 +261,7 @@ public class InternalAuthTokenProvider {
         }
 
         @Override
-        public  ImmutableSet<String> getMappedRoles() {
+        public ImmutableSet<String> getMappedRoles() {
             return mappedRoles;
         }
 
@@ -275,7 +275,6 @@ public class InternalAuthTokenProvider {
             return true;
         }
 
-       
         @Override
         public ActionAuthorization getActionAuthorization() {
             return actionAuthorization;

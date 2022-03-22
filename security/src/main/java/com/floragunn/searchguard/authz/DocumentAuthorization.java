@@ -21,11 +21,12 @@ import java.util.Set;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.user.User;
 
 public interface DocumentAuthorization {
-    EvaluatedDlsFlsConfig getDlsFlsConfig(User user, ImmutableSet<String> mappedRoles, PrivilegesEvaluationContext context);
+    EvaluatedDlsFlsConfig getDlsFlsConfig(User user, ImmutableSet<String> mappedRoles, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException;
 
     void updateIndices(Set<String> indices);
 }
