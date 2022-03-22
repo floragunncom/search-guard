@@ -77,7 +77,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     
     public DlsFlsValveImpl(Settings settings, Client nodeClient, ClusterService clusterService, IndexNameExpressionResolver resolver,
             GuiceDependencies guiceDependencies, NamedXContentRegistry namedXContentRegistry, ThreadContext threadContext,
-            ConfigurationRepository configurationRepository, Actions actions, PrivilegesEvaluator privilegesEvaluator) {
+            ConfigurationRepository configurationRepository, PrivilegesEvaluator privilegesEvaluator) {
         this.nodeClient = nodeClient;
         this.clusterService = clusterService;
         this.resolver = resolver;
@@ -146,6 +146,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         try {
             evaluatedDlsFlsConfig = documentAuthorization.getDlsFlsConfig(user, mappedRoles, null);
         } catch (PrivilegesEvaluationException e) {
+            log.error("Error while evaluating DLS/FLS configuration", e);
             throw new ElasticsearchSecurityException("Error while evaluating DLS/FLS configuration", e);
         }
         

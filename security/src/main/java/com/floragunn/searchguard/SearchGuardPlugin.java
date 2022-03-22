@@ -839,9 +839,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         final ClusterInfoHolder cih = new ClusterInfoHolder();
         this.cs.addListener(cih);
 
-        dlsFlsValve = ReflectionHelper.instantiateDlsFlsValve(settings, localClient, clusterService, indexNameExpressionResolver, guiceDependencies,
-                xContentRegistry, threadPool.getThreadContext());
-
         actionRequestIntrospector = new ActionRequestIntrospector(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
         auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService);
         
@@ -881,6 +878,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry,
                 enterpriseModulesEnabled);
 
+        dlsFlsValve = ReflectionHelper.instantiateDlsFlsValve(settings, localClient, clusterService, indexNameExpressionResolver, guiceDependencies,
+                xContentRegistry, threadPool.getThreadContext(), cr, evaluator);
+        
         final DynamicConfigFactory dcf = new DynamicConfigFactory(cr, settings, configPath, localClient, threadPool, cih, moduleRegistry, configVarService);       
 
         cr.setDynamicConfigFactory(dcf);
