@@ -530,8 +530,8 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
 
     @JsonIgnore
     public void remove(String key) {
-       centries.remove(key);
-        
+        this.uninterpolatedJson = null;
+       centries.remove(key);        
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })

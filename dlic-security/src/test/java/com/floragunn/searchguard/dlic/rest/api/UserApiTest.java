@@ -224,6 +224,8 @@ public class UserApiTest {
 
             // now really remove user
             adminClient.delete("/_searchguard/api/internalusers/nagilum");
+            
+            Thread.sleep(500);
 
             // Access must be forbidden now
             checkGeneralAccess(HttpStatus.SC_UNAUTHORIZED, "nagilum", "nagilum");
