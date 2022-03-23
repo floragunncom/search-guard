@@ -48,6 +48,28 @@ SGS_KIBANA_USER:
         - "*:.management-beats"
       allowed_actions:
         - "SGS_INDICES_ALL"
+  tenant_permissions:
+    - tenant_patterns:
+      - "SGS_GLOBAL_TENANT"
+      allowed_actions:
+      - "kibana:saved_objects/_/write"
+   
+SGS_KIBANA_USER_NO_DEFAULT_TENANT:
+  reserved: true
+  hidden: false
+  static: true
+  description: "Provide the minimum permissions for a kibana user"
+  cluster_permissions:
+    - "SGS_CLUSTER_COMPOSITE_OPS"
+    - "cluster:searchguard:login/session"
+  index_permissions:
+    - index_patterns:
+        - ".tasks"
+        - ".management-beats"
+        - "*:.tasks"
+        - "*:.management-beats"
+      allowed_actions:
+        - "SGS_INDICES_ALL"
 
 SGS_OWN_INDEX:
   reserved: true

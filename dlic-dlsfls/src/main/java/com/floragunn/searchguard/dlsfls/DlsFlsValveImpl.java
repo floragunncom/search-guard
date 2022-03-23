@@ -150,7 +150,7 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
             throw new ElasticsearchSecurityException("Error while evaluating DLS/FLS configuration", e);
         }
         
-        if (evaluatedDlsFlsConfig == null || evaluatedDlsFlsConfig.isEmpty()) {
+        if (evaluatedDlsFlsConfig == null || evaluatedDlsFlsConfig.isEmpty() || resolved == null) {
             return true;
         }
 
