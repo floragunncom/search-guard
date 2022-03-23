@@ -134,7 +134,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
 
             }
 
-            configByType.put(configurationType, configuration);
+            configByType.put(configurationType, configuration.withoutStatic());
         }
 
         ConfigVersionSet configVersionSet = ConfigVersionSet.from(configByType);

@@ -281,11 +281,30 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             }
         }
     }
+
+    @JsonIgnore
+    public SgDynamicConfiguration<T> withoutStatic() {
+        SgDynamicConfiguration<T> result = empty(ctype);
+
+        result.version = this.version;
+        result.docVersion = this.docVersion;
+        result.seqNo = this.seqNo;
+        result.primaryTerm = this.primaryTerm;
+        
+        for(Entry<String, T> entry: new HashMap<String, T>(centries).entrySet()) {
+            if(!(entry.getValue() instanceof StaticDefinable) || !((StaticDefinable) entry.getValue()).isStatic()) {
+                result.putCEntry(entry.getKey(), entry.getValue());
+            }
+        }
+        
+        result.uninterpolatedJson = this.uninterpolatedJson;
+
+        return result;
+    }
+
     
     @JsonIgnore
     public void removeStatic() {
-        uninterpolatedJson = null;
-
         for(Entry<String, T> entry: new HashMap<String, T>(centries).entrySet()) {
             if(entry.getValue() instanceof StaticDefinable && ((StaticDefinable) entry.getValue()).isStatic()) {
                 centries.remove(entry.getKey());

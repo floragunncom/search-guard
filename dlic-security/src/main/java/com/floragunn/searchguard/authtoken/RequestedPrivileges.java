@@ -34,15 +34,18 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.Role;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.Pattern;
 
 public class RequestedPrivileges implements Writeable, ToXContentObject, Serializable {
+    static final String RESTRICTION_ROLE = "_requested_privileges";
+    static final ImmutableSet<String> RESTRICTION_ROLES = ImmutableSet.of(RESTRICTION_ROLE);
     private static final long serialVersionUID = 5862219250642101795L;
     private static final ImmutableList<String> WILDCARD_LIST = ImmutableList.of("*");
     private static final ImmutableList<Template<Pattern>> WILDCARD_TEMPLATE_PATTERN_LIST = ImmutableList.of(Template.constant(Pattern.WILDCARD, "*"));
-
+    
     public static final RequestedPrivileges ALL = new RequestedPrivileges(WILDCARD_LIST, IndexPermissions.ALL, TenantPermissions.ALL);
     private static final Logger log = LogManager.getLogger(AuthTokenService.class);
 
@@ -176,7 +179,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         Role role = new Role(null, false, false, false, "requested privileges", clusterPermissions, indexPermissions, tenantPermissions,
                 excludedClusterPermissions, excludeIndexPermissions);
 
-        roles.putCEntry("_requested_privileges", role);
+        roles.putCEntry(RESTRICTION_ROLE, role);
 
         return roles;
     }

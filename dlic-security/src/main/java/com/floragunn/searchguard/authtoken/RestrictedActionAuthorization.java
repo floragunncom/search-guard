@@ -43,13 +43,15 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
 
     @Override
     public boolean hasClusterPermission(User user, ImmutableSet<String> mappedRoles, Action action) throws PrivilegesEvaluationException {
-        return base.hasClusterPermission(user, mappedRoles, action) && restrictionSgRoles.hasClusterPermission(user, mappedRoles, action);
+        return base.hasClusterPermission(user, mappedRoles, action)
+                && restrictionSgRoles.hasClusterPermission(user, RequestedPrivileges.RESTRICTION_ROLES, action);
     }
 
     @Override
     public PrivilegesEvaluationResult hasIndexPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
             ResolvedIndices resolvedIndices, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
-        PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles.hasIndexPermission(user, mappedRoles, actions, resolvedIndices, context);
+        PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles.hasIndexPermission(user, RequestedPrivileges.RESTRICTION_ROLES, actions,
+                resolvedIndices, context);
 
         if (restrictedPermission.getStatus() != PrivilegesEvaluationResult.Status.OK) {
             // Don't calculate base permission if we already know we will get an empty set
@@ -62,7 +64,8 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
     @Override
     public boolean hasTenantPermission(User user, String requestedTenant, ImmutableSet<String> mappedRoles, Action action,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
-        boolean restrictedPermission = restrictionSgRoles.hasTenantPermission(user, requestedTenant, mappedRoles, action, context);
+        boolean restrictedPermission = restrictionSgRoles.hasTenantPermission(user, requestedTenant, RequestedPrivileges.RESTRICTION_ROLES, action,
+                context);
 
         if (!restrictedPermission) {
             return false;
