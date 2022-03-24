@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,15 @@
 
 package com.floragunn.searchguard.privileges;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 
+import com.floragunn.codova.config.templates.ExpressionEvaluationException;
+import com.floragunn.codova.config.templates.Template;
+import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.user.User;
 
 public class PrivilegesEvaluationContext {
@@ -27,6 +33,7 @@ public class PrivilegesEvaluationContext {
     private final User user;
     private final IndexNameExpressionResolver resolver;
     private final ClusterService clusterService;
+    private final Map<Template<Pattern>, Pattern> renderedPatternTemplateCache = new HashMap<>();
 
     PrivilegesEvaluationContext(User user, IndexNameExpressionResolver resolver, ClusterService clusterService) {
         this.user = user;
@@ -52,5 +59,16 @@ public class PrivilegesEvaluationContext {
 
     public void setResolveLocalAll(boolean resolveLocalAll) {
         this.resolveLocalAll = resolveLocalAll;
+    }
+    
+    public Pattern getRenderedPattern(Template<Pattern> template) throws ExpressionEvaluationException {
+        Pattern pattern = this.renderedPatternTemplateCache.get(template);
+        
+        if (pattern == null) {
+            pattern = template.render(user);
+            this.renderedPatternTemplateCache.put(template, pattern);            
+        }
+        
+        return pattern;
     }
 }

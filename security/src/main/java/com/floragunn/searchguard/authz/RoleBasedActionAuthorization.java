@@ -18,12 +18,15 @@
 package com.floragunn.searchguard.authz;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver.DateMathExpressionResolver;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
@@ -149,7 +152,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                     if (indexPattern != null) {
                         for (String index : checkTable.iterateUncheckedRows(action)) {
                             try {
-                                if (indexPattern.matches(index, user) && checkTable.check(index, action)) {
+                                if (indexPattern.matches(index, user, context) && checkTable.check(index, action)) {
                                     break top;
                                 }
                             } catch (PrivilegesEvaluationException e) {
@@ -162,6 +165,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             }
         }
 
+        // If all actions are well-known, the index.rolesToActionToIndexPattern data structure that was evaluated above,
+        // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
+        // actions, we also have to evaluate action patterns to check the authorization
+        
         boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
 
         if (!checkTable.isComplete() && !allActionsWellKnown) {
@@ -181,7 +188,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                             if (actionPattern.matches(action.name())) {
                                 for (String index : checkTable.iterateUncheckedRows(action)) {
                                     try {
-                                        if (indexPattern.matches(index, user) && checkTable.check(index, action)) {
+                                        if (indexPattern.matches(index, user, context) && checkTable.check(index, action)) {
                                             break top;
                                         }
                                     } catch (PrivilegesEvaluationException e) {
@@ -228,7 +235,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
         if (!isTenantValid(requestedTenant)) {
             log.info("Invalid tenant requested: {}", requestedTenant);
         }
-        
+
         for (String role : mappedRoles) {
             ImmutableMap<Action, ImmutableSet<Template<Pattern>>> actionToTenantPattern = tenant.roleToActionToTenantPattern.get(role);
 
@@ -239,7 +246,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                     for (Template<Pattern> tenantTemplate : tenantTemplates) {
                         try {
                             Pattern tenantPattern = tenantTemplate.render(user);
-                            
+
                             if (tenantPattern.matches(requestedTenant)) {
                                 return true;
                             }
@@ -250,7 +257,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                 }
             }
         }
-        
+
         return false;
     }
 
@@ -272,7 +279,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
         return tenants.contains(requestedTenant);
     }
-    
+
     static class ClusterPermissions {
         private final ImmutableMap<Action, ImmutableSet<String>> actionToRoles;
         private final ImmutableSet<String> rolesWithWildcardPermissions;
@@ -486,7 +493,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                                 }
                             }
                         }
-
                     }
 
                 } catch (ConfigValidationException e) {
@@ -601,7 +607,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
                         if (indexPattern != null) {
                             for (String index : checkTable.iterateCheckedRows(action)) {
-                                if (indexPattern.matches(index, user)) {
+                                if (indexPattern.matches(index, user, context)) {
                                     checkTable.uncheck(index, action);
                                 }
                             }
@@ -630,7 +636,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
                                 if (actionPattern.matches(action.name())) {
                                     for (String index : checkTable.iterateCheckedRows(action)) {
-                                        if (indexPattern.matches(index, user)) {
+                                        if (indexPattern.matches(index, user, context)) {
                                             checkTable.uncheck(index, action);
                                         }
                                     }
@@ -908,13 +914,17 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
         private final Pattern pattern;
         private final ImmutableList<Template<Pattern>> patternTemplates;
+        private final ImmutableList<String> dateMathExpressions;
 
-        IndexPattern(Pattern pattern, ImmutableList<Template<Pattern>> patternTemplates) {
+        private final static DateMathExpressionResolver dateMathExpressionResolver = new DateMathExpressionResolver();
+
+        IndexPattern(Pattern pattern, ImmutableList<Template<Pattern>> patternTemplates, ImmutableList<String> dateMathExpressions) {
             this.pattern = pattern;
             this.patternTemplates = patternTemplates;
+            this.dateMathExpressions = dateMathExpressions;
         }
 
-        public boolean matches(String index, User user) throws PrivilegesEvaluationException {
+        public boolean matches(String index, User user, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
             if (pattern.matches(index)) {
                 return true;
             }
@@ -922,7 +932,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             if (!patternTemplates.isEmpty()) {
                 for (Template<Pattern> patternTemplate : this.patternTemplates) {
                     try {
-                        Pattern pattern = patternTemplate.render(user);
+                        Pattern pattern = context.getRenderedPattern(patternTemplate);
 
                         if (pattern.matches(index)) {
                             return true;
@@ -933,9 +943,35 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                 }
             }
 
+            if (!dateMathExpressions.isEmpty()) {
+                IndexNameExpressionResolver.Context resolverContext = new IndexNameExpressionResolver.ResolverContext();
+                List<String> resolvedExpressions = dateMathExpressionResolver.resolve(resolverContext, this.dateMathExpressions);
+
+                for (String dateMathExpression : resolvedExpressions) {
+                    try {
+                        if (!Template.containsPlaceholders(dateMathExpression)) {
+                            Pattern pattern = Pattern.create(dateMathExpression);
+
+                            if (pattern.matches(index)) {
+                                return true;
+                            }
+                        } else {
+                            Template<Pattern> patternTemplate = new Template<>(dateMathExpression, Pattern::create);
+                            Pattern pattern = patternTemplate.render(user);
+                            
+                            if (pattern.matches(index)) {
+                                return true;
+                            }                            
+                        }
+                    } catch (ConfigValidationException | ExpressionEvaluationException e) {
+                        throw new PrivilegesEvaluationException("Error while evaluating date math expression: " + dateMathExpression, e);
+                    }
+                }
+            }
+
             return false;
         }
-        
+
         @Override
         public String toString() {
             if (pattern != null && patternTemplates != null && patternTemplates.size() != 0) {
@@ -952,9 +988,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
         static class Builder {
             private List<Pattern> constantPatterns = new ArrayList<>();
             private List<Template<Pattern>> patternTemplates = new ArrayList<>();
+            private Set<String> dateMathExpressions = new HashSet<>();
 
             void add(Template<Pattern> patternTemplate) {
-                if (patternTemplate.isConstant()) {
+                if (patternTemplate.getSource().startsWith("<") && patternTemplate.getSource().endsWith(">")) {
+                    dateMathExpressions.add(patternTemplate.getSource());
+                } else if (patternTemplate.isConstant()) {
                     constantPatterns.add(patternTemplate.getConstantValue());
                 } else {
                     patternTemplates.add(patternTemplate);
@@ -962,7 +1001,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             }
 
             IndexPattern build() {
-                return new IndexPattern(Pattern.join(constantPatterns), ImmutableList.of(patternTemplates));
+                return new IndexPattern(Pattern.join(constantPatterns), ImmutableList.of(patternTemplates), ImmutableList.of(dateMathExpressions));
             }
         }
 
@@ -975,11 +1014,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
     public ActionGroups getActionGroups() {
         return actionGroups;
     }
-    
-    
+
     private static boolean isActionName(String actionName) {
         return actionName.indexOf(':') != -1;
     }
-
 
 }

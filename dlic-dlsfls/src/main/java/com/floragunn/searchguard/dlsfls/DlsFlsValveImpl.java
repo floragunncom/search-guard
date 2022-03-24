@@ -46,7 +46,6 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
-import com.floragunn.searchguard.authz.Actions;
 import com.floragunn.searchguard.authz.DocumentAuthorization;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
