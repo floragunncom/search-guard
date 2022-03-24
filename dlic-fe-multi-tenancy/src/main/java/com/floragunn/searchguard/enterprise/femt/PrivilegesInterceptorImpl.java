@@ -140,7 +140,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("replaceKibanaIndex(" + action + ", " + user + ")\nrequestedResolved: " + requestedResolved);
+            log.debug("replaceKibanaIndex(" + action + ", " + user + ")\nrequestedResolved: " + requestedResolved + "\nrequestedTenant: " + user.getRequestedTenant());
         }
 
         IndexInfo kibanaIndexInfo = checkForExclusivelyUsedKibanaIndexOrAlias(request, requestedResolved);

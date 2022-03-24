@@ -92,7 +92,7 @@ public class LegacyRoleBasedDocumentAuthorization implements DocumentAuthorizati
                     try {
                         concreteIndices = getResolvedIndexPatterns(user, indexPattern);
                     } catch (ExpressionEvaluationException e) {
-                        throw new PrivilegesEvaluationException("Invalid index pattern in role " + entry.getKey() + ": " + indexPattern, e);
+                        throw new PrivilegesEvaluationException("Error while evaluating index pattern template of role " + entry.getKey() + ":\nPattern: " + indexPattern + "\nUser: " + user, e);
                     }
 
                     if (index.getDls() != null) {
@@ -108,7 +108,8 @@ public class LegacyRoleBasedDocumentAuthorization implements DocumentAuthorizati
                             }
 
                         } catch (ExpressionEvaluationException e) {
-                            throw new ElasticsearchSecurityException("Invalid DLS query in role " + entry.getKey() + ": " + index.getDls(), e);
+                            throw new PrivilegesEvaluationException("Error while evaluating index pattern template of role " + entry.getKey()
+                                    + ":\nPattern: " + indexPattern + "\nUser: " + user, e);
                         }
                     } else {
                         noDlsConcreteIndices.addAll(Arrays.asList(concreteIndices));

@@ -254,13 +254,17 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                         return;
                     }
 
+                    
+                    String requestedTenant = getRequestedTenant();
+                    
                     if (log.isDebugEnabled()) {
-                        log.debug("Authentication successful for " + authenticatedUser.toStringWithAttributes() + " on " + authenticationDomain);
+                        log.debug("Authentication successful for " + authenticatedUser.toStringWithAttributes() + " on " + authenticationDomain
+                                + " using " + this + "\nrequestedTenant: " + requestedTenant);
                     }
 
                     decorateAuthenticatedUser(authenticatedUser);
 
-                    authenticatedUser.setRequestedTenant(getRequestedTenant());
+                    authenticatedUser.setRequestedTenant(requestedTenant);
 
                     if (isImpersonationRequested()) {
                         new RestImpersonationProcessor<AuthenticatorType>(authenticatedUser, getImpersonationUser(), authenticationDomains, adminDns,
