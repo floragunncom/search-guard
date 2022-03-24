@@ -25,7 +25,6 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -108,8 +107,8 @@ public class LegacyRoleBasedDocumentAuthorization implements DocumentAuthorizati
                             }
 
                         } catch (ExpressionEvaluationException e) {
-                            throw new PrivilegesEvaluationException("Error while evaluating index pattern template of role " + entry.getKey()
-                                    + ":\nPattern: " + indexPattern + "\nUser: " + user, e);
+                            throw new PrivilegesEvaluationException("Error while evaluating DLS query template of role " + entry.getKey()
+                                    + ":\nQuery template: " + index.getDls() + "\nUser: " + user.toStringWithAttributes(), e);
                         }
                     } else {
                         noDlsConcreteIndices.addAll(Arrays.asList(concreteIndices));

@@ -17,9 +17,6 @@
 
 package com.floragunn.searchguard.authz;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -63,8 +60,6 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         return new ValidationResult<Role>(new Role(docNode, reserved, hidden, isStatic, description, clusterPermissions, indexPermissions,
                 tenantPermissions, excludeClusterPermissions, excludeIndexPermissions), validationErrors);
     }
-
-    private static final Logger log = LogManager.getLogger(RoleMapping.class);
 
     private final DocNode source;
     private final boolean reserved;

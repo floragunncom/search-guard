@@ -17,26 +17,6 @@
 
 package com.floragunn.searchguard.authz;
 
-import java.io.IOException;
-import java.util.Arrays;
-
-import org.elasticsearch.common.settings.Settings;
-import org.junit.Assert;
-import org.junit.Test;
-
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.ConfigModelV7;
-import com.floragunn.searchguard.sgconf.SgRoles;
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
-import com.floragunn.searchguard.user.User;
-import com.google.common.collect.ImmutableMap;
-
 public class RoleBasedActionAuthorizationTests {
     /* TODO
      * 
