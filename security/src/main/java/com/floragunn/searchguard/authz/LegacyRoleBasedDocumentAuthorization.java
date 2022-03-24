@@ -92,7 +92,7 @@ public class LegacyRoleBasedDocumentAuthorization implements DocumentAuthorizati
                     try {
                         concreteIndices = getResolvedIndexPatterns(user, indexPattern);
                     } catch (ExpressionEvaluationException e) {
-                        throw new PrivilegesEvaluationException("Error while evaluating index pattern template of role " + entry.getKey() + ":\nPattern: " + indexPattern + "\nUser: " + user, e);
+                        throw new PrivilegesEvaluationException("Error while evaluating index pattern template of role " + entry.getKey() + ":\nPattern: " + indexPattern + "\nUser: " + user.toStringWithAttributes(), e);
                     }
 
                     if (index.getDls() != null) {
