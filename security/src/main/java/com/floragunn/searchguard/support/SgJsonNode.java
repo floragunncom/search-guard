@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.dlic.rest.api;
+package com.floragunn.searchguard.support;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.floragunn.searchguard.DefaultObjectMapper;
 
-final class SgJsonNode {
+public final class SgJsonNode {
     
     private final JsonNode node;
 

@@ -154,7 +154,6 @@ import org.elasticsearch.persistent.UpdatePersistentTaskStatusAction;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.xcontent.ToXContent;
 
-import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
@@ -681,7 +680,7 @@ public class Actions {
             }
 
             return new Action.WellKnownAction<RequestType, RequestItem, RequestItemType>(actionName, scope, requestType, requestTypeName,
-                    ImmutableList.of(additionalPrivileges),
+                    additionalPrivileges,
                     additionalPrivilegesByItemType != null ? ImmutableMap.of(additionalPrivilegesByItemType) : ImmutableMap.empty(), requestItems,
                     resources, Actions.this);
         }

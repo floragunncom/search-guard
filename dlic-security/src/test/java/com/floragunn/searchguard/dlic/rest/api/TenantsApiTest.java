@@ -20,6 +20,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.support.SgJsonNode;
 
 public class TenantsApiTest extends AbstractRestApiUnitTest {
 
