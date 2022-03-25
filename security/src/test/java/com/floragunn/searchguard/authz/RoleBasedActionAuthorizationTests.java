@@ -17,35 +17,68 @@
 
 package com.floragunn.searchguard.authz;
 
+import java.util.Arrays;
+
+import org.junit.Assert;
+import org.junit.Test;
+
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.Action.WellKnownAction;
+import com.floragunn.searchguard.sgconf.ActionGroups;
+import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.user.User;
+
 public class RoleBasedActionAuthorizationTests {
-    /* TODO
-     * 
-    
-     
+
+    private static final ActionGroups emptyActionGroups = new ActionGroups(SgDynamicConfiguration.empty());
+    private static final Actions actions = new Actions(null);
+
     @Test
-    public void testWildcardTenantMapping() throws IOException, ConfigValidationException {
-        SgDynamicConfiguration<RoleV7> roles = SgDynamicConfiguration
-                .fromMap(
-                        ImmutableMap.of("_sg_meta", ImmutableMap.of("type", "roles", "config_version", 2), "all_access",
-                                ImmutableMap.of("tenant_permissions",
-                                        Arrays.asList(
-                                                ImmutableMap.of("tenant_patterns", Arrays.asList("*"), "allowed_actions", Arrays.asList("*"))))),
-                        CType.ROLES, -1, -1, -1, null);
-        SgDynamicConfiguration<RoleMapping> rolemappings = SgDynamicConfiguration.empty();
-        SgDynamicConfiguration<ActionGroupsV7> actiongroups = SgDynamicConfiguration.empty();
-        SgDynamicConfiguration<TenantV7> tenants = SgDynamicConfiguration.fromMap(ImmutableMap.of("_sg_meta",
-                ImmutableMap.of("type", "tenants", "config_version", 2), "my_tenant", ImmutableMap.of("description", "my tenant")), CType.TENANTS, 
-                -1, -1, -1, null);
-        SgDynamicConfiguration<BlocksV7> blocks = SgDynamicConfiguration.empty();
+    public void clusterAction_wellKnown() throws Exception {
 
-        ConfigModel configModel = new ConfigModelV7(roles, rolemappings, actiongroups, tenants, blocks, Settings.EMPTY);
+        Action nodesStatsAction = actions.get("cluster:monitor/nodes/stats");
+        Action otherAction = actions.get("cluster:monitor/nodes/usage");
 
-        User user = User.forUser("test").searchGuardRoles("all_access").build();
-        SgRoles sgRoles = configModel.getSgRoles();
-        SgRoles filteredSgRoles = sgRoles.filter(configModel.mapSgRoles(user, null));
-        Assert.assertEquals(ImmutableMap.of("test", true, "my_tenant", true),
-                filteredSgRoles.mapTenants(user, configModel.getAllConfiguredTenantNames()));
+        Assert.assertTrue(nodesStatsAction.toString(), nodesStatsAction instanceof WellKnownAction);
+
+        SgDynamicConfiguration<Role> roles = SgDynamicConfiguration.fromMap(
+                DocNode.of("test_role", DocNode.of("cluster_permissions", Arrays.asList("cluster:monitor/nodes/stats*"))), CType.ROLES, -1, -1, -1,
+                null);
+
+        ImmutableSet<String> tenants = ImmutableSet.empty();
+
+        RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
+
+        User user = User.forUser("test").build();
+
+        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), nodesStatsAction));
+        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("other_role"), nodesStatsAction));
+        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), otherAction));
     }
     
-     */
+    @Test
+    public void clusterAction_notWellKnown() throws Exception {
+
+        Action nodesStatsAction = actions.get("cluster:monitor/nodes/stats/somethingnotwellknown");
+        Action otherAction = actions.get("cluster:monitor/nodes/usage/somethingnotwellknown");
+
+        Assert.assertFalse(nodesStatsAction.toString(), nodesStatsAction instanceof WellKnownAction);
+
+        SgDynamicConfiguration<Role> roles = SgDynamicConfiguration.fromMap(
+                DocNode.of("test_role", DocNode.of("cluster_permissions", Arrays.asList("cluster:monitor/nodes/stats*"))), CType.ROLES, -1, -1, -1,
+                null);
+
+        ImmutableSet<String> tenants = ImmutableSet.empty();
+
+        RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
+
+        User user = User.forUser("test").build();
+
+        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), nodesStatsAction));
+        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("other_role"), nodesStatsAction));
+        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), otherAction));
+    }
+
 }

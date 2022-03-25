@@ -20,7 +20,6 @@ import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.Interce
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -56,6 +55,7 @@ import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.rest.RestStatus;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.Action;
 import com.floragunn.searchguard.authz.ActionAuthorization;
@@ -90,7 +90,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
                 .compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+)?(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)");
         this.kibanaIndexPatternWithTenant = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+(_[0-9]{3})?)");
 
-        this.tenantNames = tenantNames;
+        this.tenantNames = tenantNames.with("SGS_GLOBAL_TENANT");
         this.KIBANA_ALL_SAVED_OBJECTS_WRITE = actions.get("kibana:saved_objects/_/write");
         this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
     }
@@ -483,10 +483,10 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     @Override
     public Map<String, Boolean> mapTenants(User user, ImmutableSet<String> roles, ActionAuthorization actionAuthorization) {
         if (user == null) {
-            return Collections.emptyMap();
+            return ImmutableMap.empty();
         }
 
-        Map<String, Boolean> result = new HashMap<>(roles.size());
+        ImmutableMap.Builder<String, Boolean> result = new ImmutableMap.Builder<>(roles.size());
         result.put(user.getName(), true);
 
         for (String tenant : this.tenantNames) {
@@ -504,12 +504,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
             }
         }
 
-        if (!result.containsKey("SGS_GLOBAL_TENANT")) {
-            result.put("SGS_GLOBAL_TENANT", true);
-        }
-
-        return Collections.unmodifiableMap(result);
-
+        return result.build();
     }
 
     private boolean isTenantValid(String tenant) {

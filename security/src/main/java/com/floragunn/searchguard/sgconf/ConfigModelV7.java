@@ -31,18 +31,14 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.core.Tuple;
 
 import com.floragunn.searchguard.authc.blocking.ClientBlockRegistry;
 import com.floragunn.searchguard.authc.blocking.IpRangeVerdictBasedBlockRegistry;
 import com.floragunn.searchguard.authc.blocking.VerdictBasedBlockRegistry;
 import com.floragunn.searchguard.authc.blocking.WildcardVerdictBasedBlockRegistry;
-import com.floragunn.searchguard.authz.RoleMapping;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
 
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddress;
@@ -52,24 +48,11 @@ public class ConfigModelV7 extends ConfigModel {
 
     private static final Logger log = LogManager.getLogger(ConfigModelV7.class);
 
-    private ConfigConstants.RolesMappingResolution rolesMappingResolution;
-    private ActionGroups actionGroups;
-    private RoleMapping.InvertedIndex invertedRoleMappings;
     private ClientBlockRegistry<InetAddress> blockedIpAddresses;
     private ClientBlockRegistry<String> blockedUsers;
     private ClientBlockRegistry<IPAddress> blockeNetmasks;
 
     public ConfigModelV7(SgDynamicConfiguration<BlocksV7> blocks, Settings esSettings) {
-
-        try {
-            rolesMappingResolution = ConfigConstants.RolesMappingResolution.valueOf(esSettings
-                    .get(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, ConfigConstants.RolesMappingResolution.MAPPING_ONLY.toString())
-                    .toUpperCase());
-        } catch (Exception e) {
-            log.error("Cannot apply roles mapping resolution", e);
-            rolesMappingResolution = ConfigConstants.RolesMappingResolution.MAPPING_ONLY;
-        }
-
         blockedIpAddresses = reloadBlockedIpAddresses(blocks);
         blockedUsers = reloadBlockedUsers(blocks);
         blockeNetmasks = reloadBlockedNetmasks(blocks);
@@ -139,10 +122,6 @@ public class ConfigModelV7 extends ConfigModel {
         return new Tuple<>(allows, disallows);
     }
 
-    public ActionGroups getActionGroups() {
-        return actionGroups;
-    }
-
     @Override
     public List<ClientBlockRegistry<InetAddress>> getBlockIpAddresses() {
         return Collections.singletonList(blockedIpAddresses);
@@ -156,11 +135,6 @@ public class ConfigModelV7 extends ConfigModel {
     @Override
     public List<ClientBlockRegistry<IPAddress>> getBlockedNetmasks() {
         return Collections.singletonList(blockeNetmasks);
-    }
-  
-    @Override
-    public Set<String> mapSgRoles(User user, TransportAddress caller) {
-        return invertedRoleMappings.evaluate(user, caller, rolesMappingResolution);
     }
 
 

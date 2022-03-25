@@ -19,22 +19,14 @@ package com.floragunn.searchguard.sgconf;
 
 import java.net.InetAddress;
 import java.util.List;
-import java.util.Set;
-
-import org.elasticsearch.common.transport.TransportAddress;
 
 import com.floragunn.searchguard.authc.blocking.ClientBlockRegistry;
-import com.floragunn.searchguard.user.User;
 
 import inet.ipaddr.IPAddress;
 
 public abstract class ConfigModel {
-  
-    public static final String USER_TENANT = "__user__";
 
-    public abstract Set<String> mapSgRoles(User user, TransportAddress caller);
-            
-    public abstract ActionGroups getActionGroups();
+    public static final String USER_TENANT = "__user__";
 
     public abstract List<ClientBlockRegistry<InetAddress>> getBlockIpAddresses();
 
@@ -42,11 +34,4 @@ public abstract class ConfigModel {
 
     public abstract List<ClientBlockRegistry<IPAddress>> getBlockedNetmasks();
 
-    public interface ActionGroupResolver {
-        Set<String> resolvedActions(final List<String> actions);
-    }
-
-    
-    
-   
 }
