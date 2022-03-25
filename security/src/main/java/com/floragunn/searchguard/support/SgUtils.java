@@ -21,8 +21,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -104,24 +102,7 @@ public final class SgUtils {
     private static boolean isNullSet(final Set<String> set) {
         return set.size() == 1 && set.iterator().next() == null;
     }
-    
-    @SafeVarargs
-    public static <T> Map<T, T>  mapFromArray(T ... keyValues) {
-        if(keyValues == null) {
-            return Collections.emptyMap();
-        }
-        if (keyValues.length % 2 != 0) {
-            log.error("Expected even number of key/value pairs, got {}.", Arrays.toString(keyValues));
-            return null;
-        }
-        Map<T, T> map = new HashMap<>();
-        
-        for(int i = 0; i<keyValues.length; i+=2) {
-            map.put(keyValues[i], keyValues[i+1]);
-        }
-        return map;
-    }
-        
+   
     public static String replaceEnvVars(String in, Settings settings) {
         if(in == null || in.isEmpty()) {
             return in;

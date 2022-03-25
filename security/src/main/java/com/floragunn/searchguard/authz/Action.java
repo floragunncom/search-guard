@@ -31,6 +31,7 @@ import java.util.function.Predicate;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.Actions.Scope;
@@ -40,17 +41,17 @@ public interface Action {
     String name();
 
     boolean isIndexPrivilege();
-    
+
     boolean isClusterPrivilege();
 
     boolean isTenantPrivilege();
-    
+
     boolean isOpen();
-    
+
     ImmutableSet<Action> expandPrivileges(ActionRequest request);
-    
+
     boolean requiresSpecialProcessing();
-    
+
     default <RequestType extends ActionRequest> WellKnownAction<RequestType, ?, ?> wellKnown(RequestType request) {
         if (this instanceof WellKnownAction) {
             @SuppressWarnings("unchecked")
@@ -61,29 +62,21 @@ public interface Action {
             return null;
         }
     }
-    
+
     public static class WellKnownAction<RequestType extends ActionRequest, RequestItem, RequestItemType> implements Action {
         private final String actionName;
-
         private final Scope scope;
-
         private final Class<RequestType> requestType;
         private final String requestTypeName;
-
-        private final List<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges;
-
+        private final ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges;
         private final RequestItems<RequestType, RequestItem, RequestItemType> requestItems;
-
         private final Resources resources;
-        
         private final ImmutableSet<Action> asImmutableSet;
-        
         private final Actions actions;
-
         private final int hashCode;
-        
+
         public WellKnownAction(String actionName, Scope scope, Class<RequestType> requestType, String requestTypeName,
-                List<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
+                ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
                 ImmutableMap<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType,
                 RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources, Actions actions) {
             this.actionName = actionName;
@@ -102,10 +95,10 @@ public interface Action {
         public String toString() {
             return actionName;
         }
-        
+
         @Override
         public int hashCode() {
-           return hashCode;
+            return hashCode;
         }
 
         @Override
@@ -116,12 +109,11 @@ public interface Action {
             if (!(obj instanceof WellKnownAction)) {
                 return false;
             }
-            WellKnownAction<?,?,?> other = (WellKnownAction<?,?,?>) obj;
-            
+            WellKnownAction<?, ?, ?> other = (WellKnownAction<?, ?, ?>) obj;
+
             return other.hashCode == this.hashCode && other.actionName.equals(this.actionName);
         }
 
-        
         @Override
         public String name() {
             return actionName;
@@ -131,7 +123,7 @@ public interface Action {
         public boolean isIndexPrivilege() {
             return scope == Scope.INDEX;
         }
-        
+
         @Override
         public boolean isClusterPrivilege() {
             return scope == Scope.CLUSTER;
@@ -146,7 +138,7 @@ public interface Action {
         public boolean isOpen() {
             return scope == Scope.OPEN;
         }
-        
+
         @Override
         public boolean requiresSpecialProcessing() {
             return resources != null && (resources.createsResource != null || !resources.usesResources.isEmpty());
@@ -156,10 +148,6 @@ public interface Action {
         public ImmutableSet<Action> expandPrivileges(ActionRequest request) {
             @SuppressWarnings("unchecked")
             RequestType typedRequest = requestType != null ? requestType.cast(request) : (RequestType) request;
-            
-            if (additionalPrivileges.isEmpty() && (requestItems == null || requestItems.additionalPrivilegesByItemType == null)) {
-                return asImmutableSet;
-            }
 
             ImmutableSet<Action> result = asImmutableSet;
 
@@ -175,7 +163,7 @@ public interface Action {
 
             return result;
         }
-        
+
         public RequestType cast(ActionRequest request) {
             if (requestType != null) {
                 return requestType.cast(request);
@@ -270,7 +258,7 @@ public interface Action {
             }
 
         }
-        
+
         public static class AdditionalPrivileges<RequestType extends ActionRequest, RequestItemType> {
             private final ImmutableSet<String> privileges;
             private final Predicate<RequestType> condition;
@@ -284,15 +272,15 @@ public interface Action {
             public ImmutableSet<String> getPrivileges() {
                 return privileges;
             }
-            
+
             public ImmutableSet<Action> getPrivilegesAsActions(Actions actions) {
                 ImmutableSet<Action> result = this.privilegesAsActions;
-                
+
                 if (result == null) {
-                    this.privilegesAsActions = result = privileges.map((a) -> actions.get(a));                    
+                    this.privilegesAsActions = result = privileges.map((a) -> actions.get(a));
                 }
-                                
-                return result;                
+
+                return result;
             }
 
             public Predicate<RequestType> getCondition() {
@@ -391,9 +379,9 @@ public interface Action {
             return resources;
         }
 
-       
-
-      
+        public String getRequestTypeName() {
+            return requestTypeName;
+        }
 
     }
 
@@ -419,7 +407,7 @@ public interface Action {
         public boolean isIndexPrivilege() {
             return scope == Scope.INDEX;
         }
-        
+
         @Override
         public boolean isClusterPrivilege() {
             return scope == Scope.CLUSTER;
@@ -429,7 +417,7 @@ public interface Action {
         public boolean isTenantPrivilege() {
             return scope == Scope.TENANT;
         }
-        
+
         @Override
         public boolean isOpen() {
             return scope == Scope.OPEN;
@@ -444,28 +432,28 @@ public interface Action {
         public boolean requiresSpecialProcessing() {
             return false;
         }
-        
+
         @Override
         public String toString() {
             return actionName;
         }
-        
+
         @Override
         public int hashCode() {
             return actionName.hashCode();
         }
-        
+
         public boolean equals(Object other) {
             if (other == this) {
                 return true;
             }
-            
+
             if (!(other instanceof OtherAction)) {
                 return false;
             }
-            
+
             OtherAction otherAction = (OtherAction) other;
-            
+
             return actionName.equals(otherAction.actionName);
         }
     }

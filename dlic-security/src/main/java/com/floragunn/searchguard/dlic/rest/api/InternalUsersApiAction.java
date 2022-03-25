@@ -54,7 +54,6 @@ import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.support.SgJsonNode;
 
 public class InternalUsersApiAction extends PatchableResourceApiAction {
 
