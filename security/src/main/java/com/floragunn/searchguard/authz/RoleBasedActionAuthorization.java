@@ -93,6 +93,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             ResolvedIndices resolved, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
         ImmutableSet<PrivilegesEvaluationResult.Error> errors = ImmutableSet.empty();
 
+        if (log.isTraceEnabled()) {
+            log.trace("hasIndexPermission()\nuser: " + user + "\nactions: " + actions + "\nresolved: " + resolved);
+        }
+
         if (resolved.isLocalAll()) {
             // If we have a query on all indices, first check for roles which give privileges for *. Thus, we avoid costly index resolutions
 
@@ -135,6 +139,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             resultFromStatefulIndex = statefulIndex.hasPermission(user, mappedRoles, actions, resolved, context, checkTable);
 
             if (resultFromStatefulIndex != null) {
+                if (log.isTraceEnabled()) {
+                    log.trace("resultFromStatefulIndex: " + resultFromStatefulIndex);
+                }
+
                 return resultFromStatefulIndex;
             }
 
@@ -144,6 +152,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
         top: for (String role : mappedRoles) {
             ImmutableMap<Action, IndexPattern> actionToIndexPattern = index.rolesToActionToIndexPattern.get(role);
+
+            if (log.isTraceEnabled()) {
+                log.trace("Role " + role + " => " + actionToIndexPattern);
+            }
 
             if (actionToIndexPattern != null) {
                 for (Action action : actions) {
@@ -168,12 +180,16 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
         // If all actions are well-known, the index.rolesToActionToIndexPattern data structure that was evaluated above,
         // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
         // actions, we also have to evaluate action patterns to check the authorization
-        
+
         boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
 
         if (!checkTable.isComplete() && !allActionsWellKnown) {
             top: for (String role : mappedRoles) {
                 ImmutableMap<Pattern, IndexPattern> actionPatternToIndexPattern = index.rolesToActionPatternToIndexPattern.get(role);
+
+                if (log.isTraceEnabled()) {
+                    log.trace("Role " + role + " => " + actionPatternToIndexPattern);
+                }
 
                 if (actionPatternToIndexPattern != null) {
                     for (Action action : actions) {
@@ -203,7 +219,15 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             }
         }
 
+        if (log.isTraceEnabled()) {
+            log.trace("Permissions before exclusions:\n" + checkTable);
+        }
+
         indexExclusions.uncheckExclusions(checkTable, user, mappedRoles, actions, resolved, context);
+
+        if (log.isTraceEnabled()) {
+            log.trace("Permissions after exclusions:\n" + checkTable);
+        }
 
         if (checkTable.isComplete()) {
             return PrivilegesEvaluationResult.OK;
@@ -958,10 +982,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                         } else {
                             Template<Pattern> patternTemplate = new Template<>(dateMathExpression, Pattern::create);
                             Pattern pattern = patternTemplate.render(user);
-                            
+
                             if (pattern.matches(index)) {
                                 return true;
-                            }                            
+                            }
                         }
                     } catch (ConfigValidationException | ExpressionEvaluationException e) {
                         throw new PrivilegesEvaluationException("Error while evaluating date math expression: " + dateMathExpression, e);
