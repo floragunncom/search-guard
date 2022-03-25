@@ -205,7 +205,11 @@ public class Template<T> {
                 }
 
                 if (value instanceof Collection) {
-                    value = toQuotedCommaSeparatedString((Collection<?>) value);
+                    if (((Collection<?>) value).size() != 1) {
+                        value = toQuotedCommaSeparatedString((Collection<?>) value);                        
+                    } else {
+                        value = ((Collection<?>) value).iterator().next().toString();
+                    }
                 } else if (!(value instanceof String)) {
                     value = value.toString();
                 }

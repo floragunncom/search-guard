@@ -43,6 +43,7 @@ import org.elasticsearch.xcontent.json.JsonXContent;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 
 public class DlsQueryParser {
 
@@ -123,8 +124,8 @@ public class DlsQueryParser {
             });
 
             return qb;
-        } catch (ExecutionException e) {
-            throw new RuntimeException("Error while parsing " + unparsedDlsQuery, e.getCause());
+        } catch (ExecutionException | UncheckedExecutionException e) {
+            throw new RuntimeException("Error while parsing DLS query: " + unparsedDlsQuery, e.getCause());
         }
     }
 
@@ -154,8 +155,8 @@ public class DlsQueryParser {
                 return QueryBuilderTraverser.exists(queryBuilder,
                         (q) -> (q instanceof TermsQueryBuilder) && ((TermsQueryBuilder) q).termsLookup() != null);
             });
-        } catch (ExecutionException e) {
-            throw new RuntimeException("Error handling parsing " + query, e.getCause());
+        } catch (ExecutionException | UncheckedExecutionException e) {
+            throw new RuntimeException("Error while parsing DLS query: " + query, e.getCause());
         }
     }
 
