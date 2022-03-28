@@ -36,17 +36,19 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionAuthorization;
-import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentState.State;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.ActionGroups;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.user.User;
 
-public class RoleBasedActionAuthorization implements ActionAuthorization {
+public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
 
     private final SgDynamicConfiguration<Role> roles;
@@ -59,7 +61,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
     private final IndexPermissions index;
     private final IndexPermissionExclusions indexExclusions;
     private final TenantPermissions tenant;
+    private final ComponentState componentState;
+
     private volatile StatefulIndexPermssions statefulIndex;
+    private final ComponentState statefulIndexState = new ComponentState("index_permissions_statful");
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions, Set<String> indices,
             Set<String> tenants) {
@@ -73,16 +78,27 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
         this.index = new IndexPermissions(roles, actionGroups, actions);
         this.indexExclusions = new IndexPermissionExclusions(roles, actionGroups, actions);
         this.tenant = new TenantPermissions(roles, actionGroups, actions, this.tenants);
+        this.componentState = new ComponentState("role_based_action_authorization");
+        this.componentState.addParts(cluster.getComponentState(), clusterExclusions.getComponentState(), index.getComponentState(),
+                indexExclusions.getComponentState(), tenant.getComponentState(), statefulIndexState);
 
         if (indices != null) {
-            this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices);
+            this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices, statefulIndexState);
+        } else {
+            this.statefulIndexState.setState(State.SUSPENDED, "no_index_information");
         }
+
+        this.componentState.updateStateFromParts();
+        this.componentState.setConfigVersion(roles.getDocVersion());
     }
 
     @Override
-    public boolean hasClusterPermission(User user, ImmutableSet<String> mappedRoles, Action action) throws PrivilegesEvaluationException {
-        if (clusterExclusions.contains(action, mappedRoles)) {
-            return false;
+    public PrivilegesEvaluationResult hasClusterPermission(User user, ImmutableSet<String> mappedRoles, Action action)
+            throws PrivilegesEvaluationException {
+        PrivilegesEvaluationResult result = clusterExclusions.contains(action, mappedRoles);
+
+        if (result.getStatus() != PrivilegesEvaluationResult.Status.PENDING) {
+            return result;
         }
 
         return cluster.contains(action, mappedRoles);
@@ -91,7 +107,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
     @Override
     public PrivilegesEvaluationResult hasIndexPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
             ResolvedIndices resolved, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
-        ImmutableSet<PrivilegesEvaluationResult.Error> errors = ImmutableSet.empty();
+        ImmutableList<PrivilegesEvaluationResult.Error> errors = this.index.initializationErrors;
 
         if (log.isTraceEnabled()) {
             log.trace("hasIndexPermission()\nuser: " + user + "\nactions: " + actions + "\nresolved: " + resolved);
@@ -169,7 +185,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                                 }
                             } catch (PrivilegesEvaluationException e) {
                                 // We can ignore these errors, as this max leads to fewer privileges than available
-                                log.error("Error while evaluating index pattern. Ignoring entry", e);
+                                log.error("Error while evaluating index pattern of role " + role + ". Ignoring entry", e);
+                                this.componentState.addLastException("has_index_permission", e);
+                                errors = errors.with(new PrivilegesEvaluationResult.Error("Error while evaluating index pattern", e, role));
                             }
                         }
                     }
@@ -210,6 +228,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                                     } catch (PrivilegesEvaluationException e) {
                                         // We can ignore these errors, as this max leads to fewer privileges than available
                                         log.error("Error while evaluating index pattern. Ignoring entry", e);
+                                        this.componentState.addLastException("has_index_permission", e);
+                                        errors = errors.with(new PrivilegesEvaluationResult.Error("Error while evaluating index pattern", e, role));
                                     }
                                 }
                             }
@@ -236,15 +256,16 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
         ImmutableSet<String> availableIndices = checkTable.getCompleteRows();
 
         if (!availableIndices.isEmpty()) {
-            return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(availableIndices, checkTable);
+            return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(availableIndices, checkTable, errors);
         }
 
         return PrivilegesEvaluationResult.INSUFFICIENT.with(checkTable, errors);
     }
 
     @Override
-    public boolean hasTenantPermission(User user, String requestedTenant, ImmutableSet<String> mappedRoles, Action action,
+    public PrivilegesEvaluationResult hasTenantPermission(User user, String requestedTenant, ImmutableSet<String> mappedRoles, Action action,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
+        ImmutableList<PrivilegesEvaluationResult.Error> errors = this.tenant.initializationErrors;
 
         ImmutableMap<String, ImmutableSet<String>> tenantToRoles = tenant.actionToTenantToRoles.get(action);
 
@@ -252,12 +273,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             ImmutableSet<String> roles = tenantToRoles.get(requestedTenant);
 
             if (roles != null && roles.containsAny(mappedRoles)) {
-                return true;
+                return PrivilegesEvaluationResult.OK;
             }
         }
 
         if (!isTenantValid(requestedTenant)) {
             log.info("Invalid tenant requested: {}", requestedTenant);
+            return PrivilegesEvaluationResult.INSUFFICIENT.reason("Invalid requested tenant");
         }
 
         for (String role : mappedRoles) {
@@ -272,17 +294,19 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                             Pattern tenantPattern = tenantTemplate.render(user);
 
                             if (tenantPattern.matches(requestedTenant)) {
-                                return true;
+                                return PrivilegesEvaluationResult.OK;
                             }
                         } catch (ExpressionEvaluationException e) {
+                            errors = errors.with(new PrivilegesEvaluationResult.Error("Error while evaluating tenant pattern", e, role));
                             log.error("Error while evaluating tenant privilege", e);
+                            this.componentState.addLastException("has_tenant_permission", e);
                         }
                     }
                 }
             }
         }
 
-        return false;
+        return PrivilegesEvaluationResult.INSUFFICIENT.with(errors);
     }
 
     public void updateIndices(Set<String> indices) {
@@ -292,7 +316,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             return;
         }
 
-        this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices);
+        this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices, statefulIndexState);
+        this.componentState.updateStateFromParts();
     }
 
     private boolean isTenantValid(String requestedTenant) {
@@ -304,16 +329,19 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
         return tenants.contains(requestedTenant);
     }
 
-    static class ClusterPermissions {
+    static class ClusterPermissions implements ComponentStateProvider {
         private final ImmutableMap<Action, ImmutableSet<String>> actionToRoles;
         private final ImmutableSet<String> rolesWithWildcardPermissions;
         private final ImmutableMap<String, Pattern> rolesToActionPattern;
+        private final ImmutableList<PrivilegesEvaluationResult.Error> initializationErrors;
+        private final ComponentState componentState;
 
         ClusterPermissions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions) {
             ImmutableMap.Builder<Action, ImmutableSet.Builder<String>> actionToRoles = new ImmutableMap.Builder<Action, ImmutableSet.Builder<String>>()
                     .defaultValue((k) -> new ImmutableSet.Builder<String>());
             ImmutableSet.Builder<String> rolesWithWildcardPermissions = new ImmutableSet.Builder<>();
             ImmutableMap.Builder<String, Pattern> rolesToActionPattern = new ImmutableMap.Builder<>();
+            ImmutableList.Builder<PrivilegesEvaluationResult.Error> initializationErrors = new ImmutableList.Builder<>();
 
             for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
                 try {
@@ -354,25 +382,37 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
                 } catch (ConfigValidationException e) {
                     log.error("Invalid pattern in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    initializationErrors.with(new PrivilegesEvaluationResult.Error("Invalid pattern in role", e, entry.getKey()));
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    initializationErrors.with(new PrivilegesEvaluationResult.Error("Unexpected exception while processing role", e, entry.getKey()));
                 }
             }
 
             this.actionToRoles = actionToRoles.build(ImmutableSet.Builder::build);
             this.rolesWithWildcardPermissions = rolesWithWildcardPermissions.build();
             this.rolesToActionPattern = rolesToActionPattern.build();
+            this.initializationErrors = initializationErrors.build();
+            this.componentState = new ComponentState("cluster_permissions");
+            this.componentState.setConfigVersion(roles.getDocVersion());
+
+            if (this.initializationErrors.isEmpty()) {
+                this.componentState.setInitialized();
+            } else {
+                this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
+                this.componentState.addDetail(initializationErrors);
+            }
         }
 
-        boolean contains(Action action, Set<String> roles) {
+        PrivilegesEvaluationResult contains(Action action, Set<String> roles) {
             if (rolesWithWildcardPermissions.containsAny(roles)) {
-                return true;
+                return PrivilegesEvaluationResult.OK;
             }
 
             ImmutableSet<String> rolesWithPrivileges = this.actionToRoles.get(action);
 
             if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(roles)) {
-                return true;
+                return PrivilegesEvaluationResult.OK;
             }
 
             if (!(action instanceof WellKnownAction)) {
@@ -382,23 +422,31 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                     Pattern pattern = this.rolesToActionPattern.get(role);
 
                     if (pattern != null && pattern.matches(action.name())) {
-                        return true;
+                        return PrivilegesEvaluationResult.OK;
                     }
                 }
             }
 
-            return false;
+            return PrivilegesEvaluationResult.INSUFFICIENT.with(initializationErrors);
+        }
+
+        @Override
+        public ComponentState getComponentState() {
+            return this.componentState;
         }
     }
 
-    static class ClusterPermissionExclusions {
+    static class ClusterPermissionExclusions implements ComponentStateProvider {
         private final ImmutableMap<Action, ImmutableSet<String>> actionToRoles;
         private final ImmutableMap<String, Pattern> rolesToActionPattern;
+        private final ImmutableList<PrivilegesEvaluationResult.Error> initializationErrors;
+        private final ComponentState componentState;
 
         ClusterPermissionExclusions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions) {
             ImmutableMap.Builder<Action, ImmutableSet.Builder<String>> actionToRoles = new ImmutableMap.Builder<Action, ImmutableSet.Builder<String>>()
                     .defaultValue((k) -> new ImmutableSet.Builder<String>());
             ImmutableMap.Builder<String, Pattern> rolesToActionPattern = new ImmutableMap.Builder<>();
+            ImmutableList.Builder<PrivilegesEvaluationResult.Error> initializationErrors = new ImmutableList.Builder<>();
 
             for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
                 try {
@@ -430,20 +478,33 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
                 } catch (ConfigValidationException e) {
                     log.error("Invalid pattern in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    initializationErrors.with(new PrivilegesEvaluationResult.Error("Invalid pattern in role", e, entry.getKey()));
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    initializationErrors.with(new PrivilegesEvaluationResult.Error("Unexpected exception while processing role", e, entry.getKey()));
                 }
             }
 
             this.actionToRoles = actionToRoles.build(ImmutableSet.Builder::build);
             this.rolesToActionPattern = rolesToActionPattern.build();
+            this.initializationErrors = initializationErrors.build();
+
+            this.componentState = new ComponentState("cluster_permission_exclusions");
+            this.componentState.setConfigVersion(roles.getDocVersion());
+
+            if (this.initializationErrors.isEmpty()) {
+                this.componentState.setInitialized();
+            } else {
+                this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
+                this.componentState.addDetail(this.initializationErrors);
+            }
         }
 
-        boolean contains(Action action, Set<String> roles) {
+        PrivilegesEvaluationResult contains(Action action, Set<String> roles) {
             ImmutableSet<String> rolesWithPrivileges = this.actionToRoles.get(action);
 
             if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(roles)) {
-                return true;
+                return PrivilegesEvaluationResult.INSUFFICIENT.reason("Privilege exclusion in role " + rolesWithPrivileges.intersection(roles));
             }
 
             if (!(action instanceof WellKnownAction)) {
@@ -453,21 +514,29 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                     Pattern pattern = this.rolesToActionPattern.get(role);
 
                     if (pattern != null && pattern.matches(action.name())) {
-                        return true;
+                        return PrivilegesEvaluationResult.INSUFFICIENT.reason("Privilege exclusion in role " + role);
                     }
                 }
             }
 
-            return false;
+            return PrivilegesEvaluationResult.PENDING;
+        }
+
+        @Override
+        public ComponentState getComponentState() {
+            return this.componentState;
         }
 
     }
 
-    static class IndexPermissions {
+    static class IndexPermissions implements ComponentStateProvider {
         private final ImmutableMap<String, ImmutableMap<Action, IndexPattern>> rolesToActionToIndexPattern;
         private final ImmutableMap<String, ImmutableMap<Pattern, IndexPattern>> rolesToActionPatternToIndexPattern;
 
         private final ImmutableMap<Action, ImmutableSet<String>> actionToRolesWithWildcardIndexPrivileges;
+
+        private final ImmutableList<PrivilegesEvaluationResult.Error> initializationErrors;
+        private final ComponentState componentState;
 
         IndexPermissions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions) {
 
@@ -481,6 +550,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
             ImmutableMap.Builder<Action, ImmutableSet.Builder<String>> actionToRolesWithWildcardIndexPrivileges = //
                     new ImmutableMap.Builder<Action, ImmutableSet.Builder<String>>().defaultValue((k) -> new ImmutableSet.Builder<String>());
+
+            ImmutableList.Builder<PrivilegesEvaluationResult.Error> initializationErrors = new ImmutableList.Builder<>();
 
             for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
                 try {
@@ -521,8 +592,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
                 } catch (ConfigValidationException e) {
                     log.error("Invalid configuration in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    initializationErrors.with(new PrivilegesEvaluationResult.Error("Invalid pattern in role", e, entry.getKey()));
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    initializationErrors.with(new PrivilegesEvaluationResult.Error("Unexpected exception while processing role", e, entry.getKey()));
                 }
             }
 
@@ -530,13 +603,33 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             this.rolesToActionPatternToIndexPattern = rolesToActionPatternsToIndexPattern.build((b) -> b.build(IndexPattern.Builder::build));
 
             this.actionToRolesWithWildcardIndexPrivileges = actionToRolesWithWildcardIndexPrivileges.build(ImmutableSet.Builder::build);
+
+            this.initializationErrors = initializationErrors.build();
+
+            this.componentState = new ComponentState("index_permissions");
+            this.componentState.setConfigVersion(roles.getDocVersion());
+
+            if (this.initializationErrors.isEmpty()) {
+                this.componentState.setInitialized();
+            } else {
+                this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
+                this.componentState.addDetail(initializationErrors);
+            }
+        }
+
+        @Override
+        public ComponentState getComponentState() {
+            return this.componentState;
         }
 
     }
 
-    static class IndexPermissionExclusions {
+    static class IndexPermissionExclusions implements ComponentStateProvider {
         private final ImmutableMap<String, ImmutableMap<Action, IndexPattern>> rolesToActionToIndexPattern;
         private final ImmutableMap<String, ImmutableMap<Pattern, IndexPattern>> rolesToActionPatternToIndexPattern;
+
+        private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
+        private final ComponentState componentState;
 
         IndexPermissionExclusions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions) {
 
@@ -547,6 +640,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             ImmutableMap.Builder<String, ImmutableMap.Builder<Pattern, IndexPattern.Builder>> rolesToActionPatternsToIndexPattern = //
                     new ImmutableMap.Builder<String, ImmutableMap.Builder<Pattern, IndexPattern.Builder>>().defaultValue(
                             (k) -> new ImmutableMap.Builder<Pattern, IndexPattern.Builder>().defaultValue((k2) -> new IndexPattern.Builder()));
+
+            ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
+                    .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
             for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
                 try {
@@ -580,14 +676,27 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
                 } catch (ConfigValidationException e) {
                     log.error("Invalid configuration in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    rolesToInitializationErrors.get(entry.getKey()).with(e);
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    rolesToInitializationErrors.get(entry.getKey()).with(e);
                 }
             }
 
             this.rolesToActionToIndexPattern = rolesToActionToIndexPattern.build((b) -> b.build(IndexPattern.Builder::build));
             this.rolesToActionPatternToIndexPattern = rolesToActionPatternsToIndexPattern.build((b) -> b.build(IndexPattern.Builder::build));
 
+            this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
+            this.componentState = new ComponentState("index_permission_exclusions");
+            this.componentState.setConfigVersion(roles.getDocVersion());
+
+            if (this.rolesToInitializationErrors.isEmpty()) {
+                this.componentState.setInitialized();
+            } else {
+                this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
+                this.componentState.setMessage("Roles with initialization errors: " + this.rolesToInitializationErrors.keySet());
+                this.componentState.addDetail(rolesToInitializationErrors);
+            }
         }
 
         boolean contains(ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions) {
@@ -675,15 +784,24 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                 }
             }
         }
+
+        @Override
+        public ComponentState getComponentState() {
+            return componentState;
+        }
     }
 
-    static class StatefulIndexPermssions {
+    static class StatefulIndexPermssions implements ComponentStateProvider {
         private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToIndexToRoles;
         private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> excludedActionToIndexToRoles;
         private final ImmutableSet<String> rolesWithTemplatedExclusions;
         private final ImmutableSet<String> indices;
 
-        StatefulIndexPermssions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions, Set<String> indexNames) {
+        private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
+        private final ComponentState componentState;
+
+        StatefulIndexPermssions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions, Set<String> indexNames,
+                ComponentState componentState) {
             ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToIndexToRoles = //
                     new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
                             .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
@@ -695,6 +813,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                                     .defaultValue((k2) -> new ImmutableSet.Builder<String>()));
 
             ImmutableSet.Builder<String> rolesWithTemplatedExclusions = new ImmutableSet.Builder<>();
+
+            ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
+                    .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
             for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
                 try {
@@ -785,8 +906,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
                 } catch (ConfigValidationException e) {
                     log.error("Invalid pattern in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    rolesToInitializationErrors.get(entry.getKey()).with(e);
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    rolesToInitializationErrors.get(entry.getKey()).with(e);
                 }
             }
 
@@ -794,6 +917,19 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             this.excludedActionToIndexToRoles = excludedActionToIndexToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
             this.rolesWithTemplatedExclusions = rolesWithTemplatedExclusions.build();
             this.indices = ImmutableSet.of(indexNames);
+
+            this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
+            this.componentState = componentState;
+            this.componentState.setConfigVersion(roles.getDocVersion());
+
+            if (this.rolesToInitializationErrors.isEmpty()) {
+                this.componentState.setInitialized();
+                this.componentState.setMessage("Initialized with " + indices.size() + " indices");
+            } else {
+                this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
+                this.componentState.setMessage("Roles with initialization errors: " + this.rolesToInitializationErrors.keySet());
+                this.componentState.addDetail(rolesToInitializationErrors);
+            }
         }
 
         PrivilegesEvaluationResult hasPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
@@ -853,11 +989,19 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
             return rolesWithPrivileges.containsAny(mappedRoles);
         }
 
+        @Override
+        public ComponentState getComponentState() {
+            return this.componentState;
+        }
+
     }
 
-    static class TenantPermissions {
+    static class TenantPermissions implements ComponentStateProvider {
         private final ImmutableMap<Action, ImmutableMap<String, ImmutableSet<String>>> actionToTenantToRoles;
         private final ImmutableMap<String, ImmutableMap<Action, ImmutableSet<Template<Pattern>>>> roleToActionToTenantPattern;
+
+        private final ImmutableList<PrivilegesEvaluationResult.Error> initializationErrors;
+        private final ComponentState componentState;
 
         TenantPermissions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions, ImmutableSet<String> tenants) {
 
@@ -870,6 +1014,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
                     new ImmutableMap.Builder<String, ImmutableMap.Builder<Action, ImmutableSet.Builder<Template<Pattern>>>>()
                             .defaultValue((k) -> new ImmutableMap.Builder<Action, ImmutableSet.Builder<Template<Pattern>>>()
                                     .defaultValue((k2) -> new ImmutableSet.Builder<Template<Pattern>>()));
+
+            ImmutableList.Builder<PrivilegesEvaluationResult.Error> initializationErrors = new ImmutableList.Builder<>();
 
             for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
                 try {
@@ -923,13 +1069,31 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
                 } catch (ConfigValidationException e) {
                     log.error("Invalid configuration in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    initializationErrors.with(new PrivilegesEvaluationResult.Error("Invalid configuration in role", e, entry.getKey()));
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    initializationErrors.with(new PrivilegesEvaluationResult.Error("Unexpected exception while processing role", e, entry.getKey()));
                 }
             }
 
             this.actionToTenantToRoles = actionToTenantToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
             this.roleToActionToTenantPattern = roleToActionToTenantPattern.build((b) -> b.build(ImmutableSet.Builder::build));
+
+            this.initializationErrors = initializationErrors.build();
+            this.componentState = new ComponentState("tenant_permissions");
+            this.componentState.setConfigVersion(roles.getDocVersion());
+
+            if (this.initializationErrors.isEmpty()) {
+                this.componentState.setInitialized();
+            } else {
+                this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
+                this.componentState.addDetail(initializationErrors);
+            }
+        }
+
+        @Override
+        public ComponentState getComponentState() {
+            return this.componentState;
         }
 
     }
@@ -1041,6 +1205,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization {
 
     private static boolean isActionName(String actionName) {
         return actionName.indexOf(':') != -1;
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

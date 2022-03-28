@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 floragunn GmbH
+ * Copyright 2015-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,8 +49,6 @@ import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -66,14 +64,15 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult.Status;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionAuthorization;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
-import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
@@ -86,10 +85,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 
-public class PrivilegesEvaluator {
-
-    public static final Setting<Boolean> INDEX_REDUCTION_FAST_PATH = Setting.boolSetting("searchguard.privilege_evaluation.index_reduction_fast_path",
-            true, Property.NodeScope, Property.Filtered);
+public class PrivilegesEvaluator implements ComponentStateProvider {
 
     private static final Logger log = LogManager.getLogger(PrivilegesEvaluator.class);
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
@@ -115,10 +111,11 @@ public class PrivilegesEvaluator {
     private final Client localClient;
     private final Actions actions;
     private final ConfigConstants.RolesMappingResolution rolesMappingResolution;
+    private final ComponentState componentState = new ComponentState(0, "privileges_evaluator", null);
 
     private volatile boolean ignoreUnauthorizedIndices = true;
     private volatile RoleBasedActionAuthorization actionAuthorization = null;
-    private volatile DocumentAuthorization documentAuthorization = null;
+    private volatile LegacyRoleBasedDocumentAuthorization documentAuthorization = null;
     private volatile RoleMapping.InvertedIndex roleMapping;
 
     // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
@@ -188,6 +185,11 @@ public class PrivilegesEvaluator {
                 documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
 
                 roleMapping = new RoleMapping.InvertedIndex(configMap.get(CType.ROLESMAPPING));
+
+                componentState.setConfigVersion(configMap.getVersionsAsString());
+                componentState.replacePart(actionAuthorization.getComponentState());
+                componentState.replacePart(documentAuthorization.getComponentState());
+                componentState.updateStateFromParts();
             }
         });
 
@@ -214,7 +216,20 @@ public class PrivilegesEvaluator {
         return actionAuthorization != null;
     }
 
-    public PrivilegesEvaluatorResponse evaluate(User user, String action0, ActionRequest request, Task task,
+    public ImmutableSet<String> getMappedRoles(User user, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
+        if (roleMapping == null) {
+            return ImmutableSet.empty();
+        }
+        
+        if (specialPrivilegesEvaluationContext == null) {
+            TransportAddress caller = Objects.requireNonNull((TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
+            return mapSgRoles(user, caller);
+        } else {
+            return specialPrivilegesEvaluationContext.getMappedRoles();
+        }
+    }
+
+    public PrivilegesEvaluatorResponse evaluate(User user, ImmutableSet<String> mappedRoles, String action0, ActionRequest request, Task task,
             SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
 
         if (!isInitialized()) {
@@ -241,36 +256,31 @@ public class PrivilegesEvaluator {
         }
 
         Action action = actions.get(action0);
-        
+
         if (action.isOpen()) {
             presponse.allowed = true;
-            return presponse;            
+            return presponse;
         }
 
-        TransportAddress caller;
-        ImmutableSet<String> mappedRoles;
         ActionAuthorization actionAuthorization;
 
         if (specialPrivilegesEvaluationContext == null) {
-            caller = Objects.requireNonNull((TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
-            mappedRoles = mapSgRoles(user, caller);
             actionAuthorization = this.actionAuthorization;
         } else {
-            caller = specialPrivilegesEvaluationContext.getCaller() != null ? specialPrivilegesEvaluationContext.getCaller()
-                    : (TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-            mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
             actionAuthorization = specialPrivilegesEvaluationContext.getActionAuthorization();
         }
 
         presponse.mappedRoles = mappedRoles;
-        
+
         try {
             if (request instanceof BulkRequest && (com.google.common.base.Strings.isNullOrEmpty(user.getRequestedTenant()))) {
                 // Shortcut for bulk actions. The details are checked on the lower level of the BulkShardRequests (Action indices:data/write/bulk[s]).
                 // This shortcut is only possible if the default tenant is selected, as we might need to rewrite the request for non-default tenants.
                 // No further access check for the default tenant is necessary, as access will be also checked on the TransportShardBulkAction level.
 
-                if (!actionAuthorization.hasClusterPermission(user, mappedRoles, action)) {
+                PrivilegesEvaluationResult result = actionAuthorization.hasClusterPermission(user, mappedRoles, action);
+
+                if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
                     presponse.missingPrivileges.add(action0);
                     presponse.allowed = false;
                     log.info("No {}-level perm match for {} [Action [{}]] [RolesChecked {}]", "cluster", user, action0, mappedRoles);
@@ -317,7 +327,9 @@ public class PrivilegesEvaluator {
             PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, resolver, clusterService);
 
             if (action.isClusterPrivilege()) {
-                if (!actionAuthorization.hasClusterPermission(user, mappedRoles, action)) {
+                PrivilegesEvaluationResult result = actionAuthorization.hasClusterPermission(user, mappedRoles, action);
+
+                if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
                     presponse.missingPrivileges.add(action0);
                     presponse.allowed = false;
                     log.info("No {}-level perm match for {} {} [Action [{}]] [RolesChecked {}]", "cluster", user, requestInfo, action0, mappedRoles);
@@ -393,8 +405,8 @@ public class PrivilegesEvaluator {
                 }
             }
 
-            return evaluateIndexPrivileges(user, action0, allIndexPermsRequired, request, task, requestInfo, mappedRoles,
-                    actionAuthorization, specialPrivilegesEvaluationContext, presponse, context);
+            return evaluateIndexPrivileges(user, action0, allIndexPermsRequired, request, task, requestInfo, mappedRoles, actionAuthorization,
+                    specialPrivilegesEvaluationContext, presponse, context);
         } catch (PrivilegesEvaluationException e) {
             log.error("Error while evaluating " + action0 + " (" + request.getClass().getName() + ")", e);
             presponse.allowed = false;
@@ -492,10 +504,12 @@ public class PrivilegesEvaluator {
 
         ImmutableSet<Action> allIndexPermsRequired = requiredPermissions.matching(Action::isIndexPrivilege);
         ImmutableSet<Action> clusterPermissions = requiredPermissions.matching(Action::isClusterPrivilege);
-        
+
         if (!clusterPermissions.isEmpty()) {
             for (Action clusterPermission : clusterPermissions) {
-                if (!actionAuthorization.hasClusterPermission(user, mappedRoles, clusterPermission)) {
+                PrivilegesEvaluationResult result = actionAuthorization.hasClusterPermission(user, mappedRoles, clusterPermission);
+
+                if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
                     if (log.isEnabled(Level.INFO)) {
                         log.info("### No cluster privileges for " + clusterPermission + " (" + request.getClass().getName() + ")\nUser: " + user
                                 + "\nResolved Indices: " + actionRequestInfo.getResolvedIndices() + "\nUnresolved: "
@@ -508,7 +522,7 @@ public class PrivilegesEvaluator {
                 }
             }
         }
-        
+
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(user, mappedRoles, allIndexPermsRequired,
                 actionRequestInfo.getResolvedIndices(), context);
 
@@ -571,7 +585,7 @@ public class PrivilegesEvaluator {
             }
             ResizeRequest resizeRequest = (ResizeRequest) request;
             CreateIndexRequest createIndexRequest = resizeRequest.getTargetIndexRequest();
-            PrivilegesEvaluatorResponse subResponse = evaluate(user, CreateIndexAction.NAME, createIndexRequest, task,
+            PrivilegesEvaluatorResponse subResponse = evaluate(user, mappedRoles, CreateIndexAction.NAME, createIndexRequest, task,
                     specialPrivilegesEvaluationContext);
 
             if (!subResponse.allowed) {
@@ -682,12 +696,17 @@ public class PrivilegesEvaluator {
             try {
                 if (action.isTenantPrivilege()) {
                     if (tenantValid) {
-                        result.put(privilegeAskedFor, actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, action, null));
+                        PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasTenantPermission(user, requestedTenant,
+                                mappedRoles, action, null);
+
+                        result.put(privilegeAskedFor, privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.OK);
                     } else {
                         result.put(privilegeAskedFor, false);
                     }
                 } else {
-                    result.put(privilegeAskedFor, actionAuthorization.hasClusterPermission(user, mappedRoles, action));
+                    PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(user, mappedRoles, action);
+
+                    result.put(privilegeAskedFor, privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.OK);
                 }
             } catch (PrivilegesEvaluationException e) {
                 log.error("Error while evaluating " + privilegeAskedFor + " for " + user, e);
@@ -716,7 +735,10 @@ public class PrivilegesEvaluator {
             return false;
         }
 
-        return actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, action, context);
+        PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, action,
+                context);
+
+        return privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.OK;
     }
 
     private String getRequestedTenant(User user) {
@@ -749,7 +771,9 @@ public class PrivilegesEvaluator {
             actionAuthorization = specialPrivilegesEvaluationContext.getActionAuthorization();
         }
 
-        return actionAuthorization.hasClusterPermission(user, mappedRoles, actions.get(action));
+        PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(user, mappedRoles, actions.get(action));
+
+        return privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.OK;
     }
 
     public boolean hasClusterPermissions(User user, List<String> permissions, TransportAddress callerTransportAddress)
@@ -777,7 +801,10 @@ public class PrivilegesEvaluator {
         }
 
         for (String permission : permissions) {
-            if (!actionAuthorization.hasClusterPermission(user, mappedRoles, actions.get(permission))) {
+            PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(user, mappedRoles,
+                    actions.get(permission));
+
+            if (privilegesEvaluationResult.getStatus() != PrivilegesEvaluationResult.Status.OK) {
                 return false;
             }
         }
@@ -861,5 +888,10 @@ public class PrivilegesEvaluator {
 
     public IndexNameExpressionResolver getResolver() {
         return resolver;
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

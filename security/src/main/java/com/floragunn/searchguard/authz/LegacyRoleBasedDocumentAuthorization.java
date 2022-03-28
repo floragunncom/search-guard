@@ -33,6 +33,8 @@ import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.Pattern;
@@ -40,18 +42,21 @@ import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.Sets;
 
-public class LegacyRoleBasedDocumentAuthorization implements DocumentAuthorization {
+public class LegacyRoleBasedDocumentAuthorization implements DocumentAuthorization, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(LegacyRoleBasedDocumentAuthorization.class);
 
     private final SgDynamicConfiguration<Role> roles;
     private final IndexNameExpressionResolver resolver;
     private final ClusterService clusterService;
+    private final ComponentState componentState = new ComponentState("role_based_document_authorization");
 
     public LegacyRoleBasedDocumentAuthorization(SgDynamicConfiguration<Role> roles, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
         this.roles = roles;
         this.resolver = resolver;
         this.clusterService = clusterService;
+        this.componentState.setInitialized();
+        this.componentState.setConfigVersion(roles.getDocVersion());
     }
 
     @Override
@@ -89,6 +94,7 @@ public class LegacyRoleBasedDocumentAuthorization implements DocumentAuthorizati
                     try {
                         concreteIndices = getResolvedIndexPatterns(user, indexPattern);
                     } catch (ExpressionEvaluationException e) {
+                        componentState.addLastException("get_dls_fls_config", e);
                         throw new PrivilegesEvaluationException("Error while evaluating index pattern template of role " + entry.getKey() + ":\nPattern: " + indexPattern + "\nUser: " + user.toStringWithAttributes(), e);
                     }
 
@@ -105,6 +111,7 @@ public class LegacyRoleBasedDocumentAuthorization implements DocumentAuthorizati
                             }
 
                         } catch (ExpressionEvaluationException e) {
+                            componentState.addLastException("get_dls_fls_config", e);
                             throw new PrivilegesEvaluationException("Error while evaluating DLS query template of role " + entry.getKey()
                                     + ":\nQuery template: " + index.getDls() + "\nUser: " + user.toStringWithAttributes(), e);
                         }
@@ -208,6 +215,11 @@ public class LegacyRoleBasedDocumentAuthorization implements DocumentAuthorizati
     @Override
     public void updateIndices(Set<String> indices) {
 
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

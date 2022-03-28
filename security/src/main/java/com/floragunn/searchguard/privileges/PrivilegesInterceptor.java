@@ -22,9 +22,9 @@ import java.util.Map;
 import org.elasticsearch.action.ActionRequest;
 
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionAuthorization;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.user.User;
 

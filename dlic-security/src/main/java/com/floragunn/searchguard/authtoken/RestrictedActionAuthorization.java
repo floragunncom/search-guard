@@ -17,12 +17,12 @@ package com.floragunn.searchguard.authtoken;
 import java.util.Set;
 
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.ActionGroups;
@@ -42,9 +42,15 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
     }
 
     @Override
-    public boolean hasClusterPermission(User user, ImmutableSet<String> mappedRoles, Action action) throws PrivilegesEvaluationException {
-        return base.hasClusterPermission(user, mappedRoles, action)
-                && restrictionSgRoles.hasClusterPermission(user, RequestedPrivileges.RESTRICTION_ROLES, action);
+    public PrivilegesEvaluationResult hasClusterPermission(User user, ImmutableSet<String> mappedRoles, Action action)
+            throws PrivilegesEvaluationException {
+        PrivilegesEvaluationResult result = restrictionSgRoles.hasClusterPermission(user, RequestedPrivileges.RESTRICTION_ROLES, action);
+
+        if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
+            return result.reason("Privilege was not requested for token");
+        }
+
+        return base.hasClusterPermission(user, mappedRoles, action);
     }
 
     @Override
@@ -55,25 +61,23 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
 
         if (restrictedPermission.getStatus() != PrivilegesEvaluationResult.Status.OK) {
             // Don't calculate base permission if we already know we will get an empty set
-            return restrictedPermission;
+            return restrictedPermission.reason("Privilege was not requested for token");
         }
 
         return base.hasIndexPermission(user, mappedRoles, actions, resolvedIndices, context);
     }
 
     @Override
-    public boolean hasTenantPermission(User user, String requestedTenant, ImmutableSet<String> mappedRoles, Action action,
+    public PrivilegesEvaluationResult hasTenantPermission(User user, String requestedTenant, ImmutableSet<String> mappedRoles, Action action,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
-        boolean restrictedPermission = restrictionSgRoles.hasTenantPermission(user, requestedTenant, RequestedPrivileges.RESTRICTION_ROLES, action,
-                context);
+        PrivilegesEvaluationResult result = restrictionSgRoles.hasTenantPermission(user, requestedTenant, RequestedPrivileges.RESTRICTION_ROLES,
+                action, context);
 
-        if (!restrictedPermission) {
-            return false;
+        if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
+            return result.reason("Privilege was not requested for token");
         }
 
-        boolean basePermission = base.hasTenantPermission(user, requestedTenant, mappedRoles, action, context);
-
-        return restrictedPermission && basePermission;
+        return base.hasTenantPermission(user, requestedTenant, mappedRoles, action, context);
     }
 
     @Override

@@ -57,9 +57,9 @@ public class RoleBasedActionAuthorizationTests {
 
         User user = User.forUser("test").build();
 
-        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), nodesStatsAction));
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("other_role"), nodesStatsAction));
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), otherAction));
+        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), nodesStatsAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("other_role"), nodesStatsAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), otherAction).isOk());
     }
 
     @Test
@@ -80,9 +80,9 @@ public class RoleBasedActionAuthorizationTests {
 
         User user = User.forUser("test").build();
 
-        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), nodesStatsAction));
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("other_role"), nodesStatsAction));
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), otherAction));
+        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), nodesStatsAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("other_role"), nodesStatsAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), otherAction).isOk());
     }
 
     @Test
@@ -110,9 +110,9 @@ public class RoleBasedActionAuthorizationTests {
 
         User user = User.forUser("test").build();
 
-        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role1"), nodesUsageAction));
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role1"), nodesStatsAction));
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role1"), nodesStatsActionNotWellKnown));
+        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role1"), nodesUsageAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role1"), nodesStatsAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role1"), nodesStatsActionNotWellKnown).isOk());
     }
 
     @Test
@@ -235,9 +235,8 @@ public class RoleBasedActionAuthorizationTests {
         result = subject.hasIndexPermission(userWithoutAttributes, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
                 ResolvedIndices.empty().localIndices("index_a"), contextWithoutAttributes);
 
-        // TODO check error             Assert.assertTrue(e.toString(), e.getCause().getMessage().equals("No value for ${user.attrs.dept_no}"));
-
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        Assert.assertTrue(result.toString(), result.getErrors().toString().contains("No value for ${user.attrs.dept_no}"));
     }
 
     @Test

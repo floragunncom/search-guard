@@ -30,12 +30,10 @@ import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationResult.Status;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionAuthorization;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
-import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.user.User;
 
 public class TermsAggregationEvaluator {

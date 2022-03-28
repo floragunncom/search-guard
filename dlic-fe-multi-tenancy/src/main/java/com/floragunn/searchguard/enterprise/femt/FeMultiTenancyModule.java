@@ -18,7 +18,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
@@ -44,9 +43,9 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
+import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionAuthorization;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigMap;

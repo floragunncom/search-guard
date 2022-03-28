@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,6 +84,12 @@ public class ComponentState implements Writeable, ToXContentObject {
     private Map<String, Object> metrics;
 
     private List<ComponentState> parts = new ArrayList<>();
+
+    public ComponentState(String type) {
+        this.type = type;
+        this.name = null;
+        this.sortPrio = 0;
+    }
 
     public ComponentState(int sortPrio, String type, String name) {
         this.type = type;
@@ -222,86 +228,91 @@ public class ComponentState implements Writeable, ToXContentObject {
     }
 
     public PartsStats updateStateFromParts() {
-        int total = parts.size();
-        PartsStats result = new PartsStats();
+        try {
+            int total = parts.size();
+            PartsStats result = new PartsStats();
 
-        if (total == 0) {
+            if (total == 0) {
+                return result;
+            }
+
+            for (ComponentState part : parts) {
+                part.updateStateFromParts();
+            }
+
+            int failed = 0;
+            int initialized = 0;
+            int disabled = 0;
+            int initializing = 0;
+            int mandatory = 0;
+            Instant lastInitialized = this.initializedAt;
+            Instant lastFailed = this.failedAt;
+            Instant lastChanged = this.changedAt;
+
+            for (ComponentState part : parts) {
+                lastChanged = max(lastChanged, part.changedAt);
+
+                if (part.state == State.INITIALIZING) {
+                    initializing++;
+                }
+
+                if (!part.isMandatory()) {
+                    continue;
+                }
+
+                mandatory++;
+
+                switch (part.getState()) {
+                case INITIALIZED:
+                    initialized++;
+                    lastInitialized = max(lastInitialized, part.getInitializedAt());
+                    break;
+                case FAILED:
+                    failed++;
+                    lastFailed = max(lastFailed, part.getFailedAt());
+                    break;
+                case DISABLED:
+                    disabled++;
+                    break;
+                case INITIALIZING:
+                    break;
+                case SUSPENDED:
+                    initialized++;
+                    break;
+                case PARTIALLY_INITIALIZED:
+                    break;
+
+                }
+            }
+
+            if (initializing > 0) {
+                setState(State.INITIALIZING);
+            } else if (initialized == mandatory) {
+                setInitialized();
+                this.initializedAt = lastInitialized;
+            } else if (disabled == mandatory) {
+                setState(State.DISABLED);
+            } else if (failed > 0) {
+                setState(State.FAILED);
+                this.failedAt = lastFailed;
+            } else if (failed == 0) {
+                setInitialized();
+                this.initializedAt = lastInitialized;
+            }
+
+            this.changedAt = lastChanged;
+
+            result.setTotal(total);
+            result.setFailed(failed);
+            result.setInitialized(initialized);
+            result.setInitializing(initializing);
+            result.setMandatory(mandatory);
+
             return result;
+        } catch (Exception e) {
+            log.error("Error in updateStateFromParts()", e);
+            return new PartsStats();
         }
-
-        for (ComponentState part : parts) {
-            part.updateStateFromParts();
-        }
-
-        int failed = 0;
-        int initialized = 0;
-        int disabled = 0;
-        int initializing = 0;
-        int mandatory = 0;
-        Instant lastInitialized = this.initializedAt;
-        Instant lastFailed = this.failedAt;
-        Instant lastChanged = this.changedAt;
-
-        for (ComponentState part : parts) {
-            lastChanged = max(lastChanged, part.changedAt);
-
-            if (part.state == State.INITIALIZING) {
-                initializing++;
-            }
-
-            if (!part.isMandatory()) {
-                continue;
-            }
-
-            mandatory++;
-
-            switch (part.getState()) {
-            case INITIALIZED:
-                initialized++;
-                lastInitialized = max(lastInitialized, part.getInitializedAt());
-                break;
-            case FAILED:
-                failed++;
-                lastFailed = max(lastFailed, part.getFailedAt());
-                break;
-            case DISABLED:
-                disabled++;
-                break;
-            case INITIALIZING:
-                break;
-            case SUSPENDED:
-                initialized++;
-                break;
-            case PARTIALLY_INITIALIZED:
-                break;
-
-            }
-        }
-
-        if (initializing > 0) {
-            setState(State.INITIALIZING);
-        } else if (initialized == mandatory) {
-            setInitialized();
-            this.initializedAt = lastInitialized;
-        } else if (disabled == mandatory) {
-            setState(State.DISABLED);
-        } else if (failed > 0) {
-            setState(State.FAILED);
-            this.failedAt = lastFailed;
-        } else if (failed == 0) {
-            setInitialized();
-            this.initializedAt = lastInitialized;
-        }
-
-        this.changedAt = lastChanged;
-
-        result.setTotal(total);
-        result.setFailed(failed);
-        result.setInitialized(initialized);
-        result.setInitializing(initializing);
-        result.setMandatory(mandatory);
-
-        return result;
 
     }
 
@@ -410,7 +421,14 @@ public class ComponentState implements Writeable, ToXContentObject {
             return detailJson;
         } else if (detailJsonElements != null) {
             try {
-                return DocWriter.json().writeAsString(detailJsonElements);
+                return DocWriter.json().mapValues((o) -> {
+                    if (o instanceof Throwable) {
+                        return exceptionToString((Throwable) o);
+                    } else {
+                        return o;
+                    }
+                }).writeAsString(detailJsonElements);
+
             } catch (Exception e) {
                 log.error("Error while writing " + detailJsonElements, e);
                 return null;
@@ -536,7 +554,7 @@ public class ComponentState implements Writeable, ToXContentObject {
                 detailJsonElements = Collections.synchronizedList(new ArrayList<>());
             }
         }
-        
+
         detailJsonElements.add(detail);
     }
 
@@ -654,6 +672,12 @@ public class ComponentState implements Writeable, ToXContentObject {
         parts.add(moduleState);
     }
 
+    public void addParts(ComponentState... parts) {
+        for (ComponentState part : parts) {
+            this.parts.add(part);
+        }
+    }
+
     public ComponentState getPart(String type, String name) {
         for (ComponentState part : parts) {
             if (name.equals(part.getName()) && Objects.equals(type, part.type)) {
@@ -675,7 +699,7 @@ public class ComponentState implements Writeable, ToXContentObject {
         return part;
     }
 
-    public void replacePart(ComponentState part) {
+    public synchronized void replacePart(ComponentState part) {
         ComponentState existing = getPart(part.getType(), part.getName());
 
         if (existing != null) {

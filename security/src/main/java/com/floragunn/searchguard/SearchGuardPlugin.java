@@ -877,6 +877,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih,
                 actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry,
                 enterpriseModulesEnabled);
+        moduleRegistry.addComponentStateProvider(evaluator);
 
         dlsFlsValve = ReflectionHelper.instantiateDlsFlsValve(settings, localClient, clusterService, indexNameExpressionResolver, guiceDependencies,
                 xContentRegistry, threadPool.getThreadContext(), cr, evaluator);
@@ -1197,7 +1198,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(EncryptionKeys.ENCRYPTION_KEYS_SETTING);
             settings.addAll(moduleRegistry.getSettings());
             settings.addAll(DiagnosticContext.SETTINGS);
-            settings.add(PrivilegesEvaluator.INDEX_REDUCTION_FAST_PATH);
         }
 
         return settings;

@@ -56,6 +56,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -63,8 +64,8 @@ import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.PrivilegesEvaluatorResponse;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
@@ -284,7 +285,8 @@ public class SearchGuardFilter implements ActionFilter {
                 log.trace("Evaluate permissions for user: {}", user.getName());
             }
 
-            final PrivilegesEvaluatorResponse pres = eval.evaluate(user, actionName, request, task, specialPrivilegesEvaluationContext);
+            ImmutableSet<String> mappedRoles = eval.getMappedRoles(user, specialPrivilegesEvaluationContext);            
+            final PrivilegesEvaluatorResponse pres = eval.evaluate(user, mappedRoles, actionName, request, task, specialPrivilegesEvaluationContext);
 
             if (log.isDebugEnabled()) {
                 log.debug(pres);

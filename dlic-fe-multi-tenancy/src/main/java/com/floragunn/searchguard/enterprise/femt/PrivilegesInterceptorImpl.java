@@ -57,18 +57,19 @@ import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionAuthorization;
-import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.user.User;
 
 public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
     private static final String USER_TENANT = "__user__";
-    
+
     private final Action KIBANA_ALL_SAVED_OBJECTS_WRITE;
     private final Action KIBANA_ALL_SAVED_OBJECTS_READ;
 
@@ -108,9 +109,10 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
             return true;
         }
 
-        boolean hasReadPermission = actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, KIBANA_ALL_SAVED_OBJECTS_READ, null);
-        boolean hasWritePermission = actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, KIBANA_ALL_SAVED_OBJECTS_WRITE,
-                null);
+        boolean hasReadPermission = actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, KIBANA_ALL_SAVED_OBJECTS_READ, null)
+                .getStatus() == PrivilegesEvaluationResult.Status.OK;
+        boolean hasWritePermission = actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, KIBANA_ALL_SAVED_OBJECTS_WRITE, null)
+                .getStatus() == PrivilegesEvaluationResult.Status.OK;
 
         hasReadPermission |= hasWritePermission;
 
@@ -140,7 +142,8 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("replaceKibanaIndex(" + action + ", " + user + ")\nrequestedResolved: " + requestedResolved + "\nrequestedTenant: " + user.getRequestedTenant());
+            log.debug("replaceKibanaIndex(" + action + ", " + user + ")\nrequestedResolved: " + requestedResolved + "\nrequestedTenant: "
+                    + user.getRequestedTenant());
         }
 
         IndexInfo kibanaIndexInfo = checkForExclusivelyUsedKibanaIndexOrAlias(request, requestedResolved);
@@ -491,8 +494,10 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
         for (String tenant : this.tenantNames) {
             try {
-                boolean hasReadPermission = actionAuthorization.hasTenantPermission(user, tenant, roles, KIBANA_ALL_SAVED_OBJECTS_READ, null);
-                boolean hasWritePermission = actionAuthorization.hasTenantPermission(user, tenant, roles, KIBANA_ALL_SAVED_OBJECTS_WRITE, null);
+                boolean hasReadPermission = actionAuthorization.hasTenantPermission(user, tenant, roles, KIBANA_ALL_SAVED_OBJECTS_READ, null)
+                        .getStatus() == PrivilegesEvaluationResult.Status.OK;
+                boolean hasWritePermission = actionAuthorization.hasTenantPermission(user, tenant, roles, KIBANA_ALL_SAVED_OBJECTS_WRITE, null)
+                        .getStatus() == PrivilegesEvaluationResult.Status.OK;
 
                 if (hasWritePermission) {
                     result.put(tenant, true);

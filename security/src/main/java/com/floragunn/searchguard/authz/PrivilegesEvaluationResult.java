@@ -20,6 +20,7 @@ package com.floragunn.searchguard.authz;
 import java.util.stream.Collectors;
 
 import com.floragunn.fluent.collections.CheckTable;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
 
@@ -34,19 +35,20 @@ public class PrivilegesEvaluationResult {
 
     private final Status status;
     private final CheckTable<String, Action> indexToActionPrivilegeTable;
-    private final ImmutableSet<Error> errors;
+    private final ImmutableList<Error> errors;
     private final ImmutableSet<String> availableIndices;
     private final String reason;
 
     PrivilegesEvaluationResult(Status status) {
         this.status = status;
         this.indexToActionPrivilegeTable = null;
-        this.errors = ImmutableSet.empty();
+        this.errors = ImmutableList.empty();
         this.reason = null;
         this.availableIndices = null;
     }
 
-    PrivilegesEvaluationResult(Status status, String reason, ImmutableSet<String> availableIndices, CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableSet<Error> errors) {
+    PrivilegesEvaluationResult(Status status, String reason, ImmutableSet<String> availableIndices,
+            CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
         this.status = status;
         this.indexToActionPrivilegeTable = indexToActionPrivilegeTable;
         this.errors = errors;
@@ -58,39 +60,53 @@ public class PrivilegesEvaluationResult {
         return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.indexToActionPrivilegeTable, this.errors);
     }
 
-    public PrivilegesEvaluationResult reason(String reason, ImmutableSet<Error> errors) {
+    public PrivilegesEvaluationResult reason(String reason, ImmutableList<Error> errors) {
         return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.indexToActionPrivilegeTable, errors);
     }
 
     public PrivilegesEvaluationResult reason(String reason, Error error) {
-        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices,  this.indexToActionPrivilegeTable, ImmutableSet.of(errors));
+        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.indexToActionPrivilegeTable, ImmutableList.of(errors));
     }
 
     public PrivilegesEvaluationResult with(CheckTable<String, Action> indexToActionPrivilegeTable) {
         return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, indexToActionPrivilegeTable, this.errors);
     }
 
-    public PrivilegesEvaluationResult with(CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableSet<Error> errors) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices,  indexToActionPrivilegeTable, errors);
+    public PrivilegesEvaluationResult with(CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, indexToActionPrivilegeTable, errors);
     }
-    
-    public PrivilegesEvaluationResult with(String reason, CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableSet<Error> errors) {
+
+    public PrivilegesEvaluationResult with(String reason, CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
         return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, indexToActionPrivilegeTable, errors);
     }
-    
-    public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices, CheckTable<String, Action> indexToActionPrivilegeTable) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices,  indexToActionPrivilegeTable, errors);
+
+    public PrivilegesEvaluationResult with(ImmutableList<Error> errors) {
+        if (errors.size() != 0) {
+            return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, indexToActionPrivilegeTable, errors);
+        } else {
+            return this;
+        }
+    }
+
+    public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices, CheckTable<String, Action> indexToActionPrivilegeTable,
+            ImmutableList<Error> errors) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices, indexToActionPrivilegeTable, errors);
+    }
+
+    public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices,
+            CheckTable<String, Action> indexToActionPrivilegeTable) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices, indexToActionPrivilegeTable, errors);
     }
 
     public PrivilegesEvaluationResult status(Status status) {
         return new PrivilegesEvaluationResult(status, this.reason, this.availableIndices, this.indexToActionPrivilegeTable, this.errors);
     }
-    
+
     public CheckTable<String, Action> getIndexToActionPrivilegeTable() {
         return indexToActionPrivilegeTable;
     }
 
-    public ImmutableSet<Error> getErrors() {
+    public ImmutableList<Error> getErrors() {
         return errors;
     }
 
@@ -115,13 +131,14 @@ public class PrivilegesEvaluationResult {
     public Status getStatus() {
         return status;
     }
-    
+
+    public boolean isOk() {
+        return status == Status.OK;
+    }
+
     public ImmutableSet<String> getAvailableIndices() {
         return availableIndices;
     }
-    
-    
-
 
     @Override
     public String toString() {
@@ -158,10 +175,21 @@ public class PrivilegesEvaluationResult {
 
         private final String message;
         private final Throwable cause;
+        private final String role;
+        private final Throwable rootCause;
 
         public Error(String message, Throwable cause) {
             this.message = message;
             this.cause = cause;
+            this.role = null;
+            this.rootCause = getRootCause(cause);
+        }
+
+        public Error(String message, Throwable cause, String role) {
+            this.message = message;
+            this.cause = cause;
+            this.role = role;
+            this.rootCause = getRootCause(cause);
         }
 
         public String getMessage() {
@@ -174,8 +202,8 @@ public class PrivilegesEvaluationResult {
 
         @Override
         public String toString() {
-            if (cause != null) {
-                return message + " [" + cause + "]";
+            if (rootCause != null) {
+                return message + " [" + rootCause + "]";
             } else {
                 return message;
             }
@@ -206,6 +234,22 @@ public class PrivilegesEvaluationResult {
                 return false;
             }
             return true;
+        }
+
+        public String getRole() {
+            return role;
+        }
+
+        private static Throwable getRootCause(Throwable t) {            
+            if (t == null) {
+                return null;
+            }
+            
+            for (int i = 0; t.getCause() != null && t.getCause() != t && i < 10; i++) {
+                t = t.getCause();
+            }
+
+            return t;
         }
     }
 

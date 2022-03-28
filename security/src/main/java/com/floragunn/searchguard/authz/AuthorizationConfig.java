@@ -29,11 +29,13 @@ public class AuthorizationConfig implements Document<AuthorizationConfig> {
     private final DocNode source;
     private final boolean ignoreUnauthorizedIndices;
     private final String fieldAnonymizationSalt;
+    private final boolean debugEnabled;
 
-    AuthorizationConfig(DocNode source, boolean ignoreUnauthorizedIndices, String fieldAnonymizationSalt) {
+    AuthorizationConfig(DocNode source, boolean ignoreUnauthorizedIndices, String fieldAnonymizationSalt, boolean debugEnabled) {
         this.ignoreUnauthorizedIndices = ignoreUnauthorizedIndices;
         this.source = source;
         this.fieldAnonymizationSalt = fieldAnonymizationSalt;
+        this.debugEnabled = debugEnabled;
     }
 
     public static ValidationResult<AuthorizationConfig> parse(DocNode docNode, Parser.Context context) {
@@ -42,9 +44,10 @@ public class AuthorizationConfig implements Document<AuthorizationConfig> {
 
         boolean ignoreUnauthorizedIndices = vNode.get("ignore_unauthorized_indices").withDefault(true).asBoolean();
         String fieldAnonymizationSalt = vNode.get("field_anonymization.salt").asString();
+        boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
 
         if (!validationErrors.hasErrors()) {
-            return new ValidationResult<AuthorizationConfig>(new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt));
+            return new ValidationResult<AuthorizationConfig>(new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt, debugEnabled));
         } else {
             return new ValidationResult<AuthorizationConfig>(validationErrors);            
         }
@@ -58,7 +61,7 @@ public class AuthorizationConfig implements Document<AuthorizationConfig> {
         String fieldAnonymizationSalt = vNode.get("dynamic.field_anonymization_salt2").asString();
         validationErrors.throwExceptionForPresentErrors();
 
-        return new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt);
+        return new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt, false);
     }
 
     public boolean isIgnoreUnauthorizedIndices() {
@@ -77,5 +80,9 @@ public class AuthorizationConfig implements Document<AuthorizationConfig> {
 
     public String getFieldAnonymizationSalt() {
         return fieldAnonymizationSalt;
+    }
+
+    public boolean isDebugEnabled() {
+        return debugEnabled;
     }
 }
