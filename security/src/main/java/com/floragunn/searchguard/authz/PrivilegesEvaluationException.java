@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz;
 
 public class PrivilegesEvaluationException extends Exception {
 

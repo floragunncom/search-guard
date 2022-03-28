@@ -15,13 +15,13 @@
  * 
  */
 
-package com.floragunn.searchguard.authz;
+package com.floragunn.searchguard.authz.actions;
 
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.user.User;
 
 public interface ActionAuthorization {

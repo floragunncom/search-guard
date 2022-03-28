@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz.actions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,8 +41,6 @@ import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
-import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesRequest;
-import org.elasticsearch.action.admin.indices.template.put.PutComponentTemplateAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesIndexRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
@@ -74,6 +72,8 @@ import org.elasticsearch.transport.RemoteClusterService;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.support.SnapshotRestoreHelper;
 
@@ -179,10 +179,6 @@ public class ActionRequestIntrospector {
         } else if (request instanceof ClearScrollRequest) {
             return CLUSTER_REQUEST;
         } else if (request instanceof SearchScrollRequest) {
-            return CLUSTER_REQUEST;
-        } else if (request instanceof PutComponentTemplateAction.Request) {
-            return CLUSTER_REQUEST;
-        } else if (request instanceof GetIndexTemplatesRequest) {
             return CLUSTER_REQUEST;
         } else {
             if (action.startsWith("index:")) {
@@ -877,9 +873,11 @@ public class ActionRequestIntrospector {
 
     private final ActionRequestInfo UNKNOWN = new ActionRequestInfo(true, false);
     private final ActionRequestInfo CLUSTER_REQUEST = new ActionRequestInfo(true, false);
-    private final ResolvedIndices LOCAL_ALL = new ResolvedIndices(true, ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
+    private final static ResolvedIndices LOCAL_ALL = new ResolvedIndices(true, ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
+    private final static ResolvedIndices EMPTY = new ResolvedIndices(false, ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
 
-    public class ResolvedIndices {
+    public static class ResolvedIndices {
+                
         private final boolean localAll;
         private ImmutableSet<IndicesRequestInfo> deferredRequests;
         private ImmutableSet<String> localIndices;
@@ -976,7 +974,14 @@ public class ActionRequestIntrospector {
         public ResolvedIndices localIndices(ImmutableSet<String> localIndices) {
             return new ResolvedIndices(false, localIndices, remoteIndices, ImmutableSet.empty());
         }
-
+        
+        public ResolvedIndices localIndices(String... localIndices) {
+            return localIndices(ImmutableSet.ofArray(localIndices));
+        }
+        
+        public static ResolvedIndices empty() {
+            return EMPTY;
+        }
     }
 
     private ImmutableSet<IndicesRequestInfo> from(Collection<? extends IndicesRequest> indicesRequests) {

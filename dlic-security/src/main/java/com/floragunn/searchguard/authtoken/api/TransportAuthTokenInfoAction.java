@@ -24,7 +24,7 @@ import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authtoken.AuthTokenService;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 
 public class TransportAuthTokenInfoAction extends HandledTransportAction<AuthTokenInfoRequest, AuthTokenInfoResponse> {
 

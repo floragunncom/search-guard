@@ -57,11 +57,11 @@ import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.Action;
-import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.Actions;
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionAuthorization;
+import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.user.User;
 

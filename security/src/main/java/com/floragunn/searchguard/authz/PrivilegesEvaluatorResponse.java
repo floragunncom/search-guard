@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,8 +26,8 @@ import java.util.Set;
 import org.elasticsearch.action.support.ActionFilter;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 
 public class PrivilegesEvaluatorResponse {
     boolean allowed = false;

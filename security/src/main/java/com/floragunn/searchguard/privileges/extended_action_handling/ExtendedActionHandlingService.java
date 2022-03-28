@@ -24,8 +24,8 @@ import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 
-import com.floragunn.searchguard.authz.Action.WellKnownAction;
-import com.floragunn.searchguard.authz.Action.WellKnownAction.Resource;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
 import com.floragunn.searchguard.user.User;
 
 public class ExtendedActionHandlingService {

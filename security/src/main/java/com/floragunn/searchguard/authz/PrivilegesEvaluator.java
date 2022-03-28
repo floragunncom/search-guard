@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -64,21 +64,19 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
-import com.floragunn.searchguard.authz.Action;
-import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.Actions;
-import com.floragunn.searchguard.authz.AuthorizationConfig;
-import com.floragunn.searchguard.authz.DocumentAuthorization;
-import com.floragunn.searchguard.authz.LegacyRoleBasedDocumentAuthorization;
-import com.floragunn.searchguard.authz.Role;
-import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
-import com.floragunn.searchguard.authz.RoleMapping;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult.Status;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionAuthorization;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult.Status;
+import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.ActionGroups;
 import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.impl.CType;

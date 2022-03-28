@@ -44,16 +44,16 @@ import org.elasticsearch.index.IndexNotFoundException;
 
 import com.fasterxml.jackson.core.Base64Variants;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.authz.Actions;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.Role;
 import com.floragunn.searchguard.authz.RoleMapping;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.ExceptionRecord;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;

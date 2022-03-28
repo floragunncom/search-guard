@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.authz;
+package com.floragunn.searchguard.authz.actions;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -34,7 +34,7 @@ import org.elasticsearch.action.ActionResponse;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.Actions.Scope;
+import com.floragunn.searchguard.authz.actions.Actions.Scope;
 
 public interface Action {
 

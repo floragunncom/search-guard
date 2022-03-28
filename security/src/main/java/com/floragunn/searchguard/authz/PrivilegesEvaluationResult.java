@@ -15,13 +15,13 @@
  *
  */
 
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz;
 
 import java.util.stream.Collectors;
 
 import com.floragunn.fluent.collections.CheckTable;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.Action;
+import com.floragunn.searchguard.authz.actions.Action;
 
 public class PrivilegesEvaluationResult {
 

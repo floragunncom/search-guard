@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,10 +30,12 @@ import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.Action;
-import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.Actions;
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult.Status;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionAuthorization;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.user.User;
 
 public class TermsAggregationEvaluator {

@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.authz;
+package com.floragunn.searchguard.authz.actions;
 
 import static com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors.objectAttr;
 
@@ -164,11 +164,11 @@ import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.authc.LoginPrivileges;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
-import com.floragunn.searchguard.authz.Action.WellKnownAction;
-import com.floragunn.searchguard.authz.Action.WellKnownAction.AdditionalPrivileges;
-import com.floragunn.searchguard.authz.Action.WellKnownAction.NewResource;
-import com.floragunn.searchguard.authz.Action.WellKnownAction.RequestPropertyModifier;
-import com.floragunn.searchguard.authz.Action.WellKnownAction.Resource;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.AdditionalPrivileges;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.RequestPropertyModifier;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;

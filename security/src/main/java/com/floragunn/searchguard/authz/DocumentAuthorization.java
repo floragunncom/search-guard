@@ -20,8 +20,6 @@ package com.floragunn.searchguard.authz;
 import java.util.Set;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.user.User;
 

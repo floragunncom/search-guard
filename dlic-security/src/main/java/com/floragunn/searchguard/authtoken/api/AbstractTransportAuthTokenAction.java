@@ -24,8 +24,8 @@ import org.elasticsearch.common.io.stream.Writeable.Reader;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.transport.TransportService;
 
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.user.User;
 
 abstract class AbstractTransportAuthTokenAction<Request extends ActionRequest, Response extends ActionResponse>

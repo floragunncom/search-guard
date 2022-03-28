@@ -17,14 +17,14 @@ package com.floragunn.searchguard.authtoken;
 import java.util.Set;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.Action;
-import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.Actions;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationException;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluationResult;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionAuthorization;
+import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.ActionGroups;
 import com.floragunn.searchguard.user.User;
 

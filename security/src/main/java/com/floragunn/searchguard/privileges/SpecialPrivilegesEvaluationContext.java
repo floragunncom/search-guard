@@ -3,8 +3,8 @@ package com.floragunn.searchguard.privileges;
 import org.elasticsearch.common.transport.TransportAddress;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.DocumentAuthorization;
+import com.floragunn.searchguard.authz.actions.ActionAuthorization;
 import com.floragunn.searchguard.user.User;
 
 public interface SpecialPrivilegesEvaluationContext {

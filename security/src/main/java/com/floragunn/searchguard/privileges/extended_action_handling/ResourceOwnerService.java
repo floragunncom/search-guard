@@ -44,9 +44,9 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
-import com.floragunn.searchguard.authz.Action.WellKnownAction;
-import com.floragunn.searchguard.authz.Action.WellKnownAction.NewResource;
-import com.floragunn.searchguard.authz.Action.WellKnownAction.Resource;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;

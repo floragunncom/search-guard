@@ -18,13 +18,13 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 
-import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.Actions;
 import com.floragunn.searchguard.authz.DocumentAuthorization;
 import com.floragunn.searchguard.authz.LegacyRoleBasedDocumentAuthorization;
 import com.floragunn.searchguard.authz.Role;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.RoleMapping;
+import com.floragunn.searchguard.authz.actions.ActionAuthorization;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.sgconf.ActionGroups;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;

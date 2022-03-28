@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz;
 
 import java.util.List;
 
