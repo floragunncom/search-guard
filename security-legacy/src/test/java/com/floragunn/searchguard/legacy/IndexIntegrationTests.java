@@ -79,7 +79,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
         Assert.assertEquals(200, resc.getStatusCode());
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("\"_index\":\"klingonempire\""));
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("hits"));
-        Assert.assertTrue(resc.getBody(), resc.getBody().contains("no permissions for [indices:data/read/search]"));
+        Assert.assertTrue(resc.getBody(), resc.getBody().contains("Insufficient permissions"));
         
     }
     
