@@ -18,14 +18,16 @@
 package com.floragunn.searchguard.authz;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.documents.Parser.Context;
+import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 
-public class AuthorizationConfig implements Document<AuthorizationConfig> {
+public class AuthorizationConfig implements PatchableDocument<AuthorizationConfig> {
     private final DocNode source;
     private final boolean ignoreUnauthorizedIndices;
     private final String fieldAnonymizationSalt;
@@ -84,5 +86,10 @@ public class AuthorizationConfig implements Document<AuthorizationConfig> {
 
     public boolean isDebugEnabled() {
         return debugEnabled;
+    }
+
+    @Override
+    public AuthorizationConfig parseI(DocNode docNode, Context context) throws ConfigValidationException {
+        return parse(docNode, (ConfigurationRepository.Context) context).get();
     }
 }

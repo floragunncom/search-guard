@@ -273,10 +273,10 @@ public abstract class TypeLevelConfigApi {
                     } catch (ConcurrentConfigUpdateException e) {
                         return new StandardResponse(412).error(e.getMessage());
                     } catch (ConfigUpdateException e) {
-                        log.error("Error while adding user", e);
+                        log.error("Error while updating configuration", e);
                         return new StandardResponse(500).error(null, e.getMessage(), e.getDetailsAsMap());
                     } catch (Exception e) {
-                        log.error("Error while adding user", e);
+                        log.error("Error while updating configuration", e);
                         return new StandardResponse(500).error(e.getMessage());
                     }
                 }, getExecutor());

@@ -64,7 +64,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     private final ComponentState componentState;
 
     private volatile StatefulIndexPermssions statefulIndex;
-    private final ComponentState statefulIndexState = new ComponentState("index_permissions_statful");
+    private final ComponentState statefulIndexState = new ComponentState("index_permissions_stateful");
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions, Set<String> indices,
             Set<String> tenants) {

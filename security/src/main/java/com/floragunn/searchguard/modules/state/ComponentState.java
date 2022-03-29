@@ -85,9 +85,9 @@ public class ComponentState implements Writeable, ToXContentObject {
 
     private List<ComponentState> parts = new ArrayList<>();
 
-    public ComponentState(String type) {
-        this.type = type;
-        this.name = null;
+    public ComponentState(String name) {
+        this.type = null;
+        this.name = name;
         this.sortPrio = 0;
     }
 
