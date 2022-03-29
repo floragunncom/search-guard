@@ -304,29 +304,29 @@ public class PrivilegesEvaluationResult {
 
         if (this.indexToActionPrivilegeTable != null) {
             if (isRelatedToIndexPermission()) {
-                result.addMetadata("missing_permissions",
+                result.addMetadata("es.missing_permissions",
                         this.indexToActionPrivilegeTable.getColumns().stream().map((a) -> a.name()).collect(Collectors.toList()));
 
             } else {
-                result.addMetadata("missing_permissions", getFlattenedIndexToActionPrivilegeTable());
+                result.addMetadata("es.missing_permissions", getFlattenedIndexToActionPrivilegeTable());
             }
         }
 
         if (context.isDebugEnabled()) {
             if (reason != null) {
-                result.addMetadata("reason", reason);
+                result.addMetadata("es.reason", reason);
             }
 
-            result.addMetadata("user", String.valueOf(context.getUser()));
+            result.addMetadata("es.user", String.valueOf(context.getUser()));
 
             if (context.getMappedRoles() != null) {
-                result.addMetadata("mapped_roles", context.getMappedRoles().stream().collect(Collectors.toList()));
+                result.addMetadata("es.mapped_roles", context.getMappedRoles().stream().collect(Collectors.toList()));
             }
 
-            result.addMetadata("user_attributes", context.getUser().getStructuredAttributes().keySet().stream().collect(Collectors.toList()));
+            result.addMetadata("es.user_attributes", context.getUser().getStructuredAttributes().keySet().stream().collect(Collectors.toList()));
             
             if (errors != null && !errors.isEmpty()) {
-                result.addMetadata("errors", errors.stream().map((e) -> e.toString()).collect(Collectors.toList()));
+                result.addMetadata("es.errors", errors.stream().map((e) -> e.toString()).collect(Collectors.toList()));
             }
         }
 
