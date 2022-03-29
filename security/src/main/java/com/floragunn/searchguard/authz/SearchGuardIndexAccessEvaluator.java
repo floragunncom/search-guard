@@ -32,6 +32,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
@@ -72,15 +73,15 @@ public class SearchGuardIndexAccessEvaluator {
                 .toArray(new String[0]);
     }
 
-    public PrivilegesEvaluatorResponse evaluate(final ActionRequest request, final Task task, final String action,
-            ActionRequestInfo actionRequestInfo, final PrivilegesEvaluatorResponse presponse) {
+    public PrivilegesEvaluationResult evaluate(final ActionRequest request, final Task task, final Action action,
+            ActionRequestInfo actionRequestInfo) {
         if (!actionRequestInfo.isIndexRequest()) {
-            return presponse;
+            return PrivilegesEvaluationResult.PENDING;
         }
         
         ResolvedIndices requestedResolved = actionRequestInfo.getResolvedIndices();
         
-        if (WildcardMatcher.matchAny(sgDeniedActionPatterns, action)) {
+        if (WildcardMatcher.matchAny(sgDeniedActionPatterns, action.name())) {
 
 
             if (requestedResolved.isLocalAll()) {
@@ -96,12 +97,11 @@ public class SearchGuardIndexAccessEvaluator {
                         log.debug("Filtered '{}'from {}, resulting list with *,-{} is {}",
                                 SearchGuardPlugin.getProtectedIndices().printProtectedIndices(), requestedResolved, resolvedProtectedIndices);
                     }
-                    return presponse;
+                    return PrivilegesEvaluationResult.PENDING;
                 } else {
-                    auditLog.logSgIndexAttempt(request, action, task);
+                    auditLog.logSgIndexAttempt(request, action.name(), task);
                     log.warn(action + " for '_all' indices is not allowed for a regular user");
-                    presponse.allowed = false;
-                    return presponse.markComplete();
+                    return PrivilegesEvaluationResult.INSUFFICIENT.reason("Action for '_all' indices is not allowed for a regular user").missingPrivileges(action);
                 }
             } else if (SearchGuardPlugin.getProtectedIndices().containsProtected(requestedResolved.getLocalIndices())) {
 
@@ -113,17 +113,15 @@ public class SearchGuardIndexAccessEvaluator {
                         if (log.isDebugEnabled()) {
                             log.debug("Filtered '{}' but resulting list is empty", SearchGuardPlugin.getProtectedIndices().printProtectedIndices());
                         }
-                        presponse.allowed = false;
-                        return presponse.markComplete();                        
+                        return PrivilegesEvaluationResult.INSUFFICIENT.reason("No unprotected indices referenced").missingPrivileges(action);
                     }
                     
-                    return presponse;
+                    return PrivilegesEvaluationResult.PENDING;
                 } else {
-                    auditLog.logSgIndexAttempt(request, action, task);
+                    auditLog.logSgIndexAttempt(request, action.name(), task);
                     log.warn(action + " for '{}' index is not allowed for a regular user",
                             SearchGuardPlugin.getProtectedIndices().printProtectedIndices());
-                    presponse.allowed = false;
-                    return presponse.markComplete();
+                    return PrivilegesEvaluationResult.INSUFFICIENT.reason("Action requested index is not allowed for a regular user").missingPrivileges(action);
                 }
             }
         }
@@ -144,6 +142,6 @@ public class SearchGuardIndexAccessEvaluator {
                 }
             }
         }
-        return presponse;
+        return PrivilegesEvaluationResult.PENDING;
     }
 }

@@ -895,7 +895,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
         diagnosticContext = new DiagnosticContext(settings, threadPool.getThreadContext());
         sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, diagnosticContext, complianceConfig, actions,
-                specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry);
+                actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry);
         
         InternalUsersDatabase internalUsersDatabase = new InternalUsersDatabase(cr);
         moduleRegistry.addComponentStateProvider(internalUsersDatabase);

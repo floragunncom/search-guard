@@ -93,20 +93,22 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     }
 
     @Override
-    public PrivilegesEvaluationResult hasClusterPermission(User user, ImmutableSet<String> mappedRoles, Action action)
-            throws PrivilegesEvaluationException {
-        PrivilegesEvaluationResult result = clusterExclusions.contains(action, mappedRoles);
+    public PrivilegesEvaluationResult hasClusterPermission(PrivilegesEvaluationContext context, Action action) throws PrivilegesEvaluationException {
+        PrivilegesEvaluationResult result = clusterExclusions.contains(action, context.getMappedRoles());
 
         if (result.getStatus() != PrivilegesEvaluationResult.Status.PENDING) {
-            return result;
+            return result.missingPrivileges(action);
         }
 
-        return cluster.contains(action, mappedRoles);
+        return cluster.contains(action, context.getMappedRoles());
     }
 
     @Override
-    public PrivilegesEvaluationResult hasIndexPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
-            ResolvedIndices resolved, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
+    public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions, ResolvedIndices resolved)
+            throws PrivilegesEvaluationException {
+        User user = context.getUser();
+        ImmutableSet<String> mappedRoles = context.getMappedRoles();
+
         ImmutableList<PrivilegesEvaluationResult.Error> errors = this.index.initializationErrors;
 
         if (log.isTraceEnabled()) {
@@ -263,8 +265,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     }
 
     @Override
-    public PrivilegesEvaluationResult hasTenantPermission(User user, String requestedTenant, ImmutableSet<String> mappedRoles, Action action,
-            PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
+    public PrivilegesEvaluationResult hasTenantPermission(PrivilegesEvaluationContext context, Action action, String requestedTenant)
+            throws PrivilegesEvaluationException {
+        User user = context.getUser();
+        ImmutableSet<String> mappedRoles = context.getMappedRoles();
+
         ImmutableList<PrivilegesEvaluationResult.Error> errors = this.tenant.initializationErrors;
 
         ImmutableMap<String, ImmutableSet<String>> tenantToRoles = tenant.actionToTenantToRoles.get(action);
@@ -306,7 +311,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
         }
 
-        return PrivilegesEvaluationResult.INSUFFICIENT.with(errors);
+        return PrivilegesEvaluationResult.INSUFFICIENT.with(errors).missingPrivileges(action);
     }
 
     public void updateIndices(Set<String> indices) {
@@ -427,7 +432,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
             }
 
-            return PrivilegesEvaluationResult.INSUFFICIENT.with(initializationErrors);
+            return PrivilegesEvaluationResult.INSUFFICIENT.with(initializationErrors).missingPrivileges(action);
         }
 
         @Override

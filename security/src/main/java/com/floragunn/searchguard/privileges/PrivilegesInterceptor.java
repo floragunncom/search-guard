@@ -23,15 +23,15 @@ import org.elasticsearch.action.ActionRequest;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.user.User;
 
 public interface PrivilegesInterceptor {
 
-    InterceptionResult replaceKibanaIndex(ActionRequest request, Action action, User user, ResolvedIndices requestedResolved,
-            ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException;
+    InterceptionResult replaceKibanaIndex(
+            PrivilegesEvaluationContext context, ActionRequest request, Action action, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException;
 
     Map<String, Boolean> mapTenants(User user, ImmutableSet<String> roles, ActionAuthorization actionAuthorization);
 

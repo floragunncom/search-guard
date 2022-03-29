@@ -44,6 +44,7 @@ import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
@@ -142,10 +143,10 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     private final PrivilegesInterceptor privilegesInterceptor = new PrivilegesInterceptor() {
 
         @Override
-        public InterceptionResult replaceKibanaIndex(ActionRequest request, Action action, User user, ResolvedIndices requestedResolved,
-                ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
+        public InterceptionResult replaceKibanaIndex(PrivilegesEvaluationContext context, ActionRequest request, Action action,
+                ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
             if (enabled && interceptorImpl != null) {
-                return interceptorImpl.replaceKibanaIndex(request, action, user, requestedResolved, mappedRoles, actionAuthorization);
+                return interceptorImpl.replaceKibanaIndex(context, request, action, actionAuthorization);
             } else {
                 return InterceptionResult.NORMAL;
             }

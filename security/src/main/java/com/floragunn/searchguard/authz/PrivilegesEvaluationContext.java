@@ -20,37 +20,43 @@ package com.floragunn.searchguard.authz;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.user.User;
 
+/**
+ * Request-scoped context information for privilege evaluation.
+ * 
+ * This class carries metadata about the request and provides caching facilities for data which might need to be evaluated several times per request.
+ */
 public class PrivilegesEvaluationContext {
     private boolean resolveLocalAll = true;
     private final User user;
-    private final IndexNameExpressionResolver resolver;
-    private final ClusterService clusterService;
+    private final Action action;
+    private final Object request;
     private final Map<Template<Pattern>, Pattern> renderedPatternTemplateCache = new HashMap<>();
+    private final ImmutableSet<String> mappedRoles;
+    private final ActionRequestIntrospector actionRequestIntrospector;
+    private final boolean debugEnabled;
+    private ActionRequestInfo requestInfo;
 
-    PrivilegesEvaluationContext(User user, IndexNameExpressionResolver resolver, ClusterService clusterService) {
+    public PrivilegesEvaluationContext(User user, ImmutableSet<String> mappedRoles, Action action, Object request, boolean debugEnabled,
+            ActionRequestIntrospector actionRequestIntrospector) {
         this.user = user;
-        this.resolver = resolver;
-        this.clusterService = clusterService;
+        this.mappedRoles = mappedRoles;
+        this.action = action;
+        this.request = request;
+        this.actionRequestIntrospector = actionRequestIntrospector;
+        this.debugEnabled = debugEnabled;
     }
 
     public User getUser() {
         return user;
-    }
-
-    public IndexNameExpressionResolver getResolver() {
-        return resolver;
-    }
-
-    public ClusterService getClusterService() {
-        return clusterService;
     }
 
     public boolean isResolveLocalAll() {
@@ -60,15 +66,53 @@ public class PrivilegesEvaluationContext {
     public void setResolveLocalAll(boolean resolveLocalAll) {
         this.resolveLocalAll = resolveLocalAll;
     }
-    
+
     public Pattern getRenderedPattern(Template<Pattern> template) throws ExpressionEvaluationException {
         Pattern pattern = this.renderedPatternTemplateCache.get(template);
-        
+
         if (pattern == null) {
             pattern = template.render(user);
-            this.renderedPatternTemplateCache.put(template, pattern);            
+            this.renderedPatternTemplateCache.put(template, pattern);
         }
-        
+
         return pattern;
+    }
+
+    public ActionRequestInfo getRequestInfo() {
+        if (this.requestInfo != null) {
+            this.requestInfo = this.actionRequestIntrospector.getActionRequestInfo(this.action.name(), actionRequestIntrospector);
+        }
+
+        return this.requestInfo;
+    }
+
+    /**
+     * The action that belongs to this request. May be null for evaluations which are independent of specific requests. 
+     */
+    public Action getAction() {
+        return action;
+    }
+
+    /**
+     * The request that triggered the index evaluation. May be null for evaluations which are independent of specific requests.
+     */
+    public Object getRequest() {
+        return request;
+    }
+
+    public boolean isDebugEnabled() {
+        return debugEnabled;
+    }
+
+    public ImmutableSet<String> getMappedRoles() {
+        return mappedRoles;
+    }
+
+    public PrivilegesEvaluationContext mappedRoles(ImmutableSet<String> mappedRoles) {
+        if (this.mappedRoles != null && this.mappedRoles.equals(mappedRoles)) {
+            return this;
+        } else {
+            return new PrivilegesEvaluationContext(user, mappedRoles, action, mappedRoles, debugEnabled, actionRequestIntrospector);
+        }
     }
 }

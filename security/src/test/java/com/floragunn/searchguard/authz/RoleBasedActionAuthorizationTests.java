@@ -57,9 +57,9 @@ public class RoleBasedActionAuthorizationTests {
 
         User user = User.forUser("test").build();
 
-        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), nodesStatsAction).isOk());
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("other_role"), nodesStatsAction).isOk());
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), otherAction).isOk());
+        Assert.assertTrue(subject.hasClusterPermission(ctx(user, "test_role"), nodesStatsAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(ctx(user, "other_role"), nodesStatsAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(ctx(user, "test_role"), otherAction).isOk());
     }
 
     @Test
@@ -80,9 +80,9 @@ public class RoleBasedActionAuthorizationTests {
 
         User user = User.forUser("test").build();
 
-        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), nodesStatsAction).isOk());
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("other_role"), nodesStatsAction).isOk());
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role"), otherAction).isOk());
+        Assert.assertTrue(subject.hasClusterPermission(ctx(user, "test_role"), nodesStatsAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(ctx(user, "other_role"), nodesStatsAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(ctx(user, "test_role"), otherAction).isOk());
     }
 
     @Test
@@ -110,9 +110,9 @@ public class RoleBasedActionAuthorizationTests {
 
         User user = User.forUser("test").build();
 
-        Assert.assertTrue(subject.hasClusterPermission(user, ImmutableSet.of("test_role1"), nodesUsageAction).isOk());
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role1"), nodesStatsAction).isOk());
-        Assert.assertFalse(subject.hasClusterPermission(user, ImmutableSet.of("test_role1"), nodesStatsActionNotWellKnown).isOk());
+        Assert.assertTrue(subject.hasClusterPermission(ctx(user, "test_role1"), nodesUsageAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(ctx(user, "test_role1"), nodesStatsAction).isOk());
+        Assert.assertFalse(subject.hasClusterPermission(ctx(user, "test_role1"), nodesStatsActionNotWellKnown).isOk());
     }
 
     @Test
@@ -134,22 +134,20 @@ public class RoleBasedActionAuthorizationTests {
         RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
 
         User user = User.forUser("test").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
         ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a");
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                indexConstantA, context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_constant_a", "index_constant_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_constant_a", "index_constant_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_constant_a")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("other_role"), ImmutableSet.of(indexAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(otherAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
     }
 
@@ -172,22 +170,20 @@ public class RoleBasedActionAuthorizationTests {
         RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
 
         User user = User.forUser("test").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
         ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2");
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                indexConstantA, context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2", "index_constant_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2", "index_constant_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_constant_a1", "index_constant_a2")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("other_role"), ImmutableSet.of(indexAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(otherAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
     }
 
@@ -210,30 +206,26 @@ public class RoleBasedActionAuthorizationTests {
         RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
 
         User user = User.forUser("test").attribute("dept_no", "a").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_a"), context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_a"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_a", "index_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_a", "index_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("other_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_a"), context);
+        result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), ResolvedIndices.empty().localIndices("index_a"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(otherAction),
-                ResolvedIndices.empty().localIndices("index_a"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), ResolvedIndices.empty().localIndices("index_a"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
         User userWithoutAttributes = User.forUser("no_attributes").build();
-        PrivilegesEvaluationContext contextWithoutAttributes = new PrivilegesEvaluationContext(userWithoutAttributes, null, null);
 
-        result = subject.hasIndexPermission(userWithoutAttributes, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_a"), contextWithoutAttributes);
+        result = subject.hasIndexPermission(ctx(userWithoutAttributes, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_a"));
 
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
         Assert.assertTrue(result.toString(), result.getErrors().toString().contains("No value for ${user.attrs.dept_no}"));
@@ -259,22 +251,20 @@ public class RoleBasedActionAuthorizationTests {
                 ImmutableSet.of("index_constant_a1", "index_constant_b"), tenants);
 
         User user = User.forUser("test").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
         ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2");
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                indexConstantA, context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2", "index_constant_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2", "index_constant_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_constant_a1", "index_constant_a2")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("other_role"), ImmutableSet.of(indexAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(otherAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
     }
 
@@ -297,22 +287,20 @@ public class RoleBasedActionAuthorizationTests {
         RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
 
         User user = User.forUser("test").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
         ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2");
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                indexConstantA, context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2", "index_constant_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2", "index_constant_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_constant_a1", "index_constant_a2")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("other_role"), ImmutableSet.of(indexAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(otherAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
     }
 
@@ -335,22 +323,20 @@ public class RoleBasedActionAuthorizationTests {
         RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
 
         User user = User.forUser("test").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
         ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2");
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                indexConstantA, context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2", "index_constant_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2", "index_constant_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_constant_a1", "index_constant_a2")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("other_role"), ImmutableSet.of(indexAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(otherAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
     }
 
@@ -374,30 +360,28 @@ public class RoleBasedActionAuthorizationTests {
         RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
 
         User user = User.forUser("test").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
         ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a");
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                indexConstantA, context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexActionNotWellKnown), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexActionNotWellKnown), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_constant_a", "index_constant_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_constant_a", "index_constant_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_constant_a")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexActionNotWellKnown),
-                ResolvedIndices.empty().localIndices("index_constant_a", "index_constant_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexActionNotWellKnown),
+                ResolvedIndices.empty().localIndices("index_constant_a", "index_constant_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_constant_a")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("other_role"), ImmutableSet.of(indexAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(otherAction), indexConstantA, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indexConstantA);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
     }
 
@@ -421,30 +405,28 @@ public class RoleBasedActionAuthorizationTests {
         RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
 
         User user = User.forUser("test").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
         ResolvedIndices indexA12 = ResolvedIndices.empty().localIndices("index_a1", "index_a2");
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction), indexA12,
-                context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexActionNotWellKnown), indexA12, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexActionNotWellKnown), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_a", "index_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_a", "index_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexActionNotWellKnown),
-                ResolvedIndices.empty().localIndices("index_a", "index_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexActionNotWellKnown),
+                ResolvedIndices.empty().localIndices("index_a", "index_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("other_role"), ImmutableSet.of(indexAction), indexA12, context);
+        result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(otherAction), indexA12, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
     }
 
@@ -469,30 +451,28 @@ public class RoleBasedActionAuthorizationTests {
                 ImmutableSet.of("index_a1", "index_b"), tenants);
 
         User user = User.forUser("test").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
         ResolvedIndices indexA12 = ResolvedIndices.empty().localIndices("index_a1", "index_a2");
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction), indexA12,
-                context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexActionNotWellKnown), indexA12, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexActionNotWellKnown), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_a", "index_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_a", "index_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexActionNotWellKnown),
-                ResolvedIndices.empty().localIndices("index_a", "index_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexActionNotWellKnown),
+                ResolvedIndices.empty().localIndices("index_a", "index_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("other_role"), ImmutableSet.of(indexAction), indexA12, context);
+        result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(otherAction), indexA12, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
     }
 
@@ -516,28 +496,26 @@ public class RoleBasedActionAuthorizationTests {
         RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
 
         User user = User.forUser("test").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
         ResolvedIndices indexA12 = ResolvedIndices.empty().localIndices("index_a1", "index_a2");
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction), indexA12,
-                context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexActionNotWellKnown), indexA12, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexActionNotWellKnown), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexAction),
-                ResolvedIndices.empty().localIndices("index_a", "index_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                ResolvedIndices.empty().localIndices("index_a", "index_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(indexActionNotWellKnown),
-                ResolvedIndices.empty().localIndices("index_a", "index_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexActionNotWellKnown),
+                ResolvedIndices.empty().localIndices("index_a", "index_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("other_role"), ImmutableSet.of(indexAction), indexA12, context);
+        result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role"), ImmutableSet.of(otherAction), indexA12, context);
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indexA12);
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
     }
 
@@ -568,25 +546,27 @@ public class RoleBasedActionAuthorizationTests {
         RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
 
         User user = User.forUser("test").build();
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, null, null);
 
-        PrivilegesEvaluationResult result = subject.hasIndexPermission(user, ImmutableSet.of("test_role1", "test_role2", "test_role3"),
-                ImmutableSet.of(indexAction, indexActionNotWellKnown), ResolvedIndices.empty().localIndices("index_a1", "index_a2"), context);
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role1", "test_role2", "test_role3"),
+                ImmutableSet.of(indexAction, indexActionNotWellKnown), ResolvedIndices.empty().localIndices("index_a1", "index_a2"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role1", "test_role2", "test_role3"),
-                ImmutableSet.of(indexAction, indexActionNotWellKnown), ResolvedIndices.empty().localIndices("index_a1", "index_a2", "index_b"),
-                context);
+        result = subject.hasIndexPermission(ctx(user, "test_role1", "test_role2", "test_role3"),
+                ImmutableSet.of(indexAction, indexActionNotWellKnown), ResolvedIndices.empty().localIndices("index_a1", "index_a2", "index_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a1", "index_a2")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role1", "test_role2"), ImmutableSet.of(indexAction, indexActionNotWellKnown),
-                ResolvedIndices.empty().localIndices("index_a1", "index_a2", "index_b"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role1", "test_role2"), ImmutableSet.of(indexAction, indexActionNotWellKnown),
+                ResolvedIndices.empty().localIndices("index_a1", "index_a2", "index_b"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
         Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a1")));
 
-        result = subject.hasIndexPermission(user, ImmutableSet.of("test_role2", "test_role3"), ImmutableSet.of(indexAction, indexActionNotWellKnown),
-                ResolvedIndices.empty().localIndices("index_a1", "index_a2"), context);
+        result = subject.hasIndexPermission(ctx(user, "test_role2", "test_role3"), ImmutableSet.of(indexAction, indexActionNotWellKnown),
+                ResolvedIndices.empty().localIndices("index_a1", "index_a2"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+    }
+
+    private static PrivilegesEvaluationContext ctx(User user, String... roles) {
+        return new PrivilegesEvaluationContext(user, ImmutableSet.ofArray(roles), null, roles, true, null);
     }
 }

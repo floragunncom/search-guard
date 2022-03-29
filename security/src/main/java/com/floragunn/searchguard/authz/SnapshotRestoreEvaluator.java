@@ -28,6 +28,7 @@ import org.elasticsearch.tasks.Task;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.SnapshotRestoreHelper;
@@ -48,51 +49,46 @@ public class SnapshotRestoreEvaluator {
         this.guiceDependencies = guiceDependencies;
     }
 
-    public PrivilegesEvaluatorResponse evaluate(final ActionRequest request, final Task task, final String action, final ClusterInfoHolder clusterInfoHolder,
-            final PrivilegesEvaluatorResponse presponse) {
+    public PrivilegesEvaluationResult evaluate(final ActionRequest request, final Task task, final Action action, final ClusterInfoHolder clusterInfoHolder) {
 
         if (!(request instanceof RestoreSnapshotRequest)) {
-            return presponse;
+            return PrivilegesEvaluationResult.PENDING;
         }
         
         // snapshot restore for regular users not enabled
         if (!enableSnapshotRestorePrivilege) {
             log.warn(action + " is not allowed for a regular user");
-            presponse.allowed = false;
-            return presponse.markComplete();
+            return PrivilegesEvaluationResult.INSUFFICIENT.reason("Action is not allowed for a non-admin user").missingPrivileges(action);
         }
 
         // if this feature is enabled, users can also snapshot and restore
         // the SG index and the global state
         if (restoreSgIndexEnabled) {
-            presponse.allowed = true;
-            return presponse;
+            return PrivilegesEvaluationResult.OK;
         }
 
         
         if (clusterInfoHolder.isLocalNodeElectedMaster() == Boolean.FALSE) {
-            presponse.allowed = true;
-            return presponse.markComplete();
+            return PrivilegesEvaluationResult.OK;
         }
         
         final RestoreSnapshotRequest restoreRequest = (RestoreSnapshotRequest) request;
 
         // Do not allow restore of global state
         if (restoreRequest.includeGlobalState()) {
-            auditLog.logSgIndexAttempt(request, action, task);
+            auditLog.logSgIndexAttempt(request, action.name(), task);
             log.warn(action + " with 'include_global_state' enabled is not allowed");
-            presponse.allowed = false;
-            return presponse.markComplete();
+            return PrivilegesEvaluationResult.INSUFFICIENT.reason("Action with 'include_global_state' enabled is not allowed").missingPrivileges(action);
         }
 
         final List<String> rs = SnapshotRestoreHelper.resolveOriginalIndices(restoreRequest, guiceDependencies.getRepositoriesService());
 
         if (rs != null && (SearchGuardPlugin.getProtectedIndices().containsProtected(rs) || rs.contains("_all") || rs.contains("*"))) {
-            auditLog.logSgIndexAttempt(request, action, task);
+            auditLog.logSgIndexAttempt(request, action.name(), task);
             log.warn(action + " for '{}' as source index is not allowed", SearchGuardPlugin.getProtectedIndices().printProtectedIndices());
-            presponse.allowed = false;
-            return presponse.markComplete();
+            return PrivilegesEvaluationResult.INSUFFICIENT.reason("Source index is protected").missingPrivileges(action);
         }
-        return presponse;
+        
+        return PrivilegesEvaluationResult.PENDING;
     }
 }

@@ -46,12 +46,13 @@ public class TermsAggregationEvaluator {
 
     public TermsAggregationEvaluator(Actions actions) {
         // Note: This must only contain index actions. 
-        READ_ACTIONS = ImmutableSet.of(actions.get("indices:data/read/get"), actions.get("indices:data/read/search"), actions.get("indices:data/read/field_caps"));
+        READ_ACTIONS = ImmutableSet.of(actions.get("indices:data/read/get"), actions.get("indices:data/read/search"),
+                actions.get("indices:data/read/field_caps"));
     }
 
-    public PrivilegesEvaluatorResponse evaluate(ActionRequestInfo requestInfo, ActionRequest request, ClusterService clusterService, User user,
+    public PrivilegesEvaluationResult evaluate(ActionRequestInfo requestInfo, ActionRequest request, ClusterService clusterService, User user,
             ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization, IndexNameExpressionResolver resolver,
-            PrivilegesEvaluatorResponse presponse, ActionRequestIntrospector actionRequestIntrospector, PrivilegesEvaluationContext context) {
+            ActionRequestIntrospector actionRequestIntrospector, PrivilegesEvaluationContext context) {
         try {
 
             if (request instanceof SearchRequest) {
@@ -64,10 +65,9 @@ public class TermsAggregationEvaluator {
                     if (ab instanceof TermsAggregationBuilder && "terms".equals(ab.getType()) && "indices".equals(ab.getName())) {
                         if ("_index".equals(((TermsAggregationBuilder) ab).field()) && ab.getPipelineAggregations().isEmpty()
                                 && ab.getSubAggregations().isEmpty()) {
-                            
-                            PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(user, mappedRoles,
-                                    READ_ACTIONS, actionRequestIntrospector.create("*", IndicesOptions.LENIENT_EXPAND_OPEN).getResolvedIndices(),
-                                    context);
+
+                            PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(context, 
+                                    READ_ACTIONS, actionRequestIntrospector.create("*", IndicesOptions.LENIENT_EXPAND_OPEN).getResolvedIndices());
 
                             if (privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT) {
                                 sr.source().query(NONE_QUERY);
@@ -76,17 +76,15 @@ public class TermsAggregationEvaluator {
                                         privilegesEvaluationResult.getAvailableIndices().with(requestInfo.getResolvedIndices().getRemoteIndices())));
                             }
 
-                            presponse.allowed = true;
-                            return presponse.markComplete();
+                            return PrivilegesEvaluationResult.OK;
                         }
                     }
                 }
             }
         } catch (Exception e) {
             log.warn("Unable to evaluate terms aggregation", e);
-            return presponse;
         }
 
-        return presponse;
+        return PrivilegesEvaluationResult.PENDING;
     }
 }

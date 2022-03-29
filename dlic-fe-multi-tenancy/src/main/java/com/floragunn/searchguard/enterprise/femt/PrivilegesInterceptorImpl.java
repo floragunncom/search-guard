@@ -58,8 +58,8 @@ import org.elasticsearch.rest.RestStatus;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.authz.actions.Actions;
@@ -96,11 +96,11 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
     }
 
-    private boolean isTenantAllowed(ActionRequest request, Action action, User user, String requestedTenant, ImmutableSet<String> mappedRoles,
+    private boolean isTenantAllowed(PrivilegesEvaluationContext context, ActionRequest request, Action action, String requestedTenant,
             ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
 
         if (!isTenantValid(requestedTenant)) {
-            log.warn("Invalid tenant: " + requestedTenant + "; user: " + user);
+            log.warn("Invalid tenant: " + requestedTenant + "; user: " + context.getUser());
 
             return false;
         }
@@ -109,20 +109,18 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
             return true;
         }
 
-        boolean hasReadPermission = actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, KIBANA_ALL_SAVED_OBJECTS_READ, null)
-                .getStatus() == PrivilegesEvaluationResult.Status.OK;
-        boolean hasWritePermission = actionAuthorization.hasTenantPermission(user, requestedTenant, mappedRoles, KIBANA_ALL_SAVED_OBJECTS_WRITE, null)
-                .getStatus() == PrivilegesEvaluationResult.Status.OK;
+        boolean hasReadPermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, requestedTenant).isOk();
+        boolean hasWritePermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, requestedTenant).isOk();
 
         hasReadPermission |= hasWritePermission;
 
         if (!hasReadPermission) {
-            log.warn("Tenant {} is not allowed for user {}", requestedTenant, user.getName());
+            log.warn("Tenant {} is not allowed for user {}", requestedTenant, context.getUser().getName());
             return false;
         }
 
         if (!hasWritePermission && action.name().startsWith("indices:data/write")) {
-            log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, user.getName());
+            log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, context.getUser().getName());
             return false;
         }
 
@@ -130,13 +128,16 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     }
 
     @Override
-    public InterceptionResult replaceKibanaIndex(ActionRequest request, Action action, User user, ResolvedIndices requestedResolved,
-            ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
+    public InterceptionResult replaceKibanaIndex(
+            PrivilegesEvaluationContext context, ActionRequest request, Action action, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
 
         if (!enabled) {
             return NORMAL;
         }
 
+        User user = context.getUser();
+        ResolvedIndices requestedResolved = context.getRequestInfo().getResolvedIndices();
+        
         if (user.getName().equals(kibanaServerUsername)) {
             return NORMAL;
         }
@@ -165,13 +166,13 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
                 // The original implementation allows these requests to pass with normal privileges if the sgtenant header is null. Tenant privileges are ignored then.
                 // Integration tests (such as test_multitenancy_mget) are relying on this behaviour.
                 return NORMAL;
-            } else if (isTenantAllowed(request, action, user, "SGS_GLOBAL_TENANT", mappedRoles, actionAuthorization)) {
+            } else if (isTenantAllowed(context, request, action, "SGS_GLOBAL_TENANT", actionAuthorization)) {
                 return NORMAL;
             } else {
                 return DENY;
             }
         } else {
-            if (isTenantAllowed(request, action, user, requestedTenant, mappedRoles, actionAuthorization)) {
+            if (isTenantAllowed(context, request, action, requestedTenant, actionAuthorization)) {
                 if (kibanaIndexInfo.isReplacementNeeded()) {
                     replaceIndex(request, kibanaIndexInfo.originalName, kibanaIndexInfo.toInternalIndexName(user), action, user);
                 }
@@ -492,12 +493,12 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         ImmutableMap.Builder<String, Boolean> result = new ImmutableMap.Builder<>(roles.size());
         result.put(user.getName(), true);
 
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, roles, null, null, false, null);
+        
         for (String tenant : this.tenantNames) {
             try {
-                boolean hasReadPermission = actionAuthorization.hasTenantPermission(user, tenant, roles, KIBANA_ALL_SAVED_OBJECTS_READ, null)
-                        .getStatus() == PrivilegesEvaluationResult.Status.OK;
-                boolean hasWritePermission = actionAuthorization.hasTenantPermission(user, tenant, roles, KIBANA_ALL_SAVED_OBJECTS_WRITE, null)
-                        .getStatus() == PrivilegesEvaluationResult.Status.OK;
+                boolean hasReadPermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, tenant).isOk();
+                boolean hasWritePermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, tenant).isOk();
 
                 if (hasWritePermission) {
                     result.put(tenant, true);

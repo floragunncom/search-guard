@@ -61,9 +61,11 @@ import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.authz.PrivilegesEvaluatorResponse;
 import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
@@ -95,11 +97,13 @@ public class SearchGuardFilter implements ActionFilter {
     private final ExtendedActionHandlingService extendedActionHandlingService;
     private final DiagnosticContext diagnosticContext;
     private final Actions actions;
+    private final ActionRequestIntrospector actionRequestIntrospector;
 
     public SearchGuardFilter(final PrivilegesEvaluator evalp, final AdminDNs adminDns, DlsFlsRequestValve dlsFlsValve, AuditLog auditLog,
             ThreadPool threadPool, ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, Actions actions,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ExtendedActionHandlingService extendedActionHandlingService,
-            NamedXContentRegistry namedXContentRegistry) {
+            ActionRequestIntrospector actionRequestIntrospector,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
+            ExtendedActionHandlingService extendedActionHandlingService, NamedXContentRegistry namedXContentRegistry) {
         this.evalp = evalp;
         this.adminDns = adminDns;
         this.dlsFlsValve = dlsFlsValve;
@@ -111,6 +115,7 @@ public class SearchGuardFilter implements ActionFilter {
         this.extendedActionHandlingService = extendedActionHandlingService;
         this.diagnosticContext = diagnosticContext;
         this.actions = actions;
+        this.actionRequestIntrospector = actionRequestIntrospector;
     }
 
     @Override
@@ -285,28 +290,27 @@ public class SearchGuardFilter implements ActionFilter {
                 log.trace("Evaluate permissions for user: {}", user.getName());
             }
 
-            ImmutableSet<String> mappedRoles = eval.getMappedRoles(user, specialPrivilegesEvaluationContext);            
-            final PrivilegesEvaluatorResponse pres = eval.evaluate(user, mappedRoles, actionName, request, task, specialPrivilegesEvaluationContext);
+            ImmutableSet<String> mappedRoles = eval.getMappedRoles(user, specialPrivilegesEvaluationContext);
+            PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, mappedRoles, action, request,
+                    eval.isDebugEnabled(), this.actionRequestIntrospector);
+            PrivilegesEvaluationResult privilegesEvaluationResult = eval.evaluate(user, mappedRoles, actionName, request, task,
+                    privilegesEvaluationContext, specialPrivilegesEvaluationContext);
 
-            if (log.isDebugEnabled()) {
-                log.debug(pres);
-            }
-
-            if (pres.isAllowed()) {
+            if (privilegesEvaluationResult.isOk()) {
                 auditLog.logGrantedPrivileges(actionName, request, task);
                 // save username fo later use on current node
                 if (threadContext.getHeader(ConfigConstants.SG_USER_NAME) == null) {
                     threadContext.putHeader(ConfigConstants.SG_USER_NAME, user.getName());
                 }
 
-                if (!dlsFlsValve.invoke(user, pres.getMappedRoles(), actionName, request, listener,
-                        complianceConfig != null && complianceConfig.isLocalHashingEnabled(), pres.getResolvedIndices(),
-                        specialPrivilegesEvaluationContext)) {
+                if (!dlsFlsValve.invoke(user, mappedRoles, actionName, request, listener,
+                        complianceConfig != null && complianceConfig.isLocalHashingEnabled(),
+                        privilegesEvaluationContext.getRequestInfo().getResolvedIndices(), specialPrivilegesEvaluationContext)) {
                     return;
                 }
                 
-                if (pres.hasAdditionalActionFilters()) {
-                    chain = new ExtendedActionFilterChain<Request, Response>(pres.getAdditionalActionFilters(), chain);
+                if (privilegesEvaluationResult.hasAdditionalActionFilters()) {
+                    chain = new ExtendedActionFilterChain<Request, Response>(privilegesEvaluationResult.getAdditionalActionFilters(), chain);
                 }
                 
                 
@@ -320,9 +324,7 @@ public class SearchGuardFilter implements ActionFilter {
                 return;
             } else {
                 auditLog.logMissingPrivileges(actionName, request, task);
-                log.debug("no permissions for {}", pres.getMissingPrivileges());
-                listener.onFailure(new ElasticsearchSecurityException("no permissions for " + pres.getMissingPrivileges() + " and " + user,
-                        RestStatus.FORBIDDEN));
+                listener.onFailure(privilegesEvaluationResult.toSecurityException(privilegesEvaluationContext));
                 return;
             }
         } catch (Exception e) {

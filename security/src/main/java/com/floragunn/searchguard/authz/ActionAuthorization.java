@@ -20,15 +20,25 @@ package com.floragunn.searchguard.authz;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.user.User;
 
+/**
+ * Common interface for checking authorization for actions.
+ *
+ * API considerations: 
+ * 
+ * All methods carry a context parameter. This object carries request-scoped metadata about the user. 
+ * Additionally, the methods carry more parameters which specify the resources to be verified.  
+ * These parameters may deviate from request-scoped metadata, as the methods might be use to check certain 
+ * facets which are only indirectly related to the index. Example: The action parameter may deviate from the action
+ * referenced in the context, because additional privileges need to be checked for proper authorization.
+ */
 public interface ActionAuthorization {
-    PrivilegesEvaluationResult hasClusterPermission(User user, ImmutableSet<String> mappedRoles, Action action) throws PrivilegesEvaluationException;
+    PrivilegesEvaluationResult hasClusterPermission(PrivilegesEvaluationContext context, Action action) throws PrivilegesEvaluationException;
 
-    PrivilegesEvaluationResult hasIndexPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
-            ResolvedIndices resolvedIndices, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException;
+    PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions, ResolvedIndices resolvedIndices)
+            throws PrivilegesEvaluationException;
 
-    PrivilegesEvaluationResult hasTenantPermission(User user, String requestedTenant, ImmutableSet<String> mappedRoles, Action action,
-            PrivilegesEvaluationContext context) throws PrivilegesEvaluationException;
+    PrivilegesEvaluationResult hasTenantPermission(PrivilegesEvaluationContext context, Action action, String requestedTenant)
+            throws PrivilegesEvaluationException;
 
 }

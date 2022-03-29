@@ -23,10 +23,9 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.sgconf.ActionGroups;
-import com.floragunn.searchguard.user.User;
 
 public class RestrictedActionAuthorization implements ActionAuthorization {
 
@@ -42,42 +41,42 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
     }
 
     @Override
-    public PrivilegesEvaluationResult hasClusterPermission(User user, ImmutableSet<String> mappedRoles, Action action)
-            throws PrivilegesEvaluationException {
-        PrivilegesEvaluationResult result = restrictionSgRoles.hasClusterPermission(user, RequestedPrivileges.RESTRICTION_ROLES, action);
+    public PrivilegesEvaluationResult hasClusterPermission(PrivilegesEvaluationContext context, Action action) throws PrivilegesEvaluationException {
+        PrivilegesEvaluationResult result = restrictionSgRoles.hasClusterPermission(context.mappedRoles(RequestedPrivileges.RESTRICTION_ROLES),
+                action);
 
         if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
             return result.reason("Privilege was not requested for token");
         }
 
-        return base.hasClusterPermission(user, mappedRoles, action);
+        return base.hasClusterPermission(context, action);
     }
 
     @Override
-    public PrivilegesEvaluationResult hasIndexPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
-            ResolvedIndices resolvedIndices, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
-        PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles.hasIndexPermission(user, RequestedPrivileges.RESTRICTION_ROLES, actions,
-                resolvedIndices, context);
+    public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions,
+            ResolvedIndices resolvedIndices) throws PrivilegesEvaluationException {
+        PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles
+                .hasIndexPermission(context.mappedRoles(RequestedPrivileges.RESTRICTION_ROLES), actions, resolvedIndices);
 
         if (restrictedPermission.getStatus() != PrivilegesEvaluationResult.Status.OK) {
             // Don't calculate base permission if we already know we will get an empty set
             return restrictedPermission.reason("Privilege was not requested for token");
         }
 
-        return base.hasIndexPermission(user, mappedRoles, actions, resolvedIndices, context);
+        return base.hasIndexPermission(context, actions, resolvedIndices);
     }
 
     @Override
-    public PrivilegesEvaluationResult hasTenantPermission(User user, String requestedTenant, ImmutableSet<String> mappedRoles, Action action,
-            PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
-        PrivilegesEvaluationResult result = restrictionSgRoles.hasTenantPermission(user, requestedTenant, RequestedPrivileges.RESTRICTION_ROLES,
-                action, context);
+    public PrivilegesEvaluationResult hasTenantPermission(PrivilegesEvaluationContext context, Action action, String requestedTenant)
+            throws PrivilegesEvaluationException {
+        PrivilegesEvaluationResult result = restrictionSgRoles.hasTenantPermission(context.mappedRoles(RequestedPrivileges.RESTRICTION_ROLES), action,
+                requestedTenant);
 
         if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
             return result.reason("Privilege was not requested for token");
         }
 
-        return base.hasTenantPermission(user, requestedTenant, mappedRoles, action, context);
+        return base.hasTenantPermission(context, action, requestedTenant);
     }
 
     @Override
