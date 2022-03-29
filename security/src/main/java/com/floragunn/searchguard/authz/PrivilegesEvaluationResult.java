@@ -303,7 +303,7 @@ public class PrivilegesEvaluationResult {
         ElasticsearchSecurityException result = new ElasticsearchSecurityException("Insufficient permissions", RestStatus.FORBIDDEN);
 
         if (this.indexToActionPrivilegeTable != null) {
-            if (isRelatedToIndexPermission()) {
+            if (!isRelatedToIndexPermission()) {
                 result.addMetadata("es.missing_permissions",
                         this.indexToActionPrivilegeTable.getColumns().stream().map((a) -> a.name()).collect(Collectors.toList()));
 
@@ -314,13 +314,13 @@ public class PrivilegesEvaluationResult {
 
         if (context.isDebugEnabled()) {
             if (reason != null) {
-                result.addMetadata("es.reason", reason);
+                result.addMetadata("es.reason_detail", reason);
             }
 
             result.addMetadata("es.user", String.valueOf(context.getUser()));
 
             if (context.getMappedRoles() != null) {
-                result.addMetadata("es.mapped_roles", context.getMappedRoles().stream().collect(Collectors.toList()));
+                result.addMetadata("es.effective_roles", context.getMappedRoles().stream().collect(Collectors.toList()));
             }
 
             result.addMetadata("es.user_attributes", context.getUser().getStructuredAttributes().keySet().stream().collect(Collectors.toList()));

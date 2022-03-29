@@ -124,7 +124,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());  
         Assert.assertTrue(res.getBody().contains("\"errors\" : true"));
         Assert.assertTrue(res.getBody().contains("\"status\" : 201"));
-        Assert.assertTrue(res.getBody().contains("no permissions for"));
+        Assert.assertTrue(res.getBody().contains("Insufficient permissions"));
         
         System.out.println("############ check shards");
         System.out.println(rh.executeGetRequest("_cat/shards?v", encodeBasicHeader("nagilum", "nagilum")));
@@ -540,10 +540,10 @@ public class IndexIntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
         
         resc = rh.executeGetRequest("/_all,-searchg*/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(resc.getBody(), HttpStatus.SC_BAD_REQUEST, resc.getStatusCode());
+        Assert.assertEquals(resc.getBody(), HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
         
         resc = rh.executeGetRequest("/_all,-searchg*/_search", encodeBasicHeader("nagilum", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, resc.getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
         
     }
 }

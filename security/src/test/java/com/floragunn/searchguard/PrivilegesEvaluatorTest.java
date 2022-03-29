@@ -491,7 +491,7 @@ public class PrivilegesEvaluatorTest {
         } catch (ElasticsearchStatusException e) {
             // Expected
             Assert.assertTrue(e.toString(),
-                    e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user_without_create_index_priv"));
+                    e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
@@ -500,7 +500,7 @@ public class PrivilegesEvaluatorTest {
         } catch (ElasticsearchStatusException e) {
             // Expected
             Assert.assertTrue(e.toString(),
-                    e.getMessage().contains("no permissions for [indices:admin/create] and User resize_user_without_create_index_priv"));
+                    e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
@@ -508,7 +508,7 @@ public class PrivilegesEvaluatorTest {
             Assert.fail();
         } catch (ElasticsearchStatusException e) {
             // Expected
-            Assert.assertTrue(e.toString(), e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user"));
+            Assert.assertTrue(e.toString(), e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
