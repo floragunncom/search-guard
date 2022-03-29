@@ -146,8 +146,7 @@ public interface Action {
 
         @Override
         public ImmutableSet<Action> expandPrivileges(ActionRequest request) {
-            @SuppressWarnings("unchecked")
-            RequestType typedRequest = requestType != null ? requestType.cast(request) : (RequestType) request;
+            RequestType typedRequest = cast(request);
 
             ImmutableSet<Action> result = asImmutableSet;
 
