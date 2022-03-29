@@ -377,12 +377,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 return PrivilegesEvaluationResult.OK;
             }
 
-            result = termsAggregationEvaluator.evaluate(requestInfo, request, clusterService, user, mappedRoles, actionAuthorization, resolver,
-                    actionRequestIntrospector, context);
-            if (!result.isPending()) {
-                return result;
-            }
-
             ImmutableSet<Action> allIndexPermsRequired = action.expandPrivileges(request);
 
             if (log.isDebugEnabled()) {
