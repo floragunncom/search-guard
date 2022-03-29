@@ -680,7 +680,7 @@ public class ComponentState implements Writeable, ToXContentObject {
 
     public ComponentState getPart(String type, String name) {
         for (ComponentState part : parts) {
-            if (name.equals(part.getName()) && Objects.equals(type, part.type)) {
+            if (Objects.equals(name, part.getName()) && Objects.equals(type, part.type)) {
                 return part;
             }
         }
