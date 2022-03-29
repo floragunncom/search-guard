@@ -79,7 +79,7 @@ public class PrivilegesEvaluationContext {
     }
 
     public ActionRequestInfo getRequestInfo() {
-        if (this.requestInfo != null) {
+        if (this.requestInfo == null) {
             this.requestInfo = this.actionRequestIntrospector.getActionRequestInfo(this.action.name(), actionRequestIntrospector);
         }
 
