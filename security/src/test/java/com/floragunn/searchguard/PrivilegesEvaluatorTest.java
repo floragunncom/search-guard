@@ -338,7 +338,7 @@ public class PrivilegesEvaluatorTest {
                 Assert.fail();
             } catch (ElasticsearchStatusException e) {
                 Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
-                Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/write/index]"));
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
             }
 
         }
@@ -417,7 +417,7 @@ public class PrivilegesEvaluatorTest {
                 Assert.fail();
             } catch (ElasticsearchStatusException e) {
                 Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
-                Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/write/index]"));
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
             }
         }
     }
