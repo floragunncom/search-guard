@@ -179,7 +179,7 @@ public class AuthTokenIntegrationTest {
                                 RequestOptions.DEFAULT);
                         Assert.fail(searchResponse.toString());
                     } catch (Exception e) {
-                        Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+                        Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
                     }
                 }
             }
@@ -242,7 +242,7 @@ public class AuthTokenIntegrationTest {
                                 RequestOptions.DEFAULT);
                         Assert.fail(searchResponse.toString());
                     } catch (Exception e) {
-                        Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+                        Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
                     }
                 }
             }
@@ -303,7 +303,7 @@ public class AuthTokenIntegrationTest {
                 response = tokenAuthRestClient.postJson("/_searchguard/authtoken", request);
                 Assert.assertEquals(response.getBody(), 403, response.getStatusCode());
                 Assert.assertTrue(response.getBody(),
-                        response.getBody().contains("no permissions for [cluster:admin:searchguard:authtoken/_own/create]"));
+                        response.getBody().contains("Insufficient permissions"));
             }
         }
     }
@@ -341,7 +341,7 @@ public class AuthTokenIntegrationTest {
                             new SearchRequest("user_attr_qux").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
                             RequestOptions.DEFAULT);
                 } catch (Exception e) {
-                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
                 }
             }
 
@@ -358,7 +358,7 @@ public class AuthTokenIntegrationTest {
                             new SearchRequest("user_attr_qux").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
                             RequestOptions.DEFAULT);
                 } catch (Exception e) {
-                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
                 }
             }
         }
@@ -442,7 +442,7 @@ public class AuthTokenIntegrationTest {
                                 RequestOptions.DEFAULT);
                         Assert.fail(searchResponse.toString());
                     } catch (Exception e) {
-                        Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+                        Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
                     }
                 }
             }
@@ -705,7 +705,7 @@ public class AuthTokenIntegrationTest {
                             RequestOptions.DEFAULT);
                     Assert.fail(searchResponse.toString());
                 } catch (Exception e) {
-                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
                 }
             }
 
@@ -816,7 +816,7 @@ public class AuthTokenIntegrationTest {
                             RequestOptions.DEFAULT);
                     Assert.fail(searchResponse.toString());
                 } catch (Exception e) {
-                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/read/search]"));
+                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
                 }
             }
 
