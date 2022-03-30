@@ -105,7 +105,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private final ActionRequestIntrospector actionRequestIntrospector;
     private final SnapshotRestoreEvaluator snapshotRestoreEvaluator;
     private final SearchGuardIndexAccessEvaluator sgIndexAccessEvaluator;
-    private final TermsAggregationEvaluator termsAggregationEvaluator;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
     private final List<String> adminOnlyActions;
     private final List<String> adminOnlyActionExceptions;
@@ -148,7 +147,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.actionRequestIntrospector = actionRequestIntrospector;
         snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog, guiceDependencies);
         sgIndexAccessEvaluator = new SearchGuardIndexAccessEvaluator(settings, auditLog, actionRequestIntrospector);
-        termsAggregationEvaluator = new TermsAggregationEvaluator(actions);
         this.adminOnlyActions = settings.getAsList(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY,
                 ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_DEFAULT);
         this.adminOnlyActionExceptions = settings.getAsList(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_EXCEPTIONS, Collections.emptyList());
@@ -517,16 +515,21 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 privilegesEvaluationResult = privilegesEvaluationResult.status(Status.INSUFFICIENT);
             }
         } else if (privilegesEvaluationResult.getStatus() == Status.INSUFFICIENT) {
-            if (dnfofPossible) {
-                if (log.isTraceEnabled()) {
-                    log.trace("Changing result from INSUFFICIENT to EMPTY");
-                }
+            if (dnfofPossible) {                
+                if (!actionRequestInfo.getResolvedIndices().getRemoteIndices().isEmpty()) {
+                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action0, request,
+                            ImmutableSet.empty(), actionRequestInfo);
+                } else {
+                    if (log.isTraceEnabled()) {
+                        log.trace("Changing result from INSUFFICIENT to EMPTY");
+                    }
 
-                privilegesEvaluationResult = privilegesEvaluationResult.status(Status.EMPTY);
+                    privilegesEvaluationResult = privilegesEvaluationResult.status(Status.EMPTY);                    
+                }
             }
         }
 
-        if (privilegesEvaluationResult.getStatus() == Status.EMPTY) {
+        if (privilegesEvaluationResult.getStatus() == Status.EMPTY) {           
             if (actionRequestIntrospector.forceEmptyResult(request)) {
                 if (log.isDebugEnabled()) {
                     log.debug("DNF: Reducing indices to yield an empty result\n" + privilegesEvaluationResult);

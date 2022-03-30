@@ -263,7 +263,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         return PrivilegesEvaluationResult.INSUFFICIENT.with(checkTable, errors)
                 .reason(resolved.getLocalIndices().size() == 1 ? "Insufficient permissions for the referenced index"
-                        : "None of " + resolved.getLocalIndices().size() + " referenced indices as sufficient permissions");
+                        : "None of " + resolved.getLocalIndices().size() + " referenced indices has sufficient permissions");
     }
 
     @Override

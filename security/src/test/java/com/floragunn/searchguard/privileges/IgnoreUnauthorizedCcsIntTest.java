@@ -83,14 +83,14 @@ public class IgnoreUnauthorizedCcsIntTest {
 
     @ClassRule
     public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
-            .users(LIMITED_USER_REMOTE_A, LIMITED_USER_REMOTE_B, UNLIMITED_USER)//
+            .nodeSettings("searchguard.diagnosis.action_stack.enabled", true).users(LIMITED_USER_REMOTE_A, LIMITED_USER_REMOTE_B, UNLIMITED_USER)//
             .indices(index_remote_a1, index_remote_a2, index_remote_b1, index_remote_b2, index_remote_r1)//
             .aliases(xalias_remote_ab1)//
             .build();
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).remote("my_remote", anotherCluster)
-            .users(LIMITED_USER_COORD_A, LIMITED_USER_COORD_B, UNLIMITED_USER)//
+            .nodeSettings("searchguard.diagnosis.action_stack.enabled", true).users(LIMITED_USER_COORD_A, LIMITED_USER_COORD_B, UNLIMITED_USER)//
             .indices(index_coord_a1, index_coord_a2, index_coord_b1, index_coord_b2, index_coord_c1)//
             .aliases(xalias_coord_ab1)//
             .build();
@@ -522,7 +522,7 @@ public class IgnoreUnauthorizedCcsIntTest {
             Assert.assertThat(httpResponse, json(distinctNodesAt("aggregations.indices.buckets", matchesDocCount(ImmutableMap.of("b1", index_coord_b1)
                     .with("b2", index_coord_b2).with("my_remote:a1", index_remote_a1).with("my_remote:a2", index_remote_a2)))));
         }
-
+        
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
             HttpResponse httpResponse = restClient.postJson(query, body);
 
