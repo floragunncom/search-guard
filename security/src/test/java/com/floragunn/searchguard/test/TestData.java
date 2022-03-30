@@ -40,7 +40,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 
-import com.floragunn.searchsupport.util.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 

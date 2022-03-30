@@ -40,6 +40,7 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardVersion;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -57,7 +58,6 @@ import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
-import com.floragunn.searchsupport.util.ImmutableMap;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
 public class BulkConfigApi {

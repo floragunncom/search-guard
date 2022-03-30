@@ -55,6 +55,11 @@
 			<version>${guava.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>fluent-collections</artifactId>
+		</dependency>
+			
 		<!-- Apache commons cli -->
 		<dependency>
 			<groupId>commons-cli</groupId>

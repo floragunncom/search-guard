@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.authc.internal_users_db;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
@@ -26,7 +27,6 @@ import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class InternalUsersDatabase implements ComponentStateProvider {
 

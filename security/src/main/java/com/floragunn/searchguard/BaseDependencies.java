@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 floragunn GmbH
+ * Copyright 2020-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,11 +33,12 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersDatabase;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
@@ -70,6 +71,7 @@ public class BaseDependencies {
     private final BlockedUserRegistry blockedUserRegistry;
     private final SearchGuardModulesRegistry modulesRegistry;
     private final InternalUsersDatabase internalUsersDatabase;
+    private final Actions actions;
 
     public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
@@ -79,7 +81,7 @@ public class BaseDependencies {
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ConfigVarService configVarService,
             VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog,
             PrivilegesEvaluator privilegesEvaluator, BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry,
-            SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase) {
+            SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase, Actions actions) {
         super();
         this.settings = settings;
         this.localClient = localClient;
@@ -106,6 +108,7 @@ public class BaseDependencies {
         this.blockedUserRegistry = blockedUserRegistry;
         this.modulesRegistry = modulesRegistry;
         this.internalUsersDatabase = internalUsersDatabase;
+        this.actions = actions;
     }
 
     public Settings getSettings() {
@@ -206,6 +209,10 @@ public class BaseDependencies {
 
     public InternalUsersDatabase getInternalUsersDatabase() {
         return internalUsersDatabase;
+    }
+
+    public Actions getActions() {
+        return actions;
     }
 
 }

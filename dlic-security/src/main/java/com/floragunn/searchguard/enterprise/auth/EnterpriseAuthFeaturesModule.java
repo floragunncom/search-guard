@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.TypedComponent;
@@ -27,7 +28,6 @@ import com.floragunn.searchguard.enterprise.auth.ldap.LDAPAuthenticationBackend;
 import com.floragunn.searchguard.enterprise.auth.oidc.OidcAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.saml.SamlAuthenticator;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchsupport.util.ImmutableList;
 
 public class EnterpriseAuthFeaturesModule implements SearchGuardModule {
 

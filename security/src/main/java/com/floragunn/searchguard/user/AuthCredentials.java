@@ -35,8 +35,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 
-import com.floragunn.searchsupport.util.ImmutableMap;
-import com.floragunn.searchsupport.util.ImmutableSet;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.jayway.jsonpath.JsonPath;
 
 /**

@@ -40,6 +40,7 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.config.temporal.TemporalAmountFormat;
 import com.floragunn.codova.documents.DocNode;
@@ -68,19 +69,19 @@ public class ValidatingDocNode {
     public ValidatingDocNode(Map<String, Object> document, ValidationErrors validationErrors, Parser.Context parserContext) {
         this(DocNode.wrap(document), validationErrors, parserContext);
     }
-    
+
     public ValidatingDocNode(DocNode documentNode, ValidationErrors validationErrors) {
         this(documentNode, validationErrors, null);
     }
-    
+
     public ValidatingDocNode(DocNode documentNode, ValidationErrors validationErrors, Parser.Context parserContext) {
         this.documentNode = documentNode;
         this.validationErrors = validationErrors;
         this.unconsumedAttributes = new HashSet<>(documentNode.keySet());
         this.parserContext = parserContext;
-        
+
         if (parserContext != null && parserContext.variableResolvers() != null) {
-            this.variableProviders.putAll(parserContext.variableResolvers().toMap());            
+            this.variableProviders.putAll(parserContext.variableResolvers().toMap());
         }
     }
 
@@ -100,7 +101,7 @@ public class ValidatingDocNode {
         this.variableProviders.putAll(variableProviders);
         return this;
     }
-    
+
     public ValidatingDocNode expandVariables(VariableResolvers variableProviders) {
         if (variableProviders != null) {
             this.variableProviders.putAll(variableProviders.toMap());
@@ -442,7 +443,7 @@ public class ValidatingDocNode {
                 return this;
             }
         }
-        
+
         public StringAttribute withDefault(String defaultValue) {
             return new StringAttribute(name, fullAttributePath, documentNode).withDefault(defaultValue).expected(expected);
         }
@@ -744,6 +745,24 @@ public class ValidatingDocNode {
                 return null;
             }
         }
+        
+        public Template<String> asTemplate() {
+            Object object = expandVariable(documentNode.get(name));
+
+            if (object instanceof String) {
+                try {
+                    return new Template<String>((String) object, (s) -> s);
+                } catch (ConfigValidationException e) {
+                    validationErrors.add(getAttributePathForValidationError(), e);
+                    return null;
+                }
+            } else if (object != null) {
+                validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError(), object, "Regular expression"));
+                return null;
+            } else {
+                return null;
+            }
+        }
 
         public Map<String, Object> asMap() {
             DocNode value = documentNode.getAsNode(name);
@@ -848,7 +867,7 @@ public class ValidatingDocNode {
                 return null;
             }
         }
-        
+
         public <T> T byString(ValidatingFunction<String, T> parser) {
             Object object = expandVariable(documentNode.get(name));
 
@@ -876,32 +895,31 @@ public class ValidatingDocNode {
                 return null;
             }
         }
-        
-        
+
         public <T> T by(Parser.ReturningValidationResult<T, Parser.Context> parser) {
             DocNode value = expandVariable(documentNode.getAsNode(name));
 
             if (value != null && !value.isNull()) {
                 try {
                     ValidationResult<T> result = parser.parse(value, parserContext);
-                    
+
                     if (result.hasErrors()) {
-                        validationErrors.add(getAttributePathForValidationError(), result.getValidationErrors());                        
+                        validationErrors.add(getAttributePathForValidationError(), result.getValidationErrors());
                     }
-                    
+
                     return result.peek();
                 } catch (Exception e) {
                     ValidationErrors localErrors = new ValidationErrors(new InvalidAttributeValue(null, value, expected).cause(e));
-                    
+
                     validationErrors.add(getAttributePathForValidationError(), localErrors);
-                    
+
                     return null;
                 }
             } else {
                 return null;
             }
         }
-       
+
         public <T> T by(ValidatingFunction<DocNode, T> parser) {
             DocNode value = expandVariable(documentNode.getAsNode(name));
 
@@ -937,9 +955,7 @@ public class ValidatingDocNode {
                 return null;
             }
         }
-        
-      
-        
+
         public <T> List<T> viaStringsAsList(ValidatingFunction<String, T> parser) {
             try {
                 return documentNode.getAsList(name, parser, expected);
@@ -952,9 +968,9 @@ public class ValidatingDocNode {
         public <T> List<T> asList(ValidatingFunction<DocNode, T> parser) {
             List<DocNode> listOfNodes = documentNode.getAsListOfNodes(name);
             List<T> result = new ArrayList<>(listOfNodes.size());
-            
+
             int i = 0;
-            
+
             for (DocNode listNode : listOfNodes) {
                 try {
                     result.add(parser.apply(listNode));
@@ -965,10 +981,10 @@ public class ValidatingDocNode {
                 }
                 i++;
             }
-            
+
             return result;
         }
-        
+
     }
 
     public class StringAttribute extends AbstractAttribute<StringAttribute> {
@@ -1288,7 +1304,6 @@ public class ValidatingDocNode {
                 return defaultValue;
             }
         }
-        
 
         public T by(Parser<T, Parser.Context> parser) {
             DocNode value = expandVariable(documentNode.getAsNode(name));
@@ -1307,7 +1322,6 @@ public class ValidatingDocNode {
                 return defaultValue;
             }
         }
-        
 
     }
 
@@ -1408,7 +1422,7 @@ public class ValidatingDocNode {
                 return getDefault();
             }
         }
-        
+
         public List<JsonPath> ofJsonPath() {
             List<String> values = expandVariablesForStrings(documentNode.getAsListOfStrings(name));
 
@@ -1419,8 +1433,29 @@ public class ValidatingDocNode {
                     try {
                         result.add(JsonPath.compile(values.get(i)));
                     } catch (InvalidPathException e) {
-                        validationErrors.add(
-                                new InvalidAttributeValue(getAttributePathForValidationError() + "." + i, values.get(i), "JSON Path").message(e.getMessage()).cause(e));
+                        validationErrors.add(new InvalidAttributeValue(getAttributePathForValidationError() + "." + i, values.get(i), "JSON Path")
+                                .message(e.getMessage()).cause(e));
+                        return null;
+                    }
+                }
+
+                return result;
+            } else {
+                return getDefault();
+            }
+        }
+
+        public <T> List<Template<T>> ofTemplates(ValidatingFunction<String, T> parser) {
+            List<String> values = expandVariablesForStrings(documentNode.getAsListOfStrings(name));
+
+            if (values != null) {
+                List<Template<T>> result = new ArrayList<>(values.size());
+
+                for (int i = 0; i < values.size(); i++) {
+                    try {
+                        result.add(new Template<>(values.get(i), parser));
+                    } catch (ConfigValidationException e) {
+                        validationErrors.add(getAttributePathForValidationError() + "." + i, e);
                         return null;
                     }
                 }
@@ -1475,7 +1510,7 @@ public class ValidatingDocNode {
                 return getDefault();
             }
         }
-        
+
         public <T> List<T> ofObjectsParsedBy(Parser<T, Parser.Context> parser) {
             if (documentNode.hasNonNull(name)) {
                 List<DocNode> values = documentNode.getAsListOfNodes(name);
@@ -1497,7 +1532,7 @@ public class ValidatingDocNode {
                 return getDefault();
             }
         }
-        
+
         public <T> ValidationResult<List<T>> ofObjectsParsedBy(Parser.ReturningValidationResult<T, Parser.Context> parser) {
             if (documentNode.hasNonNull(name)) {
                 List<DocNode> values = documentNode.getAsListOfNodes(name);
@@ -1506,29 +1541,28 @@ public class ValidatingDocNode {
 
                 for (int i = 0; i < values.size(); i++) {
                     try {
-                        ValidationResult<T> subResult = parser.parse(values.get(i), parserContext); 
-                        
+                        ValidationResult<T> subResult = parser.parse(values.get(i), parserContext);
+
                         if (subResult.hasResult()) {
                             result.add(subResult.peek());
                         }
-                        
+
                         if (subResult.hasErrors()) {
                             if (resultValidationErrors == null) {
                                 resultValidationErrors = new ValidationErrors();
                             }
-                            
-                            resultValidationErrors.add(String.valueOf(i), subResult.getValidationErrors());                        
+
+                            resultValidationErrors.add(String.valueOf(i), subResult.getValidationErrors());
                         }
                     } catch (Exception e) {
-                        resultValidationErrors
-                                .add(new InvalidAttributeValue(String.valueOf(i), values.get(i), expected).cause(e));
+                        resultValidationErrors.add(new InvalidAttributeValue(String.valueOf(i), values.get(i), expected).cause(e));
                     }
                 }
-                
+
                 if (resultValidationErrors.hasErrors()) {
                     validationErrors.add(getAttributePathForValidationError(), resultValidationErrors);
                 }
-                
+
                 return new ValidationResult<List<T>>(result, resultValidationErrors);
             } else {
                 return new ValidationResult<List<T>>(getDefault());

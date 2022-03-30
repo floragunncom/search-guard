@@ -44,11 +44,11 @@ import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
-import com.floragunn.searchsupport.util.ImmutableMap;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.Files;
 

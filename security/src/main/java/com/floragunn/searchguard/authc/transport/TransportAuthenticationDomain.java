@@ -24,6 +24,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.TypedComponentRegistry;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
@@ -35,7 +36,6 @@ import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
 import com.floragunn.searchguard.authc.base.UserMapping;
 import com.floragunn.searchguard.authc.transport.TransportAuthenticationDomain.TransportAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchsupport.util.ImmutableList;
 
 public class TransportAuthenticationDomain extends StandardAuthenticationDomain<TransportAuthenticationFrontend> {
 

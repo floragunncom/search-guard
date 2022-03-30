@@ -60,9 +60,9 @@ import org.elasticsearch.script.mustache.SearchTemplateAction;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
+import com.floragunn.searchguard.authz.DocumentWhitelist;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.dlsfls.DlsQueryParser;
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.privileges.DocumentWhitelist;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.ConfigConstants;

@@ -20,10 +20,10 @@ package com.floragunn.searchguard.authc;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authc.base.AuthczResult;
 import com.floragunn.searchguard.authc.base.AuthczResult.DebugInfo;
-import com.floragunn.searchsupport.util.ImmutableList;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 public abstract class AuthenticationDebugLogger {
     public static AuthenticationDebugLogger create(boolean enabled) {

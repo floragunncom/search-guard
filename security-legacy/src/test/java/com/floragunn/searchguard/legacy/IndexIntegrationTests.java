@@ -79,7 +79,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
         Assert.assertEquals(200, resc.getStatusCode());
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("\"_index\":\"klingonempire\""));
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("hits"));
-        Assert.assertTrue(resc.getBody(), resc.getBody().contains("no permissions for [indices:data/read/search]"));
+        Assert.assertTrue(resc.getBody(), resc.getBody().contains("Insufficient permissions"));
         
     }
     
@@ -124,7 +124,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());  
         Assert.assertTrue(res.getBody().contains("\"errors\" : true"));
         Assert.assertTrue(res.getBody().contains("\"status\" : 201"));
-        Assert.assertTrue(res.getBody().contains("no permissions for"));
+        Assert.assertTrue(res.getBody().contains("Insufficient permissions"));
         
         System.out.println("############ check shards");
         System.out.println(rh.executeGetRequest("_cat/shards?v", encodeBasicHeader("nagilum", "nagilum")));
@@ -394,29 +394,6 @@ public class IndexIntegrationTests extends SingleClusterTest {
     }
 
     @Test
-    public void testAliasResolution() throws Exception {
-
-        final Settings settings = Settings.builder()
-                .build();
-        setup(settings);
-        final RestHelper rh = nonSslRestHelper();
-
-        try (Client tc = getInternalTransportClient()) {                    
-            tc.index(new IndexRequest("concreteindex-1").type("doc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("concreteindex-1").alias("calias-1"))).actionGet();
-            tc.index(new IndexRequest(".kibana-6").type("doc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices(".kibana-6").alias(".kibana"))).actionGet();
-
-        }
-
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("calias-1/_search?pretty", encodeBasicHeader("aliastest", "nagilum")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("calias-*/_search?pretty", encodeBasicHeader("aliastest", "nagilum")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("*kibana/_search?pretty", encodeBasicHeader("aliastest", "nagilum")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest(".ki*ana/_search?pretty", encodeBasicHeader("aliastest", "nagilum")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest(".kibana/_search?pretty", encodeBasicHeader("aliastest", "nagilum")).getStatusCode());
-    }
-    
-    @Test
     public void testCCSIndexResolve() throws Exception {
         
         setup();
@@ -563,10 +540,8 @@ public class IndexIntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
         
         resc = rh.executeGetRequest("/_all,-searchg*/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(resc.getBody(), HttpStatus.SC_BAD_REQUEST, resc.getStatusCode());
+        Assert.assertEquals(resc.getBody(), HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
         
-        resc = rh.executeGetRequest("/_all,-searchg*/_search", encodeBasicHeader("nagilum", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, resc.getStatusCode());
         
     }
 }

@@ -97,19 +97,10 @@ public class AggregationTests extends SingleClusterTest {
         assertContains(res, "*xyz*");
         assertContains(res, "*role01_role02*");
         assertContains(res, "*\"failed\" : 0*");
+                
+        res = rh.executePostRequest("_search?pretty&ignore_unavailable=true", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",encodeBasicHeader("worf", "worf"));
         
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("_search?pretty", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",encodeBasicHeader("worf", "worf"))).getStatusCode());
-        System.out.println(res.getBody());
-        assertNotContains(res, "*xception*");
-        assertNotContains(res, "*erial*");
-        assertNotContains(res, "*mpty*");
-        assertNotContains(res, "*earchguard*");
-        assertNotContains(res, "*vulcangov*");
-        assertNotContains(res, "*kirk*");
-        assertContains(res, "*starfleet*");
-        assertContains(res, "*public*");
-        assertContains(res, "*xyz*");
-        assertContains(res, "*\"failed\" : 0*");
+        Assert.assertEquals(res.getBody(), HttpStatus.SC_FORBIDDEN, res.getStatusCode());
         
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executePostRequest("_search?pretty", "{\"size\":0,\"aggs\":{\"myindices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",encodeBasicHeader("worf", "worf"))).getStatusCode());
         

@@ -33,6 +33,9 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -41,9 +44,6 @@ import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.support.PatternMap;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableList;
-import com.floragunn.searchsupport.util.ImmutableMap;
-import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 
@@ -266,7 +266,7 @@ public class RoleMapping implements Document<RoleMapping>, Hideable, SgDynamicCo
 
                 if (transportAddress != null) {
                     if (!byHostNames.isEmpty()) {
-                        // The follwing may trigger a reverse DNS lookup
+                        // The following may trigger a reverse DNS lookup
                         result.addAll(byHostNames.get(transportAddress.address().getHostName()));
                         // Backwards compatibility:
                         result.addAll(byHostNames.get(transportAddress.getAddress()));
@@ -285,7 +285,7 @@ public class RoleMapping implements Document<RoleMapping>, Hideable, SgDynamicCo
 
                 if (!byBackendRolesAnded.isEmpty()) {
                     for (ImmutableSet<Pattern> patternSet : byBackendRolesAnded.keySet()) {
-                        if (patternSet.forAll((p) -> p.matches(user.getRoles()))) {
+                        if (patternSet.forAllApplies((p) -> p.matches(user.getRoles()))) {
                             result.addAll(byBackendRolesAnded.get(patternSet));
                         }
                     }

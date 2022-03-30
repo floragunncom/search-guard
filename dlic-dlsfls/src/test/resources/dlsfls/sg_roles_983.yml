@@ -29,13 +29,6 @@ sg_human_resources_trainee:
     masked_fields: null
     allowed_actions:
     - "ALL"
-  - index_patterns:
-    - "*"
-    dls: null
-    fls: null
-    masked_fields: null
-    allowed_actions:
-    - "indices:data/read/field_caps"
   tenant_permissions:
   - tenant_patterns:
     - "human_resources"

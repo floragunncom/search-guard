@@ -141,7 +141,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				}
 				Assert.fail();
 			} catch (ElasticsearchSecurityException e) {
-				Assert.assertTrue(e.getMessage(), e.getMessage().startsWith("no permissions for [indices:data/read/get]"));
+				Assert.assertTrue(e.getMessage(), e.getMessage().startsWith("Insufficient permissions"));
 			}
 
 			System.out.println("------- 11 ---------");
@@ -153,7 +153,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				gr = tc.prepareGet("vulcan", "secrets", "s1").get();
 				Assert.fail();
 			} catch (ElasticsearchSecurityException e) {
-				Assert.assertTrue(e.getMessage().startsWith("no permissions for [indices:data/read/get]"));
+				Assert.assertTrue(e.getMessage().startsWith("Insufficient permissions"));
 			} finally {
 				ctx.close();
 			}
@@ -250,7 +250,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				gr = tc.prepareGet("vulcan", "secrets", "s1").get();
 				Assert.fail();
 			} catch (ElasticsearchSecurityException e) {
-				Assert.assertTrue(e.getMessage().startsWith("no permissions for [indices:data/read/get]"));
+				Assert.assertTrue(e.getMessage().startsWith("Insufficient permissions"));
 				Assert.assertTrue(ok);
 			} finally {
 				ctx.close();
@@ -276,7 +276,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				gr = tc.prepareGet("searchguard", getType(), "config").setRealtime(Boolean.TRUE).get();
 				Assert.fail();
 			} catch (Exception e) {
-				Assert.assertTrue(e.getMessage().contains("no permissions for [indices:data/read/get] and User worf"));
+				Assert.assertTrue(e.getMessage().contains("Insufficient permissions"));
 			}
 			finally {
 				ctx.close();

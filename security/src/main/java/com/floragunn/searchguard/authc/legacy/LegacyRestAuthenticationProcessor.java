@@ -31,6 +31,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
@@ -45,12 +46,11 @@ import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInf
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthenticationProcessor;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableList;
 import com.google.common.cache.Cache;
 
 import inet.ipaddr.IPAddress;

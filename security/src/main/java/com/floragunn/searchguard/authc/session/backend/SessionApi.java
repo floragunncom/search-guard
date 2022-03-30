@@ -34,7 +34,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.authc.AuthInfoService;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.Action;

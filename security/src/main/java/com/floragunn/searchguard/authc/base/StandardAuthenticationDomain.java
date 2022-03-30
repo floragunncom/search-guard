@@ -30,6 +30,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.TypedComponentRegistry;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
@@ -46,7 +47,6 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableList;
 import com.google.common.hash.Hashing;
 
 public class StandardAuthenticationDomain<AuthenticatorType extends AuthenticationFrontend> implements AuthenticationDomain<AuthenticatorType>,

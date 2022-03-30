@@ -20,8 +20,8 @@ package com.floragunn.searchguard.privileges;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ActionRequestInfo;
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 
 public class PrivilegesEvaluatorResponse {

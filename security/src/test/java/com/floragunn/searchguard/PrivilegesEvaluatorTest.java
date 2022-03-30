@@ -338,7 +338,7 @@ public class PrivilegesEvaluatorTest {
                 Assert.fail();
             } catch (ElasticsearchStatusException e) {
                 Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
-                Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/write/index]"));
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
             }
 
         }
@@ -417,7 +417,7 @@ public class PrivilegesEvaluatorTest {
                 Assert.fail();
             } catch (ElasticsearchStatusException e) {
                 Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
-                Assert.assertTrue(e.getMessage(), e.getMessage().contains("no permissions for [indices:data/write/index]"));
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
             }
         }
     }
@@ -491,7 +491,7 @@ public class PrivilegesEvaluatorTest {
         } catch (ElasticsearchStatusException e) {
             // Expected
             Assert.assertTrue(e.toString(),
-                    e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user_without_create_index_priv"));
+                    e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
@@ -500,7 +500,7 @@ public class PrivilegesEvaluatorTest {
         } catch (ElasticsearchStatusException e) {
             // Expected
             Assert.assertTrue(e.toString(),
-                    e.getMessage().contains("no permissions for [indices:admin/create] and User resize_user_without_create_index_priv"));
+                    e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
@@ -508,7 +508,7 @@ public class PrivilegesEvaluatorTest {
             Assert.fail();
         } catch (ElasticsearchStatusException e) {
             // Expected
-            Assert.assertTrue(e.toString(), e.getMessage().contains("no permissions for [indices:admin/resize] and User resize_user"));
+            Assert.assertTrue(e.toString(), e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
@@ -548,31 +548,6 @@ public class PrivilegesEvaluatorTest {
     }
 
     @Test
-    public void searchTemplateLegacy() throws Exception {
-
-        SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest(new SearchRequest("resolve_test_allow_*"));
-        searchTemplateRequest.setScriptType(ScriptType.INLINE);
-        searchTemplateRequest.setScript("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }");
-        searchTemplateRequest.setScriptParams(ImmutableMap.of("x", "yy"));
-
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_TEMPLATE_LEGACY_USER)) {
-            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
-            SearchResponse searchResponse = searchTemplateResponse.getResponse();
-
-            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.getHits().getTotalHits().value);
-        }
-
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_NO_TEMPLATE_USER)) {
-            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
-            SearchResponse searchResponse = searchTemplateResponse.getResponse();
-
-            Assert.fail(searchResponse.toString());
-        } catch (ElasticsearchStatusException e) {
-            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
-        }
-    }
-
-    @Test
     public void negativeLookaheadPattern() throws Exception {
 
         try (GenericRestClient restClient = clusterFof.getRestClient(NEG_LOOKAHEAD_USER)) {
@@ -595,7 +570,7 @@ public class PrivilegesEvaluatorTest {
             HttpResponse httpResponse = restClient.get("*/_search");
 
             Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
-         }
+        }
     }
 
     @Test

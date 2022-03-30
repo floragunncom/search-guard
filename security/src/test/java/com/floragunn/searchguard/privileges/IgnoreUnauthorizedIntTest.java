@@ -387,4 +387,18 @@ public class IgnoreUnauthorizedIntTest {
         }
 
     }
+    
+    @Test
+    public void search_termsAggregation_index() throws Exception {
+        
+        String aggregationBody = "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}";
+
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
+            HttpResponse httpResponse = restClient.postJson("/_search", aggregationBody);
+            
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(distinctNodesAt("aggregations.indices.buckets[*].key", containsInAnyOrder("a1", "a2", "a3"))));
+        }
+
+    }
 }

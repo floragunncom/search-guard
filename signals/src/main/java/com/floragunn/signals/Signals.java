@@ -31,9 +31,6 @@ import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.Failu
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
-import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
@@ -64,7 +61,7 @@ public class Signals extends AbstractLifecycleComponent {
     private Settings settings;
     private String nodeId;
     private Map<String, Exception> tenantInitErrors = new ConcurrentHashMap<>();
-    private  DiagnosticContext diagnosticContext;
+    private DiagnosticContext diagnosticContext;
 
     public Signals(Settings settings, ComponentState componentState) {
         this.componentState = componentState;
@@ -76,7 +73,7 @@ public class Signals extends AbstractLifecycleComponent {
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, InternalAuthTokenProvider internalAuthTokenProvider,
-            ProtectedConfigIndexService protectedConfigIndexService, DynamicConfigFactory dynamicConfigFactory, DiagnosticContext diagnosticContext) {
+            ProtectedConfigIndexService protectedConfigIndexService, DiagnosticContext diagnosticContext) {
 
         try {
             nodeId = nodeEnvironment.nodeId();
@@ -102,11 +99,7 @@ public class Signals extends AbstractLifecycleComponent {
             }
 
             this.accountRegistry = new AccountRegistry(signalsSettings);
-            
-            if (dynamicConfigFactory != null) {
-                dynamicConfigFactory.registerDCFListener(dcfListener);
-            }
-            
+
             return Collections.singletonList(this);
 
         } catch (Exception e) {
@@ -154,9 +147,8 @@ public class Signals extends AbstractLifecycleComponent {
         String[] allIndexes = new String[] { indexNames.getWatches(), indexNames.getWatchesState(), indexNames.getWatchesTriggerState(),
                 indexNames.getAccounts(), indexNames.getSettings() };
 
-        componentState.addPart(protectedConfigIndexService.createIndex(
-                new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping(), 2).mappingUpdate(0, Watch.getIndexMappingUpdate())
-                        .dependsOnIndices(allIndexes).onIndexReady(this::init)));
+        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping(), 2)
+                .mappingUpdate(0, Watch.getIndexMappingUpdate()).dependsOnIndices(allIndexes).onIndexReady(this::init)));
         componentState.addPart(
                 protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesState()).mapping(WatchState.getIndexMapping())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesTriggerState())));
@@ -288,7 +280,7 @@ public class Signals extends AbstractLifecycleComponent {
         }
     }
 
-    private synchronized void updateTenants(Set<String> configuredTenants) {
+    synchronized void updateTenants(Set<String> configuredTenants) {
         configuredTenants = new HashSet<>(configuredTenants);
 
         // ensure we always have a default tenant
@@ -380,14 +372,6 @@ public class Signals extends AbstractLifecycleComponent {
         public void onChange() {
             internalAuthTokenProvider.setSigningKey(signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey());
             internalAuthTokenProvider.setEncryptionKey(signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey());
-        }
-    };
-
-    private final DCFListener dcfListener = new DCFListener() {
-        @Override
-        public void onChanged(ConfigModel cm) {
-            log.debug("Tenant config model changed");
-            updateTenants(cm.getAllConfiguredTenantNames());
         }
     };
 

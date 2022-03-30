@@ -28,6 +28,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
@@ -38,12 +39,12 @@ import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.rest.RestImpersonationProcessor;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableMap;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 
@@ -118,7 +119,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
     protected void decorateAuthenticatedUser(User authenticatedUser) {
     }
 
-    protected boolean checkLoginPrivileges(User user) {
+    protected boolean checkLoginPrivileges(User user) throws PrivilegesEvaluationException {
         if (requiredLoginPrivileges == null || requiredLoginPrivileges.isEmpty()) {
             return true;
         }
@@ -250,13 +251,17 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                         return;
                     }
 
+                    
+                    String requestedTenant = getRequestedTenant();
+                    
                     if (log.isDebugEnabled()) {
-                        log.debug("Authentication successful for " + authenticatedUser.toStringWithAttributes() + " on " + authenticationDomain);
+                        log.debug("Authentication successful for " + authenticatedUser.toStringWithAttributes() + " on " + authenticationDomain
+                                + " using " + this + "\nrequestedTenant: " + requestedTenant);
                     }
 
                     decorateAuthenticatedUser(authenticatedUser);
 
-                    authenticatedUser.setRequestedTenant(getRequestedTenant());
+                    authenticatedUser.setRequestedTenant(requestedTenant);
 
                     if (isImpersonationRequested()) {
                         new RestImpersonationProcessor<AuthenticatorType>(authenticatedUser, getImpersonationUser(), authenticationDomains, adminDns,

@@ -40,11 +40,11 @@ import org.elasticsearch.transport.SharedGroupFactory;
 
 import com.floragunn.codova.documents.ContentType;
 import com.floragunn.codova.documents.Format.UnknownDocTypeException;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
 import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServerTransport {
     private static final Logger log = LogManager.getLogger(SearchGuardHttpServerTransport.class);

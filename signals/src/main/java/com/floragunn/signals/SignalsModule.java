@@ -23,8 +23,13 @@ import org.elasticsearch.script.ScriptService;
 
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
+import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerAction;
 import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.searchsupport.jobs.actions.TransportCheckForExecutingTriggerAction;
@@ -93,12 +98,12 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
 
     public SignalsModule(Settings settings) {
         enabled = settings.getAsBoolean("signals.enabled", true);
-        
+
         if (!enabled) {
             moduleState.setState(ComponentState.State.DISABLED);
         }
     }
-    
+
     public SignalsModule() {
         enabled = true;
     }
@@ -161,15 +166,27 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
         }
     }
 
-    @SuppressWarnings("resource")
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         if (enabled) {
-            return new Signals(baseDependencies.getSettings(), moduleState).createComponents(baseDependencies.getLocalClient(),
-                    baseDependencies.getClusterService(), baseDependencies.getThreadPool(), baseDependencies.getResourceWatcherService(),
-                    baseDependencies.getScriptService(), baseDependencies.getxContentRegistry(), baseDependencies.getEnvironment(),
-                    baseDependencies.getNodeEnvironment(), baseDependencies.getInternalAuthTokenProvider(),
-                    baseDependencies.getProtectedConfigIndexService(), baseDependencies.getDynamicConfigFactory(), baseDependencies.getDiagnosticContext());
+            Signals signals = new Signals(baseDependencies.getSettings(), moduleState);
+
+            baseDependencies.getConfigurationRepository().subscribeOnChange(new ConfigurationChangeListener() {
+
+                @Override
+                public void onChange(ConfigMap configMap) {
+                    SgDynamicConfiguration<TenantV7> tenants = configMap.get(CType.TENANTS);
+
+                    if (tenants != null) {
+                        signals.updateTenants(tenants.getCEntries().keySet());
+                    }
+                }
+            });
+
+            return signals.createComponents(baseDependencies.getLocalClient(), baseDependencies.getClusterService(), baseDependencies.getThreadPool(),
+                    baseDependencies.getResourceWatcherService(), baseDependencies.getScriptService(), baseDependencies.getxContentRegistry(),
+                    baseDependencies.getEnvironment(), baseDependencies.getNodeEnvironment(), baseDependencies.getInternalAuthTokenProvider(),
+                    baseDependencies.getProtectedConfigIndexService(), baseDependencies.getDiagnosticContext());
         } else {
             return Collections.emptyList();
         }

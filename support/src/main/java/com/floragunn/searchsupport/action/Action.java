@@ -49,7 +49,7 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.util.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableMap;
 
 public abstract class Action<RequestType extends Action.Request, ResponseType extends Action.Response> extends ActionType<ResponseType> {
 

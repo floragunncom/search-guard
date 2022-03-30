@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.time.temporal.TemporalAmount;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
@@ -27,38 +26,55 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
+import com.floragunn.codova.documents.Document;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.DocumentAuthorization;
+import com.floragunn.searchguard.authz.LegacyRoleBasedDocumentAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.Role;
+import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
+import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
-import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.ConfigModelV7;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory.DCFListener;
-import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
-public class InternalAuthTokenProvider implements DCFListener {
+public class InternalAuthTokenProvider {
 
     public static final String TOKEN_HEADER = ConfigConstants.SG_CONFIG_PREFIX + "internal_auth_token";
     public static final String AUDIENCE_HEADER = ConfigConstants.SG_CONFIG_PREFIX + "internal_auth_token_audience";
 
     private static final Logger log = LogManager.getLogger(InternalAuthTokenProvider.class);
 
+    private final PrivilegesEvaluator privilegesEvaluator;
+    private final Actions actions;
+
     private JsonWebKey encryptionKey;
     private JsonWebKey signingKey;
     private JoseJwtProducer jwtProducer;
     private JwsSignatureVerifier jwsSignatureVerifier;
     private JweDecryptionProvider jweDecryptionProvider;
-    private ConfigModel configModel;
-    private SgRoles sgRoles;
+    private volatile SgDynamicConfiguration<Role> roles;
 
-    public InternalAuthTokenProvider(DynamicConfigFactory dynamicConfigFactory) {
-        dynamicConfigFactory.registerDCFListener(this);
+    public InternalAuthTokenProvider(PrivilegesEvaluator privilegesEvaluator, Actions actions, ConfigurationRepository configurationRepository) {
+        this.privilegesEvaluator = privilegesEvaluator;
+        this.actions = actions;
+
+        configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
+
+            @Override
+            public void onChange(ConfigMap configMap) {
+                InternalAuthTokenProvider.this.roles = configMap.get(CType.ROLES);
+            }
+        });
     }
 
     public String getJwt(User user, String aud) throws IllegalStateException {
@@ -90,7 +106,8 @@ public class InternalAuthTokenProvider implements DCFListener {
         return encodedJwt;
     }
 
-    public void userAuthFromToken(User user, ThreadContext threadContext, Consumer<SpecialPrivilegesEvaluationContext> onResult, Consumer<Exception> onFailure) {
+    public void userAuthFromToken(User user, ThreadContext threadContext, Consumer<SpecialPrivilegesEvaluationContext> onResult,
+            Consumer<Exception> onFailure) {
         try {
             onResult.accept(userAuthFromToken(user, threadContext));
         } catch (Exception e) {
@@ -98,7 +115,7 @@ public class InternalAuthTokenProvider implements DCFListener {
             onFailure.accept(e);
         }
     }
-    
+
     public AuthFromInternalAuthToken userAuthFromToken(User user, ThreadContext threadContext) {
         final String authToken = threadContext.getHeader(TOKEN_HEADER);
         final String authTokenAudience = HeaderHelper.getSafeFromHeader(threadContext, AUDIENCE_HEADER);
@@ -119,19 +136,16 @@ public class InternalAuthTokenProvider implements DCFListener {
             if (rolesMap == null) {
                 throw new JwtException("JWT does not contain claim sg_roles");
             }
-            SgDynamicConfiguration<?> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null);
+            SgDynamicConfiguration<Role> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null);
+            ImmutableSet<String> roleNames = ImmutableSet.of(rolesConfig.getCEntries().keySet());
 
-            if (rolesConfig.getVersion() == 1) {
-                throw new Exception("Unsupport version of sgconfig: " + rolesConfig);
-            }
-
-            @SuppressWarnings("unchecked")
-            SgDynamicConfiguration<RoleV7> rolesConfigV7 = (SgDynamicConfiguration<RoleV7>) rolesConfig;
-
-            SgRoles sgRoles = ConfigModelV7.SgRoles.create(rolesConfigV7, configModel.getActionGroups());
+            ActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions,
+                    null, privilegesEvaluator.getAllConfiguredTenantNames());
+            DocumentAuthorization documentAuthorization = new LegacyRoleBasedDocumentAuthorization(rolesConfig, privilegesEvaluator.getResolver(),
+                    privilegesEvaluator.getClusterService());
             String userName = verifiedToken.getClaims().getSubject();
-            User user = User.forUser(userName).authDomainInfo(AuthDomainInfo.STORED_AUTH).searchGuardRoles(sgRoles.getRoleNames()).build();
-            AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, sgRoles);
+            User user = User.forUser(userName).authDomainInfo(AuthDomainInfo.STORED_AUTH).searchGuardRoles(roleNames).build();
+            AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, roleNames, actionAuthorization, documentAuthorization);
 
             return userAuth;
 
@@ -140,12 +154,6 @@ public class InternalAuthTokenProvider implements DCFListener {
 
             return null;
         }
-    }
-
-    @Override
-    public void onChanged(ConfigModel configModel) {
-        this.configModel = configModel;
-        this.sgRoles = configModel.getSgRoles();
     }
 
     void initJwtProducer() {
@@ -174,11 +182,10 @@ public class InternalAuthTokenProvider implements DCFListener {
     }
 
     private Object getSgRolesForUser(User user) {
-        Set<String> sgRoles = this.configModel.mapSgRoles(user, null);
+        ImmutableSet<String> userRoles = this.privilegesEvaluator.mapSgRoles(user, null);
+        ImmutableMap<String, Role> roles = ImmutableMap.of(this.roles.getCEntries()).intersection(userRoles);
 
-        SgRoles userRoles = this.sgRoles.filter(sgRoles);
-
-        return ObjectTreeXContent.toObjectTree(userRoles);
+        return Document.toDeepBasicObject(roles);
     }
 
     private JwtToken getVerifiedJwtToken(String encodedJwt, String authTokenAudience) throws JwtException {
@@ -232,29 +239,30 @@ public class InternalAuthTokenProvider implements DCFListener {
     public static class AuthFromInternalAuthToken implements SpecialPrivilegesEvaluationContext {
 
         private final User user;
-        private final SgRoles sgRoles;
+        private final ImmutableSet<String> mappedRoles;
+        private final ActionAuthorization actionAuthorization;
+        private final DocumentAuthorization documentAuthorization;
 
-        AuthFromInternalAuthToken(User user, SgRoles sgRoles) {
+        AuthFromInternalAuthToken(User user, ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization,
+                DocumentAuthorization documentAuthorization) {
             this.user = user;
-            this.sgRoles = sgRoles;
+            this.mappedRoles = mappedRoles;
+            this.actionAuthorization = actionAuthorization;
+            this.documentAuthorization = documentAuthorization;
         }
 
         public User getUser() {
             return user;
         }
 
-        public SgRoles getSgRoles() {
-            return sgRoles;
-        }
-
         @Override
         public String toString() {
-            return "AuthFromInternalAuthToken [user=" + user + ", sgRoles=" + sgRoles + "]";
+            return "AuthFromInternalAuthToken [user=" + user + "]";
         }
 
         @Override
-        public Set<String> getMappedRoles() {
-            return sgRoles.getRoleNames();
+        public ImmutableSet<String> getMappedRoles() {
+            return mappedRoles;
         }
 
         @Override
@@ -265,6 +273,16 @@ public class InternalAuthTokenProvider implements DCFListener {
         @Override
         public boolean requiresPrivilegeEvaluationForLocalRequests() {
             return true;
+        }
+
+        @Override
+        public ActionAuthorization getActionAuthorization() {
+            return actionAuthorization;
+        }
+
+        @Override
+        public DocumentAuthorization getDocumentAuthorization() {
+            return documentAuthorization;
         }
     }
 

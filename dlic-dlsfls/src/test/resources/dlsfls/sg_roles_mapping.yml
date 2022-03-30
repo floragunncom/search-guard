@@ -189,7 +189,6 @@ sg_all_access:
   hosts: []
   users:
   - "admin"
-  - "user_combined"
   and_backend_roles: []
   description: "Migrated from v6"
 sg_public:

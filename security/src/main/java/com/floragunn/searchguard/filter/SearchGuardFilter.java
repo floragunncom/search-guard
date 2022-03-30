@@ -42,8 +42,8 @@ import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -57,19 +57,23 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluatorResponse;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig;
-import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfigRegistry;
 import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -93,11 +97,15 @@ public class SearchGuardFilter implements ActionFilter {
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
     private final ExtendedActionHandlingService extendedActionHandlingService;
     private final DiagnosticContext diagnosticContext;
+    private final Actions actions;
+    private final ActionRequestIntrospector actionRequestIntrospector;
+    private final IndexNameExpressionResolver resolver;
 
     public SearchGuardFilter(final PrivilegesEvaluator evalp, final AdminDNs adminDns, DlsFlsRequestValve dlsFlsValve, AuditLog auditLog,
-            ThreadPool threadPool, ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, 
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ExtendedActionHandlingService extendedActionHandlingService,
-            NamedXContentRegistry namedXContentRegistry) {
+            ThreadPool threadPool, ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, Actions actions,
+            ActionRequestIntrospector actionRequestIntrospector,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
+            ExtendedActionHandlingService extendedActionHandlingService, NamedXContentRegistry namedXContentRegistry, IndexNameExpressionResolver resolver) {
         this.evalp = evalp;
         this.adminDns = adminDns;
         this.dlsFlsValve = dlsFlsValve;
@@ -108,6 +116,9 @@ public class SearchGuardFilter implements ActionFilter {
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         this.extendedActionHandlingService = extendedActionHandlingService;
         this.diagnosticContext = diagnosticContext;
+        this.actions = actions;
+        this.actionRequestIntrospector = actionRequestIntrospector;
+        this.resolver = resolver;
     }
 
     @Override
@@ -133,7 +144,7 @@ public class SearchGuardFilter implements ActionFilter {
                 });
     }
 
-    private <Request extends ActionRequest, Response extends ActionResponse> void apply0(Task task, final String action, Request request,
+    private <Request extends ActionRequest, Response extends ActionResponse> void apply0(Task task, String actionName, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext ) {
 
         try {
@@ -152,11 +163,11 @@ public class SearchGuardFilter implements ActionFilter {
             final boolean interClusterRequest = HeaderHelper.isInterClusterRequest(threadContext);
             final boolean trustedClusterRequest = HeaderHelper.isTrustedClusterRequest(threadContext);
             final boolean confRequest = "true".equals(HeaderHelper.getSafeFromHeader(threadContext, ConfigConstants.SG_CONF_REQUEST_HEADER));
-            final boolean passThroughRequest = action.equals(LicenseInfoAction.NAME) || action.startsWith("indices:admin/seq_no")
-                    || action.equals(WhoAmIAction.NAME);
+            final boolean passThroughRequest = actionName.equals(LicenseInfoAction.NAME) || actionName.startsWith("indices:admin/seq_no")
+                    || actionName.equals(WhoAmIAction.NAME);
 
-            final boolean internalRequest = (interClusterRequest || HeaderHelper.isDirectRequest(threadContext)) && action.startsWith("internal:")
-                    && !action.startsWith("internal:transport/proxy");
+            final boolean internalRequest = (interClusterRequest || HeaderHelper.isDirectRequest(threadContext)) && actionName.startsWith("internal:")
+                    && !actionName.startsWith("internal:transport/proxy");
             
             diagnosticContext.addHeadersToLogContext(cs, threadContext);
 
@@ -192,13 +203,13 @@ public class SearchGuardFilter implements ActionFilter {
                     count = "" + ((MultiSearchRequest) request).requests().size();
                 }
 
-                actionTrace.trace("Node " + cs.localNode().getName() + " -> " + action + " (" + count + "): userIsAdmin=" + userIsAdmin
+                actionTrace.trace("Node " + cs.localNode().getName() + " -> " + actionName + " (" + count + "): userIsAdmin=" + userIsAdmin
                         + "/conRequest=" + confRequest + "/internalRequest=" + internalRequest + "origin="
                         + threadContext.getTransient(ConfigConstants.SG_ORIGIN) + "/directRequest=" + HeaderHelper.isDirectRequest(threadContext)
                         + "/remoteAddress=" + request.remoteAddress());
 
                 threadContext.putHeader("_sg_trace" + System.currentTimeMillis() + "#" + UUID.randomUUID().toString(),
-                        Thread.currentThread().getName() + " FILTER -> " + "Node " + cs.localNode().getName() + " -> " + action + " userIsAdmin="
+                        Thread.currentThread().getName() + " FILTER -> " + "Node " + cs.localNode().getName() + " -> " + actionName + " userIsAdmin="
                                 + userIsAdmin + "/conRequest=" + confRequest + "/internalRequest=" + internalRequest + "origin="
                                 + threadContext.getTransient(ConfigConstants.SG_ORIGIN) + "/directRequest="
                                 + HeaderHelper.isDirectRequest(threadContext) + "/remoteAddress=" + request.remoteAddress() + " "
@@ -210,12 +221,14 @@ public class SearchGuardFilter implements ActionFilter {
             if (userIsAdmin || confRequest || internalRequest || passThroughRequest) {
 
                 if (userIsAdmin && !confRequest && !internalRequest && !passThroughRequest) {
-                    auditLog.logGrantedPrivileges(action, request, task);
+                    auditLog.logGrantedPrivileges(actionName, request, task);
                 }
 
-                chain.proceed(task, action, request, listener);
+                chain.proceed(task, actionName, request, listener);
                 return;
             }
+            
+            Action action = actions.get(actionName);
 
             if (complianceConfig != null && complianceConfig.isEnabled()) {
 
@@ -223,7 +236,7 @@ public class SearchGuardFilter implements ActionFilter {
 
                 if (request instanceof BulkShardRequest) {
                     for (BulkItemRequest bsr : ((BulkShardRequest) request).items()) {
-                        immutableResult = checkImmutableIndices(bsr.request(), request, listener, action, task, auditLog);
+                        immutableResult = checkImmutableIndices(bsr.request(), request, listener, actionName, task, auditLog);
                         if (immutableResult != null && immutableResult.v1() == ImmutableState.FAILURE) {
                             return;
                         }
@@ -233,7 +246,7 @@ public class SearchGuardFilter implements ActionFilter {
                         }
                     }
                 } else {
-                    immutableResult = checkImmutableIndices(request, request, listener, action, task, auditLog);
+                    immutableResult = checkImmutableIndices(request, request, listener, actionName, task, auditLog);
                     if (immutableResult != null && immutableResult.v1() == ImmutableState.FAILURE) {
                         return;
                     }
@@ -248,80 +261,79 @@ public class SearchGuardFilter implements ActionFilter {
                     && (interClusterRequest || HeaderHelper.isDirectRequest(threadContext) && (specialPrivilegesEvaluationContext == null
                             || !specialPrivilegesEvaluationContext.requiresPrivilegeEvaluationForLocalRequests()))) {
 
-                chain.proceed(task, action, request, listener);
+                chain.proceed(task, actionName, request, listener);
                 return;
             }
 
             if (user == null) {
 
-                if (action.startsWith("cluster:monitor/state")) {
-                    chain.proceed(task, action, request, listener);
+                if (actionName.startsWith("cluster:monitor/state")) {
+                    chain.proceed(task, actionName, request, listener);
                     return;
                 }
 
-                log.error("No user found for " + action + " from " + request.remoteAddress() + " "
+                log.error("No user found for " + actionName + " from " + request.remoteAddress() + " "
                         + threadContext.getTransient(ConfigConstants.SG_ORIGIN) + " via "
                         + threadContext.getTransient(ConfigConstants.SG_CHANNEL_TYPE) + " " + threadContext.getHeaders());
-                listener.onFailure(new ElasticsearchSecurityException("No user found for " + action, RestStatus.INTERNAL_SERVER_ERROR));
+                listener.onFailure(new ElasticsearchSecurityException("No user found for " + actionName, RestStatus.INTERNAL_SERVER_ERROR));
                 return;
             }
 
             final PrivilegesEvaluator eval = evalp;
 
             if (!eval.isInitialized()) {
-                log.error("Search Guard not initialized (SG11) for {}", action);
+                log.error("Search Guard not initialized (SG11) for {}", actionName);
                 listener.onFailure(new ElasticsearchSecurityException(
-                        "Search Guard not initialized (SG11) for " + action + ". See https://docs.search-guard.com/latest/sgadmin",
+                        "Search Guard not initialized (SG11) for " + actionName + ". See https://docs.search-guard.com/latest/sgadmin",
                         RestStatus.SERVICE_UNAVAILABLE));
                 return;
-            }
-
-            ActionConfig<Request, ?, ?> actionConfig = ActionConfigRegistry.INSTANCE.get(action, request);
-
-            if (log.isTraceEnabled()) {
-                log.trace("Action config for " + action + ": " + actionConfig);
             }
 
             if (log.isTraceEnabled()) {
                 log.trace("Evaluate permissions for user: {}", user.getName());
             }
 
-            final PrivilegesEvaluatorResponse pres = eval.evaluate(user, action, request, task, specialPrivilegesEvaluationContext);
+            ImmutableSet<String> mappedRoles = eval.getMappedRoles(user, specialPrivilegesEvaluationContext);
+            PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, mappedRoles, action, request,
+                    eval.isDebugEnabled(), this.actionRequestIntrospector, this.resolver);
+            PrivilegesEvaluationResult privilegesEvaluationResult = eval.evaluate(user, mappedRoles, actionName, request, task,
+                    privilegesEvaluationContext, specialPrivilegesEvaluationContext);
 
-            if (log.isDebugEnabled()) {
-                log.debug(pres);
-            }
-
-            if (pres.isAllowed()) {
-                auditLog.logGrantedPrivileges(action, request, task);
+            if (privilegesEvaluationResult.isOk()) {
+                auditLog.logGrantedPrivileges(actionName, request, task);
                 // save username fo later use on current node
                 if (threadContext.getHeader(ConfigConstants.SG_USER_NAME) == null) {
                     threadContext.putHeader(ConfigConstants.SG_USER_NAME, user.getName());
                 }
 
-                if (!dlsFlsValve.invoke(action, request, listener, pres.getEvaluatedDlsFlsConfig(),
-                        complianceConfig != null && complianceConfig.isLocalHashingEnabled(), pres.getResolvedIndices())) {
+                if (!dlsFlsValve.invoke(user, mappedRoles, actionName, request, listener,
+                        complianceConfig != null && complianceConfig.isLocalHashingEnabled(),
+                        privilegesEvaluationContext.getRequestInfo().getResolvedIndices(), specialPrivilegesEvaluationContext)) {
                     return;
                 }
-
-                if (actionConfig != null) {
-                    extendedActionHandlingService.apply(actionConfig, user, task, action, request, listener, chain);
+                
+                if (privilegesEvaluationResult.hasAdditionalActionFilters()) {
+                    chain = new ExtendedActionFilterChain<Request, Response>(privilegesEvaluationResult.getAdditionalActionFilters(), chain);
+                }
+                                
+                WellKnownAction<Request, ?, ?> wellKnownAction = action.wellKnown(request);
+                
+                if (wellKnownAction != null && wellKnownAction.requiresSpecialProcessing()) {
+                    extendedActionHandlingService.apply(wellKnownAction, user, task, actionName, request, listener, chain);
                 } else {
-                    chain.proceed(task, action, request, listener);
+                    chain.proceed(task, actionName, request, listener);
                 }
                 return;
             } else {
-                auditLog.logMissingPrivileges(action, request, task);
-                log.debug("no permissions for {}", pres.getMissingPrivileges());
-                listener.onFailure(new ElasticsearchSecurityException("no permissions for " + pres.getMissingPrivileges() + " and " + user,
-                        RestStatus.FORBIDDEN));
+                auditLog.logMissingPrivileges(actionName, request, task);
+                listener.onFailure(privilegesEvaluationResult.toSecurityException(privilegesEvaluationContext));
                 return;
             }
         } catch (Exception e) {
-            log.error("Exception while handling " + action + "; " + request, e);
+            log.error("Exception while handling " + actionName + "; " + request, e);
             listener.onFailure(e);
         } catch (Throwable e) {
-            log.error("Throwable while handling " + action + "; " + request, e);
+            log.error("Throwable while handling " + actionName + "; " + request, e);
             listener.onFailure(new RuntimeException(e));
         }
     }

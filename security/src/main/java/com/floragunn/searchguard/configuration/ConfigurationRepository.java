@@ -63,7 +63,6 @@ import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.Parser;
@@ -842,13 +841,18 @@ public class ConfigurationRepository implements ComponentStateProvider {
             SgDynamicConfiguration<T> config;
 
             if (cType.getParser() != null) {
-                Map<String, Object> map = DocReader.format(Format.YAML).readObject(reader);
+                DocNode docNode = DocNode.parse(Format.YAML).from(reader);
 
+                if (docNode.isNull()) {
+                    docNode = DocNode.EMPTY;
+                }
+                
                 if (cType.getArity() == CType.Arity.SINGLE) {
-                    map = ImmutableMap.of("default", map);
+                    config = SgDynamicConfiguration.fromMap(ImmutableMap.of("default", docNode), cType, parserContext);
+                } else {
+                    config = SgDynamicConfiguration.fromMap(docNode, cType, parserContext);                    
                 }
 
-                config = SgDynamicConfiguration.fromMap(map, cType, parserContext);
             } else {
                 config = SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(reader), cType, 2, 0, 0, 0, parserContext);
             }

@@ -44,8 +44,9 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
-import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig.NewResource;
-import com.floragunn.searchguard.privileges.extended_action_handling.ActionConfig.Resource;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
@@ -194,12 +195,12 @@ public class ResourceOwnerService {
     }
 
     public <Request extends ActionRequest, Response extends ActionResponse> ActionFilterChain<Request, Response> applyOwnerCheckPreAction(
-            ActionConfig<Request, ?, ?> actionConfig, User currentUser, Task task, final String action, Request actionRequest,
+            WellKnownAction<Request, ?, ?> actionConfig, User currentUser, Task task, final String action, Request actionRequest,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
 
         ActionFilterChain<Request, Response> extendedChain = chain;
 
-        for (Resource usesResource : actionConfig.getUsesResources()) {
+        for (Resource usesResource : actionConfig.getResources().getUsesResources()) {
             Object resourceId = usesResource.getId().apply(actionRequest);
 
             extendedChain = new OwnerCheckPreAction<Request, Response>(usesResource, resourceId, currentUser, extendedChain);
@@ -208,14 +209,14 @@ public class ResourceOwnerService {
         return extendedChain;
     }
 
-    public <R extends ActionResponse> ActionListener<R> applyCreatePostAction(ActionConfig<?, ?, ?> actionConfig, User currentUser,
+    public <R extends ActionResponse> ActionListener<R> applyCreatePostAction(WellKnownAction<?, ?, ?> actionConfig, User currentUser,
             ActionListener<R> actionListener) {
 
         return new ActionListener<R>() {
 
             @Override
             public void onResponse(R actionResponse) {
-                NewResource newResource = actionConfig.getCreatesResource();
+                NewResource newResource = actionConfig.getResources().getCreatesResource();
                 Object id = newResource.getId().apply(actionResponse);
 
                 if (log.isTraceEnabled()) {
@@ -261,7 +262,7 @@ public class ResourceOwnerService {
 
     }
 
-    public <Request extends ActionRequest, R extends ActionResponse> ActionListener<R> applyDeletePostAction(ActionConfig<?, ?, ?> actionConfig,
+    public <Request extends ActionRequest, R extends ActionResponse> ActionListener<R> applyDeletePostAction(WellKnownAction<?, ?, ?> actionConfig,
             Resource resource, User currentUser, Task task, final String action, Request actionRequest, ActionListener<R> actionListener) {
 
         return new ActionListener<R>() {
