@@ -42,6 +42,7 @@ import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -49,6 +50,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -761,16 +763,31 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
 
         try {
-
             BulkResponse bulkResponse = privilegedConfigClient.bulk(bulkRequest).actionGet();
 
-            LOGGER.info("Index update done: " + bulkResponse);
-
             if (bulkResponse.hasFailures()) {
-                throw new ConfigUpdateException("Updating the config failed", bulkResponse);
+                LOGGER.error("Index update finished with errors:\n" + Strings.toString(bulkResponse));
+                
+                List<String> documentIdsWithVersionConflictEngineException = getDocumentIdsWithVersionConflictEngineException(bulkResponse);
+                
+                if (!documentIdsWithVersionConflictEngineException.isEmpty()) {
+                    if (documentIdsWithVersionConflictEngineException.size() == 1) {
+                        throw new ConcurrentConfigUpdateException(
+                                "The configuration " + documentIdsWithVersionConflictEngineException.get(0) + " has been concurrently modified.");
+                    } else {
+                        throw new ConcurrentConfigUpdateException("The configurations "
+                                + (documentIdsWithVersionConflictEngineException.stream().collect(Collectors.joining(", "))) + " have been concurrently modified.");
+                    }
+                } else {
+                    throw new ConfigUpdateException("Updating the configuration failed", bulkResponse);                                        
+                }
+            } else {
+                LOGGER.info("Index update done:\n" + Strings.toString(bulkResponse));
             }
+        } catch (ConfigUpdateException | ConcurrentConfigUpdateException e) {
+            throw e;
         } catch (Exception e) {
-            throw new ConfigUpdateException("Updating the config failed", e);
+            throw new ConfigUpdateException("Updating the configuration failed", e);
         }
 
         try {
@@ -798,6 +815,18 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     public Context getParserContext() {
         return parserContext;
+    }
+ 
+    private List<String> getDocumentIdsWithVersionConflictEngineException(BulkResponse bulkResponse) { 
+        ArrayList<String> result = new ArrayList<>();
+        
+        for (BulkItemResponse item : bulkResponse.getItems()) {
+            if (item.getFailure() != null && item.getFailure().getCause() instanceof VersionConflictEngineException) {
+                result.add(item.getId());
+            }
+        }
+        
+        return result;
     }
 
     public static class Context implements Parser.Context {
