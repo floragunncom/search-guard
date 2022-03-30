@@ -147,9 +147,6 @@ public class SinkProvider {
 			case "log4j":
 				sink = new Log4JSink(name, settings, settingsPrefix, fallbackSink);
 				break;
-			case "kafka":
-				sink = new KafkaSink(name, settings, settingsPrefix, fallbackSink);
-				break;
 			default:
 				try {
 					Class<?> delegateClass = Class.forName(type);
