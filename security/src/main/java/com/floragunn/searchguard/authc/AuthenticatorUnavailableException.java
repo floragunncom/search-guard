@@ -20,7 +20,7 @@ package com.floragunn.searchguard.authc;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.floragunn.searchsupport.util.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableMap;
 
 public class AuthenticatorUnavailableException extends Exception {
     private static final long serialVersionUID = -7007025852090301416L;
