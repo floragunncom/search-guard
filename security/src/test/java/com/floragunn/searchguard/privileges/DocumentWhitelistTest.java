@@ -20,6 +20,8 @@ package com.floragunn.searchguard.privileges;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.searchguard.authz.DocumentWhitelist;
+
 public class DocumentWhitelistTest {
     @Test
     public void basicTest() throws Exception {

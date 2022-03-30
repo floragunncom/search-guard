@@ -27,14 +27,14 @@ import org.opensaml.core.config.InitializationService;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchsupport.util.ImmutableList;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 
 public class SamlAuthenticatorTest {

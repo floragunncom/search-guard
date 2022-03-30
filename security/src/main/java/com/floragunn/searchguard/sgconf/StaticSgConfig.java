@@ -8,23 +8,23 @@ import org.elasticsearch.common.settings.Settings;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.authz.Role;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class StaticSgConfig {
     private static final Logger log = LogManager.getLogger(StaticSgConfig.class);
 
-    private final SgDynamicConfiguration<RoleV7> staticRoles;
+    private final SgDynamicConfiguration<Role> staticRoles;
     private final SgDynamicConfiguration<ActionGroupsV7> staticActionGroups;
     private final SgDynamicConfiguration<TenantV7> staticTenants;
 
     public StaticSgConfig(Settings settings) {
         if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true)) {
-            staticRoles = readConfig("/static_config/static_roles.yml", RoleV7.class);
+            staticRoles = readConfig("/static_config/static_roles.yml", Role.class);
             staticActionGroups = readConfig("/static_config/static_action_groups.yml", ActionGroupsV7.class);
             staticTenants = readConfig("/static_config/static_tenants.yml", TenantV7.class);
         } else {

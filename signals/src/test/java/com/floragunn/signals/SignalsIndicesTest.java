@@ -70,7 +70,7 @@ public class SignalsIndicesTest {
 
         Signals signals = new Signals(settings.build(), new ComponentState(0, "signals", "signals"));
         signals.createComponents(cluster.getInternalNodeClient(), clusterService, cluster.getInjectable(ThreadPool.class), null, null, null, null,
-                cluster.getInjectable(NodeEnvironment.class), null, protectedConfigIndexService, null, null);
+                cluster.getInjectable(NodeEnvironment.class), null, protectedConfigIndexService, null);
 
         // Actually trigger the creation:
         protectedConfigIndexService.onNodeStart();

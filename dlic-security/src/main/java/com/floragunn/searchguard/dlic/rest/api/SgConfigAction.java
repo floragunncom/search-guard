@@ -31,12 +31,12 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.SgConfigValidator;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;

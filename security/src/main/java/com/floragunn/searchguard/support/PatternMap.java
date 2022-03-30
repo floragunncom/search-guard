@@ -20,8 +20,8 @@ package com.floragunn.searchguard.support;
 import java.util.Collection;
 import java.util.Map;
 
-import com.floragunn.searchsupport.util.ImmutableMap;
-import com.floragunn.searchsupport.util.ImmutableSet;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.google.common.collect.HashMultimap;
 
 public class PatternMap<V> {

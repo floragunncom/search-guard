@@ -24,12 +24,12 @@ import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class ConfigVarApiTest {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,19 +18,17 @@
 package com.floragunn.searchguard.configuration;
 
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 
 public class ConfigMap {
 
-    private final Map<CType<?>, SgDynamicConfiguration<?>> map;
+    private final ImmutableMap<CType<?>, SgDynamicConfiguration<?>> map;
 
-    private ConfigMap(Map<CType<?>, SgDynamicConfiguration<?>> map) {
+    private ConfigMap(ImmutableMap<CType<?>, SgDynamicConfiguration<?>> map) {
         this.map = map;
     }
 
@@ -58,13 +56,15 @@ public class ConfigMap {
     }
 
     public ConfigMap with(ConfigMap newConfigs) {
-        Map<CType<?>, SgDynamicConfiguration<?>> updatedMap = new HashMap<>(this.map);
-        updatedMap.putAll(newConfigs.map);
-        return new ConfigMap(Collections.unmodifiableMap(updatedMap));
+        return new ConfigMap(this.map.with(newConfigs.map));
+    }
+
+    public String getVersionsAsString() {
+        return ImmutableMap.map(this.map, (k) -> k, (v) -> v.getDocVersion()).toString();
     }
 
     public static class Builder {
-        private final Map<CType<?>, SgDynamicConfiguration<?>> map = new HashMap<>();
+        private final ImmutableMap.Builder<CType<?>, SgDynamicConfiguration<?>> map = new ImmutableMap.Builder<>();
 
         public <T> Builder with(SgDynamicConfiguration<T> config) {
             map.put(config.getCType(), config);
@@ -73,7 +73,7 @@ public class ConfigMap {
         }
 
         public ConfigMap build() {
-            return new ConfigMap(Collections.unmodifiableMap(this.map));
+            return new ConfigMap(this.map.build());
         }
     }
 }

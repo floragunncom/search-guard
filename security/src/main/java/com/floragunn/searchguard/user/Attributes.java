@@ -35,6 +35,7 @@ import org.elasticsearch.common.settings.Settings;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.floragunn.codova.config.templates.AttributeSource;
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
@@ -43,7 +44,7 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.searchsupport.util.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
 import com.jayway.jsonpath.Configuration;

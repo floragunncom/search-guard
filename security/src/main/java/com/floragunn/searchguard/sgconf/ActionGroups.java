@@ -26,10 +26,10 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchsupport.util.ImmutableMap;
-import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class ActionGroups {
     private static final Logger log = LogManager.getLogger(ActionGroups.class);

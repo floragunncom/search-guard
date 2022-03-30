@@ -19,9 +19,9 @@ package com.floragunn.searchguard.authc;
 
 import java.util.concurrent.CompletableFuture;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 public interface AuthenticationBackend {
 

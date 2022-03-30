@@ -34,6 +34,7 @@ import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.TypedComponentRegistry;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
@@ -50,7 +51,6 @@ import com.floragunn.searchguard.license.SearchGuardLicenseKey;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableList;
 
 public class LegacySgConfig implements Document<LegacySgConfig> {
 

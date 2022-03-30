@@ -32,7 +32,7 @@ import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authtoken.AuthTokenService;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;

@@ -38,7 +38,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.ImmutableList;

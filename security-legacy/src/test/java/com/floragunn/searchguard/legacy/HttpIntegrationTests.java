@@ -112,9 +112,7 @@ public class HttpIntegrationTests extends SingleClusterTest {
             //Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("_analyze?text=this+is+a+test",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_OK, rh.executeDeleteRequest("/theindex",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("/klingonempire",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
-            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("starfleet/_search", encodeBasicHeader("worf", "worf")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("_search", encodeBasicHeader("worf", "worf")).getStatusCode());
-            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("starfleet/ships/_search?pretty", encodeBasicHeader("worf", "worf")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("searchguard/", encodeBasicHeader("worf", "worf")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("/searchguard/_close", null,encodeBasicHeader("worf", "worf")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("/searchguard/_upgrade", null,encodeBasicHeader("worf", "worf")).getStatusCode());
@@ -140,9 +138,7 @@ public class HttpIntegrationTests extends SingleClusterTest {
     //all  
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePutRequest("_mapping/config?include_type_name=true","{\"i\" : [\"4\"]}",encodeBasicHeader("worf", "worf")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("searchguard/_mget","{\"ids\" : [\"0\"]}",encodeBasicHeader("worf", "worf")).getStatusCode());
-            
-            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("starfleet/ships/_search?pretty", encodeBasicHeader("worf", "worf")).getStatusCode());
-    
+                
             try (Client tc = getInternalTransportClient()) {       
                 tc.index(new IndexRequest("searchguard").type(getType()).id("roles").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("roles", FileHelper.readYamlContent("sg_roles_deny.yml"))).actionGet();
                 ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"roles"})).actionGet();
@@ -159,7 +155,6 @@ public class HttpIntegrationTests extends SingleClusterTest {
                 Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());
             }
             
-            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("starfleet/ships/_search?pretty", encodeBasicHeader("worf", "worf")).getStatusCode());
             HttpResponse res = rh.executeGetRequest("_search?pretty", encodeBasicHeader("nagilum", "nagilum"));
             Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
             Assert.assertTrue(res.getBody().contains("\"value\" : 11"));
@@ -189,22 +184,6 @@ public class HttpIntegrationTests extends SingleClusterTest {
             Assert.assertTrue(res.getBody().contains("\"errors\":false"));
             Assert.assertTrue(res.getBody().contains("\"status\":201"));  
             
-            res = rh.executeGetRequest("_searchguard/authinfo", new BasicHeader("sg_tenant", "unittesttenant"), encodeBasicHeader("worf", "worf"));
-            Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-            Assert.assertTrue(res.getBody().contains("sg_tenants"));
-            Assert.assertTrue(res.getBody().contains("unittesttenant"));
-            Assert.assertTrue(res.getBody().contains("\"kltentrw\":true"));
-            Assert.assertTrue(res.getBody().contains("\"user_name\":\"worf\""));
-            
-            res = rh.executeGetRequest("_searchguard/authinfo", encodeBasicHeader("worf", "worf"));
-            Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-            Assert.assertTrue(res.getBody().contains("sg_tenants"));
-            Assert.assertTrue(res.getBody().contains("\"user_requested_tenant\":null"));
-            Assert.assertTrue(res.getBody().contains("\"kltentrw\":true"));
-            Assert.assertTrue(res.getBody().contains("\"user_name\":\"worf\""));
-            Assert.assertTrue(res.getBody().contains("\"custom_attribute_names\":[]"));
-            Assert.assertFalse(res.getBody().contains("attributes="));
-            
             res = rh.executeGetRequest("_searchguard/authinfo?pretty", encodeBasicHeader("custattr", "nagilum"));
             Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
             Assert.assertTrue(res.getBody().contains("sg_tenants"));
@@ -213,9 +192,6 @@ public class HttpIntegrationTests extends SingleClusterTest {
             Assert.assertTrue(res.getBody().contains("\"custom_attribute_names\" : ["));
             Assert.assertTrue(res.getBody().contains("attr.internal.c3"));
             Assert.assertTrue(res.getBody().contains("attr.internal.c1"));
-            
-            res = rh.executeGetRequest("v2/_search", encodeBasicHeader("custattr", "nagilum"));
-            Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());
             
             res = rh.executeGetRequest("v3/_search", encodeBasicHeader("custattr", "nagilum"));
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());
@@ -487,9 +463,7 @@ public class HttpIntegrationTests extends SingleClusterTest {
             //Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("_analyze?text=this+is+a+test",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_OK, rh.executeDeleteRequest("/theindex",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("/klingonempire",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
-            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("starfleet/_search", encodeBasicHeader("worf", "worf")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("_search", encodeBasicHeader("worf", "worf")).getStatusCode());
-            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("starfleet/ships/_search?pretty", encodeBasicHeader("worf", "worf")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("searchguard/", encodeBasicHeader("worf", "worf")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("/searchguard/_close", null,encodeBasicHeader("worf", "worf")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("/searchguard/_upgrade", null,encodeBasicHeader("worf", "worf")).getStatusCode());
@@ -539,38 +513,6 @@ public class HttpIntegrationTests extends SingleClusterTest {
         Assert.assertTrue(res.getBody().contains("\"errors\":false"));
         Assert.assertTrue(res.getBody().contains("\"status\":201"));  
     }
-    
-    @Test
-    public void test557() throws Exception {
-        final Settings settings = Settings.builder()
-                .put(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, "BOTH")
-                .build();
-        setup(Settings.EMPTY, new DynamicSgConfig(), settings);
-        
-        try (Client tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {
-            
-            tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
-            
-            tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-             
-            tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-             
-            tc.index(new IndexRequest("starfleet_academy").type("students").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            
-        }
-        
-        final RestHelper rh = nonSslRestHelper();
-
-        HttpResponse res = rh.executePostRequest("/*/_search", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":10}}}}", encodeBasicHeader("nagilum", "nagilum"));
-        System.out.println(res.getBody());
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());  
-        Assert.assertTrue(res.getBody().contains("starfleet_academy"));
-        res = rh.executePostRequest("/*/_search", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":10}}}}", encodeBasicHeader("557", "nagilum"));
-        System.out.println(res.getBody());
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());  
-        Assert.assertTrue(res.getBody().contains("starfleet_academy"));  
-    }
-    
   
     @Ignore // Fails because the NOOP auth domain no longer allows impersonation. Are there any real-life uses for this?
     @Test

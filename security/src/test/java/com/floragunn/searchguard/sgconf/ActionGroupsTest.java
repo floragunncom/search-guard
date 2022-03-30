@@ -24,12 +24,12 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchsupport.util.ImmutableMap;
-import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class ActionGroupsTest {
 

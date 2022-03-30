@@ -36,6 +36,7 @@ import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -45,7 +46,6 @@ import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class LdapIntegrationTest {
     // @ClassRule

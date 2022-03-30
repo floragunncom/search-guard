@@ -23,7 +23,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.client.Client;
 
-import com.floragunn.searchsupport.util.ImmutableSet;
+import com.floragunn.fluent.collections.ImmutableSet;
 
 public class TestAlias {
 

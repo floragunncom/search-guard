@@ -89,6 +89,16 @@
 			</snapshots>
 		</repository>
 		<repository>
+			<id>alpha</id>
+			<url>https://maven.search-guard.com:443/search-guard-suite-alpha</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>		
+		<repository>
 			<id>snapshot</id>
 			<url>https://maven.search-guard.com:443/search-guard-suite-snapshot</url>
 			<releases>
@@ -337,6 +347,12 @@
 				<groupId>com.floragunn</groupId>
 				<artifactId>codova-sg</artifactId>
 				<version>${project.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.floragunn</groupId>
+				<artifactId>fluent-collections</artifactId>
+				<version>0.1.0</version>
 			</dependency>
 
 			<dependency>

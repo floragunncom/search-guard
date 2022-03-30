@@ -27,7 +27,7 @@ import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.util.Strings;
 
-import com.floragunn.searchsupport.util.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 public class TestJwts {

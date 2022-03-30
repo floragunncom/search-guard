@@ -17,24 +17,31 @@
 
 package com.floragunn.searchguard.privileges;
 
+import java.util.Map;
+
 import org.elasticsearch.action.ActionRequest;
 
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.sgconf.SgRoles;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.user.User;
 
 public interface PrivilegesInterceptor {
 
-    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user,
-            final ResolvedIndices requestedResolved, SgRoles sgRoles);
-    
-    public boolean isEnabled();
-    
-    public String getKibanaIndex();
-    
-    public String getKibanaServerUser();
+    InterceptionResult replaceKibanaIndex(
+            PrivilegesEvaluationContext context, ActionRequest request, Action action, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException;
 
-    public enum InterceptionResult {
+    Map<String, Boolean> mapTenants(User user, ImmutableSet<String> roles, ActionAuthorization actionAuthorization);
+
+    boolean isEnabled();
+
+    String getKibanaIndex();
+
+    String getKibanaServerUser();
+
+    enum InterceptionResult {
         ALLOW, DENY, NORMAL
     }
 }

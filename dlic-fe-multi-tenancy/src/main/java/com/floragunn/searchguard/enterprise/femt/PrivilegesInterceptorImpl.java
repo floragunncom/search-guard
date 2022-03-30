@@ -20,8 +20,8 @@ import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.Interce
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -55,16 +55,23 @@ import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
-import com.floragunn.searchguard.sgconf.SgRoles;
-import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
     private static final String USER_TENANT = "__user__";
+
+    private final Action KIBANA_ALL_SAVED_OBJECTS_WRITE;
+    private final Action KIBANA_ALL_SAVED_OBJECTS_READ;
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final String kibanaServerUsername;
@@ -72,10 +79,10 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     private final String kibanaIndexNamePrefix;
     private final Pattern versionedKibanaIndexPattern;
     private final Pattern kibanaIndexPatternWithTenant;
-    private final Predicate<String> isTenantValid;
+    private final ImmutableSet<String> tenantNames;
     private final boolean enabled;
 
-    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, Predicate<String> isTenantValid) {
+    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, ImmutableSet<String> tenantNames, Actions actions) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
@@ -84,52 +91,60 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
                 .compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+)?(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)");
         this.kibanaIndexPatternWithTenant = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+(_[0-9]{3})?)");
 
-        this.isTenantValid = isTenantValid;
+        this.tenantNames = tenantNames.with("SGS_GLOBAL_TENANT");
+        this.KIBANA_ALL_SAVED_OBJECTS_WRITE = actions.get("kibana:saved_objects/_/write");
+        this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
     }
 
-    private boolean isTenantAllowed(final ActionRequest request, final String action, final User user, SgRoles sgRoles,
-            final String requestedTenant) {
+    private boolean isTenantAllowed(PrivilegesEvaluationContext context, ActionRequest request, Action action, String requestedTenant,
+            ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
 
-        if (!isTenantValid.test(requestedTenant)) {
-            log.warn("Invalid tenant: " + requestedTenant + "; user: " + user);
+        if (!isTenantValid(requestedTenant)) {
+            log.warn("Invalid tenant: " + requestedTenant + "; user: " + context.getUser());
 
             return false;
         }
 
-        TenantPermissions tenantPermissions = sgRoles.getTenantPermissions(user, requestedTenant);
+        if (requestedTenant.equals(USER_TENANT)) {
+            return true;
+        }
 
-        if (!tenantPermissions.isReadPermitted()) {
-            log.warn("Tenant {} is not allowed for user {}", requestedTenant, user.getName());
+        boolean hasReadPermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, requestedTenant).isOk();
+        boolean hasWritePermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, requestedTenant).isOk();
+
+        hasReadPermission |= hasWritePermission;
+
+        if (!hasReadPermission) {
+            log.warn("Tenant {} is not allowed for user {}", requestedTenant, context.getUser().getName());
             return false;
-        } else {
+        }
 
-            if (log.isDebugEnabled()) {
-                log.debug("request " + request.getClass());
-            }
-
-            if (!tenantPermissions.isWritePermitted() && action.startsWith("indices:data/write")) {
-                log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, user.getName());
-                return false;
-            }
+        if (!hasWritePermission && action.name().startsWith("indices:data/write")) {
+            log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, context.getUser().getName());
+            return false;
         }
 
         return true;
     }
 
     @Override
-    public InterceptionResult replaceKibanaIndex(final ActionRequest request, final String action, final User user,
-            final ResolvedIndices requestedResolved, SgRoles sgRoles) {
+    public InterceptionResult replaceKibanaIndex(
+            PrivilegesEvaluationContext context, ActionRequest request, Action action, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
 
         if (!enabled) {
             return NORMAL;
         }
 
+        User user = context.getUser();
+        ResolvedIndices requestedResolved = context.getRequestInfo().getResolvedIndices();
+        
         if (user.getName().equals(kibanaServerUsername)) {
             return NORMAL;
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("replaceKibanaIndex(" + action + ", " + user + ")\nrequestedResolved: " + requestedResolved);
+            log.debug("replaceKibanaIndex(" + action + ", " + user + ")\nrequestedResolved: " + requestedResolved + "\nrequestedTenant: "
+                    + user.getRequestedTenant());
         }
 
         IndexInfo kibanaIndexInfo = checkForExclusivelyUsedKibanaIndexOrAlias(request, requestedResolved);
@@ -151,13 +166,13 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
                 // The original implementation allows these requests to pass with normal privileges if the sgtenant header is null. Tenant privileges are ignored then.
                 // Integration tests (such as test_multitenancy_mget) are relying on this behaviour.
                 return NORMAL;
-            } else if (isTenantAllowed(request, action, user, sgRoles, "SGS_GLOBAL_TENANT")) {
+            } else if (isTenantAllowed(context, request, action, "SGS_GLOBAL_TENANT", actionAuthorization)) {
                 return NORMAL;
             } else {
                 return DENY;
             }
         } else {
-            if (isTenantAllowed(request, action, user, sgRoles, requestedTenant)) {
+            if (isTenantAllowed(context, request, action, requestedTenant, actionAuthorization)) {
                 if (kibanaIndexInfo.isReplacementNeeded()) {
                     replaceIndex(request, kibanaIndexInfo.originalName, kibanaIndexInfo.toInternalIndexName(user), action, user);
                 }
@@ -173,7 +188,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
     }
 
-    private void replaceIndex(ActionRequest request, String oldIndexName, String newIndexName, String action, User user) {
+    private void replaceIndex(ActionRequest request, String oldIndexName, String newIndexName, Action action, User user) {
         boolean kibOk = false;
 
         if (log.isDebugEnabled()) {
@@ -468,4 +483,38 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     public String getKibanaServerUser() {
         return kibanaServerUsername;
     }
+
+    @Override
+    public Map<String, Boolean> mapTenants(User user, ImmutableSet<String> roles, ActionAuthorization actionAuthorization) {
+        if (user == null) {
+            return ImmutableMap.empty();
+        }
+
+        ImmutableMap.Builder<String, Boolean> result = new ImmutableMap.Builder<>(roles.size());
+        result.put(user.getName(), true);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, roles, null, null, false, null);
+        
+        for (String tenant : this.tenantNames) {
+            try {
+                boolean hasReadPermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, tenant).isOk();
+                boolean hasWritePermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, tenant).isOk();
+
+                if (hasWritePermission) {
+                    result.put(tenant, true);
+                } else if (hasReadPermission) {
+                    result.put(tenant, false);
+                }
+            } catch (PrivilegesEvaluationException e) {
+                log.error("Error while evaluating privileges for " + user + " " + tenant, e);
+            }
+        }
+
+        return result.build();
+    }
+
+    private boolean isTenantValid(String tenant) {
+        return User.USER_TENANT.equals(tenant) || tenantNames.contains(tenant);
+    }
+
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -44,15 +44,22 @@ import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
+import com.floragunn.searchguard.authz.DocumentAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.dlsfls.filter.DlsFilterLevelActionHandler;
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SgUtils;
+import com.floragunn.searchguard.user.User;
 
 public class DlsFlsValveImpl implements DlsFlsRequestValve {
     private static final String MAP_EXECUTION_HINT = "map";
@@ -65,10 +72,11 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
     private final Mode mode;
     private final DlsQueryParser dlsQueryParser;
     private final IndexNameExpressionResolver resolver;
-
+    private final PrivilegesEvaluator privilegesEvaluator;
+    
     public DlsFlsValveImpl(Settings settings, Client nodeClient, ClusterService clusterService, IndexNameExpressionResolver resolver,
-            GuiceDependencies guiceDependencies, NamedXContentRegistry namedXContentRegistry, ThreadContext threadContext) {
-        super();
+            GuiceDependencies guiceDependencies, NamedXContentRegistry namedXContentRegistry, ThreadContext threadContext,
+            ConfigurationRepository configurationRepository, PrivilegesEvaluator privilegesEvaluator) {
         this.nodeClient = nodeClient;
         this.clusterService = clusterService;
         this.resolver = resolver;
@@ -76,6 +84,34 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         this.threadContext = threadContext;
         this.mode = Mode.get(settings);
         this.dlsQueryParser = new DlsQueryParser(namedXContentRegistry);
+        this.privilegesEvaluator = privilegesEvaluator;
+        
+        /*
+        configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
+
+            @Override
+            public void onChange(ConfigMap configMap) {              
+                SgDynamicConfiguration<Role> roles = configMap.get(CType.ROLES);
+                ActionGroups actionGroups = new ActionGroups(configMap.get(CType.ACTIONGROUPS));
+
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, actionGroups, actions,
+                        clusterService.state().metadata().indices().keySet());
+            }
+        });
+
+        clusterService.addListener(new ClusterStateListener() {
+
+            @Override
+            public void clusterChanged(ClusterChangedEvent event) {
+            
+                DocumentAuthorization documentAuthorization = DlsFlsValveImpl.this.documentAuthorization;
+
+                if (documentAuthorization != null) {
+                    documentAuthorization.updateIndices(event.state().metadata().indices().keySet());
+                }
+            }
+        });
+        */
     }
 
     /**
@@ -84,23 +120,36 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
      * @param listener
      * @return false on error
      */
-    public boolean invoke(String action, ActionRequest request, final ActionListener<?> listener, EvaluatedDlsFlsConfig evaluatedDlsFlsConfig,
-            final boolean localHashingEnabled, final ResolvedIndices resolved) {
-
-        if (log.isDebugEnabled()) {
-            log.debug("DlsFlsValveImpl.invoke()\nrequest: " + request + "\nevaluatedDlsFlsConfig: " + evaluatedDlsFlsConfig + "\nresolved: "
-                    + resolved + "\nmode: " + mode);
-        }
-
-        if (evaluatedDlsFlsConfig == null || evaluatedDlsFlsConfig.isEmpty()) {
-            return true;
-        }
+    public boolean invoke(User user, ImmutableSet<String> mappedRoles, String action, ActionRequest request, ActionListener<?> listener,
+            boolean localHashingEnabled, ResolvedIndices resolved,
+            SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
 
         if (threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE) != null) {
             if (log.isDebugEnabled()) {
                 log.debug("DLS is already done for: " + threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE));
             }
 
+            return true;
+        }
+        
+        if (log.isDebugEnabled()) {
+            log.debug("DlsFlsValveImpl.invoke()\nrequest: " + request + "\nresolved: "
+                    + resolved + "\nmode: " + mode);
+        }
+
+        DocumentAuthorization documentAuthorization = specialPrivilegesEvaluationContext != null
+                ? specialPrivilegesEvaluationContext.getDocumentAuthorization()
+                : this.privilegesEvaluator.getDocumentAuthorization();
+      
+        EvaluatedDlsFlsConfig evaluatedDlsFlsConfig;
+        try {
+            evaluatedDlsFlsConfig = documentAuthorization.getDlsFlsConfig(user, mappedRoles, null);
+        } catch (PrivilegesEvaluationException e) {
+            log.error("Error while evaluating DLS/FLS configuration", e);
+            throw new ElasticsearchSecurityException("Error while evaluating DLS/FLS configuration", e);
+        }
+        
+        if (evaluatedDlsFlsConfig == null || evaluatedDlsFlsConfig.isEmpty() || resolved == null) {
             return true;
         }
 

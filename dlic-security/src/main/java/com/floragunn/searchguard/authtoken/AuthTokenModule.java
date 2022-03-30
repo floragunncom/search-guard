@@ -38,6 +38,7 @@ import org.elasticsearch.script.ScriptService;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
@@ -68,7 +69,6 @@ import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchsupport.util.ImmutableList;
 
 public class AuthTokenModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(AuthTokenModule.class);
@@ -108,13 +108,13 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(baseDependencies.getConfigurationRepository(),
                 baseDependencies.getStaticSgConfig(), privilegedConfigClient, baseDependencies.getProtectedConfigIndexService(),
-                baseDependencies.getDynamicConfigFactory(), baseDependencies.getSettings());
+                baseDependencies.getActions(), baseDependencies.getSettings(), baseDependencies.getPrivilegesEvaluator());
 
         componentState.addPart(configHistoryService.getComponentState());
 
-        authTokenService = new AuthTokenService(privilegedConfigClient, configHistoryService, baseDependencies.getSettings(),
-                baseDependencies.getThreadPool(), baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService(), null,
-                componentState);
+        authTokenService = new AuthTokenService(privilegedConfigClient, baseDependencies.getPrivilegesEvaluator(), configHistoryService,
+                baseDependencies.getSettings(), baseDependencies.getThreadPool(), baseDependencies.getClusterService(),
+                baseDependencies.getProtectedConfigIndexService(), baseDependencies.getActions(), null, componentState);
 
         AuthTokenAuthenticationDomain authenticationBackend = new AuthTokenAuthenticationDomain(authTokenService);
 

@@ -573,7 +573,7 @@ public class RestApiTest {
 
             Assert.assertEquals(watchLog.toString(), Status.Code.EXECUTION_FAILED, watchLog.getStatus().getCode());
             Assert.assertTrue(watchLog.toString(), watchLog.getStatus().getDetail().contains("Error while executing SearchInput testsearch"));
-            Assert.assertTrue(watchLog.toString(), watchLog.getStatus().getDetail().contains("no permissions for [indices:data/read/search]"));
+            Assert.assertTrue(watchLog.toString(), watchLog.getStatus().getDetail().contains("Insufficient permissions"));
         }
     }
 
@@ -805,7 +805,7 @@ public class RestApiTest {
             ActionLog actionLog = watchLog.getActions().get(0);
 
             Assert.assertEquals(actionLog.toString(), Status.Code.ACTION_FAILED, actionLog.getStatus().getCode());
-            Assert.assertTrue(actionLog.toString(), actionLog.getStatus().getDetail().contains("no permissions for [indices:data/write/index]"));
+            Assert.assertTrue(actionLog.toString(), actionLog.getStatus().getDetail().contains("Insufficient permissions"));
 
         }
     }

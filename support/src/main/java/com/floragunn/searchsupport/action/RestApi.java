@@ -49,8 +49,8 @@ import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchsupport.client.rest.Responses;
-import com.floragunn.searchsupport.util.ImmutableMap;
 
 public class RestApi extends BaseRestHandler {
     private static final Logger log = LogManager.getLogger(RestApi.class);

@@ -52,12 +52,12 @@ import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
 import com.floragunn.searchguard.authc.rest.AuthczComponentContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
-import com.floragunn.searchguard.privileges.PrivilegesEvaluator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.ssl.transport.DefaultPrincipalExtractor;
@@ -229,7 +229,7 @@ public class ReflectionHelper {
 
     public static DlsFlsRequestValve instantiateDlsFlsValve(Settings settings, Client nodeClient, ClusterService clusterService,
             IndexNameExpressionResolver resolver, GuiceDependencies guiceDependencies, NamedXContentRegistry namedXContentRegistry,
-            ThreadContext threadContext) {
+            ThreadContext threadContext, ConfigurationRepository configurationRepository, PrivilegesEvaluator privilegesEvaluator) {
 
         if (enterpriseModulesDisabled()) {
             return new DlsFlsRequestValve.NoopDlsFlsRequestValve();
@@ -239,8 +239,9 @@ public class ReflectionHelper {
             final Class<?> clazz = Class.forName("com.floragunn.searchguard.dlsfls.DlsFlsValveImpl");
             final DlsFlsRequestValve ret = (DlsFlsRequestValve) clazz
                     .getConstructor(Settings.class, Client.class, ClusterService.class, IndexNameExpressionResolver.class, GuiceDependencies.class,
-                            NamedXContentRegistry.class, ThreadContext.class)
-                    .newInstance(settings, nodeClient, clusterService, resolver, guiceDependencies, namedXContentRegistry, threadContext);
+                            NamedXContentRegistry.class, ThreadContext.class, ConfigurationRepository.class, PrivilegesEvaluator.class)
+                    .newInstance(settings, nodeClient, clusterService, resolver, guiceDependencies, namedXContentRegistry, threadContext,
+                            configurationRepository, privilegesEvaluator);
             return ret;
         } catch (final Throwable e) {
             log.warn("Unable to enable DLS/FLS Valve Module due to {}",

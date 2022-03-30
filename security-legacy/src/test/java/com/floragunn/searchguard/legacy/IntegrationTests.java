@@ -123,14 +123,14 @@ public class IntegrationTests extends SingleClusterTest {
                 tc.admin().indices().putMapping(new PutMappingRequest("test").type("typex").source("fieldx","type=text")).actionGet();
                 Assert.fail();
             } catch (ElasticsearchSecurityException e) {
-                Assert.assertTrue(e.toString(),e.getMessage().contains("no permissions for"));
+                Assert.assertTrue(e.toString(),e.getMessage().contains("Insufficient permissions"));
             }          
             
             try {
                 tc.admin().cluster().reroute(new ClusterRerouteRequest()).actionGet();
                 Assert.fail();
             } catch (ElasticsearchSecurityException e) {
-                Assert.assertTrue(e.toString(),e.getMessage().contains("no permissions for [cluster:admin/reroute]"));
+                Assert.assertTrue(e.toString(),e.getMessage().contains("Insufficient permissions"));
             }
             
             WhoAmIResponse wres = tc.execute(WhoAmIAction.INSTANCE, new WhoAmIRequest()).actionGet();                

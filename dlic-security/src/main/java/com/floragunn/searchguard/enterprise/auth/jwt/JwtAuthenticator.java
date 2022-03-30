@@ -48,6 +48,7 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
@@ -63,7 +64,6 @@ import com.floragunn.searchguard.enterprise.auth.oidc.OpenIdProviderClient;
 import com.floragunn.searchguard.enterprise.auth.oidc.SelfRefreshingKeySet;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchsupport.util.ImmutableList;
 import com.google.common.base.Strings;
 
 public class JwtAuthenticator implements HTTPAuthenticator {

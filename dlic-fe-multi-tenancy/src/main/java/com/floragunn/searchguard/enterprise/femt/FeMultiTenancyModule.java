@@ -17,6 +17,7 @@ package com.floragunn.searchguard.enterprise.femt;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
@@ -37,23 +38,27 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
-import com.floragunn.searchguard.privileges.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
-import com.floragunn.searchguard.sgconf.SgRoles;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ReflectionHelper;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.util.ImmutableSet;
 import com.google.common.collect.ImmutableList;
 
 public class FeMultiTenancyModule implements SearchGuardModule, ComponentStateProvider {
@@ -71,7 +76,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     // XXX Hack to trigger early initialization of FeMultiTenancyConfig
     @SuppressWarnings("unused")
     private static final CType<FeMultiTenancyConfig> TYPE = FeMultiTenancyConfig.TYPE;
-    
+
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
 
@@ -109,12 +114,14 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
             SgDynamicConfiguration<TenantV7> tenantConfig = configMap.get(CType.TENANTS);
 
-            tenantNames = ImmutableSet.of(tenantConfig.getCEntries().keySet());
+            ImmutableSet<String> tenantNames = ImmutableSet.of(tenantConfig.getCEntries().keySet());
+
+            this.tenantNames = tenantNames;
 
             if (feMultiTenancyConfig != null) {
                 if (feMultiTenancyConfig.isEnabled()) {
                     enabled = true;
-                    interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, (t) -> User.USER_TENANT.equals(t) || tenantConfig.getCEntry(t) != null);
+                    interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, tenantNames, baseDependencies.getActions());
                 } else {
                     enabled = false;
                     componentState.setState(State.SUSPENDED, "disabled_by_config");
@@ -123,12 +130,11 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                 enabled = false;
             }
 
-            
             if (log.isDebugEnabled()) {
                 log.debug("Using MT config: " + feMultiTenancyConfig + "\nenabled: " + enabled + "\ninterceptor: " + interceptorImpl);
             }
         });
-        
+
         ReflectionHelper.addLoadedModule(FeMultiTenancyModule.class);
 
         return Arrays.asList(privilegesInterceptor);
@@ -137,10 +143,10 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     private final PrivilegesInterceptor privilegesInterceptor = new PrivilegesInterceptor() {
 
         @Override
-        public InterceptionResult replaceKibanaIndex(ActionRequest request, String action, User user, ResolvedIndices requestedResolved,
-                SgRoles sgRoles) {
+        public InterceptionResult replaceKibanaIndex(PrivilegesEvaluationContext context, ActionRequest request, Action action,
+                ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
             if (enabled && interceptorImpl != null) {
-                return interceptorImpl.replaceKibanaIndex(request, action, user, requestedResolved, sgRoles);
+                return interceptorImpl.replaceKibanaIndex(context, request, action, actionAuthorization);
             } else {
                 return InterceptionResult.NORMAL;
             }
@@ -169,6 +175,15 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             }
         }
 
+        @Override
+        public Map<String, Boolean> mapTenants(User user, ImmutableSet<String> roles, ActionAuthorization actionAuthorization) {
+            if (enabled && interceptorImpl != null) {
+                return interceptorImpl.mapTenants(user, roles, actionAuthorization);
+            } else {
+                return ImmutableMap.empty();
+            }
+        }
+
     };
 
     @Override
@@ -192,7 +207,8 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
-        return ImmutableList.of(new TenantInfoAction(settings, restController, this, threadPool, clusterService, adminDns), FeMultiTenancyConfigApi.REST_API);
+        return ImmutableList.of(new TenantInfoAction(settings, restController, this, threadPool, clusterService, adminDns),
+                FeMultiTenancyConfigApi.REST_API);
     }
 
     @Override

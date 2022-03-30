@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import java.time.temporal.TemporalAccessor;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
+import java.util.function.Function;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerationException;
@@ -77,6 +78,7 @@ public class DocWriter {
     private int maxDepth = 100;
     private DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ISO_INSTANT;
     private boolean pretty;
+    private Function<Object, Object> valueMapper;
 
     public DocWriter(JsonFactory jsonFactory) {
         this.jsonFactory = jsonFactory;
@@ -89,6 +91,11 @@ public class DocWriter {
 
     public DocWriter pretty(boolean pretty) {
         this.pretty = pretty;
+        return this;
+    }
+    
+    public DocWriter mapValues(Function<Object, Object> valueMapper) {
+        this.valueMapper = valueMapper;
         return this;
     }
 
@@ -152,6 +159,10 @@ public class DocWriter {
             throw new JsonGenerationException("Max JSON depth exceeded", generator);
         }
 
+        if (this.valueMapper != null) {
+            object = this.valueMapper.apply(object);
+        }
+        
         if (object instanceof Document && !(object instanceof UnparsedDocument)) {
             object = ((Document<?>) object).toBasicObject();
         }

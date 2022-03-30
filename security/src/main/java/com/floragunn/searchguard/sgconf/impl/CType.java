@@ -26,21 +26,21 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.floragunn.codova.documents.Parser;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUser;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
 import com.floragunn.searchguard.authc.session.FrontendAuthcConfig;
 import com.floragunn.searchguard.authc.transport.TransportAuthcConfig;
 import com.floragunn.searchguard.authz.AuthorizationConfig;
+import com.floragunn.searchguard.authz.Role;
 import com.floragunn.searchguard.authz.RoleMapping;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.variables.ConfigVar;
 import com.floragunn.searchguard.license.SearchGuardLicenseKey;
 import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.sgconf.impl.v7.RoleV7;
 import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
-import com.floragunn.searchsupport.util.ImmutableSet;
 
 public class CType<T> {
 
@@ -54,7 +54,7 @@ public class CType<T> {
     public static final CType<ActionGroupsV7> ACTIONGROUPS = new CType<ActionGroupsV7>("actiongroups", "Action Group", 1, ActionGroupsV7.class, null);
     public static final CType<LegacySgConfig> CONFIG = new CType<LegacySgConfig>("config", "Config", 2, LegacySgConfig.class, LegacySgConfig::parse,
             Storage.OPTIONAL);
-    public static final CType<RoleV7> ROLES = new CType<RoleV7>("roles", "Role", 3, RoleV7.class, null);
+    public static final CType<Role> ROLES = new CType<Role>("roles", "Role", 3, Role.class, Role::parse);
     public static final CType<RoleMapping> ROLESMAPPING = new CType<RoleMapping>("rolesmapping", "Role Mapping", 4, RoleMapping.class, RoleMapping::parse);
     public static final CType<TenantV7> TENANTS = new CType<TenantV7>("tenants", "Tenant", 5, TenantV7.class, null);
     public static final CType<BlocksV7> BLOCKS = new CType<BlocksV7>("blocks", "Block", 6, BlocksV7.class, null, Storage.OPTIONAL);
