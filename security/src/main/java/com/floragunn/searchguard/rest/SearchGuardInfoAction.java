@@ -43,6 +43,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentBuilder;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -83,7 +84,16 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     final X509Certificate[] certs = threadContext.getTransient(ConfigConstants.SG_SSL_PEER_CERTIFICATES);
                     final User user = (User)threadContext.getTransient(ConfigConstants.SG_USER);
                     final TransportAddress remoteAddress = (TransportAddress) threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-                    final Set<String> sgRoles = evaluator.mapSgRoles(user, remoteAddress);
+                    
+                    
+                    Set<String> sgRoles = null;
+                    
+                    try {
+                        sgRoles = evaluator.mapSgRoles(user, remoteAddress);                        
+                    } catch (Exception e) {
+                        log.warn("Error while evaluating roles for user " + user, e);
+                        sgRoles = ImmutableSet.empty();
+                    }
                     
                     builder.startObject();
                     builder.field("user", user==null?null:user.toString());
