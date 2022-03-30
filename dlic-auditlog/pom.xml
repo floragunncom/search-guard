@@ -239,21 +239,6 @@
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka-clients</artifactId>
-			<version>2.5.1</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>slf4j-api</artifactId>
-					<groupId>org.slf4j</groupId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.lz4</groupId>
-					<artifactId>lz4-java</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
 			<groupId>com.onelogin</groupId>
 			<artifactId>java-saml</artifactId>
 			<version>2.7.0</version>
@@ -334,26 +319,6 @@
 		</dependency>
 
 		<!-- Only test scoped dependencies hereafter -->
-
-		<dependency>
-			<groupId>org.springframework.kafka</groupId>
-			<artifactId>spring-kafka-test</artifactId>
-			<version>2.5.5.RELEASE</version>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.junit.jupiter</groupId>
-					<artifactId>junit-jupiter-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka-clients</artifactId>
-			<version>2.5.1</version>
-			<scope>test</scope>
-			<classifier>test</classifier>
-		</dependency>
 
 		<dependency>
 			<groupId>org.hamcrest</groupId>
