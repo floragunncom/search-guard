@@ -111,8 +111,7 @@
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>codova-sg</artifactId>
-			<scope>provided</scope>
+			<artifactId>codova</artifactId>
 		</dependency>		
 
 		<dependency>

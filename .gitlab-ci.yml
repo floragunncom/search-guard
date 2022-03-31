@@ -233,27 +233,6 @@ test_sgadmin:
       - .m2/repository
     policy: pull
 
-test_codova:
-  stage: test
-  interruptible: true
-  tags:
-    - openstack-runner
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl codova test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-
-
 test_dlic_security:
   stage: test
   interruptible: true
