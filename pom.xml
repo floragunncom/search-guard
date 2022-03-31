@@ -61,7 +61,6 @@
 		<module>support</module>
 		<module>sgadmin</module>
 		<module>plugin</module>
-		<module>codova</module>		
 		<module>ssl</module>		
 		
 	</modules>
@@ -345,8 +344,8 @@
 							
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>codova-sg</artifactId>
-				<version>${project.version}</version>
+				<artifactId>codova</artifactId>
+				<version>0.1.0</version>
 			</dependency>
 
 			<dependency>
@@ -700,7 +699,6 @@
 				<module>dlic-security-legacy</module>		
 				<module>dlic-fe-multi-tenancy</module>										
 				<module>plugin</module>
-				<module>codova</module>					
 			</modules>
 		</profile>
 

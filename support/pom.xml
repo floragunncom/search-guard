@@ -46,7 +46,7 @@
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>codova-sg</artifactId>
+			<artifactId>codova</artifactId>
 		</dependency>
 
 		<dependency>
