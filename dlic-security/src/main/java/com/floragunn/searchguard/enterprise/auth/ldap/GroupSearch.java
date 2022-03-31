@@ -23,6 +23,7 @@ import java.util.Set;
 
 import com.floragunn.codova.config.net.CacheConfig;
 import com.floragunn.codova.config.templates.AttributeSource;
+import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -30,7 +31,6 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.support.Pattern;
-import com.floragunn.searchguard.user.StringInterpolationException;
 import com.google.common.cache.Cache;
 import com.unboundid.ldap.sdk.DereferencePolicy;
 import com.unboundid.ldap.sdk.Entry;
@@ -71,7 +71,7 @@ public class GroupSearch {
         validationErrors.throwExceptionForPresentErrors();
     }
 
-    Set<Entry> search(LDAPConnection connection, String dn, AttributeSource attributeSource) throws LDAPException, StringInterpolationException {
+    Set<Entry> search(LDAPConnection connection, String dn, AttributeSource attributeSource) throws LDAPException, ExpressionEvaluationException {
         return new SearchState(connection, attributeSource).search(dn);
     }
 
@@ -87,7 +87,7 @@ public class GroupSearch {
             this.attributeSource = attributeSource;
         }
 
-        Set<Entry> search(String dn) throws LDAPException, StringInterpolationException {
+        Set<Entry> search(String dn) throws LDAPException, ExpressionEvaluationException {
             AttributeSource attributeSource;
 
             if (dn != null) {
@@ -133,7 +133,7 @@ public class GroupSearch {
             return result;
         }
 
-        void searchNested(Set<String> dnSet, int currentDepth) throws LDAPException, StringInterpolationException {
+        void searchNested(Set<String> dnSet, int currentDepth) throws LDAPException, ExpressionEvaluationException {
             List<Filter> filters = new ArrayList<>(dnSet.size());
 
             for (String dn : dnSet) {
