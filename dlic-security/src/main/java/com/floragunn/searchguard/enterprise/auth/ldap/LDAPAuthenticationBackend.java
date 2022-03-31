@@ -26,6 +26,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.floragunn.codova.config.templates.AttributeSource;
+import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -41,7 +42,6 @@ import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.authc.base.AuthczResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchguard.user.StringInterpolationException;
 import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.DereferencePolicy;
@@ -195,7 +195,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
             }
         } catch (LDAPException e) {
             throw new AuthenticatorUnavailableException("LDAP user search failed", e.getMessage(), e);
-        } catch (StringInterpolationException e) {
+        } catch (ExpressionEvaluationException e) {
             throw new AuthenticatorUnavailableException("Could not initialize ldap query", e.getMessage(), e);
         }
     }
@@ -205,7 +205,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
             return groupSearch.search(connection, entry.getDN(), AttributeSource.from(credentials.getAttributesForUserMapping()));
         } catch (LDAPException e) {
             throw new AuthenticatorUnavailableException("Error connecting to LDAP backend", e.getMessage(), e);
-        } catch (StringInterpolationException e) {
+        } catch (ExpressionEvaluationException e) {
             throw new AuthenticatorUnavailableException("Configuration error", "Error while constructing filter: " + e.getMessage(), e);
         }
     }
