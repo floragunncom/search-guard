@@ -11,6 +11,22 @@
  * from https://floragunn.com
  * 
  */
+/*
+ * Includes parts from https://github.com/opensearch-project/security/blob/c18a50ac4c5f7116e0e7c3411944d1438f9c44e9/src/main/java/org/opensearch/security/configuration/DlsFlsValveImpl.java
+ * 
+ * Copyright OpenSearch Contributors
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License").
+ *  You may not use this file except in compliance with the License.
+ *  A copy of the License is located at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  or in the "license" file accompanying this file. This file is distributed
+ *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ *  express or implied. See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */ 
 
 package com.floragunn.searchguard.dlsfls;
 
@@ -147,6 +163,15 @@ public class DlsFlsValveImpl implements DlsFlsRequestValve {
         if (request instanceof SearchRequest) {
 
             SearchRequest searchRequest = ((SearchRequest) request);
+            
+            if (searchRequest.source() != null && searchRequest.source().aggregations() != null) {
+                for (AggregationBuilder factory : searchRequest.source().aggregations().getAggregatorFactories()) {
+                    if (factory instanceof TermsAggregationBuilder && ((TermsAggregationBuilder) factory).minDocCount() == 0) {
+                        listener.onFailure(new ElasticsearchSecurityException("min_doc_count 0 is not supported when DLS is activated"));
+                        return false;
+                    }
+                }
+            }
 
             //When we encounter a terms or sampler aggregation with masked fields activated we forcibly
             //need to switch off global ordinals because field masking can break ordering
