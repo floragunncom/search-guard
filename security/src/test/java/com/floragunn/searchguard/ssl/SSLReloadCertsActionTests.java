@@ -29,6 +29,7 @@ import javax.net.ssl.SSLHandshakeException;
 
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -50,6 +51,7 @@ import com.floragunn.searchsupport.json.BasicJsonReader;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+@Ignore
 public class SSLReloadCertsActionTests extends SingleClusterTest {
 
     private final String GET_CERT_DETAILS_ENDPOINT = "/_searchguard/sslinfo?show_server_certs=true";
