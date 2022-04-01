@@ -25,6 +25,7 @@ SGSF_VERSION="${2:-$SG_VERSION_PRE}"
 SG_REPOSITORY="${3:-search-guard-flx-release}"
 SG_PLUGIN_NAME="search-guard-flx"
 SGCTL_VERSION="0.2.5"
+NODE_VERSION="v10.24.1"
 
 if [[ $SG_VERSION =~ .*-os-.* ]]; then
   OS_VERSION=$(echo $SG_VERSION | cut -d- -f3)
@@ -33,10 +34,21 @@ if [[ $SG_VERSION =~ .*-os-.* ]]; then
   SF_NAME="OpenSearch Dashboards"
   SF_LC_NAME_CC="opensearch_dashboards"
   SF_LC_NAME="opensearch-dashboards" 
-  	  
+
+  if [[ "$OS_VERSION" == "1.2.4" || "$OS_VERSION" == "1.2.3" || "$OS_VERSION" == "1.2.2" || "$OS_VERSION" == "1.2.1" ]]; then
+  	OSD_VERSION="1.2.0"
+  	SGSF_VERSION="${SGSF_VERSION/os-1\.2\.?/os-1.2.0}"
+  else
+  	OSD_VERSION="$OS_VERSION"
+  fi
+
   if [[ "$OSTYPE"  == "linux"* ]]; then
     SB_ARCHIVE="opensearch-min-$OS_VERSION-linux-x64.tar.gz"
-    SF_ARCHIVE="opensearch-dashboards-min-$OS_VERSION-linux-x64.tar.gz"
+    SF_ARCHIVE="opensearch-dashboards-min-$OSD_VERSION-linux-x64.tar.gz"
+  elif [[ "$OSTYPE" == "darwin"* ]]; then
+    # since there are no Darwin-specific builds yet, we use the Linux builds
+    SB_ARCHIVE="opensearch-min-$OS_VERSION-linux-x64.tar.gz"
+    SF_ARCHIVE="opensearch-dashboards-min-$OSD_VERSION-linux-x64.tar.gz"
   else
     echo "OpenSearch is right now not available for type $OSTYPE"
     exit
@@ -73,6 +85,25 @@ TLS_TOOL_ARCHIVE="$TLS_TOOL-1.8.tar.gz"
 TLS_TOOL_LINK="https://maven.search-guard.com/search-guard-tlstool/1.8/$TLS_TOOL_ARCHIVE"
 
 # ------------------------------------------------------------------------
+# MacOs / Darwin only: Sanity check, make sure we have a local Node.js
+# installation and it has the correct version. Otherwise we cannot
+# run Dashboards.
+# ------------------------------------------------------------------------
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  NODE="$(which node)"
+  if [ ! -x "$NODE" ]; then
+    echo "No local Node.js executable found. Please make sure you have Node.js version $NODE_VERSION installed and that the node executable is in your PATH."
+    exit 1
+  fi
+  echo "Local node executable found at $NODE"
+  LOCAL_NODE_VERSION=$(node -v)
+  if [[ "$NODE_VERSION" != "$LOCAL_NODE_VERSION" ]]; then
+    echo "Incompatible local node version. Required: $NODE_VERSION, Found: $LOCAL_NODE_VERSION."
+    exit 1
+  fi
+fi
+
+# ------------------------------------------------------------------------
 # Download all necessary components
 # ------------------------------------------------------------------------
 
@@ -91,7 +122,7 @@ if [[ $SG_VERSION =~ .*-os-.* ]]; then
   echo
 
   echo "Downloading OpenSearch Dashboards ... "
-  curl --fail "https://artifacts.opensearch.org/releases/core/opensearch-dashboards/$OS_VERSION/$SF_ARCHIVE" -o $SF_ARCHIVE
+  curl --fail "https://artifacts.opensearch.org/releases/core/opensearch-dashboards/$OSD_VERSION/$SF_ARCHIVE" -o $SF_ARCHIVE
 
 else
 
@@ -390,6 +421,23 @@ tar xfz "$SF_ARCHIVE" -C "$SF_LC_NAME" --strip-components 1
 
 cd "$SF_LC_NAME"
 SF_INSTALL_DIR=$(pwd)
+
+# ------------------------------------------------------------------------
+# MacOS / Darwin only: Since there are no Darwin-specific builds, we use the
+# Linux builds. However, the shipped Node.js binary is not compatible
+# with Darwin. We require a local Node.js installation as prerequisite.
+# To be compatible with the Dashboards start scripts and plugin install
+# scripts, set a symlink from the shipped node directory where the node executable
+# is expected to the local node executable.
+# ------------------------------------------------------------------------
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  echo "Using local node executable at $NODE"
+  echo "Deleting incompatible node executable at $(pwd)/node/bin/node"
+  rm -f "./node/bin/node"
+  echo "Setting symlink from $(pwd)/node/bin/node to $NODE"
+  ln -s $NODE "./node/bin/node"
+fi
 
 # ------------------------------------------------------------------------
 # Install the Search Guard Plugin
