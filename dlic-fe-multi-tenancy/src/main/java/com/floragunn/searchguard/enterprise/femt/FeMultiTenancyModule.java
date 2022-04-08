@@ -47,7 +47,7 @@ import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -56,7 +56,6 @@ import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ReflectionHelper;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.ImmutableList;
@@ -112,7 +111,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
             this.config = feMultiTenancyConfig;
 
-            SgDynamicConfiguration<TenantV7> tenantConfig = configMap.get(CType.TENANTS);
+            SgDynamicConfiguration<Tenant> tenantConfig = configMap.get(CType.TENANTS);
 
             ImmutableSet<String> tenantNames = ImmutableSet.of(tenantConfig.getCEntries().keySet());
 

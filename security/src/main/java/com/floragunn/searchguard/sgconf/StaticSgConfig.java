@@ -6,27 +6,27 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.authz.Role;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class StaticSgConfig {
     private static final Logger log = LogManager.getLogger(StaticSgConfig.class);
 
     private final SgDynamicConfiguration<Role> staticRoles;
-    private final SgDynamicConfiguration<ActionGroupsV7> staticActionGroups;
-    private final SgDynamicConfiguration<TenantV7> staticTenants;
+    private final SgDynamicConfiguration<ActionGroup> staticActionGroups;
+    private final SgDynamicConfiguration<Tenant> staticTenants;
 
     public StaticSgConfig(Settings settings) {
         if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, true)) {
-            staticRoles = readConfig("/static_config/static_roles.yml", Role.class);
-            staticActionGroups = readConfig("/static_config/static_action_groups.yml", ActionGroupsV7.class);
-            staticTenants = readConfig("/static_config/static_tenants.yml", TenantV7.class);
+            staticRoles = readConfig("/static_config/static_roles.yml", CType.ROLES);
+            staticActionGroups = readConfig("/static_config/static_action_groups.yml", CType.ACTIONGROUPS);
+            staticTenants = readConfig("/static_config/static_tenants.yml", CType.TENANTS);
         } else {
             log.info("searchguard.unsupported.load_static_resources is set to false. Static resources will not be loaded.");
             staticRoles = SgDynamicConfiguration.empty();
@@ -82,11 +82,11 @@ public class StaticSgConfig {
         }
     }
 
-    private <ConfigType> SgDynamicConfiguration<ConfigType> readConfig(String resourcePath, Class<ConfigType> configType) {
+    private <ConfigType> SgDynamicConfiguration<ConfigType> readConfig(String resourcePath, CType<ConfigType> configType) {
         try {
-            JsonNode jsonNode = DefaultObjectMapper.YAML_MAPPER.readTree(DynamicConfigFactory.class.getResourceAsStream(resourcePath));
+            DocNode docNode = DocNode.parse(Format.YAML).from(StaticSgConfig.class.getResourceAsStream(resourcePath));
 
-            return SgDynamicConfiguration.fromNode(jsonNode, configType, 2, 0, 0, 0, null);
+            return SgDynamicConfiguration.fromDocNode(docNode, docNode.toJsonString(), configType, 0l, 0l, 0l, null);
         } catch (Exception e) {
             throw new RuntimeException("Error while reading static configuration from " + resourcePath, e);
         }

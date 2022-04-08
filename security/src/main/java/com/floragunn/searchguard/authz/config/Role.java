@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.authz;
+package com.floragunn.searchguard.authz.config;
 
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.documents.DocNode;

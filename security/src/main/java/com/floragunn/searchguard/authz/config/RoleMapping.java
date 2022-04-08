@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.authz;
+package com.floragunn.searchguard.authz.config;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

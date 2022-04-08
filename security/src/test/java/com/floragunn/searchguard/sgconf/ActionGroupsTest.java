@@ -24,12 +24,13 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
 
 public class ActionGroupsTest {
 
@@ -37,9 +38,9 @@ public class ActionGroupsTest {
     public void basicTest() throws Exception {
         TestActionGroup testActionGroups = new TestActionGroup().with("Z", "C", "A").with("A", "A1", "A2", "A3").with("B", "B1", "B2", "B3").with("C",
                 "A", "B", "C1");
-        SgDynamicConfiguration<ActionGroupsV7> config = SgDynamicConfiguration.fromMap(testActionGroups.map, CType.ACTIONGROUPS, null);
+        SgDynamicConfiguration<ActionGroup> config = SgDynamicConfiguration.fromMap(testActionGroups.map, CType.ACTIONGROUPS, null);
 
-        ActionGroups actionGroups = new ActionGroups(config);
+        ActionGroup.FlattenedIndex actionGroups = new ActionGroup.FlattenedIndex(config);
 
         Assert.assertEquals(ImmutableSet.of("C", "A", "A1", "A2", "A3", "C1", "B", "B1", "B2", "B3", "Z"),
                 actionGroups.resolve(ImmutableSet.of("Z")));
@@ -50,9 +51,9 @@ public class ActionGroupsTest {
     @Test
     public void recursionTest() throws Exception {
         TestActionGroup testActionGroups = new TestActionGroup().with("A", "A1", "B").with("B", "B1", "C").with("C", "C1", "A", "D").with("D", "D1");
-        SgDynamicConfiguration<ActionGroupsV7> config = SgDynamicConfiguration.fromMap(testActionGroups.map, CType.ACTIONGROUPS, null);
+        SgDynamicConfiguration<ActionGroup> config = SgDynamicConfiguration.fromMap(testActionGroups.map, CType.ACTIONGROUPS, null);
 
-        ActionGroups actionGroups = new ActionGroups(config);
+        ActionGroup.FlattenedIndex actionGroups = new ActionGroup.FlattenedIndex(config);
 
         Assert.assertEquals(ImmutableSet.of("A", "A1", "B", "B1", "C", "C1", "D", "D1"), actionGroups.resolve(ImmutableSet.of("A")));
         Assert.assertEquals(ImmutableSet.of("A", "A1", "B", "B1", "C", "C1", "D", "D1"), actionGroups.resolve(ImmutableSet.of("C")));
@@ -62,12 +63,11 @@ public class ActionGroupsTest {
 
     @Test
     public void staticActionGroupsSmokeTest() throws Exception {
-        SgDynamicConfiguration<ActionGroupsV7> config = SgDynamicConfiguration.fromNode(
-                DefaultObjectMapper.YAML_MAPPER
-                        .readTree(new InputStreamReader(getClass().getResourceAsStream("/static_config/static_action_groups.yml"))),
-                CType.ACTIONGROUPS, 2, 0, 0, 0, null);
+        SgDynamicConfiguration<ActionGroup> config = SgDynamicConfiguration.fromDocNode(
+                DocNode.parse(Format.YAML).from(new InputStreamReader(getClass().getResourceAsStream("/static_config/static_action_groups.yml"))),
+                null, CType.ACTIONGROUPS, 0l, 0l, 0l, null);
 
-        ActionGroups actionGroups = new ActionGroups(config);
+        ActionGroup.FlattenedIndex actionGroups = new ActionGroup.FlattenedIndex(config);
 
         ImmutableSet<String> resolved = actionGroups.resolve(ImmutableSet.of("SGS_CRUD"));
         Assert.assertTrue(resolved.toString(), resolved.contains("SGS_READ"));

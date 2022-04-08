@@ -44,10 +44,13 @@ import org.elasticsearch.index.IndexNotFoundException;
 
 import com.fasterxml.jackson.core.Base64Variants;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.authz.Role;
-import com.floragunn.searchguard.authz.RoleMapping;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.authz.config.RoleMapping;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
@@ -57,9 +60,6 @@ import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -270,9 +270,9 @@ public class ConfigHistoryService implements ComponentStateProvider {
     private ConfigModel createConfigModelForSnapshot(ConfigSnapshot configSnapshot) {
         SgDynamicConfiguration<Role> roles = configSnapshot.getConfigByType(Role.class).copy();
         SgDynamicConfiguration<RoleMapping> roleMappings = configSnapshot.getConfigByType(RoleMapping.class);
-        SgDynamicConfiguration<ActionGroupsV7> actionGroups = configSnapshot.getConfigByType(ActionGroupsV7.class).copy();
-        SgDynamicConfiguration<TenantV7> tenants = configSnapshot.getConfigByType(TenantV7.class).copy();
-        SgDynamicConfiguration<BlocksV7> blocks = configSnapshot.getConfigByType(BlocksV7.class);
+        SgDynamicConfiguration<ActionGroup> actionGroups = configSnapshot.getConfigByType(ActionGroup.class).copy();
+        SgDynamicConfiguration<Tenant> tenants = configSnapshot.getConfigByType(Tenant.class).copy();
+        SgDynamicConfiguration<Blocks> blocks = configSnapshot.getConfigByType(Blocks.class);
 
         if (blocks == null) {
             blocks = SgDynamicConfiguration.empty();

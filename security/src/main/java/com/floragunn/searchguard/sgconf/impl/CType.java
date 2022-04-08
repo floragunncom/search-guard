@@ -27,21 +27,28 @@ import java.util.stream.Collectors;
 
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUser;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
 import com.floragunn.searchguard.authc.session.FrontendAuthcConfig;
 import com.floragunn.searchguard.authc.transport.TransportAuthcConfig;
-import com.floragunn.searchguard.authz.AuthorizationConfig;
-import com.floragunn.searchguard.authz.Role;
-import com.floragunn.searchguard.authz.RoleMapping;
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.AuthorizationConfig;
+import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.authz.config.RoleMapping;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.variables.ConfigVar;
 import com.floragunn.searchguard.license.SearchGuardLicenseKey;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 
+/**
+ * Defines the types of configuration that Search Guard can manage.
+ * 
+ * IMPORTANT: Do not change the ord attribute. It stems from the time when this type was an enum. 
+ * The attribute is used for ES transport message serialization. Changing it might make rolling updates impossible.
+ * 
+ */
 public class CType<T> {
 
     private static Map<Class<?>, CType<?>> classToEnumMap = new HashMap<>();
@@ -51,13 +58,15 @@ public class CType<T> {
 
     public static final CType<InternalUser> INTERNALUSERS = new CType<InternalUser>("internalusers", "Internal User", 0, InternalUser.class,
             InternalUser::parse);
-    public static final CType<ActionGroupsV7> ACTIONGROUPS = new CType<ActionGroupsV7>("actiongroups", "Action Group", 1, ActionGroupsV7.class, null);
+    public static final CType<ActionGroup> ACTIONGROUPS = new CType<ActionGroup>("actiongroups", "Action Group", 1, ActionGroup.class,
+            ActionGroup::parse);
     public static final CType<LegacySgConfig> CONFIG = new CType<LegacySgConfig>("config", "Config", 2, LegacySgConfig.class, LegacySgConfig::parse,
             Storage.OPTIONAL);
     public static final CType<Role> ROLES = new CType<Role>("roles", "Role", 3, Role.class, Role::parse);
-    public static final CType<RoleMapping> ROLESMAPPING = new CType<RoleMapping>("rolesmapping", "Role Mapping", 4, RoleMapping.class, RoleMapping::parse);
-    public static final CType<TenantV7> TENANTS = new CType<TenantV7>("tenants", "Tenant", 5, TenantV7.class, null);
-    public static final CType<BlocksV7> BLOCKS = new CType<BlocksV7>("blocks", "Block", 6, BlocksV7.class, null, Storage.OPTIONAL);
+    public static final CType<RoleMapping> ROLESMAPPING = new CType<RoleMapping>("rolesmapping", "Role Mapping", 4, RoleMapping.class,
+            RoleMapping::parse);
+    public static final CType<Tenant> TENANTS = new CType<Tenant>("tenants", "Tenant", 5, Tenant.class, Tenant::parse);
+    public static final CType<Blocks> BLOCKS = new CType<Blocks>("blocks", "Block", 6, Blocks.class, Blocks::parse, Storage.OPTIONAL);
 
     public static final CType<ConfigVar> CONFIG_VARS = new CType<ConfigVar>("config_vars", "Config Variable", 7, ConfigVar.class, null,
             Storage.EXTERNAL);
@@ -67,16 +76,16 @@ public class CType<T> {
 
     public static final CType<RestAuthcConfig> AUTHC = new CType<RestAuthcConfig>("authc", "Authc", 10, RestAuthcConfig.class, RestAuthcConfig::parse,
             Storage.OPTIONAL, Arity.SINGLE);
-    
-    public static final CType<TransportAuthcConfig> AUTHC_TRANSPORT = new CType<TransportAuthcConfig>("authc_transport", "Authc for Transport Clients", 11, TransportAuthcConfig.class, TransportAuthcConfig::parse,
-            Storage.OPTIONAL, Arity.SINGLE);
 
-    public static final CType<AuthorizationConfig> AUTHZ = new CType<AuthorizationConfig>("authz", "Authorization", 20, AuthorizationConfig.class, AuthorizationConfig::parse,
-            Storage.OPTIONAL, Arity.SINGLE);
-    
-    public static final CType<SearchGuardLicenseKey> LICENSE_KEY = new CType<SearchGuardLicenseKey>("license_key", "License Key", 30, SearchGuardLicenseKey.class, SearchGuardLicenseKey::parse,
-            Storage.OPTIONAL, Arity.SINGLE);
-    
+    public static final CType<TransportAuthcConfig> AUTHC_TRANSPORT = new CType<TransportAuthcConfig>("authc_transport",
+            "Authc for Transport Clients", 11, TransportAuthcConfig.class, TransportAuthcConfig::parse, Storage.OPTIONAL, Arity.SINGLE);
+
+    public static final CType<AuthorizationConfig> AUTHZ = new CType<AuthorizationConfig>("authz", "Authorization", 20, AuthorizationConfig.class,
+            AuthorizationConfig::parse, Storage.OPTIONAL, Arity.SINGLE);
+
+    public static final CType<SearchGuardLicenseKey> LICENSE_KEY = new CType<SearchGuardLicenseKey>("license_key", "License Key", 30,
+            SearchGuardLicenseKey.class, SearchGuardLicenseKey::parse, Storage.OPTIONAL, Arity.SINGLE);
+
     private final String name;
     private final String uiName;
     private final Class<T> type;
@@ -90,15 +99,18 @@ public class CType<T> {
         this(name, uiName, ord, type, parser, null, Arity.MULTI);
     }
 
-    public CType(String name, String uiName, int ord, Class<T> type, Parser.ReturningValidationResult<T, ConfigurationRepository.Context> parser, Arity arity) {
+    public CType(String name, String uiName, int ord, Class<T> type, Parser.ReturningValidationResult<T, ConfigurationRepository.Context> parser,
+            Arity arity) {
         this(name, uiName, ord, type, parser, null, arity);
     }
 
-    public CType(String name, String uiName, int ord, Class<T> type, Parser.ReturningValidationResult<T, ConfigurationRepository.Context> parser, Storage storage) {
+    public CType(String name, String uiName, int ord, Class<T> type, Parser.ReturningValidationResult<T, ConfigurationRepository.Context> parser,
+            Storage storage) {
         this(name, uiName, ord, type, parser, storage, Arity.MULTI);
     }
-    
-    public CType(String name, String uiName, int ord, Class<T> type, Parser.ReturningValidationResult<T, ConfigurationRepository.Context> parser, Storage storage, Arity arity) {
+
+    public CType(String name, String uiName, int ord, Class<T> type, Parser.ReturningValidationResult<T, ConfigurationRepository.Context> parser,
+            Storage storage, Arity arity) {
         this.name = name;
         this.uiName = uiName;
         this.type = type;

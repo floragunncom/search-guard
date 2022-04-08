@@ -36,7 +36,6 @@ import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
 import com.google.common.collect.ImmutableList;
 
 import inet.ipaddr.AddressStringException;
@@ -54,7 +53,7 @@ public class BlockedIpRegistry {
 
             @Override
             public void onChange(ConfigMap configMap) {
-                SgDynamicConfiguration<BlocksV7> blocks = configMap.get(CType.BLOCKS);
+                SgDynamicConfiguration<Blocks> blocks = configMap.get(CType.BLOCKS);
 
                 if (blocks != null) {
                     blockedNetmasks = ImmutableList.of(reloadBlockedNetmasks(blocks));
@@ -100,7 +99,7 @@ public class BlockedIpRegistry {
     }
     
     
-    private ClientBlockRegistry<IPAddress> reloadBlockedNetmasks(SgDynamicConfiguration<BlocksV7> blocks) {
+    private ClientBlockRegistry<IPAddress> reloadBlockedNetmasks(SgDynamicConfiguration<Blocks> blocks) {
         Function<String, Optional<IPAddress>> parsedIp = s -> {
             IPAddressString ipAddressString = new IPAddressString(s);
             try {
@@ -112,14 +111,14 @@ public class BlockedIpRegistry {
             }
         };
 
-        Tuple<Set<String>, Set<String>> b = readBlocks(blocks, BlocksV7.Type.net_mask);
+        Tuple<Set<String>, Set<String>> b = readBlocks(blocks, Blocks.Type.net_mask);
         Set<IPAddress> allows = b.v1().stream().map(parsedIp).flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty)).collect(Collectors.toSet());
         Set<IPAddress> disallows = b.v2().stream().map(parsedIp).flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty)).collect(Collectors.toSet());
 
         return new IpRangeVerdictBasedBlockRegistry(allows, disallows);
     }
 
-    private ClientBlockRegistry<InetAddress> reloadBlockedIpAddresses(SgDynamicConfiguration<BlocksV7> blocks) {
+    private ClientBlockRegistry<InetAddress> reloadBlockedIpAddresses(SgDynamicConfiguration<Blocks> blocks) {
         Function<String, Optional<InetAddress>> parsedIp = s -> {
             try {
                 return Optional.of(InetAddress.getByName(s));
@@ -129,7 +128,7 @@ public class BlockedIpRegistry {
             }
         };
 
-        Tuple<Set<String>, Set<String>> b = readBlocks(blocks, BlocksV7.Type.ip);
+        Tuple<Set<String>, Set<String>> b = readBlocks(blocks, Blocks.Type.ip);
         Set<InetAddress> allows = b.v1().stream().map(parsedIp).flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty)).collect(Collectors.toSet());
         Set<InetAddress> disallows = b.v2().stream().map(parsedIp).flatMap(o -> o.map(Stream::of).orElseGet(Stream::empty))
                 .collect(Collectors.toSet());
@@ -137,20 +136,20 @@ public class BlockedIpRegistry {
         return new VerdictBasedBlockRegistry<>(InetAddress.class, allows, disallows);
     }
 
-    private Tuple<Set<String>, Set<String>> readBlocks(SgDynamicConfiguration<BlocksV7> blocks, BlocksV7.Type type) {
+    private Tuple<Set<String>, Set<String>> readBlocks(SgDynamicConfiguration<Blocks> blocks, Blocks.Type type) {
         Set<String> allows = new HashSet<>();
         Set<String> disallows = new HashSet<>();
 
-        List<BlocksV7> blocksV7s = blocks.getCEntries().values().stream().filter(b -> b.getType() == type).collect(Collectors.toList());
+        List<Blocks> blocksV7s = blocks.getCEntries().values().stream().filter(b -> b.getType() == type).collect(Collectors.toList());
 
-        for (BlocksV7 blocksV7 : blocksV7s) {
+        for (Blocks blocksV7 : blocksV7s) {
             if (blocksV7.getVerdict() == null) {
                 log.error("No verdict type found in blocks");
                 continue;
             }
-            if (blocksV7.getVerdict() == BlocksV7.Verdict.disallow) {
+            if (blocksV7.getVerdict() == Blocks.Verdict.disallow) {
                 disallows.addAll(blocksV7.getValue());
-            } else if (blocksV7.getVerdict() == BlocksV7.Verdict.allow) {
+            } else if (blocksV7.getVerdict() == Blocks.Verdict.allow) {
                 allows.addAll(blocksV7.getValue());
             } else {
                 log.error("Found unknown verdict type: " + blocksV7.getVerdict());

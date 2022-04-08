@@ -18,34 +18,33 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 
+import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.DocumentAuthorization;
 import com.floragunn.searchguard.authz.LegacyRoleBasedDocumentAuthorization;
-import com.floragunn.searchguard.authz.Role;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
-import com.floragunn.searchguard.authz.RoleMapping;
 import com.floragunn.searchguard.authz.actions.Actions;
-import com.floragunn.searchguard.sgconf.ActionGroups;
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.authz.config.RoleMapping;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.ActionGroupsV7;
-import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 
 public class ConfigModel {
     private final SgDynamicConfiguration<Role> rolesConfig;
     private final SgDynamicConfiguration<RoleMapping> roleMappingConfig;
-    private final SgDynamicConfiguration<ActionGroupsV7> actionGroupsConfig;
-    private final SgDynamicConfiguration<TenantV7> tenantsConfig;
-    private final SgDynamicConfiguration<BlocksV7> blocks;
+    private final SgDynamicConfiguration<ActionGroup> actionGroupsConfig;
+    private final SgDynamicConfiguration<Tenant> tenantsConfig;
+    private final SgDynamicConfiguration<Blocks> blocks;
 
-    private final ActionGroups actionGroups;
+    private final ActionGroup.FlattenedIndex actionGroups;
     private final ActionAuthorization actionAuthorization;
     private final DocumentAuthorization documentAuthorization;
     private final RoleMapping.InvertedIndex roleMapping;
 
     public ConfigModel(SgDynamicConfiguration<Role> roles, SgDynamicConfiguration<RoleMapping> roleMappingConfig,
-            SgDynamicConfiguration<ActionGroupsV7> actionGroupsConfig, SgDynamicConfiguration<TenantV7> tenants,
-            SgDynamicConfiguration<BlocksV7> blocks, Actions actions, Settings esSettings, IndexNameExpressionResolver resolver,
+            SgDynamicConfiguration<ActionGroup> actionGroupsConfig, SgDynamicConfiguration<Tenant> tenants,
+            SgDynamicConfiguration<Blocks> blocks, Actions actions, Settings esSettings, IndexNameExpressionResolver resolver,
             ClusterService clusterService) {
         this.rolesConfig = roles;
         this.roleMappingConfig = roleMappingConfig;
@@ -53,7 +52,7 @@ public class ConfigModel {
         this.tenantsConfig = tenants;
         this.blocks = blocks;
 
-        this.actionGroups = new ActionGroups(actionGroupsConfig);
+        this.actionGroups = new ActionGroup.FlattenedIndex(actionGroupsConfig);
 
         this.actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, null, tenantsConfig.getCEntries().keySet());
         this.documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
@@ -62,7 +61,7 @@ public class ConfigModel {
     }
 
     public ConfigModel(ActionAuthorization actionAuthorization, DocumentAuthorization documentAuthorization, RoleMapping.InvertedIndex roleMapping,
-            ActionGroups actionGroups) {
+            ActionGroup.FlattenedIndex actionGroups) {
         this.actionAuthorization = actionAuthorization;
         this.documentAuthorization = documentAuthorization;
         this.roleMapping = roleMapping;
@@ -86,7 +85,7 @@ public class ConfigModel {
         return roleMapping;
     }
 
-    public ActionGroups getActionGroups() {
+    public ActionGroup.FlattenedIndex getActionGroups() {
         return actionGroups;
     }
 
