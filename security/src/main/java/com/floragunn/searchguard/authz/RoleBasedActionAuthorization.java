@@ -37,20 +37,21 @@ import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
-import com.floragunn.searchguard.sgconf.ActionGroups;
-import com.floragunn.searchguard.sgconf.ConfigModel;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.user.User;
 
 public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
+    private static final String USER_TENANT = "__user__";
 
     private final SgDynamicConfiguration<Role> roles;
-    private final ActionGroups actionGroups;
+    private final ActionGroup.FlattenedIndex actionGroups;
     private final Actions actions;
     private final ImmutableSet<String> tenants;
 
@@ -64,7 +65,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     private volatile StatefulIndexPermssions statefulIndex;
     private final ComponentState statefulIndexState = new ComponentState("index_permissions_stateful");
 
-    public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions, Set<String> indices,
+    public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Set<String> indices,
             Set<String> tenants) {
         this.roles = roles;
         this.actionGroups = actionGroups;
@@ -327,7 +328,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
     private boolean isTenantValid(String requestedTenant) {
 
-        if ("SGS_GLOBAL_TENANT".equals(requestedTenant) || ConfigModel.USER_TENANT.equals(requestedTenant)) {
+        if ("SGS_GLOBAL_TENANT".equals(requestedTenant) || USER_TENANT.equals(requestedTenant)) {
             return true;
         }
 
@@ -341,7 +342,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ImmutableList<PrivilegesEvaluationResult.Error> initializationErrors;
         private final ComponentState componentState;
 
-        ClusterPermissions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions) {
+        ClusterPermissions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions) {
             ImmutableMap.Builder<Action, ImmutableSet.Builder<String>> actionToRoles = new ImmutableMap.Builder<Action, ImmutableSet.Builder<String>>()
                     .defaultValue((k) -> new ImmutableSet.Builder<String>());
             ImmutableSet.Builder<String> rolesWithWildcardPermissions = new ImmutableSet.Builder<>();
@@ -447,7 +448,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ImmutableList<PrivilegesEvaluationResult.Error> initializationErrors;
         private final ComponentState componentState;
 
-        ClusterPermissionExclusions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions) {
+        ClusterPermissionExclusions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions) {
             ImmutableMap.Builder<Action, ImmutableSet.Builder<String>> actionToRoles = new ImmutableMap.Builder<Action, ImmutableSet.Builder<String>>()
                     .defaultValue((k) -> new ImmutableSet.Builder<String>());
             ImmutableMap.Builder<String, Pattern> rolesToActionPattern = new ImmutableMap.Builder<>();
@@ -543,7 +544,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ImmutableList<PrivilegesEvaluationResult.Error> initializationErrors;
         private final ComponentState componentState;
 
-        IndexPermissions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions) {
+        IndexPermissions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions) {
 
             ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>> rolesToActionToIndexPattern = //
                     new ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>>().defaultValue(
@@ -636,7 +637,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
         private final ComponentState componentState;
 
-        IndexPermissionExclusions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions) {
+        IndexPermissionExclusions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions) {
 
             ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>> rolesToActionToIndexPattern = //
                     new ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>>().defaultValue(
@@ -805,7 +806,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
         private final ComponentState componentState;
 
-        StatefulIndexPermssions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions, Set<String> indexNames,
+        StatefulIndexPermssions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Set<String> indexNames,
                 ComponentState componentState) {
             ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToIndexToRoles = //
                     new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
@@ -1008,7 +1009,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ImmutableList<PrivilegesEvaluationResult.Error> initializationErrors;
         private final ComponentState componentState;
 
-        TenantPermissions(SgDynamicConfiguration<Role> roles, ActionGroups actionGroups, Actions actions, ImmutableSet<String> tenants) {
+        TenantPermissions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, ImmutableSet<String> tenants) {
 
             ImmutableMap.Builder<Action, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToTenantToRoles = //
                     new ImmutableMap.Builder<Action, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
@@ -1201,7 +1202,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         return tenants;
     }
 
-    public ActionGroups getActionGroups() {
+    public ActionGroup.FlattenedIndex getActionGroups() {
         return actionGroups;
     }
 

@@ -51,13 +51,10 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.env.Environment;
@@ -76,7 +73,6 @@ import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
@@ -85,7 +81,6 @@ import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgConfigEntry;
@@ -118,7 +113,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     private final Settings settings;
     private final ClusterService clusterService;
-    private DynamicConfigFactory dynamicConfigFactory;
     private final Thread bgThread;
     private final AtomicBoolean installDefaultConfig = new AtomicBoolean();
     private final ComponentState componentState = new ComponentState(1, null, "config_repository", ConfigurationRepository.class);
@@ -264,7 +258,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
                     componentState.setState(State.INITIALIZING, "loading");
 
-                    while (!dynamicConfigFactory.isInitialized()) {
+                    while (ConfigurationRepository.this.currentConfig == null) {
                         componentState.startNextTry();
                         try {
                             LOGGER.debug("Try to load config ...");
@@ -324,10 +318,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
             bgThread.start();
             componentState.addLastException("initOnNodeStart", e2);
         }
-    }
-
-    public void setDynamicConfigFactory(DynamicConfigFactory dynamicConfigFactory) {
-        this.dynamicConfigFactory = dynamicConfigFactory;
     }
 
     /**
@@ -867,27 +857,19 @@ public class ConfigurationRepository implements ComponentStateProvider {
         LOGGER.info("Will update '" + cType + "' with " + filepath);
 
         try (Reader reader = new FileReader(filepath)) {
-            SgDynamicConfiguration<T> config;
 
-            if (cType.getParser() != null) {
-                DocNode docNode = DocNode.parse(Format.YAML).from(reader);
+            DocNode docNode = DocNode.parse(Format.YAML).from(reader);
 
-                if (docNode.isNull()) {
-                    docNode = DocNode.EMPTY;
-                }
-                
-                if (cType.getArity() == CType.Arity.SINGLE) {
-                    config = SgDynamicConfiguration.fromMap(ImmutableMap.of("default", docNode), cType, parserContext);
-                } else {
-                    config = SgDynamicConfiguration.fromMap(docNode, cType, parserContext);                    
-                }
+            if (docNode.isNull()) {
+                docNode = DocNode.EMPTY;
+            }
 
-            } else {
-                config = SgDynamicConfiguration.fromNode(DefaultObjectMapper.YAML_MAPPER.readTree(reader), cType, 2, 0, 0, 0, parserContext);
+            if (cType.getArity() == CType.Arity.SINGLE) {
+                docNode = DocNode.of("default", docNode.toMap());
             }
 
             String res = tc.index(new IndexRequest(index).id(cType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(cType.toLCString(),
-                    toBytesReference(config))).actionGet().getId();
+                    new BytesArray(docNode.toJsonString()))).actionGet().getId();
 
             if (!cType.toLCString().equals(res)) {
                 throw new Exception(
@@ -896,12 +878,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
         } catch (Exception e) {
             throw e;
         }
-    }
-
-    private static BytesReference toBytesReference(ToXContent toXContent) throws IOException {
-        XContentBuilder builder = XContentFactory.jsonBuilder();
-        toXContent.toXContent(builder, ToXContent.EMPTY_PARAMS);
-        return BytesReference.bytes(builder);
     }
 
     public static class ConfigWithMetadata {

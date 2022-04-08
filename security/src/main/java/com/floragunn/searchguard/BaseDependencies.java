@@ -40,7 +40,6 @@ import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.sgconf.DynamicConfigFactory;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 
@@ -55,7 +54,6 @@ public class BaseDependencies {
     private final NamedXContentRegistry xContentRegistry;
     private final Environment environment;
     private final IndexNameExpressionResolver indexNameExpressionResolver;
-    private final DynamicConfigFactory dynamicConfigFactory;
     private final ConfigurationRepository configurationRepository;
     private final ProtectedConfigIndexService protectedConfigIndexService;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
@@ -76,8 +74,8 @@ public class BaseDependencies {
     public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
-            DynamicConfigFactory dynamicConfigFactory, StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository,
-            ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
+            StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository, ProtectedConfigIndexService protectedConfigIndexService,
+            InternalAuthTokenProvider internalAuthTokenProvider,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ConfigVarService configVarService,
             VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog,
             PrivilegesEvaluator privilegesEvaluator, BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry,
@@ -93,7 +91,6 @@ public class BaseDependencies {
         this.environment = environment;
         this.nodeEnvironment = nodeEnvironment;
         this.indexNameExpressionResolver = indexNameExpressionResolver;
-        this.dynamicConfigFactory = dynamicConfigFactory;
         this.staticSgConfig = staticSgConfig;
         this.configurationRepository = configurationRepository;
         this.protectedConfigIndexService = protectedConfigIndexService;
@@ -145,10 +142,6 @@ public class BaseDependencies {
 
     public IndexNameExpressionResolver getIndexNameExpressionResolver() {
         return indexNameExpressionResolver;
-    }
-
-    public DynamicConfigFactory getDynamicConfigFactory() {
-        return dynamicConfigFactory;
     }
 
     public ConfigurationRepository getConfigurationRepository() {

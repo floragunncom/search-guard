@@ -46,6 +46,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.flipkart.zjsonpatch.JsonPatch;
 import com.flipkart.zjsonpatch.JsonPatchApplicationException;
+import com.floragunn.codova.documents.jackson.JacksonJsonNodeAdapter;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -180,8 +181,9 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
         JsonNode updatedAsJsonNode = existingAsObjectNode.deepCopy().set(name, patchedResourceAsJsonNode);
 
-        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromNode(updatedAsJsonNode, existingConfiguration.getCType(),
-                existingConfiguration.getVersion(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm(), null);
+        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(new JacksonJsonNodeAdapter(updatedAsJsonNode), null,
+                existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
+                existingConfiguration.getPrimaryTerm(), null);
 
         saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
@@ -266,8 +268,9 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             }
         }
 
-        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromNode(patchedAsJsonNode, existingConfiguration.getCType(),
-                existingConfiguration.getVersion(),  existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm(), null);
+        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(new JacksonJsonNodeAdapter(patchedAsJsonNode), null,
+                existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
+                existingConfiguration.getPrimaryTerm(), null);
 
         saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 

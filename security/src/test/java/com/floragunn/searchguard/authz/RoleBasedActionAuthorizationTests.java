@@ -28,15 +28,16 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.actions.Actions;
-import com.floragunn.searchguard.sgconf.ActionGroups;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
 
 public class RoleBasedActionAuthorizationTests {
 
-    private static final ActionGroups emptyActionGroups = new ActionGroups(SgDynamicConfiguration.empty());
+    private static final ActionGroup.FlattenedIndex emptyActionGroups = new ActionGroup.FlattenedIndex(SgDynamicConfiguration.empty());
     private static final Actions actions = new Actions(null);
 
     @Test

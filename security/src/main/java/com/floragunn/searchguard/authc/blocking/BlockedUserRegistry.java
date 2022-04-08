@@ -31,7 +31,6 @@ import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.BlocksV7;
 
 public class BlockedUserRegistry {
     protected static final Logger log = LogManager.getLogger(BlockedIpRegistry.class);
@@ -43,7 +42,7 @@ public class BlockedUserRegistry {
 
             @Override
             public void onChange(ConfigMap configMap) {
-                SgDynamicConfiguration<BlocksV7> blocks = configMap.get(CType.BLOCKS);
+                SgDynamicConfiguration<Blocks> blocks = configMap.get(CType.BLOCKS);
 
                 if (blocks != null) {
                     blockedUsers = reloadBlockedUsers(blocks);
@@ -71,25 +70,25 @@ public class BlockedUserRegistry {
     
     
 
-    private ClientBlockRegistry<String> reloadBlockedUsers(SgDynamicConfiguration<BlocksV7> blocks) {
-        Tuple<Set<String>, Set<String>> b = readBlocks(blocks, BlocksV7.Type.name);
+    private ClientBlockRegistry<String> reloadBlockedUsers(SgDynamicConfiguration<Blocks> blocks) {
+        Tuple<Set<String>, Set<String>> b = readBlocks(blocks, Blocks.Type.name);
         return new WildcardVerdictBasedBlockRegistry(b.v1(), b.v2());
     }
 
-    private Tuple<Set<String>, Set<String>> readBlocks(SgDynamicConfiguration<BlocksV7> blocks, BlocksV7.Type type) {
+    private Tuple<Set<String>, Set<String>> readBlocks(SgDynamicConfiguration<Blocks> blocks, Blocks.Type type) {
         Set<String> allows = new HashSet<>();
         Set<String> disallows = new HashSet<>();
 
-        List<BlocksV7> blocksV7s = blocks.getCEntries().values().stream().filter(b -> b.getType() == type).collect(Collectors.toList());
+        List<Blocks> blocksV7s = blocks.getCEntries().values().stream().filter(b -> b.getType() == type).collect(Collectors.toList());
 
-        for (BlocksV7 blocksV7 : blocksV7s) {
+        for (Blocks blocksV7 : blocksV7s) {
             if (blocksV7.getVerdict() == null) {
                 log.error("No verdict type found in blocks");
                 continue;
             }
-            if (blocksV7.getVerdict() == BlocksV7.Verdict.disallow) {
+            if (blocksV7.getVerdict() == Blocks.Verdict.disallow) {
                 disallows.addAll(blocksV7.getValue());
-            } else if (blocksV7.getVerdict() == BlocksV7.Verdict.allow) {
+            } else if (blocksV7.getVerdict() == Blocks.Verdict.allow) {
                 allows.addAll(blocksV7.getValue());
             } else {
                 log.error("Found unknown verdict type: " + blocksV7.getVerdict());

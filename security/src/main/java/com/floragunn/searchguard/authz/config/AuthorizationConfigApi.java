@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.authz;
+package com.floragunn.searchguard.authz.config;
 
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;

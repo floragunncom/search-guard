@@ -23,13 +23,13 @@ import org.elasticsearch.script.ScriptService;
 
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.sgconf.impl.v7.TenantV7;
 import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerAction;
 import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.searchsupport.jobs.actions.TransportCheckForExecutingTriggerAction;
@@ -175,7 +175,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
 
                 @Override
                 public void onChange(ConfigMap configMap) {
-                    SgDynamicConfiguration<TenantV7> tenants = configMap.get(CType.TENANTS);
+                    SgDynamicConfiguration<Tenant> tenants = configMap.get(CType.TENANTS);
 
                     if (tenants != null) {
                         signals.updateTenants(tenants.getCEntries().keySet());

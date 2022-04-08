@@ -35,7 +35,7 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.Role;
+import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.Pattern;
 
