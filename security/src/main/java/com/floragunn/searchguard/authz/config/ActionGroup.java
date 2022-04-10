@@ -109,6 +109,8 @@ public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefin
     }
     
     public static class FlattenedIndex {
+        public static final FlattenedIndex EMPTY = new FlattenedIndex();
+        
         private static final Logger log = LogManager.getLogger(FlattenedIndex.class);
 
         private final ImmutableMap<String, Set<String>> resolvedActionGroups;
@@ -164,6 +166,13 @@ public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefin
             this.resolvedActionGroups = ImmutableMap.of(resolved);
         }
 
+        /**
+         * Private constructor for creating an empty instance
+         */
+        private FlattenedIndex() {
+            this.resolvedActionGroups = ImmutableMap.empty();
+        }
+        
         @Override
         public String toString() {
             return resolvedActionGroups.toString();

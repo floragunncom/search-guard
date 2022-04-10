@@ -19,10 +19,11 @@ package com.floragunn.searchguard.authc;
 
 import java.util.concurrent.CompletableFuture;
 
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
-public interface AuthenticationDomain<AuthenticatorType extends AuthenticationFrontend> {
+public interface AuthenticationDomain<AuthenticatorType extends AuthenticationFrontend> extends ComponentStateProvider {
 
     AuthenticatorType getFrontend();
 

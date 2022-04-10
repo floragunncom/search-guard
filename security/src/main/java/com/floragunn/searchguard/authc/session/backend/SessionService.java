@@ -154,7 +154,7 @@ public class SessionService {
     private JweDecryptionProvider jweDecryptionProvider;
     private boolean initialized = false;
 
-    private volatile MergedAuthczConfig authczConfig;
+    private volatile MergedAuthcConfig authcConfig;
     private volatile ClientAddressAscertainer clientAddressAscertainer;
     private List<AuthFailureListener> ipAuthFailureListeners = ImmutableList.empty();
 
@@ -177,7 +177,7 @@ public class SessionService {
         activityTracker = new SessionActivityTracker(config.getInactivityTimeout() != null ? config.getInactivityTimeout() : Duration.ofHours(1),
                 this, indexName, privilegedConfigClient, threadPool);
 
-        this.configComponentState.addPart(activityTracker.getComponentState());
+        this.componentState.addPart(activityTracker.getComponentState());
 
         this.setConfig(config);
 
@@ -202,25 +202,37 @@ public class SessionService {
                 SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig = configMap.get(CType.FRONTEND_AUTHC);
                 SgDynamicConfiguration<RestAuthcConfig> config = configMap.get(CType.AUTHC);
                 SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
-                RestAuthcConfig restAuthczConfig = null;
+                RestAuthcConfig restAuthcConfig = null;
 
                 if (config != null && config.getCEntry("default") != null) {
-                    restAuthczConfig = config.getCEntry("default");
+                    restAuthcConfig = config.getCEntry("default");
+                    componentState.replacePartsWithType("config", config.getComponentState());
                 } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                    restAuthczConfig = legacyConfig.getCEntry("sg_config").getRestAuthczConfig();
+                    restAuthcConfig = legacyConfig.getCEntry("sg_config").getRestAuthczConfig();
+                    componentState.replacePartsWithType("config", legacyConfig.getComponentState());
                 } else {
                     componentState.setState(State.SUSPENDED, "no_configuration");
                 }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("New configuration:\nFrontendConfig: " + frontendConfig + "\nRestAuthcConfig: " + restAuthczConfig);
+                if (frontendConfig != null) {
+                    componentState.addPart(frontendConfig.getComponentState());
                 }
 
-                authczConfig = new MergedAuthczConfig(frontendConfig, restAuthczConfig);
+                if (log.isDebugEnabled()) {
+                    log.debug("New configuration:\nFrontendConfig: " + frontendConfig + "\nRestAuthcConfig: " + restAuthcConfig);
+                }
+
+                MergedAuthcConfig authcConfig = new MergedAuthcConfig(frontendConfig, restAuthcConfig);
+                SessionService.this.authcConfig = authcConfig;
+                componentState.replacePartsWithType("auth_domain",
+                        authcConfig.getAuthenticationDomains().stream().map((d) -> d.getComponentState()).collect(Collectors.toList()));
+
                 // TODO clientAddressAscertainer from frontend config??
 
                 //   clientAddressAscertainer = ClientAddressAscertainer.create(configMap.get(CType.AUTHCZ).getCEntry("sg_config").getNetwork());
                 clientAddressAscertainer = ClientAddressAscertainer.create(null, (IPAddressCollection) null);
+                configComponentState.initialized();
+                componentState.updateStateFromParts();
             }
         });
     }
@@ -268,7 +280,7 @@ public class SessionService {
             frontendConfigId = "default";
         }
 
-        List<AuthenticationDomain<ApiAuthenticationFrontend>> apiAuthenticationDomains = this.authczConfig.get(frontendConfigId);
+        List<AuthenticationDomain<ApiAuthenticationFrontend>> apiAuthenticationDomains = this.authcConfig.get(frontendConfigId);
 
         if (apiAuthenticationDomains == null) {
             log.error("Cannot determine logoutUrl because frontend config " + frontendConfigId + " is not known: " + user);
@@ -320,10 +332,10 @@ public class SessionService {
 
         String configId = request.get("config_id") != null ? request.get("config_id").toString() : "default";
 
-        List<AuthenticationDomain<ApiAuthenticationFrontend>> apiAuthenticationDomains = this.authczConfig.get(configId);
+        List<AuthenticationDomain<ApiAuthenticationFrontend>> apiAuthenticationDomains = this.authcConfig.get(configId);
 
         if (apiAuthenticationDomains == null) {
-            log.error("Invalid config_id: " + configId + "; available: " + this.authczConfig);
+            log.error("Invalid config_id: " + configId + "; available: " + this.authcConfig);
             onResult.accept(new AuthczResult(AuthczResult.Status.STOP, RestStatus.BAD_REQUEST, "Invalid config_id"));
             return;
         }
@@ -351,7 +363,7 @@ public class SessionService {
         RequestMetaData<RestRequest> requestMetaData = new RequestMetaData<RestRequest>(restRequest, remoteIpAddress, null);
 
         new ApiAuthenticationProcessor(request, requestMetaData, threadContext, apiAuthenticationDomains, adminDns, privilegesEvaluator, auditLog,
-                blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, authczConfig.isDebugEnabled(configId)).authenticate(onResult,
+                blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, authcConfig.isDebugEnabled(configId)).authenticate(onResult,
                         onFailure);
     }
 
@@ -841,6 +853,7 @@ public class SessionService {
     private void init(ProtectedConfigIndexService.FailureListener failureListener) {
         initComplete();
         failureListener.onSuccess();
+        this.componentState.updateStateFromParts();
     }
 
     private synchronized void initComplete() {

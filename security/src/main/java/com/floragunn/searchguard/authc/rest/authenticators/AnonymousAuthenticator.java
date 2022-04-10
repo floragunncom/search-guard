@@ -22,9 +22,11 @@ import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 
-public class AnonymousAuthenticator  implements HTTPAuthenticator {
+public class AnonymousAuthenticator implements HTTPAuthenticator {
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "anonymous").initialized();
 
     @Override
     public String getType() {
@@ -37,4 +39,8 @@ public class AnonymousAuthenticator  implements HTTPAuthenticator {
         return AuthCredentials.forUser("anonymous").build();
     }
 
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
 }

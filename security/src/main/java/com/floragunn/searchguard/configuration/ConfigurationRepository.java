@@ -115,7 +115,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final ClusterService clusterService;
     private final Thread bgThread;
     private final AtomicBoolean installDefaultConfig = new AtomicBoolean();
-    private final ComponentState componentState = new ComponentState(1, null, "config_repository", ConfigurationRepository.class);
+    private final ComponentState componentState = new ComponentState(-1000, null, "config_repository", ConfigurationRepository.class);
     private final PrivilegedConfigClient privilegedConfigClient;
 
     public final static Map<String, ?> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap.of("encoded_config",
@@ -796,6 +796,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     @Override
     public ComponentState getComponentState() {
+        componentState.updateStateFromParts();
         return componentState;
     }
 

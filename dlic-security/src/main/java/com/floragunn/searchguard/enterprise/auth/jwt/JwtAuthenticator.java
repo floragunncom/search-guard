@@ -62,6 +62,7 @@ import com.floragunn.searchguard.enterprise.auth.oidc.JwtVerifier;
 import com.floragunn.searchguard.enterprise.auth.oidc.KeyProvider;
 import com.floragunn.searchguard.enterprise.auth.oidc.OpenIdProviderClient;
 import com.floragunn.searchguard.enterprise.auth.oidc.SelfRefreshingKeySet;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.base.Strings;
@@ -77,6 +78,8 @@ public class JwtAuthenticator implements HTTPAuthenticator {
     private final String jwtUrlParameter;
     private final String requiredAudience;
     private final String requiredIssuer;
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "jwt", JwtAuthenticator.class).initialized()
+            .requiresEnterpriseLicense();
 
     public JwtAuthenticator(DocNode docNode, ConfigurationRepository.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -324,6 +327,11 @@ public class JwtAuthenticator implements HTTPAuthenticator {
         return null;
     }
 
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
+    
     public static TypedComponent.Info<HTTPAuthenticator> INFO = new TypedComponent.Info<HTTPAuthenticator>() {
 
         @Override
@@ -341,4 +349,6 @@ public class JwtAuthenticator implements HTTPAuthenticator {
             return JwtAuthenticator::new;
         }
     };
+
+   
 }

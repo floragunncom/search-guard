@@ -46,6 +46,8 @@ import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInf
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -53,7 +55,7 @@ import com.google.common.cache.Cache;
 
 import inet.ipaddr.IPAddress;
 
-public interface RestAuthenticationProcessor {
+public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
     void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthczResult> onResult,
             Consumer<Exception> onFailure);
@@ -75,17 +77,18 @@ public interface RestAuthenticationProcessor {
         private final boolean debug;
 
         private final RestAuthcConfig authczConfig;
-        private final List<AuthenticationDomain<HTTPAuthenticator>> authenticators;
+        private final List<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains;
         private final ClientAddressAscertainer clientAddressAscertainer;
         private final IPAddressAcceptanceRules ipAddressAcceptanceRules;
         private final List<String> requiredLoginPrivileges = Collections.emptyList();
+        private final ComponentState componentState = new ComponentState("rest_authentication_processor");
 
         private List<AuthFailureListener> ipAuthFailureListeners = ImmutableList.empty();
 
         public Default(RestAuthcConfig config, SearchGuardModulesRegistry modulesRegistry, AdminDNs adminDns, BlockedIpRegistry blockedIpRegistry,
                 BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool, PrivilegesEvaluator privilegesEvaluator) {
             this.authczConfig = config;
-            this.authenticators = authczConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
+            this.authenticationDomains = authczConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
             this.clientAddressAscertainer = ClientAddressAscertainer.create(authczConfig.getNetwork());
             this.ipAddressAcceptanceRules = authczConfig.getNetwork() != null ? authczConfig.getNetwork().getIpAddressAcceptanceRules()
                     : IPAddressAcceptanceRules.ANY;
@@ -100,6 +103,10 @@ public interface RestAuthenticationProcessor {
 
             this.userCache = authczConfig.getUserCacheConfig().build();
             this.impersonationCache = authczConfig.getUserCacheConfig().build();
+            
+            for (AuthenticationDomain<HTTPAuthenticator> authenticationDomain : this.authenticationDomains) {
+                componentState.addPart(authenticationDomain.getComponentState());
+            }
         }
 
         public void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthczResult> onResult,
@@ -140,7 +147,7 @@ public interface RestAuthenticationProcessor {
                 return;
             }
 
-            new RestRequestAuthenticationProcessor(restHandler, requestMetaData, channel, threadContext, authenticators, adminDns,
+            new RestRequestAuthenticationProcessor(restHandler, requestMetaData, channel, threadContext, authenticationDomains, adminDns,
                     privilegesEvaluator, userCache, impersonationCache, auditLog, blockedUserRegistry, ipAuthFailureListeners,
                     requiredLoginPrivileges, debug).authenticate(onResult, onFailure);
 
@@ -149,6 +156,11 @@ public interface RestAuthenticationProcessor {
         @Override
         public boolean isDebugEnabled() {
             return debug;
+        }
+
+        @Override
+        public ComponentState getComponentState() {
+            return componentState;
         }
     }
 }

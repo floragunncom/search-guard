@@ -39,6 +39,7 @@ import org.opensaml.saml.metadata.resolver.MetadataResolver;
 import org.opensaml.saml.metadata.resolver.impl.AbstractReloadingMetadataResolver;
 
 import com.floragunn.dlic.auth.http.jwt.AbstractHTTPJwtAuthenticator;
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.HTTPJwtKeyByOpenIdConnectAuthenticator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
@@ -48,6 +49,7 @@ import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.oidc.BadCredentialsException;
 import com.floragunn.searchguard.enterprise.auth.oidc.KeyProvider;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PemKeyReader;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -82,6 +84,9 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
     private Settings jwtSettings;
     private boolean checkIssuer;
 
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "saml",
+            HTTPSamlAuthenticator.class).initialized().requiresEnterpriseLicense();
+    
     public HTTPSamlAuthenticator(final Settings settings, final Path configPath) {
         try {
             ensureOpenSamlInitialization();
@@ -417,6 +422,9 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
 
     class HTTPJwtAuthenticator extends AbstractHTTPJwtAuthenticator {
 
+        private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "saml_jwt",
+                HTTPJwtAuthenticator.class).initialized().requiresEnterpriseLicense();
+        
         public HTTPJwtAuthenticator(Settings settings, Path configPath) {
             super(settings, configPath);
         }
@@ -443,6 +451,11 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
             };
         }
 
+        @Override
+        public ComponentState getComponentState() {
+            return componentState;
+        }
+
     }
     
     private enum IdpEndpointType {
@@ -467,4 +480,9 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
             return LegacyComponentFactory.adapt(HTTPSamlAuthenticator::new);
         }
     };
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
 }

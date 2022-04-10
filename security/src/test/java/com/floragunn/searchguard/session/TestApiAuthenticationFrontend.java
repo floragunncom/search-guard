@@ -30,9 +30,12 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class TestApiAuthenticationFrontend implements ApiAuthenticationFrontend {
+
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "test").initialized();
 
     public TestApiAuthenticationFrontend(DocNode config, ConfigurationRepository.Context context) throws ConfigValidationException {
 
@@ -67,6 +70,11 @@ public class TestApiAuthenticationFrontend implements ApiAuthenticationFrontend 
         }
 
         return AuthCredentials.forUser(user).backendRoles(roles).build();
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

@@ -48,6 +48,7 @@ import com.floragunn.searchguard.authc.rest.RestAuthenticationProcessor;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -69,10 +70,11 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
     private final BlockedUserRegistry blockedUserRegistry;
 
     private final RestAuthcConfig authczConfig;
-    private final List<AuthenticationDomain<HTTPAuthenticator>> authenticators;
+    private final List<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains;
     private final ClientAddressAscertainer clientAddressAscertainer;
     private final IPAddressAcceptanceRules ipAddressAcceptanceRules;
     private final List<String> requiredLoginPrivileges = Collections.emptyList();
+    private final ComponentState componentState = new ComponentState("legacy_rest_authentication_processor");
 
     private List<AuthFailureListener> ipAuthFailureListeners = ImmutableList.empty();
 
@@ -80,7 +82,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
             BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool,
             PrivilegesEvaluator privilegesEvaluator) {
         this.authczConfig = legacyConfig.getRestAuthczConfig();
-        this.authenticators = authczConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
+        this.authenticationDomains = authczConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
         this.clientAddressAscertainer = ClientAddressAscertainer.create(authczConfig.getNetwork());
         this.ipAddressAcceptanceRules = IPAddressAcceptanceRules.ANY;
 
@@ -94,6 +96,9 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
         this.userCache = authczConfig.getUserCacheConfig().build();
         this.impersonationCache = authczConfig.getUserCacheConfig().build();
 
+        for (AuthenticationDomain<HTTPAuthenticator> authenticationDomain : this.authenticationDomains) {
+            componentState.addPart(authenticationDomain.getComponentState());
+        }
     }
 
     public void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthczResult> onResult,
@@ -131,7 +136,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
             return;
         }
 
-        new LegacyRestRequestAuthenticationProcessor(restHandler, requestMetaData, channel, threadContext, authenticators, adminDns, privilegesEvaluator,
+        new LegacyRestRequestAuthenticationProcessor(restHandler, requestMetaData, channel, threadContext, authenticationDomains, adminDns, privilegesEvaluator,
                 userCache, impersonationCache, auditLog, blockedUserRegistry, ipAuthFailureListeners,
                 requiredLoginPrivileges, false).authenticate(onResult, onFailure);
 
@@ -140,6 +145,11 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
     @Override
     public boolean isDebugEnabled() {
         return false;
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

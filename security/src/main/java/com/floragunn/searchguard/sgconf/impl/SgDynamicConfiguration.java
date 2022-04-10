@@ -41,19 +41,24 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentState.State;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.Hideable;
 import com.floragunn.searchguard.sgconf.StaticDefinable;
 import com.floragunn.searchguard.support.SgUtils;
 import com.google.common.base.Charsets;
 
-public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, RedactableDocument {
+public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, RedactableDocument, ComponentStateProvider {
 
     private static final Logger log = LogManager.getLogger(SgDynamicConfiguration.class);
+
+    private final CType<T> ctype;
+    private final ComponentState componentState;
 
     private final Map<String, T> centries = new LinkedHashMap<>();
     private long seqNo = -1;
     private long primaryTerm = -1;
-    private CType<T> ctype;
     private String uninterpolatedJson;
 
     /**
@@ -63,14 +68,8 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     private long docVersion = -1;
     private ValidationErrors validationErrors;
 
-    public static <T> SgDynamicConfiguration<T> empty() {
-        return new SgDynamicConfiguration<T>();
-    }
-
     public static <T> SgDynamicConfiguration<T> empty(CType<T> type) {
-        SgDynamicConfiguration<T> result = new SgDynamicConfiguration<T>();
-        result.ctype = type;
-        return result;
+        return new SgDynamicConfiguration<T>(type);
     }
 
     public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo, long primaryTerm,
@@ -94,31 +93,18 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
 
     public static <T> SgDynamicConfiguration<T> fromMap(Map<String, ?> map, CType<T> ctype, long docVersion, long seqNo, long primaryTerm,
             ConfigurationRepository.Context parserContext) throws ConfigValidationException {
-        SgDynamicConfiguration<T> sdc;
-        if (ctype != null) {
-            return fromDocNode(DocNode.wrap(map), null, ctype, docVersion, seqNo, primaryTerm, parserContext);
-        } else {
-            sdc = new SgDynamicConfiguration<T>();
-        }
-
-        sdc.ctype = ctype;
-        sdc.seqNo = seqNo;
-        sdc.primaryTerm = primaryTerm;
-        sdc.version = 2;
-        sdc.docVersion = docVersion;
-
-        return sdc;
+        return fromDocNode(DocNode.wrap(map), null, ctype, docVersion, seqNo, primaryTerm, parserContext);
     }
 
     public static <T> SgDynamicConfiguration<T> fromDocNode(DocNode docNode, String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo,
             long primaryTerm, ConfigurationRepository.Context parserContext) throws ConfigValidationException {
-        SgDynamicConfiguration<T> result = new SgDynamicConfiguration<>();
-        result.ctype = ctype;
+        SgDynamicConfiguration<T> result = new SgDynamicConfiguration<>(ctype);
         result.seqNo = seqNo;
         result.primaryTerm = primaryTerm;
         result.docVersion = docVersion;
         result.version = 2;
         result.uninterpolatedJson = uninterpolatedJson;
+        result.componentState.setConfigVersion(docVersion);
 
         if (docNode.hasNonNull("_sg_meta")) {
             result._sg_meta = Meta.parse(docNode.getAsNode("_sg_meta"));
@@ -159,12 +145,21 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
 
         if (validationErrors.hasErrors()) {
             log.error("Errors in configuration " + ctype + "\n" + validationErrors.toDebugString());
+            result.componentState.setState(State.PARTIALLY_INITIALIZED, "has_errors");
+            result.componentState.addDetail(validationErrors.toBasicObject());
+        } else {
+            result.componentState.initialized();
         }
 
         result.validationErrors = validationErrors;
 
         return result;
 
+    }
+
+    public SgDynamicConfiguration(CType<T> ctype) {
+        this.ctype = ctype;
+        this.componentState = new ComponentState(0, "config", ctype.getName());
     }
 
     private Meta _sg_meta;
@@ -360,7 +355,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         return primaryTerm;
     }
 
-    public CType<?> getCType() {
+    public CType<T> getCType() {
         return ctype;
     }
 
@@ -368,7 +363,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         return version;
     }
 
-    public Class<?> getImplementingClass() {
+    public Class<T> getImplementingClass() {
         if (ctype == null) {
             return null;
         }
@@ -377,8 +372,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     }
 
     public SgDynamicConfiguration<T> copy() {
-        SgDynamicConfiguration<T> result = new SgDynamicConfiguration<>();
-        result.ctype = ctype;
+        SgDynamicConfiguration<T> result = new SgDynamicConfiguration<>(this.ctype);
         result.seqNo = seqNo;
         result.primaryTerm = primaryTerm;
         result.docVersion = docVersion;
@@ -424,6 +418,11 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
 
     public ValidationErrors getValidationErrors() {
         return validationErrors;
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

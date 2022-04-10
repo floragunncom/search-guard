@@ -52,11 +52,13 @@ import org.ietf.jgss.GSSManager;
 import org.ietf.jgss.GSSName;
 import org.ietf.jgss.Oid;
 
+import com.floragunn.dlic.auth.http.jwt.keybyoidc.HTTPJwtKeyByOpenIdConnectAuthenticator;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.kerberos.JaasKrbUtil;
 import com.floragunn.searchguard.enterprise.auth.kerberos.KrbConstants;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.base.Strings;
 
@@ -71,6 +73,10 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
     private Set<String> acceptorPrincipal;
     private Path acceptorKeyTabPath;
 
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "kerberos",
+            HTTPSpnegoAuthenticator.class).initialized().requiresEnterpriseLicense();
+
+   
     public HTTPSpnegoAuthenticator(final Settings settings, final Path configPath) {
         super();
         try {
@@ -481,4 +487,10 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
             };
         }
     };
+
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
 }

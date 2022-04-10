@@ -37,6 +37,7 @@ import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 
@@ -44,7 +45,9 @@ public class HTTPClientCertAuthenticator implements LegacyHTTPAuthenticator {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Settings settings;
-
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "clientcert", HTTPClientCertAuthenticator.class)
+            .initialized();
+    
     public HTTPClientCertAuthenticator(final Settings settings, final Path configPath) {
         this.settings = settings;
     }
@@ -126,4 +129,9 @@ public class HTTPClientCertAuthenticator implements LegacyHTTPAuthenticator {
             return LegacyComponentFactory.adapt(HTTPClientCertAuthenticator::new);
         }
     };
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
 }

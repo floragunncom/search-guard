@@ -17,19 +17,18 @@
 
 package com.floragunn.searchguard.authc.rest.authenticators;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class HTTPTrustedOriginAuthenticator implements HTTPAuthenticator {
 
-    protected final Logger log = LogManager.getLogger(this.getClass());
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "trusted_origin").initialized();
 
     public HTTPTrustedOriginAuthenticator(DocNode docNode, ConfigurationRepository.Context context) {
 
@@ -46,5 +45,10 @@ public class HTTPTrustedOriginAuthenticator implements HTTPAuthenticator {
     @Override
     public String getType() {
         return "trusted_origin";
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

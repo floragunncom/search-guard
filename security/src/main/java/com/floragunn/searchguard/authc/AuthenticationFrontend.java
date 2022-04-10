@@ -17,7 +17,9 @@
 
 package com.floragunn.searchguard.authc;
 
-public interface AuthenticationFrontend {
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
+
+public interface AuthenticationFrontend extends ComponentStateProvider {
     /**
      * The type (name) of the authenticator. Only for logging.  
      * @return the type

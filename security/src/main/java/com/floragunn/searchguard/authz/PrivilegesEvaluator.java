@@ -113,7 +113,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private final Client localClient;
     private final Actions actions;
     private final ConfigConstants.RolesMappingResolution rolesMappingResolution;
-    private final ComponentState componentState = new ComponentState(0, "privileges_evaluator", null);
+    private final ComponentState componentState = new ComponentState(10, null, "privileges_evaluator");
 
     private volatile boolean ignoreUnauthorizedIndices = true;
     private volatile boolean debugEnabled = false;

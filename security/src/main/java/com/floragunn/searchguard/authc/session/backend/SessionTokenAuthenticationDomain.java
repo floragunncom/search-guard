@@ -40,6 +40,7 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
@@ -48,10 +49,12 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
 
     private final SessionService sessionService;
     private final SessionAuthenticator authenticator;
+    private final ComponentState componentState = new ComponentState(0, "auth_domain", "session").initialized();
 
     SessionTokenAuthenticationDomain(SessionService sessionService) {
         this.sessionService = sessionService;
         this.authenticator = new SessionAuthenticator(sessionService);
+        this.componentState.addPart(this.authenticator.getComponentState());
     }
 
     @Override
@@ -84,6 +87,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
         private final SessionService sessionService;
         private final String jwtHeaderName;
         private final String subjectKey;
+        private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "session").initialized();
 
         public SessionAuthenticator(SessionService sessionService) {
             this.sessionService = sessionService;
@@ -192,6 +196,11 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
 
             return subject;
         }
+
+        @Override
+        public ComponentState getComponentState() {
+            return componentState;
+        }
     }
 
     @Override
@@ -252,6 +261,11 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
     @Override
     public String toString() {
         return "session";
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

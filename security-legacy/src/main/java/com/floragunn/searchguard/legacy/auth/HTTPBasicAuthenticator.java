@@ -38,13 +38,16 @@ import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.support.HTTPHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthenticationFrontend {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
-
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "basic", HTTPBasicAuthenticator.class)
+            .initialized();
+    
     public HTTPBasicAuthenticator(final Settings settings, final Path configPath) {
 
     }
@@ -115,5 +118,10 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
         return AuthCredentials.forUser(String.valueOf(request.get("user")))
                 .password(String.valueOf(request.get("password")).getBytes(StandardCharsets.UTF_8)).complete().build();
 
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

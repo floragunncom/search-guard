@@ -65,7 +65,7 @@ public class SessionActivityTracker {
     private TimeValue flushInterval;
     private Cancellable job;
     private Random random;
-    private final ComponentState componentState = new ComponentState(1, null, "session_activity_tracker", SessionActivityTracker.class);
+    private final ComponentState componentState = new ComponentState(1, null, "session_activity_tracker", SessionActivityTracker.class).initialized();
     private volatile long lastComponentStateUpdate = -1;
 
     public SessionActivityTracker(Duration inactivityTimeout, SessionService sessionService, String indexName,
@@ -81,7 +81,7 @@ public class SessionActivityTracker {
 
     public void trackAccess(SessionToken authToken) {
         long now = System.currentTimeMillis();
-                
+
         lastAccess.put(authToken.getId(), now + inactivityBeforeExpiryMillis);
 
         if (lastComponentStateUpdate + 10 * 1000 < now) {
@@ -217,7 +217,7 @@ public class SessionActivityTracker {
                     if (log.isDebugEnabled()) {
                         log.debug("No updates for dynamic_expires needed");
                     }
-                    
+
                     componentState.setState(State.INITIALIZED, "Flushed " + lastAccessCopy.size() + " dynamic_expires entries");
 
                     return;
@@ -291,14 +291,13 @@ public class SessionActivityTracker {
             }
 
         };
-        
+
         componentState.setState(State.INITIALIZED, "Flushing " + lastAccessCopy.size() + " dynamic_expires entries");
-        
-        privilegedConfigClient.search(new SearchRequest(indexName).source(new SearchSourceBuilder().query(query).size(1000)).scroll(new TimeValue(10000)), searchListener);
+
+        privilegedConfigClient.search(
+                new SearchRequest(indexName).source(new SearchSourceBuilder().query(query).size(1000)).scroll(new TimeValue(10000)), searchListener);
 
     }
-    
-    
 
     private void restoreLastAccess(Map<String, Long> lastAccessCopy) {
         for (Map.Entry<String, Long> entry : lastAccessCopy.entrySet()) {
