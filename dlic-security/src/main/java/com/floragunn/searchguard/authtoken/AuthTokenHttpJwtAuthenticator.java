@@ -30,6 +30,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
@@ -38,6 +39,8 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
     private final AuthTokenService authTokenService;
     private final String jwtHeaderName;
     private final String subjectKey;
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "sg_auth_token",
+            AuthTokenHttpJwtAuthenticator.class).initialized().requiresEnterpriseLicense();
 
     public AuthTokenHttpJwtAuthenticator(AuthTokenService authTokenService) {
         this.authTokenService = authTokenService;
@@ -146,6 +149,11 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
         }
 
         return subject;
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

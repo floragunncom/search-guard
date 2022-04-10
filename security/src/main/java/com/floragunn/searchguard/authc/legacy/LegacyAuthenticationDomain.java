@@ -43,6 +43,7 @@ import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.authc.transport.TransportAuthenticationDomain.TransportAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -62,6 +63,7 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
     private final Pattern skippedUsers;
     private final IPAddressCollection enabledOnlyForIps;
     private final String infoString;
+    private final ComponentState componentState;
 
     public LegacyAuthenticationDomain(String id, LegacyAuthenticationBackend backend, AuthenticatorType authenticator, boolean challenge, int order,
             Pattern skippedUsers, IPAddressCollection enabledOnlyForIps, ImmutableList<LegacyAuthorizationBackend> authorizationBackends) {
@@ -75,6 +77,14 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
         this.enabledOnlyForIps = enabledOnlyForIps;
         this.authorizationBackends = authorizationBackends;
         this.infoString = buildInfoString();
+        this.componentState = new ComponentState(0, "legacy_auth_domain", id);
+
+        if (authenticator != null) {
+            this.componentState.addPart(authenticator.getComponentState());
+
+        }
+        
+        this.componentState.updateStateFromParts();
     }
 
     public boolean isChallenge() {
@@ -325,5 +335,10 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
         default:
             return false;
         }
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

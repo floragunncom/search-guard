@@ -275,7 +275,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
         SgDynamicConfiguration<Blocks> blocks = configSnapshot.getConfigByType(Blocks.class);
 
         if (blocks == null) {
-            blocks = SgDynamicConfiguration.empty();
+            blocks = SgDynamicConfiguration.empty(CType.BLOCKS);
         }
 
         staticSgConfig.addTo(roles);

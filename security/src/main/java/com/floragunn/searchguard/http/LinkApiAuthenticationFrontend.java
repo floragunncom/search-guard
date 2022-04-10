@@ -30,11 +30,13 @@ import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig.AuthMethod;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction.Request;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class LinkApiAuthenticationFrontend implements ApiAuthenticationFrontend {
 
-    private URI url;
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "link").initialized();
+    private final URI url;
 
     public LinkApiAuthenticationFrontend(DocNode config, ConfigurationRepository.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -57,6 +59,11 @@ public class LinkApiAuthenticationFrontend implements ApiAuthenticationFrontend 
     @Override
     public AuthMethod activateFrontendConfig(AuthMethod frontendConfig, Request request) {
         return frontendConfig.ssoLocation(url.toASCIIString());
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

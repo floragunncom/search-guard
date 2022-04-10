@@ -54,6 +54,7 @@ import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -85,6 +86,9 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
     private MetadataResolver metadataResolver;
     private boolean checkIssuer;
 
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "saml", SamlAuthenticator.class).initialized()
+            .requiresEnterpriseLicense();
+    
     public SamlAuthenticator(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
         ensureOpenSamlInitialization();
 
@@ -513,6 +517,11 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             throw new AuthenticatorUnavailableException("Error while signing SAML request", e);
         }
     }
+    
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
 
     private enum IdpEndpointType {
         SSO, SLO
@@ -535,5 +544,6 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             return SamlAuthenticator::new;
         }
     };
+
 
 }

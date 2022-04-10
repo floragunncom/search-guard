@@ -36,6 +36,7 @@ import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
 import com.floragunn.searchguard.authc.base.UserMapping;
 import com.floragunn.searchguard.authc.transport.TransportAuthenticationDomain.TransportAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
 
 public class TransportAuthenticationDomain extends StandardAuthenticationDomain<TransportAuthenticationFrontend> {
 
@@ -166,9 +167,17 @@ public class TransportAuthenticationDomain extends StandardAuthenticationDomain<
      */
     public static class TransportAuthenticationFrontend implements AuthenticationFrontend {
 
+        private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "transport",
+                TransportAuthenticationFrontend.class).initialized();
+
         @Override
         public String getType() {
             return "transport";
+        }
+
+        @Override
+        public ComponentState getComponentState() {
+            return componentState;
         }
 
     }

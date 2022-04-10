@@ -31,6 +31,7 @@ import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.UserInformationBackend;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class InternalUsersAuthenticationBackend implements AuthenticationBackend, UserInformationBackend {
@@ -42,6 +43,7 @@ public class InternalUsersAuthenticationBackend implements AuthenticationBackend
     }
 
     private final InternalUsersDatabase internalUsersDatabase;
+    private final ComponentState componentState = new ComponentState(0, "authentication_backend", TYPE).initialized();
 
     InternalUsersAuthenticationBackend(InternalUsersDatabase internalUsersDatabase) {
         this.internalUsersDatabase = internalUsersDatabase;
@@ -166,6 +168,11 @@ public class InternalUsersAuthenticationBackend implements AuthenticationBackend
     @Override
     public ImmutableMap<String, String> describeAvailableUserMappingAttributes() {
         return ImmutableMap.of(UserMappingAttributes.USER_ENTRY, "The user entry from the internal users db");
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

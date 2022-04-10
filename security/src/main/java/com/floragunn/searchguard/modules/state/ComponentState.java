@@ -27,7 +27,9 @@ import java.net.URL;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,10 +46,10 @@ import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
 
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.searchguard.license.SearchGuardLicenseKey;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.searchguard.license.SearchGuardLicenseKey;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 
@@ -77,7 +79,7 @@ public class ComponentState implements Writeable, ToXContentObject {
     private String nodeId;
     private String nodeName;
     private SearchGuardLicenseKey license;
-    private boolean enterprise;
+    private byte licenseRequired;
     private int sortPrio;
     private String configVersion;
     private String configJson;
@@ -141,7 +143,7 @@ public class ComponentState implements Writeable, ToXContentObject {
             this.license = new SearchGuardLicenseKey(in);
         }
 
-        this.enterprise = in.readBoolean();
+        this.licenseRequired = in.readByte();
         this.configVersion = in.readOptionalString();
         this.configJson = in.readOptionalString();
 
@@ -212,7 +214,7 @@ public class ComponentState implements Writeable, ToXContentObject {
             out.writeBoolean(false);
         }
 
-        out.writeBoolean(enterprise);
+        out.writeByte(licenseRequired);
         out.writeOptionalString(configVersion);
         out.writeOptionalString(configJson);
 
@@ -472,6 +474,11 @@ public class ComponentState implements Writeable, ToXContentObject {
         this.initializedAt = now;
         this.changedAt = now;
     }
+    
+    public ComponentState initialized() {
+        setInitialized();
+        return this;
+    }
 
     public void setInitException(Exception initException) {
         this.initException = initException;
@@ -612,6 +619,10 @@ public class ComponentState implements Writeable, ToXContentObject {
         if (initException != null) {
             builder.field("init_exception", exceptionToString(initException));
         }
+        
+        if (licenseRequired != 0) {
+            builder.field("license_required", getLicenseRequiredInfo());
+        }
 
         if (jarFileName != null || jarVersion != null || jarBuildTime != null) {
             builder.startObject("build");
@@ -708,6 +719,36 @@ public class ComponentState implements Writeable, ToXContentObject {
 
         parts.add(part);
     }
+    
+    public synchronized void replacePartsWithType(String type, ComponentState newPart) {
+        Iterator<ComponentState> iter = this.parts.iterator();
+        
+        while (iter.hasNext()) {
+            ComponentState part = iter.next();
+            
+            if (type.equals(part.getType())) {
+                iter.remove();
+            }
+        }
+        
+        parts.add(newPart);
+    }
+    
+
+    public synchronized void replacePartsWithType(String type, Collection<ComponentState> newParts) {
+        Iterator<ComponentState> iter = this.parts.iterator();
+        
+        while (iter.hasNext()) {
+            ComponentState part = iter.next();
+            
+            if (type.equals(part.getType())) {
+                iter.remove();
+            }
+        }
+        
+        parts.addAll(newParts);
+    }
+
 
     public int getTries() {
         return tries;
@@ -756,6 +797,11 @@ public class ComponentState implements Writeable, ToXContentObject {
 
     public void setMandatory(boolean mandatory) {
         this.mandatory = mandatory;
+    }
+    
+    public ComponentState mandatory(boolean mandatory) {
+        this.mandatory = mandatory;
+        return this;
     }
 
     public String getJarFileName() {
@@ -881,14 +927,6 @@ public class ComponentState implements Writeable, ToXContentObject {
         this.license = license;
     }
 
-    public boolean isEnterprise() {
-        return enterprise;
-    }
-
-    public void setEnterprise(boolean enterprise) {
-        this.enterprise = enterprise;
-    }
-
     public String getClassName() {
         return className;
     }
@@ -982,7 +1020,31 @@ public class ComponentState implements Writeable, ToXContentObject {
                 + ", initException=" + initException + ", startedAt=" + startedAt + ", initializedAt=" + initializedAt + ", changedAt=" + changedAt
                 + ", failedAt=" + failedAt + ", nextTryAt=" + nextTryAt + ", lastExceptions=" + lastExceptions + ", mandatory=" + mandatory
                 + ", jarFileName=" + jarFileName + ", jarVersion=" + jarVersion + ", jarBuildTime=" + jarBuildTime + ", nodeId=" + nodeId
-                + ", nodeName=" + nodeName + ", license=" + license + ", enterprise=" + enterprise + ", sortPrio=" + sortPrio + ", configVersion="
-                + configVersion + ", configJson=" + configJson + ", metrics=" + metrics + ", parts=" + parts + "]";
+                + ", nodeName=" + nodeName + ", license=" + license + ", licenseRequired=" + licenseRequired + ", sortPrio=" + sortPrio
+                + ", configVersion=" + configVersion + ", configJson=" + configJson + ", metrics=" + metrics + ", parts=" + parts + "]";
+    }
+
+    public byte getLicenseRequired() {
+        return licenseRequired;
+    }
+
+    public String getLicenseRequiredInfo() {
+        switch (licenseRequired) {
+        case 0:
+            return "no";
+        case 1:
+            return "enterprise";
+        default:
+            return String.valueOf(licenseRequired);
+        }
+    }
+
+    public void setLicenseRequired(byte licenseRequired) {
+        this.licenseRequired = licenseRequired;
+    }
+    
+    public ComponentState requiresEnterpriseLicense() {
+        this.licenseRequired = 1;
+        return this;
     }
 }

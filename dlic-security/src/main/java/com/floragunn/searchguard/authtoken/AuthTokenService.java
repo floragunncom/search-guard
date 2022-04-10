@@ -550,6 +550,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private void init(ProtectedConfigIndexService.FailureListener failureListener) {
         initComplete();
         failureListener.onSuccess();
+        this.componentState.updateStateFromParts();
     }
 
     private void validateClaims(JwtToken jwt) throws JwtException {

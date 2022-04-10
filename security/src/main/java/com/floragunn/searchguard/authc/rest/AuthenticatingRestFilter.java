@@ -78,7 +78,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     private final Path configPath;
     private final DiagnosticContext diagnosticContext;
     private final AdminDNs adminDns;
-    private final ComponentState componentState = new ComponentState(0, "authc", "rest_filter");
+    private final ComponentState componentState = new ComponentState(1, "authc", "rest_filter");
 
     private volatile RestAuthenticationProcessor authenticationProcessor;
 
@@ -102,21 +102,27 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
 
                 if (config != null && config.getCEntry("default") != null) {
-                    authenticationProcessor = new RestAuthenticationProcessor.Default(config.getCEntry("default"), modulesRegistry, adminDns,
+                    RestAuthenticationProcessor authenticationProcessor = new RestAuthenticationProcessor.Default(config.getCEntry("default"), modulesRegistry, adminDns,
                             blockedIpRegistry, blockedUserRegistry, auditLog, threadPool, privilegesEvaluator);
 
-                    componentState.setState(State.INITIALIZED, "using_authcz_config");
-                    componentState.setConfigVersion(config.getDocVersion());
-
+                    AuthenticatingRestFilter.this.authenticationProcessor = authenticationProcessor;
+                    
+                    componentState.replacePartsWithType("config", config.getComponentState());
+                    componentState.replacePart(authenticationProcessor.getComponentState());
+                    componentState.updateStateFromParts();
+                    
                     if (log.isDebugEnabled()) {
                         log.debug("New configuration:\n" + config.getCEntry("default").toYamlString());
                     }
                 } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                    authenticationProcessor = new LegacyRestAuthenticationProcessor(legacyConfig.getCEntry("sg_config"), modulesRegistry, adminDns,
+                    RestAuthenticationProcessor authenticationProcessor = new LegacyRestAuthenticationProcessor(legacyConfig.getCEntry("sg_config"), modulesRegistry, adminDns,
                             blockedIpRegistry, blockedUserRegistry, auditLog, threadPool, privilegesEvaluator);
 
-                    componentState.setState(State.INITIALIZED, "using_legacy_config");
-                    componentState.setConfigVersion(legacyConfig.getDocVersion());
+                    AuthenticatingRestFilter.this.authenticationProcessor = authenticationProcessor;
+
+                    componentState.replacePartsWithType("config", legacyConfig.getComponentState());
+                    componentState.replacePart(authenticationProcessor.getComponentState());
+                    componentState.updateStateFromParts();
 
                     if (log.isDebugEnabled()) {
                         log.debug("New legacy configuration:\n" + legacyConfig.getCEntry("sg_config").toYamlString());

@@ -49,6 +49,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
@@ -81,7 +82,7 @@ public class ConfigurationLoader {
             typeToStateMap = new HashMap<>(CType.all().size());
 
             for (CType<?> ctype : CType.all()) {
-                typeToStateMap.put(ctype, componentState.getOrCreatePart("config", ctype.toLCString()));
+                typeToStateMap.put(ctype, componentState.getOrCreatePart("config_type", ctype.toLCString()).mandatory(!ctype.isOptional()));
             }
         } else {
             typeToStateMap = null;
@@ -178,11 +179,11 @@ public class ConfigurationLoader {
 
                         try {
                             SgDynamicConfiguration<?> config = toConfig(type, item.getResponse());
-                            
+
                             if (staticSgConfig != null) {
                                 staticSgConfig.addTo(config);
                             }
-                            
+
                             configMapBuilder.with(config);
                             success(config, typeToStateMap);
                         } catch (ConfigValidationException e) {
@@ -229,7 +230,9 @@ public class ConfigurationLoader {
     private SgDynamicConfiguration<?> toConfig(CType<?> type, GetResponse getResponse) throws Exception {
         if (!getResponse.isExists()) {
             if (type != null && type.isOptional()) {
-                return SgDynamicConfiguration.empty(type);
+                SgDynamicConfiguration<?> result = SgDynamicConfiguration.empty(type);
+                result.getComponentState().setState(State.SUSPENDED, "config_does_not_exist");
+                return result;
             } else {
                 throw new Exception("Document does not exist");
             }
@@ -266,8 +269,8 @@ public class ConfigurationLoader {
         ComponentState configState = typeToStateMap.get(config.getCType());
 
         if (configState != null) {
-            configState.setInitialized();
-            configState.setConfigVersion(config.getDocVersion());
+            configState.replacePart(config.getComponentState());
+            configState.updateStateFromParts();
         }
     }
 

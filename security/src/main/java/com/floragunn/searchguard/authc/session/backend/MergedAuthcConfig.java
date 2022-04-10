@@ -18,9 +18,11 @@
 package com.floragunn.searchguard.authc.session.backend;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -31,13 +33,13 @@ import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.FrontendAuthcConfig;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 
-class MergedAuthczConfig {
+class MergedAuthcConfig {
 
     private final SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig;
     private final RestAuthcConfig authczConfig;
     private final ImmutableMap<String, ImmutableList<AuthenticationDomain<ApiAuthenticationFrontend>>> configNameToAuthenticationDomainMap;
 
-    public MergedAuthczConfig(SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig, RestAuthcConfig authczConfig) {
+    public MergedAuthcConfig(SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig, RestAuthcConfig authczConfig) {
         this.frontendConfig = frontendConfig;
         this.authczConfig = authczConfig;
         this.configNameToAuthenticationDomainMap = createDomainMap(frontendConfig, authczConfig);
@@ -101,5 +103,9 @@ class MergedAuthczConfig {
     @Override
     public String toString() {
         return configNameToAuthenticationDomainMap.keySet().toString();
+    }
+
+    Collection<AuthenticationDomain<ApiAuthenticationFrontend>> getAuthenticationDomains() {
+        return this.configNameToAuthenticationDomainMap.values().stream().flatMap((l) -> l.stream()).collect(Collectors.toList());
     }
 }

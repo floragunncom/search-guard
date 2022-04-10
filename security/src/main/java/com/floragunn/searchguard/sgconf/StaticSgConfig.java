@@ -29,9 +29,9 @@ public class StaticSgConfig {
             staticTenants = readConfig("/static_config/static_tenants.yml", CType.TENANTS);
         } else {
             log.info("searchguard.unsupported.load_static_resources is set to false. Static resources will not be loaded.");
-            staticRoles = SgDynamicConfiguration.empty();
-            staticActionGroups = SgDynamicConfiguration.empty();
-            staticTenants = SgDynamicConfiguration.empty();
+            staticRoles = SgDynamicConfiguration.empty(CType.ROLES);
+            staticActionGroups = SgDynamicConfiguration.empty(CType.ACTIONGROUPS);
+            staticTenants = SgDynamicConfiguration.empty(CType.TENANTS);
         }
     }
 
@@ -56,7 +56,7 @@ public class StaticSgConfig {
     @SuppressWarnings("unchecked")
     public <ConfigType> SgDynamicConfiguration<ConfigType> get(SgDynamicConfiguration<ConfigType> original) {
         if (original.getVersion() != 2) {
-            return SgDynamicConfiguration.empty();
+            return SgDynamicConfiguration.empty(original.getCType());
         }
 
         if (original.getCType().equals(CType.ACTIONGROUPS)) {
@@ -66,7 +66,7 @@ public class StaticSgConfig {
         } else if (original.getCType().equals(CType.TENANTS)) {
             return (SgDynamicConfiguration<ConfigType>) staticTenants;
         } else {
-            return SgDynamicConfiguration.empty();
+            return SgDynamicConfiguration.empty(original.getCType());
         }
 
     }

@@ -54,6 +54,7 @@ import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auth.oidc.OpenIdProviderClient.TokenResponse;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -78,6 +79,9 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private final String logoutUrl;
     private final boolean usePkce;
     private final boolean useUserInfoEndpoint;
+    
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "oidc", OidcAuthenticator.class).initialized()
+            .requiresEnterpriseLicense();
 
     public OidcAuthenticator(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
 
@@ -430,4 +434,9 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             return OidcAuthenticator::new;
         }
     };
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
 }

@@ -32,7 +32,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.license.LicenseRepository;
 import com.floragunn.searchguard.license.SearchGuardLicenseKey;
 import com.floragunn.searchguard.support.ReflectionHelper;

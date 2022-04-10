@@ -32,7 +32,7 @@ import com.floragunn.searchguard.user.User;
 
 public class PrivilegesInterceptorImplTest {
 
-    private static final ActionGroup.FlattenedIndex emptyActionGroups = new ActionGroup.FlattenedIndex(SgDynamicConfiguration.empty());
+    private static final ActionGroup.FlattenedIndex emptyActionGroups = new ActionGroup.FlattenedIndex(SgDynamicConfiguration.empty(CType.ACTIONGROUPS));
     private static final Actions actions = new Actions(null);
 
     @Test

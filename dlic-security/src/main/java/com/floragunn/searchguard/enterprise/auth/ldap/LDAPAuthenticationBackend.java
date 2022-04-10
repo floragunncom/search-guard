@@ -41,6 +41,7 @@ import com.floragunn.searchguard.authc.Destroyable;
 import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.authc.base.AuthczResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
 import com.unboundid.ldap.sdk.Attribute;
@@ -70,6 +71,9 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     private final boolean fakeLoginEnabled;
     private final String fakeLoginDn;
     private final byte[] fakeLoginPassword;
+    
+    private final ComponentState componentState = new ComponentState(0, "authentication_backend", TYPE, LDAPAuthenticationBackend.class).initialized()
+            .requiresEnterpriseLicense();
 
     public LDAPAuthenticationBackend(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
 
@@ -251,6 +255,11 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         return result.build();
     }
 
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
+    
     public static Collection<TypedComponent.Info<?>> INFOS = ImmutableList.of(new TypedComponent.Info<AuthenticationBackend>() {
 
         @Override
@@ -284,5 +293,4 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
             return LDAPAuthenticationBackend::new;
         }
     });
-
 }

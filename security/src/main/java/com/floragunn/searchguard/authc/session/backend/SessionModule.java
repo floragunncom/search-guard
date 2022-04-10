@@ -60,7 +60,7 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
     private SessionApi.Rest sessionRestAction = new SessionApi.Rest();
     private ConfigVarService configVarService;
     private SessionTokenAuthenticationDomain sessionTokenAuthenticationDomain;
-    private final ComponentState componentState = new ComponentState(1000, null, "session_service", SessionModule.class);
+    private final ComponentState componentState = new ComponentState(2, "authc", "session_service", SessionModule.class);
 
     @Override
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,

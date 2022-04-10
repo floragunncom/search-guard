@@ -44,6 +44,7 @@ import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
@@ -76,6 +77,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
     private final String description;
     private final String infoString;
     private final ImmutableList<UserInformationBackend> additionalUserInformationBackends;
+    private final ComponentState componentState;
 
     /**
      * Only for supporting the legacy config format
@@ -97,6 +99,18 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         this.userMapping = userMapping;
         this.infoString = buildInfoString();
         this.acceptanceRules = acceptanceRules;
+        this.componentState = new ComponentState(0, "auth_domain", id);
+
+        if (authenticationFrontend != null) {
+            this.componentState.addPart(authenticationFrontend.getComponentState());
+
+        }
+
+        if (authenticationBackend != null) {
+            this.componentState.addPart(authenticationBackend.getComponentState());
+        }
+        
+        this.componentState.updateStateFromParts();
     }
 
     public AuthenticationBackend getBackend() {
@@ -433,5 +447,10 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
 
     public String getDescription() {
         return description;
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

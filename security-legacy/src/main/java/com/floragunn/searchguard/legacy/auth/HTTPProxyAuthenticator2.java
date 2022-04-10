@@ -32,6 +32,7 @@ import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.Attributes;
@@ -59,7 +60,9 @@ public class HTTPProxyAuthenticator2 implements LegacyHTTPAuthenticator {
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final Settings settings;
     private Map<String, String> attributeMapping;
-
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "proxy2", HTTPProxyAuthenticator2.class)
+            .initialized();
+    
     public HTTPProxyAuthenticator2(Settings settings, final Path configPath) {
         this.settings = settings;
         attributeMapping = Attributes.getFlatAttributeMapping(settings.getAsSettings("map_headers_to_user_attrs"));
@@ -239,4 +242,9 @@ public class HTTPProxyAuthenticator2 implements LegacyHTTPAuthenticator {
             return LegacyComponentFactory.adapt(HTTPProxyAuthenticator2::new);
         }
     };
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
 }

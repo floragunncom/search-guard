@@ -56,6 +56,7 @@ import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.base.Strings;
 
@@ -70,6 +71,8 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAut
     private boolean stripRealmFromPrincipalName;
     private Set<String> acceptorPrincipal;
     private Path acceptorKeyTabPath;
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", TYPE, HTTPSpnegoAuthenticator.class).initialized()
+            .requiresEnterpriseLicense();
 
     public HTTPSpnegoAuthenticator(final Settings settings, final Path configPath) {
         super();
@@ -485,5 +488,10 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAut
             };
         }
     };
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
 
 }

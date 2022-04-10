@@ -36,6 +36,7 @@ import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.Pattern;
 
@@ -170,7 +171,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     }
 
     SgDynamicConfiguration<Role> toRolesConfig() {
-        SgDynamicConfiguration<Role> roles = SgDynamicConfiguration.empty();
+        SgDynamicConfiguration<Role> roles = SgDynamicConfiguration.empty(CType.ROLES);
 
         ImmutableList<Role.Index> indexPermissions = this.indexPermissions.map((p) -> p.toRoleIndex());
         ImmutableList<Role.Tenant> tenantPermissions = this.tenantPermissions.map((p) -> p.toRoleTenant());

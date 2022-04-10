@@ -24,6 +24,7 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
@@ -31,10 +32,15 @@ public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HTTPA
 
     private final AuthTokenService authTokenService;
     private final AuthTokenHttpJwtAuthenticator httpAuthenticator;
+    private final ComponentState componentState;
 
     public AuthTokenAuthenticationDomain(AuthTokenService authTokenService) {
         this.authTokenService = authTokenService;
         this.httpAuthenticator = new AuthTokenHttpJwtAuthenticator(authTokenService);
+        
+        this.componentState = new ComponentState(0, "auth_domain", "sg_auth_token", AuthTokenAuthenticationDomain.class).requiresEnterpriseLicense();
+        this.componentState.addPart(this.httpAuthenticator.getComponentState());
+        this.componentState.updateStateFromParts();
     }
 
     @Override
@@ -122,6 +128,11 @@ public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HTTPA
     @Override
     public String toString() {
         return getType();
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

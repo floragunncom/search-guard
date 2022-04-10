@@ -30,7 +30,7 @@ import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 
 public class InternalUsersDatabase implements ComponentStateProvider {
 
-    private final ComponentState componentState = new ComponentState(100, "internal_users_database", "internal_users_database");
+    private final ComponentState componentState = new ComponentState(100, null, "internal_users_database");
     private volatile ImmutableMap<String, InternalUser> userMap;
 
     public InternalUsersDatabase(ConfigurationRepository configurationRepository) {

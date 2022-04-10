@@ -20,10 +20,12 @@ package com.floragunn.searchguard.authc;
 import java.util.concurrent.CompletableFuture;
 
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
-public interface AuthenticationBackend {
+public interface AuthenticationBackend extends ComponentStateProvider {
 
     /**
      * The type (name) of the authenticator. 
@@ -67,6 +69,8 @@ public interface AuthenticationBackend {
 
     final static AuthenticationBackend NOOP = new AuthenticationBackend() {
 
+        private final ComponentState componentState = new ComponentState(0, "authentication_backend", "noop").initialized();
+        
         @Override
         public String getType() {
             return "noop";
@@ -81,6 +85,11 @@ public interface AuthenticationBackend {
         @Override
         public UserCachingPolicy userCachingPolicy() {
             return UserCachingPolicy.ONLY_IF_AUTHZ_SEPARATE;
+        }
+
+        @Override
+        public ComponentState getComponentState() {
+            return componentState;
         }
     };
 }

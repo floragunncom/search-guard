@@ -30,10 +30,12 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
 public class LegacyAnonAuthenticationDomain implements AuthenticationDomain<HTTPAuthenticator> {
+    private final ComponentState componentState = new ComponentState(0, "auth_domain", "legacy_anon").initialized();
 
     @Override
     public HTTPAuthenticator getFrontend() {
@@ -61,6 +63,7 @@ public class LegacyAnonAuthenticationDomain implements AuthenticationDomain<HTTP
     }
 
     private final HTTPAuthenticator frontend = new HTTPAuthenticator() {
+        private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "legacy_anon").initialized();
 
         @Override
         public String getType() {
@@ -74,6 +77,11 @@ public class LegacyAnonAuthenticationDomain implements AuthenticationDomain<HTTP
             } else {
                 return null;
             }
+        }
+
+        @Override
+        public ComponentState getComponentState() {
+            return componentState;
         }
     };
 
@@ -101,6 +109,11 @@ public class LegacyAnonAuthenticationDomain implements AuthenticationDomain<HTTP
     @Override
     public boolean cacheUser() {
         return false;
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

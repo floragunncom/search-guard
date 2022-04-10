@@ -34,6 +34,7 @@ import org.elasticsearch.rest.RestRequest;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.base.Strings;
@@ -41,6 +42,7 @@ import com.google.common.base.Strings;
 public class HTTPClientCertAuthenticator implements HTTPAuthenticator {
 
     private static final Logger log = LogManager.getLogger(HTTPClientCertAuthenticator.class);
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "clientcert").initialized();
 
     public HTTPClientCertAuthenticator(DocNode settings, ConfigurationRepository.Context context) {
     }
@@ -79,5 +81,10 @@ public class HTTPClientCertAuthenticator implements HTTPAuthenticator {
         }
 
         return result;
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

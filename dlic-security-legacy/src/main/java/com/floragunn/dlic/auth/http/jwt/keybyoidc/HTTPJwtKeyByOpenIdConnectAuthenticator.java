@@ -33,12 +33,14 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.codova.config.net.ProxyConfig;
+import com.floragunn.dlic.auth.http.jwt.HTTPJwtAuthenticator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchsupport.rest.Responses;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
@@ -49,6 +51,9 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
 
     private ProxyConfig proxyConfig;
     private OpenIdProviderClient openIdProviderClient;
+
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "oidc",
+            HTTPJwtKeyByOpenIdConnectAuthenticator.class).initialized().requiresEnterpriseLicense();
 
     public HTTPJwtKeyByOpenIdConnectAuthenticator(Settings settings, Path configPath) {
         super(settings, configPath);
@@ -144,5 +149,10 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
             return LegacyComponentFactory.adapt(HTTPJwtKeyByOpenIdConnectAuthenticator::new);
         }
     };
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
 }
 

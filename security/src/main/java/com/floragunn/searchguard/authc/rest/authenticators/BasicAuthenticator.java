@@ -33,12 +33,13 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.support.HTTPHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class BasicAuthenticator implements HTTPAuthenticator, ApiAuthenticationFrontend {
-
-    protected final Logger log = LogManager.getLogger(this.getClass());
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "basic").initialized();
+    private static final Logger log = LogManager.getLogger(BasicAuthenticator.class);
 
     public BasicAuthenticator(final Settings settings, final Path configPath) {
     
@@ -89,5 +90,10 @@ public class BasicAuthenticator implements HTTPAuthenticator, ApiAuthenticationF
     @Override
     public String getChallenge(AuthCredentials credentials) {
         return "Basic realm=\"Search Guard\"";
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }
