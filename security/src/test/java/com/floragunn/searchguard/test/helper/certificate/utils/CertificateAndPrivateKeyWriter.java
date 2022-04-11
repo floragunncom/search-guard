@@ -83,7 +83,7 @@ public class CertificateAndPrivateKeyWriter {
         if (password != null) {
             JceOpenSSLPKCS8EncryptorBuilder encryptorBuilder = new JceOpenSSLPKCS8EncryptorBuilder(PKCS8Generator.PBE_SHA1_3DES);
             encryptorBuilder.setRandom(secureRandom);
-            encryptorBuilder.setPasssword(password.toCharArray());
+            encryptorBuilder.setPassword(password.toCharArray());
             return encryptorBuilder.build();
         }
         return null;

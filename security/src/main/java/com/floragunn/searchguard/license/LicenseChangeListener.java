@@ -19,5 +19,5 @@ package com.floragunn.searchguard.license;
 
 public interface LicenseChangeListener {
 
-    void onChange(SearchGuardLicenseKey license);
+    void onChange(SearchGuardLicense license);
 }

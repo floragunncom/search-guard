@@ -75,7 +75,7 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
 
     private AuthTokenService authTokenService;
     private ConfigVarService configVarService;
-    private final ComponentState componentState = new ComponentState(1000, null, "auth_token_service", AuthTokenModule.class);
+    private final ComponentState componentState = new ComponentState(1000, null, "auth_token_service", AuthTokenModule.class).requiresEnterpriseLicense();
     private AuthTokenAuthenticationDomain authenticationDomain;
 
     @Override

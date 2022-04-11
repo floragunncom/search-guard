@@ -58,7 +58,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
@@ -163,7 +162,7 @@ public class SearchGuardFilter implements ActionFilter {
             final boolean interClusterRequest = HeaderHelper.isInterClusterRequest(threadContext);
             final boolean trustedClusterRequest = HeaderHelper.isTrustedClusterRequest(threadContext);
             final boolean confRequest = "true".equals(HeaderHelper.getSafeFromHeader(threadContext, ConfigConstants.SG_CONF_REQUEST_HEADER));
-            final boolean passThroughRequest = actionName.equals(LicenseInfoAction.NAME) || actionName.startsWith("indices:admin/seq_no")
+            final boolean passThroughRequest = actionName.equals("cluster:admin/searchguard/license/info") || actionName.startsWith("indices:admin/seq_no")
                     || actionName.equals(WhoAmIAction.NAME);
 
             final boolean internalRequest = (interClusterRequest || HeaderHelper.isDirectRequest(threadContext)) && actionName.startsWith("internal:")

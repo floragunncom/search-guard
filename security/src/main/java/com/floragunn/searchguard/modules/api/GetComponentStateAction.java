@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -168,6 +169,30 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
             return this.message;
         }
 
+        public Map<String, Set<String>> getComponentsGroupedByLicense() {
+            Map<String, Set<String>> result = new LinkedHashMap<String, Set<String>>();
+
+            for (ComponentState componentState : getMergedComponentState()) {
+                getComponentsGroupedByLicense(componentState, result);
+            }
+
+            return result;
+        }
+
+        private static void getComponentsGroupedByLicense(ComponentState componentState, Map<String, Set<String>> result) {
+            String requiredLicense = componentState.getLicenseRequiredInfo();
+
+            if (!"no".equals(requiredLicense)) {
+                result.computeIfAbsent(requiredLicense, (k) -> new HashSet<>()).add(componentState.getTypeAndName());
+            }
+
+            if (componentState.getParts() != null) {
+                for (ComponentState part : componentState.getParts()) {
+                    getComponentsGroupedByLicense(part, result);
+                }
+            }
+        }
+
         private void initMergedComponentState() {
             if (this.mergedComponentState != null) {
                 return;
@@ -191,7 +216,8 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
                         ComponentState mergedComponentState = map.get(componentState.getKey());
 
                         if (mergedComponentState == null) {
-                            mergedComponentState = new ComponentState(componentState.getSortPrio(), componentState.getType(), componentState.getName());
+                            mergedComponentState = new ComponentState(componentState.getSortPrio(), componentState.getType(),
+                                    componentState.getName());
                             map.put(mergedComponentState.getKey(), mergedComponentState);
                         }
 
@@ -211,7 +237,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
 
             for (ComponentState mergedComponentState : result) {
                 total++;
-                
+
                 if ("config_repository".equals(mergedComponentState.getName())) {
                     configRepoComponentState = mergedComponentState;
                 }
@@ -289,7 +315,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
                 if (configRepoComponentState.isFailed()) {
                     message = "Search Guard configuration could not be initialized";
                 } else {
-                    message = "Search Guard configuration has not been initialized, yet";                    
+                    message = "Search Guard configuration has not been initialized, yet";
                 }
                 health = Health.RED;
             } else if (total == 0) {
@@ -309,7 +335,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
                 } else {
                     message = "Components have failed on various nodes; see below for detail";
                 }
-                
+
                 health = Health.YELLOW;
             } else if (versionMismatch > 0) {
                 if (versionMismatchMessages.size() == 1) {
@@ -317,7 +343,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
                 } else {
                     message = "Several version mismatches were detected; see below for details";
                 }
-                
+
                 health = Health.YELLOW;
             }
         }
@@ -329,7 +355,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
             if (getHealth() != null) {
                 builder.field("health", getHealth());
             }
-            
+
             if (getMessage() != null) {
                 builder.field("message", getMessage());
             }
@@ -403,11 +429,9 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
     }
 
     public static enum Health {
-        GREEN,
-        YELLOW,
-        RED;
+        GREEN, YELLOW, RED;
     }
-    
+
     public static class TransportAction extends TransportNodesAction<Request, Response, NodeRequest, NodeResponse> {
 
         private SearchGuardModulesRegistry modulesRegistry;

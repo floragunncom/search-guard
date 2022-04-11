@@ -159,7 +159,6 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
-import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.authc.LoginPrivileges;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
@@ -172,6 +171,7 @@ import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
+import com.floragunn.searchguard.license.SearchGuardLicenseInfoAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 import com.floragunn.searchsupport.xcontent.AttributeValueFromXContent;
@@ -373,7 +373,7 @@ public class Actions {
         tenant("kibana:saved_objects/_/read");
         tenant("kibana:saved_objects/_/write");
 
-        open(LicenseInfoAction.INSTANCE);
+        open("cluster:admin/searchguard/license/info");
         open(WhoAmIAction.INSTANCE);
 
         if (modulesRegistry != null) {
@@ -457,6 +457,11 @@ public class Actions {
 
     private <RequestType extends ActionRequest> ActionBuilder<RequestType, Void, Void> open(ActionType<?> actionType) {
         return builder.open(actionType);
+    }
+    
+
+    private ActionBuilder<?, ?, ?> open(String action) {
+        return builder.open(action);
     }
 
     class Builder {

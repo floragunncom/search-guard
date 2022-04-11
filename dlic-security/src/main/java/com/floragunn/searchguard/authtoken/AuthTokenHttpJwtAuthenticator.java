@@ -40,7 +40,7 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
     private final String jwtHeaderName;
     private final String subjectKey;
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "sg_auth_token",
-            AuthTokenHttpJwtAuthenticator.class).initialized().requiresEnterpriseLicense();
+            AuthTokenHttpJwtAuthenticator.class).initialized();
 
     public AuthTokenHttpJwtAuthenticator(AuthTokenService authTokenService) {
         this.authTokenService = authTokenService;
@@ -75,11 +75,11 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
 
         try {
             JwtToken jwt = authTokenService.getVerifiedJwtToken(encodedJwt);
-            
+
             if (jwt == null) {
                 return null;
             }
-            
+
             JwtClaims claims = jwt.getClaims();
 
             String subject = extractSubject(claims);

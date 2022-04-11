@@ -30,6 +30,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.seqno.SequenceNumbers;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -57,8 +58,8 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     private final ComponentState componentState;
 
     private final Map<String, T> centries = new LinkedHashMap<>();
-    private long seqNo = -1;
-    private long primaryTerm = -1;
+    private long seqNo = SequenceNumbers.UNASSIGNED_SEQ_NO;
+    private long primaryTerm = SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
     private String uninterpolatedJson;
 
     /**

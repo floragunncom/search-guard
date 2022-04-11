@@ -49,7 +49,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.searchguard.license.SearchGuardLicenseKey;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 
@@ -78,12 +78,12 @@ public class ComponentState implements Writeable, ToXContentObject {
     private String jarBuildTime;
     private String nodeId;
     private String nodeName;
-    private SearchGuardLicenseKey license;
     private byte licenseRequired;
     private int sortPrio;
     private String configVersion;
     private String configJson;
     private Map<String, Object> metrics;
+    private ImmutableMap<String, Object> moreConfigProperties;
 
     private List<ComponentState> parts = new ArrayList<>();
 
@@ -139,8 +139,10 @@ public class ComponentState implements Writeable, ToXContentObject {
 
         this.lastExceptions = in.readMap(StreamInput::readString, ExceptionRecord::new);
 
-        if (in.readBoolean()) {
-            this.license = new SearchGuardLicenseKey(in);
+        byte marker = in.readByte();
+
+        if (marker == 1) {
+            this.moreConfigProperties = ImmutableMap.of(in.readMap());
         }
 
         this.licenseRequired = in.readByte();
@@ -164,6 +166,14 @@ public class ComponentState implements Writeable, ToXContentObject {
 
     public String getKey() {
         return this.type + "::" + this.name;
+    }
+    
+    public String getTypeAndName() {
+        if (this.type == null) {
+            return this.name;
+        } else {
+            return this.type + "/" + this.name;
+        }
     }
 
     public String getSortingKey() {
@@ -207,11 +217,11 @@ public class ComponentState implements Writeable, ToXContentObject {
 
         out.writeMap(this.lastExceptions, StreamOutput::writeString, (o, v) -> v.writeTo(o));
 
-        if (this.license != null) {
-            out.writeBoolean(true);
-            this.license.writeTo(out);
+        if (this.moreConfigProperties != null && !this.moreConfigProperties.isEmpty()) {
+            out.writeByte((byte) 1);
+            out.writeMap(this.moreConfigProperties);
         } else {
-            out.writeBoolean(false);
+            out.writeByte((byte) 0);
         }
 
         out.writeByte(licenseRequired);
@@ -474,7 +484,7 @@ public class ComponentState implements Writeable, ToXContentObject {
         this.initializedAt = now;
         this.changedAt = now;
     }
-    
+
     public ComponentState initialized() {
         setInitialized();
         return this;
@@ -619,7 +629,7 @@ public class ComponentState implements Writeable, ToXContentObject {
         if (initException != null) {
             builder.field("init_exception", exceptionToString(initException));
         }
-        
+
         if (licenseRequired != 0) {
             builder.field("license_required", getLicenseRequiredInfo());
         }
@@ -642,11 +652,17 @@ public class ComponentState implements Writeable, ToXContentObject {
             builder.endObject();
         }
 
-        if (configVersion != null || configJson != null) {
+        if (configVersion != null || configJson != null || (moreConfigProperties != null && !moreConfigProperties.isEmpty())) {
             builder.startObject("config");
 
             if (configVersion != null) {
                 builder.field("version", configVersion);
+            }
+            
+            if (moreConfigProperties != null && !moreConfigProperties.isEmpty()) {
+                for (Map.Entry<String, Object> entry : moreConfigProperties.entrySet()) {
+                    builder.field(entry.getKey(), entry.getValue());
+                }
             }
 
             if (configJson != null) {
@@ -719,36 +735,42 @@ public class ComponentState implements Writeable, ToXContentObject {
 
         parts.add(part);
     }
-    
+
     public synchronized void replacePartsWithType(String type, ComponentState newPart) {
         Iterator<ComponentState> iter = this.parts.iterator();
-        
+
         while (iter.hasNext()) {
             ComponentState part = iter.next();
-            
+
             if (type.equals(part.getType())) {
                 iter.remove();
             }
         }
-        
+
         parts.add(newPart);
     }
-    
 
     public synchronized void replacePartsWithType(String type, Collection<ComponentState> newParts) {
         Iterator<ComponentState> iter = this.parts.iterator();
-        
+
         while (iter.hasNext()) {
             ComponentState part = iter.next();
-            
+
             if (type.equals(part.getType())) {
                 iter.remove();
             }
         }
-        
+
         parts.addAll(newParts);
     }
-
+    
+    public void setConfigProperty(String property, Object value) {
+        if (this.moreConfigProperties == null) {
+            this.moreConfigProperties = ImmutableMap.of(property, value);
+        } else {
+            this.moreConfigProperties = this.moreConfigProperties.with(property, value);
+        }
+    }
 
     public int getTries() {
         return tries;
@@ -798,7 +820,7 @@ public class ComponentState implements Writeable, ToXContentObject {
     public void setMandatory(boolean mandatory) {
         this.mandatory = mandatory;
     }
-    
+
     public ComponentState mandatory(boolean mandatory) {
         this.mandatory = mandatory;
         return this;
@@ -919,14 +941,6 @@ public class ComponentState implements Writeable, ToXContentObject {
         this.nodeName = nodeName;
     }
 
-    public SearchGuardLicenseKey getLicense() {
-        return license;
-    }
-
-    public void setLicense(SearchGuardLicenseKey license) {
-        this.license = license;
-    }
-
     public String getClassName() {
         return className;
     }
@@ -1020,8 +1034,8 @@ public class ComponentState implements Writeable, ToXContentObject {
                 + ", initException=" + initException + ", startedAt=" + startedAt + ", initializedAt=" + initializedAt + ", changedAt=" + changedAt
                 + ", failedAt=" + failedAt + ", nextTryAt=" + nextTryAt + ", lastExceptions=" + lastExceptions + ", mandatory=" + mandatory
                 + ", jarFileName=" + jarFileName + ", jarVersion=" + jarVersion + ", jarBuildTime=" + jarBuildTime + ", nodeId=" + nodeId
-                + ", nodeName=" + nodeName + ", license=" + license + ", licenseRequired=" + licenseRequired + ", sortPrio=" + sortPrio
-                + ", configVersion=" + configVersion + ", configJson=" + configJson + ", metrics=" + metrics + ", parts=" + parts + "]";
+                + ", nodeName=" + nodeName + ", licenseRequired=" + licenseRequired + ", sortPrio=" + sortPrio + ", configVersion=" + configVersion
+                + ", configJson=" + configJson + ", metrics=" + metrics + ", parts=" + parts + "]";
     }
 
     public byte getLicenseRequired() {
@@ -1042,7 +1056,7 @@ public class ComponentState implements Writeable, ToXContentObject {
     public void setLicenseRequired(byte licenseRequired) {
         this.licenseRequired = licenseRequired;
     }
-    
+
     public ComponentState requiresEnterpriseLicense() {
         this.licenseRequired = 1;
         return this;

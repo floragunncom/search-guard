@@ -38,7 +38,7 @@ public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HTTPA
         this.authTokenService = authTokenService;
         this.httpAuthenticator = new AuthTokenHttpJwtAuthenticator(authTokenService);
         
-        this.componentState = new ComponentState(0, "auth_domain", "sg_auth_token", AuthTokenAuthenticationDomain.class).requiresEnterpriseLicense();
+        this.componentState = new ComponentState(0, "auth_domain", "sg_auth_token", AuthTokenAuthenticationDomain.class);
         this.componentState.addPart(this.httpAuthenticator.getComponentState());
         this.componentState.updateStateFromParts();
     }

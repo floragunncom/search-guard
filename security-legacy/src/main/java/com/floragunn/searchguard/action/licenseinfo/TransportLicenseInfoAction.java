@@ -18,7 +18,9 @@
 package com.floragunn.searchguard.action.licenseinfo;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
@@ -33,25 +35,27 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.license.LicenseRepository;
-import com.floragunn.searchguard.license.SearchGuardLicenseKey;
-import com.floragunn.searchguard.support.ReflectionHelper;
+import com.floragunn.searchguard.license.SearchGuardLicense;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.ModuleInfo;
+import com.floragunn.searchguard.support.ModuleType;
 
-public class TransportLicenseInfoAction
-extends
-TransportNodesAction<LicenseInfoRequest, LicenseInfoResponse, TransportLicenseInfoAction.NodeLicenseRequest, LicenseInfoNodeResponse> {
+@Deprecated
+public class TransportLicenseInfoAction extends
+        TransportNodesAction<LicenseInfoRequest, LicenseInfoResponse, TransportLicenseInfoAction.NodeLicenseRequest, LicenseInfoNodeResponse> {
 
     private final LicenseRepository licenseRepository;
-    
+    private final Settings settings;
+
     @Inject
-    public TransportLicenseInfoAction(final Settings settings,
-            final ThreadPool threadPool, final ClusterService clusterService, final TransportService transportService,
-            final LicenseRepository licenseRepository, final ActionFilters actionFilters) {
-        
-        super(LicenseInfoAction.NAME, threadPool, clusterService, transportService, actionFilters,
-                LicenseInfoRequest::new, TransportLicenseInfoAction.NodeLicenseRequest::new,
-                ThreadPool.Names.MANAGEMENT, LicenseInfoNodeResponse.class);
+    public TransportLicenseInfoAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
+            final TransportService transportService, final LicenseRepository licenseRepository, final ActionFilters actionFilters) {
+
+        super(LicenseInfoAction.NAME, threadPool, clusterService, transportService, actionFilters, LicenseInfoRequest::new,
+                TransportLicenseInfoAction.NodeLicenseRequest::new, ThreadPool.Names.MANAGEMENT, LicenseInfoNodeResponse.class);
 
         this.licenseRepository = licenseRepository;
+        this.settings = settings;
     }
 
     public static class NodeLicenseRequest extends BaseNodeRequest {
@@ -78,18 +82,29 @@ TransportNodesAction<LicenseInfoRequest, LicenseInfoResponse, TransportLicenseIn
     protected LicenseInfoNodeResponse newNodeResponse(StreamInput in) throws IOException {
         return new LicenseInfoNodeResponse(in);
     }
-    
+
     @Override
     protected LicenseInfoResponse newResponse(LicenseInfoRequest request, List<LicenseInfoNodeResponse> responses,
             List<FailedNodeException> failures) {
         return new LicenseInfoResponse(this.clusterService.getClusterName(), responses, failures);
 
     }
-	
+
     @Override
     protected LicenseInfoNodeResponse nodeOperation(final NodeLicenseRequest request) {
-        final SearchGuardLicenseKey license = licenseRepository.getLicense();
-        return new LicenseInfoNodeResponse(clusterService.localNode(), license, ReflectionHelper.getModulesLoaded()); 
+        final SearchGuardLicense license = licenseRepository.getLicense();
+
+        Set<ModuleInfo> moduleInfo = new HashSet<>();
+
+        if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true)) {
+            // This serves as a kind of capability info for the Kibana plugin, so we need to provide this information to keep older versions happy
+
+            moduleInfo.add(new ModuleInfo(ModuleType.REST_MANAGEMENT_API, "n/a"));
+            moduleInfo.add(new ModuleInfo(ModuleType.DLSFLS, "n/a"));
+            moduleInfo.add(new ModuleInfo(ModuleType.MULTITENANCY, "n/a"));
+        }
+
+        return new LicenseInfoNodeResponse(clusterService.localNode(), license, moduleInfo);
     }
 
     @Override

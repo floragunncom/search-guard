@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.rest;
+package com.floragunn.searchguard.action.licenseinfo;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
@@ -28,27 +28,29 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.action.RestActions.NodesResponseRestListener;
 
-import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
-import com.floragunn.searchguard.action.licenseinfo.LicenseInfoRequest;
 import com.google.common.collect.ImmutableList;
 
+@Deprecated
 public class SearchGuardLicenseAction extends BaseRestHandler {
 
     public SearchGuardLicenseAction(final Settings settings, final RestController controller) {
         super();
     }
-    
+
     @Override
     public List<Route> routes() {
-        return ImmutableList.of(new Route(GET, "/_searchguard/license"), new Route(POST, "/_searchguard/license"));
+        return ImmutableList.of(new Route(GET, "/_searchguard/license"), new Route(POST, "/_searchguard/license"),
+                new Route(Method.GET, "/_searchguard/api/license"));
     }
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         LicenseInfoRequest licenseInfoRequest = new LicenseInfoRequest();
-        return channel -> client.executeLocally(LicenseInfoAction.INSTANCE, licenseInfoRequest, new NodesResponseRestListener<>(channel));
+        return channel -> client.executeLocally(LicenseInfoAction.INSTANCE, licenseInfoRequest,
+                new NodesResponseRestListener<LicenseInfoResponse>(channel));
     }
 
     @Override

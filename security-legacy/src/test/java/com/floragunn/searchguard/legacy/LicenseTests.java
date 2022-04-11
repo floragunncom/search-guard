@@ -40,8 +40,8 @@ import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
-import com.floragunn.searchguard.license.SearchGuardLicenseKey;
-import com.floragunn.searchguard.license.SearchGuardLicenseKey.Feature;
+import com.floragunn.searchguard.license.SearchGuardLicense;
+import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
 import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
@@ -100,7 +100,7 @@ public class LicenseTests extends SingleClusterTest {
     public void testComplianceLicense() throws Exception {
       
         final String now = new SimpleDateFormat("yyyy-MM-dd", SgUtils.EN_Locale).format(new Date());
-        SearchGuardLicenseKey license = SearchGuardLicenseKey.createTrialLicense(now, "");
+        SearchGuardLicense license = SearchGuardLicense.createTrialLicense(now, "");
         
         license.dynamicValidate(cs);
         
@@ -114,19 +114,19 @@ public class LicenseTests extends SingleClusterTest {
     @Test
     public void testComplianceLicenseMap() throws Exception {
 
-        SearchGuardLicenseKey license = new SearchGuardLicenseKey(XContentHelper
+        SearchGuardLicense license = new SearchGuardLicense(XContentHelper
                 .convertToMap(new BytesArray(FileHelper.loadFile("license1.json")), false, JsonXContent.jsonXContent.type()).v2());
         
         Assert.assertFalse(license.hasFeature(Feature.COMPLIANCE));
         Assert.assertArrayEquals(license.getFeatures(), new Feature[0]);
         
-        license = new SearchGuardLicenseKey(XContentHelper
+        license = new SearchGuardLicense(XContentHelper
                 .convertToMap(new BytesArray(FileHelper.loadFile("license3.json")), false, JsonXContent.jsonXContent.type()).v2());
         
         Assert.assertFalse(license.hasFeature(Feature.COMPLIANCE));
         Assert.assertArrayEquals(license.getFeatures(), new Feature[0]);
         
-        license = new SearchGuardLicenseKey(XContentHelper
+        license = new SearchGuardLicense(XContentHelper
                 .convertToMap(new BytesArray(FileHelper.loadFile("license2.json")), false, JsonXContent.jsonXContent.type()).v2());
         
         Assert.assertTrue(license.hasFeature(Feature.COMPLIANCE));

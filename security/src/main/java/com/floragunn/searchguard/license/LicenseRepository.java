@@ -49,35 +49,38 @@ import com.floragunn.searchguard.support.SgUtils;
 public class LicenseRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(LicenseRepository.class);
 
-    private final Settings settings;
     private final ClusterService clusterService;
     private final List<LicenseChangeListener> licenseChangeListeners = new ArrayList<LicenseChangeListener>();
     private final PrivilegedConfigClient privilegedClient;
     private final String searchguardIndex;
     private final ComponentState componentState = new ComponentState(2, null, "license_repository", LicenseRepository.class);
 
-    private volatile SearchGuardLicenseKey effectiveLicense;
-    private volatile SearchGuardLicenseKey configuredLicense;
+    private volatile SearchGuardLicense effectiveLicense;
+    private volatile SearchGuardLicense configuredLicense;
     private volatile ValidationErrors validationErrors;
 
     public LicenseRepository(Settings settings, Client client, ClusterService clusterService, ConfigurationRepository configurationRepository) {
-        this.settings = settings;
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         this.clusterService = clusterService;
         this.privilegedClient = PrivilegedConfigClient.adapt(client);
 
-        configurationRepository.subscribeOnChange((configMap) -> {
-            SgDynamicConfiguration<SearchGuardLicenseKey> config = configMap.get(CType.LICENSE_KEY);
-            SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
+        if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true)) {
+            configurationRepository.subscribeOnChange((configMap) -> {
+                SgDynamicConfiguration<SearchGuardLicenseKey> config = configMap.get(CType.LICENSE_KEY);
+                SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
 
-            if (config != null && config.getCEntry("default") != null) {
-                useLicense(config.getCEntry("default"), config);
-            } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                useLicense(legacyConfig.getCEntry("sg_config").getLicense(), legacyConfig);
-            } else {
-                useLicense(null, null);
-            }
-        });
+                if (config != null && config.getCEntry("default") != null) {
+                    useLicense(config.getCEntry("default"), config);
+                } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
+                    useLicense(legacyConfig.getCEntry("sg_config").getLicense(), legacyConfig);
+                } else {
+                    useLicense(null, null);
+                }
+            });
+        } else {
+            this.componentState.setState(State.SUSPENDED, "enterprise_modules_disabled");
+        }
+
     }
 
     public synchronized void subscribeOnLicenseChange(LicenseChangeListener licenseChangeListener) {
@@ -90,7 +93,7 @@ public class LicenseRepository implements ComponentStateProvider {
      *
      * @return null if no license is needed
      */
-    public SearchGuardLicenseKey getLicense() {
+    public SearchGuardLicense getLicense() {
         if (configuredLicense != null) {
             configuredLicense.dynamicValidate(clusterService);
             return configuredLicense;
@@ -102,7 +105,7 @@ public class LicenseRepository implements ComponentStateProvider {
         }
     }
 
-    private SearchGuardLicenseKey createOrGetTrial(String msg) {
+    private SearchGuardLicense createOrGetTrial(String msg) {
 
         final IndexMetadata sgIndexMetaData = clusterService.state().getMetadata().index(searchguardIndex);
         if (sgIndexMetaData == null) {
@@ -131,14 +134,14 @@ public class LicenseRepository implements ComponentStateProvider {
             }
         }
 
-        SearchGuardLicenseKey result = SearchGuardLicenseKey.createTrialLicense(formatDate(created), msg);
+        SearchGuardLicense result = SearchGuardLicense.createTrialLicense(formatDate(created), msg);
 
         result.dynamicValidate(clusterService);
 
         return result;
     }
 
-    private synchronized void notifyAboutLicenseChanges(SearchGuardLicenseKey license) {
+    private synchronized void notifyAboutLicenseChanges(SearchGuardLicense license) {
         for (LicenseChangeListener listener : this.licenseChangeListeners) {
             listener.onChange(license);
         }
@@ -153,41 +156,41 @@ public class LicenseRepository implements ComponentStateProvider {
         return componentState;
     }
 
-    private void useLicense(SearchGuardLicenseKey license, SgDynamicConfiguration<?> config) {        
+    private void useLicense(SearchGuardLicenseKey licenseKey, SgDynamicConfiguration<?> config) {
         this.componentState.setConfigVersion(config != null ? config.getDocVersion() : -1);
 
-        if (license != null) {
+        if (licenseKey != null) {
+            SearchGuardLicense license = licenseKey.getLicense();
             ValidationErrors validationErrors = license.dynamicValidate(clusterService);
 
             if (!validationErrors.hasErrors()) {
                 componentState.setState(State.INITIALIZED, "using_valid_license");
+                componentState.setConfigProperty("license_uid", license.getUid());
 
                 this.effectiveLicense = license;
             } else {
                 componentState.setState(State.INITIALIZED, "license_invalid");
                 componentState.setDetailJson(validationErrors.toJsonString());
+                componentState.setConfigProperty("license_uid", license.getUid());
+
                 this.effectiveLicense = license;
             }
-            
+
             this.configuredLicense = configuredLicense;
             this.validationErrors = validationErrors;
-        } else if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true)) {
+        } else {
             this.componentState.setState(State.INITIALIZED, "no_license");
             this.configuredLicense = null;
             this.effectiveLicense = createOrGetTrial(null);
-        } else {
-            this.componentState.setState(State.INITIALIZED, "no_license_necessary");
-            this.configuredLicense = null;
-            this.effectiveLicense = null;
         }
-        
+
         notifyAboutLicenseChanges(effectiveLicense);
         printInfoText(effectiveLicense);
     }
-    
-    private void printInfoText(SearchGuardLicenseKey sgLicense) {
+
+    private void printInfoText(SearchGuardLicense sgLicense) {
         if (sgLicense != null) {
-            LOGGER.info("Search Guard License Type: "+sgLicense.getType()+", " + (sgLicense.isValid() ? "valid" : "invalid"));
+            LOGGER.info("Search Guard License Type: " + sgLicense.getType() + ", " + (sgLicense.isValid() ? "valid" : "invalid"));
 
             if (sgLicense.getExpiresInDays() <= 30 && sgLicense.isValid()) {
                 LOGGER.warn("Your Search Guard license expires in " + sgLicense.getExpiresInDays() + " days.");
@@ -203,7 +206,7 @@ public class LicenseRepository implements ComponentStateProvider {
         }
     }
 
-    public SearchGuardLicenseKey getConfiguredLicense() {
+    public SearchGuardLicense getConfiguredLicense() {
         return configuredLicense;
     }
 

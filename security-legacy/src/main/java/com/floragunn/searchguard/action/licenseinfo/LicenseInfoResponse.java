@@ -34,17 +34,18 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.license.SearchGuardLicenseKey;
+import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.support.ModuleInfo;
 
+@Deprecated
 public class LicenseInfoResponse extends BaseNodesResponse<LicenseInfoNodeResponse> implements ToXContent {
-    
+
     public LicenseInfoResponse(StreamInput in) throws IOException {
         super(in);
     }
-    
+
     public LicenseInfoResponse(final ClusterName clusterName, List<LicenseInfoNodeResponse> nodes, List<FailedNodeException> failures) {
-        super(clusterName, nodes, failures);   
+        super(clusterName, nodes, failures);
     }
 
     @Override
@@ -59,21 +60,22 @@ public class LicenseInfoResponse extends BaseNodesResponse<LicenseInfoNodeRespon
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        
+
         final List<LicenseInfoNodeResponse> allNodes = getNodes();
-        
-        if(allNodes.isEmpty()) {
+
+        if (allNodes.isEmpty()) {
             throw new IOException("All nodes failed");
         }
-        
-        final List<LicenseInfoNodeResponse> nonNullLicenseNodes = allNodes.stream().filter(r->r != null && r.getLicense() != null).collect(Collectors.toList());
-        
-        builder.startObject("sg_license");   
-        
-        if(nonNullLicenseNodes.size() != allNodes.size() && nonNullLicenseNodes.size() > 0) {
-            
-            final SearchGuardLicenseKey license = nonNullLicenseNodes.get(0).getLicense();
-            
+
+        final List<LicenseInfoNodeResponse> nonNullLicenseNodes = allNodes.stream().filter(r -> r != null && r.getLicense() != null)
+                .collect(Collectors.toList());
+
+        builder.startObject("sg_license");
+
+        if (nonNullLicenseNodes.size() != allNodes.size() && nonNullLicenseNodes.size() > 0) {
+
+            final SearchGuardLicense license = nonNullLicenseNodes.get(0).getLicense();
+
             builder.field("uid", license.getUid());
             builder.field("type", license.getType());
             builder.field("features", license.getFeatures());
@@ -84,22 +86,23 @@ public class LicenseInfoResponse extends BaseNodesResponse<LicenseInfoNodeRespon
             builder.field("start_date", license.getStartDate());
             builder.field("major_version", license.getMajorVersion());
             builder.field("cluster_name", license.getClusterName());
-            builder.field("msgs", new String[]{"License mismatch across some nodes"});
+            builder.field("msgs", new String[] { "License mismatch across some nodes" });
             builder.field("expiry_in_days", license.getExpiresInDays());
             builder.field("is_expired", license.isExpired());
             builder.field("is_valid", false);
             builder.field("action", "Enable or disable enterprise modules on all your nodes");
             builder.field("prod_usage", "No");
             builder.field("license_required", true);
-            builder.field("allowed_node_count_per_cluster", license.getAllowedNodeCount() > 1500?"unlimited":String.valueOf(license.getAllowedNodeCount()));
-            
+            builder.field("allowed_node_count_per_cluster",
+                    license.getAllowedNodeCount() > 1500 ? "unlimited" : String.valueOf(license.getAllowedNodeCount()));
+
         } else if (nonNullLicenseNodes.size() == 0) {
-            builder.field("msgs", new String[]{"No license required because enterprise modules not enabled."});
+            builder.field("msgs", new String[] { "No license required because enterprise modules not enabled." });
             builder.field("license_required", false);
         } else {
-            
-            final SearchGuardLicenseKey license = nonNullLicenseNodes.get(0).getLicense();
-                 
+
+            final SearchGuardLicense license = nonNullLicenseNodes.get(0).getLicense();
+
             builder.field("uid", license.getUid());
             builder.field("type", license.getType());
             builder.field("features", license.getFeatures());
@@ -117,20 +120,21 @@ public class LicenseInfoResponse extends BaseNodesResponse<LicenseInfoNodeRespon
             builder.field("action", license.getAction());
             builder.field("prod_usage", license.getProdUsage());
             builder.field("license_required", true);
-            builder.field("allowed_node_count_per_cluster", license.getAllowedNodeCount() > 1500?"unlimited":String.valueOf(license.getAllowedNodeCount()));
+            builder.field("allowed_node_count_per_cluster",
+                    license.getAllowedNodeCount() > 1500 ? "unlimited" : String.valueOf(license.getAllowedNodeCount()));
         }
-        
+
         builder.endObject();
-        
+
         builder.startObject("modules");
-        
+
         List<ModuleInfo> mod0 = new LinkedList<>(allNodes.get(0).getModules());
-        
+
         Set<String> encounteredTypes = new HashSet<>();
-        
-        for(ModuleInfo moduleInfo: mod0) {
-        	Map<String, String> infoAsMap = moduleInfo.getAsMap();
-        	
+
+        for (ModuleInfo moduleInfo : mod0) {
+            Map<String, String> infoAsMap = moduleInfo.getAsMap();
+
             String type = moduleInfo.getModuleType().name();
 
             int count = 0;
@@ -141,29 +145,25 @@ public class LicenseInfoResponse extends BaseNodesResponse<LicenseInfoNodeRespon
             }
 
             encounteredTypes.add(type);
-        	
+
             builder.field(type, infoAsMap);
         }
-        
+
         boolean mismatch = false;
         List<String> mismatchedNodes = new LinkedList<>();
-        for(LicenseInfoNodeResponse node: allNodes) {
-        	for(ModuleInfo nodeModuleInfo : node.getModules()) {
-        		if (!mod0.contains(nodeModuleInfo)) {
-        			mismatch = true;
-        			mismatchedNodes.add(node.getNode().getName());
-        			break;
-        		}
-        	}
+        for (LicenseInfoNodeResponse node : allNodes) {
+            for (ModuleInfo nodeModuleInfo : node.getModules()) {
+                if (!mod0.contains(nodeModuleInfo)) {
+                    mismatch = true;
+                    mismatchedNodes.add(node.getNode().getName());
+                    break;
+                }
+            }
         }
-
         builder.endObject();
-        
+
         builder.startObject("compatibility");
-        builder.field("modules_mismatch", mismatch);
-        if (mismatch) {
-        	builder.field("mismatched_nodes", mismatchedNodes);
-        }
+        builder.field("modules_mismatch", false);
         builder.endObject();
 
         return builder;
