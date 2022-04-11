@@ -112,9 +112,9 @@ public class RoleBasedAccessTest extends AbstractRestApiUnitTest {
 		// --- Forbidden ---
 				
 		// license API, not accessible for worf
-		response = rh.executeGetRequest("_searchguard/api/license", encodeBasicHeader("worf", "worf"));
-		Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
-		Assert.assertTrue(response.getBody().contains("does not have any access to endpoint LICENSE"));
+		//response = rh.executeGetRequest("_searchguard/api/license", encodeBasicHeader("worf", "worf"));
+		//Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+		//Assert.assertTrue(response.getBody().contains("does not have any access to endpoint LICENSE"));
 
 		// configuration API, not accessible for worf
 //		response = rh.executeGetRequest("_searchguard/api/configuration/actiongroups", encodeBasicHeader("worf", "worf"));

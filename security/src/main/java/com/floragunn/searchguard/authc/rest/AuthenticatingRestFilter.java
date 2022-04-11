@@ -102,21 +102,21 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
 
                 if (config != null && config.getCEntry("default") != null) {
-                    RestAuthenticationProcessor authenticationProcessor = new RestAuthenticationProcessor.Default(config.getCEntry("default"), modulesRegistry, adminDns,
-                            blockedIpRegistry, blockedUserRegistry, auditLog, threadPool, privilegesEvaluator);
+                    RestAuthenticationProcessor authenticationProcessor = new RestAuthenticationProcessor.Default(config.getCEntry("default"),
+                            modulesRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool, privilegesEvaluator);
 
                     AuthenticatingRestFilter.this.authenticationProcessor = authenticationProcessor;
-                    
+
                     componentState.replacePartsWithType("config", config.getComponentState());
                     componentState.replacePart(authenticationProcessor.getComponentState());
                     componentState.updateStateFromParts();
-                    
+
                     if (log.isDebugEnabled()) {
                         log.debug("New configuration:\n" + config.getCEntry("default").toYamlString());
                     }
                 } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                    RestAuthenticationProcessor authenticationProcessor = new LegacyRestAuthenticationProcessor(legacyConfig.getCEntry("sg_config"), modulesRegistry, adminDns,
-                            blockedIpRegistry, blockedUserRegistry, auditLog, threadPool, privilegesEvaluator);
+                    RestAuthenticationProcessor authenticationProcessor = new LegacyRestAuthenticationProcessor(legacyConfig.getCEntry("sg_config"),
+                            modulesRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool, privilegesEvaluator);
 
                     AuthenticatingRestFilter.this.authenticationProcessor = authenticationProcessor;
 
@@ -224,7 +224,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
         private boolean isAuthczRequired(RestRequest request) {
             return request.method() != Method.OPTIONS && !"/_searchguard/license".equals(request.path())
-                    && !"/_searchguard/health".equals(request.path())
+                    && !"/_searchguard/license".equals(request.path()) && !"/_searchguard/health".equals(request.path())
                     && !("/_searchguard/auth/session".equals(request.path()) && request.method() == Method.POST);
         }
 

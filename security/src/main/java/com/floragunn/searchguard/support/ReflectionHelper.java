@@ -17,18 +17,12 @@
 
 package com.floragunn.searchguard.support;
 
-import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.jar.Attributes;
-import java.util.jar.Manifest;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -68,13 +62,7 @@ import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 public class ReflectionHelper {
 
     protected static final Logger log = LogManager.getLogger(ReflectionHelper.class);
-
-    private static Set<ModuleInfo> modulesLoaded = new HashSet<>();
-
-    public static Set<ModuleInfo> getModulesLoaded() {
-        return Collections.unmodifiableSet(modulesLoaded);
-    }
-
+   
     private static boolean enterpriseModulesDisabled() {
         return !enterpriseModulesEnabled;
     }
@@ -88,8 +76,7 @@ public class ReflectionHelper {
         if (!settings.getAsBoolean("http.enabled", true)) {
 
             try {
-                final Class<?> clazz = Class.forName("com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions");
-                addLoadedModule(clazz);
+                Class.forName("com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions");
             } catch (final Throwable e) {
                 log.warn("Unable to register Rest Management Api Module due to {}", e.toString());
                 if (log.isDebugEnabled()) {
@@ -151,7 +138,6 @@ public class ReflectionHelper {
                     }
                 }
             }
-            addLoadedModule(clazz);
 
             if (log.isDebugEnabled()) {
                 log.debug("Found " + result.size() + " REST API handlers in " + className);
@@ -188,7 +174,6 @@ public class ReflectionHelper {
                                 ScriptService.class, NamedXContentRegistry.class, ThreadPool.class)
                         .invoke(null, settings, configPath, restController, localClient, cs, scriptService, xContentRegistry, threadPool);
             }
-            addLoadedModule(clazz);
 
             if (log.isDebugEnabled()) {
                 log.debug("Found " + result.size() + " REST API handlers in " + className);
@@ -216,7 +201,6 @@ public class ReflectionHelper {
             final Class<?> clazz = Class.forName("com.floragunn.searchguard.dlsfls.lucene.SearchGuardFlsDlsIndexSearcherWrapper");
             final Constructor<?> ret = clazz.getConstructor(IndexService.class, Settings.class, AdminDNs.class, ClusterService.class, AuditLog.class,
                     ComplianceIndexingOperationListener.class, ComplianceConfig.class);
-            addLoadedModule(clazz);
             return ret;
         } catch (final Throwable e) {
             log.warn("Unable to enable DLS/FLS Module due to {}", e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
@@ -265,7 +249,6 @@ public class ReflectionHelper {
             final AuditLog impl = (AuditLog) clazz.getConstructor(Settings.class, Path.class, Client.class, ThreadPool.class,
                     IndexNameExpressionResolver.class, ClusterService.class)
                     .newInstance(settings, configPath, localClient, threadPool, resolver, clusterService);
-            addLoadedModule(clazz);
             return impl;
         } catch (final Throwable e) {
             log.warn("Unable to enable Auditlog Module due to {}", e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
@@ -314,8 +297,6 @@ public class ReflectionHelper {
             final Class<?> clazz0 = Class.forName(clazz);
             final T ret = (T) clazz0.getConstructor(Settings.class, Path.class).newInstance(settings, configPath);
 
-            addLoadedModule(clazz0);
-
             return ret;
         } catch (InvocationTargetException e) {
             if (e.getCause() instanceof ConfigValidationException) {
@@ -361,8 +342,6 @@ public class ReflectionHelper {
                 ret = (T) clazz0.getConstructor(Settings.class, Path.class).newInstance(settings.build(), context.getConfigPath());
             }
             
-            addLoadedModule(clazz0);
-
             return ret;
         } catch (ClassNotFoundException e) {
             throw e;
@@ -408,8 +387,6 @@ public class ReflectionHelper {
                 ret = (T) clazz0.getConstructor(Settings.class, Path.class).newInstance(settings.build(), context.getConfigPath());
             }
             
-            addLoadedModule(clazz0);
-
             return ret;
         } catch (ClassNotFoundException e) {
             throw e;
@@ -438,7 +415,6 @@ public class ReflectionHelper {
         try {
             final Class<?> clazz0 = Class.forName(clazz);
             final InterClusterRequestEvaluator ret = (InterClusterRequestEvaluator) clazz0.getConstructor(Settings.class).newInstance(settings);
-            addLoadedModule(clazz0);
             return ret;
         } catch (final Throwable e) {
             log.warn("Unable to load inter cluster request evaluator '{}' due to {}", clazz, e.toString());
@@ -453,8 +429,7 @@ public class ReflectionHelper {
 
         try {
             final Class<?> clazz0 = Class.forName(clazz);
-            final PrincipalExtractor ret = (PrincipalExtractor) clazz0.newInstance();
-            addLoadedModule(clazz0);
+            final PrincipalExtractor ret = (PrincipalExtractor) clazz0.getConstructor().newInstance();
             return ret;
         } catch (final Throwable e) {
             log.warn("Unable to load pricipal extractor '{}' due to {}", clazz, e.toString());
@@ -465,86 +440,10 @@ public class ReflectionHelper {
         }
     }
 
-    public static boolean isEnterpriseAAAModule(final String clazz) {
-        boolean enterpriseModuleInstalled = false;
-
-        if (clazz.equalsIgnoreCase("com.floragunn.dlic.auth.ldap.backend.LDAPAuthorizationBackend")) {
-            enterpriseModuleInstalled = true;
-        }
-
-        if (clazz.equalsIgnoreCase("com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend")) {
-            enterpriseModuleInstalled = true;
-        }
-
-        if (clazz.equalsIgnoreCase("com.floragunn.dlic.auth.http.jwt.HTTPJwtAuthenticator")) {
-            enterpriseModuleInstalled = true;
-        }
-
-        if (clazz.equalsIgnoreCase("com.floragunn.dlic.auth.http.jwt.keybyoidc.HTTPJwtKeyByOpenIdConnectAuthenticator")) {
-            enterpriseModuleInstalled = true;
-        }
-
-        if (clazz.equalsIgnoreCase("com.floragunn.dlic.auth.http.kerberos.HTTPSpnegoAuthenticator")) {
-            enterpriseModuleInstalled = true;
-        }
-
-        if (clazz.equalsIgnoreCase("com.floragunn.dlic.auth.http.saml.HTTPSamlAuthenticator")) {
-            enterpriseModuleInstalled = true;
-        }
-
-        return enterpriseModuleInstalled;
-    }
-
-    public static boolean addLoadedModule(Class<?> clazz) {
-        ModuleInfo moduleInfo = getModuleInfo(clazz);
-        if (log.isDebugEnabled()) {
-            log.debug("Loaded module {}", moduleInfo);
-        }
-        return modulesLoaded.add(moduleInfo);
-    }
-
     private static boolean enterpriseModulesEnabled;
 
     // TODO static hack
     public static void init(final boolean enterpriseModulesEnabled) {
         ReflectionHelper.enterpriseModulesEnabled = enterpriseModulesEnabled;
-    }
-
-    private static ModuleInfo getModuleInfo(final Class<?> impl) {
-
-        ModuleType moduleType = ModuleType.getByDefaultImplClass(impl);
-        ModuleInfo moduleInfo = new ModuleInfo(moduleType, impl.getName());
-
-        try {
-
-            // TODO this does not work for anon classes
-            // Also, as it uses getSimpleName(), it disregards package names. If there are classes with the same name on the classpath, this will get confused. 
-            URL classPathUrl = impl.getResource(impl.getSimpleName() + ".class");
-            
-            if (classPathUrl != null) {
-                String classPath = classPathUrl.toString();
-                moduleInfo.setClasspath(classPath);
-
-                if (!classPath.startsWith("jar")) {
-                    return moduleInfo;
-                }
-
-                final String manifestPath = classPath.substring(0, classPath.lastIndexOf("!") + 1) + "/META-INF/MANIFEST.MF";
-
-                try (InputStream stream = new URL(manifestPath).openStream()) {
-                    final Manifest manifest = new Manifest(stream);
-                    final Attributes attr = manifest.getMainAttributes();
-                    moduleInfo.setVersion(attr.getValue("Implementation-Version"));
-                    moduleInfo.setBuildTime(attr.getValue("Build-Time"));
-                    moduleInfo.setGitsha1(attr.getValue("git-sha1"));
-                }
-            } else {
-                log.error("Unable to retrieve module info for " + impl);               
-            }
-        } catch (final Throwable e) {
-            log.error("Unable to retrieve module info for " + impl, e);
-        }
-
-        return moduleInfo;
     }
 }

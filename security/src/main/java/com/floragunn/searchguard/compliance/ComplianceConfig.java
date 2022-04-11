@@ -51,8 +51,8 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.Resolve
 import com.floragunn.searchguard.authz.config.AuthorizationConfig;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.license.LicenseChangeListener;
-import com.floragunn.searchguard.license.SearchGuardLicenseKey;
-import com.floragunn.searchguard.license.SearchGuardLicenseKey.Feature;
+import com.floragunn.searchguard.license.SearchGuardLicense;
+import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -193,7 +193,7 @@ public class ComplianceConfig implements LicenseChangeListener {
     }
     
     @Override
-    public void onChange(SearchGuardLicenseKey license) {
+    public void onChange(SearchGuardLicense license) {
         
         if(license == null) {
             this.enabled = false;

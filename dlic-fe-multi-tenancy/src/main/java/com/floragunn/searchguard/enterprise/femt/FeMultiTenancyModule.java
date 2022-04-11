@@ -56,14 +56,13 @@ import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
-import com.floragunn.searchguard.support.ReflectionHelper;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.ImmutableList;
 
 public class FeMultiTenancyModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(FeMultiTenancyModule.class);
 
-    private final ComponentState componentState = new ComponentState(1000, null, "fe_multi_tenancy", FeMultiTenancyModule.class);
+    private final ComponentState componentState = new ComponentState(1000, null, "fe_multi_tenancy", FeMultiTenancyModule.class).requiresEnterpriseLicense();
     private volatile boolean enabled;
     private volatile PrivilegesInterceptorImpl interceptorImpl;
     private volatile FeMultiTenancyConfig config;
@@ -133,8 +132,6 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                 log.debug("Using MT config: " + feMultiTenancyConfig + "\nenabled: " + enabled + "\ninterceptor: " + interceptorImpl);
             }
         });
-
-        ReflectionHelper.addLoadedModule(FeMultiTenancyModule.class);
 
         return Arrays.asList(privilegesInterceptor);
     }

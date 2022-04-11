@@ -27,6 +27,7 @@ import java.util.Map.Entry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
@@ -57,8 +58,8 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     private final ComponentState componentState;
 
     private final Map<String, T> centries = new LinkedHashMap<>();
-    private long seqNo = -1;
-    private long primaryTerm = -1;
+    private long seqNo = SequenceNumbers.UNASSIGNED_SEQ_NO;
+    private long primaryTerm = SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
     private String uninterpolatedJson;
 
     /**

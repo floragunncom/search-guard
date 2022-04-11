@@ -26,6 +26,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 
+@Deprecated
 public class ModuleInfo implements Serializable, Writeable{
 	
 	private static final long serialVersionUID = -1077651823194285138L;

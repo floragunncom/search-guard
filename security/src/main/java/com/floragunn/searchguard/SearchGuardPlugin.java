@@ -112,8 +112,6 @@ import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.TransportConfigUpdateAction;
-import com.floragunn.searchguard.action.licenseinfo.LicenseInfoAction;
-import com.floragunn.searchguard.action.licenseinfo.TransportLicenseInfoAction;
 import com.floragunn.searchguard.action.whoami.TransportWhoAmIAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -154,6 +152,7 @@ import com.floragunn.searchguard.http.SearchGuardHttpServerTransport;
 import com.floragunn.searchguard.http.SearchGuardNonSslHttpServerTransport;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.license.LicenseRepository;
+import com.floragunn.searchguard.license.SearchGuardLicenseInfoAction;
 import com.floragunn.searchguard.license.SearchGuardLicenseKeyApi;
 import com.floragunn.searchguard.modules.api.ComponentStateRestAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
@@ -165,7 +164,6 @@ import com.floragunn.searchguard.rest.PermissionAction;
 import com.floragunn.searchguard.rest.SSLReloadCertAction;
 import com.floragunn.searchguard.rest.SearchGuardHealthAction;
 import com.floragunn.searchguard.rest.SearchGuardInfoAction;
-import com.floragunn.searchguard.rest.SearchGuardLicenseAction;
 import com.floragunn.searchguard.sgconf.StaticSgConfig;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
@@ -174,7 +172,6 @@ import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
-import com.floragunn.searchguard.support.ModuleInfo;
 import com.floragunn.searchguard.support.ReflectionHelper;
 import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.support.WildcardMatcher;
@@ -496,7 +493,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(
                         new SearchGuardInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
                 handlers.add(new KibanaInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
-                handlers.add(new SearchGuardLicenseAction(settings, restController));
                 handlers.add(new SearchGuardHealthAction(settings, restController, cr));
                 handlers.add(new PermissionAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
 
@@ -515,7 +511,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(FrontendAuthcConfigApi.TypeLevel.REST_API);
                 handlers.add(FrontendAuthcConfigApi.DocumentLevel.REST_API);
                 handlers.add(SearchGuardLicenseKeyApi.REST_API);
-
+                handlers.add(SearchGuardLicenseInfoAction.REST_API);
+                
                 handlers.add(GetActivatedFrontendConfigAction.REST_API);
                 handlers.add(new AuthenticatingRestFilter.DebugApi());
 
@@ -543,9 +540,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> actions = new ArrayList<>(1);
         if (!disabled && !sslOnly) {
             actions.add(new ActionHandler<>(ConfigUpdateAction.INSTANCE, TransportConfigUpdateAction.class));
-            actions.add(new ActionHandler<>(LicenseInfoAction.INSTANCE, TransportLicenseInfoAction.class));
             actions.add(new ActionHandler<>(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));
             actions.add(new ActionHandler<>(GetComponentStateAction.INSTANCE, GetComponentStateAction.TransportAction.class));
+            actions.add(new ActionHandler<>(SearchGuardLicenseInfoAction.INSTANCE, SearchGuardLicenseInfoAction.Handler.class));
             actions.add(new ActionHandler<>(BulkConfigApi.GetAction.INSTANCE, BulkConfigApi.GetAction.Handler.class));
             actions.add(new ActionHandler<>(BulkConfigApi.UpdateAction.INSTANCE, BulkConfigApi.UpdateAction.Handler.class));
             actions.add(new ActionHandler<>(ConfigVarRefreshAction.INSTANCE, ConfigVarRefreshAction.TransportAction.class));
@@ -1216,9 +1213,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             cr.initOnNodeStart();
             moduleRegistry.onNodeStarted();
             protectedConfigIndexService.onNodeStart();
-        }
-        final Set<ModuleInfo> sgModules = ReflectionHelper.getModulesLoaded();
-        log.info("{} Search Guard modules loaded so far: {}", sgModules.size(), sgModules);
+        }       
     }
 
     //below is a hack because it seems not possible to access RepositoriesService from a non guice class

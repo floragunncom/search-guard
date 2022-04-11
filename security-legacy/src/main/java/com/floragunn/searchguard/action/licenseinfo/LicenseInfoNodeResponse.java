@@ -27,47 +27,48 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 
-import com.floragunn.searchguard.license.SearchGuardLicenseKey;
+import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.support.ModuleInfo;
 
+@Deprecated
 public class LicenseInfoNodeResponse extends BaseNodeResponse {
 
-	private SearchGuardLicenseKey license;
-	private Set<ModuleInfo> modules;
+    private SearchGuardLicense license;
+    private Set<ModuleInfo> modules;
 
-	public LicenseInfoNodeResponse(StreamInput in) throws IOException {
-	    super(in);
-	    license = in.readOptionalWriteable(SearchGuardLicenseKey::new);
+    public LicenseInfoNodeResponse(StreamInput in) throws IOException {
+        super(in);
+        license = in.readOptionalWriteable(SearchGuardLicense::new);
         modules = new HashSet<>(in.readList(ModuleInfo::new));
-	}
+    }
 
-	public LicenseInfoNodeResponse(final DiscoveryNode node, SearchGuardLicenseKey license, Set<ModuleInfo> modules) {
-		super(node);
-		this.license = license;
-		this.modules = modules;
-	}
+    public LicenseInfoNodeResponse(final DiscoveryNode node, SearchGuardLicense license, Set<ModuleInfo> modules) {
+        super(node);
+        this.license = license;
+        this.modules = modules;
+    }
 
-	public static LicenseInfoNodeResponse readNodeResponse(StreamInput in) throws IOException {
-		return new LicenseInfoNodeResponse(in);
-	}
+    public static LicenseInfoNodeResponse readNodeResponse(StreamInput in) throws IOException {
+        return new LicenseInfoNodeResponse(in);
+    }
 
-	public SearchGuardLicenseKey getLicense() {
-		return license;
-	}
+    public SearchGuardLicense getLicense() {
+        return license;
+    }
 
-	public Set<ModuleInfo> getModules() {
-		return modules;
-	}
+    public Set<ModuleInfo> getModules() {
+        return modules;
+    }
 
-	@Override
-	public void writeTo(StreamOutput out) throws IOException {
-		super.writeTo(out);
-		out.writeOptionalWriteable(license);
-		out.writeList(new LinkedList<>(modules));
-	}
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        super.writeTo(out);
+        out.writeOptionalWriteable(license);
+        out.writeList(new LinkedList<>(modules));
+    }
 
-	@Override
-	public String toString() {
-		return "LicenseInfoNodeResponse [license=" + license + "]";
-	}
+    @Override
+    public String toString() {
+        return "LicenseInfoNodeResponse [license=" + license + "]";
+    }
 }

@@ -56,7 +56,6 @@ public class SearchGuardLicenseKeyApi extends TypeLevelConfigApi {
                 super(INSTANCE, CType.LICENSE_KEY, handlerDependencies, configurationRepository, baseDependencies);
             }
         }
-
     }
 
     public static class PutAction extends TypeLevelConfigApi.PutAction {

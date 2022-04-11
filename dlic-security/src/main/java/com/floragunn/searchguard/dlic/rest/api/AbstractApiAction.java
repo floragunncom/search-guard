@@ -56,7 +56,6 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateNodeResponse;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
-import com.floragunn.searchguard.action.licenseinfo.LicenseInfoResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -190,9 +189,9 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		}
 	}
 
-	protected void handlePut(String name, RestChannel channel, RestRequest request, Client client, JsonNode content) throws IOException {
+	@SuppressWarnings("unchecked")
+    protected void handlePut(String name, RestChannel channel, RestRequest request, Client client, JsonNode content) throws IOException {
 		
-		@SuppressWarnings("unchecked")
 		SgDynamicConfiguration<Object> existingConfiguration;
 		try {
 			existingConfiguration = (SgDynamicConfiguration<Object>) load(getConfigName(), false);
@@ -514,23 +513,6 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         }
     }
 	
-	protected void successResponse(RestChannel channel, LicenseInfoResponse ur) {
-	    try {
-            final XContentBuilder builder = channel.newBuilder();
-            builder.startObject();
-            ur.toXContent(builder, ToXContent.EMPTY_PARAMS);
-            builder.endObject();
-            if (log.isDebugEnabled()) {
-                log.debug("Successfully fetched license " + ur.toString());
-            }
-            channel.sendResponse(
-                    new BytesRestResponse(RestStatus.OK, builder));
-        } catch (IOException e) {
-            internalErrorResponse(channel, "Unable to fetch license: " + e.getMessage());
-            log.error("Cannot fetch convert license to XContent due to", e);        
-        }
-    }
-
 	protected void badRequestResponse(RestChannel channel, AbstractConfigurationValidator validator) {
         channel.sendResponse(new BytesRestResponse(RestStatus.BAD_REQUEST, validator.errorsAsXContent(channel)));
     }

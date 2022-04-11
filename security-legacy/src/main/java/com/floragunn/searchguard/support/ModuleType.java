@@ -31,6 +31,7 @@ import com.floragunn.searchguard.authc.rest.authenticators.HTTPClientCertAuthent
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 
+@Deprecated
 public enum ModuleType implements Serializable {
 
 	REST_MANAGEMENT_API("REST Management API", "com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions", Boolean.TRUE),

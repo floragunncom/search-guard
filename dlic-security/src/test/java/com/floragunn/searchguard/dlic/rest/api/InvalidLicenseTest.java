@@ -23,7 +23,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
-import com.floragunn.searchguard.license.SearchGuardLicenseKey;
+import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class InvalidLicenseTest extends LicenseTest {
@@ -40,7 +40,7 @@ public class InvalidLicenseTest extends LicenseTest {
 		Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 		
 		 Map<?, ?> settingsAsMap = getCurrentLicense();
-		 Assert.assertEquals(SearchGuardLicenseKey.Type.SINGLE.name(), settingsAsMap.get("type"));
+		 Assert.assertEquals(SearchGuardLicense.Type.SINGLE.name(), settingsAsMap.get("type"));
 		 Assert.assertEquals("1", settingsAsMap.get("allowed_node_count_per_cluster"));
 		 Assert.assertEquals(Boolean.FALSE.toString(), String.valueOf(settingsAsMap.get("is_valid")));
 		 Assert.assertEquals(expiredStartDate.format(formatter), settingsAsMap.get("start_date"));
