@@ -20,6 +20,8 @@ package com.floragunn.searchguard.enterprise.auth;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.http.message.BasicHeader;
 import org.junit.Assert;
@@ -27,6 +29,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.enterprise.auth.jwt.Jose;
 import com.floragunn.searchguard.enterprise.auth.oidc.TestJwk;
@@ -46,7 +49,9 @@ public class RestAuthenticationIntegrationTests {
 
             new Authc.Domain("jwt").frontend(DocNode.of("signing.jwks", Jose.toBasicObject(TestJwk.OCT_1_2_3)))//
                     .acceptIps("127.0.0.4")//
-                    .userMapping(new UserMapping().rolesFromCommaSeparatedString("jwt.roles")));
+                    .userMapping(new UserMapping().rolesFromCommaSeparatedString("jwt.roles")),
+
+            new Authc.Domain("basic/internal_users_db"), new Authc.Domain("kerberos/internal_users_db"));
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().authc(AUTHC).enterpriseModulesEnabled().build();
@@ -77,4 +82,18 @@ public class RestAuthenticationIntegrationTests {
         }
     }
 
+    @Test
+    public void challenges() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient()) {
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+
+            List<String> wwwAuthenticateValues = response.getHeaders().stream().filter((h) -> h.getName().equals("WWW-Authenticate"))
+                    .map((h) -> h.getValue()).collect(Collectors.toList());
+
+            Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+
+            Assert.assertEquals(response.getHeaders().toString(),
+                    ImmutableList.of("Bearer realm=\"Search Guard\"", "Basic realm=\"Search Guard\"", "Negotiate"), wwwAuthenticateValues);
+        }
+    }
 }

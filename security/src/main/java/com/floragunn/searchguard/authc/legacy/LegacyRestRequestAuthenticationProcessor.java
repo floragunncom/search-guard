@@ -150,7 +150,10 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
         }
 
         BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "Unauthorized");
-        wwwAuthenticateResponse.addHeader("WWW-Authenticate", String.join(", ", challenges));
+        
+        for (String challenge : this.challenges) {
+            wwwAuthenticateResponse.addHeader("WWW-Authenticate", challenge);            
+        }
 
         restChannel.sendResponse(wwwAuthenticateResponse);
 

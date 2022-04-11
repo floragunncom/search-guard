@@ -204,7 +204,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                             BytesRestResponse response = new BytesRestResponse(result.getRestStatus(), result.getRestStatusMessage());
 
                             if (!result.getHeaders().isEmpty()) {
-                                result.getHeaders().forEach((k, v) -> response.addHeader(k, v));
+                                result.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
                             }
 
                             channel.sendResponse(response);
@@ -274,7 +274,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         private void sendDebugInfo(RestChannel channel, AuthczResult authczResult) {
             RestResponse response = new BytesRestResponse(authczResult.getRestStatus(), "application/json", authczResult.toPrettyJsonString());
             if (!authczResult.getHeaders().isEmpty()) {
-                authczResult.getHeaders().forEach((k, v) -> response.addHeader(k, v));
+                authczResult.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
             }
             channel.sendResponse(response);
         }
