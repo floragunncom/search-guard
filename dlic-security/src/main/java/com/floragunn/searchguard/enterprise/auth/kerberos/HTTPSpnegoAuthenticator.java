@@ -52,6 +52,7 @@ import org.ietf.jgss.GSSManager;
 import org.ietf.jgss.GSSName;
 import org.ietf.jgss.Oid;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
@@ -478,6 +479,10 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAut
         @Override
         public Factory<HTTPAuthenticator> getFactory() {
             return (config, context) -> {
+                if (config.isNull()) {
+                    config = DocNode.EMPTY;
+                }
+                
                 Settings.Builder settings = Settings.builder().loadFromMap(config.toMap());
 
                 if (context.getEsSettings() != null) {

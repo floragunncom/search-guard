@@ -46,7 +46,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
         return new AuthczResult(Status.STOP, restStatus, message, null, ImmutableMap.empty(), debug);
     }
 
-    public static AuthczResult stop(RestStatus restStatus, String message, ImmutableMap<String, String> headers, List<DebugInfo> debug) {
+    public static AuthczResult stop(RestStatus restStatus, String message, ImmutableMap<String, List<String>> headers, List<DebugInfo> debug) {
         return new AuthczResult(Status.STOP, restStatus, message, null, headers, debug);
     }
 
@@ -68,7 +68,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
     private final String restStatusMessage;
     private final String redirectUri;
     private final List<DebugInfo> debug;
-    private final Map<String, String> headers;
+    private final Map<String, List<String>> headers;
 
     public AuthczResult(User user, Status status) {
         this.user = user;
@@ -120,7 +120,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
         this.headers = ImmutableMap.empty();
     }
 
-    public AuthczResult(Status status, RestStatus restStatus, String restStatusMessage, String redirectUri, ImmutableMap<String, String> headers,
+    public AuthczResult(Status status, RestStatus restStatus, String restStatusMessage, String redirectUri, ImmutableMap<String, List<String>> headers,
             List<DebugInfo> debug) {
         this.user = null;
         this.status = status;
@@ -255,7 +255,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
         return builder;
     }
 
-    public Map<String, String> getHeaders() {
+    public Map<String, List<String>> getHeaders() {
         return headers;
     }
 

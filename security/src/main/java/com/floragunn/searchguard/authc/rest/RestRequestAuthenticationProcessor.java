@@ -30,6 +30,7 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
@@ -154,7 +155,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
             log.debug("Sending WWW-Authenticate: " + String.join(", ", challenges));
         }
 
-        return AuthczResult.stop(RestStatus.UNAUTHORIZED, "Unauthorized", ImmutableMap.of("WWW-Authenticate", String.join(", ", challenges)),
+        return AuthczResult.stop(RestStatus.UNAUTHORIZED, "Unauthorized", ImmutableMap.of("WWW-Authenticate", ImmutableList.of(challenges)),
                 debug.get());
     }
 
