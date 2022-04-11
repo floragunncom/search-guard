@@ -264,9 +264,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAut
                 final String username = ((SimpleUserPrincipal) principal).getName();
 
                 if (username == null || username.length() == 0) {
-                    log.error(
-                            "Got empty or null user from kerberos. Normally this means that you acceptor principal {} does not match the server hostname",
-                            acceptorPrincipal);
+                    return null;
                 }
 
                 return AuthCredentials.forUser(username).authenticatorType(getType()).nativeCredentials(outToken).complete().build();
