@@ -36,9 +36,10 @@ import com.floragunn.searchguard.authc.base.IPAddressAcceptanceRules;
 import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.support.IPAddressCollection;
 
-public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig> {
+public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Destroyable {
 
     public static final Metadata<RestAuthcConfig> META = Metadata.create(RestAuthcConfig.class, "sg_authc",
             "Authentication configuration for the REST API", (n, c) -> parse(n, (ConfigurationRepository.Context) c).get(),
@@ -48,16 +49,16 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig> {
             Attribute.optional("user_cache", Object.class, "User cache configuration."));
 
     private final DocNode source;
-    private final ImmutableList<AuthenticationDomain<HTTPAuthenticator>> authenticators;
+    private final ImmutableList<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains;
     private final Network network;
     private final boolean debugEnabled;
     private final CacheConfig userCacheConfig;
 
-    public RestAuthcConfig(DocNode source, ImmutableList<AuthenticationDomain<HTTPAuthenticator>> authenticators, Network network,
+    public RestAuthcConfig(DocNode source, ImmutableList<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains, Network network,
             CacheConfig userCacheConfig, boolean debugEnabled) {
         super();
         this.source = source;
-        this.authenticators = authenticators;
+        this.authenticationDomains = authenticationDomains;
         this.network = network;
         this.debugEnabled = debugEnabled;
         this.userCacheConfig = userCacheConfig;
@@ -169,7 +170,7 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig> {
     }
 
     public ImmutableList<AuthenticationDomain<HTTPAuthenticator>> getAuthenticators() {
-        return authenticators;
+        return authenticationDomains;
     }
 
     public boolean isDebugEnabled() {
@@ -182,8 +183,8 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig> {
 
     @Override
     public String toString() {
-        return "RestAuthcConfig [authenticators=" + authenticators + ", network=" + network + ", debugEnabled=" + debugEnabled + ", userCacheConfig="
-                + userCacheConfig + "]";
+        return "RestAuthcConfig [authenticators=" + authenticationDomains + ", network=" + network + ", debugEnabled=" + debugEnabled
+                + ", userCacheConfig=" + userCacheConfig + "]";
     }
 
     @Override
@@ -194,6 +195,16 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig> {
     @Override
     public Metadata<RestAuthcConfig> meta() {
         return META;
+    }
+
+    @Override
+    public void destroy() {
+        for (AuthenticationDomain<?> authenticationDomain : this.authenticationDomains) {
+            if (authenticationDomain instanceof Destroyable) {
+                ((Destroyable) authenticationDomain).destroy();
+            }
+        }
+
     }
 
 }

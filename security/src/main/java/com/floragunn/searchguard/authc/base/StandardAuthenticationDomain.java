@@ -44,6 +44,7 @@ import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.AuthDomainInfo;
@@ -51,7 +52,7 @@ import com.floragunn.searchguard.user.User;
 import com.google.common.hash.Hashing;
 
 public class StandardAuthenticationDomain<AuthenticatorType extends AuthenticationFrontend> implements AuthenticationDomain<AuthenticatorType>,
-        Comparable<StandardAuthenticationDomain<AuthenticatorType>>, Document<StandardAuthenticationDomain<AuthenticatorType>> {
+        Comparable<StandardAuthenticationDomain<AuthenticatorType>>, Document<StandardAuthenticationDomain<AuthenticatorType>>, Destroyable {
 
     public static final Metadata<StandardAuthenticationDomain> HTTP_META = Metadata.create(StandardAuthenticationDomain.class, "auth_domain",
             "Authentication domains", (n, c) -> parse(n, HTTPAuthenticator.class, (ConfigurationRepository.Context) c),
@@ -109,7 +110,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         if (authenticationBackend != null) {
             this.componentState.addPart(authenticationBackend.getComponentState());
         }
-        
+
         this.componentState.updateStateFromParts();
     }
 
@@ -452,5 +453,16 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
     @Override
     public ComponentState getComponentState() {
         return componentState;
+    }
+
+    @Override
+    public void destroy() {
+        if (authenticationBackend instanceof Destroyable) {
+            ((Destroyable) authenticationBackend).destroy();
+        }
+
+        if (authenticationFrontend instanceof Destroyable) {
+            ((Destroyable) authenticationFrontend).destroy();
+        }
     }
 }

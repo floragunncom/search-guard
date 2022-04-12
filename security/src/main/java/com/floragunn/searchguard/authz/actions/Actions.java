@@ -171,7 +171,6 @@ import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
-import com.floragunn.searchguard.license.SearchGuardLicenseInfoAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 import com.floragunn.searchsupport.xcontent.AttributeValueFromXContent;
