@@ -14,7 +14,7 @@
  * limitations under the License.
  * 
  */
-package com.floragunn.searchguard.authc;
+package com.floragunn.searchguard.configuration;
 
 public interface Destroyable {
 	void destroy();

@@ -21,10 +21,11 @@ import java.util.Collection;
 import java.util.Set;
 
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 
-public class ConfigMap {
+public class ConfigMap implements Destroyable {
 
     private final ImmutableMap<CType<?>, SgDynamicConfiguration<?>> map;
 
@@ -59,8 +60,20 @@ public class ConfigMap {
         return new ConfigMap(this.map.with(newConfigs.map));
     }
 
+    public ConfigMap only(Set<CType<?>> types) {
+        return new ConfigMap(this.map.matching((k) -> types.contains(k)));
+    }
+
     public String getVersionsAsString() {
         return ImmutableMap.map(this.map, (k) -> k, (v) -> v.getDocVersion()).toString();
+    }
+
+    public ImmutableSet<CType<?>> getTypes() {
+        return this.map.keySet();
+    }
+    
+    public boolean isEmpty() {
+        return this.map.isEmpty();
     }
 
     public static class Builder {
@@ -74,6 +87,13 @@ public class ConfigMap {
 
         public ConfigMap build() {
             return new ConfigMap(this.map.build());
+        }
+    }
+
+    @Override
+    public void destroy() {
+        for (SgDynamicConfiguration<?> config : this.map.values()) {
+            config.destroy();
         }
     }
 }

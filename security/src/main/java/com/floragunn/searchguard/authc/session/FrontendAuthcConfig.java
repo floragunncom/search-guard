@@ -35,8 +35,9 @@ import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
 import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.Destroyable;
 
-public class FrontendAuthcConfig implements Document<FrontendAuthcConfig> {
+public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destroyable {
 
     public static final Authenticator DEFAULT_BASIC_AUTHCZ = new Authenticator("basic", "Login",
             "If you have forgotten your username or password, please ask your system administrator");
@@ -270,6 +271,16 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig> {
 
             return result;
         }
+    }
+
+    @Override
+    public void destroy() {
+        for (Authenticator authenticator : this.authenticators) {
+            if (authenticator.getAuthenticationDomain() instanceof Destroyable) {
+                ((Destroyable) authenticator.getAuthenticationDomain()).destroy();
+            }
+        }
+
     }
 
 }

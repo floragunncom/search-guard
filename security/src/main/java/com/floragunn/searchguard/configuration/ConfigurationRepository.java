@@ -56,6 +56,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -117,6 +118,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final AtomicBoolean installDefaultConfig = new AtomicBoolean();
     private final ComponentState componentState = new ComponentState(-1000, null, "config_repository", ConfigurationRepository.class);
     private final PrivilegedConfigClient privilegedConfigClient;
+    private final ThreadPool threadPool;
 
     public final static Map<String, ?> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap.of("encoded_config",
             ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
@@ -139,6 +141,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.externalUseConfigLoader = new ConfigurationLoader(client, settings, null, this, null);
         this.variableResolvers = VariableResolvers.ALL_PRIVILEGED.with("var", (key) -> configVarService.get(key));
         this.parserContext = new Context(variableResolvers, modulesRegistry, settings, configPath);
+        this.threadPool = threadPool;
 
         configVarService.addChangeListener(() -> {
             if (currentConfig != null) {
@@ -358,16 +361,29 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     private void reloadConfiguration0(Set<CType<?>> configTypes, String reason) throws ConfigUnavailableException {
         try {
-            ConfigMap configMap = mainConfigLoader.load(configTypes, reason).get();
+            ConfigMap loadedConfig = mainConfigLoader.load(configTypes, reason).get();
+            ConfigMap discardedConfig;
 
             if (this.currentConfig == null) {
-                this.currentConfig = configMap;
+                this.currentConfig = loadedConfig;
+                discardedConfig = null;
             } else {
-                this.currentConfig = this.currentConfig.with(configMap);
+                ConfigMap oldConfig = this.currentConfig;
+                ConfigMap mergedConfig = oldConfig.with(loadedConfig);
+                discardedConfig = oldConfig.only(loadedConfig.getTypes());
+                
+                this.currentConfig = mergedConfig;
             }
 
             notifyAboutChanges(this.currentConfig);
-
+            
+            if (discardedConfig != null && !discardedConfig.isEmpty()) {
+                this.threadPool.schedule(() -> {
+                    LOGGER.info("Destroying old configuration: " + discardedConfig);                    
+                    discardedConfig.destroy();
+                }, TimeValue.timeValueSeconds(10), ThreadPool.Names.GENERIC);                
+            }
+            
         } catch (InterruptedException e) {
             throw new RuntimeException("Interrupted while waiting for configuration", e);
         } catch (ExecutionException e) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
@@ -50,7 +51,7 @@ import com.floragunn.searchguard.sgconf.StaticDefinable;
 import com.floragunn.searchguard.support.SgUtils;
 import com.google.common.base.Charsets;
 
-public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, RedactableDocument, ComponentStateProvider {
+public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, RedactableDocument, ComponentStateProvider, Destroyable {
 
     private static final Logger log = LogManager.getLogger(SgDynamicConfiguration.class);
 
@@ -424,6 +425,23 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     @Override
     public ComponentState getComponentState() {
         return componentState;
+    }
+
+    @Override
+    public void destroy() {
+        if (!Destroyable.class.isAssignableFrom(ctype.getClass())) {
+            return;
+        }
+
+        for (T entry : this.centries.values()) {
+            if (entry instanceof Destroyable) {
+                try {
+                    ((Destroyable) entry).destroy();
+                } catch (Exception e) {
+                    log.error("Error while destroying " + entry, e);
+                }
+            }
+        }
     }
 
 }

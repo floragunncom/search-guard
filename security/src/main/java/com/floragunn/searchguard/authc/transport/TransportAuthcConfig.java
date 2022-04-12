@@ -31,20 +31,21 @@ import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.base.IPAddressAcceptanceRules;
 import com.floragunn.searchguard.authc.transport.TransportAuthenticationDomain.TransportAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.Destroyable;
 
-public class TransportAuthcConfig implements Document<TransportAuthcConfig> {
+public class TransportAuthcConfig implements Document<TransportAuthcConfig>, Destroyable {
 
     private final DocNode source;
-    private final ImmutableList<AuthenticationDomain<TransportAuthenticationFrontend>> authenticators;
+    private final ImmutableList<AuthenticationDomain<TransportAuthenticationFrontend>> authenticationDomains;
     private final boolean debugEnabled;
     private final CacheConfig userCacheConfig;
     private final Network network;
 
-    public TransportAuthcConfig(DocNode source, ImmutableList<AuthenticationDomain<TransportAuthenticationFrontend>> authenticators, Network network,
-            CacheConfig userCacheConfig, boolean debugEnabled) {
+    public TransportAuthcConfig(DocNode source, ImmutableList<AuthenticationDomain<TransportAuthenticationFrontend>> authenticationDomains,
+            Network network, CacheConfig userCacheConfig, boolean debugEnabled) {
         super();
         this.source = source;
-        this.authenticators = authenticators;
+        this.authenticationDomains = authenticationDomains;
         this.userCacheConfig = userCacheConfig;
         this.debugEnabled = debugEnabled;
         this.network = network;
@@ -59,7 +60,7 @@ public class TransportAuthcConfig implements Document<TransportAuthcConfig> {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors);
 
-        List<AuthenticationDomain<TransportAuthenticationFrontend>> authenticators = vNode.get("authenticators")
+        List<AuthenticationDomain<TransportAuthenticationFrontend>> authenticators = vNode.get("auth_domains")
                 .asList((n) -> TransportAuthenticationDomain.parse(n, context));
 
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
@@ -72,7 +73,7 @@ public class TransportAuthcConfig implements Document<TransportAuthcConfig> {
     }
 
     public ImmutableList<AuthenticationDomain<TransportAuthenticationFrontend>> getAuthenticators() {
-        return authenticators;
+        return authenticationDomains;
     }
 
     public boolean isDebugEnabled() {
@@ -112,4 +113,15 @@ public class TransportAuthcConfig implements Document<TransportAuthcConfig> {
     public Network getNetwork() {
         return network;
     }
+
+    @Override
+    public void destroy() {
+        for (AuthenticationDomain<?> authenticationDomain : this.authenticationDomains) {
+            if (authenticationDomain instanceof Destroyable) {
+                ((Destroyable) authenticationDomain).destroy();
+            }
+        }
+
+    }
+
 }
