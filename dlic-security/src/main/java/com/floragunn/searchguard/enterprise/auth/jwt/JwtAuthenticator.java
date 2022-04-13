@@ -170,6 +170,11 @@ public class JwtAuthenticator implements HTTPAuthenticator {
     public AuthCredentials extractCredentials(RestRequest request, ThreadContext context)
             throws CredentialsException, AuthenticatorUnavailableException {
         String jwtString = getJwtTokenString(request);
+        
+        if (jwtString == null) {
+            return null;
+        }
+        
         JwtToken jwt;
 
         try {
