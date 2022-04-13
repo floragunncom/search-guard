@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -37,7 +38,7 @@ import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.support.JoseParsers;
 import com.google.common.collect.ImmutableList;
 
-public class SessionServiceConfig {
+public class SessionServiceConfig implements Document<SessionServiceConfig> {
     public static CType<SessionServiceConfig> TYPE = new CType<SessionServiceConfig>("sessions", "Sessions", 10011, SessionServiceConfig.class,
             SessionServiceConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
@@ -50,6 +51,7 @@ public class SessionServiceConfig {
     private Duration inactivityTimeout = Duration.ofHours(1);
     private int maxSessionsPerUser = 1000;
     private List<String> requiredLoginPrivileges;
+    private DocNode source;
 
     public boolean isEnabled() {
         return enabled;
@@ -96,6 +98,7 @@ public class SessionServiceConfig {
         result.enabled = true;
         result.requiredLoginPrivileges = ImmutableList.of(LoginPrivileges.SESSION);
         result.jwtSigningKey = JoseParsers.parseJwkHs512SigningKey(key);
+        result.source = DocNode.EMPTY;
 
         return result;
     }
@@ -143,6 +146,7 @@ public class SessionServiceConfig {
 
             result.requiredLoginPrivileges = vJsonNode.get("required_login_privileges").withListDefault(LoginPrivileges.SESSION).ofStrings();
 
+            result.source = jsonNode;
             // TODO create test JWT for more thorough validation (some things are only checked then)
         }
         
@@ -175,6 +179,11 @@ public class SessionServiceConfig {
 
     public void setRequiredLoginPrivileges(List<String> requiredLoginPrivileges) {
         this.requiredLoginPrivileges = requiredLoginPrivileges;
+    }
+
+    @Override
+    public Object toBasicObject() {
+        return source;
     }
 
 }
