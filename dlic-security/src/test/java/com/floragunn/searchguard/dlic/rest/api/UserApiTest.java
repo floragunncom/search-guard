@@ -79,7 +79,7 @@ public class UserApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             System.out.println(response.getBody());
             settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-            Assert.assertEquals(5, settings.size());
+            Assert.assertEquals(4, settings.size());
             // hash must be filtered
             Assert.assertEquals(null, settings.get("admin.hash"));
 
