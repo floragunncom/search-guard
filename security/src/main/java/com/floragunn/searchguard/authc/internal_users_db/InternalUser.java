@@ -39,9 +39,8 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.sgconf.Hideable;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 
-public class InternalUser implements PatchableDocument<InternalUser>, RedactableDocument, Hideable, SgDynamicConfiguration.HasLegacyFormat {
+public class InternalUser implements PatchableDocument<InternalUser>, RedactableDocument, Hideable {
 
     private final static SecureRandom RANDOM = new SecureRandom();
 
@@ -86,23 +85,6 @@ public class InternalUser implements PatchableDocument<InternalUser>, Redactable
             return ImmutableMap.ofNonNull("description", description, "backend_roles", backendRoles, "search_guard_roles", searchGuardRoles,
                     "attributes", attributes);
         }
-    }
-
-    @Override
-    public Object toRedactedLegacyBasicObject() {
-        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
-
-        result.put("reserved", reserved);
-        result.put("hidden", hidden);
-        result.put("backend_roles", backendRoles != null ? backendRoles : Collections.emptyList());
-        result.put("search_guard_roles", searchGuardRoles != null ? searchGuardRoles : Collections.emptyList());
-        result.put("attributes", attributes != null ? attributes : Collections.emptyMap());
-        
-        if (description != null) {
-            result.put("description", description);
-        }
-        
-        return result;
     }
 
     public String getDescription() {
