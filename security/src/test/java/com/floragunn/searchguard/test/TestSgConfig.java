@@ -711,7 +711,7 @@ public class TestSgConfig {
             }
 
             public Domain frontend(DocNode frontendConfig) {
-                this.backendConfig = frontendConfig;
+                this.frontendConfig = frontendConfig;
                 return this;
             }
 

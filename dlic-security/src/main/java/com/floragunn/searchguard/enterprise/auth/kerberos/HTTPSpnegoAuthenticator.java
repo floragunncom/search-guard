@@ -38,7 +38,6 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.env.Environment;
-//import org.elasticsearch.env.Environment;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
@@ -70,6 +69,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAut
     protected final Logger log = LogManager.getLogger(this.getClass());
 
     private boolean stripRealmFromPrincipalName;
+    private boolean challenge;
     private Set<String> acceptorPrincipal;
     private Path acceptorKeyTabPath;
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", TYPE, HTTPSpnegoAuthenticator.class).initialized()
@@ -80,6 +80,8 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAut
         try {
             final Path configDir = new Environment(settings, configPath).configFile();
             final String krb5PathSetting = settings.get("searchguard.kerberos.krb5_filepath");
+
+            this.challenge = settings.getAsBoolean("challenge", true);
 
             final SecurityManager sm = System.getSecurityManager();
 
@@ -455,10 +457,14 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAut
 
     @Override
     public String getChallenge(AuthCredentials credentials) {
-        if (credentials != null && credentials.getNativeCredentials() != null) {
-            return "Negotiate " + Base64.getEncoder().encodeToString((byte[]) credentials.getNativeCredentials());
+        if (challenge) {
+            if (credentials != null && credentials.getNativeCredentials() != null) {
+                return "Negotiate " + Base64.getEncoder().encodeToString((byte[]) credentials.getNativeCredentials());
+            } else {
+                return "Negotiate";
+            }
         } else {
-            return "Negotiate";
+            return null;
         }
     }
 
@@ -480,7 +486,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAut
                 if (config.isNull()) {
                     config = DocNode.EMPTY;
                 }
-                
+
                 Settings.Builder settings = Settings.builder().loadFromMap(config.toMap());
 
                 if (context.getEsSettings() != null) {

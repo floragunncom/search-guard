@@ -51,7 +51,7 @@ public class RestAuthenticationIntegrationTests {
                     .acceptIps("127.0.0.4")//
                     .userMapping(new UserMapping().rolesFromCommaSeparatedString("jwt.roles")),
 
-            new Authc.Domain("basic/internal_users_db"), new Authc.Domain("kerberos/internal_users_db"));
+            new Authc.Domain("basic/internal_users_db").frontend(DocNode.of("challenge", false)), new Authc.Domain("kerberos/internal_users_db"));
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().authc(AUTHC).enterpriseModulesEnabled().build();
@@ -92,8 +92,9 @@ public class RestAuthenticationIntegrationTests {
 
             Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
 
-            Assert.assertEquals(response.getHeaders().toString(),
-                    ImmutableList.of("Bearer realm=\"Search Guard\"", "Basic realm=\"Search Guard\"", "Negotiate"), wwwAuthenticateValues);
+            Assert.assertEquals(response.getHeaders().toString(), ImmutableList.of("Bearer realm=\"Search Guard\"", "Negotiate"),
+                    wwwAuthenticateValues);
+
         }
     }
 }

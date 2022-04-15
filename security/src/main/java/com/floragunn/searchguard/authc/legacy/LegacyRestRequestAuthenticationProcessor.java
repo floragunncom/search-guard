@@ -110,10 +110,12 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
         if (ac == null) {
             log.debug("no {} credentials found in request", authenticationDomain.getFrontend().getType());
 
-            String challenge = httpAuthenticator.getChallenge(ac);
+            if (isChallengeEnabled(authenticationDomain)) {
+                String challenge = httpAuthenticator.getChallenge(ac);
 
-            if (challenge != null) {
-                challenges.add(challenge);
+                if (challenge != null) {
+                    challenges.add(challenge);
+                }
             }
 
             return AuthDomainState.SKIP;
@@ -121,6 +123,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
             org.apache.logging.log4j.ThreadContext.put("user", ac.getUsername());
             if (!ac.isComplete()) {
                 //credentials found in request but we need another client challenge
+
                 String challenge = httpAuthenticator.getChallenge(ac);
 
                 if (challenge != null) {
@@ -150,9 +153,9 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
         }
 
         BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "Unauthorized");
-        
+
         for (String challenge : this.challenges) {
-            wwwAuthenticateResponse.addHeader("WWW-Authenticate", challenge);            
+            wwwAuthenticateResponse.addHeader("WWW-Authenticate", challenge);
         }
 
         restChannel.sendResponse(wwwAuthenticateResponse);
@@ -172,6 +175,14 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
     @Override
     protected String getImpersonationUser() {
         return restRequest.header("sg_impersonate_as");
+    }
+
+    private boolean isChallengeEnabled(AuthenticationDomain<?> authDomain) {
+        if (authDomain instanceof LegacyAuthenticationDomain) {
+            return ((LegacyAuthenticationDomain<?>) authDomain).isChallenge();
+        } else {
+            return true;
+        }
     }
 
     private MetaRequestInfo checkAuthDomainMetaRequest(RestRequest restRequest) {

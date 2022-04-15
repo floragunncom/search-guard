@@ -78,6 +78,7 @@ public class JwtAuthenticator implements HTTPAuthenticator {
     private final String jwtUrlParameter;
     private final String requiredAudience;
     private final String requiredIssuer;
+    private final boolean challenge;
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "jwt", JwtAuthenticator.class).initialized()
             .requiresEnterpriseLicense();
 
@@ -89,25 +90,26 @@ public class JwtAuthenticator implements HTTPAuthenticator {
         this.jwtUrlParameter = vNode.get("url_parameter").asString();
         this.requiredAudience = vNode.get("required_audience").asString();
         this.requiredIssuer = vNode.get("required_issuer").asString();
+        this.challenge = vNode.get("challenge").withDefault(true).asBoolean();
 
         JsonWebKeys jwks = vNode.get("signing.jwks").expected("A JWKS document").by((n) -> JwkUtils.readJwkSet(n.toJsonString()));
         JsonWebKey rsaJwk = vNode.get("signing.rsa").by(JwtAuthenticator::parseRsa);
         JsonWebKey ecJwk = vNode.get("signing.ec").by(JwtAuthenticator::parseEc);
 
         JsonWebKeys joinedJwks;
-        
+
         if (rsaJwk != null || ecJwk != null) {
             ImmutableList<JsonWebKey> jwkList = ImmutableList.ofNonNull(rsaJwk, ecJwk);
-            
+
             if (jwks != null) {
                 jwkList = jwkList.with(jwks.getKeys());
             }
-            
+
             joinedJwks = new JsonWebKeys(jwkList);
         } else {
             joinedJwks = jwks;
         }
-                
+
         if (joinedJwks != null) {
             this.staticKeySet = new KeyProvider() {
 
@@ -156,6 +158,7 @@ public class JwtAuthenticator implements HTTPAuthenticator {
             this.jwksKeySet = null;
         }
 
+        vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
         this.jwtVerifier = new JwtVerifier(KeyProvider.combined(staticKeySet, openIdKeySet, jwksKeySet), requiredAudience, requiredIssuer);
@@ -170,11 +173,11 @@ public class JwtAuthenticator implements HTTPAuthenticator {
     public AuthCredentials extractCredentials(RestRequest request, ThreadContext context)
             throws CredentialsException, AuthenticatorUnavailableException {
         String jwtString = getJwtTokenString(request);
-        
+
         if (jwtString == null) {
             return null;
         }
-        
+
         JwtToken jwt;
 
         try {
@@ -196,12 +199,16 @@ public class JwtAuthenticator implements HTTPAuthenticator {
         return AuthCredentials.forUser(claims.getSubject()).attribute(Attributes.AUTH_TYPE, "jwt")
                 .userMappingAttribute("jwt", Jose.toBasicObject(claims)).complete().build();
     }
-    
+
     @Override
     public String getChallenge(AuthCredentials credentials) {
-        return "Bearer realm=\"Search Guard\"";
+        if (challenge) {
+            return "Bearer realm=\"Search Guard\"";
+        } else {
+            return null;
+        }
     }
-    
+
     private static JsonWebKey parseRsa(DocNode docNode, Parser.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
@@ -257,7 +264,6 @@ public class JwtAuthenticator implements HTTPAuthenticator {
             throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
         }
     }
-    
 
     private static JsonWebKey parseEc(DocNode docNode, Parser.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -336,7 +342,7 @@ public class JwtAuthenticator implements HTTPAuthenticator {
     public ComponentState getComponentState() {
         return componentState;
     }
-    
+
     public static TypedComponent.Info<HTTPAuthenticator> INFO = new TypedComponent.Info<HTTPAuthenticator>() {
 
         @Override
@@ -355,5 +361,4 @@ public class JwtAuthenticator implements HTTPAuthenticator {
         }
     };
 
-   
 }

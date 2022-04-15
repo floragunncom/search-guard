@@ -162,7 +162,7 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
         Pattern skipUsers = vNode.get("skip_users").by(Pattern::parse);
         String authenticatorType = vNode.get("http_authenticator.type").asString();
         int order = vNode.get("order").withDefault(0).asInt();
-        boolean challenge = vNode.get("challenge").withDefault(false).asBoolean();
+        boolean challenge = vNode.get("challenge").withDefault(true).asBoolean();
 
         if (authenticatorType == null) {
             // This is likely an auth domain that only works for the transport layer
