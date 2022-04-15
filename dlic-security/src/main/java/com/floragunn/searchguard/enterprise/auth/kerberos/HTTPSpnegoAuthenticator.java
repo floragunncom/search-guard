@@ -37,13 +37,8 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
@@ -54,16 +49,14 @@ import org.ietf.jgss.Oid;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
-import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.base.Strings;
 
-public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAuthenticator {
+public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
     private static final String TYPE = "kerberos";
-    private static final String EMPTY_STRING = "";
     private static final Oid[] KRB_OIDS = new Oid[] { KrbConstants.SPNEGO, KrbConstants.KRB5MECH };
 
     protected final Logger log = LogManager.getLogger(this.getClass());
@@ -279,28 +272,6 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAut
     }
 
     @Override
-    public boolean reRequestAuthentication(final RestChannel channel, AuthCredentials creds) {
-
-        final BytesRestResponse wwwAuthenticateResponse;
-        XContentBuilder response = getNegotiateResponseBody();
-
-        if (response != null) {
-            wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, response);
-        } else {
-            wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, EMPTY_STRING);
-        }
-
-        if (creds == null || creds.getNativeCredentials() == null) {
-            wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
-        } else {
-            wwwAuthenticateResponse.addHeader("WWW-Authenticate",
-                    "Negotiate " + Base64.getEncoder().encodeToString((byte[]) creds.getNativeCredentials()));
-        }
-        channel.sendResponse(wwwAuthenticateResponse);
-        return true;
-    }
-
-    @Override
     public String getType() {
         return TYPE;
     }
@@ -367,25 +338,6 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator, LegacyHTTPAut
         }
 
         return null;
-    }
-
-    private XContentBuilder getNegotiateResponseBody() {
-        try {
-            XContentBuilder negotiateResponseBody = XContentFactory.jsonBuilder();
-            negotiateResponseBody.startObject();
-            negotiateResponseBody.field("error");
-            negotiateResponseBody.startObject();
-            negotiateResponseBody.field("header");
-            negotiateResponseBody.startObject();
-            negotiateResponseBody.field("WWW-Authenticate", "Negotiate");
-            negotiateResponseBody.endObject();
-            negotiateResponseBody.endObject();
-            negotiateResponseBody.endObject();
-            return negotiateResponseBody;
-        } catch (Exception ex) {
-            log.error("Can't construct response body", ex);
-            return null;
-        }
     }
 
     private static String stripRealmName(String name, boolean strip) {

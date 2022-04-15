@@ -1,7 +1,7 @@
 variables:
-  COMPAT2_TEST_SG_KI_PLUGIN: "7.14.0-51.0.0"
-  COMPAT2_TEST_KI_VERSION: "7.14.0"
-  COMPAT2_TEST_IT_BRANCH: "session-auth"
+  COMPAT2_TEST_SG_KI_PLUGIN: "7.10.2-53.0.0"
+  COMPAT2TEST_KI_VERSION: "7.10.2"
+  COMPAT2_TEST_IT_BRANCH: "classic-compat2-7.10.x"
 
 cfe2_anon_user:
   extends:
@@ -33,22 +33,31 @@ cfe2_multitenancy:
   - fe_multitenancy
   - .cfe2_integration_test
 
-cfe2_openid_auth0:
-  extends:
-  - fe_openid_auth0
-  - .cfe2_integration_test
+#cfe2_openid_auth0:
+#  extends:
+#  - fe_openid_auth0
+#  - .cfe2_integration_test
 
 cfe2_openid_keycloak:
   extends:
   - fe_openid_keycloak
   - .cfe2_integration_test
 
-cfe2_saml:
+cfe2_saml_keycloak:
   extends:
   - .fe_integration_test
   - .cfe2_integration_test
   variables:
-    TEST: "kibana_saml"
+    TEST: "kibana_saml_keycloak"
+    TEST_ENVIRONMENT: "kibana_noxpack"
+    TEST_KI_CONFIG: "saml"
+
+cfe2_saml_auth0:
+  extends:
+  - .fe_integration_test
+  - .cfe2_integration_test
+  variables:
+    TEST: "kibana_saml_auth0"
     TEST_ENVIRONMENT: "kibana_noxpack"
     TEST_KI_CONFIG: "saml"
 

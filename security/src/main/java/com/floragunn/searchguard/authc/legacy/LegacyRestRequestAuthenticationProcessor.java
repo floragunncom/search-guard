@@ -111,6 +111,10 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
             log.debug("no {} credentials found in request", authenticationDomain.getFrontend().getType());
 
             if (isChallengeEnabled(authenticationDomain)) {
+                if (httpAuthenticator instanceof LegacyHTTPAuthenticator && ((LegacyHTTPAuthenticator) httpAuthenticator).reRequestAuthentication(restChannel, ac)) {
+                    return AuthDomainState.STOP;
+                }
+                
                 String challenge = httpAuthenticator.getChallenge(ac);
 
                 if (challenge != null) {
@@ -124,6 +128,12 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
             if (!ac.isComplete()) {
                 //credentials found in request but we need another client challenge
 
+                if (isChallengeEnabled(authenticationDomain) && httpAuthenticator instanceof LegacyHTTPAuthenticator
+                        && ((LegacyHTTPAuthenticator) httpAuthenticator).reRequestAuthentication(restChannel, ac)) {
+                    ac.clearSecrets();
+                    return AuthDomainState.STOP;
+                }
+                
                 String challenge = httpAuthenticator.getChallenge(ac);
 
                 if (challenge != null) {
