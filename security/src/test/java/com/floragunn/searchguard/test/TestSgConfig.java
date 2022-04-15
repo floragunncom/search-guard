@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,6 +44,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.bytes.BytesReference;
 
+import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableList;
@@ -69,6 +71,7 @@ public class TestSgConfig {
     private NestedValueMap overrideFrontendConfigSettings;
     private Authc authc;
     private Privileges privileges;
+    private Sessions sessions;
     private String indexName = "searchguard";
     private Map<String, Supplier<Object>> variableSuppliers = new HashMap<>();
 
@@ -275,6 +278,11 @@ public class TestSgConfig {
         return this;
     }
 
+    public TestSgConfig sessions(Sessions sessions) {
+        this.sessions = sessions;
+        return this;
+    }
+
     public TestSgConfig clone() {
         TestSgConfig result = new TestSgConfig();
 
@@ -310,6 +318,10 @@ public class TestSgConfig {
             writeConfigToIndex(client, CType.AUTHZ, privileges);
         } else {
             writeOptionalConfigToIndex(client, CType.AUTHZ, "sg_privileges.yml", null);
+        }
+
+        if (sessions != null) {
+            writeConfigToIndex(client, "sessions", sessions);
         }
 
         if (variableSuppliers.size() != 0) {
@@ -423,6 +435,17 @@ public class TestSgConfig {
             client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(document.toJsonString().getBytes("utf-8")))))
                     .actionGet();
+        } catch (Exception e) {
+            throw new RuntimeException("Error while initializing config for " + indexName, e);
+        }
+    }
+
+    private void writeConfigToIndex(Client client, String configType, Document<?> document) {
+        try {
+            log.info("Writing " + configType + "\n:" + document.toYamlString());
+
+            client.index(new IndexRequest(indexName).id(configType).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(configType,
+                    BytesReference.fromByteBuffer(ByteBuffer.wrap(document.toJsonString().getBytes("utf-8"))))).actionGet();
         } catch (Exception e) {
             throw new RuntimeException("Error while initializing config for " + indexName, e);
         }
@@ -864,7 +887,7 @@ public class TestSgConfig {
                         } else if (userNameFrom.size() > 1) {
                             userName.put("from", userNameFrom);
                         }
-                        
+
                         if (userNameStatic.size() == 1) {
                             userName.put("static", userNameStatic.get(0));
                         } else if (userNameStatic.size() > 1) {
@@ -1023,6 +1046,31 @@ public class TestSgConfig {
         public Object toBasicObject() {
             return ImmutableMap.of("default", ImmutableMap.of("ignore_unauthorized_indices", ignoreUnauthorizedIndices));
         }
+    }
+
+    public static class Sessions implements Document<Sessions> {
+
+        private Duration inactivityTimeout;
+        private Boolean refreshSessionActivityIndex;
+
+        public Sessions inactivityTimeout(Duration inactivityTimeout) {
+            this.inactivityTimeout = inactivityTimeout;
+            return this;
+        }
+
+        public Sessions refreshSessionActivityIndex(boolean refreshSessionActivityIndex) {
+            this.refreshSessionActivityIndex = refreshSessionActivityIndex;
+            return this;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap.of("default",
+                    ImmutableMap.ofNonNull("inactivity_timeout",
+                            inactivityTimeout != null ? DurationFormat.INSTANCE.format(inactivityTimeout) : null),
+                    "refresh_session_activity_index", refreshSessionActivityIndex);
+        }
+
     }
 
     private static String hash(final char[] clearTextPassword) {

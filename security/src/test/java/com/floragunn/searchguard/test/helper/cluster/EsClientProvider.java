@@ -53,7 +53,7 @@ public interface EsClientProvider {
     TestCertificates getTestCertificates();
 
     InetSocketAddress getHttpAddress();
-
+    
     InetSocketAddress getTransportAddress();
 
     default SSLContextProvider getAdminClientSslContextProvider() {
@@ -157,4 +157,5 @@ public interface EsClientProvider {
         String getName();
         String getPassword();
     }
+   
 }

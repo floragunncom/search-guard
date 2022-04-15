@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.session;
+package com.floragunn.searchguard.authc.session;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,7 +28,6 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
-import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;

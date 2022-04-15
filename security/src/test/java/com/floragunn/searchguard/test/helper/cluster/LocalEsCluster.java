@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
@@ -100,6 +101,7 @@ public class LocalEsCluster {
     private List<String> initialMasterHosts;
     private int retry = 0;
     private boolean started;
+    private Random random = new Random();
 
     public LocalEsCluster(String clusterName, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
                           List<Class<? extends Plugin>> additionalPlugins, TestCertificates testCertificates) {
@@ -193,6 +195,10 @@ public class LocalEsCluster {
     public Node clientNode() {
         return findRunningNode(clientNodes, dataNodes, masterNodes);
     }
+    
+    public Node randomClientNode() {
+        return randomRunningNode(clientNodes, dataNodes, masterNodes);
+    }
 
     public Node masterNode() {
         return findRunningNode(masterNodes);
@@ -206,7 +212,7 @@ public class LocalEsCluster {
         return allNodes.stream().filter(node -> node.getNodeName().equals(name)).findAny().orElseThrow(() -> new RuntimeException(
                 "No such node with name: " + name + "; available: " + allNodes.stream().map(Node::getNodeName).collect(Collectors.toList())));
     }
-
+    
     private boolean isNodeFailedWithPortCollision() {
         return allNodes.stream().anyMatch(Node::isPortCollision);
     }
@@ -250,6 +256,35 @@ public class LocalEsCluster {
         }
 
         return null;
+    }
+    
+    @SafeVarargs
+    private final Node randomRunningNode(List<Node> nodes, List<Node>... moreNodes) {
+        ArrayList<Node> runningNodes = new ArrayList<>();
+        
+        for (Node node : nodes) {
+            if (node.isRunning()) {
+                runningNodes.add(node);
+            }
+        }
+
+        if (moreNodes != null && moreNodes.length > 0) {
+            for (List<Node> nodesList : moreNodes) {
+                for (Node node : nodesList) {
+                    if (node.isRunning()) {
+                        runningNodes.add(node);
+                    }
+                }
+            }
+        }
+        
+        if (runningNodes.size() == 0) {
+            return null;
+        }
+        
+        int index = this.random.nextInt(runningNodes.size());
+        
+        return runningNodes.get(index);
     }
 
     private void putDefaultTemplate() {
@@ -576,6 +611,10 @@ public class LocalEsCluster {
         } else {
             return 42;
         }
+    }
+
+    public Random getRandom() {
+        return random;
     }
 
 }
