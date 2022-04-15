@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,19 +15,18 @@
  * 
  */
 
-package com.floragunn.searchguard.session;
+package com.floragunn.searchguard.authc.session;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.BearerAuthorization;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -120,8 +119,6 @@ public class SessionIntegrationTest {
         }
     }
 
-    // TODO test privilege restriction
-    @Ignore
     @Test
     public void noRolesTest() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient()) {
@@ -131,7 +128,7 @@ public class SessionIntegrationTest {
 
             Assert.assertEquals(response.getBody(), 403, response.getStatusCode());
             Assert.assertEquals(
-                    "The user 'no_roles_user' cannot login because the user has no roles. Please contact your administrator to check the user configuration.",
+                    "The user 'no_roles_user' is not allowed to log in.",
                     response.toJsonNode().path("error").textValue());
         }
     }

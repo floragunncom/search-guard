@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -181,6 +182,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     public LocalEsCluster.Node getNodeByName(String name) {
         return this.localEsCluster.getNodeByName(name);
     }
+    
+    public LocalEsCluster.Node getRandomClientNode() {
+        return this.localEsCluster.randomClientNode();
+    }
 
     public void updateSgConfig(CType<?> configType, String key, Map<String, Object> value) {
         SgConfigUpdater.updateSgConfig(this::getAdminCertClient, configType, key, value);
@@ -188,6 +193,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     public boolean isStarted() {
         return localEsCluster != null;
+    }
+    
+    public Random getRandom() {
+        return localEsCluster.getRandom();
     }
 
     private void start() {

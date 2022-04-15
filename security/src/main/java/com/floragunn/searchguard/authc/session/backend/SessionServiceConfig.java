@@ -52,6 +52,7 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
     private int maxSessionsPerUser = 1000;
     private List<String> requiredLoginPrivileges;
     private DocNode source;
+    private boolean refreshSessionActivityIndex;
 
     public boolean isEnabled() {
         return enabled;
@@ -146,6 +147,8 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
 
             result.requiredLoginPrivileges = vJsonNode.get("required_login_privileges").withListDefault(LoginPrivileges.SESSION).ofStrings();
 
+            result.refreshSessionActivityIndex = vJsonNode.get("refresh_session_activity_index").withDefault(false).asBoolean();
+            
             result.source = jsonNode;
             // TODO create test JWT for more thorough validation (some things are only checked then)
         }
@@ -184,6 +187,14 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
     @Override
     public Object toBasicObject() {
         return source;
+    }
+
+    public boolean isRefreshSessionActivityIndex() {
+        return refreshSessionActivityIndex;
+    }
+
+    public void setRefreshSessionActivityIndex(boolean refreshSessionActivityIndex) {
+        this.refreshSessionActivityIndex = refreshSessionActivityIndex;
     }
 
 }

@@ -60,6 +60,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
@@ -450,8 +451,12 @@ public class SessionService {
 
             @Override
             public void onResponse(GetResponse getResponse) {
-                if (getResponse.isExists()) {
+                if (log.isTraceEnabled()) {
+                    log.trace("SessionService.getByIdFromIndex(" + id + ") =>\n" + Strings.toString(getResponse));
+                }
 
+                if (getResponse.isExists()) {
+                    
                     try {
                         SessionToken sessionToken = SessionToken.parse(id, DocNode.parse(Format.JSON).from(getResponse.getSourceAsString()));
 
@@ -756,6 +761,7 @@ public class SessionService {
         setKeys(config.getJwtSigningKey(), config.getJwtEncryptionKey());
 
         activityTracker.setInactivityTimeout(config.getInactivityTimeout() != null ? config.getInactivityTimeout() : Duration.ofHours(1));
+        activityTracker.setIndexRefreshPolicy(config.isRefreshSessionActivityIndex() ? RefreshPolicy.IMMEDIATE : RefreshPolicy.NONE);
     }
 
     public void shutdown() {
