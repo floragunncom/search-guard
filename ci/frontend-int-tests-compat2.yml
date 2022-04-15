@@ -28,11 +28,6 @@ cfe2_clientcert_basepath:
   - fe_clientcert_basepath
   - .cfe2_integration_test
 
-cfe2_impersonation:
-  extends:
-  - fe_impersonation
-  - .cfe2_integration_test
-
 cfe2_multitenancy:
   extends:
   - fe_multitenancy
