@@ -16,6 +16,7 @@ package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -63,8 +64,8 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
         this.proxyConfig = ProxyConfig.parse(ObjectTreeXContent.toMap(settings), "proxy");
 
         try {
-            this.openIdProviderClient = new OpenIdProviderClient(URI.create(settings.get("openid_connect_url")), getSSLConfig(settings, configPath), proxyConfig,
-                    settings.getAsBoolean("cache_jwks_endpoint", false));
+            this.openIdProviderClient = new OpenIdProviderClient(URI.create(settings.get("openid_connect_url")), getSSLConfig(settings, configPath),
+                    proxyConfig, settings.getAsBoolean("cache_jwks_endpoint", false));
             int idpRequestTimeoutMs = settings.getAsInt("idp_request_timeout_ms", 5000);
 
             openIdProviderClient.setRequestTimeoutMs(idpRequestTimeoutMs);
@@ -109,11 +110,19 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
                 Responses.send(restChannel, RestStatus.OK, oidcProviderConfigMap);
             } else if ("token".equals(specificRequestPathComponent)) {
                 ContentType contentType = ContentType.APPLICATION_FORM_URLENCODED;
+                byte[] content = BytesReference.toBytes(restRequest.content());
 
-                HttpResponse idpResponse = openIdProviderClient.callTokenEndpoint(BytesReference.toBytes(restRequest.content()), contentType);
+                HttpResponse idpResponse = openIdProviderClient.callTokenEndpoint(content, contentType);
+                byte[] idpResponseContent = EntityUtils.toByteArray(idpResponse.getEntity());
+
+                if (idpResponse.getStatusLine().getStatusCode() >= 400) {
+                    log.warn("Got error from IDP for token endpoint:\n" + openIdProviderClient.getOidcConfiguration().getTokenEndpoint() + "\n"
+                            + new String(content) + "\n" + idpResponse.getStatusLine() + "\n" + Arrays.asList(idpResponse.getAllHeaders()) + "\n"
+                            + new String(idpResponseContent));
+                }
 
                 restChannel.sendResponse(new BytesRestResponse(RestStatus.fromCode(idpResponse.getStatusLine().getStatusCode()),
-                        idpResponse.getEntity().getContentType().getValue(), EntityUtils.toByteArray(idpResponse.getEntity())));
+                        idpResponse.getEntity().getContentType().getValue(), idpResponseContent));
             } else {
                 Responses.sendError(restChannel, RestStatus.NOT_FOUND, "Invalid endpoint: " + restRequest.path());
             }
@@ -129,7 +138,6 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
     public String getType() {
         return "openid";
     }
-
 
     public static TypedComponent.Info<LegacyHTTPAuthenticator> INFO = new TypedComponent.Info<LegacyHTTPAuthenticator>() {
 
@@ -154,4 +162,3 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
         return componentState;
     }
 }
-

@@ -108,6 +108,13 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     builder.field("principal", (String)threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL));
                     builder.field("peer_certificates", certs != null && certs.length > 0 ? certs.length + "" : "0");
                     
+                    // TODO Legacy: Remove when legacy auth support has been removed
+                    String ssoLogoutUrl = (String) threadContext.getTransient(ConfigConstants.SSO_LOGOUT_URL);
+                    
+                    if (ssoLogoutUrl != null) {
+                        builder.field("sso_logout_url", ssoLogoutUrl);
+                    }
+                    
                     if(user != null && verbose) {
                         try {
                             builder.field("size_of_user", RamUsageEstimator.humanReadableUnits(Base64Helper.serializeObject(user).length()));
