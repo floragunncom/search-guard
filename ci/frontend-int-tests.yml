@@ -40,14 +40,6 @@ fe_clientcert_basepath:
     TEST_ENVIRONMENT: "kibana_xpack_clientcert"
     TEST_KI_CONFIG: "clientcert"
 
-fe_impersonation:
-  extends:
-  - .fe_integration_test
-  variables:
-    TEST: "kibana_basicauth_impersonation"
-    TEST_ENVIRONMENT: "kibana_noxpack"
-    TEST_KI_CONFIG: "basicauth"
-
 fe_multitenancy:
   extends:
   - .fe_integration_test
