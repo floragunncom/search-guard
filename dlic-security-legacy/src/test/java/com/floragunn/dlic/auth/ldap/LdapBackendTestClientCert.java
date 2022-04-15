@@ -51,9 +51,8 @@ public class LdapBackendTestClientCert {
                 .put("path.home",".")
                 .build();
 
-        LdapUser user;
         try {
-            user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
+            new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(ExceptionUtils.getRootCause(e).getMessage(), ExceptionUtils.getRootCause(e).getMessage().contains("authentication required"));
@@ -76,9 +75,8 @@ public class LdapBackendTestClientCert {
                 .put("path.home",".")
                 .build();
 
-        LdapUser user;
         try {
-            user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
+            new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(ExceptionUtils.getRootCause(e).getMessage(), ExceptionUtils.getRootCause(e).getMessage().contains("authentication required"));
@@ -101,9 +99,8 @@ public class LdapBackendTestClientCert {
                 .put("path.home",".")
                 .build();
 
-        LdapUser user;
         try {
-            user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
+            new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("ldap_hr_employee").password("ldap_hr_employee").build());
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(ExceptionUtils.getRootCause(e).getMessage(), ExceptionUtils.getRootCause(e).getMessage().contains("Unable to connect to any"));

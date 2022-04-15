@@ -47,33 +47,33 @@ public class NoDnfofTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfig("sg_config_nodnfof.yml"), settings);
         final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = getPrivilegedInternalNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
 
-            tc.index(new IndexRequest("indexa").type("doc").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":\"indexa\"}",
+            tc.index(new IndexRequest("indexa").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":\"indexa\"}",
                     XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("indexb").type("doc").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":\"indexb\"}",
+            tc.index(new IndexRequest("indexb").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":\"indexb\"}",
                     XContentType.JSON)).actionGet();
 
-            tc.index(new IndexRequest("vulcangov").type("kolinahr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
+            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
                     XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
+            tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
                     XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("starfleet_academy").type("students").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
+            tc.index(new IndexRequest("starfleet_academy").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
                     XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("starfleet_library").type("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
+            tc.index(new IndexRequest("starfleet_library").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
                     XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("klingonempire").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
+            tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
                     XContentType.JSON)).actionGet();
             tc.index(
-                    new IndexRequest("public").type("legends").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    new IndexRequest("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
                     .actionGet();
 
-            tc.index(new IndexRequest("spock").type("type01").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+            tc.index(new IndexRequest("spock").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
                     .actionGet();
-            tc.index(new IndexRequest("kirk").type("type01").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+            tc.index(new IndexRequest("kirk").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
                     .actionGet();
-            tc.index(new IndexRequest("role01_role02").type("type01").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
+            tc.index(new IndexRequest("role01_role02").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
                     XContentType.JSON)).actionGet();
 
             tc.admin().indices()
@@ -97,9 +97,9 @@ public class NoDnfofTests extends SingleClusterTest {
                 (resc = rh.executeGetRequest("indexa,indexb/_search?pretty", encodeBasicHeader("user_b", "user_b"))).getStatusCode());
         System.out.println(resc.getBody());
 
-        String msearchBody = "{\"index\":\"indexa\", \"type\":\"doc\", \"ignore_unavailable\": true}" + System.lineSeparator()
+        String msearchBody = "{\"index\":\"indexa\", \"ignore_unavailable\": true}" + System.lineSeparator()
                 + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}" + System.lineSeparator()
-                + "{\"index\":\"indexb\", \"type\":\"doc\", \"ignore_unavailable\": true}" + System.lineSeparator()
+                + "{\"index\":\"indexb\", \"ignore_unavailable\": true}" + System.lineSeparator()
                 + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}" + System.lineSeparator();
         System.out.println("#### msearch a");
         resc = rh.executePostRequest("_msearch?pretty", msearchBody, encodeBasicHeader("user_a", "user_a"));
@@ -119,9 +119,9 @@ public class NoDnfofTests extends SingleClusterTest {
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("exception"));
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("permission"));
 
-        msearchBody = "{\"index\":\"indexc\", \"type\":\"doc\", \"ignore_unavailable\": false}" + System.lineSeparator()
+        msearchBody = "{\"index\":\"indexc\",  \"ignore_unavailable\": false}" + System.lineSeparator()
                 + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}" + System.lineSeparator()
-                + "{\"index\":\"indexd\", \"type\":\"doc\", \"ignore_unavailable\": false}" + System.lineSeparator()
+                + "{\"index\":\"indexd\", \"ignore_unavailable\": false}" + System.lineSeparator()
                 + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}" + System.lineSeparator();
 
         System.out.println("#### msearch b2");
@@ -135,8 +135,8 @@ public class NoDnfofTests extends SingleClusterTest {
         int count = resc.getBody().split("\"status\" : 403").length;
         Assert.assertEquals(3, count);
 
-        String mgetBody = "{" + "\"docs\" : [" + "{" + "\"_index\" : \"indexa\"," + "\"_type\" : \"doc\"," + "\"_id\" : \"0\"" + " }," + " {"
-                + "\"_index\" : \"indexb\"," + " \"_type\" : \"doc\"," + " \"_id\" : \"0\"" + "}" + "]" + "}";
+        String mgetBody = "{" + "\"docs\" : [" + "{" + "\"_index\" : \"indexa\"," + "\"_id\" : \"0\"" + " }," + " {"
+                + "\"_index\" : \"indexb\"," + " \"_id\" : \"0\"" + "}" + "]" + "}";
 
         resc = rh.executePostRequest("_mget?pretty", mgetBody, encodeBasicHeader("user_b", "user_b"));
         Assert.assertEquals(200, resc.getStatusCode());
@@ -145,8 +145,8 @@ public class NoDnfofTests extends SingleClusterTest {
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("exception"));
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("permission"));
 
-        mgetBody = "{" + "\"docs\" : [" + "{" + "\"_index\" : \"indexx\"," + "\"_type\" : \"doc\"," + "\"_id\" : \"0\"" + " }," + " {"
-                + "\"_index\" : \"indexy\"," + " \"_type\" : \"doc\"," + " \"_id\" : \"0\"" + "}" + "]" + "}";
+        mgetBody = "{" + "\"docs\" : [" + "{" + "\"_index\" : \"indexx\"," + "\"_id\" : \"0\"" + " }," + " {"
+                + "\"_index\" : \"indexy\"," + " \"_id\" : \"0\"" + "}" + "]" + "}";
 
         resc = rh.executePostRequest("_mget?pretty", mgetBody, encodeBasicHeader("user_b", "user_b"));
         Assert.assertEquals(200, resc.getStatusCode());

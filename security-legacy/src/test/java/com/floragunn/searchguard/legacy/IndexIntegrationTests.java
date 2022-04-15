@@ -33,8 +33,6 @@ import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.indices.InvalidIndexNameException;
-import org.elasticsearch.indices.InvalidTypeNameException;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -60,16 +58,16 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfig("sg_composite_config.yml").setSgRoles("sg_roles_composite.yml"), Settings.EMPTY, true);
         final RestHelper rh = nonSslRestHelper();
     
-        try (Client tc = getInternalTransportClient()) {                
-            tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();           
-            tc.index(new IndexRequest("klingonempire").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();      
-            tc.index(new IndexRequest("public").type("legends").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();            
+        try (Client tc = getPrivilegedInternalNodeClient()) {                
+            tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();           
+            tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();      
+            tc.index(new IndexRequest("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();            
         }
         
         String msearchBody = 
-                "{\"index\":\"starfleet\", \"type\":\"ships\", \"ignore_unavailable\": true}"+System.lineSeparator()+
+                "{\"index\":\"starfleet\", \"ignore_unavailable\": true}"+System.lineSeparator()+
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator()+
-                "{\"index\":\"klingonempire\", \"type\":\"ships\", \"ignore_unavailable\": true}"+System.lineSeparator()+
+                "{\"index\":\"klingonempire\", \"ignore_unavailable\": true}"+System.lineSeparator()+
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator()+
                 "{\"index\":\"public\", \"ignore_unavailable\": true}"+System.lineSeparator()+
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator();
@@ -89,34 +87,34 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig().setSgRoles("sg_roles_bs.yml"), Settings.EMPTY, true);
         final RestHelper rh = nonSslRestHelper();
         
-        try (Client tc = getInternalTransportClient()) {               
+        try (Client tc = getPrivilegedInternalNodeClient()) {               
             //create indices and mapping upfront
-            tc.index(new IndexRequest("test").type("type1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();           
-            tc.index(new IndexRequest("lorem").type("type1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();      
+            tc.index(new IndexRequest("test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();           
+            tc.index(new IndexRequest("lorem").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();      
         }
         
         String bulkBody = 
-        "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
+        "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value1\" }" +System.lineSeparator()+
-        "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"2\" } }"+System.lineSeparator()+
+        "{ \"index\" : { \"_index\" : \"test\",  \"_id\" : \"2\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-        "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"3\" } }"+System.lineSeparator()+
+        "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"3\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-        "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"4\" } }"+System.lineSeparator()+
+        "{ \"index\" : { \"_index\" : \"test\",  \"_id\" : \"4\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-        "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"5\" } }"+System.lineSeparator()+
+        "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"5\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-        "{ \"index\" : { \"_index\" : \"lorem\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
+        "{ \"index\" : { \"_index\" : \"lorem\",  \"_id\" : \"1\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-        "{ \"index\" : { \"_index\" : \"lorem\", \"_type\" : \"type1\", \"_id\" : \"2\" } }"+System.lineSeparator()+
+        "{ \"index\" : { \"_index\" : \"lorem\",  \"_id\" : \"2\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-        "{ \"index\" : { \"_index\" : \"lorem\", \"_type\" : \"type1\", \"_id\" : \"3\" } }"+System.lineSeparator()+
+        "{ \"index\" : { \"_index\" : \"lorem\",  \"_id\" : \"3\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-        "{ \"index\" : { \"_index\" : \"lorem\", \"_type\" : \"type1\", \"_id\" : \"4\" } }"+System.lineSeparator()+
+        "{ \"index\" : { \"_index\" : \"lorem\", \"_id\" : \"4\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-        "{ \"index\" : { \"_index\" : \"lorem\", \"_type\" : \"type1\", \"_id\" : \"5\" } }"+System.lineSeparator()+
+        "{ \"index\" : { \"_index\" : \"lorem\", \"_id\" : \"5\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-        "{ \"delete\" : { \"_index\" : \"lorem\", \"_type\" : \"type1\", \"_id\" : \"5\" } }"+System.lineSeparator();
+        "{ \"delete\" : { \"_index\" : \"lorem\", \"_id\" : \"5\" } }"+System.lineSeparator();
        
         System.out.println("############ _bulk");
         HttpResponse res = rh.executePostRequest("_bulk?refresh=true&pretty=true", bulkBody, encodeBasicHeader("worf", "worf"));
@@ -158,94 +156,23 @@ public class IndexIntegrationTests extends SingleClusterTest {
     }
     
     @Test
-    public void testIndexTypeEvaluation() throws Exception {
-    
-        setup();
-    
-        try (Client tc = getInternalTransportClient()) {          
-            tc.index(new IndexRequest("foo1").type("bar").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("foo2").type("bar").id("2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("foo").type("baz").id("3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":3}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("fooba").type("z").id("4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":4}", XContentType.JSON)).actionGet();
-            
-            try {
-                tc.index(new IndexRequest("x#a").type("xxx").id("4a").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":4}", XContentType.JSON)).actionGet();
-                Assert.fail("Indexname can contain #");
-            } catch (InvalidIndexNameException e) {
-                //expected
-            }
-            
-            
-            try {
-                tc.index(new IndexRequest("xa").type("x#a").id("4a").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":4}", XContentType.JSON)).actionGet();
-                Assert.fail("Typename can contain #");
-            } catch (InvalidTypeNameException e) {
-                //expected
-            }
-        }
-        
-        RestHelper rh = nonSslRestHelper();
-    
-        HttpResponse  resc = rh.executeGetRequest("/foo1/bar/_search?pretty", encodeBasicHeader("baz", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
-        Assert.assertTrue(resc.getBody().contains("\"content\" : 1"));
-        
-        resc = rh.executeGetRequest("/foo2/bar/_search?pretty", encodeBasicHeader("baz", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
-        Assert.assertTrue(resc.getBody().contains("\"content\" : 2"));
-        
-        resc = rh.executeGetRequest("/foo/baz/_search?pretty", encodeBasicHeader("baz", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
-        Assert.assertTrue(resc.getBody().contains("\"content\" : 3"));
-        
-        //resc = rh.executeGetRequest("/fooba/z/_search?pretty", encodeBasicHeader("baz", "worf"));
-        //Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());        
-    
-        resc = rh.executeGetRequest("/foo1/bar/1?pretty", encodeBasicHeader("baz", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
-        Assert.assertTrue(resc.getBody().contains("\"found\" : true"));
-        Assert.assertTrue(resc.getBody().contains("\"content\" : 1"));
-        
-        resc = rh.executeGetRequest("/foo2/bar/2?pretty", encodeBasicHeader("baz", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
-        Assert.assertTrue(resc.getBody().contains("\"content\" : 2"));
-        Assert.assertTrue(resc.getBody().contains("\"found\" : true"));
-        
-        resc = rh.executeGetRequest("/foo/baz/3?pretty", encodeBasicHeader("baz", "worf"));
-        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
-        Assert.assertTrue(resc.getBody().contains("\"content\" : 3"));
-        Assert.assertTrue(resc.getBody().contains("\"found\" : true"));
-    
-        //resc = rh.executeGetRequest("/fooba/z/4?pretty", encodeBasicHeader("baz", "worf"));
-        //Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
-    
-        //resc = rh.executeGetRequest("/foo*/_search?pretty", encodeBasicHeader("baz", "worf"));
-        //Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
-    
-        resc = rh.executeGetRequest("/foo*,-fooba/bar/_search?pretty", encodeBasicHeader("baz", "worf"));
-        Assert.assertEquals(200, resc.getStatusCode());
-        Assert.assertTrue(resc.getBody().contains("\"content\" : 1"));
-        Assert.assertTrue(resc.getBody().contains("\"content\" : 2"));
-    }
-
-    @Test
     public void testIndices() throws Exception {
     
         setup();
     
-        try (Client tc = getInternalTransportClient()) {
-            tc.index(new IndexRequest("nopermindex").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.index(new IndexRequest("nopermindex").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
     
-            tc.index(new IndexRequest("logstash-1").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-2").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-3").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-4").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
     
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd", SgUtils.EN_Locale);
             sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
             
             String date = sdf.format(new Date());
-            IndexResponse indexResponse = tc.index(new IndexRequest("logstash-"+date).type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            IndexResponse indexResponse = tc.index(new IndexRequest("logstash-"+date).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
             
             System.out.println("## " + new Date() + " " + date + " " + Strings.toString(indexResponse));
         }
@@ -321,19 +248,19 @@ public class IndexIntegrationTests extends SingleClusterTest {
 
         setup(settings);
     
-        try (Client tc = getInternalTransportClient()) {
-            tc.index(new IndexRequest("nopermindex").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.index(new IndexRequest("nopermindex").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
     
-            tc.index(new IndexRequest("logstash-1").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-2").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-3").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-4").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-5").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-del").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-del-ok").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-5").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-del").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-del-ok").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
             String date = new SimpleDateFormat("YYYY.MM.dd").format(new Date());
-            tc.index(new IndexRequest("logstash-"+date).type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("logstash-"+date).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
         
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("nopermindex").alias("nopermalias"))).actionGet();
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("searchguard").alias("mysgi"))).actionGet();
@@ -399,8 +326,8 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup();
         final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getInternalTransportClient()) {                                       
-            tc.index(new IndexRequest(".abc-6").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {                                       
+            tc.index(new IndexRequest(".abc-6").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
         }
         
         //ccsresolv has perm for ?abc*
@@ -419,10 +346,10 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup();
         final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getInternalTransportClient()) {                                       
-            tc.index(new IndexRequest(".abc").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("xyz").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("noperm").type("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":3}", XContentType.JSON)).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {                                       
+            tc.index(new IndexRequest(".abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("xyz").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("noperm").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":3}", XContentType.JSON)).actionGet();
 
         }
         
@@ -482,9 +409,9 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig(), Settings.EMPTY, true);
         final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = getPrivilegedInternalNodeClient()) {
             //create indices and mapping upfront
-            tc.index(new IndexRequest("foo-index").type("_doc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("foo-index").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("foo-index").alias("foo-alias"))).actionGet();
             tc.admin().indices().delete(new DeleteIndexRequest("foo-index")).actionGet();
         }
@@ -510,9 +437,9 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig(), Settings.EMPTY, true);
         final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = getPrivilegedInternalNodeClient()) {
             //create indices and mapping upfront
-            tc.index(new IndexRequest("foo-abc").type("_doc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("foo-abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();
         }
 
         HttpResponse resc = rh.executeGetRequest("/**/_search", encodeBasicHeader("foo_all", "nagilum"));

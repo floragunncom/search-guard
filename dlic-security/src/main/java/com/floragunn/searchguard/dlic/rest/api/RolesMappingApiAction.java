@@ -28,6 +28,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.config.RoleMapping;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
@@ -70,7 +71,7 @@ public class RolesMappingApiAction extends PatchableResourceApiAction {
     }
 
     @Override
-    protected CType getConfigName() {
+    protected CType<RoleMapping> getConfigName() {
         return CType.ROLESMAPPING;
     }
 

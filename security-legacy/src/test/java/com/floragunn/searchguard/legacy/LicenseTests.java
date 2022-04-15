@@ -157,7 +157,7 @@ public class LicenseTests extends SingleClusterTest {
         Assert.assertTrue(res.getBody().contains("is_valid\" : true"));
         
         
-        initialize(clusterInfo, Settings.EMPTY, new DynamicSgConfig().setSgConfig("sg_config_lic.yml"));
+        initialize(getPrivilegedInternalNodeClient(), Settings.EMPTY, new DynamicSgConfig().setSgConfig("sg_config_lic.yml"));
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/license?pretty", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
         System.out.println(res.getBody());

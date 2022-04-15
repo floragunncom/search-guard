@@ -123,7 +123,7 @@ public class FlushCacheApiAction extends AbstractApiAction {
     }
 
     @Override
-    protected CType getConfigName() {
+    protected CType<?> getConfigName() {
         return null;
     }
 

@@ -1117,7 +1117,7 @@ public final class RestrictedInMemoryDirectoryServer {
     public LDAPResult add(final AddRequest addRequest) throws LDAPException {
         return inMemoryHandler.add(addRequest);
     }
-    
+
     /**
      * {@inheritDoc}
      * <BR><BR>
@@ -1192,29 +1192,31 @@ public final class RestrictedInMemoryDirectoryServer {
         }
 
         final ArrayList<Entry> entryList = new ArrayList<>(10);
-        @SuppressWarnings("resource")
-        LDIFReader reader = new LDIFReader(buffer.asInputStream());
+        try (LDIFReader reader = new LDIFReader(buffer.asInputStream())) {
 
-        final Schema schema = getSchema();
-        if (schema != null) {
-            reader.setSchema(schema);
-        }
-
-        while (true) {
-            try {
-                final Entry entry = reader.readEntry();
-                if (entry == null) {
-                    break;
-                } else {
-                    entryList.add(entry);
-                }
-            } catch (final Exception e) {
-                Debug.debugException(e);
-                throw new LDAPException(ResultCode.PARAM_ERROR, e);
+            final Schema schema = getSchema();
+            if (schema != null) {
+                reader.setSchema(schema);
             }
-        }
 
-        addEntries(entryList);
+            while (true) {
+                try {
+                    final Entry entry = reader.readEntry();
+                    if (entry == null) {
+                        break;
+                    } else {
+                        entryList.add(entry);
+                    }
+                } catch (final Exception e) {
+                    Debug.debugException(e);
+                    throw new LDAPException(ResultCode.PARAM_ERROR, e);
+                }
+            }
+
+            addEntries(entryList);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -1293,7 +1295,6 @@ public final class RestrictedInMemoryDirectoryServer {
             throw new LDAPException(bindResult);
         }
     }
-
 
     /**
      * Attempts to delete the specified entry and all entries below it from the
@@ -1467,8 +1468,6 @@ public final class RestrictedInMemoryDirectoryServer {
         return extendedResult;
     }
 
- 
-
     /**
      * Retrieves the configured list of password attributes.
      *
@@ -1520,7 +1519,6 @@ public final class RestrictedInMemoryDirectoryServer {
         return inMemoryHandler.getPasswordsInEntry(entry, clearPasswordToMatch);
     }
 
- 
     /**
      * Indicates whether the specified entry exists in the server.
      * <BR><BR>

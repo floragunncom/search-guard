@@ -20,7 +20,7 @@ import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -36,7 +36,7 @@ public class CustomFieldMaskedComplexMappingTest extends AbstractDlsFlsTest{
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @Override
-    protected void populateData(TransportClient tc) {
+    protected void populateData(Client tc) {
 
 
 

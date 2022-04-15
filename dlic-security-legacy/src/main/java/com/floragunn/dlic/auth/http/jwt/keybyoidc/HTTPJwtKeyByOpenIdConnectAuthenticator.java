@@ -33,7 +33,6 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.codova.config.net.ProxyConfig;
-import com.floragunn.dlic.auth.http.jwt.HTTPJwtAuthenticator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
 import com.floragunn.searchguard.TypedComponent;

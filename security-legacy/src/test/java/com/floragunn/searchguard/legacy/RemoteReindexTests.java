@@ -21,7 +21,7 @@ import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.After;
@@ -31,6 +31,7 @@ import org.junit.Test;
 import com.floragunn.searchguard.legacy.test.AbstractSGUnitTest;
 import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
@@ -47,10 +48,10 @@ public class RemoteReindexTests extends AbstractSGUnitTest{
         System.setProperty("sg.display_lic_none","true");
         
         cl2Info = cl2.startCluster(minimumSearchGuardSettings(Settings.EMPTY), ClusterConfiguration.DEFAULT);
-        initialize(cl2Info);
+        initialize(PrivilegedConfigClient.adapt(cl2.nodeClient()));
         
         cl1Info = cl1.startCluster(minimumSearchGuardSettings(crossClusterNodeSettings(cl2Info)), ClusterConfiguration.DEFAULT);
-        initialize(cl1Info);
+        initialize(PrivilegedConfigClient.adapt(cl1.nodeClient()));
     }
     
     @After
@@ -75,15 +76,15 @@ public class RemoteReindexTests extends AbstractSGUnitTest{
         final String cl1BodyMain = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("nagilum","nagilum")).getBody();
         Assert.assertTrue(cl1BodyMain.contains("crl1"));
         
-        try (TransportClient tc = getInternalTransportClient(cl1Info, Settings.EMPTY)) {
+        try (Client tc = cl1.nodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("twutter")).actionGet();
         }
         
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("nagilum","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (TransportClient tc = getInternalTransportClient(cl2Info, Settings.EMPTY)) {
-            tc.index(new IndexRequest("twitter").type("tweet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+        try (Client tc = cl2.nodeClient()) {
+            tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
                     .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
         }
         
@@ -98,7 +99,7 @@ public class RemoteReindexTests extends AbstractSGUnitTest{
                     "\"size\": 10,"+
                     "\"query\": {"+
                     "\"match\": {"+
-                    "\"_type\": \"tweet\""+
+                    "\"_type\": \"_doc\""+
                     "}"+
                   "}"+
             "},"+

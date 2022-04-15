@@ -31,6 +31,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigUnavailableException;
@@ -129,7 +130,7 @@ public class SgConfigAction extends PatchableResourceApiAction {
     }
 
     @Override
-    protected CType getConfigName() {
+    protected CType<LegacySgConfig> getConfigName() {
         return CType.CONFIG;
     }
 

@@ -18,7 +18,7 @@ import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
@@ -29,7 +29,7 @@ import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 public class DlsNestedTest extends AbstractDlsFlsTest{
     
     @Override
-    protected void populateData(TransportClient tc) {
+    protected void populateData(Client tc) {
 
 
         
@@ -48,13 +48,13 @@ public class DlsNestedTest extends AbstractDlsFlsTest{
         .settings(Settings.builder().put("number_of_shards", 1).put("number_of_replicas", 0).build())
         .mapping("mytype", mapping, XContentType.JSON)).actionGet();
         
-        //tc.index(new IndexRequest("deals").type("mytype").id("3").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        //tc.index(new IndexRequest("deals").id("3").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         //        .source("{\"amount\": 7,\"owner\": \"a\", \"my_nested_object\" : {\"name\": \"spock\"}}", XContentType.JSON)).actionGet();
-        //tc.index(new IndexRequest("deals").type("mytype").id("4").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        //tc.index(new IndexRequest("deals").id("4").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         //        .source("{\"amount\": 8, \"my_nested_object\" : {\"name\": \"spock\"}}", XContentType.JSON)).actionGet();
-        //tc.index(new IndexRequest("deals").type("mytype").id("5").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        //tc.index(new IndexRequest("deals").id("5").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         //        .source("{\"amount\": 1400,\"owner\": \"a\", \"my_nested_object\" : {\"name\": \"spock\"}}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("deals").type("mytype").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        tc.index(new IndexRequest("deals").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("{\"amount\": 1500,\"owner\": \"b\", \"my_nested_object\" : {\"name\": \"spock\"}}", XContentType.JSON)).actionGet();
     }
     
@@ -78,7 +78,7 @@ public class DlsNestedTest extends AbstractDlsFlsTest{
                         
         
         HttpResponse res;
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/mytype/_search?pretty", query, encodeBasicHeader("dept_manager", "password"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("dept_manager", "password"))).getStatusCode());
         System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
         Assert.assertTrue(res.getBody().contains("\"my_nested_object\" : {"));

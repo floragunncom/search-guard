@@ -17,7 +17,7 @@ package com.floragunn.searchguard.dlic.dlsfls;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -32,22 +32,22 @@ public class DlsScrollTest extends AbstractDlsFlsTest{
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @Override
-    protected void populateData(TransportClient tc) {
+    protected void populateData(Client tc) {
 
-        tc.index(new IndexRequest("deals").type("deals").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        tc.index(new IndexRequest("deals").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("{\"amount\": 3}", XContentType.JSON)).actionGet(); //not in
         
-        tc.index(new IndexRequest("deals").type("deals").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        tc.index(new IndexRequest("deals").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("{\"amount\": 10}", XContentType.JSON)).actionGet(); //not in
         
-        tc.index(new IndexRequest("deals").type("deals").id("2").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        tc.index(new IndexRequest("deals").id("2").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("{\"amount\": 1500}", XContentType.JSON)).actionGet();
         
-        tc.index(new IndexRequest("deals").type("deals").id("4").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        tc.index(new IndexRequest("deals").id("4").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("{\"amount\": 21500}", XContentType.JSON)).actionGet(); //not in
 
         for(int i=0; i<100; i++) {
-            tc.index(new IndexRequest("deals").type("deals").id("gen"+i).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+            tc.index(new IndexRequest("deals").id("gen"+i).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source("{\"amount\": 1500}", XContentType.JSON)).actionGet();
         }
     }

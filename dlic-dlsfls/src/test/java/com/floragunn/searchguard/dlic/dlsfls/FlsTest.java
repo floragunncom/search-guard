@@ -17,7 +17,7 @@ package com.floragunn.searchguard.dlic.dlsfls;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -32,13 +32,13 @@ public class FlsTest extends AbstractDlsFlsTest{
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @Override
-    protected void populateData(TransportClient tc) {
+    protected void populateData(Client tc) {
 
 
                 
-        tc.index(new IndexRequest("deals").type("deals").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        tc.index(new IndexRequest("deals").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("{\"customer\": {\"name\":\"cust1\"}, \"zip\": \"12345\",\"secret\": \"tellnoone\",\"amount\": 10}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("deals").type("deals").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        tc.index(new IndexRequest("deals").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("{\"customer\": {\"name\":\"cust2\", \"ctype\":\"industry\"}, \"amount\": 1500}", XContentType.JSON)).actionGet();
     }
     
@@ -156,7 +156,7 @@ public class FlsTest extends AbstractDlsFlsTest{
 
         HttpResponse res;
 
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/deals/0?pretty", encodeBasicHeader("admin", "admin"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_doc/0?pretty", encodeBasicHeader("admin", "admin"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("\"found\" : true"));
         Assert.assertTrue(res.getBody().contains("cust1"));
         Assert.assertFalse(res.getBody().contains("cust2"));
@@ -164,7 +164,7 @@ public class FlsTest extends AbstractDlsFlsTest{
         Assert.assertFalse(res.getBody().contains("ctype"));
         Assert.assertTrue(res.getBody().contains("amount"));
         
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/deals/0?pretty", encodeBasicHeader("dept_manager_fls", "password"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_doc/0?pretty", encodeBasicHeader("dept_manager_fls", "password"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("\"found\" : true"));
         Assert.assertTrue(res.getBody().contains("cust1"));
         Assert.assertFalse(res.getBody().contains("cust2"));
@@ -172,7 +172,7 @@ public class FlsTest extends AbstractDlsFlsTest{
         Assert.assertFalse(res.getBody().contains("ctype"));
         Assert.assertFalse(res.getBody().contains("amount"));
         
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/deals/0?realtime=true&pretty", encodeBasicHeader("dept_manager_fls", "password"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_doc/0?realtime=true&pretty", encodeBasicHeader("dept_manager_fls", "password"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("\"found\" : true"));
         Assert.assertTrue(res.getBody().contains("cust1"));
         Assert.assertFalse(res.getBody().contains("cust2"));
@@ -180,7 +180,7 @@ public class FlsTest extends AbstractDlsFlsTest{
         Assert.assertFalse(res.getBody().contains("ctype"));
         Assert.assertFalse(res.getBody().contains("amount"));
         
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/deals/0?realtime=true&pretty", encodeBasicHeader("dept_manager_fls_reversed_fields", "password"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_doc/0?realtime=true&pretty", encodeBasicHeader("dept_manager_fls_reversed_fields", "password"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("\"found\" : true"));
         Assert.assertFalse(res.getBody().contains("cust1"));
         Assert.assertFalse(res.getBody().contains("cust2"));

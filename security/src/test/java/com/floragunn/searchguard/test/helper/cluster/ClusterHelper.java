@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
@@ -231,8 +230,6 @@ public final class ClusterHelper {
 
     private static void closeNode(Node node) {
         try {
-            LoggerContext context = (LoggerContext) LogManager.getContext(false);
-            //Configurator.shutdown(context);
             node.close();
             Thread.sleep(250);
         } catch (Throwable e) {

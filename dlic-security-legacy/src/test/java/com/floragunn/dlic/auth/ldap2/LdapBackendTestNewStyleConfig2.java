@@ -861,7 +861,7 @@ public class LdapBackendTestNewStyleConfig2 {
         Assert.assertNotNull(user);
         Assert.assertEquals("jacksonm", user.getName());
         Assert.assertEquals(2, user.getRoles().size());
-        Assert.assertEquals("ceo-ceo", new ArrayList(new TreeSet(user.getRoles())).get(0));
+        Assert.assertEquals("ceo-ceo", new ArrayList<>(new TreeSet<>(user.getRoles())).get(0));
     }
     
     @Test

@@ -19,11 +19,13 @@ package com.floragunn.searchguard.legacy.test;
 
 import java.net.InetAddress;
 
+import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.After;
 
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
@@ -71,7 +73,7 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
     protected void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex, ClusterConfiguration clusterConfiguration) throws Exception {
         clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration);
         if(initSearchGuardIndex && dynamicSgSettings != null) {
-            initialize(clusterInfo, initTransportClientSettings, dynamicSgSettings);
+            initialize(getPrivilegedInternalNodeClient(), initTransportClientSettings, dynamicSgSettings);
         }
     }
     
@@ -79,7 +81,7 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
             , boolean initSearchGuardIndex, ClusterConfiguration clusterConfiguration, int timeout, Integer nodes) throws Exception {    
         clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration, null, timeout, nodes);
         if(initSearchGuardIndex) {
-            initialize(clusterInfo, initTransportClientSettings, dynamicSgSettings);
+            initialize(getPrivilegedInternalNodeClient(), initTransportClientSettings, dynamicSgSettings);
         }
     }
     
@@ -130,10 +132,19 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
         return result;
     }
     
+    @Deprecated
     protected TransportClient getInternalTransportClient() {
         return getInternalTransportClient(clusterInfo, Settings.EMPTY);
     }
-       
+    
+    protected Client getNodeClient() {
+        return clusterHelper.nodeClient();
+    }
+    
+
+    public Client getPrivilegedInternalNodeClient() {
+        return PrivilegedConfigClient.adapt(getNodeClient());
+    }       
     @After
     public void tearDown() throws Exception {
         

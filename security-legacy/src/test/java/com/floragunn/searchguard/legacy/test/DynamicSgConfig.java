@@ -105,44 +105,37 @@ public class DynamicSgConfig {
         List<IndexRequest> ret = new ArrayList<>();
         
         ret.add(new IndexRequest(searchGuardIndexName)
-               .type(type)
                .id(CType.CONFIG.toLCString())
                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                .source(CType.CONFIG.toLCString(), sgConfigAsYamlString==null?FileHelper.readYamlContent(prefix+sgConfig):FileHelper.readYamlContentFromString(sgConfigAsYamlString)));
         
         ret.add(new IndexRequest(searchGuardIndexName)
-                .type(type)
         .id(CType.ACTIONGROUPS.toLCString())
         .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         .source(CType.ACTIONGROUPS.toLCString(), FileHelper.readYamlContent(prefix+sgActionGroups)));
  
         ret.add(new IndexRequest(searchGuardIndexName)
-                .type(type)
         .id(CType.INTERNALUSERS.toLCString())
         .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         .source(CType.INTERNALUSERS.toLCString(), FileHelper.readYamlContent(prefix+sgInternalUsers)));
  
         ret.add(new IndexRequest(searchGuardIndexName)
-                .type(type)
         .id(CType.ROLES.toLCString())
         .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         .source(CType.ROLES.toLCString(), FileHelper.readYamlContent(prefix+sgRoles)));
  
         ret.add(new IndexRequest(searchGuardIndexName)
-                .type(type)
         .id(CType.ROLESMAPPING.toLCString())
         .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         .source(CType.ROLESMAPPING.toLCString(), FileHelper.readYamlContent(prefix+sgRolesMapping)));
 
         if("".equals(legacyConfigFolder)) {
             ret.add(new IndexRequest(searchGuardIndexName)
-                    .type(type)
             .id(CType.TENANTS.toLCString())
             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
             .source(CType.TENANTS.toLCString(), FileHelper.readYamlContent(prefix+sgTenants)));
 
             ret.add(new IndexRequest(searchGuardIndexName)
-                    .type(type)
                     .id(CType.BLOCKS.toLCString())
                     .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(CType.BLOCKS.toLCString(), FileHelper.readYamlContent(prefix+sgBlocks)));
