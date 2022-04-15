@@ -62,7 +62,6 @@ import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 
 public class SearchGuardModulesRegistry {
-    // TODO moduleinfo see reflectionhelper
 
     public static final Setting<List<String>> DISABLED_MODULES = Setting.listSetting("searchguard.modules.disabled", Collections.emptyList(),
             Function.identity(), Property.NodeScope);
@@ -167,7 +166,7 @@ public class SearchGuardModulesRegistry {
 
         for (SearchGuardModule module : modules) {
             result.addAll(module.createComponents(baseDependencies));
-            
+
             typedComponentRegistry.register(module.getTypedComponents());
         }
 
@@ -261,16 +260,16 @@ public class SearchGuardModulesRegistry {
     private static TypedComponentRegistry createTypedComponentRegistryWithDefaults() {
         TypedComponentRegistry typedComponentRegistry = new TypedComponentRegistry();
 
-        typedComponentRegistry.registerInstance(AuthenticationBackend.class, "noop", AuthenticationBackend.NOOP);      
-        
-        typedComponentRegistry.registerInstance(HTTPAuthenticator.class, "basic", new BasicAuthenticator(null, null));
+        typedComponentRegistry.registerInstance(AuthenticationBackend.class, "noop", AuthenticationBackend.NOOP);
+
+        typedComponentRegistry.register(HTTPAuthenticator.class, "basic", BasicAuthenticator::new);
         typedComponentRegistry.registerInstance(HTTPAuthenticator.class, "anonymous", new AnonymousAuthenticator());
         typedComponentRegistry.registerInstance(HTTPAuthenticator.class, "trusted_origin", new HTTPTrustedOriginAuthenticator(null, null));
         typedComponentRegistry.registerInstance(HTTPAuthenticator.class, "clientcert", new HTTPClientCertAuthenticator(null, null));
-        
-        typedComponentRegistry.registerInstance(ApiAuthenticationFrontend.class, "basic", new BasicAuthenticator(null, null));
-        typedComponentRegistry.register(LinkApiAuthenticationFrontend.class, "link", LinkApiAuthenticationFrontend::new);
-        
+
+        typedComponentRegistry.register(ApiAuthenticationFrontend.class, "basic", BasicAuthenticator::new);
+        typedComponentRegistry.register(ApiAuthenticationFrontend.class, "link", LinkApiAuthenticationFrontend::new);
+
         return typedComponentRegistry;
 
     }
@@ -278,5 +277,5 @@ public class SearchGuardModulesRegistry {
     public TypedComponentRegistry getTypedComponentRegistry() {
         return typedComponentRegistry;
     }
-   
+
 }

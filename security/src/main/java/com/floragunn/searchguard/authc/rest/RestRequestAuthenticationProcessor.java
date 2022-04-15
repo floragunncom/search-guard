@@ -117,9 +117,8 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
                 challenges.add(challenge);
                 debug.failure(authenticationFrontend.getType(), "No credentials extracted. Sending challenge", "challenge", challenge);
             } else {
-                debug.failure(authenticationFrontend.getType(), "No credentials extracted", "challenge", challenge);
+                debug.failure(authenticationFrontend.getType(), "No credentials extracted");
             }
-
 
             return AuthDomainState.SKIP;
         } else {
