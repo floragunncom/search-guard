@@ -135,36 +135,6 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
     
-    
-    
-    @Test
-    public void testAutoInit() throws Exception {
-
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false)
-                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, true)
-                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-
-        setup(additionalSettings);
-        
-        Thread.sleep(1500);
-        System.out.println(TestAuditlogImpl.sb.toString());
-
-        Assert.assertTrue(TestAuditlogImpl.messages.size() > 2);      
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_request_effective_user"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_EXTERNAL_CONFIG"));
-        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
-    }
-    
     @Test
     public void testRestApiNewUser() throws Exception {
 

@@ -163,7 +163,7 @@ public class LicenseInfoResponse extends BaseNodesResponse<LicenseInfoNodeRespon
         builder.endObject();
 
         builder.startObject("compatibility");
-        builder.field("modules_mismatch", false);
+        builder.field("modules_mismatch", mismatch);
         builder.endObject();
 
         return builder;

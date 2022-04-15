@@ -49,6 +49,7 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -170,11 +171,15 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     public InetSocketAddress getTransportAddress() {
         return localEsCluster.clientNode().getTransportAddress();
     }
-
+    
     public Client getInternalNodeClient() {
         return localEsCluster.clientNode().getInternalNodeClient();
     }
 
+    public Client getPrivilegedInternalNodeClient() {
+        return PrivilegedConfigClient.adapt(getInternalNodeClient());
+    }
+    
     public <X> X getInjectable(Class<X> clazz) {
         return this.localEsCluster.masterNode().getInjectable(clazz);
     }

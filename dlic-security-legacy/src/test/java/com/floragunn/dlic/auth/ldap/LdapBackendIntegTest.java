@@ -96,7 +96,7 @@ public class LdapBackendIntegTest extends SingleClusterTest {
         RestHelper rh = nonSslRestHelper();
         HttpResponse res;
 
-        try (Client tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {
+        try (Client tc = getPrivilegedInternalNodeClient()) {
 
             tc.index(new IndexRequest("dls_test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"a\", \"amount\": 1010}",
                     XContentType.JSON)).actionGet();

@@ -61,7 +61,6 @@ public class IgnoreAuditUsersTest {
     public static void initSearchRequest() {
         sr = new SearchRequest();
         sr.indices("index1", "logstash*");
-        sr.types("mytype", "logs");
     }
 
 
@@ -75,6 +74,7 @@ public class IgnoreAuditUsersTest {
                 .put("searchguard.audit.enable_request_details", true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
+        @SuppressWarnings("resource")
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
@@ -90,6 +90,7 @@ public class IgnoreAuditUsersTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
+        @SuppressWarnings("resource")
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
@@ -104,6 +105,7 @@ public class IgnoreAuditUsersTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
+        @SuppressWarnings("resource")
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
@@ -119,7 +121,6 @@ public class IgnoreAuditUsersTest {
         //sr.putInContext(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE");
         //sr.putHeader("myheader", "hval");
         sr.indices("index1","logstash*");
-        sr.types("mytype","logs");
         //sr.source("{\"query\": false}");
 
         Settings settings = Settings.builder()
@@ -132,6 +133,7 @@ public class IgnoreAuditUsersTest {
 
         TransportAddress ta = new TransportAddress(new InetSocketAddress("8.8.8.8",80));
 
+        @SuppressWarnings("resource")
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
                                                                              ConfigConstants.SG_USER, new User("John Doe", null),
                                                                              ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"

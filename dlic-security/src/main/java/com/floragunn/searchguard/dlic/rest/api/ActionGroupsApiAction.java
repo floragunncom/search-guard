@@ -28,6 +28,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
@@ -65,7 +66,7 @@ public class ActionGroupsApiAction extends PatchableResourceApiAction {
     }
 
 	@Override
-	protected CType getConfigName() {
+	protected CType<ActionGroup> getConfigName() {
 		return CType.ACTIONGROUPS;
 	}
 

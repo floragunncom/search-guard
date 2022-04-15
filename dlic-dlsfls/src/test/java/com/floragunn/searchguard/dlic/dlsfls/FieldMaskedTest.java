@@ -17,7 +17,7 @@ package com.floragunn.searchguard.dlic.dlsfls;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
@@ -35,7 +35,7 @@ public class FieldMaskedTest extends AbstractDlsFlsTest{
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();    
     
-    protected void populateData(TransportClient tc) {
+    protected void populateData(Client tc) {
 
         tc.index(new IndexRequest("searchguard").id("config").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("config", FileHelper.readYamlContent("dlsfls/sg_config.yml"))).actionGet();
@@ -220,7 +220,7 @@ public class FieldMaskedTest extends AbstractDlsFlsTest{
 
         System.out.println(rh.executeGetRequest("/deals/_stats/request_cache,query_cache?human&pretty", encodeBasicHeader("admin", "admin")).getBody());
         
-        initialize(clusterInfo, new DynamicSgConfig().setSgConfig("sg_config_salt2_changed.yml"));
+        initialize(getPrivilegedInternalNodeClient(), new DynamicSgConfig().setSgConfig("sg_config_salt2_changed.yml"));
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty&size=0", agg, encodeBasicHeader("user_masked", "password"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("\"value\" : 31"));

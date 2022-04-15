@@ -65,6 +65,7 @@ public abstract class AbstractSGUnitTest {
                 "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
     }
 
+    @Deprecated
     protected static class TransportClientImpl extends TransportClient {
 
         public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {

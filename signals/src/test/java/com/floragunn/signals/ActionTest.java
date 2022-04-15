@@ -187,7 +187,7 @@ public class ActionTest {
         // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
         cluster.before();
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
@@ -204,7 +204,7 @@ public class ActionTest {
     @Test
     public void testWebhookAction() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -229,7 +229,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsCustomTrustStore() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -261,7 +261,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsCustomTrustStoreFailure() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -290,7 +290,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsClientAuth() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -329,7 +329,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsClientAuthFailure() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -363,7 +363,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionTimeout() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
             webhookProvider.setResponseDelayMs(3330);
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -391,7 +391,7 @@ public class ActionTest {
     @Test
     public void testIndexAction() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("_id", "my_doc");
@@ -415,7 +415,7 @@ public class ActionTest {
     @Test
     public void testIndexActionWithIdTemplate() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("id_from_data", "my_doc_2");
@@ -441,7 +441,7 @@ public class ActionTest {
     @Test
     public void testMultiDocIndexAction() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             List<NestedValueMap> docs = new ArrayList<>();
 
@@ -480,7 +480,7 @@ public class ActionTest {
     @Test
     public void testMultiDocIndexActionWithArray() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             NestedValueMap[] docs = new NestedValueMap[2];
 
@@ -519,7 +519,7 @@ public class ActionTest {
     @Test
     public void testSlackAction() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
@@ -553,7 +553,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithBlocks() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
@@ -601,7 +601,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithBlocksAndQuotesInMustacheTemplate() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
@@ -650,7 +650,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithBlocksAndText() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
@@ -716,7 +716,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithAttachments() throws Exception {
 
-        try (Client client = cluster.getAdminCertClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
@@ -784,7 +784,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             EmailAccount emailAccount = new EmailAccount();
             emailAccount.setHost("localhost");
@@ -847,7 +847,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTPS));
         greenMail.start();
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             EmailAccount emailAccount = new EmailAccount();
             emailAccount.setHost("localhost");
@@ -913,7 +913,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             EmailAccount emailDestination = new EmailAccount();
             emailDestination.setHost("localhost");
@@ -974,7 +974,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             EmailAccount emailDestination = new EmailAccount();
             emailDestination.setHost("localhost");
@@ -1067,7 +1067,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
@@ -1141,7 +1141,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             byte[] pdf = IOUtils.toByteArray(FileHelper.getAbsoluteFilePathFromClassPath("blank_email_attachment.pdf").toUri());
 
@@ -1215,7 +1215,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try (Client client = cluster.getAdminCertClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
 
             String helloWorld = "{\n" + "   \"hello\":\"world\"\n" + "}";
 

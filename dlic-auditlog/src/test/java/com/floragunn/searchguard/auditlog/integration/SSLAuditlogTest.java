@@ -26,6 +26,7 @@ import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
@@ -48,7 +49,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
     
     private void setupMonitoring() throws Exception {            
         monitoringClusterInfo =  monitoringCluster.startCluster(minimumSearchGuardSettings(defaultNodeSettings(Settings.EMPTY)), ClusterConfiguration.DEFAULT);
-        initialize(monitoringClusterInfo, Settings.EMPTY, new DynamicSgConfig());
+        initialize(PrivilegedConfigClient.adapt(monitoringCluster.nodeClient()), Settings.EMPTY, new DynamicSgConfig());
         rhMon = new RestHelper(monitoringClusterInfo, getResourceFolder());
     }
     

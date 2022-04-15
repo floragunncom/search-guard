@@ -32,12 +32,10 @@ import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -102,6 +100,7 @@ public abstract class AbstractSGUnitTest {
 				(username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
 	}
 
+	@Deprecated
 	protected static class TransportClientImpl extends TransportClient {
 
         public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {
@@ -119,6 +118,7 @@ public abstract class AbstractSGUnitTest {
     }
 
 
+    @Deprecated
     protected TransportClient getInternalTransportClient(ClusterInfo info, Settings initTransportClientSettings) {
 
         final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
@@ -157,6 +157,7 @@ public abstract class AbstractSGUnitTest {
         return tc;
     }
 
+    @Deprecated
     protected TransportClient getUserTransportClient(ClusterInfo info, String keyStore, Settings initTransportClientSettings) {
 
         try {
@@ -175,45 +176,32 @@ public abstract class AbstractSGUnitTest {
             throw new RuntimeException(e);
         }
     }
+    
+    protected void initialize(Client tc, Settings initTransportClientSettings, DynamicSgConfig sgconfig) {
 
-    protected void initialize(ClusterInfo info, Settings initTransportClientSettings, DynamicSgConfig sgconfig) {
-        try (TransportClient tc = getInternalTransportClient(info, initTransportClientSettings)) {
-
-            tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));
-            Assert.assertEquals(info.numNodes,
-                    tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
-
-            try {
-                tc.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
-            } catch (Exception e) {
-                //ignore
-            }
-
-            for(IndexRequest ir: sgconfig.getDynamicConfig(getResourceFolder())) {
-                tc.index(ir).actionGet();
-            }
-
-            ConfigUpdateResponse cur = tc
-                    .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0])))
-                    .actionGet();
-
-            Assert.assertFalse(cur.failures().toString(), cur.hasFailures());
-            Assert.assertEquals(info.numNodes, cur.getNodes().size());
-
-            SearchResponse sr = tc.search(new SearchRequest("searchguard")).actionGet();
-
-            sr = tc.search(new SearchRequest("searchguard")).actionGet();
-
-            String type = sgconfig.getType();
-
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", type, "config")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard",type,"internalusers")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard",type,"roles")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard",type,"rolesmapping")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard",type,"actiongroups")).actionGet().isExists());
-            Assert.assertFalse(tc.get(new GetRequest("searchguard",type,"rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard",type,"config")).actionGet().isExists());
+        try {
+            tc.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
+        } catch (Exception e) {
+            //ignore
         }
+
+        for (IndexRequest ir : sgconfig.getDynamicConfig(getResourceFolder())) {
+            tc.index(ir).actionGet();
+        }
+
+        ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0])))
+                .actionGet();
+
+        Assert.assertFalse(cur.failures().toString(), cur.hasFailures());
+
+        Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
+        Assert.assertTrue(tc.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());
+        Assert.assertTrue(tc.get(new GetRequest("searchguard", "roles")).actionGet().isExists());
+        Assert.assertTrue(tc.get(new GetRequest("searchguard", "rolesmapping")).actionGet().isExists());
+        Assert.assertTrue(tc.get(new GetRequest("searchguard", "actiongroups")).actionGet().isExists());
+        Assert.assertFalse(tc.get(new GetRequest("searchguard", "rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
+        Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
+
     }
 
     protected Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly, boolean hasCustomTransportSettings) {
@@ -264,12 +252,12 @@ public abstract class AbstractSGUnitTest {
         };
     }
 
-    protected void initialize(ClusterInfo info) {
-        initialize(info, Settings.EMPTY, new DynamicSgConfig());
+    protected void initialize(Client client) {
+        initialize(client, Settings.EMPTY, new DynamicSgConfig());
     }
 
-    protected void initialize(ClusterInfo info, DynamicSgConfig dynamicSgConfig) {
-        initialize(info, Settings.EMPTY, dynamicSgConfig);
+    protected void initialize(Client client, DynamicSgConfig dynamicSgConfig) {
+        initialize(client, Settings.EMPTY, dynamicSgConfig);
     }
 
     protected final void assertContains(HttpResponse res, String pattern) {

@@ -1,40 +1,22 @@
 package com.floragunn.searchsupport.jobs;
 
 import java.io.FileNotFoundException;
-import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.node.PluginAwareNode;
-import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.transport.Netty4Plugin;
-import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
 
 public class LocalCluster extends ExternalResource {
@@ -97,53 +79,11 @@ public class LocalCluster extends ExternalResource {
     }
 
     public Client getInternalClient() {
-        try {
-            final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-            Settings tcSettings = Settings.builder().put("cluster.name", clusterInfo.clustername)
-                    .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
-                    .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                    .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "kirk-keystore.jks"))
-                    .build();
-
-            TransportClient tc = new TransportClientImpl(tcSettings, Arrays.asList(Netty4Plugin.class, SearchGuardPlugin.class));
-            tc.addTransportAddress(new TransportAddress(new InetSocketAddress(clusterInfo.nodeHost, clusterInfo.nodePort)));
-            return tc;
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
+        return getNodeClient();
     }
 
     public Client getNodeClient() {
-        try {
-            final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-            Settings tcSettings = Settings.builder().put("cluster.name", clusterInfo.clustername)
-                    .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
-                    .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                    .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
-                    .build();
-
-            TransportClient tc = new TransportClientImpl(tcSettings, Arrays.asList(Netty4Plugin.class, SearchGuardPlugin.class));
-            tc.addTransportAddress(new TransportAddress(new InetSocketAddress(clusterInfo.nodeHost, clusterInfo.nodePort)));
-            return tc;
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public Client getNodeClientWithMockUser(User user) {
-        Client client = getNodeClient();
-
-        if (user != null) {
-            client = new ContextHeaderDecoratorClient(client, ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(user));
-        }
-
-        return client;
-    }
-
-    public Client getNodeClientWithMockUser(String userName, String... roles) {
-        return getNodeClientWithMockUser(User.forUser(userName).backendRoles(roles).build());
+        return clusterHelper.nodeClient();
     }
 
     public Client getPrivilegedConfigNodeClient() {
@@ -161,39 +101,10 @@ public class LocalCluster extends ExternalResource {
             throw new RuntimeException(e);
         }
 
-        if (initSearchGuardIndex && dynamicSgSettings != null) {
-            initialize(dynamicSgSettings);
-        }
+       
     }
 
-    protected void initialize(DynamicSgConfig sgconfig) {
-
-        try (Client tc = getInternalClient()) {
-
-            try {
-                tc.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
-            } catch (Exception e) {
-                //ignore
-            }
-
-            for (IndexRequest ir : sgconfig.getDynamicConfig(getResourceFolder())) {
-                tc.index(ir).actionGet();
-            }
-
-            ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0])))
-                    .actionGet();
-            Assert.assertFalse(cur.failures().toString(), cur.hasFailures());
-            Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());
-
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "roles")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "rolesmapping")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "actiongroups")).actionGet().isExists());
-            Assert.assertFalse(tc.get(new GetRequest("searchguard", "rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
-        }
-    }
+    
 
     private Settings ccs(Settings nodeOverride) throws Exception {
 
@@ -241,17 +152,6 @@ public class LocalCluster extends ExternalResource {
 
     public String getResourceFolder() {
         return resourceFolder;
-    }
-
-    protected static class TransportClientImpl extends TransportClient {
-
-        public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, plugins);
-        }
-
-        public TransportClientImpl(Settings settings, Settings defaultSettings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, defaultSettings, plugins, null);
-        }
     }
 
     public static class Builder {

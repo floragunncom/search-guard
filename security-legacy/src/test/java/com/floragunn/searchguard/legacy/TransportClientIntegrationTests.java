@@ -48,6 +48,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
+@Deprecated
 public class TransportClientIntegrationTests extends SingleClusterTest {
 
     @ClassRule 
@@ -62,8 +63,8 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 				.build();
 		setup(settings);
 
-		try (Client tc = getInternalTransportClient()) {                    
-			tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+		try (Client tc = getPrivilegedInternalNodeClient()) {                    
+			tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 		}
 
 
@@ -86,22 +87,22 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 
 			System.out.println("------- 2 ---------");
 
-			IndexResponse ir = tc.index(new IndexRequest("vulcan").type("secrets").id("s1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"secret\":true}", XContentType.JSON)).actionGet();
+			IndexResponse ir = tc.index(new IndexRequest("vulcan").id("s1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"secret\":true}", XContentType.JSON)).actionGet();
 			Assert.assertTrue(ir.getResult() == Result.CREATED);
 
 			System.out.println("------- 3 ---------");
 
-			GetResponse gr =tc.prepareGet("vulcan", "secrets", "s1").setRealtime(true).get();
+			GetResponse gr =tc.prepareGet("vulcan", null, "s1").setRealtime(true).get();
 			Assert.assertTrue(gr.isExists());
 
 			System.out.println("------- 4 ---------");
 
-			gr =tc.prepareGet("vulcan", "secrets", "s1").setRealtime(false).get();
+			gr =tc.prepareGet("vulcan", null, "s1").setRealtime(false).get();
 			Assert.assertTrue(gr.isExists());
 
 			System.out.println("------- 5 ---------");
 
-			SearchResponse actionGet = tc.search(new SearchRequest("vulcan").types("secrets")).actionGet();
+			SearchResponse actionGet = tc.search(new SearchRequest("vulcan")).actionGet();
 			Assert.assertEquals(1, actionGet.getHits().getHits().length);
 			System.out.println("------- 6 ---------");
 
@@ -121,7 +122,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 			System.out.println("------- 9 ---------");
 
 			try {
-				tc.index(new IndexRequest("searchguard").type(getType()).id("config").source("config", FileHelper.readYamlContent("sg_config.yml"))).actionGet();
+				tc.index(new IndexRequest("searchguard").id("config").source("config", FileHelper.readYamlContent("sg_config.yml"))).actionGet();
 				Assert.fail();
 			} catch (Exception e) {
 				System.out.println(e.getMessage());
@@ -217,7 +218,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 			ctx = tc.threadPool().getThreadContext().stashContext();
 			try {
 				tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
-				SearchResponse searchRes = tc.prepareSearch("starfleet").setTypes("ships").setScroll(TimeValue.timeValueMinutes(5)).get();
+				SearchResponse searchRes = tc.prepareSearch("starfleet").setScroll(TimeValue.timeValueMinutes(5)).get();
 				scrollId = searchRes.getScrollId();
 			} finally {
 				ctx.close();
@@ -312,7 +313,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 			SearchResponse searchRes = null;
 			try {
 				tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
-				searchRes = tc.prepareSearch("starfleet").setTypes("ships").setScroll(TimeValue.timeValueMinutes(5)).get();
+				searchRes = tc.prepareSearch("starfleet").setScroll(TimeValue.timeValueMinutes(5)).get();
 			} finally {
 				ctx.close();
 			}
@@ -338,7 +339,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 			searchRes = null;
 			try {
 				tc.threadPool().getThreadContext().putHeader("sg_impersonate_as", "nagilum");
-				searchRes = tc.prepareSearch("starfleet").setTypes("ships").setScroll(TimeValue.timeValueMinutes(5)).get();
+				searchRes = tc.prepareSearch("starfleet").setScroll(TimeValue.timeValueMinutes(5)).get();
 				SearchResponse scrollRes = tc.prepareSearchScroll(searchRes.getScrollId()).get();
 				Assert.assertEquals(0, scrollRes.getFailedShards());
 			} finally {
@@ -362,7 +363,7 @@ public class TransportClientIntegrationTests extends SingleClusterTest {
 		setup(settings);
 
 		try (Client tc = getInternalTransportClient()) {
-			tc.index(new IndexRequest("starfleet").type("ships").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+			tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
 			ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
 			Assert.assertFalse(cur.hasFailures());

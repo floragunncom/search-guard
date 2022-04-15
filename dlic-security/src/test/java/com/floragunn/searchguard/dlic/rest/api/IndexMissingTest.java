@@ -81,7 +81,7 @@ public class IndexMissingTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals(HttpStatus.SC_INTERNAL_SERVER_ERROR, response.getStatusCode());
 		
 		// setup index now
-		initialize(this.clusterInfo);
+		initialize(getPrivilegedInternalNodeClient());
 		
 		// GET configuration
 		response = rh.executeGetRequest("_searchguard/api/roles");

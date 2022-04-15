@@ -225,7 +225,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
     }
 
     @Override
-    protected CType getConfigName() {
+    protected CType<InternalUser> getConfigName() {
         return CType.INTERNALUSERS;
     }
 

@@ -109,9 +109,9 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
 
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfig(configPath), settings, true);
 
-        try (Client tc = getInternalTransportClient()) {
+        try (Client tc = getPrivilegedInternalNodeClient()) {
 
-            tc.index(new IndexRequest("vulcangov").type("type").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
+            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
                     XContentType.JSON)).actionGet();
 
             ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE,

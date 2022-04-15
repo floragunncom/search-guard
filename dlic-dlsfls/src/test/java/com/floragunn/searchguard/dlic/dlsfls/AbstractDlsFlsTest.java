@@ -14,7 +14,7 @@
 
 package com.floragunn.searchguard.dlic.dlsfls;
 
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
@@ -46,12 +46,12 @@ public abstract class AbstractDlsFlsTest extends SingleClusterTest {
         Settings settings = Settings.builder().put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").put(override).build();
         setup(Settings.EMPTY, dynamicSgConfig, settings, true);
         
-        try(TransportClient tc = getInternalTransportClient(this.clusterInfo, Settings.EMPTY)) {
+        try(Client tc = getPrivilegedInternalNodeClient()) {
             populateData(tc);
         }
         
         rh = nonSslRestHelper();
     }
     
-    abstract void populateData(TransportClient tc);
+    abstract void populateData(Client tc);
 }
