@@ -74,6 +74,7 @@ import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
@@ -90,7 +91,6 @@ import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.StandardResponse;
-import com.google.common.collect.ImmutableMap;
 
 public class ConfigurationRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(ConfigurationRepository.class);
@@ -692,7 +692,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
 
             if (ctype.getArity() == CType.Arity.SINGLE) {
-                configMap = ImmutableMap.of("default", configMap);
+                if (!configMap.isEmpty()) {
+                    configMap = ImmutableMap.of("default", configMap);                    
+                } else {
+                    configMap = ImmutableMap.empty();
+                }
+                
             }
 
             try {

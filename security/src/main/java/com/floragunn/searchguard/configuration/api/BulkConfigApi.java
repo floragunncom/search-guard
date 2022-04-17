@@ -148,7 +148,7 @@ public class BulkConfigApi {
                                 resultEntry.put("content", ObjectTreeXContent.toObjectTree(config, OMIT_DEFAULTS_PARAMS));
                             }
 
-                            if (config.getSeqNo() != -1 || config.getPrimaryTerm() != -1) {
+                            if (config.documentExists()) {
                                 resultEntry.put("exists", true);
                                 resultEntry.put("_version", config.getDocVersion());
                                 resultEntry.put("_seq_no", config.getSeqNo());

@@ -348,6 +348,10 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     public boolean isFragment() {
         return false;
     }
+    
+    public boolean documentExists() {
+        return seqNo >= 0 && primaryTerm >= 0;
+    }
 
     public long getSeqNo() {
         return seqNo;
