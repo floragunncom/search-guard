@@ -33,7 +33,7 @@ public final class SearchGuardLicenseKey implements Document<SearchGuardLicenseK
 
     private final SearchGuardLicense license;
     private final DocNode source;
-    
+
     SearchGuardLicenseKey(SearchGuardLicense license, DocNode source) {
         this.license = license;
         this.source = source;
@@ -42,12 +42,12 @@ public final class SearchGuardLicenseKey implements Document<SearchGuardLicenseK
     public SearchGuardLicense getLicense() {
         return license;
     }
-    
+
     @Override
     public Object toBasicObject() {
         return source;
     }
-    
+
     @Override
     public String toString() {
         return license.toString();
@@ -59,16 +59,16 @@ public final class SearchGuardLicenseKey implements Document<SearchGuardLicenseK
         try {
             jsonString = LicenseHelper.validateLicense(licenseString);
         } catch (ConfigValidationException e) {
-            return new ValidationResult<SearchGuardLicenseKey>(null, e.getValidationErrors());            
+            return new ValidationResult<SearchGuardLicenseKey>(e.getValidationErrors());
         } catch (Exception e) {
-            return new ValidationResult<SearchGuardLicenseKey>(null, new ValidationError(null, e.getMessage()).cause(e));
+            return new ValidationResult<SearchGuardLicenseKey>(new ValidationError(null, e.getMessage()).cause(e));
         }
 
         Map<String, Object> parsedJson;
         try {
             parsedJson = DocReader.json().readObject(jsonString);
         } catch (ConfigValidationException e) {
-            return new ValidationResult<SearchGuardLicenseKey>(null, e.getValidationErrors());
+            return new ValidationResult<SearchGuardLicenseKey>(e.getValidationErrors());
         }
 
         SearchGuardLicenseKey result = new SearchGuardLicenseKey(new SearchGuardLicense(parsedJson), source);
@@ -79,20 +79,26 @@ public final class SearchGuardLicenseKey implements Document<SearchGuardLicenseK
     public static ValidationResult<SearchGuardLicenseKey> parse(DocNode docNode, Parser.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
-        
+
         if (docNode.isString()) {
             return parseLicenseString(docNode.toString(), docNode);
         }
 
-        ValidationResult<SearchGuardLicenseKey> result = vNode.get("key").by((node) -> SearchGuardLicenseKey.parseLicenseString(node.toString(), docNode));
+        ValidationResult<SearchGuardLicenseKey> result = vNode.get("key")
+                .by((node) -> SearchGuardLicenseKey.parseLicenseString(node.toString(), docNode));
 
         if (result != null) {
             validationErrors.add("key", result);
         }
-        
+
         vNode.checkForUnusedAttributes();
-        
-        return new ValidationResult<SearchGuardLicenseKey>(result != null ? result.peek() : null, validationErrors);
+
+        if (result != null && result.hasResult()) {
+            return new ValidationResult<SearchGuardLicenseKey>(result.peek(), validationErrors);
+        } else {
+            return new ValidationResult<SearchGuardLicenseKey>(validationErrors);
+        }
+
     }
 
 }
