@@ -15,6 +15,7 @@
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -100,11 +101,17 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
                 Responses.sendJson(restChannel, oidcProviderConfigMap);
             } else if ("token".equals(specificRequestPathComponent)) {
                 ContentType contentType = ContentType.APPLICATION_FORM_URLENCODED;
+                byte[] content = BytesReference.toBytes(restRequest.content());
 
-                HttpResponse idpResponse = openIdProviderClient.callTokenEndpoint(BytesReference.toBytes(restRequest.content()), contentType);
+                HttpResponse idpResponse = openIdProviderClient.callTokenEndpoint(content, contentType);
+                byte[] idpResponseContent = EntityUtils.toByteArray(idpResponse.getEntity());
+
+                    log.warn("### OIDC DEBUG INFO:\n" + openIdProviderClient.getOidcConfiguration().getTokenEndpoint() + "\n"
+                            + new String(content) + "\n" + idpResponse.getStatusLine() + "\n" + Arrays.asList(idpResponse.getAllHeaders()) + "\n"
+                            + new String(idpResponseContent));
 
                 restChannel.sendResponse(new BytesRestResponse(RestStatus.fromCode(idpResponse.getStatusLine().getStatusCode()),
-                        idpResponse.getEntity().getContentType().getValue(), EntityUtils.toByteArray(idpResponse.getEntity())));
+                        idpResponse.getEntity().getContentType().getValue(), idpResponseContent));
             } else {
                 Responses.sendError(restChannel, RestStatus.NOT_FOUND, "Invalid endpoint: " + restRequest.path());
             }
