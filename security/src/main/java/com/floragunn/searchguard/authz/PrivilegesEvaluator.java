@@ -181,7 +181,9 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 SgDynamicConfiguration<Role> roles = configMap.get(CType.ROLES);
                 SgDynamicConfiguration<Tenant> tenants = configMap.get(CType.TENANTS);
 
-                ActionGroup.FlattenedIndex actionGroups = new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS));
+                ActionGroup.FlattenedIndex actionGroups = configMap.get(CType.ACTIONGROUPS) != null
+                        ? new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS))
+                        : ActionGroup.FlattenedIndex.EMPTY;
 
                 actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions,
                         clusterService.state().metadata().indices().keySet(), tenants.getCEntries().keySet());
