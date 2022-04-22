@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.authc.session;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,7 @@ import org.elasticsearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
@@ -189,6 +192,9 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
                         if (frontendConfig.isDebug()) {
                             messageTitle = "Unexpected error while " + type + " login";
                             messageBody = e.toString();
+                            StringWriter stringWriter = new StringWriter();
+                            e.printStackTrace(new PrintWriter(stringWriter));                            
+                            details = ImmutableMap.of("exception", ImmutableList.ofArray(stringWriter.toString().split("\n")));
                         }
 
                         activatedAuthMethod = activatedAuthMethod.unavailable(messageTitle, messageBody, details);
