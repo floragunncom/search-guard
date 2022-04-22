@@ -43,6 +43,9 @@ public class LinkApiAuthenticationFrontend implements ApiAuthenticationFrontend 
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors);
 
         url = vNode.get("url").required().asAbsoluteURI();
+        
+        vNode.checkForUnusedAttributes();
+        validationErrors.throwExceptionForPresentErrors();
     }
 
     @Override
