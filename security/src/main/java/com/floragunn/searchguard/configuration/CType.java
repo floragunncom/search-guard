@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.sgconf.impl;
+package com.floragunn.searchguard.configuration;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -38,7 +38,6 @@ import com.floragunn.searchguard.authz.config.AuthorizationConfig;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.RoleMapping;
 import com.floragunn.searchguard.authz.config.Tenant;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.variables.ConfigVar;
 import com.floragunn.searchguard.license.SearchGuardLicenseKey;
 

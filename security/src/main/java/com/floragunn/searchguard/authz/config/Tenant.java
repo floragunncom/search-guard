@@ -23,8 +23,8 @@ import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
-import com.floragunn.searchguard.sgconf.Hideable;
-import com.floragunn.searchguard.sgconf.StaticDefinable;
+import com.floragunn.searchguard.configuration.Hideable;
+import com.floragunn.searchguard.configuration.StaticDefinable;
 
 public class Tenant implements Document<ActionGroup>, Hideable, StaticDefinable {
 

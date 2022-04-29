@@ -50,9 +50,6 @@ import org.elasticsearch.xcontent.XContentType;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
-import com.floragunn.searchguard.sgconf.StaticSgConfig;
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 

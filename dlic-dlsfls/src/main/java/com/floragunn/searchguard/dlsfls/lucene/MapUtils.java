@@ -15,14 +15,14 @@
  * 
  */
 
-package com.floragunn.searchguard.support;
+package com.floragunn.searchguard.dlsfls.lucene;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class MapUtils {
+class MapUtils {
     
     public static void deepTraverseMap(final Map<String, Object> map, final Callback cb) {
         deepTraverseMap(map, cb, null);

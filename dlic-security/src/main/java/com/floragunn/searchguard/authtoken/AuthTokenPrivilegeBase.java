@@ -34,9 +34,9 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.sgconf.history.ConfigVersionSet;
-import com.floragunn.searchguard.sgconf.impl.CType;
 import com.google.common.collect.ImmutableMap;
 
 public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Serializable {

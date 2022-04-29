@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.sgconf.impl;
+package com.floragunn.searchguard.configuration;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -41,13 +41,9 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
-import com.floragunn.searchguard.sgconf.Hideable;
-import com.floragunn.searchguard.sgconf.StaticDefinable;
 import com.floragunn.searchguard.support.SgUtils;
 import com.google.common.base.Charsets;
 

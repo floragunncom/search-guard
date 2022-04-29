@@ -28,7 +28,7 @@ import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.RoleMapping;
 import com.floragunn.searchguard.authz.config.Tenant;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 
 public class ConfigModel {
     private final SgDynamicConfiguration<Role> rolesConfig;

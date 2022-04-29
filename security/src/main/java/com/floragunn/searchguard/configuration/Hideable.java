@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.sgconf;
+package com.floragunn.searchguard.configuration;
 
 public interface Hideable {
     

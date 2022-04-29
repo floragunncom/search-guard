@@ -1,4 +1,4 @@
-package com.floragunn.dlic.auth.internal;
+package com.floragunn.searchguard.dlic.dlsfls;
 
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;

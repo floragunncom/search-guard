@@ -35,7 +35,7 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.authtoken.RequestedPrivileges.ExcludedIndexPermissions;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
-import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.configuration.CType;
 
 public class AuthTokenServiceConfig {
     public static CType<AuthTokenServiceConfig> TYPE = new CType<AuthTokenServiceConfig>("auth_token_service", "Auth Token Service", 10021, AuthTokenServiceConfig.class,

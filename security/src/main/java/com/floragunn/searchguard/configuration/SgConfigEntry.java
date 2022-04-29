@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.sgconf.impl;
+package com.floragunn.searchguard.configuration;
 
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.RedactableDocument;

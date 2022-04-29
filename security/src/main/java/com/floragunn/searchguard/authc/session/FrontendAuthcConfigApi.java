@@ -21,10 +21,10 @@ import org.elasticsearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.searchguard.BaseDependencies;
+import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.api.DocumentLevelConfigApi;
 import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
-import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests;
 

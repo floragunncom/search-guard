@@ -60,15 +60,15 @@ import com.floragunn.searchguard.authtoken.api.TransportRevokeAuthTokenAction;
 import com.floragunn.searchguard.authtoken.api.TransportSearchAuthTokensAction;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
 import com.floragunn.searchguard.authtoken.update.TransportPushAuthTokenUpdateAction;
+import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 
 public class AuthTokenModule implements SearchGuardModule, ComponentStateProvider {

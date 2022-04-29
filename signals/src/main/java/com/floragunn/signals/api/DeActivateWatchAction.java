@@ -14,7 +14,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchguard.filter.TenantAwareRestHandler;
+import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.activate_deactivate.DeActivateWatchRequest;
 import com.floragunn.signals.actions.watch.activate_deactivate.DeActivateWatchResponse;
 import com.google.common.collect.ImmutableList;

@@ -14,7 +14,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchguard.filter.TenantAwareRestHandler;
+import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.AckWatchRequest;
 import com.floragunn.signals.actions.watch.ack.AckWatchResponse;

@@ -17,8 +17,6 @@
 
 package com.floragunn.searchguard.configuration;
 
-import com.floragunn.searchguard.sgconf.impl.CType;
-
 public class NoSuchConfigEntryException extends Exception {
 
     private static final long serialVersionUID = -1792637044303383338L;

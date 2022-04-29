@@ -21,7 +21,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
-import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.configuration.CType;
 import com.google.common.collect.ImmutableMap;
 
 public class FeMultiTenancyConfig implements Document<FeMultiTenancyConfig> {

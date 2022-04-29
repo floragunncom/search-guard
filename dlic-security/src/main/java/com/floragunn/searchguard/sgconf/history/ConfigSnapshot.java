@@ -16,8 +16,8 @@ package com.floragunn.searchguard.sgconf.history;
 
 import java.util.Map;
 
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 
 public class ConfigSnapshot {
     private final Map<CType<?>, SgDynamicConfiguration<?>> configByType;

@@ -109,15 +109,14 @@ import com.floragunn.searchguard.action.licenseinfo.LicenseInfoResponse;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIRequest;
 import com.floragunn.searchguard.action.whoami.WhoAmIResponse;
+import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.ssl.util.config.ClientAuthCredentials;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.floragunn.searchguard.ssl.util.config.TrustStore;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.SgJsonNode;
 import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient.GenericResponse;
@@ -1283,7 +1282,12 @@ public class SearchGuardAdmin {
             return null;
         }
         final JsonNode jsonNode = DefaultObjectMapper.YAML_MAPPER.readTree(file);
-        return new SgJsonNode(jsonNode).get("_sg_meta").get("type").asString();
+        
+        if (jsonNode.hasNonNull("_sg_meta")) {
+            return jsonNode.get("_sg_meta").hasNonNull("type") ? jsonNode.get("_sg_meta").get("type").asText() : null;
+        } else {
+            return null;
+        }
     }
 
     private static String[] getTypes(boolean legacy) {
