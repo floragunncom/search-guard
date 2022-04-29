@@ -34,6 +34,7 @@ import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.authc.LoginPrivileges;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
+import com.floragunn.searchguard.configuration.variables.ConfigVarServiceNotYetAvailableException;
 import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.support.JoseParsers;
 import com.google.common.collect.ImmutableList;
@@ -85,23 +86,28 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
     public void setMaxValidity(TemporalAmount maxValidity) {
         this.maxValidity = maxValidity;
     }
-    
+
     public static SessionServiceConfig getDefault(ConfigVarService configVarService) throws ConfigValidationException {
-        SessionServiceConfig result = new SessionServiceConfig();
-        
-        String key = configVarService.getAsString(SIGNING_KEY_SECRET);
-        
-        if (key == null) {
-            // Not yet initialized
+        try {
+            SessionServiceConfig result = new SessionServiceConfig();
+
+            String key = configVarService.getAsString(SIGNING_KEY_SECRET);
+
+            if (key == null) {
+                // Not yet initialized
+                return null;
+            }
+
+            result.enabled = true;
+            result.requiredLoginPrivileges = ImmutableList.of(LoginPrivileges.SESSION);
+            result.jwtSigningKey = JoseParsers.parseJwkHs512SigningKey(key);
+            result.source = DocNode.EMPTY;
+
+            return result;
+        } catch (ConfigVarServiceNotYetAvailableException e) {
+            // Not yet initialized. We will get a config refresh when the service is available. Then, this code is executed again
             return null;
         }
-        
-        result.enabled = true;
-        result.requiredLoginPrivileges = ImmutableList.of(LoginPrivileges.SESSION);
-        result.jwtSigningKey = JoseParsers.parseJwkHs512SigningKey(key);
-        result.source = DocNode.EMPTY;
-
-        return result;
     }
 
     public static ValidationResult<SessionServiceConfig> parse(DocNode jsonNode, Parser.Context context) {
@@ -148,11 +154,11 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
             result.requiredLoginPrivileges = vJsonNode.get("required_login_privileges").withListDefault(LoginPrivileges.SESSION).ofStrings();
 
             result.refreshSessionActivityIndex = vJsonNode.get("refresh_session_activity_index").withDefault(false).asBoolean();
-            
+
             result.source = jsonNode;
             // TODO create test JWT for more thorough validation (some things are only checked then)
         }
-        
+
         if (!validationErrors.hasErrors()) {
             return new ValidationResult<SessionServiceConfig>(result);
         } else {
