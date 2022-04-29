@@ -211,4 +211,9 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         return FeMultiTenancyConfigApi.ACTION_HANDLERS;
     }
+
+    @Override
+    public ImmutableSet<String> getCapabilities() {
+        return ImmutableSet.of("fe_multi_tenancy");
+    }
 }

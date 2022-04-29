@@ -215,6 +215,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry = new SpecialPrivilegesEvaluationContextProviderRegistry();
 
     private SearchGuardModulesRegistry moduleRegistry;
+    private SearchGuardCapabilities capabilities;
     private StaticSgConfig staticSgConfig;
     private AuthInfoService authInfoService;
     private DiagnosticContext diagnosticContext;
@@ -512,6 +513,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(FrontendAuthcConfigApi.DocumentLevel.REST_API);
                 handlers.add(SearchGuardLicenseKeyApi.REST_API);
                 handlers.add(SearchGuardLicenseInfoAction.REST_API);
+                handlers.add(SearchGuardCapabilities.GetCapabilitiesAction.REST_API);
                 
                 handlers.add(GetActivatedFrontendConfigAction.REST_API);
                 handlers.add(new AuthenticatingRestFilter.DebugApi());
@@ -565,6 +567,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.GetAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.GetAction.Handler.class));
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PutAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PutAction.Handler.class));
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PatchAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PatchAction.Handler.class));
+            actions.add(new ActionHandler<>(SearchGuardCapabilities.GetCapabilitiesAction.INSTANCE, SearchGuardCapabilities.GetCapabilitiesAction.TransportAction.class));
         }
 
         actions.addAll(moduleRegistry.getActions());
@@ -934,6 +937,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
         
         components.addAll(moduleComponents);
+        
+        capabilities = new SearchGuardCapabilities(moduleRegistry.getModules(), clusterService, localClient);
+        components.add(capabilities);
         
         sgRestHandler = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool,
                 principalExtractor, evaluator, settings, configPath, diagnosticContext);

@@ -33,8 +33,13 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
@@ -42,10 +47,12 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestResponseListener;
+import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.codova.documents.ContentType;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -87,7 +94,6 @@ public class RestApi extends BaseRestHandler {
         this.staticResponseHeaders = this.staticResponseHeaders.with(ImmutableMap.of(responseHeaders));
         return this;
     }
-    
 
     public RestApi responseHeader(String name, String value) {
         this.staticResponseHeaders = this.staticResponseHeaders.with(name, value);
@@ -185,6 +191,9 @@ public class RestApi extends BaseRestHandler {
             return RestApi.this;
         }
 
+        /**
+         * To be used with Actions based on com.floragunn.searchsupport.action.Action
+         */
         public <RequestType extends Action.Request, ResponseType extends Action.Response> RestApi with(Action<RequestType, ResponseType> action) {
             if (action == null) {
                 throw new IllegalArgumentException("action must not be null");
@@ -207,15 +216,15 @@ public class RestApi extends BaseRestHandler {
                     }
 
                     RequestType transportRequest = action.parseRequest(new Action.UnparsedMessage(unparsedDoc, DocNode.EMPTY));
-                    
+
                     String ifMatchHeader = restRequest.header("If-Match");
-                    
+
                     if (ifMatchHeader != null) {
                         transportRequest.ifMatch(ifMatchHeader);
                     }
-                    
+
                     String ifNoneMatchHeader = restRequest.header("If-None-Match");
-                    
+
                     if (ifNoneMatchHeader != null) {
                         transportRequest.ifNoneMatch(ifNoneMatchHeader);
                     }
@@ -228,17 +237,17 @@ public class RestApi extends BaseRestHandler {
 
                             RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getMediaType(),
                                     DocWriter.format(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
-                            
+
                             if (response.getConcurrencyControlEntityTag() != null) {
                                 restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
                             }
-                            
+
                             if (!staticResponseHeaders.isEmpty()) {
                                 staticResponseHeaders.forEach((k, v) -> {
                                     restResponse.addHeader(k, v);
                                 });
                             }
-                            
+
                             return restResponse;
                         }
 
@@ -251,6 +260,9 @@ public class RestApi extends BaseRestHandler {
 
         }
 
+        /**
+         * To be used with Actions based on com.floragunn.searchsupport.action.Action
+         */
         public <RequestType extends Action.Request, ResponseType extends Action.Response> RestApi with(Action<RequestType, ResponseType> action,
                 RestRequestParser<RequestType> requestParser) {
             if (action == null) {
@@ -280,15 +292,15 @@ public class RestApi extends BaseRestHandler {
                     }
 
                     RequestType transportRequest = requestParser.parse(new RestRequestParams(restRequest), unparsedDoc);
-                    
+
                     String ifMatchHeader = restRequest.header("If-Match");
-                    
+
                     if (ifMatchHeader != null) {
                         transportRequest.ifMatch(ifMatchHeader);
                     }
-                    
+
                     String ifNoneMatchHeader = restRequest.header("If-None-Match");
-                    
+
                     if (ifNoneMatchHeader != null) {
                         transportRequest.ifNoneMatch(ifNoneMatchHeader);
                     }
@@ -305,14 +317,14 @@ public class RestApi extends BaseRestHandler {
 
                             RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getMediaType(),
                                     DocWriter.format(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
-                            
+
                             if (response.getConcurrencyControlEntityTag() != null) {
                                 restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
                             }
-                            
+
                             if (!staticResponseHeaders.isEmpty()) {
-                                staticResponseHeaders.forEach((k,v) -> {
-                                   restResponse.addHeader(k, v); 
+                                staticResponseHeaders.forEach((k, v) -> {
+                                    restResponse.addHeader(k, v);
                                 });
                             }
 
@@ -325,6 +337,72 @@ public class RestApi extends BaseRestHandler {
                     return channel -> Responses.sendError(channel, e);
                 }
             });
+        }
+
+        /**
+         * To be used with basic action classes from Elasticsearch/OpenSearch
+         */
+        public <RequestType extends ActionRequest, ResponseType extends ActionResponse> RestApi with(ActionType<ResponseType> action,
+                RestRequestParser<RequestType> requestParser) {
+            if (action == null) {
+                throw new IllegalArgumentException("action must not be null");
+            }
+
+            return with((restRequest, client) -> {
+                try {
+                    boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
+
+                    UnparsedDocument<?> unparsedDoc = null;
+
+                    if (restRequest.hasContent()) {
+                        ContentType contentType = ContentType.parseHeader(
+                                restRequest.header("X-SG-Original-Content-Type") != null ? restRequest.header("X-SG-Original-Content-Type")
+                                        : restRequest.header("Content-Type"));
+
+                        if (contentType == null) {
+                            return channel -> Responses.sendError(channel, RestStatus.BAD_REQUEST, "Content-Type header is missing");
+                        }
+
+                        unparsedDoc = UnparsedDocument.from(BytesReference.toBytes(restRequest.content()), contentType);
+                    }
+
+                    RequestType transportRequest = requestParser.parse(new RestRequestParams(restRequest), unparsedDoc);
+
+                    return channel -> client.execute(action, transportRequest, new RestResponseListener<ResponseType>(channel) {
+
+                        @Override
+                        public RestResponse buildResponse(ResponseType response) throws Exception {
+                            Format responseDocType = Format.JSON;
+                            RestStatus status = (response instanceof StatusToXContentObject) ? ((StatusToXContentObject) response).status()
+                                    : RestStatus.OK;
+                            String body;
+
+                            if (response instanceof Document) {
+                                body = DocWriter.format(responseDocType).pretty(prettyPrintResponse).writeAsString(response);
+                            } else if (response instanceof ToXContent) {
+                                body = Strings.toString((ToXContent) response);
+                            } else {
+                                body = response.toString();
+                            }
+
+                            RestResponse restResponse = new BytesRestResponse(status, responseDocType.getMediaType(), body);
+
+                            if (!staticResponseHeaders.isEmpty()) {
+                                staticResponseHeaders.forEach((k, v) -> {
+                                    restResponse.addHeader(k, v);
+                                });
+                            }
+
+                            return restResponse;
+                        }
+
+                    });
+                } catch (Exception e) {
+                    log.warn("Error while handling request", e);
+                    return channel -> Responses.sendError(channel, e);
+                }
+            });
+
         }
 
         @Override
@@ -354,9 +432,9 @@ public class RestApi extends BaseRestHandler {
     public static enum Method {
         GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH;
     }
-    
+
     @FunctionalInterface
-    public static interface RestRequestParser<RequestType extends Action.Request> {
+    public static interface RestRequestParser<RequestType extends ActionRequest> {
         RequestType parse(Map<String, String> requestUrlParams, UnparsedDocument<?> requestBody) throws ConfigValidationException;
     }
 

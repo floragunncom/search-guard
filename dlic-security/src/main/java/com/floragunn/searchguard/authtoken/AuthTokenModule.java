@@ -39,6 +39,7 @@ import org.elasticsearch.script.ScriptService;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
@@ -171,6 +172,11 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
     @Override
     public List<AuthenticationDomain<HTTPAuthenticator>> getImplicitHttpAuthenticationDomains() {
         return Collections.singletonList(authenticationDomain);
+    }
+
+    @Override
+    public ImmutableSet<String> getCapabilities() {
+        return ImmutableSet.of("auth_tokens");
     }
 
 }

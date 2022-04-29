@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 floragunn GmbH
+ * Copyright 2020-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 
@@ -69,6 +70,18 @@ public interface SearchGuardModule {
 
     default List<TypedComponent.Info<?>> getTypedComponents() {
         return Collections.emptyList();
+    }
+
+    default ImmutableSet<String> getCapabilities() {
+        return ImmutableSet.empty();
+    }
+
+    default ImmutableSet<String> getUiCapabilities() {
+        return ImmutableSet.empty();
+    }
+
+    default ImmutableSet<String> getPublicCapabilities() {
+        return ImmutableSet.empty();
     }
 
     default void onNodeStarted() {
