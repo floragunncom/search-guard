@@ -22,9 +22,9 @@ import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
 import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.searchguard.BaseDependencies;
+import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
-import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchsupport.action.RestApi;
 import com.google.common.collect.ImmutableList;
 

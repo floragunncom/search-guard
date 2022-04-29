@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.sgconf;
+package com.floragunn.searchguard.authz;
 
 import java.util.Collections;
 import java.util.HashMap;

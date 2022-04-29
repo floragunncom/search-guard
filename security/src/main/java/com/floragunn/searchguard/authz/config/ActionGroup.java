@@ -35,9 +35,9 @@ import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.sgconf.Hideable;
-import com.floragunn.searchguard.sgconf.StaticDefinable;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.configuration.Hideable;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchguard.configuration.StaticDefinable;
 
 public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefinable {
 

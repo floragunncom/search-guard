@@ -88,7 +88,6 @@ import com.floragunn.searchguard.dlsfls.FieldReadCallback;
 import com.floragunn.searchguard.dlsfls.MaskedField;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
-import com.floragunn.searchguard.support.MapUtils;
 import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.google.common.base.Joiner;

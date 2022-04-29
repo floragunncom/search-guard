@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package com.floragunn.searchguard.sgconf;
+package com.floragunn.searchguard.authz;
 
 import java.io.InputStreamReader;
 import java.util.Arrays;
@@ -29,8 +29,8 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.ActionGroup;
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 
 public class ActionGroupsTest {
 

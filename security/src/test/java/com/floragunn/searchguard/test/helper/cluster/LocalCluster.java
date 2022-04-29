@@ -48,7 +48,7 @@ import org.junit.rules.ExternalResource;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
-import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestIndex;

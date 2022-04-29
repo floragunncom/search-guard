@@ -18,7 +18,7 @@ import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchguard.filter.TenantAwareRestHandler;
+import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.delete.DeleteWatchAction;
 import com.floragunn.signals.actions.watch.delete.DeleteWatchRequest;
 import com.floragunn.signals.actions.watch.delete.DeleteWatchResponse;

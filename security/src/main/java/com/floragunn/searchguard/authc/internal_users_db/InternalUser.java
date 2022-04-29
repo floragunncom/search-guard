@@ -38,7 +38,7 @@ import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.sgconf.Hideable;
+import com.floragunn.searchguard.configuration.Hideable;
 
 public class InternalUser implements PatchableDocument<InternalUser>, RedactableDocument, Hideable {
 

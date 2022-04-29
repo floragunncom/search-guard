@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.http;
+package com.floragunn.searchguard.authc.session;
 
 import java.net.URI;
 import java.util.Map;
@@ -26,7 +26,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig.AuthMethod;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction.Request;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;

@@ -22,8 +22,6 @@ import java.util.Set;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 
 public class ConfigMap implements Destroyable {
 

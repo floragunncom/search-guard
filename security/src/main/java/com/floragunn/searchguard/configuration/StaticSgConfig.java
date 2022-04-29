@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.sgconf;
+package com.floragunn.searchguard.configuration;
 
 import java.util.HashSet;
 
@@ -11,8 +11,6 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.Tenant;
-import com.floragunn.searchguard.sgconf.impl.CType;
-import com.floragunn.searchguard.sgconf.impl.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class StaticSgConfig {

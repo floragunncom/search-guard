@@ -24,7 +24,7 @@ import java.util.List;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 
-import com.floragunn.searchguard.sgconf.impl.CType;
+import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class DynamicSgConfig {

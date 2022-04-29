@@ -26,8 +26,8 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchguard.sgconf.Hideable;
-import com.floragunn.searchguard.sgconf.StaticDefinable;
+import com.floragunn.searchguard.configuration.Hideable;
+import com.floragunn.searchguard.configuration.StaticDefinable;
 import com.floragunn.searchguard.support.Pattern;
 
 public class Role implements Document<Role>, Hideable, StaticDefinable {

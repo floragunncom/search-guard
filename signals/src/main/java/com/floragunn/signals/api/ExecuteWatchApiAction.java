@@ -22,7 +22,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.filter.TenantAwareRestHandler;
+import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchAction;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchRequest;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchResponse;

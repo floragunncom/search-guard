@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.sgconf.impl;
+package com.floragunn.searchguard.configuration;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

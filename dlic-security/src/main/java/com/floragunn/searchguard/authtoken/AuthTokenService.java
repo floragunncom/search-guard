@@ -86,6 +86,7 @@ import com.floragunn.searchguard.authz.DocumentAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -95,7 +96,6 @@ import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextPr
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.sgconf.history.ConfigModel;
 import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
-import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;

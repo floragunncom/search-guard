@@ -33,9 +33,9 @@ import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.authc.LoginPrivileges;
+import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.configuration.variables.ConfigVarServiceNotYetAvailableException;
-import com.floragunn.searchguard.sgconf.impl.CType;
 import com.floragunn.searchguard.support.JoseParsers;
 import com.google.common.collect.ImmutableList;
 

@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.filter;
+package com.floragunn.searchguard.authc.rest;
 
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;

@@ -56,7 +56,7 @@ import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPClientCertAuthenticator;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPTrustedOriginAuthenticator;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
-import com.floragunn.searchguard.http.LinkApiAuthenticationFrontend;
+import com.floragunn.searchguard.authc.session.LinkApiAuthenticationFrontend;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;

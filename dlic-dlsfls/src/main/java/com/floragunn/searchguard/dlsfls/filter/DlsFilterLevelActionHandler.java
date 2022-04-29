@@ -61,10 +61,10 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.searchguard.authz.DocumentWhitelist;
+import com.floragunn.searchguard.authz.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.dlsfls.DlsQueryParser;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
-import com.floragunn.searchguard.sgconf.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
