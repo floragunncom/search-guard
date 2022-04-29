@@ -40,6 +40,7 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
@@ -138,6 +139,11 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
     @Override
     public List<AuthenticationDomain<HTTPAuthenticator>> getImplicitHttpAuthenticationDomains() {
         return Collections.singletonList(sessionTokenAuthenticationDomain);
+    }
+
+    @Override
+    public ImmutableSet<String> getPublicCapabilities() {
+        return ImmutableSet.of("login_sessions");
     }
 
 }

@@ -21,6 +21,7 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authz.config.Tenant;
@@ -204,6 +205,11 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
     @Override
     public ComponentState getComponentState() {
         return moduleState;
+    }
+
+    @Override
+    public ImmutableSet<String> getCapabilities() {
+        return enabled ? ImmutableSet.of("signals") : ImmutableSet.empty();
     }
 
 }

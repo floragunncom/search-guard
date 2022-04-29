@@ -278,4 +278,8 @@ public class SearchGuardModulesRegistry {
         return typedComponentRegistry;
     }
 
+    public List<SearchGuardModule> getModules() {
+        return Collections.unmodifiableList(modules);
+    }
+
 }
