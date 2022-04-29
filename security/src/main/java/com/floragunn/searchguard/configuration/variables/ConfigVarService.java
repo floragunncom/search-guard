@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteRequest.OpType;
 import org.elasticsearch.action.DocWriteResponse;
@@ -89,7 +88,7 @@ public class ConfigVarService implements ComponentStateProvider {
     private final Map<String, RequestedValue> requestedValues = new ConcurrentHashMap<>();
     private final ComponentState componentState = new ComponentState(1000, null, "config_var_storage", ConfigVarService.class);
     private final String indexName = ".searchguard_config_vars";
-    private Map<String, Object> values;
+    private volatile Map<String, Object> values;
     private final List<Runnable> changeListeners = new ArrayList<>();
     private final EncryptionKeys encryptionKeys;
 
@@ -105,8 +104,10 @@ public class ConfigVarService implements ComponentStateProvider {
     }
 
     public Object get(String id) {
+        Map<String, Object> values = this.values;
+        
         if (values == null) {
-            throw new ElasticsearchException("ConfigVarService is not yet initialized");
+            throw new ConfigVarServiceNotYetAvailableException("ConfigVarService is not yet initialized");
         }
 
         return values.get(id);
@@ -493,7 +494,8 @@ public class ConfigVarService implements ComponentStateProvider {
             }
 
             values = existingValues;
-
+            componentState.setInitialized();
+            
             notifyChangeListeners();
 
             failureListener.onSuccess();
