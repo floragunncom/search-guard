@@ -345,13 +345,13 @@
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>codova</artifactId>
-				<version>0.1.2</version>
+				<version>0.2.0</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>fluent-collections</artifactId>
-				<version>0.1.4</version>
+				<version>0.2.1</version>
 			</dependency>
 
 			<dependency>

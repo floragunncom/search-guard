@@ -146,7 +146,7 @@ public class BulkConfigApiTest {
             DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
 
             Assert.assertEquals(updateResponse.getBody(), "'tenants.my_new_test_tenant.xxx': Unsupported attribute",
-                    updateResponseDoc.get("error.message"));
+                    updateResponseDoc.getAsNode("error").get("message"));
         }
     }
 
@@ -169,7 +169,7 @@ public class BulkConfigApiTest {
 
             DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
 
-            Assert.assertEquals(updateResponse.getBody(), "'foo': Invalid config type: foo", updateResponseDoc.get("error.message"));
+            Assert.assertEquals(updateResponse.getBody(), "'foo': Invalid config type: foo", updateResponseDoc.getAsNode("error").get("message"));
         }
     }
 
