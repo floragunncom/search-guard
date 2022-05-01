@@ -47,6 +47,8 @@ import org.elasticsearch.common.bytes.BytesReference;
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.patch.MergePatch;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -369,24 +371,23 @@ public class TestSgConfig {
 
     private void writeOptionalConfigToIndex(Client client, CType<?> configType, String file, NestedValueMap overrides) {
         try {
-            NestedValueMap config = null;
+            DocNode config = null;
 
             if (resourceFolder != null) {
                 try {
-                    config = NestedValueMap.fromYaml(openFile(file));
+                    config = DocNode.parse(Format.YAML).from(openFile(file));
                 } catch (FileNotFoundException e) {
-                    // ingore
+                    // ignore
                 }
             }
 
             if (config == null) {
-                config = NestedValueMap.of(new NestedValueMap.Path("_sg_meta", "type"), configType.toLCString(),
-                        new NestedValueMap.Path("_sg_meta", "config_version"), 2);
+                config = DocNode.of("_sg_meta.type", configType.toLCString(), "_sg_meta.config_version", 2);
             }
 
             if (overrides != null) {
-                config.overrideLeafs(overrides);
-            }
+                config = new MergePatch(DocNode.wrap(overrides)).apply(config);
+            }            
 
             log.info("Writing " + configType + "\n:" + config.toJsonString());
 

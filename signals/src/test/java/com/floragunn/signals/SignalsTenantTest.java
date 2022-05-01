@@ -67,7 +67,7 @@ public class SignalsTenantTest {
 
         // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
         cluster.before();
-        
+
         PluginAwareNode node = cluster.node();
 
         clusterService = node.injector().getInstance(ClusterService.class);
@@ -77,7 +77,7 @@ public class SignalsTenantTest {
         nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
         diagnosticContext = node.injector().getInstance(DiagnosticContext.class);
 
-        try (Client client = cluster.getAdminCertClient();
+        try (Client client = cluster.getInternalNodeClient();
                 Client privilegedConfigClient = PrivilegedConfigClient.adapt(cluster.getInternalNodeClient())) {
             Watch watch = new WatchBuilder("test").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").throttledFor("5s").build();
