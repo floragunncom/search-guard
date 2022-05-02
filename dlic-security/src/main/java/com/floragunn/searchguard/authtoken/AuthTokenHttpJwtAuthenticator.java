@@ -14,24 +14,19 @@
 
 package com.floragunn.searchguard.authtoken;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.google.common.base.Strings;
 
 public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
     private final static Logger log = LogManager.getLogger(AuthTokenHttpJwtAuthenticator.class);
@@ -53,20 +48,7 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
     }
 
     @Override
-    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
-
-        // TODO check whether this is really necessary
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
-        return AccessController.doPrivileged((PrivilegedAction<AuthCredentials>) () -> extractCredentials0(request));
-    }
-
-    private AuthCredentials extractCredentials0(RestRequest request) throws ElasticsearchSecurityException {
-
+    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) {
         String encodedJwt = getJwtTokenString(request);
 
         if (Strings.isNullOrEmpty(encodedJwt)) {
@@ -75,13 +57,11 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
 
         try {
             JwtToken jwt = authTokenService.getVerifiedJwtToken(encodedJwt);
-
             if (jwt == null) {
                 return null;
             }
 
             JwtClaims claims = jwt.getClaims();
-
             String subject = extractSubject(claims);
 
             if (subject == null) {
@@ -95,7 +75,6 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
             log.info("JWT is invalid (" + this.getType() + ")", e);
             return null;
         }
-
     }
 
     protected String getJwtTokenString(RestRequest request) {
