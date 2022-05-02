@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 
+import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
@@ -54,6 +55,7 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
     private List<String> requiredLoginPrivileges;
     private DocNode source;
     private boolean refreshSessionActivityIndex;
+    private Template<String> jwtAudience;
 
     public boolean isEnabled() {
         return enabled;
@@ -101,6 +103,7 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
             result.enabled = true;
             result.requiredLoginPrivileges = ImmutableList.of(LoginPrivileges.SESSION);
             result.jwtSigningKey = JoseParsers.parseJwkHs512SigningKey(key);
+            result.jwtAudience = new Template<String>("sg_session_${cluster.name}", (s) -> s);
             result.source = DocNode.EMPTY;
 
             return result;
@@ -146,6 +149,8 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
                 result.jwtEncryptionKey = vJsonNode.get("jwt_encryption_key_a256kw").byString(JoseParsers::parseJwkA256kwEncryptionKey);
             }
 
+            result.jwtAudience = vJsonNode.get("jwt_audience").withDefault("sg_session_${cluster.name}").asTemplate();
+            
             result.maxValidity = vJsonNode.get("max_validity").asTemporalAmount();
             result.inactivityTimeout = vJsonNode.get("inactivity_timeout").withDefault(Duration.ofHours(1)).asDuration();
 
@@ -201,6 +206,14 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
 
     public void setRefreshSessionActivityIndex(boolean refreshSessionActivityIndex) {
         this.refreshSessionActivityIndex = refreshSessionActivityIndex;
+    }
+
+    public Template<String> getJwtAudience() {
+        return jwtAudience;
+    }
+
+    public void setJwtAudience(Template<String> jwtAudience) {
+        this.jwtAudience = jwtAudience;
     }
 
 }

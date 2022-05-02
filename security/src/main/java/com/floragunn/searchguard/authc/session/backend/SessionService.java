@@ -76,6 +76,8 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.codova.config.templates.AttributeSource;
+import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -122,8 +124,6 @@ public class SessionService {
 
     private static final Logger log = LogManager.getLogger(SessionService.class);
 
-    private static final String JWT_AUDIENCE = "sg_session";
-
     public static final Setting<String> INDEX_NAME = Setting.simpleString("searchguard.sessions.index.name", ".searchguard_sessions",
             Property.NodeScope);
     public static final Setting<TimeValue> CLEANUP_INTERVAL = Setting.timeSetting("searchguard.sessions.cleanup_interval",
@@ -143,6 +143,8 @@ public class SessionService {
     private final AuditLog auditLog;
     private final BlockedIpRegistry blockedIpRegistry;
     private final BlockedUserRegistry blockedUserRegistry;
+    private final ClusterService clusterService;
+
     private SessionActivityTracker activityTracker;
     private IndexCleanupAgent indexCleanupAgent;
     private long maxTokensPerUser = 100;
@@ -153,6 +155,8 @@ public class SessionService {
     private JsonWebKey signingKey;
     private JwsSignatureVerifier jwsSignatureVerifier;
     private JweDecryptionProvider jweDecryptionProvider;
+    private String jwtAudience;
+
     private boolean initialized = false;
 
     private volatile MergedAuthcConfig authcConfig;
@@ -174,6 +178,7 @@ public class SessionService {
         this.auditLog = auditLog;
         this.blockedIpRegistry = blockedIpRegistry;
         this.blockedUserRegistry = blockedUserRegistry;
+        this.clusterService = clusterService;
 
         activityTracker = new SessionActivityTracker(config.getInactivityTimeout() != null ? config.getInactivityTimeout() : Duration.ofHours(1),
                 this, indexName, privilegedConfigClient, threadPool);
@@ -390,7 +395,7 @@ public class SessionService {
 
         jwtClaims.setSubject(user.getName());
         jwtClaims.setTokenId(sessionToken.getId());
-        jwtClaims.setAudience(JWT_AUDIENCE);
+        jwtClaims.setAudience(jwtAudience);
 
         String encodedJwt;
 
@@ -457,7 +462,7 @@ public class SessionService {
                 }
 
                 if (getResponse.isExists()) {
-                    
+
                     try {
                         SessionToken sessionToken = SessionToken.parse(id, DocNode.parse(Format.JSON).from(getResponse.getSourceAsString()));
 
@@ -532,8 +537,8 @@ public class SessionService {
         String id = Objects.toString(claims.get(JwtConstants.CLAIM_JWT_ID), null);
         Set<String> audience = getClaimAsSet(claims, JwtConstants.CLAIM_AUDIENCE);
 
-        if (!audience.contains(JWT_AUDIENCE)) {
-            throw new InvalidTokenException("Invalid JWT audience claim. Supplied: " + audience + "; Expected: " + JWT_AUDIENCE);
+        if (!audience.contains(jwtAudience)) {
+            throw new InvalidTokenException("Invalid JWT audience claim. Supplied: " + audience + "; Expected: " + jwtAudience);
         }
 
         if (id == null) {
@@ -738,7 +743,7 @@ public class SessionService {
     private boolean validateAudience(JwtClaims claims) throws JwtException {
 
         for (String audience : claims.getAudiences()) {
-            if (JWT_AUDIENCE.equals(audience)) {
+            if (jwtAudience.equals(audience)) {
                 return true;
             }
         }
@@ -758,6 +763,17 @@ public class SessionService {
 
         this.config = config;
         this.maxTokensPerUser = config.getMaxSessionsPerUser();
+        if (config.getJwtAudience() != null) {
+            try {
+                this.jwtAudience = config.getJwtAudience().render(AttributeSource.of("cluster.name", this.clusterService.getClusterName()));
+            } catch (ExpressionEvaluationException e) {
+                log.error("Invalid configuration for jwt_audience: " + config.getJwtAudience(), e);
+                this.jwtAudience = "sg_session_" + this.clusterService.getClusterName();
+                componentState.addLastException("jwt_audience", e);
+            }
+        } else {
+            this.jwtAudience = "sg_session_" + this.clusterService.getClusterName();
+        }
 
         setKeys(config.getJwtSigningKey(), config.getJwtEncryptionKey());
 
