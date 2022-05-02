@@ -17,8 +17,6 @@
 
 package com.floragunn.searchguard.authc.session.backend;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
@@ -28,7 +26,6 @@ import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
@@ -102,19 +99,6 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
 
         @Override
         public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
-
-            // TODO check whether this is really necessary
-            final SecurityManager sm = System.getSecurityManager();
-
-            if (sm != null) {
-                sm.checkPermission(new SpecialPermission());
-            }
-
-            return AccessController.doPrivileged((PrivilegedAction<AuthCredentials>) () -> extractCredentials0(request));
-        }
-
-        private AuthCredentials extractCredentials0(RestRequest request) throws ElasticsearchSecurityException {
-
             String encodedJwt = getJwtTokenString(request);
 
             if (Strings.isNullOrEmpty(encodedJwt)) {
@@ -143,7 +127,6 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
                 log.info("JWT is invalid (" + this.getType() + ")", e);
                 return null;
             }
-
         }
 
         protected String getJwtTokenString(RestRequest request) {
