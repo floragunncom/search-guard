@@ -43,12 +43,21 @@ cfe_openid_keycloak:
   - fe_openid_keycloak
   - .cfe_integration_test
 
-cfe_saml:
+cfe_saml_keycloak:
   extends:
   - .fe_integration_test
   - .cfe_integration_test
   variables:
-    TEST: "kibana_saml"
+    TEST: "kibana_saml_keycloak"
+    TEST_ENVIRONMENT: "kibana_noxpack"
+    TEST_KI_CONFIG: "saml"
+
+cfe_saml_auth0:
+  extends:
+  - .fe_integration_test
+  - .cfe_integration_test
+  variables:
+    TEST: "kibana_saml_auth0"
     TEST_ENVIRONMENT: "kibana_noxpack"
     TEST_KI_CONFIG: "saml"
 
