@@ -15,17 +15,14 @@
 package com.floragunn.searchguard.enterprise.auth.saml;
 
 import java.net.URI;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
-import org.elasticsearch.SpecialPermission;
 import org.opensaml.saml.metadata.resolver.impl.HTTPMetadataResolver;
 
 import com.floragunn.codova.config.net.TLSConfig;
+import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
 
 import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
 import net.shibboleth.utilities.java.support.resolver.ResolverException;
@@ -34,8 +31,7 @@ import net.shibboleth.utilities.java.support.xml.BasicParserPool;
 public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
     private static int componentIdCounter = 0;
     private volatile ResolverException lastRefreshException;
-    
-    
+
     public SamlHTTPMetadataResolver(URI metadataUrl, TLSConfig tlsConfig) throws ResolverException {
         super(createHttpClient(tlsConfig), metadataUrl.toString());
         setId(SamlAuthenticator.class.getName() + "_" + (++componentIdCounter));
@@ -52,86 +48,31 @@ public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
 
     @Override
     protected byte[] fetchMetadata() throws ResolverException {
-        try {
-            return AccessController.doPrivileged(new PrivilegedExceptionAction<byte[]>() {
-                @Override
-                public byte[] run() throws ResolverException {
-                    byte [] result = SamlHTTPMetadataResolver.super.fetchMetadata();
-                    lastRefreshException = null;
-                    return result;
-                }
-            });
-        } catch (PrivilegedActionException e) {
-
-            if (e.getCause() instanceof ResolverException) {
-                lastRefreshException = (ResolverException) e.getCause();
-                throw (ResolverException) e.getCause();
-            } else {
-                throw new RuntimeException(e);
-            }
-        }
+        return PrivilegedCode.execute(() -> {
+            byte[] result = SamlHTTPMetadataResolver.super.fetchMetadata();
+            lastRefreshException = null;
+            return result;
+        }, ResolverException.class);
     }
-    
+
     public void initializePrivileged() throws ComponentInitializationException {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
-        try {
-            AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
-                @Override
-                public Void run() throws ComponentInitializationException {
-                    initialize();
-                    return null;
-                }
-            });
-        } catch (PrivilegedActionException e) {
-            if (e.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) e.getCause();
-            } else if (e.getCause() instanceof ComponentInitializationException) {
-                throw (ComponentInitializationException) e.getCause();
-            } else {
-                throw new RuntimeException(e.getCause());
-            }
-        }
+        PrivilegedCode.execute(() -> {
+            initialize();
+        }, ComponentInitializationException.class);
     }
 
     private static HttpClient createHttpClient(TLSConfig tlsConfig) {
-        try {
-            final SecurityManager sm = System.getSecurityManager();
+        return PrivilegedCode.execute(() -> {
+            HttpClientBuilder builder = HttpClients.custom();
 
-            if (sm != null) {
-                sm.checkPermission(new SpecialPermission());
+            builder.useSystemProperties();
+
+            if (tlsConfig != null) {
+                builder.setSSLSocketFactory(tlsConfig.toSSLConnectionSocketFactory());
             }
 
-            return AccessController.doPrivileged(new PrivilegedExceptionAction<HttpClient>() {
-                @Override
-                public HttpClient run() throws Exception {
-                    return createHttpClient0(tlsConfig);
-                }
-            });
-        } catch (PrivilegedActionException e) {
-            if (e.getCause() instanceof RuntimeException) {
-                throw (RuntimeException) e.getCause();
-            } else {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    private static HttpClient createHttpClient0(TLSConfig tlsConfig) {
-
-        HttpClientBuilder builder = HttpClients.custom();
-
-        builder.useSystemProperties();
-
-        if (tlsConfig != null) {
-            builder.setSSLSocketFactory(tlsConfig.toSSLConnectionSocketFactory());
-        }
-
-        return builder.build();
+            return builder.build();
+        });
     }
 
     public ResolverException getLastRefreshException() {
