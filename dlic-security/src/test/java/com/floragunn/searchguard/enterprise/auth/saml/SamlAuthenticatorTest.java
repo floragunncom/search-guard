@@ -302,7 +302,7 @@ public class SamlAuthenticatorTest {
                 authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
                 Assert.fail(authMethod.toString());
             } catch (AuthenticatorUnavailableException e) {
-                Assert.assertTrue(e.getMessage(), e.getMessage().contains("Error retrieving SAML metadata"));
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("SAML metadata is not yet available"));
             }
 
             String encodedSamlResponse = "whatever";
@@ -312,7 +312,7 @@ public class SamlAuthenticatorTest {
                 samlAuthenticator.extractCredentials(request);
                 Assert.fail();
             } catch (Exception e) {
-                Assert.assertTrue(e.toString(), e.getMessage().contains("Error retrieving SAML metadata"));
+                Assert.assertTrue(e.toString(), e.getMessage().contains("SAML metadata is not yet available"));
             }
 
             mockSamlIdpServer.start();

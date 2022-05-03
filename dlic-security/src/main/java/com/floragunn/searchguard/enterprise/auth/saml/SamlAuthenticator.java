@@ -88,7 +88,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "saml", SamlAuthenticator.class).initialized()
             .requiresEnterpriseLicense();
-    
+
     public SamlAuthenticator(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
         ensureOpenSamlInitialization();
 
@@ -112,9 +112,10 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
                     "idp.metadata_url and idp.metadata_xml are unconfigured"));
         }
 
+        TLSConfig tlsConfig = vNode.get("idp.tls").by(TLSConfig::parse);
+
         if (idpMetadataUrl != null) {
             try {
-                TLSConfig tlsConfig = vNode.get("idp.tls").by(TLSConfig::parse);
                 SamlHTTPMetadataResolver metadataResolver = new SamlHTTPMetadataResolver(idpMetadataUrl, tlsConfig);
 
                 metadataResolver.setMinRefreshDelay(vNode.get("idp.min_refresh_delay").withDefault(60L * 1000L).asLong());
@@ -148,7 +149,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             }
         }
 
-        vNode.used("validator");
+        vNode.used("validator", "idp.min_refresh_delay", "idp.max_refresh_delay", "idp.refresh_delay_factor");
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
@@ -440,39 +441,28 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             return;
         }
 
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
         try {
-            AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
-                @Override
-                public Void run() throws InitializationException {
+            PrivilegedCode.execute(() -> {
+                Thread thread = Thread.currentThread();
+                ClassLoader originalClassLoader = thread.getContextClassLoader();
 
-                    Thread thread = Thread.currentThread();
-                    ClassLoader originalClassLoader = thread.getContextClassLoader();
+                try {
 
-                    try {
+                    thread.setContextClassLoader(InitializationService.class.getClassLoader());
 
-                        thread.setContextClassLoader(InitializationService.class.getClassLoader());
+                    InitializationService.initialize();
 
-                        InitializationService.initialize();
-
-                        new org.opensaml.saml.config.impl.XMLObjectProviderInitializer().init();
-                        new org.opensaml.saml.config.impl.SAMLConfigurationInitializer().init();
-                        new org.opensaml.xmlsec.config.impl.XMLObjectProviderInitializer().init();
-                    } finally {
-                        thread.setContextClassLoader(originalClassLoader);
-                    }
-
-                    openSamlInitialized = true;
-                    return null;
+                    new org.opensaml.saml.config.impl.XMLObjectProviderInitializer().init();
+                    new org.opensaml.saml.config.impl.SAMLConfigurationInitializer().init();
+                    new org.opensaml.xmlsec.config.impl.XMLObjectProviderInitializer().init();
+                } finally {
+                    thread.setContextClassLoader(originalClassLoader);
                 }
-            });
-        } catch (PrivilegedActionException e) {
-            throw new RuntimeException(e.getCause());
+
+                openSamlInitialized = true;
+            }, InitializationException.class);
+        } catch (InitializationException e) {
+            throw new RuntimeException("Error while initializing SAML", e);
         }
     }
 
@@ -517,7 +507,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             throw new AuthenticatorUnavailableException("Error while signing SAML request", e);
         }
     }
-    
+
     @Override
     public ComponentState getComponentState() {
         return componentState;
@@ -544,6 +534,5 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             return SamlAuthenticator::new;
         }
     };
-
 
 }

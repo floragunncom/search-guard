@@ -15,8 +15,6 @@
 package com.floragunn.searchguard.enterprise.auth.saml;
 
 import java.net.URI;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.time.Duration;
 import java.util.AbstractMap;
 import java.util.Collection;
@@ -29,7 +27,6 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.joda.time.DateTime;
 import org.opensaml.core.criterion.EntityIdCriterion;
@@ -46,6 +43,7 @@ import org.opensaml.xmlsec.signature.X509Certificate;
 import org.opensaml.xmlsec.signature.X509Data;
 
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.onelogin.saml2.settings.Saml2Settings;
@@ -74,32 +72,32 @@ public class Saml2SettingsProvider {
         try {
             HashMap<String, Object> configProperties = new HashMap<>();
             Map<String, Object> details = new LinkedHashMap<>();
-            
+
             if (this.metadataResolver instanceof ExtendedRefreshableMetadataResolver) {
                 details.put("last_successful_refresh", ((ExtendedRefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh());
             }
-            
+
             if (this.metadataResolver instanceof ExtendedRefreshableMetadataResolver
                     && ((ExtendedRefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh() == null) {
                 // SAML resolver has not yet been initialized
                 ResolverException lastRefreshException = null;
-                
+
                 if (this.metadataResolver instanceof SamlHTTPMetadataResolver) {
                     lastRefreshException = ((SamlHTTPMetadataResolver) this.metadataResolver).getLastRefreshException();
                 }
-                
+
                 if (lastRefreshException != null) {
-                   if (lastRefreshException.getCause() instanceof ResolverException) {
-                       lastRefreshException = (ResolverException) lastRefreshException.getCause();
-                   }
-                   
-                   if (lastRefreshException.getCause() != null) {
-                       details.put("cause", lastRefreshException.getCause().toString());
-                   }
-                   
-                   throw new AuthenticatorUnavailableException("Error retrieving SAML metadata", lastRefreshException.getMessage(),
-                           lastRefreshException).details(details);
-                } else {                
+                    if (lastRefreshException.getCause() instanceof ResolverException) {
+                        lastRefreshException = (ResolverException) lastRefreshException.getCause();
+                    }
+
+                    if (lastRefreshException.getCause() != null) {
+                        details.put("cause", lastRefreshException.getCause().toString());
+                    }
+
+                    throw new AuthenticatorUnavailableException("Error retrieving SAML metadata", lastRefreshException.getMessage(),
+                            lastRefreshException).details(details);
+                } else {
                     throw new AuthenticatorUnavailableException("SAML metadata is not yet available", "");
                 }
             }
@@ -107,16 +105,17 @@ public class Saml2SettingsProvider {
             EntityDescriptor entityDescriptor = this.metadataResolver.resolveSingle(new CriteriaSet(new EntityIdCriterion(this.idpEntityId)));
 
             if (entityDescriptor == null) {
-                throw new AuthenticatorUnavailableException("IdP configuration error", "Could not find entity descriptor for " + this.idpEntityId).details(details);
+                throw new AuthenticatorUnavailableException("IdP configuration error", "Could not find entity descriptor for " + this.idpEntityId)
+                        .details(details);
             }
-            
+
             details.put("role_descriptors", entityDescriptor.getRoleDescriptors().toString());
 
             IDPSSODescriptor idpSsoDescriptor = entityDescriptor.getIDPSSODescriptor("urn:oasis:names:tc:SAML:2.0:protocol");
 
             if (idpSsoDescriptor == null) {
-                throw new AuthenticatorUnavailableException("IdP configuration error", "Could not find IDPSSODescriptor supporting SAML 2.0 in " + this.idpEntityId)
-                        .details(details);
+                throw new AuthenticatorUnavailableException("IdP configuration error",
+                        "Could not find IDPSSODescriptor supporting SAML 2.0 in " + this.idpEntityId).details(details);
             }
 
             initIdpEndpoints(idpSsoDescriptor, configProperties);
@@ -131,13 +130,7 @@ public class Saml2SettingsProvider {
             settingsBuilder.fromValues(configProperties);
             settingsBuilder.fromValues(new SamlSettingsMap(this.validatorSettings));
 
-            SecurityManager sm = System.getSecurityManager();
-
-            if (sm != null) {
-                sm.checkPermission(new SpecialPermission());
-            }
-
-            return AccessController.doPrivileged((PrivilegedAction<Saml2Settings>) () -> settingsBuilder.build());
+            return PrivilegedCode.execute(() -> settingsBuilder.build());
         } catch (ResolverException e) {
             throw new AuthenticatorUnavailableException("Error retrieving SAML metadata", e);
         }
