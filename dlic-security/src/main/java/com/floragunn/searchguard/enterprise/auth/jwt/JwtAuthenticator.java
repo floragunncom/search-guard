@@ -196,7 +196,7 @@ public class JwtAuthenticator implements HTTPAuthenticator {
             log.trace("Claims from JWT: " + claims.asMap());
         }
 
-        return AuthCredentials.forUser(claims.getSubject()).attribute(Attributes.AUTH_TYPE, "jwt")
+        return AuthCredentials.forUser(claims.getSubject()).nativeCredentials(jwtString).attribute(Attributes.AUTH_TYPE, "jwt")
                 .userMappingAttribute("jwt", Jose.toBasicObject(claims)).complete().build();
     }
 

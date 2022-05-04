@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
@@ -53,8 +54,13 @@ public interface EsClientProvider {
     TestCertificates getTestCertificates();
 
     InetSocketAddress getHttpAddress();
-    
+
     InetSocketAddress getTransportAddress();
+
+    default URI getHttpAddressAsURI() {
+        InetSocketAddress address = getHttpAddress();
+        return URI.create("https://" + address.getHostString() + ":" + address.getPort());
+    }
 
     default SSLContextProvider getAdminClientSslContextProvider() {
         return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), getTestCertificates().getAdminCertificate());
@@ -152,10 +158,10 @@ public interface EsClientProvider {
                 "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
     }
 
-    
     public interface UserCredentialsHolder {
         String getName();
+
         String getPassword();
     }
-   
+
 }

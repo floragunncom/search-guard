@@ -251,9 +251,8 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                         return;
                     }
 
-                    
                     String requestedTenant = getRequestedTenant();
-                    
+
                     if (log.isDebugEnabled()) {
                         log.debug("Authentication successful for " + authenticatedUser.toStringWithAttributes() + " on " + authenticationDomain
                                 + " using " + this + "\nrequestedTenant: " + requestedTenant);
@@ -307,17 +306,17 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
 
                 handleAuthFailure(pendingCredentials, authenticationDomain, e);
             } else if (e instanceof CredentialsException) {
-                if (((CredentialsException) e).getDebugInfo() != null) {                
+                if (((CredentialsException) e).getDebugInfo() != null) {
                     debug.add(((CredentialsException) e).getDebugInfo());
                 } else {
                     debug.failure(authenticationDomain.getType(), e.getMessage());
                 }
-                handleAuthFailure(pendingCredentials, authenticationDomain, e);                
+                handleAuthFailure(pendingCredentials, authenticationDomain, e);
             } else if (e instanceof AuthenticatorUnavailableException) {
                 debug.failure(authenticationDomain.getType(), "Authenticator unavailable: " + e.getMessage(),
                         ((AuthenticatorUnavailableException) e).getDetails());
 
-                log.error("Error while authenticating " + pendingCredentials, e);
+                log.error("Error while authenticating " + pendingCredentials + "\n" + ((AuthenticatorUnavailableException) e).getDetails(), e);
             } else {
                 debug.failure(authenticationDomain.getType(), "Exception while authenticating " + pendingCredentials.getUsername() + ": " + e);
                 log.error("Error while authenticating " + pendingCredentials, e);
