@@ -94,4 +94,9 @@ public class ConfigMap implements Destroyable {
             config.destroy();
         }
     }
+    
+    @Override
+    public String toString() {
+        return map.toString();
+    }
 }
