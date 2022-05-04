@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.authc.session.backend;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -33,6 +34,9 @@ import org.elasticsearch.rest.RestStatus;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -44,6 +48,92 @@ import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.rest.Responses;
 
 public class SessionApi {
+
+    public static class GetExtendedInfoAction extends Action<EmptyRequest, GetExtendedInfoAction.Response> {
+
+        public static final GetExtendedInfoAction INSTANCE = new GetExtendedInfoAction();
+        public static final String NAME = "cluster:searchguard:session/_own/get/extended";
+
+        protected GetExtendedInfoAction() {
+            super(NAME, EmptyRequest::new, Response::new);
+        }
+
+        public static class Response extends Action.Response {
+
+            private String userName;
+            private String userSubName;
+            private String userType;
+            private List<String> userRoles;
+            private List<String> userSearchGuardRoles;
+            private Map<String, Object> userAttributes;
+            private String userRequestedTenant;
+            private String ssoLogoutUrl;
+
+            public Response(User user, String ssoLogoutUrl) {
+                this.userName = user.getName();
+                this.userSubName = user.getSubName();
+                this.userType = user.getType();
+                this.userRoles = ImmutableList.of(user.getRoles());
+                this.userSearchGuardRoles = ImmutableList.of(user.getSearchGuardRoles());
+                this.userAttributes = user.getStructuredAttributes();
+                this.userRequestedTenant = user.getRequestedTenant();
+
+                this.ssoLogoutUrl = ssoLogoutUrl;
+            }
+
+            public Response(UnparsedMessage message) throws ConfigValidationException {
+                super(message);
+                DocNode docNode = message.requiredDocNode();
+                DocNode userNode = docNode.getAsNode("user");
+
+                this.userName = userNode.getAsString("name");
+                this.userSubName = userNode.getAsString("sub_name");
+                this.userType = userNode.getAsString("type");
+                this.userRoles = userNode.getAsListOfStrings("backend_roles");
+                this.userSearchGuardRoles = userNode.getAsListOfStrings("search_guard_roles");
+                this.userAttributes = userNode.getAsNode("attributes").toMap();
+                this.userRequestedTenant = userNode.getAsString("requested_tenant");
+
+                this.ssoLogoutUrl = docNode.getAsString("sso_logout_url");
+            }
+
+            @Override
+            public Object toBasicObject() {
+                return OrderedImmutableMap.of("user",
+                        OrderedImmutableMap.of("name", userName, "sub_name", userSubName, "type", userType, "backend_roles", userRoles,
+                                "search_guard_roles", userSearchGuardRoles).with("attributes", userAttributes)
+                                .with("requested_tenant", userRequestedTenant),
+                        "sso_logout_url", this.ssoLogoutUrl);
+            }
+
+        }
+
+        public static class Handler extends Action.Handler<EmptyRequest, Response> {
+            private final SessionService sessionService;
+            private final AuthInfoService authInfoService;
+
+            @Inject
+            public Handler(HandlerDependencies handlerDependencies, SessionService sessionService, AuthInfoService authInfoService) {
+                super(GetExtendedInfoAction.INSTANCE, handlerDependencies);
+
+                this.sessionService = sessionService;
+                this.authInfoService = authInfoService;
+            }
+
+            @Override
+            protected final CompletableFuture<Response> doExecute(EmptyRequest request) {
+                User user = authInfoService.getCurrentUser();
+
+                if (user == null) {
+                    CompletableFuture<Response> result = new CompletableFuture<Response>();
+                    result.completeExceptionally(new Exception("No user present"));
+                    return result;
+                }
+
+                return CompletableFuture.completedFuture(new Response(user, sessionService.getSsoLogoutUrl(user)));
+            }
+        }
+    }
 
     public static class DeleteAction extends Action<EmptyRequest, StandardResponse> {
 
@@ -77,7 +167,6 @@ public class SessionApi {
                     String authTokenId = null; // request.getAuthTokenId();
 
                     try {
-
                         if (authTokenId == null && SessionService.USER_TYPE.equals(user.getType())) {
                             authTokenId = String.valueOf(user.getSpecialAuthzConfig());
                         }
@@ -102,10 +191,8 @@ public class SessionApi {
                         return new StandardResponse(500, new StandardResponse.Error(e.getMessage()));
                     }
                 });
-
             }
         }
-
     }
 
     public static class Rest extends RestApi {
@@ -113,35 +200,34 @@ public class SessionApi {
         private SessionService sessionService;
 
         public Rest() {
+            handlesGet("/_searchguard/auth/session/extended").with(GetExtendedInfoAction.INSTANCE);
             handlesGet("/_searchguard/auth/session").with((r, c) -> handleGet(r, c));
             handlesPost("/_searchguard/auth/session").with((r, c) -> handlePost(r, c));
             handlesDelete("/_searchguard/auth/session").with(DeleteAction.INSTANCE);
         }
 
         private RestChannelConsumer handleGet(RestRequest request, NodeClient client) {
-            return (RestChannel channel) -> {               
+            return (RestChannel channel) -> {
                 try {
                     User user = client.threadPool().getThreadContext().getTransient(ConfigConstants.SG_USER);
-                    
+
                     if (user != null) {
                         Responses.send(channel, RestStatus.OK, DocNode.of("sso_logout_url", sessionService.getSsoLogoutUrl(user)));
                     } else {
                         Responses.sendError(channel, RestStatus.NOT_FOUND, "No session");
-                    }                   
+                    }
                 } catch (Exception e) {
                     log.warn("Error while handling request", e);
                     Responses.sendError(channel, e);
                 }
             };
         }
-        
-        private RestChannelConsumer handlePost(RestRequest request, NodeClient client) {
 
+        private RestChannelConsumer handlePost(RestRequest request, NodeClient client) {
             BytesReference body = request.requiredContent();
             XContentType xContentType = request.getXContentType();
 
             return (RestChannel channel) -> {
-
                 try {
                     Map<String, Object> requestBody = DocReader.format(Format.getByContentType(xContentType.mediaType()))
                             .readObject(BytesReference.toBytes(body));

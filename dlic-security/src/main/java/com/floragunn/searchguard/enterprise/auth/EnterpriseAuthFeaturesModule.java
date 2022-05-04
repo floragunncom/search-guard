@@ -15,7 +15,6 @@
 package com.floragunn.searchguard.enterprise.auth;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -27,6 +26,7 @@ import com.floragunn.searchguard.enterprise.auth.kerberos.HTTPSpnegoAuthenticato
 import com.floragunn.searchguard.enterprise.auth.ldap.LDAPAuthenticationBackend;
 import com.floragunn.searchguard.enterprise.auth.oidc.OidcAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.saml.SamlAuthenticator;
+import com.floragunn.searchguard.enterprise.auth.session.ExternalSearchGuardSessionAuthenticationBackend;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class EnterpriseAuthFeaturesModule implements SearchGuardModule {
@@ -37,17 +37,16 @@ public class EnterpriseAuthFeaturesModule implements SearchGuardModule {
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         enterpriseModulesEnabled = baseDependencies.getSettings().getAsBoolean(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true);
 
-        return Collections.emptyList();
+        return ImmutableList.empty();
     }
 
     @Override
     public List<TypedComponent.Info<?>> getTypedComponents() {
         if (enterpriseModulesEnabled) {
             return ImmutableList.<TypedComponent.Info<?>>of(JwtAuthenticator.INFO, HTTPSpnegoAuthenticator.INFO, OidcAuthenticator.INFO,
-                    SamlAuthenticator.INFO).with(LDAPAuthenticationBackend.INFOS);
+                    SamlAuthenticator.INFO, ExternalSearchGuardSessionAuthenticationBackend.INFO).with(LDAPAuthenticationBackend.INFOS);
         } else {
-            return Collections.emptyList();
+            return ImmutableList.empty();
         }
     }
-
 }

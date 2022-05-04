@@ -36,12 +36,12 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 class MergedAuthcConfig {
 
     private final SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig;
-    private final RestAuthcConfig authczConfig;
+    private final RestAuthcConfig authcConfig;
     private final ImmutableMap<String, ImmutableList<AuthenticationDomain<ApiAuthenticationFrontend>>> configNameToAuthenticationDomainMap;
 
     public MergedAuthcConfig(SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig, RestAuthcConfig authczConfig) {
         this.frontendConfig = frontendConfig;
-        this.authczConfig = authczConfig;
+        this.authcConfig = authczConfig;
         this.configNameToAuthenticationDomainMap = createDomainMap(frontendConfig, authczConfig);
     }
 
@@ -50,7 +50,7 @@ class MergedAuthcConfig {
     }
 
     boolean isDebugEnabled(String config) {
-        if (this.authczConfig.isDebugEnabled()) {
+        if (this.authcConfig != null && this.authcConfig.isDebugEnabled()) {
             return true;
         }
 

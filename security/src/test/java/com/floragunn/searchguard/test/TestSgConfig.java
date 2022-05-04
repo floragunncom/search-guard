@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -51,6 +52,7 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.patch.MergePatch;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
@@ -357,7 +359,7 @@ public class TestSgConfig {
                 config.overrideLeafs(overrides);
             }
 
-            log.info("Writing " + configType + "\n:" + config.toJsonString());
+            log.info("Writing " + configType + ":\n" + config.toYamlString());
 
             client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
@@ -387,9 +389,9 @@ public class TestSgConfig {
 
             if (overrides != null) {
                 config = new MergePatch(DocNode.wrap(overrides)).apply(config);
-            }            
+            }
 
-            log.info("Writing " + configType + "\n:" + config.toJsonString());
+            log.info("Writing " + configType + ":\n" + config.toYamlString());
 
             client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
@@ -420,7 +422,7 @@ public class TestSgConfig {
                 config.overrideLeafs(overrides);
             }
 
-            log.info("Writing " + configType + "\n:" + config.toJsonString());
+            log.info("Writing " + configType + ":\n" + config.toYamlString());
 
             client.index(new IndexRequest(indexName).id(configType).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(configType,
                     BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8"))))).actionGet();
@@ -431,7 +433,7 @@ public class TestSgConfig {
 
     private void writeConfigToIndex(Client client, CType<?> configType, Document<?> document) {
         try {
-            log.info("Writing " + configType + "\n:" + document.toYamlString());
+            log.info("Writing " + configType + ":\n" + document.toYamlString());
 
             client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(document.toJsonString().getBytes("utf-8")))))
@@ -443,7 +445,7 @@ public class TestSgConfig {
 
     private void writeConfigToIndex(Client client, String configType, Document<?> document) {
         try {
-            log.info("Writing " + configType + "\n:" + document.toYamlString());
+            log.info("Writing " + configType + ":\n" + document.toYamlString());
 
             client.index(new IndexRequest(indexName).id(configType).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(configType,
                     BytesReference.fromByteBuffer(ByteBuffer.wrap(document.toJsonString().getBytes("utf-8"))))).actionGet();
@@ -544,6 +546,20 @@ public class TestSgConfig {
             return password;
         }
 
+        public Set<String> getRoleNames() {
+            ImmutableSet<String> result = ImmutableSet.empty();
+
+            if (roleNames != null) {
+                result = result.with(roleNames);
+            }
+
+            if (roles != null) {
+                result = result.with(ImmutableSet.ofArray(roles).map((r) -> r.name));
+            }
+
+            return result;
+        }
+
     }
 
     public static class Role {
@@ -576,6 +592,10 @@ public class TestSgConfig {
 
         public ExcludedIndexPermission excludeIndexPermissions(String... indexPermissions) {
             return new ExcludedIndexPermission(this, indexPermissions);
+        }
+
+        public String getName() {
+            return name;
         }
     }
 
@@ -1053,6 +1073,8 @@ public class TestSgConfig {
 
         private Duration inactivityTimeout;
         private Boolean refreshSessionActivityIndex;
+        private String jwtSigningKeyHs512;
+        private String jwtAudience;
 
         public Sessions inactivityTimeout(Duration inactivityTimeout) {
             this.inactivityTimeout = inactivityTimeout;
@@ -1064,12 +1086,23 @@ public class TestSgConfig {
             return this;
         }
 
+        public Sessions jwtSigningKeyHs512(String jwtSigningKeyHs512) {
+            this.jwtSigningKeyHs512 = jwtSigningKeyHs512;
+            return this;
+        }
+
+        public Sessions jwtAudience(String jwtAudience) {
+            this.jwtAudience = jwtAudience;
+            return this;
+        }
+
         @Override
         public Object toBasicObject() {
+            // jwt_audience
             return ImmutableMap.of("default",
-                    ImmutableMap.ofNonNull("inactivity_timeout",
-                            inactivityTimeout != null ? DurationFormat.INSTANCE.format(inactivityTimeout) : null),
-                    "refresh_session_activity_index", refreshSessionActivityIndex);
+                    ImmutableMap.ofNonNull("inactivity_timeout", inactivityTimeout != null ? DurationFormat.INSTANCE.format(inactivityTimeout) : null,
+                            "refresh_session_activity_index", refreshSessionActivityIndex, "jwt_signing_key_hs512", jwtSigningKeyHs512,
+                            "jwt_audience", jwtAudience));
         }
 
     }

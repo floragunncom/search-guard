@@ -29,6 +29,7 @@ SGS_KIBANA_USER:
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
     - "cluster:searchguard:login/session"
+    - "cluster:searchguard:session/_own/get/extended"
   index_permissions:
     - index_patterns:
         - ".kibana"
