@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -62,7 +63,12 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
 
     public static ValidationResult<FrontendAuthcConfig> parse(Object parsedJson, ConfigurationRepository.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(DocNode.wrap(parsedJson), validationErrors, context);
+        ValidatingDocNode vNode;
+        try {
+            vNode = new ValidatingDocNode(DocNode.wrap(parsedJson).splitDottedAttributeNamesToTree(), validationErrors, context);
+        } catch (UnexpectedDocumentStructureException e) {
+            return new ValidationResult<FrontendAuthcConfig>(e.getValidationErrors());
+        }
 
         FrontendAuthcConfig result = new FrontendAuthcConfig();
         result.parsedJson = DocNode.wrap(parsedJson);

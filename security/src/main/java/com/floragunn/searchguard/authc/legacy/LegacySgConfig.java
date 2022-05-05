@@ -27,6 +27,7 @@ import org.apache.logging.log4j.Logger;
 import com.floragunn.codova.config.net.CacheConfig;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -70,7 +71,12 @@ public class LegacySgConfig implements Document<LegacySgConfig> {
 
     public static ValidationResult<LegacySgConfig> parse(DocNode docNode, ConfigurationRepository.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors);
+        ValidatingDocNode vNode;
+        try {
+            vNode = new ValidatingDocNode(docNode.splitDottedAttributeNamesToTree(), validationErrors);
+        } catch (UnexpectedDocumentStructureException e) {
+            return new ValidationResult<LegacySgConfig>(e.getValidationErrors());
+        }
 
         if (!vNode.get("dynamic.multi_rolespan_enabled").withDefault(false).asBoolean()) {
             log.error(

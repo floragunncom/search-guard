@@ -22,6 +22,7 @@ import java.util.List;
 import com.floragunn.codova.config.net.CacheConfig;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -58,7 +59,12 @@ public class TransportAuthcConfig implements Document<TransportAuthcConfig>, Des
 
     public static ValidationResult<TransportAuthcConfig> parse(DocNode docNode, ConfigurationRepository.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors);
+        ValidatingDocNode vNode;
+        try {
+            vNode = new ValidatingDocNode(docNode.splitDottedAttributeNamesToTree(), validationErrors);
+        } catch (UnexpectedDocumentStructureException e) {
+            return new ValidationResult<TransportAuthcConfig>(e.getValidationErrors());
+        }
 
         List<AuthenticationDomain<TransportAuthenticationFrontend>> authenticators = vNode.get("auth_domains")
                 .asList((n) -> TransportAuthenticationDomain.parse(n, context));

@@ -25,6 +25,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Metadata;
 import com.floragunn.codova.documents.Metadata.Attribute;
 import com.floragunn.codova.documents.Parser.Context;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -71,7 +72,12 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Dest
 
     public static ValidationResult<RestAuthcConfig> parse(DocNode docNode, ConfigurationRepository.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors);
+        ValidatingDocNode vNode;
+        try {
+            vNode = new ValidatingDocNode(docNode.splitDottedAttributeNamesToTree(), validationErrors);
+        } catch (UnexpectedDocumentStructureException e) {
+            return new ValidationResult<RestAuthcConfig>(e.getValidationErrors());
+        }
 
         List<AuthenticationDomain<HTTPAuthenticator>> authDomain = vNode.get("auth_domains")
                 .asList((n) -> StandardAuthenticationDomain.parse(n, HTTPAuthenticator.class, context));
