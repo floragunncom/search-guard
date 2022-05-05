@@ -20,6 +20,7 @@ package com.floragunn.searchguard.authz.config;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.Parser.Context;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -42,22 +43,28 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
 
     public static ValidationResult<AuthorizationConfig> parse(DocNode docNode, Parser.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors);
+        ValidatingDocNode vNode;
+        try {
+            vNode = new ValidatingDocNode(docNode.splitDottedAttributeNamesToTree(), validationErrors);
+        } catch (UnexpectedDocumentStructureException e) {
+            return new ValidationResult<AuthorizationConfig>(e.getValidationErrors());
+        }
 
         boolean ignoreUnauthorizedIndices = vNode.get("ignore_unauthorized_indices").withDefault(true).asBoolean();
         String fieldAnonymizationSalt = vNode.get("field_anonymization.salt").asString();
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
 
         if (!validationErrors.hasErrors()) {
-            return new ValidationResult<AuthorizationConfig>(new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt, debugEnabled));
+            return new ValidationResult<AuthorizationConfig>(
+                    new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt, debugEnabled));
         } else {
-            return new ValidationResult<AuthorizationConfig>(validationErrors);            
+            return new ValidationResult<AuthorizationConfig>(validationErrors);
         }
     }
 
     public static AuthorizationConfig parseLegacySgConfig(DocNode docNode, Parser.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors);
+        ValidatingDocNode vNode = new ValidatingDocNode(docNode.splitDottedAttributeNamesToTree(), validationErrors);
 
         boolean ignoreUnauthorizedIndices = vNode.get("dynamic.do_not_fail_on_forbidden").withDefault(true).asBoolean();
         String fieldAnonymizationSalt = vNode.get("dynamic.field_anonymization_salt2").asString();
@@ -74,7 +81,7 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
     public Object toBasicObject() {
         return source;
     }
-    
+
     @Override
     public String toString() {
         return toJsonString();

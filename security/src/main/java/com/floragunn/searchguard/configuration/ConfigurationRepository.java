@@ -689,7 +689,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             if (ctype.getArity() == CType.Arity.SINGLE) {
                 if (!configMap.isEmpty()) {
-                    configMap = ImmutableMap.of("default", configMap);                    
+                    configMap = ImmutableMap.of("default", DocNode.wrap(configMap).splitDottedAttributeNamesToTree().toMap());                    
                 } else {
                     configMap = ImmutableMap.empty();
                 }

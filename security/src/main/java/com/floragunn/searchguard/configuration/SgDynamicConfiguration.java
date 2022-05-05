@@ -33,8 +33,8 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.RedactableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -75,13 +75,8 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         // TODO do replacement only for legacy config
         String jsonString = SgUtils.replaceEnvVars(uninterpolatedJson, settings);
 
-        int configVersion = 2;
-
-        if (log.isDebugEnabled()) {
-            log.debug("Load " + ctype + " with version " + configVersion);
-        }
-
-        return fromDocNode(DocNode.parse(Format.JSON).from(jsonString), uninterpolatedJson, ctype, docVersion, seqNo, primaryTerm, parserContext);
+        return fromDocNode(DocNode.wrap(DocReader.json().splitAttributesAtDotsStartingAtDepth(1).read(jsonString)), uninterpolatedJson, ctype,
+                docVersion, seqNo, primaryTerm, parserContext);
     }
 
     public static <T> SgDynamicConfiguration<T> fromMap(Map<String, ?> map, CType<T> ctype, ConfigurationRepository.Context parserContext)
