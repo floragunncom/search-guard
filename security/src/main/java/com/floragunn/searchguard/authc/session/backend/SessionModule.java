@@ -82,7 +82,7 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         this.configVarService = baseDependencies.getConfigVarService();
-        this.configVarService.requestRandomKey(SessionServiceConfig.SIGNING_KEY_SECRET, 512, "authcz");
+        this.configVarService.requestRandomKey(SessionServiceConfig.SIGNING_KEY_SECRET, 512, "authc");
 
         PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(baseDependencies.getLocalClient());
 

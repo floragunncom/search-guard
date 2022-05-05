@@ -17,13 +17,13 @@
 
 package com.floragunn.searchguard.authc;
 
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 
 public class CredentialsException extends Exception {
 
     private static final long serialVersionUID = 4533702414070859512L;
 
-    private AuthczResult.DebugInfo debugInfo;
+    private AuthcResult.DebugInfo debugInfo;
 
     public CredentialsException(String message, Throwable cause) {
         super(message, cause);
@@ -33,27 +33,27 @@ public class CredentialsException extends Exception {
         super(message);
     }
 
-    public CredentialsException(String message, AuthczResult.DebugInfo debugInfo, Throwable cause) {
+    public CredentialsException(String message, AuthcResult.DebugInfo debugInfo, Throwable cause) {
         super(message, cause);
         this.debugInfo = debugInfo;
     }
 
-    public CredentialsException(String message, AuthczResult.DebugInfo debugInfo) {
+    public CredentialsException(String message, AuthcResult.DebugInfo debugInfo) {
         super(message);
         this.debugInfo = debugInfo;
     }
 
-    public CredentialsException(AuthczResult.DebugInfo debugInfo, Throwable cause) {
+    public CredentialsException(AuthcResult.DebugInfo debugInfo, Throwable cause) {
         super(debugInfo.getMessage(), cause);
         this.debugInfo = debugInfo;
     }
 
-    public CredentialsException(AuthczResult.DebugInfo debugInfo) {
+    public CredentialsException(AuthcResult.DebugInfo debugInfo) {
         super(debugInfo.getMessage());
         this.debugInfo = debugInfo;
     }
     
-    public AuthczResult.DebugInfo getDebugInfo() {
+    public AuthcResult.DebugInfo getDebugInfo() {
         return debugInfo;
     }
     

@@ -19,7 +19,6 @@ package com.floragunn.searchguard.authc.session.backend;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -39,10 +38,10 @@ class MergedAuthcConfig {
     private final RestAuthcConfig authcConfig;
     private final ImmutableMap<String, ImmutableList<AuthenticationDomain<ApiAuthenticationFrontend>>> configNameToAuthenticationDomainMap;
 
-    public MergedAuthcConfig(SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig, RestAuthcConfig authczConfig) {
+    public MergedAuthcConfig(SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig, RestAuthcConfig authcConfig) {
         this.frontendConfig = frontendConfig;
-        this.authcConfig = authczConfig;
-        this.configNameToAuthenticationDomainMap = createDomainMap(frontendConfig, authczConfig);
+        this.authcConfig = authcConfig;
+        this.configNameToAuthenticationDomainMap = createDomainMap(frontendConfig, authcConfig);
     }
 
     ImmutableList<AuthenticationDomain<ApiAuthenticationFrontend>> get(String config) {
@@ -63,14 +62,14 @@ class MergedAuthcConfig {
         }
     }
 
-    private List<AuthenticationDomain<ApiAuthenticationFrontend>> getApiAuthenticationDomains(RestAuthcConfig authczConfig) {
-        if (authczConfig == null) {
-            return Collections.emptyList();
+    private List<AuthenticationDomain<ApiAuthenticationFrontend>> getApiAuthenticationDomains(RestAuthcConfig authcConfig) {
+        if (authcConfig == null) {
+            return ImmutableList.empty();
         }
 
-        List<AuthenticationDomain<ApiAuthenticationFrontend>> result = new ArrayList<>(authczConfig.getAuthenticators().size());
+        List<AuthenticationDomain<ApiAuthenticationFrontend>> result = new ArrayList<>(authcConfig.getAuthenticators().size());
 
-        for (AuthenticationDomain<? extends AuthenticationFrontend> domain : authczConfig.getAuthenticators()) {
+        for (AuthenticationDomain<? extends AuthenticationFrontend> domain : authcConfig.getAuthenticators()) {
             if (domain.getFrontend() instanceof ApiAuthenticationFrontend && domain.isEnabled()) {
                 @SuppressWarnings("unchecked")
                 AuthenticationDomain<ApiAuthenticationFrontend> apiAuthenticationDomain = (AuthenticationDomain<ApiAuthenticationFrontend>) domain;
@@ -93,7 +92,7 @@ class MergedAuthcConfig {
 
             for (Map.Entry<String, FrontendAuthcConfig> entry : frontendConfig.getCEntries().entrySet()) {
                 result.with(entry.getKey(),
-                        ImmutableList.concat(globalDomains, entry.getValue().getAuthenticators().map(a -> a.getAuthenticationDomain())));
+                        ImmutableList.concat(globalDomains, entry.getValue().getAuthDomains().map(a -> a.getAuthenticationDomain())));
             }
 
             return result.build();

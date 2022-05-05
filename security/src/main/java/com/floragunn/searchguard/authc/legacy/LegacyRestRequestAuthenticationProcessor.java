@@ -36,7 +36,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.RequestMetaData;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.base.RequestAuthenticationProcessor;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
@@ -75,7 +75,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
 
     @Override
     protected AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<HTTPAuthenticator> authenticationDomain,
-            Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+            Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
         HTTPAuthenticator httpAuthenticator = authenticationDomain.getFrontend();
 
         if (isAuthDomainMetaRequest && authDomainMetaRequest.authDomainType.equals(httpAuthenticator.getType())
@@ -152,7 +152,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
     }
 
     @Override
-    protected AuthczResult handleChallenge() {
+    protected AuthcResult handleChallenge() {
 
         if (challenges.size() == 0) {
             return null;
@@ -170,7 +170,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
 
         restChannel.sendResponse(wwwAuthenticateResponse);
 
-        return AuthczResult.STOP;
+        return AuthcResult.STOP;
     }
 
     @Override

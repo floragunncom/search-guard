@@ -56,40 +56,15 @@ public class LegacySgConfig implements Document<LegacySgConfig> {
 
     private static final Logger log = LogManager.getLogger(LegacySgConfig.class);
 
-    /*
-     *  public String filtered_alias_mode = "warn";
-        public boolean disable_rest_auth;
-        public boolean disable_intertransport_auth;
-        public boolean respect_request_indices_options;
-        public String license;
-        public Kibana kibana = new Kibana();
-        public Http http = new Http();
-        public Authc authc = new Authc();
-        public Authz authz = new Authz();
-        public AuthFailureListeners auth_failure_listeners = new AuthFailureListeners();
-        public boolean do_not_fail_on_forbidden = true;
-        public boolean multi_rolespan_enabled = true;
-        public String hosts_resolver_mode = "ip-only";
-        public String transport_userrname_attribute;
-        public boolean do_not_fail_on_forbidden_empty;
-        public String field_anonymization_salt2;
-        public HashMap<String, Object> auth_token_provider = new HashMap<>();
-        public HashMap<String, Object> sessions = new HashMap<>();
-        @JsonInclude(Include.NON_NULL)
-        public Boolean debug;
-    
-     * 
-     */
-
     private final DocNode source;
-    private final RestAuthcConfig restAuthczConfig;
-    private final TransportAuthcConfig transportAuthczConfig;
+    private final RestAuthcConfig restAuthcConfig;
+    private final TransportAuthcConfig transportAuthcConfig;
     private final SearchGuardLicenseKey license;
 
-    LegacySgConfig(DocNode source, RestAuthcConfig restAuthczConfig, TransportAuthcConfig transportAuthczConfig, SearchGuardLicenseKey license) {
+    LegacySgConfig(DocNode source, RestAuthcConfig restAuthcConfig, TransportAuthcConfig transportAuthcConfig, SearchGuardLicenseKey license) {
         this.source = source;
-        this.restAuthczConfig = restAuthczConfig;
-        this.transportAuthczConfig = transportAuthczConfig;
+        this.restAuthcConfig = restAuthcConfig;
+        this.transportAuthcConfig = transportAuthcConfig;
         this.license = license;
     }
 
@@ -108,15 +83,15 @@ public class LegacySgConfig implements Document<LegacySgConfig> {
 
         SearchGuardLicenseKey license = vNode.get("dynamic.license").by(SearchGuardLicenseKey::parse);
         ValidationResult<ImmutableList<LegacyAuthorizationBackend>> authorizationBackends = parseAuthorizationDomains(docNode, context);
-        ValidationResult<RestAuthcConfig> restAuthczConfig = parseRestConfig(docNode, context, authorizationBackends.peek());
-        ValidationResult<TransportAuthcConfig> transportAuthczConfig = parseTransportConfig(docNode, context, authorizationBackends.peek());
+        ValidationResult<RestAuthcConfig> restAuthcConfig = parseRestConfig(docNode, context, authorizationBackends.peek());
+        ValidationResult<TransportAuthcConfig> transportAuthcConfig = parseTransportConfig(docNode, context, authorizationBackends.peek());
 
         validationErrors.add(null, authorizationBackends);
-        validationErrors.add(null, restAuthczConfig);
-        validationErrors.add(null, transportAuthczConfig);
+        validationErrors.add(null, restAuthcConfig);
+        validationErrors.add(null, transportAuthcConfig);
 
-        if (restAuthczConfig.hasResult() && transportAuthczConfig.hasResult()) {
-            return new ValidationResult<LegacySgConfig>(new LegacySgConfig(docNode, restAuthczConfig.peek(), transportAuthczConfig.peek(), license),
+        if (restAuthcConfig.hasResult() && transportAuthcConfig.hasResult()) {
+            return new ValidationResult<LegacySgConfig>(new LegacySgConfig(docNode, restAuthcConfig.peek(), transportAuthcConfig.peek(), license),
                     validationErrors);
         } else {
             return new ValidationResult<LegacySgConfig>(validationErrors);
@@ -345,12 +320,12 @@ public class LegacySgConfig implements Document<LegacySgConfig> {
                 validationErrors);
     }
 
-    public RestAuthcConfig getRestAuthczConfig() {
-        return restAuthczConfig;
+    public RestAuthcConfig getRestAuthcConfig() {
+        return restAuthcConfig;
     }
 
-    public TransportAuthcConfig getTransportAuthczConfig() {
-        return transportAuthczConfig;
+    public TransportAuthcConfig getTransportAuthcConfig() {
+        return transportAuthcConfig;
     }
 
     @Override

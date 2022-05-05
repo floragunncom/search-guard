@@ -48,7 +48,7 @@ import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
@@ -266,7 +266,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
             if (!PrivilegedCode.execute(() -> samlResponse.isValid(samlRequestId))) {
                 log.info("Error while validating SAML response " + samlRequestId, samlResponse.getValidationException());
-                throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false,
                         "Invalid SAML response: " + samlResponse.getValidationException(), debugDetails));
             }
 
@@ -282,7 +282,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
                                 : null,
                         Exception.class);
             } catch (Exception e) {
-                throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false,
                         "Error while extracting meta data from SAML response: " + e.getMessage(), debugDetails), e);
             }
 
@@ -291,7 +291,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
                     .attribute("__saml_nid", nameId).attribute("__fe_base_url", frontendBaseUrl.toString()).complete().build();
         } catch (ValidationError e) {
             log.warn("Error while validating SAML response", e);
-            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+            throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false,
                     "Invalid SAML response: " + e.getMessage() + "; error_code: " + e.getErrorCode(), debugDetails), e);
         }
     }
@@ -383,12 +383,12 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
                                 + "\nWill abort check. If there are other SAML auth frontends, these might be successfully authenticate using this response");
                     }
                     throw new CredentialsException(
-                            new AuthczResult.DebugInfo(getType(), false, "Expected issuer " + saml2Settings.getIdpEntityId(), debugDetails));
+                            new AuthcResult.DebugInfo(getType(), false, "Expected issuer " + saml2Settings.getIdpEntityId(), debugDetails));
                 }
             }
         } catch (ValidationError | XPathExpressionException e) {
             log.error("Error while checking issuer in " + samlResponse, e);
-            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "Error while checking issuer: " + e, debugDetails), e);
+            throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false, "Error while checking issuer: " + e, debugDetails), e);
 
         }
     }

@@ -22,8 +22,8 @@ import java.util.List;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.authc.base.AuthczResult;
-import com.floragunn.searchguard.authc.base.AuthczResult.DebugInfo;
+import com.floragunn.searchguard.authc.base.AuthcResult;
+import com.floragunn.searchguard.authc.base.AuthcResult.DebugInfo;
 
 public abstract class AuthenticationDebugLogger {
     public static AuthenticationDebugLogger create(boolean enabled) {
@@ -34,13 +34,13 @@ public abstract class AuthenticationDebugLogger {
         }
     }
 
-    public abstract ImmutableList<AuthczResult.DebugInfo> get();
+    public abstract ImmutableList<AuthcResult.DebugInfo> get();
 
     abstract void add(String authcMethod, boolean success, String message);
 
     abstract void add(String authcMethod, boolean success, String message, ImmutableMap<String, Object> details);
 
-    public abstract void add(AuthczResult.DebugInfo debugInfo);
+    public abstract void add(AuthcResult.DebugInfo debugInfo);
 
     public abstract boolean isEnabled();
 
@@ -132,16 +132,16 @@ public abstract class AuthenticationDebugLogger {
 
     public static class Active extends AuthenticationDebugLogger {
 
-        private final List<AuthczResult.DebugInfo> list = new ArrayList<>();
+        private final List<AuthcResult.DebugInfo> list = new ArrayList<>();
 
         @Override
         void add(String authcMethod, boolean success, String message) {
-            list.add(new AuthczResult.DebugInfo(authcMethod, success, message));
+            list.add(new AuthcResult.DebugInfo(authcMethod, success, message));
         }
 
         @Override
         void add(String authcMethod, boolean success, String message, ImmutableMap<String, Object> details) {
-            list.add(new AuthczResult.DebugInfo(authcMethod, success, message, details));
+            list.add(new AuthcResult.DebugInfo(authcMethod, success, message, details));
         }
 
         @Override

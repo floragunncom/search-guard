@@ -38,7 +38,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.RequestMetaData;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.base.IPAddressAcceptanceRules;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
@@ -57,7 +57,7 @@ import inet.ipaddr.IPAddress;
 
 public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
-    void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthczResult> onResult,
+    void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthcResult> onResult,
             Consumer<Exception> onFailure);
 
     boolean isDebugEnabled();
@@ -76,7 +76,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
         private final BlockedUserRegistry blockedUserRegistry;
         private final boolean debug;
 
-        private final RestAuthcConfig authczConfig;
+        private final RestAuthcConfig authcConfig;
         private final List<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains;
         private final ClientAddressAscertainer clientAddressAscertainer;
         private final IPAddressAcceptanceRules ipAddressAcceptanceRules;
@@ -87,10 +87,10 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
         public Default(RestAuthcConfig config, SearchGuardModulesRegistry modulesRegistry, AdminDNs adminDns, BlockedIpRegistry blockedIpRegistry,
                 BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool, PrivilegesEvaluator privilegesEvaluator) {
-            this.authczConfig = config;
-            this.authenticationDomains = authczConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
-            this.clientAddressAscertainer = ClientAddressAscertainer.create(authczConfig.getNetwork());
-            this.ipAddressAcceptanceRules = authczConfig.getNetwork() != null ? authczConfig.getNetwork().getIpAddressAcceptanceRules()
+            this.authcConfig = config;
+            this.authenticationDomains = authcConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
+            this.clientAddressAscertainer = ClientAddressAscertainer.create(authcConfig.getNetwork());
+            this.ipAddressAcceptanceRules = authcConfig.getNetwork() != null ? authcConfig.getNetwork().getIpAddressAcceptanceRules()
                     : IPAddressAcceptanceRules.ANY;
             this.debug = config.isDebugEnabled();
 
@@ -101,15 +101,15 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
             this.blockedIpRegistry = blockedIpRegistry;
             this.blockedUserRegistry = blockedUserRegistry;
 
-            this.userCache = authczConfig.getUserCacheConfig().build();
-            this.impersonationCache = authczConfig.getUserCacheConfig().build();
+            this.userCache = authcConfig.getUserCacheConfig().build();
+            this.impersonationCache = authcConfig.getUserCacheConfig().build();
             
             for (AuthenticationDomain<HTTPAuthenticator> authenticationDomain : this.authenticationDomains) {
                 componentState.addPart(authenticationDomain.getComponentState());
             }
         }
 
-        public void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthczResult> onResult,
+        public void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthcResult> onResult,
                 Consumer<Exception> onFailure) {
             String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
 
@@ -119,8 +119,8 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
             if (!ipAddressAcceptanceRules.accept(requestMetaData)) {
                 log.info("Not accepting request from {}", requestMetaData);
-                onResult.accept(AuthczResult.stop(RestStatus.FORBIDDEN, "Forbidden",
-                        ImmutableList.of(new AuthczResult.DebugInfo("-/-", false,
+                onResult.accept(AuthcResult.stop(RestStatus.FORBIDDEN, "Forbidden",
+                        ImmutableList.of(new AuthcResult.DebugInfo("-/-", false,
                                 "Request denied because client IP address is denied by authc.network.accept configuration",
                                 ImmutableMap.of("direct_ip_address", clientInfo.getDirectIpAddress(), "originating_ip_address",
                                         clientInfo.getOriginatingIpAddress(), "trusted_proxy", clientInfo.isTrustedProxy())))));
@@ -143,7 +143,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
                 }
                 auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
                 channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
-                onResult.accept(new AuthczResult(AuthczResult.Status.STOP));
+                onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
                 return;
             }
 

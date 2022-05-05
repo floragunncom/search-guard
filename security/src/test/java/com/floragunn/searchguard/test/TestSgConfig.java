@@ -123,18 +123,18 @@ public class TestSgConfig {
         return this;
     }
 
-    public TestSgConfig frontendAuthcz(FrontendAuthcz... frontendAuthcz) {
-        return frontendAuthcz("default", frontendAuthcz);
+    public TestSgConfig frontendAuthc(FrontendAuthc... frontendAuthcz) {
+        return frontendAuthc("default", frontendAuthcz);
     }
 
-    public TestSgConfig frontendAuthcz(String configId, FrontendAuthcz... frontendAuthcz) {
+    public TestSgConfig frontendAuthc(String configId, FrontendAuthc... frontendAuthcz) {
         if (overrideFrontendConfigSettings == null) {
             overrideFrontendConfigSettings = new NestedValueMap();
         }
 
         List<NestedValueMap> values = new ArrayList<>();
 
-        for (FrontendAuthcz authcz : frontendAuthcz) {
+        for (FrontendAuthc authcz : frontendAuthcz) {
             values.add(NestedValueMap.copy(authcz.toMap()));
         }
 
@@ -977,26 +977,26 @@ public class TestSgConfig {
         }
     }
 
-    public static class FrontendAuthcz {
+    public static class FrontendAuthc {
         private final String type;
         private String label;
         private NestedValueMap moreProperties = new NestedValueMap();
 
-        public FrontendAuthcz(String type) {
+        public FrontendAuthc(String type) {
             this.type = type;
         }
 
-        public FrontendAuthcz label(String label) {
+        public FrontendAuthc label(String label) {
             this.label = label;
             return this;
         }
 
-        public FrontendAuthcz config(String key, Object value) {
+        public FrontendAuthc config(String key, Object value) {
             this.moreProperties.put(Path.parse(key), value);
             return this;
         }
 
-        public FrontendAuthcz config(String key, Object value, Object... kvPairs) {
+        public FrontendAuthc config(String key, Object value, Object... kvPairs) {
             this.moreProperties.put(Path.parse(key), value);
 
             if (kvPairs != null && kvPairs.length >= 2) {

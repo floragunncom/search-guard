@@ -48,7 +48,7 @@ import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
@@ -257,7 +257,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         debugDetails.put("state", state);
 
         if (!Objects.equals(expectedStateToken, actualStateToken)) {
-            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+            throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false,
                     "Invalid state token: " + expectedStateToken + "/" + actualStateToken, debugDetails));
         }
 
@@ -291,7 +291,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             throw e;
         } catch (BadCredentialsException e) {
             log.info("Extracting JWT token from " + jwtString + " failed", e);
-            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, e.getMessage(), debugDetails), e);
+            throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false, e.getMessage(), debugDetails), e);
         }
 
         JwtClaims claims = jwt.getClaims();
@@ -310,7 +310,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             debugDetails.put("oidc_user_info", userInfo);
 
             if (!userInfoSubject.equals(jwt.getClaims().getSubject())) {
-                throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false,
+                throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false,
                         "sub claim from user info does not match sub claim from ID token", debugDetails));
             }
 

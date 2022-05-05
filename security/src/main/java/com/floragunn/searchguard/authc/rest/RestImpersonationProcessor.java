@@ -27,7 +27,7 @@ import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -62,7 +62,7 @@ public class RestImpersonationProcessor<AuthenticatorType extends Authentication
         }
     }
 
-    public void impersonate(Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+    public void impersonate(Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
 
         try {
             if (adminDns.isAdminDN(impersonatedUserHeader)) {
@@ -80,7 +80,7 @@ public class RestImpersonationProcessor<AuthenticatorType extends Authentication
 
                 if (impersonatedUser != null) {
                     impersonatedUser.setRequestedTenant(originalUser.getRequestedTenant());
-                    onResult.accept(AuthczResult.pass(impersonatedUser));
+                    onResult.accept(AuthcResult.pass(impersonatedUser));
                     return;
                 }
             }
@@ -91,7 +91,7 @@ public class RestImpersonationProcessor<AuthenticatorType extends Authentication
         }
     }
 
-    private void checkNextAuthenticationDomains(Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+    private void checkNextAuthenticationDomains(Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
 
         try {
             while (authenticationDomainIter.hasNext()) {
@@ -103,7 +103,7 @@ public class RestImpersonationProcessor<AuthenticatorType extends Authentication
                     // will be continued via onSuccess callback
                     return;
                 } else if (state == AuthDomainState.STOP) {
-                    onResult.accept(AuthczResult.STOP);
+                    onResult.accept(AuthcResult.STOP);
                     return;
                 }
 
@@ -118,7 +118,7 @@ public class RestImpersonationProcessor<AuthenticatorType extends Authentication
     }
 
     private AuthDomainState checkCurrentAuthenticationDomain(AuthenticationDomain<AuthenticatorType> authenticationDomain,
-            Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+            Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
 
         try {
             if (log.isDebugEnabled()) {
@@ -145,7 +145,7 @@ public class RestImpersonationProcessor<AuthenticatorType extends Authentication
                         impersonationCache.put(impersonatedUserHeader, completedUser);
                     }
 
-                    onResult.accept(AuthczResult.pass(completedUser));
+                    onResult.accept(AuthcResult.pass(completedUser));
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("Impersonation on " + authenticationDomain + " did not find user information.");

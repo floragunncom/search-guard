@@ -89,7 +89,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
             if (config != null && config.getCEntry("default") != null) {
                 feMultiTenancyConfig = config.getCEntry("default");
-                componentState.setState(State.INITIALIZED, "using_authcz_config");
+                componentState.setState(State.INITIALIZED, "using_authc_config");
                 componentState.setConfigVersion(config.getDocVersion());
             } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
                 try {
