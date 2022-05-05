@@ -33,33 +33,33 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.user.User;
 
-public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
-    public static final AuthczResult STOP = new AuthczResult(Status.STOP);
-    public static final AuthczResult PASS_ANONYMOUS = new AuthczResult(User.ANONYMOUS, Status.PASS);
-    public static final AuthczResult PASS_WITHOUT_AUTH = new AuthczResult(null, Status.PASS);
+public class AuthcResult implements ToXContentObject, Document<AuthcResult> {
+    public static final AuthcResult STOP = new AuthcResult(Status.STOP);
+    public static final AuthcResult PASS_ANONYMOUS = new AuthcResult(User.ANONYMOUS, Status.PASS);
+    public static final AuthcResult PASS_WITHOUT_AUTH = new AuthcResult(null, Status.PASS);
 
-    public static AuthczResult stop(RestStatus restStatus, String message) {
-        return new AuthczResult(Status.STOP, restStatus, message);
+    public static AuthcResult stop(RestStatus restStatus, String message) {
+        return new AuthcResult(Status.STOP, restStatus, message);
     }
 
-    public static AuthczResult stop(RestStatus restStatus, String message, List<DebugInfo> debug) {
-        return new AuthczResult(Status.STOP, restStatus, message, null, ImmutableMap.empty(), debug);
+    public static AuthcResult stop(RestStatus restStatus, String message, List<DebugInfo> debug) {
+        return new AuthcResult(Status.STOP, restStatus, message, null, ImmutableMap.empty(), debug);
     }
 
-    public static AuthczResult stop(RestStatus restStatus, String message, ImmutableMap<String, List<String>> headers, List<DebugInfo> debug) {
-        return new AuthczResult(Status.STOP, restStatus, message, null, headers, debug);
+    public static AuthcResult stop(RestStatus restStatus, String message, ImmutableMap<String, List<String>> headers, List<DebugInfo> debug) {
+        return new AuthcResult(Status.STOP, restStatus, message, null, headers, debug);
     }
 
-    public static AuthczResult pass(User user) {
-        return new AuthczResult(user, Status.PASS);
+    public static AuthcResult pass(User user) {
+        return new AuthcResult(user, Status.PASS);
     }
 
-    public static AuthczResult pass(User user, String redirectUri) {
-        return new AuthczResult(user, Status.PASS, redirectUri);
+    public static AuthcResult pass(User user, String redirectUri) {
+        return new AuthcResult(user, Status.PASS, redirectUri);
     }
     
-    public static AuthczResult pass(User user, String redirectUri, List<DebugInfo> debug) {
-        return new AuthczResult(user, Status.PASS, redirectUri, debug);
+    public static AuthcResult pass(User user, String redirectUri, List<DebugInfo> debug) {
+        return new AuthcResult(user, Status.PASS, redirectUri, debug);
     }
 
     private final User user;
@@ -70,7 +70,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
     private final List<DebugInfo> debug;
     private final Map<String, List<String>> headers;
 
-    public AuthczResult(User user, Status status) {
+    public AuthcResult(User user, Status status) {
         this.user = user;
         this.status = status;
         this.restStatus = null;
@@ -80,7 +80,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
         this.headers = ImmutableMap.empty();
     }
 
-    public AuthczResult(User user, Status status, String redirectUri) {
+    public AuthcResult(User user, Status status, String redirectUri) {
         this.user = user;
         this.status = status;
         this.restStatus = null;
@@ -90,7 +90,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
         this.headers = ImmutableMap.empty();
     }
     
-    public AuthczResult(User user, Status status, String redirectUri, List<DebugInfo> debug) {
+    public AuthcResult(User user, Status status, String redirectUri, List<DebugInfo> debug) {
         this.user = user;
         this.status = status;
         this.restStatus = null;
@@ -100,7 +100,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
         this.headers = ImmutableMap.empty();
     }
 
-    public AuthczResult(Status status) {
+    public AuthcResult(Status status) {
         this.user = null;
         this.status = status;
         this.restStatus = null;
@@ -110,7 +110,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
         this.headers = ImmutableMap.empty();
     }
 
-    public AuthczResult(Status status, RestStatus restStatus, String restStatusMessage) {
+    public AuthcResult(Status status, RestStatus restStatus, String restStatusMessage) {
         this.user = null;
         this.status = status;
         this.restStatus = restStatus;
@@ -120,7 +120,7 @@ public class AuthczResult implements ToXContentObject, Document<AuthczResult> {
         this.headers = ImmutableMap.empty();
     }
 
-    public AuthczResult(Status status, RestStatus restStatus, String restStatusMessage, String redirectUri, ImmutableMap<String, List<String>> headers,
+    public AuthcResult(Status status, RestStatus restStatus, String restStatusMessage, String redirectUri, ImmutableMap<String, List<String>> headers,
             List<DebugInfo> debug) {
         this.user = null;
         this.status = status;

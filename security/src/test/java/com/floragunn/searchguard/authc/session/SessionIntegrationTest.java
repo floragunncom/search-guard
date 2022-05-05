@@ -36,8 +36,8 @@ public class SessionIntegrationTest {
     private static TestSgConfig.User BASIC_USER = new TestSgConfig.User("basic_user").roles("sg_all_access");
     private static TestSgConfig.User NO_ROLES_USER = new TestSgConfig.User("no_roles_user");
     private static TestSgConfig TEST_SG_CONFIG = new TestSgConfig().resources("session")
-            .frontendAuthcz("default", new TestSgConfig.FrontendAuthcz("basic").label("Basic Login"))//
-            .frontendAuthcz("test_fe", new TestSgConfig.FrontendAuthcz(TestApiAuthenticationFrontend.class.getName()).label("Test Login"))
+            .frontendAuthc("default", new TestSgConfig.FrontendAuthc("basic").label("Basic Login"))//
+            .frontendAuthc("test_fe", new TestSgConfig.FrontendAuthc(TestApiAuthenticationFrontend.class.getName()).label("Test Login"))
             .user(NO_ROLES_USER).user(BASIC_USER);
 
     @ClassRule

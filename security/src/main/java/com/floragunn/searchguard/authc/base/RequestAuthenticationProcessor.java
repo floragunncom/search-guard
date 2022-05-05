@@ -90,7 +90,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
         this.debug = AuthenticationDebugLogger.create(debug);
     }
 
-    public void authenticate(Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+    public void authenticate(Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
         if (authenticationDomains.isEmpty()) {
             log.warn("Cannot authenticate request because no authentication domains are configured: " + this);
         } else {
@@ -102,9 +102,9 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
     }
 
     protected abstract AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<AuthenticatorType> authenticationDomain,
-            Consumer<AuthczResult> onResult, Consumer<Exception> onFailure);
+            Consumer<AuthcResult> onResult, Consumer<Exception> onFailure);
 
-    protected AuthczResult handleChallenge() {
+    protected AuthcResult handleChallenge() {
         return null;
     }
 
@@ -138,7 +138,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
         }
     }
 
-    private void checkNextAuthenticationDomains(Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+    private void checkNextAuthenticationDomains(Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
 
         while (authenticationDomainIter.hasNext()) {
             AuthenticationDomain<AuthenticatorType> authenticationDomain = authenticationDomainIter.next();
@@ -149,7 +149,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                 // will be continued via onSuccess callback
                 return;
             } else if (state == AuthDomainState.STOP) {
-                onResult.accept(AuthczResult.STOP);
+                onResult.accept(AuthcResult.STOP);
                 return;
             }
 
@@ -159,7 +159,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
     }
 
     private AuthDomainState checkCurrentAuthenticationDomain(AuthenticationDomain<AuthenticatorType> authenticationDomain,
-            Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+            Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
 
         try {
             if (!authenticationDomain.isEnabled()) {
@@ -187,7 +187,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
     }
 
     protected AuthDomainState proceed(AuthCredentials ac, AuthenticationDomain<AuthenticatorType> authenticationDomain,
-            Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+            Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
         authCredentials = ac;
 
         try {
@@ -215,7 +215,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
 
         final AuthCredentials pendingCredentials = ac;
 
-        callAuthczBackends(ac, authenticationDomain, (authenticatedUser) -> {
+        callAuthcBackends(ac, authenticationDomain, (authenticatedUser) -> {
             try {
 
                 pendingCredentials.clearSecrets();
@@ -226,7 +226,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                         auditLog.logFailedLogin(authenticatedUser, true, null, request.getRequest());
                         debug.failure(authenticationDomain.getType(),
                                 "User name is associated with an administrator. These are only allowed to login via certificate.");
-                        onResult.accept(AuthczResult.stop(RestStatus.FORBIDDEN,
+                        onResult.accept(AuthcResult.stop(RestStatus.FORBIDDEN,
                                 "Cannot authenticate user because admin user is not permitted to login via HTTP", debug.get()));
                         return;
                     }
@@ -246,7 +246,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                                 "backend_roles", authenticatedUser.getRoles(), "sg_roles", authenticatedUser.getSearchGuardRoles(),
                                 "source_attributes", pendingCredentials.getAttributesForUserMapping());
 
-                        onResult.accept(AuthczResult.stop(RestStatus.FORBIDDEN,
+                        onResult.accept(AuthcResult.stop(RestStatus.FORBIDDEN,
                                 "The user '" + pendingCredentials.getName() + "' is not allowed to log in.", debug.get()));
                         return;
                     }
@@ -281,7 +281,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                                     ImmutableMap.of("name", authenticatedUser.getName(), "roles", authenticatedUser.getRoles(), "search_guard_roles",
                                             authenticatedUser.getSearchGuardRoles(), "attributes", authenticatedUser.getStructuredAttributes()));
                         }
-                        onResult.accept(AuthczResult.pass(authenticatedUser, pendingCredentials.getRedirectUri(), debug.get()));
+                        onResult.accept(AuthcResult.pass(authenticatedUser, pendingCredentials.getRedirectUri(), debug.get()));
                     }
 
                 } else {
@@ -329,7 +329,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
         return AuthDomainState.PENDING;
     }
 
-    protected AuthczResult handleFinalAuthFailure() {
+    protected AuthcResult handleFinalAuthFailure() {
 
         try {
             log.warn("Authentication finally failed for {} from {}", authCredentials == null ? null : authCredentials.getUsername(), request);
@@ -337,20 +337,20 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
             auditLog.logFailedLogin(authCredentials != null ? authCredentials : AuthCredentials.NONE, false, null, request.getRequest());
             notifyIpAuthFailureListeners(authCredentials);
 
-            AuthczResult challengeHandled = handleChallenge();
+            AuthcResult challengeHandled = handleChallenge();
 
             if (challengeHandled != null) {
                 return challengeHandled;
             }
 
-            return AuthczResult.stop(RestStatus.UNAUTHORIZED, "Authentication failed", debug.get());
+            return AuthcResult.stop(RestStatus.UNAUTHORIZED, "Authentication failed", debug.get());
         } catch (Exception e) {
             log.error("Error while handling auth failure", e);
-            return AuthczResult.stop(RestStatus.UNAUTHORIZED, "Authentication failed", debug.get());
+            return AuthcResult.stop(RestStatus.UNAUTHORIZED, "Authentication failed", debug.get());
         }
     }
 
-    private void callAuthczBackends(AuthCredentials ac, AuthenticationDomain<AuthenticatorType> authenticationDomain, Consumer<User> onSuccess,
+    private void callAuthcBackends(AuthCredentials ac, AuthenticationDomain<AuthenticatorType> authenticationDomain, Consumer<User> onSuccess,
             Consumer<Exception> onFailure) {
         // TODO Optimization: If we have SyncAuthenticationBackend use the guarantees of Cache to avoid redundant concurrent loads
 

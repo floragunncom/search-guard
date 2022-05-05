@@ -39,13 +39,11 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
-import com.floragunn.searchguard.authc.rest.AuthczComponentContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
@@ -363,52 +361,6 @@ public class ReflectionHelper {
             throw new ElasticsearchException(e);
         }
     }
-    
-    @SuppressWarnings("unchecked")
-    public static <T> T instantiateAAA(String clazz, DocNode config, AuthczComponentContext context, boolean checkEnterprise) throws ConfigValidationException, ClassNotFoundException {
-
-        if (checkEnterprise && enterpriseModulesDisabled()) {
-            throw new ElasticsearchException("Can not load '{}' because enterprise modules are disabled", clazz);
-        }
-
-        try {
-            final Class<?> clazz0 = Class.forName(clazz);
-            T ret;
-            
-            try {
-                ret = (T) clazz0.getConstructor(DocNode.class, AuthczComponentContext.class).newInstance(config, context);
-            } catch (NoSuchMethodException e) {
-                Settings.Builder settings = Settings.builder().loadFromMap(config);
-                
-                if (context.getEsSettings() != null) {
-                    settings.put(context.getEsSettings());
-                }
-                
-                ret = (T) clazz0.getConstructor(Settings.class, Path.class).newInstance(settings.build(), context.getConfigPath());
-            }
-            
-            return ret;
-        } catch (ClassNotFoundException e) {
-            throw e;
-        } catch (InvocationTargetException e) {
-            if (e.getCause() instanceof ConfigValidationException) {
-                throw (ConfigValidationException) e.getCause();
-            } else {
-                log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
-                if (log.isDebugEnabled()) {
-                    log.debug("Stacktrace: ", e);
-                }
-                throw new ElasticsearchException(e);
-            }
-        } catch (final Throwable e) {
-            log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            throw new ElasticsearchException(e);
-        }
-    }
-
 
     public static InterClusterRequestEvaluator instantiateInterClusterRequestEvaluator(final String clazz, final Settings settings) {
 

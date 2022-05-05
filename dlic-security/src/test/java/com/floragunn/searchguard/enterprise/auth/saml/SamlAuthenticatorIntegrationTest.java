@@ -55,7 +55,7 @@ public class SamlAuthenticatorIntegrationTest {
         mockSamlIdpServer.setEndpointQueryString(null);
 
         TestSgConfig testSgConfig = new TestSgConfig().resources("saml")
-                .frontendAuthcz(new TestSgConfig.FrontendAuthcz("saml").label("SAML Label").config("user_mapping.roles.from", "saml_response.roles",
+                .frontendAuthc(new TestSgConfig.FrontendAuthc("saml").label("SAML Label").config("user_mapping.roles.from", "saml_response.roles",
                         "saml.idp.metadata_url", mockSamlIdpServer.getMetadataUri(), "saml.idp.entity_id", mockSamlIdpServer.getIdpEntityId()));
 
         cluster = new LocalCluster.Builder().sslEnabled().singleNode().resources("saml").enterpriseModulesEnabled().sgConfig(testSgConfig).start();

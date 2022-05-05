@@ -40,7 +40,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.legacy.LegacyRestAuthenticationProcessor;
@@ -155,7 +155,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 return;
             }
 
-            if (isAuthczRequired(request)) {
+            if (isAuthcRequired(request)) {
                 String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
 
                 // Admin Cert authentication works also without a valid configuration; that's why it is not done inside of AuthenticationProcessor
@@ -182,7 +182,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                         return;
                     }
 
-                    if (result.getStatus() == AuthczResult.Status.PASS) {
+                    if (result.getStatus() == AuthcResult.Status.PASS) {
                         // make it possible to filter logs by username
                         org.apache.logging.log4j.ThreadContext.clearAll();
                         org.apache.logging.log4j.ThreadContext.put("user", result.getUser() != null ? result.getUser().getName() : null);
@@ -222,7 +222,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             }
         }
 
-        private boolean isAuthczRequired(RestRequest request) {
+        private boolean isAuthcRequired(RestRequest request) {
             return request.method() != Method.OPTIONS && !"/_searchguard/license".equals(request.path())
                     && !"/_searchguard/license".equals(request.path()) && !"/_searchguard/health".equals(request.path())
                     && !("/_searchguard/auth/session".equals(request.path()) && request.method() == Method.POST);
@@ -271,10 +271,10 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             return true;
         }
 
-        private void sendDebugInfo(RestChannel channel, AuthczResult authczResult) {
-            RestResponse response = new BytesRestResponse(authczResult.getRestStatus(), "application/json", authczResult.toPrettyJsonString());
-            if (!authczResult.getHeaders().isEmpty()) {
-                authczResult.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
+        private void sendDebugInfo(RestChannel channel, AuthcResult authcResult) {
+            RestResponse response = new BytesRestResponse(authcResult.getRestStatus(), "application/json", authcResult.toPrettyJsonString());
+            if (!authcResult.getHeaders().isEmpty()) {
+                authcResult.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
             }
             channel.sendResponse(response);
         }

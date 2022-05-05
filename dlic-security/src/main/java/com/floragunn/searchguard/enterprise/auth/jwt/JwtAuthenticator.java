@@ -53,7 +53,7 @@ import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auth.oidc.BadCredentialsException;
@@ -187,7 +187,7 @@ public class JwtAuthenticator implements HTTPAuthenticator {
             throw e;
         } catch (BadCredentialsException e) {
             log.info("Extracting JWT token from " + jwtString + " failed", e);
-            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, e.getMessage()), e);
+            throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false, e.getMessage()), e);
         }
 
         JwtClaims claims = jwt.getClaims();

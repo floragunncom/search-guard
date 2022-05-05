@@ -38,7 +38,7 @@ import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.UserInformationBackend;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -110,7 +110,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
                 }
             }
 
-            throw new CredentialsException(new AuthczResult.DebugInfo("ldap", false, "User could not be found by query",
+            throw new CredentialsException(new AuthcResult.DebugInfo("ldap", false, "User could not be found by query",
                     ImmutableMap.of("user_name", credentials.getName())));
         }
 
@@ -124,7 +124,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
             checkPassword(entry.getDN(), credentials.getPassword());
         } catch (LDAPException e) {
             throw new CredentialsException(
-                    new AuthczResult.DebugInfo("ldap", false, "User could not be authenticated by password", ImmutableMap.of("user_name",
+                    new AuthcResult.DebugInfo("ldap", false, "User could not be authenticated by password", ImmutableMap.of("user_name",
                             credentials.getName(), "dn", entry.getDN(), "ldap_error", e.getMessage(), "ldap_rc", e.getResultCode().toString())),
                     e);
         }

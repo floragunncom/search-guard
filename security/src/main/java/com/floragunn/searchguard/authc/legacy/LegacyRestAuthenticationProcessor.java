@@ -37,7 +37,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.RequestMetaData;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.base.IPAddressAcceptanceRules;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
@@ -69,7 +69,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
     private final BlockedIpRegistry blockedIpRegistry;
     private final BlockedUserRegistry blockedUserRegistry;
 
-    private final RestAuthcConfig authczConfig;
+    private final RestAuthcConfig authcConfig;
     private final List<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains;
     private final ClientAddressAscertainer clientAddressAscertainer;
     private final IPAddressAcceptanceRules ipAddressAcceptanceRules;
@@ -81,9 +81,9 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
     public LegacyRestAuthenticationProcessor(LegacySgConfig legacyConfig, SearchGuardModulesRegistry modulesRegistry, AdminDNs adminDns,
             BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool,
             PrivilegesEvaluator privilegesEvaluator) {
-        this.authczConfig = legacyConfig.getRestAuthczConfig();
-        this.authenticationDomains = authczConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
-        this.clientAddressAscertainer = ClientAddressAscertainer.create(authczConfig.getNetwork());
+        this.authcConfig = legacyConfig.getRestAuthcConfig();
+        this.authenticationDomains = authcConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
+        this.clientAddressAscertainer = ClientAddressAscertainer.create(authcConfig.getNetwork());
         this.ipAddressAcceptanceRules = IPAddressAcceptanceRules.ANY;
 
         this.auditLog = auditLog;
@@ -93,15 +93,15 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
         this.blockedIpRegistry = blockedIpRegistry;
         this.blockedUserRegistry = blockedUserRegistry;
 
-        this.userCache = authczConfig.getUserCacheConfig().build();
-        this.impersonationCache = authczConfig.getUserCacheConfig().build();
+        this.userCache = authcConfig.getUserCacheConfig().build();
+        this.impersonationCache = authcConfig.getUserCacheConfig().build();
 
         for (AuthenticationDomain<HTTPAuthenticator> authenticationDomain : this.authenticationDomains) {
             componentState.addPart(authenticationDomain.getComponentState());
         }
     }
 
-    public void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthczResult> onResult,
+    public void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthcResult> onResult,
             Consumer<Exception> onFailure) {
         String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
 
@@ -112,7 +112,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
         if (!ipAddressAcceptanceRules.accept(requestMetaData)) {
             log.info("Not accepting request from {}", requestMetaData);
             channel.sendResponse(new BytesRestResponse(RestStatus.FORBIDDEN, "Forbidden"));
-            onResult.accept(new AuthczResult(AuthczResult.Status.STOP));
+            onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
             return;
         }
 
@@ -132,7 +132,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
             }
             auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
             channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
-            onResult.accept(new AuthczResult(AuthczResult.Status.STOP));
+            onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
             return;
         }
 

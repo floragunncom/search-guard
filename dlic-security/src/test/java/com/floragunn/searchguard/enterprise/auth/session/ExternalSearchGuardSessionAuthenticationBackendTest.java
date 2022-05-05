@@ -42,7 +42,7 @@ public class ExternalSearchGuardSessionAuthenticationBackendTest {
     public static LocalCluster sessionProvidingCluster = new LocalCluster.Builder().sgConfig(//
             new TestSgConfig()//
                     .authc(new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db")))//
-                    .frontendAuthcz("default", new TestSgConfig.FrontendAuthcz("basic").label("Basic Login"))//
+                    .frontendAuthc("default", new TestSgConfig.FrontendAuthc("basic").label("Basic Login"))//
                     .sessions(new TestSgConfig.Sessions().jwtSigningKeyHs512(HS512_KEY).jwtAudience(SESSION_JWT_AUDIENCE))//
                     .user(SESSION_TEST_USER))
             .singleNode().sslEnabled().enterpriseModulesEnabled().build();

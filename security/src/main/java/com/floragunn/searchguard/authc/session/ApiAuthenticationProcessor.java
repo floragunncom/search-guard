@@ -35,7 +35,7 @@ import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.base.RequestAuthenticationProcessor;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
@@ -63,7 +63,7 @@ public class ApiAuthenticationProcessor extends RequestAuthenticationProcessor<A
 
     @Override
     protected AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<ApiAuthenticationFrontend> authenticationDomain,
-            Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+            Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
         ApiAuthenticationFrontend authenticationFrontend = authenticationDomain.getFrontend();
 
         if (log.isTraceEnabled()) {

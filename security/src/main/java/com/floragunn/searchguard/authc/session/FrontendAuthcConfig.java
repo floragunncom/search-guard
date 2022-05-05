@@ -39,11 +39,11 @@ import com.floragunn.searchguard.configuration.Destroyable;
 
 public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destroyable {
 
-    public static final Authenticator DEFAULT_BASIC_AUTHCZ = new Authenticator("basic", "Login",
+    public static final FrontendAuthenticationDomain DEFAULT_BASIC_AUTHC = new FrontendAuthenticationDomain("basic", "Login",
             "If you have forgotten your username or password, please ask your system administrator");
-    public static final FrontendAuthcConfig BASIC = new FrontendAuthcConfig(Collections.singletonList(DEFAULT_BASIC_AUTHCZ));
+    public static final FrontendAuthcConfig BASIC = new FrontendAuthcConfig(Collections.singletonList(DEFAULT_BASIC_AUTHC));
 
-    private ImmutableList<Authenticator> authenticators;
+    private ImmutableList<FrontendAuthenticationDomain> authDomains;
     private LoginPage loginPage;
     private boolean debug;
     private Map<String, Object> parsedJson;
@@ -51,13 +51,13 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
     FrontendAuthcConfig() {
     }
 
-    public FrontendAuthcConfig(List<Authenticator> authcz) {
-        this.authenticators = ImmutableList.of(authcz);
+    public FrontendAuthcConfig(List<FrontendAuthenticationDomain> authDomains) {
+        this.authDomains = ImmutableList.of(authDomains);
         this.loginPage = LoginPage.DEFAULT;
     }
 
-    public ImmutableList<Authenticator> getAuthenticators() {
-        return authenticators;
+    public ImmutableList<FrontendAuthenticationDomain> getAuthDomains() {
+        return authDomains;
     }
 
     public static ValidationResult<FrontendAuthcConfig> parse(Object parsedJson, ConfigurationRepository.Context context) {
@@ -66,7 +66,8 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
 
         FrontendAuthcConfig result = new FrontendAuthcConfig();
         result.parsedJson = DocNode.wrap(parsedJson);
-        result.authenticators = ImmutableList.of(vNode.get("auth_domains").asList((documentNode) -> Authenticator.parse(documentNode, context)));
+        result.authDomains = ImmutableList
+                .of(vNode.get("auth_domains").asList((documentNode) -> FrontendAuthenticationDomain.parse(documentNode, context)));
         result.loginPage = vNode.get("login_page").withDefault(LoginPage.DEFAULT).by(LoginPage::parse);
         result.debug = vNode.get("debug").withDefault(false).asBoolean();
 
@@ -75,7 +76,7 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
         return new ValidationResult<FrontendAuthcConfig>(result, validationErrors);
     }
 
-    public static class Authenticator implements Document<Authenticator> {
+    public static class FrontendAuthenticationDomain implements Document<FrontendAuthenticationDomain> {
         private String type;
         private String label;
         private boolean enabled = true;
@@ -85,32 +86,33 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
         private Map<String, Object> parsedJson;
         private boolean captureUrlFragment;
 
-        public Authenticator() {
+        public FrontendAuthenticationDomain() {
 
         }
 
-        public Authenticator(String type, String label) {
+        public FrontendAuthenticationDomain(String type, String label) {
             this.type = type;
             this.label = label;
         }
 
-        public Authenticator(String type, String label, String message) {
+        public FrontendAuthenticationDomain(String type, String label, String message) {
             this.type = type;
             this.label = label;
             this.message = message;
         }
 
-        public Authenticator(String type, String label, AuthenticationDomain<ApiAuthenticationFrontend> authenticationDomain) {
+        public FrontendAuthenticationDomain(String type, String label, AuthenticationDomain<ApiAuthenticationFrontend> authenticationDomain) {
             this.type = type;
             this.label = label;
             this.authenticationDomain = authenticationDomain;
         }
 
-        public static Authenticator parse(DocNode documentNode, ConfigurationRepository.Context context) throws ConfigValidationException {
+        public static FrontendAuthenticationDomain parse(DocNode documentNode, ConfigurationRepository.Context context)
+                throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(documentNode, validationErrors);
 
-            Authenticator result = new Authenticator();
+            FrontendAuthenticationDomain result = new FrontendAuthenticationDomain();
             result.parsedJson = documentNode.toMap();
             result.type = vNode.get("type").required().asString();
             result.label = vNode.get("label").withDefault(result.type).asString();
@@ -120,7 +122,7 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
 
             if ("basic".equals(result.type)) {
                 if (result.message == null) {
-                    result.message = DEFAULT_BASIC_AUTHCZ.getMessage();
+                    result.message = DEFAULT_BASIC_AUTHC.getMessage();
                 }
             } else if (context != null && result.enabled) {
                 result.authenticationDomain = StandardAuthenticationDomain.parse(vNode, validationErrors, ApiAuthenticationFrontend.class, context);
@@ -267,7 +269,7 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
                 result.put("login_page", loginPage.toBasicObject());
             }
 
-            result.put("authenticators", authenticators.stream().map(Authenticator::toBasicObject).collect(Collectors.toList()));
+            result.put("authenticators", authDomains.stream().map(FrontendAuthenticationDomain::toBasicObject).collect(Collectors.toList()));
 
             return result;
         }
@@ -275,7 +277,7 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
 
     @Override
     public void destroy() {
-        for (Authenticator authenticator : this.authenticators) {
+        for (FrontendAuthenticationDomain authenticator : this.authDomains) {
             if (authenticator.getAuthenticationDomain() instanceof Destroyable) {
                 ((Destroyable) authenticator.getAuthenticationDomain()).destroy();
             }

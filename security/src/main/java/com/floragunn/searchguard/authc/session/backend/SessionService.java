@@ -86,7 +86,7 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.RequestMetaData;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
@@ -214,7 +214,7 @@ public class SessionService {
                     restAuthcConfig = config.getCEntry("default");
                     componentState.replacePartsWithType("config", config.getComponentState());
                 } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                    restAuthcConfig = legacyConfig.getCEntry("sg_config").getRestAuthczConfig();
+                    restAuthcConfig = legacyConfig.getCEntry("sg_config").getRestAuthcConfig();
                     componentState.replacePartsWithType("config", legacyConfig.getComponentState());
                 } else {
                     componentState.setState(State.SUSPENDED, "no_configuration");
@@ -244,28 +244,28 @@ public class SessionService {
     }
 
     public void createSession(Map<String, Object> request, RestRequest restRequest, Consumer<StartSessionResponse> onResult,
-            Consumer<AuthczResult> onAuthFailure, Consumer<Exception> onFailure) {
+            Consumer<AuthcResult> onAuthFailure, Consumer<Exception> onFailure) {
 
         if (this.config == null) {
             onFailure.accept(new SessionCreationException("SessionService is not configured", RestStatus.INTERNAL_SERVER_ERROR));
             return;
         }
 
-        authenticate(request, restRequest, config.getRequiredLoginPrivileges(), (authczResult) -> {
-            if (authczResult.getStatus() == AuthczResult.Status.PASS) {
+        authenticate(request, restRequest, config.getRequiredLoginPrivileges(), (authcResult) -> {
+            if (authcResult.getStatus() == AuthcResult.Status.PASS) {
                 threadPool.generic().submit(() -> {
                     try {
-                        StartSessionResponse response = createLightweightJwt(authczResult);
+                        StartSessionResponse response = createLightweightJwt(authcResult);
                         onResult.accept(response);
                     } catch (SessionCreationException e) {
                         log.info("Creating token failed", e);
-                        onAuthFailure.accept(AuthczResult.stop(e.getRestStatus(), e.getMessage()));
+                        onAuthFailure.accept(AuthcResult.stop(e.getRestStatus(), e.getMessage()));
                     } catch (Exception e) {
                         onFailure.accept(e);
                     }
                 });
             } else {
-                onAuthFailure.accept(authczResult);
+                onAuthFailure.accept(authcResult);
             }
 
         }, onFailure);
@@ -311,7 +311,7 @@ public class SessionService {
     }
 
     private void authenticate(Map<String, Object> request, RestRequest restRequest, List<String> requiredLoginPrivileges,
-            Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+            Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
 
         ClientIpInfo clientInfo = clientAddressAscertainer.getActualRemoteAddress(restRequest);
         IPAddress remoteIpAddress = clientInfo.getOriginatingIpAddress();
@@ -332,7 +332,7 @@ public class SessionService {
                 log.debug("Rejecting REST request because of blocked address: " + remoteIpAddress);
             }
             auditLog.logBlockedIp(restRequest, clientInfo.getOriginatingTransportAddress().address());
-            onResult.accept(new AuthczResult(AuthczResult.Status.STOP, RestStatus.UNAUTHORIZED, "Authentication finally failed"));
+            onResult.accept(new AuthcResult(AuthcResult.Status.STOP, RestStatus.UNAUTHORIZED, "Authentication finally failed"));
             return;
         }
 
@@ -342,7 +342,7 @@ public class SessionService {
 
         if (apiAuthenticationDomains == null) {
             log.error("Invalid config_id: " + configId + "; available: " + this.authcConfig);
-            onResult.accept(new AuthczResult(AuthczResult.Status.STOP, RestStatus.BAD_REQUEST, "Invalid config_id"));
+            onResult.accept(new AuthcResult(AuthcResult.Status.STOP, RestStatus.BAD_REQUEST, "Invalid config_id"));
             return;
         }
 
@@ -374,7 +374,7 @@ public class SessionService {
 
     }
 
-    private StartSessionResponse createLightweightJwt(AuthczResult authczResult) throws SessionCreationException {
+    private StartSessionResponse createLightweightJwt(AuthcResult authczResult) throws SessionCreationException {
 
         if (jwtProducer == null) {
             throw new SessionCreationException("SessionService is not configured", RestStatus.INTERNAL_SERVER_ERROR);

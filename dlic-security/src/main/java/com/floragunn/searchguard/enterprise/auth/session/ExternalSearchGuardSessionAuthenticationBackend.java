@@ -51,7 +51,7 @@ import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -144,7 +144,7 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
                 (PrivilegedSupplierThrowing2<CompletableFuture<AuthCredentials>, CredentialsException, AuthenticatorUnavailableException>) () -> {
                     try (CloseableHttpResponse response = this.httpClient.execute(host, httpGet)) {
                         if (response.getStatusLine().getStatusCode() == 401) {
-                            throw new CredentialsException(new AuthczResult.DebugInfo(getType(), false, "Failed to authenticate with JWT at " + host,
+                            throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false, "Failed to authenticate with JWT at " + host,
                                     ImmutableMap.of("host", host, "response_status", response.getStatusLine())));
                         }
 

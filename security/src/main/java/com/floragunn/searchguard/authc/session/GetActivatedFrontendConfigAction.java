@@ -150,10 +150,10 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
                 throw notFound("No such frontend config: " + configId);
             }
 
-            List<FrontendAuthcConfig.Authenticator> authMethods = frontendConfig.getAuthenticators();
+            List<FrontendAuthcConfig.FrontendAuthenticationDomain> authMethods = frontendConfig.getAuthDomains();
             List<AuthMethod> result = new ArrayList<>(authMethods.size());
 
-            for (FrontendAuthcConfig.Authenticator authMethod : authMethods) {
+            for (FrontendAuthcConfig.FrontendAuthenticationDomain authMethod : authMethods) {
                 if (!authMethod.isEnabled()) {
                     continue;
                 }
@@ -211,7 +211,7 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
             LegacySgConfig sgConfig = configRepository.getConfiguration(CType.CONFIG).getCEntry("sg_config");
 
             if (sgConfig != null) {
-                if (sgConfig.getRestAuthczConfig().getAuthenticators().stream()
+                if (sgConfig.getRestAuthcConfig().getAuthenticators().stream()
                         .anyMatch((d) -> d.getFrontend() != null && "basic".equalsIgnoreCase(d.getFrontend().getType()))) {
                     return FrontendAuthcConfig.BASIC;
                 }

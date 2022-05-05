@@ -103,7 +103,7 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         this.configVarService = baseDependencies.getConfigVarService();
 
-        this.configVarService.requestRandomKey("auth_tokens_signing_key_hs512", 512, "authcz");
+        this.configVarService.requestRandomKey("auth_tokens_signing_key_hs512", 512, "authc");
 
         PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(baseDependencies.getLocalClient());
 

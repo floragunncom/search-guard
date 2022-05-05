@@ -55,8 +55,8 @@ public class SessionLongRunningIntegrationTest {
     static TestSgConfig.Sessions SESSIONS = new TestSgConfig.Sessions().inactivityTimeout(TIMEOUT).refreshSessionActivityIndex(true);
 
     static TestSgConfig TEST_SG_CONFIG = new TestSgConfig().resources("session")
-            .frontendAuthcz("default", new TestSgConfig.FrontendAuthcz("basic").label("Basic Login"))//
-            .frontendAuthcz("test_fe", new TestSgConfig.FrontendAuthcz(TestApiAuthenticationFrontend.class.getName()).label("Test Login"))
+            .frontendAuthc("default", new TestSgConfig.FrontendAuthc("basic").label("Basic Login"))//
+            .frontendAuthc("test_fe", new TestSgConfig.FrontendAuthc(TestApiAuthenticationFrontend.class.getName()).label("Test Login"))
             .user(NO_ROLES_USER).user(BASIC_USER).sessions(SESSIONS);
 
     @ClassRule

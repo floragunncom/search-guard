@@ -67,9 +67,9 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
         ImmutableSet<String> newUserNames = MappingSpecification.apply(userName, authCredentials);
 
         if (newUserNames.size() == 0) {
-            throw new CredentialsException(new AuthczResult.DebugInfo(null, false, "No user name found", debugDetails));
+            throw new CredentialsException(new AuthcResult.DebugInfo(null, false, "No user name found", debugDetails));
         } else if (newUserNames.size() != 1) {
-            throw new CredentialsException(new AuthczResult.DebugInfo(null, false, "More than one candidate for the user name was found",
+            throw new CredentialsException(new AuthcResult.DebugInfo(null, false, "More than one candidate for the user name was found",
                     debugDetails.with("user_name_candidates", newUserNames)));
         }
 
@@ -109,7 +109,7 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
             try {
                 result.attributes(attributes);
             } catch (IllegalArgumentException e) {
-                throw new CredentialsException(new AuthczResult.DebugInfo(null, false, e.getMessage(), debugDetails), e);
+                throw new CredentialsException(new AuthcResult.DebugInfo(null, false, e.getMessage(), debugDetails), e);
             }
         }
 

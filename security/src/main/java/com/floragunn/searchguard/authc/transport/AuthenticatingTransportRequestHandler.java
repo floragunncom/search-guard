@@ -97,7 +97,7 @@ public class AuthenticatingTransportRequestHandler implements ComponentStateProv
                     ipAddressAcceptanceRules = authczConfig.getNetwork() != null ? authczConfig.getNetwork().getIpAddressAcceptanceRules()
                             : IPAddressAcceptanceRules.ANY;
                 } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                    TransportAuthcConfig authczConfig = legacyConfig.getCEntry("sg_config").getTransportAuthczConfig();
+                    TransportAuthcConfig authczConfig = legacyConfig.getCEntry("sg_config").getTransportAuthcConfig();
                     AuthenticatingTransportRequestHandler.this.authczConfig = authczConfig;
                     componentState.setState(State.INITIALIZED, "using_legacy_config");
                     componentState.setConfigVersion(legacyConfig.getDocVersion());

@@ -38,7 +38,7 @@ import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
-import com.floragunn.searchguard.authc.base.AuthczResult;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.base.RequestAuthenticationProcessor;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
@@ -70,7 +70,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
 
     @Override
     protected AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<HTTPAuthenticator> authenticationDomain,
-            Consumer<AuthczResult> onResult, Consumer<Exception> onFailure) {
+            Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
         HTTPAuthenticator authenticationFrontend = authenticationDomain.getFrontend();
 
         if (log.isTraceEnabled()) {
@@ -143,7 +143,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
     }
 
     @Override
-    protected AuthczResult handleChallenge() {
+    protected AuthcResult handleChallenge() {
 
         if (challenges.size() == 0) {
             return null;
@@ -153,7 +153,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
             log.debug("Sending WWW-Authenticate: " + String.join(", ", challenges));
         }
 
-        return AuthczResult.stop(RestStatus.UNAUTHORIZED, "Unauthorized", ImmutableMap.of("WWW-Authenticate", ImmutableList.of(challenges)),
+        return AuthcResult.stop(RestStatus.UNAUTHORIZED, "Unauthorized", ImmutableMap.of("WWW-Authenticate", ImmutableList.of(challenges)),
                 debug.get());
     }
 
