@@ -23,6 +23,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.http.HttpHost;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.config.Registry;
@@ -136,21 +137,20 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
         }
 
         String jwt = (String) authCredentials.getNativeCredentials();
-        HttpHost host = getSomeHost();
         HttpGet httpGet = new HttpGet("/_searchguard/auth/session/extended");
         httpGet.addHeader("Authorization", "bearer " + jwt);
 
         return PrivilegedCode.execute(
                 (PrivilegedSupplierThrowing2<CompletableFuture<AuthCredentials>, CredentialsException, AuthenticatorUnavailableException>) () -> {
-                    try (CloseableHttpResponse response = this.httpClient.execute(host, httpGet)) {
+                    try (CloseableHttpResponse response = executeWithRetry(httpGet)) {
                         if (response.getStatusLine().getStatusCode() == 401) {
-                            throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false, "Failed to authenticate with JWT at " + host,
-                                    ImmutableMap.of("host", host, "response_status", response.getStatusLine())));
+                            throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false, "Failed to authenticate with JWT",
+                                    ImmutableMap.of("response_status", response.getStatusLine())));
                         }
 
                         if (response.getStatusLine().getStatusCode() != 200) {
-                            throw new AuthenticatorUnavailableException("Authentication failed", "session cluster is unavailable").details("host",
-                                    host, "response_status", response.getStatusLine());
+                            throw new AuthenticatorUnavailableException("Authentication failed", "session cluster is unavailable")
+                                    .details("response_status", response.getStatusLine());
                         }
 
                         DocNode responseBody = DocNode.parse(Format.JSON).from(response.getEntity().getContent());
@@ -158,14 +158,14 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
 
                         if (user == null) {
                             throw new AuthenticatorUnavailableException("Authentication failed", "session cluster returned invalid result")
-                                    .details("host", host, "response_status", response.getStatusLine(), "response_body", responseBody.toJsonString());
+                                    .details("response_status", response.getStatusLine(), "response_body", responseBody.toJsonString());
                         }
 
                         String userName = user.getAsString("name");
 
                         if (userName == null) {
                             throw new AuthenticatorUnavailableException("Authentication failed", "session cluster returned invalid result")
-                                    .details("host", host, "response_status", response.getStatusLine(), "response_body", responseBody.toJsonString());
+                                    .details("response_status", response.getStatusLine(), "response_body", responseBody.toJsonString());
                         }
 
                         List<String> backendRoles = user.hasNonNull("backend_roles") ? user.getAsListOfStrings("backend_roles")
@@ -178,11 +178,9 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
                                 .searchGuardRoles(searchGuardRoles).attributes(attributes).build()));
 
                     } catch (IOException e) {
-                        throw new AuthenticatorUnavailableException("Authentication failed", "session cluster is unavailable", e).details("host",
-                                host);
+                        throw new AuthenticatorUnavailableException("Authentication failed", "session cluster is unavailable", e);
                     } catch (DocumentParseException e) {
-                        throw new AuthenticatorUnavailableException("Authentication failed", "session cluster returned invalid result", e)
-                                .details("host", host);
+                        throw new AuthenticatorUnavailableException("Authentication failed", "session cluster returned invalid result", e);
                     }
                 }, CredentialsException.class, AuthenticatorUnavailableException.class);
     }
@@ -218,13 +216,37 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
         return TYPE;
     }
 
-    private HttpHost getSomeHost() {
+    private CloseableHttpResponse executeWithRetry(HttpGet httpGet) throws ClientProtocolException, IOException {
         int hostCount = this.hosts.size();
 
         if (hostCount == 1) {
-            return this.hosts.get(0);
+            return this.httpClient.execute(this.hosts.get(0), httpGet);
         } else {
-            return this.hosts.get(ThreadLocalRandom.current().nextInt(hostCount));
+            int first = ThreadLocalRandom.current().nextInt(hostCount);
+
+            for (int i = 0; i < hostCount - 1; i++) {
+                int hostIndex = (i + first) % hostCount;
+
+                try {
+                    CloseableHttpResponse response = this.httpClient.execute(this.hosts.get(hostIndex), httpGet);
+
+                    if (response.getStatusLine().getStatusCode() < 500) {
+                        return response;
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Got status " + response.getStatusLine() + " while executing " + httpGet + ". Retrying with next host");
+                        }
+
+                        response.close();
+                    }
+                } catch (IOException e) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Got exception while executing " + httpGet + ". Retrying with next host", e);
+                    }
+                }
+            }
+
+            return this.httpClient.execute(this.hosts.get(first == 0 ? hostCount - 1 : first - 1), httpGet);
         }
     }
 
