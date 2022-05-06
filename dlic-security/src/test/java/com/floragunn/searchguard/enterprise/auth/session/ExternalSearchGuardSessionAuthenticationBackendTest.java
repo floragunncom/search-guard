@@ -21,6 +21,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
@@ -52,7 +53,10 @@ public class ExternalSearchGuardSessionAuthenticationBackendTest {
             new TestSgConfig()//
                     .authc(new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("jwt/external_session")
                             .frontend(DocNode.of("signing.jwks.keys", Arrays.asList(HS512_JWK), "required_audience", SESSION_JWT_AUDIENCE))
-                            .backend(DocNode.of("hosts", "#{var:session_hosts}", "tls.trust_all", true, "tls.verify_hostnames", false))))//
+                            .backend(DocNode.of("hosts",
+                                    ImmutableList.of("#{var:session_hosts}", "https://invalidhost.example.com:9200",
+                                            "https://invalidhost2.example.com:9200"),
+                                    "tls.trust_all", true, "tls.verify_hostnames", false))))//
                     .var("session_hosts", () -> sessionProvidingCluster.getHttpAddressAsURI().toString()))
             .singleNode().sslEnabled().enterpriseModulesEnabled().build();
 
