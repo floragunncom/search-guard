@@ -24,7 +24,7 @@ SG_VERSION="${1:-$SG_VERSION_PRE}"
 SGSF_VERSION="${2:-$SG_VERSION_PRE}"
 SG_REPOSITORY="${3:-search-guard-suite-alpha}"
 SG_PLUGIN_NAME="search-guard"
-SGCTL_VERSION="0.1.1"
+SGCTL_VERSION="0.2.5"
 
 if [[ $SG_VERSION =~ .*-os-.* ]]; then
   OS_VERSION=$(echo $SG_VERSION | cut -d- -f3)
@@ -45,7 +45,7 @@ else
   ES_VERSION=$(echo $SG_VERSION | cut -d- -f3)
   SB_NAME="Elasticsearch"
   SB_LC_NAME="elasticsearch"
-  SG_PLUGIN_NAME="search-guard-7"
+  SG_PLUGIN_NAME="search-guard-flx"
   SF_NAME="Kibana"
   SF_LC_NAME_CC="kibana"
   SF_LC_NAME="kibana" 

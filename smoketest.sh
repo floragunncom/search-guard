@@ -47,8 +47,8 @@ fi
 
 echo "Plugin installation"
 
-chmod +x elasticsearch-$ES_VERSION/plugins/search-guard-7/tools/install_demo_configuration.sh
-./elasticsearch-$ES_VERSION/plugins/search-guard-7/tools/install_demo_configuration.sh -y -i -c
+chmod +x elasticsearch-$ES_VERSION/plugins/search-guard-flx/tools/install_demo_configuration.sh
+./elasticsearch-$ES_VERSION/plugins/search-guard-flx/tools/install_demo_configuration.sh -y -i -c
 #ml does not work on cci anymore since 7.2 due to something related to https://github.com/elastic/elasticsearch/issues/41867
 echo "xpack.ml.enabled: false" >> ./elasticsearch-$ES_VERSION/config/elasticsearch.yml
 echo "ES starting up"
