@@ -14,13 +14,15 @@ if ! [ -x "$(command -v realpath)" ]; then
 else
     DIR="$( cd "$( dirname "$(realpath "$SCRIPT_PATH")" )" && pwd -P)"
 fi
-echo "Search Guard 7 Demo Installer"
+echo "Search Guard Demo Installer"
 echo " ** Warning: Do not use on production or public reachable systems **"
 
 OPTIND=1
 assumeyes=0
 initsg=0
 cluster_mode=0
+SGCTL_VERSION="0.2.5"
+SGCTL_LINK="https://maven.search-guard.com/search-guard-suite-release/com/floragunn/sgctl/$SGCTL_VERSION/sgctl-$SGCTL_VERSION.sh"
 
 function show_help() {
     echo "install_demo_configuration.sh [-y] [-i] [-c]"
@@ -165,16 +167,13 @@ fi
 ES_CONF_DIR=$(dirname "${ES_CONF_FILE}")
 ES_CONF_DIR=`cd "$ES_CONF_DIR" ; pwd`
 
-if [ ! -d "$ES_PLUGINS_DIR/search-guard-7" ]; then
+if [ ! -d "$ES_PLUGINS_DIR/search-guard-flx" ]; then
   echo "Search Guard plugin not installed. Quit."
   exit -1
 fi
 
 ES_VERSION=("$ES_LIB_PATH/elasticsearch-*.jar")
 ES_VERSION=$(echo $ES_VERSION | sed 's/.*elasticsearch-\(.*\)\.jar/\1/')
-
-SG_VERSION=("$ES_PLUGINS_DIR/search-guard-7/search-guard-7-*.jar")
-SG_VERSION=$(echo $SG_VERSION | sed 's/.*search-guard-7-\(.*\)\.jar/\1/')
 
 OS=$(sb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om)
 echo "Elasticsearch install type: $ES_INSTALL_TYPE on $OS"
@@ -184,7 +183,6 @@ echo "Elasticsearch bin dir: $ES_BIN_DIR"
 echo "Elasticsearch plugins dir: $ES_PLUGINS_DIR"
 echo "Elasticsearch lib dir: $ES_LIB_PATH"
 echo "Detected Elasticsearch Version: $ES_VERSION"
-echo "Detected Search Guard Version: $SG_VERSION"
 
 if $SUDO_CMD grep --quiet -i searchguard "$ES_CONF_FILE"; then
   echo "$ES_CONF_FILE seems to be already configured for Search Guard. Quit."
@@ -398,13 +396,6 @@ else
     fi
 fi
 
-#discovery.zen.minimum_master_nodes
-#if $SUDO_CMD grep --quiet -i "^discovery.zen.minimum_master_nodes" "$ES_CONF_FILE"; then
-#	: #already present
-#else
-#    echo "discovery.zen.minimum_master_nodes: 1" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-#fi
-
 #node.max_local_storage_nodes
 if $SUDO_CMD grep --quiet -i "^node.max_local_storage_nodes" "$ES_CONF_FILE"; then
 	: #already present
@@ -423,29 +414,47 @@ fi
 
 echo "######## End Search Guard Demo Configuration ########" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
 
-$SUDO_CMD chmod +x "$ES_PLUGINS_DIR/search-guard-7/tools/sgadmin.sh"
+$SUDO_CMD chmod +x "$ES_PLUGINS_DIR/search-guard-flx/tools/sgadmin.sh"
 
 ES_PLUGINS_DIR=`cd "$ES_PLUGINS_DIR" ; pwd`
 
+echo
+echo "Downloading sgctl from $SGCTL_LINK"
+curl --fail "$SGCTL_LINK" -o "$ES_PLUGINS_DIR/search-guard-flx/sgctl.sh"
+chmod u+x "$ES_PLUGINS_DIR/search-guard-flx/sgctl.sh"
+
+# Setup configuration for sgctl
+
+mkdir -p ~/.searchguard
+cat >~/.searchguard/cluster_demo.yml << EOM
+server: "localhost"
+port: 9200
+tls:
+  trusted_cas: "#{file:$ES_CONF_DIR/root-ca.pem}"
+  client_auth:
+    certificate: "#{file:$ES_CONF_DIR/kirk.pem}"
+    private_key: "#{file:$ES_CONF_DIR/kirk-key.pem}"
+EOM
+
+echo >~/.searchguard/sgctl-selected-config.txt demo
+
+
+
 echo "### Success"
 echo "### Execute this script now on all your nodes and then start all nodes"
-#Generate sgadmin_demo.sh
-echo "#!/bin/bash" | $SUDO_CMD tee sgadmin_demo.sh > /dev/null 
-echo $SUDO_CMD \""$ES_PLUGINS_DIR/search-guard-7/tools/sgadmin.sh"\" -cd \""$ES_PLUGINS_DIR/search-guard-7/sgconfig"\" -icl -key \""$ES_CONF_DIR/kirk-key.pem"\" -cert \""$ES_CONF_DIR/kirk.pem"\" -cacert \""$ES_CONF_DIR/root-ca.pem"\" -nhnv | $SUDO_CMD tee -a sgadmin_demo.sh > /dev/null
-$SUDO_CMD chmod +x sgadmin_demo.sh
 
 if [ "$initsg" == 0 ]; then
-	echo "### After the whole cluster is up execute: "
-	$SUDO_CMD cat sgadmin_demo.sh | tail -1
-	echo "### or run ./sgadmin_demo.sh"
-    echo "### After that you can also use the Search Guard Configuration GUI, see http://docs.search-guard.com/v6/configuration-gui"	
+	echo "### After the whole cluster is up, you need to initialize the Search Guard configuration. You can achieve this by executing: "
+	echo "### ./sgctl.sh update-config ../sgconfig/"
+	echo "### See https://git.floragunn.com/search-guard/sgctl/-/blob/main/README.md for more information on using sgctl"
+    echo "### After the initial initialization is complete, roles and users can be also edited using Search Guard Configuration GUI, see http://docs.search-guard.com/latest/configuration-gui"	
 else
     echo "### Search Guard will be automatically initialized."
     echo "### If you like to change the runtime configuration "
     echo "### change the files in ../sgconfig and execute: "
-	$SUDO_CMD cat sgadmin_demo.sh | tail -1
-	echo "### or run ./sgadmin_demo.sh"
-	echo "### To use the Search Guard Configuration GUI see http://docs.search-guard.com/v6/configuration-gui"
+	echo "### ./sgctl.sh update-config ../sgconfig/"
+	echo "### See https://git.floragunn.com/search-guard/sgctl/-/blob/main/README.md for more information on using sgctl"
+    echo "### Roles and users can be also edited using Search Guard Configuration GUI, see http://docs.search-guard.com/latest/configuration-gui"	
 fi
 
 echo "### To access your Search Guard secured cluster open https://<hostname>:<HTTP port> and log in with admin/admin."

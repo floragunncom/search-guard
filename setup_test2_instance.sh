@@ -53,7 +53,7 @@ for param in "$@"
 do
 	if [[ "$param" =~ .*/sg_[^/]+\.yml ]]; then
 		echo "Using config file $param"
-		cp -v $param ./plugins/search-guard-7/sgconfig/
+		cp -v $param ./plugins/search-guard-flx/sgconfig/
 	fi 	
 done
 
@@ -241,9 +241,9 @@ EOM
 echo >~/.searchguard/sgctl-selected-config.txt test2
 
 echo "#!/bin/bash" >$INSTALL_DIR/sgadmin_demo.sh  
-echo \""$INSTALL_DIR/plugins/search-guard-7/tools/sgadmin.sh"\" -cd \""$INSTALL_DIR/plugins/search-guard-7/sgconfig"\" -icl -key \""$INSTALL_DIR/config/kirk-key.pem"\" -cert \""$INSTALL_DIR/config/kirk.pem"\" -cacert \""$INSTALL_DIR/config/root-ca.pem"\" -nhnv >> $INSTALL_DIR/sgadmin_demo.sh   
+echo \""$INSTALL_DIR/plugins/search-guard-flx/tools/sgadmin.sh"\" -cd \""$INSTALL_DIR/plugins/search-guard-flx/sgconfig"\" -icl -key \""$INSTALL_DIR/config/kirk-key.pem"\" -cert \""$INSTALL_DIR/config/kirk.pem"\" -cacert \""$INSTALL_DIR/config/root-ca.pem"\" -nhnv >> $INSTALL_DIR/sgadmin_demo.sh   
 chmod u+x $INSTALL_DIR/sgadmin_demo.sh    
-chmod u+x $INSTALL_DIR/plugins/search-guard-7/tools/sgadmin.sh
+chmod u+x $INSTALL_DIR/plugins/search-guard-flx/tools/sgadmin.sh
   
 echo "Starting ES"
 
