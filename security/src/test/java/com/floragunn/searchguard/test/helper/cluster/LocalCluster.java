@@ -294,7 +294,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 String key = String.valueOf(settings[i]);
                 Object value = settings[i + 1];
 
-                nodeOverrideSettingsBuilder.put(key, String.valueOf(value));
+                if (value instanceof List) {
+                    List<String> values = ((List<?>) value).stream().map(String::valueOf).collect(Collectors.toList());
+                    nodeOverrideSettingsBuilder.putList(key, values);
+                } else {
+                    nodeOverrideSettingsBuilder.put(key, String.valueOf(value));
+                }
             }
 
             return this;

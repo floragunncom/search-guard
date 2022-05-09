@@ -141,6 +141,10 @@ public class FileHelper {
         fw.close();
     }
 
+    public static String loadFileFromFileSystem(final String file) throws IOException {
+        return FileUtils.readFileToString(new File(file), StandardCharsets.UTF_8);
+    }
+
     public static BytesReference readYamlContent(final String file) {
 
         try (XContentParser parser = XContentFactory.xContent(XContentType.YAML).createParser(NamedXContentRegistry.EMPTY,
