@@ -20,13 +20,10 @@ package com.floragunn.searchguard.user;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -35,6 +32,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.jayway.jsonpath.JsonPath;
@@ -564,10 +562,16 @@ public final class AuthCredentials implements UserInformation {
         return attributesForUserMapping;
     }
 
-    public AuthCredentials attributesForUserMapping(ImmutableMap<String, Object> attributesForUserMapping) {
+    public AuthCredentials userMappingAttributes(ImmutableMap<String, Object> attributesForUserMapping) {
         return new AuthCredentials(username, subUserName, authDomainInfo, password, nativeCredentials, backendRoles, searchGuardRoles, complete,
                 authzComplete, internalPasswordHash, structuredAttributes, attributes, this.attributesForUserMapping.with(attributesForUserMapping),
                 claims, redirectUri);
+    }
+
+    public AuthCredentials userMappingAttribute(String key, Object value) {
+        return new AuthCredentials(username, subUserName, authDomainInfo, password, nativeCredentials, backendRoles, searchGuardRoles, complete,
+                authzComplete, internalPasswordHash, structuredAttributes, attributes, this.attributesForUserMapping.with(key, value), claims,
+                redirectUri);
     }
 
     public ImmutableSet<String> getSearchGuardRoles() {
@@ -593,7 +597,7 @@ public final class AuthCredentials implements UserInformation {
             return ImmutableMap.of(map2);
         }
 
-        HashMap<String, Object> result = new HashMap<String, Object>(map1);
+        ImmutableMap.Builder<String, Object> result = new ImmutableMap.Builder<String, Object>(map1);
 
         for (Map.Entry<String, Object> entry : map2.entrySet()) {
             String key = entry.getKey();
@@ -604,19 +608,15 @@ public final class AuthCredentials implements UserInformation {
                 result.put(key, value2);
             } else if (value1 instanceof Collection && value2 instanceof Collection) {
                 if (value1 instanceof Set) {
-                    Set<Object> newValue = new HashSet<>((Set<?>) value1);
-                    newValue.addAll((Collection<?>) value2);
-                    result.put(key, newValue);
+                    result.put(key, ImmutableSet.of((Collection<Object>) value1).with((Collection<?>) value2));
                 } else {
-                    List<Object> newValue = new ArrayList<>((Collection<?>) value1);
-                    newValue.addAll((Collection<?>) value2);
-                    result.put(key, newValue);
+                    result.put(key, ImmutableList.of((Collection<Object>) value1).with((Collection<?>) value2));
                 }
             } else if (value1 instanceof Map && value2 instanceof Map) {
                 result.put(key, mergeMaps((Map<String, Object>) value1, (Map<String, Object>) value2));
             }
         }
 
-        return ImmutableMap.of(result);
+        return result.build();
     }
 }

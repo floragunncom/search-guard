@@ -59,7 +59,7 @@ import com.unboundid.ldap.sdk.SimpleBindRequest;
 public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInformationBackend, Destroyable {
 
     public static final String TYPE = "ldap";
-    
+
     protected static final Logger log = LogManager.getLogger(LDAPAuthenticationBackend.class);
 
     private final LDAPConnectionManager connectionManager;
@@ -71,7 +71,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     private final boolean fakeLoginEnabled;
     private final String fakeLoginDn;
     private final byte[] fakeLoginPassword;
-    
+
     private final ComponentState componentState = new ComponentState(0, "authentication_backend", TYPE, LDAPAuthenticationBackend.class).initialized()
             .requiresEnterpriseLicense();
 
@@ -129,12 +129,12 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
                     e);
         }
 
-        AuthCredentials.Builder resultBuilder = credentials.copy();
+        AuthCredentials updatedCredentials = credentials.userMappingAttribute("ldap_user_entry", entryToMap(entry));
 
-        resultBuilder.userMappingAttribute("ldap_user_entry", entryToMap(entry));
+        AuthCredentials.Builder resultBuilder = updatedCredentials.copy();
 
         if (groupSearch != null) {
-            Set<Entry> groupEntries = searchGroups(entry, credentials);
+            Set<Entry> groupEntries = searchGroups(entry, updatedCredentials);
 
             resultBuilder.userMappingAttribute("ldap_group_entries", ImmutableList.map(groupEntries, (e) -> entryToMap(e)));
             resultBuilder.backendRoles(extractRoles(groupEntries));
@@ -151,12 +151,12 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
             return CompletableFuture.completedFuture(null);
         }
 
-        AuthCredentials.Builder resultBuilder = userInformation.copy();
+        AuthCredentials updatedCredentials = userInformation.userMappingAttribute("ldap_user_entry", entryToMap(entry));
 
-        resultBuilder.userMappingAttribute("ldap_user_entry", entryToMap(entry));
+        AuthCredentials.Builder resultBuilder = updatedCredentials.copy();
 
         if (groupSearch != null) {
-            Set<Entry> groupEntries = searchGroups(entry, userInformation);
+            Set<Entry> groupEntries = searchGroups(entry, updatedCredentials);
 
             resultBuilder.userMappingAttribute("ldap_group_entries", ImmutableList.map(groupEntries, (e) -> entryToMap(e)));
             resultBuilder.backendRoles(extractRoles(groupEntries));
@@ -210,7 +210,8 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         } catch (LDAPException e) {
             throw new AuthenticatorUnavailableException("Error connecting to LDAP backend", e.getMessage(), e);
         } catch (ExpressionEvaluationException e) {
-            throw new AuthenticatorUnavailableException("Configuration error", "Error while constructing filter: " + e.getMessage(), e);
+            throw new AuthenticatorUnavailableException("Configuration error", "Error while constructing filter: " + e.getMessage(), e)
+                    .details("user_mapping_attributes", credentials.getAttributesForUserMapping());
         }
     }
 
@@ -259,7 +260,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     public ComponentState getComponentState() {
         return componentState;
     }
-    
+
     public static Collection<TypedComponent.Info<?>> INFOS = ImmutableList.of(new TypedComponent.Info<AuthenticationBackend>() {
 
         @Override

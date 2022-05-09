@@ -143,7 +143,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
                 }
             }
 
-            ac = ac.attributesForUserMapping(ImmutableMap.of("request", ImmutableMap.of("headers", restRequest.getHeaders(), "direct_ip_address",
+            ac = ac.userMappingAttributes(ImmutableMap.of("request", ImmutableMap.of("headers", restRequest.getHeaders(), "direct_ip_address",
                     String.valueOf(request.getDirectIpAddress()), "originating_ip_address", String.valueOf(request.getOriginatingIpAddress()))));
 
             return proceed(ac, authenticationDomain, onResult, onFailure);
