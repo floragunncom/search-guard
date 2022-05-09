@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -250,7 +251,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 String key = String.valueOf(settings[i]);
                 Object value = settings[i + 1];
 
-                nodeOverrideSettingsBuilder.put(key, String.valueOf(value));
+                if (value instanceof List) {
+                    List<String> values = ((List<?>) value).stream().map(String::valueOf).collect(Collectors.toList());
+                    nodeOverrideSettingsBuilder.putList(key, values);
+                } else {
+                    nodeOverrideSettingsBuilder.put(key, String.valueOf(value));
+                }
             }
 
             return this;
