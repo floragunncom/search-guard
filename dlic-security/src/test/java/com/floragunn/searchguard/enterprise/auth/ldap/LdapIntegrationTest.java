@@ -59,7 +59,7 @@ public class LdapIntegrationTest {
             .userpassword("karlottas-secret").objectClass("inetOrgPerson");
 
     static TestLdapDirectory.Entry THORE = new TestLdapDirectory.Entry("cn=Thore,ou=people,o=TEST").cn("Thore").uid("tho").userpassword("tho-secret")
-            .objectClass("inetOrgPerson").attr("departmentnumber", "a", "b");
+            .objectClass("inetOrgPerson").attr("departmentnumber", "a", "b").attr("businessCategory", "bc_1");
 
     static TestLdapDirectory.Entry PAUL = new TestLdapDirectory.Entry("cn=Paul,ou=people,o=TEST").cn("Paul").uid("paule").userpassword("p-secret")
             .objectClass("inetOrgPerson");
@@ -73,6 +73,9 @@ public class LdapIntegrationTest {
     static TestLdapDirectory.Entry STD_ACCESS_GROUP = new TestLdapDirectory.Entry("cn=std_access,ou=groups,o=TEST").cn("std_access")
             .objectClass("groupOfUniqueNames").uniqueMember(THORE);
 
+    static TestLdapDirectory.Entry BUSINESS_CATEGORY_1_GROUP = new TestLdapDirectory.Entry("cn=bc_1,ou=groups,o=TEST").cn("bc_1")
+            .objectClass("groupOfUniqueNames").attr("businessCategory", "bc_1");
+
     static TestLdapDirectory.Entry RECURSIVE_GROUP_1 = new TestLdapDirectory.Entry("cn=recursive1,ou=groups,o=TEST").cn("recursive1")
             .objectClass("groupOfUniqueNames").attr("businessCategory", "c").uniqueMember(PAUL, TILDA_ADDITIONAL_USER_INFORMATION_ENTRY);
 
@@ -83,7 +86,8 @@ public class LdapIntegrationTest {
             .objectClass("groupOfUniqueNames").attr("businessCategory", "e").uniqueMember(RECURSIVE_GROUP_1);
 
     static TestLdapServer tlsLdapServer = TestLdapServer.with(TestLdapDirectory.BASE, KARLOTTA, THORE, PAUL, TILDA_ADDITIONAL_USER_INFORMATION_ENTRY,
-            ALL_ACCESS_GROUP, STD_ACCESS_GROUP, RECURSIVE_GROUP_1, RECURSIVE_GROUP_2, RECURSIVE_GROUP_3).tls(ldapServerCertificate).build();
+            ALL_ACCESS_GROUP, STD_ACCESS_GROUP, RECURSIVE_GROUP_1, RECURSIVE_GROUP_2, RECURSIVE_GROUP_3, BUSINESS_CATEGORY_1_GROUP)
+            .tls(ldapServerCertificate).build();
 
     static TestSgConfig.User TILDA_ADDITIONAL_USER_INFORMATION_USER = new TestSgConfig.User("tilda_additional_user_information")
             .roles(new TestSgConfig.Role("role").clusterPermissions("*"));
@@ -126,6 +130,20 @@ public class LdapIntegrationTest {
                     .userMapping(new UserMapping()//
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
                             .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //   
+            new Authc.Domain("basic/ldap")//
+                    .backend(DocNode.of(//
+                            "idp.hosts", "#{var:ldapHost}", //
+                            "idp.tls.trusted_cas", certificatesContext.getCaCertificate().getCertificateString(), //
+                            "idp.tls.verify_hostnames", false, //
+                            "user_search.filter.by_attribute", "uid", //
+                            "group_search.base_dn", TestLdapDirectory.GROUPS.getDn(), //
+                            "group_search.filter.raw", "(businessCategory=${ldap_user_entry.businessCategory})", //
+                            "group_search.role_name_attribute", "dn", //
+                            "group_search.recursive.enabled", true))
+                    .acceptIps("127.0.0.18")//
+                    .userMapping(new UserMapping()//
+                            .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
+                            .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //                    
             new Authc.Domain("basic/internal_users_db")//
                     .additionalUserInformation(new AdditionalUserInformation("ldap", DocNode.of(//
                             "idp.hosts", "#{var:ldapHost}", //
@@ -168,7 +186,7 @@ public class LdapIntegrationTest {
                     XContentType.JSON)).actionGet();
         }
     }
-    
+
     @Test
     public void roles() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(KARLOTTA)) {
@@ -176,17 +194,29 @@ public class LdapIntegrationTest {
 
             GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), Arrays.asList("cn=all_access,ou=groups,o=TEST"), response.getBodyAsDocNode().get("backend_roles"));
+            Assert.assertEquals(response.getBody(), Arrays.asList("cn=all_access,ou=groups,o=TEST"),
+                    response.getBodyAsDocNode().get("backend_roles"));
         }
     }
 
-    
     @Test
     public void roles_rawQuery() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(KARLOTTA)) {
             GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), Arrays.asList("cn=all_access,ou=groups,o=TEST"), response.getBodyAsDocNode().get("backend_roles"));
+            Assert.assertEquals(response.getBody(), Arrays.asList("cn=all_access,ou=groups,o=TEST"),
+                    response.getBodyAsDocNode().get("backend_roles"));
+        }
+    }
+
+    @Test
+    public void roles_groupSearchWithLdapEntry() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(THORE)) {
+            client.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 18 }));
+
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), Arrays.asList("cn=bc_1,ou=groups,o=TEST"), response.getBodyAsDocNode().get("backend_roles"));
         }
     }
 
