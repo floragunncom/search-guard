@@ -194,6 +194,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
             ac = authenticationDomain.getCredentialsMapper().mapCredentials(ac);
         } catch (CredentialsException e) {
             log.warn("Error while mapping auth credentials for " + authenticationDomain, e);
+            debug.add(authenticationDomain.getType(), e.getDebugInfo());
             ac.clearSecrets();
 
             return AuthDomainState.SKIP;
@@ -205,7 +206,8 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
             if (log.isDebugEnabled()) {
                 log.debug("Skipped authentication of user {}", ac.getUsername());
             }
-
+            debug.failure(authenticationDomain.getType(), "User was skipped because of access/skip settings of auth domain", "user_name",
+                    ac.getUsername());
             ac.clearSecrets();
 
             return AuthDomainState.SKIP;
