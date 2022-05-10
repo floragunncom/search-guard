@@ -130,6 +130,10 @@ public abstract class AuthenticationDebugLogger {
         }
     }
 
+    public void add(String authcMethod, AuthcResult.DebugInfo debugInfo) {
+        add(new AuthcResult.DebugInfo(authcMethod, debugInfo.isSuccess(), debugInfo.getMessage(), debugInfo.getDetails()));
+    }
+
     public static class Active extends AuthenticationDebugLogger {
 
         private final List<AuthcResult.DebugInfo> list = new ArrayList<>();

@@ -21,10 +21,13 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.authc.CredentialsException;
+import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.google.common.collect.ImmutableMap;
 
 public class HTTPTrustedOriginAuthenticator implements HTTPAuthenticator {
 
@@ -34,11 +37,12 @@ public class HTTPTrustedOriginAuthenticator implements HTTPAuthenticator {
 
     }
 
-    public AuthCredentials extractCredentials(RestRequest restRequest, ThreadContext threadContext) {
+    public AuthCredentials extractCredentials(RestRequest restRequest, ThreadContext threadContext) throws CredentialsException {
         if (threadContext.getTransient(ConfigConstants.SG_XFF_DONE) == Boolean.TRUE) {
             return AuthCredentials.forUser("n/a").authenticatorType(getType()).complete().build();
         } else {
-            return null;
+            throw new CredentialsException(new AuthcResult.DebugInfo("trusted_origin", false, "Connecting IP is not trusted",
+                    ImmutableMap.of("direct_ip_address", String.valueOf(restRequest.getHttpChannel().getRemoteAddress().getAddress()))));
         }
     }
 
