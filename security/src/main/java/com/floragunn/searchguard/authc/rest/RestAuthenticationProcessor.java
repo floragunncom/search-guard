@@ -88,7 +88,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
         public Default(RestAuthcConfig config, SearchGuardModulesRegistry modulesRegistry, AdminDNs adminDns, BlockedIpRegistry blockedIpRegistry,
                 BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool, PrivilegesEvaluator privilegesEvaluator) {
             this.authcConfig = config;
-            this.authenticationDomains = authcConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
+            this.authenticationDomains = modulesRegistry.getImplicitHttpAuthenticationDomains().with(authcConfig.getAuthenticators());
             this.clientAddressAscertainer = ClientAddressAscertainer.create(authcConfig.getNetwork());
             this.ipAddressAcceptanceRules = authcConfig.getNetwork() != null ? authcConfig.getNetwork().getIpAddressAcceptanceRules()
                     : IPAddressAcceptanceRules.ANY;
