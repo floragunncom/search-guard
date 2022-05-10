@@ -82,7 +82,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
             BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool,
             PrivilegesEvaluator privilegesEvaluator) {
         this.authcConfig = legacyConfig.getRestAuthcConfig();
-        this.authenticationDomains = authcConfig.getAuthenticators().with(modulesRegistry.getImplicitHttpAuthenticationDomains());
+        this.authenticationDomains = modulesRegistry.getImplicitHttpAuthenticationDomains().with(authcConfig.getAuthenticators());
         this.clientAddressAscertainer = ClientAddressAscertainer.create(authcConfig.getNetwork());
         this.ipAddressAcceptanceRules = IPAddressAcceptanceRules.ANY;
 

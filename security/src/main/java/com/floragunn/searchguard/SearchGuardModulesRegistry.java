@@ -189,7 +189,7 @@ public class SearchGuardModulesRegistry {
         return result;
     }
 
-    public List<AuthenticationDomain<HTTPAuthenticator>> getImplicitHttpAuthenticationDomains() {
+    public ImmutableList<AuthenticationDomain<HTTPAuthenticator>> getImplicitHttpAuthenticationDomains() {
         ImmutableList.Builder<AuthenticationDomain<HTTPAuthenticator>> result = new ImmutableList.Builder<>();
 
         for (SearchGuardModule module : modules) {
