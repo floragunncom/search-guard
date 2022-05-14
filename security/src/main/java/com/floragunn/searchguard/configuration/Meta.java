@@ -3,7 +3,6 @@ package com.floragunn.searchguard.configuration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 
@@ -31,7 +30,6 @@ public class Meta implements Document<Meta> {
         this.config_version = config_version;
     }
 
-    @JsonIgnore
     public CType<?> getCType() {
         return cType;
     }

@@ -20,6 +20,7 @@ import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -72,7 +73,7 @@ public class RolesApiTest {
             HttpResponse response = adminClient.putJson("_searchguard/api/roles/dup",
                     "{ \"cluster_permissions\": [\"*\"], \"cluster_permissions\": [\"*\"] }");
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            Assert.assertTrue(response.getBody().contains("JsonParseException"));
+            Assert.assertTrue(response.getBody(), response.getBody().contains("is defined more than once"));
         }
     }
 
@@ -93,7 +94,7 @@ public class RolesApiTest {
             HttpResponse response = adminClient.putJson("_searchguard/api/roles/dup",
                     "{ \"invalid\"::{{ [\"*\"], \"cluster_permissions\": [\"*\"] }");
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            Assert.assertTrue(response.getBody().contains("JsonParseException"));
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Invalid JSON document"));
         }
     }
 

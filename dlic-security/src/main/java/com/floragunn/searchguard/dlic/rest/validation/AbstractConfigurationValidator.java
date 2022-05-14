@@ -36,8 +36,11 @@ import org.elasticsearch.xcontent.XContentType;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -101,7 +104,7 @@ public abstract class AbstractConfigurationValidator {
 
     protected final Object[] param;
 
-    private JsonNode contentAsNode;
+    private DocNode contentAsNode;
 
     public AbstractConfigurationValidator(final RestRequest request, final BytesReference ref, final Settings esSettings, Object... param) {
         this.content = ref;
@@ -111,7 +114,7 @@ public abstract class AbstractConfigurationValidator {
         this.param = param;
     }
 
-    public JsonNode getContentAsNode() {
+    public DocNode getContentAsNode() {
         return contentAsNode;
     }
 
@@ -132,12 +135,12 @@ public abstract class AbstractConfigurationValidator {
         if (this.payloadMandatory && content.length() > 0) {
 
             try {
-                if (DefaultObjectMapper.readTree(content.utf8ToString()).size() == 0) {
+                if (DocReader.json().readObject(content.utf8ToString()).size() == 0) {
                     this.errorType = ErrorType.PAYLOAD_MANDATORY;
                     return false;
                 }
 
-            } catch (IOException e) {
+            } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
                 log.error(ErrorType.BODY_NOT_PARSEABLE.toString(), validationError(e));
                 this.errorType = ErrorType.BODY_NOT_PARSEABLE;
                 lastException = validationError(e);
@@ -153,14 +156,14 @@ public abstract class AbstractConfigurationValidator {
         // try to parse payload
         Set<String> requested = new HashSet<String>();
         try {
-            contentAsNode = DefaultObjectMapper.readTree(content.utf8ToString());
+            contentAsNode = DocNode.parse(Format.JSON).from(content.utf8ToString());
             
-            if (contentAsNode == null || contentAsNode.isMissingNode()) {
+            if (contentAsNode == null || contentAsNode.isNull()) {
                 this.errorType = ErrorType.BODY_NOT_PARSEABLE;
                 return false;
              }
             
-            requested.addAll(ImmutableList.copyOf(contentAsNode.fieldNames()));
+            requested.addAll(ImmutableList.copyOf(contentAsNode.keySet()));
         } catch (Exception e) {
             log.error(ErrorType.BODY_NOT_PARSEABLE.toString(), e);
             this.errorType = ErrorType.BODY_NOT_PARSEABLE;
@@ -203,7 +206,7 @@ public abstract class AbstractConfigurationValidator {
         return valid;
     }
 
-    protected Exception validationError(IOException e) {
+    protected Exception validationError(Exception e) {
         return e;
     }
 

@@ -30,7 +30,6 @@ import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationResult;
@@ -75,9 +74,9 @@ public class LicenseApiAction extends AbstractApiAction {
     }
 
     @Override
-    protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+    protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
 
-        String licenseString = new SgJsonNode(content).get("sg_license").asString();
+        String licenseString = content.getAsString("sg_license");
 
         if (licenseString == null || licenseString.length() == 0) {
             badRequestResponse(channel, "License must not be null.");

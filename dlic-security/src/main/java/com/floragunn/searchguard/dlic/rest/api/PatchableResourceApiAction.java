@@ -22,8 +22,9 @@ import static org.elasticsearch.rest.RestRequest.Method.PUT;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,13 +43,12 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.flipkart.zjsonpatch.JsonPatch;
-import com.flipkart.zjsonpatch.JsonPatchApplicationException;
-import com.floragunn.codova.documents.jackson.JacksonJsonNodeAdapter;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocUpdateException;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.patch.DocPatch;
+import com.floragunn.codova.documents.patch.JsonPatch;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -56,7 +56,6 @@ import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -90,38 +89,28 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
         String name = request.param("name");
         SgDynamicConfiguration<?> existingConfiguration;
-		try {
-			existingConfiguration = load(getConfigName(), false);
-		} catch (ConfigUnavailableException e1) {
-			internalErrorResponse(channel, e1.getMessage());
-			return;
-		}
+        try {
+            existingConfiguration = load(getConfigName(), false);
+        } catch (ConfigUnavailableException e1) {
+            internalErrorResponse(channel, e1.getMessage());
+            return;
+        }
 
-        JsonNode jsonPatch;
+        DocPatch jsonPatch;
 
         try {
-            jsonPatch = DefaultObjectMapper.readTree(request.content().utf8ToString());
-        } catch (IOException e) {
+            jsonPatch = DocPatch.parse(JsonPatch.MEDIA_TYPE, request.content().utf8ToString());
+        } catch (ConfigValidationException e) {
             log.debug("Error while parsing JSON patch", e);
-            badRequestResponse(channel, "Error in JSON patch: " + e.getMessage());
+            badRequestResponse(channel, "Error in JSON patch:\n" + e.toString());
             return;
         }
-
-        existingConfiguration.resetUninterpolatedJson();
-        JsonNode existingAsJsonNode = Utils.convertJsonToJackson(existingConfiguration, true);
-
-        if (!(existingAsJsonNode instanceof ObjectNode)) {
-            internalErrorResponse(channel, "Config " + getConfigName() + " is malformed");
-            return;
-        }
-
-        ObjectNode existingAsObjectNode = (ObjectNode) existingAsJsonNode;
 
         try {
             if (Strings.isNullOrEmpty(name)) {
-                handleBulkPatch(channel, request, client, existingConfiguration, existingAsObjectNode, jsonPatch);
+                handleBulkPatch(channel, request, client, existingConfiguration, jsonPatch);
             } else {
-                handleSinglePatch(channel, request, client, name, existingConfiguration, existingAsObjectNode, jsonPatch);
+                handleSinglePatch(channel, request, client, name, existingConfiguration, jsonPatch);
             }
         } catch (ConfigValidationException e) {
             Responses.sendError(channel, e);
@@ -129,7 +118,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     }
 
     private void handleSinglePatch(RestChannel channel, RestRequest request, Client client, String name,
-            SgDynamicConfiguration<?> existingConfiguration, ObjectNode existingAsObjectNode, JsonNode jsonPatch) throws IOException, ConfigValidationException {
+            SgDynamicConfiguration<?> existingConfiguration, DocPatch jsonPatch) throws IOException, ConfigValidationException {
         if (isHidden(existingConfiguration, name)) {
             notFound(channel, getResourceName() + " " + name + " not found.");
             return;
@@ -145,33 +134,34 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             return;
         }
 
-        JsonNode existingResourceAsJsonNode = existingAsObjectNode.get(name);
-        
-        ((ObjectNode) existingResourceAsJsonNode).remove("hidden");
-        ((ObjectNode) existingResourceAsJsonNode).remove("reserved");
-
-        JsonNode patchedResourceAsJsonNode;
+        Document<?> existingResource = (Document<?>) existingConfiguration.getCEntry(name);
+        DocNode existingResourceDocNode = existingResource.toDocNode().splitDottedAttributeNamesToTree();
+        DocNode patchedResourceAsDocNode;
 
         try {
-            patchedResourceAsJsonNode = applyPatch(jsonPatch, existingResourceAsJsonNode);
-        } catch (JsonPatchApplicationException | IllegalArgumentException e) {
+            patchedResourceAsDocNode = jsonPatch.apply(existingResourceDocNode);
+        } catch (DocUpdateException e) {
             log.debug("Error while applying JSON patch", e);
             badRequestResponse(channel, e.getMessage());
             return;
         }
 
-        AbstractConfigurationValidator originalValidator = postProcessApplyPatchResult(channel, request, existingResourceAsJsonNode,
-                patchedResourceAsJsonNode, name);
-
-        if (originalValidator != null) {
-            if (!originalValidator.validate()) {
-                request.params().clear();
-                badRequestResponse(channel, originalValidator);
-                return;
-            }
+        patchedResourceAsDocNode = postProcessApplyPatchResult(channel, request, existingResourceDocNode,
+                patchedResourceAsDocNode, name);
+        
+        if (patchedResourceAsDocNode.getBoolean("hidden") == Boolean.FALSE) {
+            patchedResourceAsDocNode = patchedResourceAsDocNode.without("hidden");
         }
 
-        AbstractConfigurationValidator validator = getValidator(request, patchedResourceAsJsonNode);
+        if (patchedResourceAsDocNode.getBoolean("reserved") == Boolean.FALSE) {
+            patchedResourceAsDocNode = patchedResourceAsDocNode.without("reserved");
+        }
+
+        if (patchedResourceAsDocNode.getBoolean("static") == Boolean.FALSE) {
+            patchedResourceAsDocNode = patchedResourceAsDocNode.without("static");
+        }
+
+        AbstractConfigurationValidator validator = getValidator(request, patchedResourceAsDocNode);
 
         if (!validator.validate()) {
             request.params().clear();
@@ -179,9 +169,10 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             return;
         }
 
-        JsonNode updatedAsJsonNode = existingAsObjectNode.deepCopy().set(name, patchedResourceAsJsonNode);
-
-        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(new JacksonJsonNodeAdapter(updatedAsJsonNode), null,
+        Map<String, Object> updated = new LinkedHashMap<>(existingConfiguration.toDocNode().toMap());
+        updated.put(name, patchedResourceAsDocNode.toBasicObject());
+        
+        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(DocNode.wrap(updated), null,
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
                 existingConfiguration.getPrimaryTerm(), null);
 
@@ -196,33 +187,28 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     }
 
     private void handleBulkPatch(RestChannel channel, RestRequest request, Client client, SgDynamicConfiguration<?> existingConfiguration,
-            ObjectNode existingAsObjectNode, JsonNode jsonPatch) throws IOException, ConfigValidationException {
+            DocPatch jsonPatch) throws IOException, ConfigValidationException {
 
+        LinkedHashMap<String, Object> patchBase = new LinkedHashMap<>(existingConfiguration.getCEntries().size());
+         
         for (String resourceName : existingConfiguration.getCEntries().keySet()) {
-            ObjectNode oldResource = (ObjectNode) existingAsObjectNode.get(resourceName);
-            if (oldResource != null) {
-                if (oldResource.get("hidden") != null && !oldResource.get("hidden").booleanValue()) {
-                    ((ObjectNode) oldResource).remove("hidden");
-                }
-                if (oldResource.get("reserved") != null && !oldResource.get("reserved").booleanValue()) {
-                    ((ObjectNode) oldResource).remove("reserved");
-                }
-            }
+            Document<?> oldResource = (Document<?>) existingConfiguration.getCEntries().get(resourceName);            
+            patchBase.put(resourceName, oldResource.toDocNode().splitDottedAttributeNamesToTree().toBasicObject());
         }
-        
-        JsonNode patchedAsJsonNode;
+
+        DocNode patchedAsDocNode;
 
         try {
-            patchedAsJsonNode = applyPatch(jsonPatch, existingAsObjectNode);
-        } catch (JsonPatchApplicationException e) {
+            patchedAsDocNode = jsonPatch.apply(DocNode.wrap(patchBase));
+        } catch (DocUpdateException e) {
             log.debug("Error while applying JSON patch", e);
             badRequestResponse(channel, e.getMessage());
             return;
         }
 
         for (String resourceName : existingConfiguration.getCEntries().keySet()) {
-            JsonNode oldResource = existingAsObjectNode.get(resourceName);
-            JsonNode patchedResource = patchedAsJsonNode.get(resourceName);
+            Object oldResource = patchBase.get(resourceName);
+            Object patchedResource = patchedAsDocNode.get(resourceName);
 
             if (oldResource != null && !oldResource.equals(patchedResource)) {
 
@@ -235,29 +221,29 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                     badRequestResponse(channel, "Resource name '" + resourceName + "' is reserved");
                     return;
                 }
-                
-
             }
         }
 
-        for (Iterator<String> fieldNamesIter = patchedAsJsonNode.fieldNames(); fieldNamesIter.hasNext();) {
-            String resourceName = fieldNamesIter.next();
+        for (String resourceName : patchedAsDocNode.keySet()) {
+            DocNode oldResource = DocNode.wrap(patchBase.get(resourceName));
+            DocNode patchedResource = DocNode.wrap(patchedAsDocNode.get(resourceName));
 
-            JsonNode oldResource = existingAsObjectNode.get(resourceName);
-            JsonNode patchedResource = patchedAsJsonNode.get(resourceName);
-
-            AbstractConfigurationValidator originalValidator = postProcessApplyPatchResult(channel, request, oldResource, patchedResource,
+            patchedResource = postProcessApplyPatchResult(channel, request, oldResource, patchedResource,
                     resourceName);
 
-            if (originalValidator != null) {
-                if (!originalValidator.validate()) {
-                    request.params().clear();
-                    badRequestResponse(channel, originalValidator);
-                    return;
-                }
-            }
-
             if (oldResource == null || !oldResource.equals(patchedResource)) {
+                if (patchedResource.getBoolean("hidden") == Boolean.FALSE) {
+                    patchedResource = patchedResource.without("hidden");
+                }
+
+                if (patchedResource.getBoolean("reserved") == Boolean.FALSE) {
+                    patchedResource = patchedResource.without("reserved");
+                }
+
+                if (patchedResource.getBoolean("static") == Boolean.FALSE) {
+                    patchedResource = patchedResource.without("static");
+                }
+                
                 AbstractConfigurationValidator validator = getValidator(request, patchedResource);
 
                 if (!validator.validate()) {
@@ -268,7 +254,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             }
         }
 
-        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(new JacksonJsonNodeAdapter(patchedAsJsonNode), null,
+        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(patchedAsDocNode, null,
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
                 existingConfiguration.getPrimaryTerm(), null);
 
@@ -282,14 +268,10 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
     }
 
-    private JsonNode applyPatch(JsonNode jsonPatch, JsonNode existingResourceAsJsonNode) {
-        return JsonPatch.apply(jsonPatch, existingResourceAsJsonNode);
-    }
-
-    protected AbstractConfigurationValidator postProcessApplyPatchResult(RestChannel channel, RestRequest request,
-            JsonNode existingResourceAsJsonNode, JsonNode updatedResourceAsJsonNode, String resourceName) {
+    protected DocNode postProcessApplyPatchResult(RestChannel channel, RestRequest request,
+            DocNode existingResourceAsJsonNode, DocNode updatedResourceAsJsonNode, String resourceName) throws ConfigValidationException {
         // do nothing by default
-        return null;
+        return updatedResourceAsJsonNode;
     }
 
     @Override
@@ -302,9 +284,8 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         }
     }
 
-    private AbstractConfigurationValidator getValidator(RestRequest request, JsonNode patchedResource) throws JsonProcessingException {
-        BytesReference patchedResourceAsByteReference = new BytesArray(
-                DefaultObjectMapper.objectMapper.writeValueAsString(patchedResource).getBytes(StandardCharsets.UTF_8));
+    private AbstractConfigurationValidator getValidator(RestRequest request, DocNode patchedResource) throws JsonProcessingException {
+        BytesReference patchedResourceAsByteReference = new BytesArray(patchedResource.toJsonString().getBytes(StandardCharsets.UTF_8));
         return getValidator(request, patchedResourceAsByteReference);
     }
 }

@@ -1,7 +1,6 @@
 package com.floragunn.signals.support;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Array;
 import java.net.URI;
 import java.net.URL;
@@ -10,13 +9,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.google.common.collect.MapMaker;
 
 public class NestedValueMap extends HashMap<String, Object> {
@@ -105,12 +105,8 @@ public class NestedValueMap extends HashMap<String, Object> {
         return result;
     }
 
-    public static NestedValueMap fromJsonString(String jsonString) throws IOException {
-        return NestedValueMap.copy(DefaultObjectMapper.readValue(jsonString, Map.class));
-    }
-
-    public static NestedValueMap fromJsonArrayString(String jsonString) throws IOException {
-        return NestedValueMap.copy(DefaultObjectMapper.readValue(jsonString, List.class));
+    public static NestedValueMap fromJsonString(String jsonString) throws DocumentParseException, UnexpectedDocumentStructureException {
+        return NestedValueMap.copy(DocReader.json().readObject(jsonString));
     }
 
     public Object put(String key, Map<?, ?> data) {

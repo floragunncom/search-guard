@@ -29,7 +29,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
@@ -69,7 +69,7 @@ public class FlushCacheApiAction extends AbstractApiAction {
     }
 
     @Override
-    protected void handleDelete(RestChannel channel, RestRequest request, Client client, final JsonNode content) throws IOException {
+    protected void handleDelete(RestChannel channel, RestRequest request, Client client, final DocNode content) throws IOException {
 
         client.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0])),
                 new ActionListener<ConfigUpdateResponse>() {
@@ -97,17 +97,17 @@ public class FlushCacheApiAction extends AbstractApiAction {
     }
 
     @Override
-    protected void handlePost(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+    protected void handlePost(RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
         notImplemented(channel, Method.POST);
     }
 
     @Override
-    protected void handleGet(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+    protected void handleGet(RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
         notImplemented(channel, Method.GET);
     }
 
     @Override
-    protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+    protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
         notImplemented(channel, Method.PUT);
     }
 

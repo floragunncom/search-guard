@@ -7,7 +7,6 @@ import java.util.stream.Collectors;
 import org.elasticsearch.script.TemplateScript;
 import org.elasticsearch.xcontent.ToXContentObject;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.signals.execution.WatchExecutionContext;
 
 public abstract class WatchElement implements ToXContentObject {
@@ -32,14 +31,6 @@ public abstract class WatchElement implements ToXContentObject {
         }
 
         return null;
-    }
-
-    public <T> T getChildByNameAndType(Class<T> type, JsonNode jsonNode) {
-        if (jsonNode == null) {
-            return null;
-        }
-
-        return getChildByNameAndType(type, jsonNode.asText());
     }
 
     public String getName() {

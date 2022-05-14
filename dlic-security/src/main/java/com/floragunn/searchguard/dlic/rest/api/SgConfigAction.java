@@ -29,7 +29,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
@@ -78,7 +78,7 @@ public class SgConfigAction extends PatchableResourceApiAction {
     }
 
 	@Override
-	protected void handleGet(RestChannel channel, RestRequest request, Client client, final JsonNode content)
+	protected void handleGet(RestChannel channel, RestRequest request, Client client, final DocNode content)
 			throws IOException {
 
 		try {
@@ -103,7 +103,7 @@ public class SgConfigAction extends PatchableResourceApiAction {
     }
 
     @Override
-    protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+    protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
         if (allowPutOrPatch) {
             // Consume unused name param
             request.param("name");
@@ -115,12 +115,12 @@ public class SgConfigAction extends PatchableResourceApiAction {
     }
 
     @Override
-    protected void handlePost(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+    protected void handlePost(RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
         notImplemented(channel, Method.POST);
     }
 
     @Override
-    protected void handleDelete(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+    protected void handleDelete(RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
         notImplemented(channel, Method.DELETE);
     }
 

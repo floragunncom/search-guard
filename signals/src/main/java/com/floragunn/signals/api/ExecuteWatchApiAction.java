@@ -17,11 +17,11 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.ScriptService;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchAction;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchRequest;
@@ -69,7 +69,7 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
                     requestBody.isShowAllRuntimeAttributes());
 
             if (requestBody.getInput() != null) {
-                executeWatchRequest.setInputJson(DefaultObjectMapper.writeValueAsString(requestBody.getInput(), false));
+                executeWatchRequest.setInputJson(DocWriter.json().writeAsString(requestBody.getInput()));
             }
 
             executeWatchRequest.setGoTo(requestBody.getGoTo());

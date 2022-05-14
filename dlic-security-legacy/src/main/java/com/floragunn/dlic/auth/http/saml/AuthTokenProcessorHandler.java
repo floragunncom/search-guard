@@ -59,9 +59,9 @@ import org.xml.sax.SAXException;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.google.common.base.Strings;
 import com.onelogin.saml2.authn.SamlResponse;
@@ -202,25 +202,25 @@ class AuthTokenProcessorHandler {
 
             BytesReference bytesReference = restRequest.requiredContent();
 
-            JsonNode jsonRoot = DefaultObjectMapper.objectMapper.readTree(BytesReference.toBytes(bytesReference));
+            DocNode jsonRoot = DocNode.parse(Format.JSON).from(BytesReference.toBytes(bytesReference));
 
-            if (!(jsonRoot instanceof ObjectNode)) {
+            if (!jsonRoot.isMap()) {
                 throw new JsonParseException(null, "Unexpected json format: " + jsonRoot);
             }
 
-            if (((ObjectNode) jsonRoot).get("SAMLResponse") == null) {
+            if (jsonRoot.get("SAMLResponse") == null) {
                 log.warn("SAMLResponse is missing from request ");
 
                 throw new ElasticsearchSecurityException("SAMLResponse is missing from request", RestStatus.BAD_REQUEST);
 
             }
 
-            String samlResponseBase64 = ((ObjectNode) jsonRoot).get("SAMLResponse").asText();
-            String samlRequestId = ((ObjectNode) jsonRoot).get("RequestId") != null ? ((ObjectNode) jsonRoot).get("RequestId").textValue() : null;
+            String samlResponseBase64 = jsonRoot.getAsString("SAMLResponse");
+            String samlRequestId = jsonRoot.get("RequestId") != null ? jsonRoot.getAsString("RequestId") : null;
             String acsEndpoint = saml2Settings.getSpAssertionConsumerServiceUrl().toString();
 
-            if (((ObjectNode) jsonRoot).get("acsEndpoint") != null && ((ObjectNode) jsonRoot).get("acsEndpoint").textValue() != null) {
-                acsEndpoint = getAbsoluteAcsEndpoint(((ObjectNode) jsonRoot).get("acsEndpoint").textValue());
+            if (jsonRoot.get("acsEndpoint") != null) {
+                acsEndpoint = getAbsoluteAcsEndpoint(jsonRoot.getAsString("acsEndpoint"));
             }
 
             AuthTokenProcessorAction.Response responseBody = this.handleImpl(restRequest, restChannel, samlResponseBase64, samlRequestId, acsEndpoint,
@@ -230,13 +230,11 @@ class AuthTokenProcessorHandler {
                 return false;
             }
 
-            String responseBodyString = DefaultObjectMapper.objectMapper.writeValueAsString(responseBody);
-
-            BytesRestResponse authenticateResponse = new BytesRestResponse(RestStatus.OK, "application/json", responseBodyString);
+            BytesRestResponse authenticateResponse = new BytesRestResponse(RestStatus.OK, "application/json", responseBody.toJsonString());
             restChannel.sendResponse(authenticateResponse);
 
             return true;
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException | DocumentParseException e) {
             log.warn("Error while parsing JSON for /_searchguard/api/authtoken", e);
 
             BytesRestResponse authenticateResponse = new BytesRestResponse(RestStatus.BAD_REQUEST, "JSON could not be parsed");
@@ -498,23 +496,22 @@ class AuthTokenProcessorHandler {
         try {
             BytesReference bytesReference = restRequest.requiredContent();
 
-            JsonNode jsonRoot = AccessController.doPrivileged(
-                    (PrivilegedExceptionAction<JsonNode>) () -> DefaultObjectMapper.objectMapper.readTree(BytesReference.toBytes(bytesReference)));
+            DocNode jsonRoot = DocNode.parse(Format.JSON).from(BytesReference.toBytes(bytesReference));
 
-            if (!(jsonRoot instanceof ObjectNode)) {
+            if (!jsonRoot.isMap()) {
                 throw new ElasticsearchSecurityException("Unexpected json format: " + jsonRoot, RestStatus.BAD_REQUEST);
             }
 
-            if (((ObjectNode) jsonRoot).get("SAMLResponse") == null) {
+            if (jsonRoot.get("SAMLResponse") == null) {
                 log.warn("SAMLResponse is missing from request ");
 
                 throw new ElasticsearchSecurityException("SAMLResponse is missing from request", RestStatus.BAD_REQUEST);
 
             }
 
-            return jsonRoot.get("SAMLResponse").textValue();
+            return jsonRoot.getAsString("SAMLResponse");
 
-        } catch (PrivilegedActionException e) {
+        } catch (DocumentParseException e) {
             throw new ElasticsearchSecurityException("Bad Request: " + e, RestStatus.BAD_REQUEST);
         }
     }

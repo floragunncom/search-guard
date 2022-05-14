@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.test.helper.cluster;
 
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
@@ -73,7 +75,7 @@ class SgConfigUpdater {
                 throw new RuntimeException("ConfigUpdateResponse produced failures: " + configUpdateResponse.failures());
             }
 
-        } catch (IOException e) {
+        } catch (IOException | DocumentParseException | UnexpectedDocumentStructureException e) {
             throw new RuntimeException(e);
         }
     }

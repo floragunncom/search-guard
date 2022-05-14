@@ -1,7 +1,5 @@
 package com.floragunn.signals.actions.settings.put;
 
-import java.io.IOException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -15,9 +13,9 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.signals.Signals;
 
 public class TransportPutSettingsAction extends HandledTransportAction<PutSettingsRequest, PutSettingsResponse> {
@@ -60,8 +58,8 @@ public class TransportPutSettingsAction extends HandledTransportAction<PutSettin
     private Object getParsedValue(PutSettingsRequest request) throws ConfigValidationException {
         if (request.isValueJson()) {
             try {
-               return DefaultObjectMapper.objectMapper.readValue(request.getValue(), Object.class);
-            } catch (IOException e) {
+               return DocReader.json().read(request.getValue());
+            } catch (ConfigValidationException e) {
                 throw new ConfigValidationException(new ValidationError(request.getKey(), e.getMessage()).cause(e));
             }
         } else {

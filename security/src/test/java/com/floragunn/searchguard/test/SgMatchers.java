@@ -1,6 +1,5 @@
 package com.floragunn.searchguard.test;
 
-import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -8,14 +7,16 @@ import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
 
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.DocumentParseException;
 
 public class SgMatchers {
     public static DiagnosingMatcher<String> equalsAsJson(Object expectedObjectStructure) {
         Object rewrittenExpectedObjectStructure;
 
         try {
-            rewrittenExpectedObjectStructure = parseJson(DefaultObjectMapper.writeValueAsString(expectedObjectStructure, false));
+            rewrittenExpectedObjectStructure = parseJson(DocWriter.json().writeAsString(expectedObjectStructure));
         } catch (Exception e1) {
             throw new RuntimeException(e1);
         }
@@ -38,7 +39,7 @@ public class SgMatchers {
 
                 try {
                     parsedItem = parseJson((String) item);
-                } catch (IOException e) {
+                } catch (DocumentParseException e) {
                     mismatchDescription.appendValue(item).appendText(" is not valid JSON: " + e);
                     return false;
                 }
@@ -100,11 +101,11 @@ public class SgMatchers {
         }
     }
 
-    private static Object parseJson(String json) throws IOException {
+    private static Object parseJson(String json) throws DocumentParseException {
         if (json == null) {
             return null;
         }
-
-        return DefaultObjectMapper.readValue(json, Object.class);
+        
+        return DocReader.json().read(json);
     }
 }

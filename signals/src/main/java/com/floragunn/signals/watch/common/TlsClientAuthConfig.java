@@ -20,7 +20,6 @@ import org.bouncycastle.pkcs.PKCSException;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -67,7 +66,7 @@ public class TlsClientAuthConfig implements ToXContentObject {
             validationErrors.add("certificate", e);
         }
 
-        this.authKey = this.parsePrivateKey(this.inlineAuthKey, "private_key", null, this.inlineAuthKeyPassword, validationErrors);
+        this.authKey = this.parsePrivateKey(this.inlineAuthKey, "private_key", this.inlineAuthKeyPassword, validationErrors);
         this.effectiveKeyPassword = PemKeyReader.randomChars(12);
 
         try {
@@ -77,7 +76,7 @@ public class TlsClientAuthConfig implements ToXContentObject {
         }
     }
 
-    private PrivateKey parsePrivateKey(String pem, String attribute, JsonNode jsonNode, String keyPassword, ValidationErrors validationErrors) {
+    private PrivateKey parsePrivateKey(String pem, String attribute, String keyPassword, ValidationErrors validationErrors) {
         if (pem == null) {
             return null;
         }
@@ -87,7 +86,7 @@ public class TlsClientAuthConfig implements ToXContentObject {
         try {
             return PemKeyReader.toPrivateKey(inputStream, keyPassword);
         } catch (IOException | OperatorCreationException | PKCSException e) {
-            validationErrors.add(new InvalidAttributeValue(attribute, pem, "Private key in PEM file", jsonNode).cause(e));
+            validationErrors.add(new InvalidAttributeValue(attribute, pem, "Private key in PEM file", null).cause(e));
             return null;
         }
     }

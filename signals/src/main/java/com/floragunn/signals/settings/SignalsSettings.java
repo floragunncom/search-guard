@@ -26,14 +26,14 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.config.temporal.ConstantDurationExpression;
 import com.floragunn.codova.config.temporal.DurationExpression;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.signals.SignalsInitializationException;
 import com.floragunn.signals.actions.settings.update.SettingsUpdateAction;
@@ -299,13 +299,8 @@ public class SignalsSettings {
         public void updateIndex(Client client, String key, Object value) throws ConfigValidationException {
 
             if (value != null) {
-                String json;
-                try {
-                    json = DefaultObjectMapper.objectMapper.writeValueAsString(value);
-                } catch (JsonProcessingException e) {
-                    throw new RuntimeException(e);
-                }
-
+                String json = DocWriter.json().writeAsString(value);
+                
                 PrivilegedConfigClient.adapt(client)
                         .index(new IndexRequest(indexName).id(key).source("value", json).setRefreshPolicy(RefreshPolicy.IMMEDIATE)).actionGet();
             } else {
@@ -326,17 +321,16 @@ public class SignalsSettings {
                     if (hit.getSourceAsMap().get("value") != null) {
                         try {
                             String json = hit.getSourceAsMap().get("value").toString();
-                            JsonNode jsonNode = DefaultObjectMapper.readTree(json);
+                            DocNode jsonNode = DocNode.parse(Format.JSON).from(json);
 
-                            if (jsonNode.isArray()) {
+                            if (jsonNode.isList()) {
                                 List<String> list = new ArrayList<>();
-                                for (JsonNode subNode : jsonNode) {
-                                    list.add(subNode.asText());
+                                for (DocNode subNode : jsonNode.toListOfNodes()) {
+                                    list.add(subNode.toString());
                                 }
                                 newDynamicSettings.putList(hit.getId(), list);
-
                             } else {
-                                newDynamicSettings.put(hit.getId(), jsonNode.asText());
+                                newDynamicSettings.put(hit.getId(), jsonNode.toString());
                             }
                         } catch (Exception e) {
                             log.error("Error while parsing setting " + hit, e);

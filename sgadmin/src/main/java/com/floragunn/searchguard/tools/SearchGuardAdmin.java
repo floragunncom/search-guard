@@ -96,8 +96,9 @@ import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.xcontent.json.JsonXContent;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateNodeResponse;
@@ -1276,15 +1277,15 @@ public class SearchGuardAdmin {
         return (success?0:-1);
     }
     
-    private static String readTypeFromFile(File file) throws IOException {
+    private static String readTypeFromFile(File file) throws IOException, DocumentParseException {
         if(!file.exists() || !file.isFile()) {
             System.out.println("ERR: No such file "+file.getAbsolutePath());
             return null;
         }
-        final JsonNode jsonNode = DefaultObjectMapper.YAML_MAPPER.readTree(file);
+        final DocNode jsonNode = DocNode.parse(Format.YAML).from(file);
         
         if (jsonNode.hasNonNull("_sg_meta")) {
-            return jsonNode.get("_sg_meta").hasNonNull("type") ? jsonNode.get("_sg_meta").get("type").asText() : null;
+            return jsonNode.getAsNode("_sg_meta").hasNonNull("type") ? jsonNode.getAsNode("_sg_meta").getAsString("type") : null;
         } else {
             return null;
         }

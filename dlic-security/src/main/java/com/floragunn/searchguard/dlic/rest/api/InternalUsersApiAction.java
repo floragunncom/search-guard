@@ -18,7 +18,9 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
@@ -32,15 +34,11 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentType;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUser;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
@@ -51,6 +49,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
+import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator.ErrorType;
 import com.floragunn.searchguard.dlic.rest.validation.InternalUsersValidator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -78,7 +77,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
     }
 
     @Override
-    protected void handlePut(RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+    protected void handlePut(RestChannel channel, final RestRequest request, final Client client, DocNode content) throws IOException {
 
         final String username = request.param("name");
 
@@ -109,19 +108,15 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
             return;
         }
         
-        final ObjectNode contentAsNode = (ObjectNode) content;
-        final SgJsonNode sgJsonNode = new SgJsonNode(contentAsNode);
-        
         // if password is set, it takes precedence over hash
-        final String plainTextPassword = sgJsonNode.get("password").asString();
-        final String origHash = sgJsonNode.get("hash").asString();
+        final String plainTextPassword = content.getAsString("password");
+        final String origHash = content.getAsString("hash");
         if (plainTextPassword != null && plainTextPassword.length() > 0) {
-            contentAsNode.remove("password");
-            contentAsNode.put("hash", hash(plainTextPassword.toCharArray()));
+            content = content.without("password").with(DocNode.of("hash", hash(plainTextPassword.toCharArray())));
         } else if(origHash != null && origHash.length() > 0) {
-            contentAsNode.remove("password");
+            content = content.without("password");
         } else if(plainTextPassword != null && plainTextPassword.isEmpty() && origHash == null) {
-            contentAsNode.remove("password");
+            content = content.without("password");
         }
         
         // check if user exists
@@ -139,13 +134,13 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         // changes
 
         // sanity checks, hash is mandatory for newly created users
-        if (!userExisted && sgJsonNode.get("hash").asString() == null) {
+        if (!userExisted && content.get("hash") == null) {
             badRequestResponse(channel, "Please specify either 'hash' or 'password' when creating a new internal user.");
             return;
         }
 
         // for existing users, hash is optional
-        if (userExisted && sgJsonNode.get("hash").asString() == null) {
+        if (userExisted && content.get("hash") == null) {
             // sanity check, this should usually not happen
             final String hash = internaluser.getCEntry(username).getPasswordHash();
             if (hash == null || hash.length() == 0) {
@@ -153,10 +148,10 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
                         "Existing user " + username + " has no password, and no new password or hash was specified.");
                 return;
             }
-            contentAsNode.put("hash", hash);
+            content = content.with(DocNode.of("hash", hash));
         }
 
-        String newJson = DefaultObjectMapper.writeJsonTree(contentAsNode);
+        String newJson = content.toJsonString();
         
         internaluser.remove(username);
 
@@ -185,28 +180,27 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
     }
     
     @Override
-    protected AbstractConfigurationValidator postProcessApplyPatchResult(RestChannel channel, RestRequest request, JsonNode existingResourceAsJsonNode,
-            JsonNode updatedResourceAsJsonNode, String resourceName) {
-    	AbstractConfigurationValidator retVal = null;
-        JsonNode passwordNode = updatedResourceAsJsonNode.get("password");
+    protected DocNode postProcessApplyPatchResult(RestChannel channel, RestRequest request, DocNode existingResourceAsJsonNode,
+            DocNode updatedResourceAsJsonNode, String resourceName) throws ConfigValidationException {
+        String plainTextPassword = updatedResourceAsJsonNode.getAsString("password");
 
-        if (passwordNode != null) {
-            String plainTextPassword = passwordNode.asText();
-            try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
-				builder.startObject();
-				builder.field("password", plainTextPassword);
-				builder.endObject();
-				retVal = getValidator(request, BytesReference.bytes(builder), resourceName);
-			} catch (IOException e) {
-				log.error(e);
-			}
-
-            ((ObjectNode) updatedResourceAsJsonNode).remove("password");
-            ((ObjectNode) updatedResourceAsJsonNode).set("hash", new TextNode(hash(plainTextPassword.toCharArray())));
-            return retVal;
+        if (plainTextPassword != null) {
+            Map<String, Object> updatedResource = new LinkedHashMap<>(updatedResourceAsJsonNode.toMap());
+            
+            String userName = resourceName;
+            
+            ErrorType error = InternalUsersValidator.validatePassword(userName, plainTextPassword, settings);
+            
+            if (error != null) {
+                throw new ConfigValidationException(new ValidationError("password", error.getMessage()));
+            }            
+            
+            updatedResource.remove("password");
+            updatedResource.put("hash", hash(plainTextPassword.toCharArray()));
+            return DocNode.wrap(updatedResource);
+        } else {
+            return updatedResourceAsJsonNode;
         }
-        
-        return null;
     }
 
     public static String hash(final char[] clearTextPassword) {

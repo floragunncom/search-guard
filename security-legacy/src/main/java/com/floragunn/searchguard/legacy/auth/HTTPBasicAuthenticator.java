@@ -27,7 +27,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
@@ -106,11 +105,11 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
         ValidationErrors validationErrors = new ValidationErrors();
 
         if (request.get("user") == null) {
-            validationErrors.add(new MissingAttribute("user", (JsonNode) null));
+            validationErrors.add(new MissingAttribute("user", null));
         }
 
         if (request.get("password") == null) {
-            validationErrors.add(new MissingAttribute("password", (JsonNode) null));
+            validationErrors.add(new MissingAttribute("password", null));
         }
 
         validationErrors.throwExceptionForPresentErrors();
