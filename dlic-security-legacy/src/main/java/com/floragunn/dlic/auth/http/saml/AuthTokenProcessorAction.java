@@ -23,8 +23,10 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 
+import com.floragunn.codova.documents.Document;
 import com.floragunn.searchsupport.client.rest.Responses;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 @Deprecated
 public class AuthTokenProcessorAction extends BaseRestHandler {
@@ -53,7 +55,7 @@ public class AuthTokenProcessorAction extends BaseRestHandler {
         };
     }
 
-    public static class Response {
+    public static class Response implements Document<Response> {
         private String authorization;
 
         public String getAuthorization() {
@@ -62,6 +64,11 @@ public class AuthTokenProcessorAction extends BaseRestHandler {
 
         public void setAuthorization(String authorization) {
             this.authorization = authorization;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap.of("authorization", authorization);
         }
     }
 

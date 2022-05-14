@@ -46,12 +46,10 @@ import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
-import com.floragunn.codova.documents.jackson.JacksonJsonNodeAdapter;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationResult;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateNodeResponse;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
@@ -146,7 +144,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
        
 	}
 
-	protected void handleDelete(final RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+	protected void handleDelete(final RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
 		final String name = request.param("name");
 
 		if (name == null || name.length() == 0) {
@@ -190,7 +188,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	}
 
 	@SuppressWarnings("unchecked")
-    protected void handlePut(String name, RestChannel channel, RestRequest request, Client client, JsonNode content) throws IOException {
+    protected void handlePut(String name, RestChannel channel, RestRequest request, Client client, DocNode content) throws IOException {
 		
 		SgDynamicConfiguration<Object> existingConfiguration;
 		try {
@@ -217,19 +215,14 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		boolean existed = existingConfiguration.exists(name);
 		Parser.ReturningValidationResult<?, ConfigurationRepository.Context> parser = getConfigName().getParser();
 		
-		if (parser != null) {
-		    ValidationResult<?> validatedConfig = parser.parse(new JacksonJsonNodeAdapter(content), cl.getParserContext());
-		    
-		    try {
-                existingConfiguration.putCEntry(name, validatedConfig.get());
-            } catch (ConfigValidationException e) {
-                badRequestResponse(channel, e.toJsonString());
-                return;
-            }
-		} else {
-	        existingConfiguration.putCEntry(name, DefaultObjectMapper.readTree(content, existingConfiguration.getImplementingClass()));		    
-		}
-		
+        ValidationResult<?> validatedConfig = parser.parse(content, cl.getParserContext());
+
+        try {
+            existingConfiguration.putCEntry(name, validatedConfig.get());
+        } catch (ConfigValidationException e) {
+            badRequestResponse(channel, e.toJsonString());
+            return;
+        }		
 		
 		saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<IndexResponse>(channel) {
 
@@ -246,7 +239,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		
 	}
 	
-	protected void handlePut(final RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+	protected void handlePut(final RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
         
         final String name = request.param("name");
 
@@ -258,11 +251,11 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         handlePut(name, channel, request, client, content);        
     }
 
-	protected void handlePost(final RestChannel channel, final RestRequest request, final Client client, final JsonNode content) throws IOException {
+	protected void handlePost(final RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
 		notImplemented(channel, Method.POST);
 	}
 
-	protected void handleGet(final RestChannel channel, RestRequest request, Client client, final JsonNode content)
+	protected void handleGet(final RestChannel channel, RestRequest request, Client client, final DocNode content)
 	        throws IOException{
 	    
 		final String resourcename = request.param("name");

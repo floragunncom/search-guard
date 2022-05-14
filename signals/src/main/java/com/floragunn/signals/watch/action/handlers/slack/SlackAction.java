@@ -3,6 +3,7 @@ package com.floragunn.signals.watch.action.handlers.slack;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
@@ -16,14 +17,11 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.TemplateScript;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.SimulationMode;
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -59,25 +57,17 @@ public class SlackAction extends ActionHandler {
         this.channelScript = watchInitService.compileTemplate("channel", slackActionConf.getChannel(), validationErrors);
 
         if (slackActionConf.getBlocks() != null) {
-            try {
-                this.blocksScript = watchInitService.compileTemplate("blocks",
-                        DefaultObjectMapper.writeValueAsString(slackActionConf.getBlocks(), false), validationErrors);
-            } catch (JsonProcessingException e) {
-                validationErrors.add(new ValidationError("blocks", "Reading blocks failed with " + e));
-            }
+            this.blocksScript = watchInitService.compileTemplate("blocks", DocWriter.json().writeAsString(slackActionConf.getBlocks()),
+                    validationErrors);
         }
 
         if (slackActionConf.getAttachments() != null) {
-            try {
-                this.attachmentScript = watchInitService.compileTemplate("attachments",
-                        DefaultObjectMapper.writeValueAsString(slackActionConf.getAttachments(), false), validationErrors);
-            } catch (JsonProcessingException e) {
-                validationErrors.add(new ValidationError("attachments", "Reading attachments failed with " + e));
-            }
+            this.attachmentScript = watchInitService.compileTemplate("attachments", DocWriter.json().writeAsString(slackActionConf.getAttachments()),
+                    validationErrors);
         }
 
         if (textScript == null && blocksScript == null && attachmentScript == null) {
-            validationErrors.add(new MissingAttribute("text", DefaultObjectMapper.objectMapper.valueToTree(slackActionConf)));
+            validationErrors.add(new MissingAttribute("text", slackActionConf.toJsonString()));
         }
 
         validationErrors.throwExceptionForPresentErrors();
@@ -131,53 +121,47 @@ public class SlackAction extends ActionHandler {
     }
 
     private String createSlackRequestBody(WatchExecutionContext ctx) {
-        try {
-            String text = render(ctx, textScript);
-            String username = render(ctx, fromScript);
-            String icon = render(ctx, iconScript);
-            String channel = render(ctx, channelScript);
-            String blocks = render(ctx, blocksScript);
-            String attachments = render(ctx, attachmentScript);
+        String text = render(ctx, textScript);
+        String username = render(ctx, fromScript);
+        String icon = render(ctx, iconScript);
+        String channel = render(ctx, channelScript);
+        String blocks = render(ctx, blocksScript);
+        String attachments = render(ctx, attachmentScript);
 
-            ObjectNode document = DefaultObjectMapper.objectMapper.createObjectNode();
+        Map<String, Object> document = new LinkedHashMap<>();
 
-            if (channel != null) {
-                document.put("channel", channel);
-            }
-
-            if (username != null) {
-                document.put("username", username);
-            }
-
-            // serves as a safe default if blocks is defined as well
-            if (text != null) {
-                document.put("text", text);
-            }
-
-            if (blocks != null) {
-                document.put("blocks", blocks);
-            }
-
-            if (attachments != null) {
-                document.put("attachments", attachments);
-            }
-
-            if (icon != null) {
-                document.put("icon_emoji", icon);
-            }
-
-            return DefaultObjectMapper.writeValueAsString(document, false);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+        if (channel != null) {
+            document.put("channel", channel);
         }
+
+        if (username != null) {
+            document.put("username", username);
+        }
+
+        // serves as a safe default if blocks is defined as well
+        if (text != null) {
+            document.put("text", text);
+        }
+
+        if (blocks != null) {
+            document.put("blocks", blocks);
+        }
+
+        if (attachments != null) {
+            document.put("attachments", attachments);
+        }
+
+        if (icon != null) {
+            document.put("icon_emoji", icon);
+        }
+
+        return DocWriter.json().writeAsString(document);
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-
         @SuppressWarnings("unchecked")
-        final Map<String, Object> slackActionConfMap = (Map<String, Object>) DefaultObjectMapper.convertValue(slackActionConf,
-                DefaultObjectMapper.getTypeFactory().constructParametricType(Map.class, String.class, Object.class), true);
+        final Map<String, Object> slackActionConfMap = (Map<String, Object>) slackActionConf.toBasicObject();
 
         for (Entry<String, Object> entry : slackActionConfMap.entrySet()) {
             if (entry.getKey() != null) {
@@ -205,8 +189,8 @@ public class SlackAction extends ActionHandler {
             slackActionConf.setText(vJsonNode.get("text").asString());
 
             if (vJsonNode.hasNonNull("blocks")) {
-                slackActionConf
-                        .setBlocks(vJsonNode.getDocumentNode().getAsListOfNodes("blocks").stream().map((b) -> b.toMap()).collect(Collectors.toList()));
+                slackActionConf.setBlocks(
+                        vJsonNode.getDocumentNode().getAsListOfNodes("blocks").stream().map((b) -> b.toMap()).collect(Collectors.toList()));
 
             }
 

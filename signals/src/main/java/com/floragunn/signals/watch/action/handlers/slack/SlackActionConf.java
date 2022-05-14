@@ -1,16 +1,15 @@
 package com.floragunn.signals.watch.action.handlers.slack;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.List;
 import java.util.Map;
+
+import com.floragunn.codova.documents.Document;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
 
 //bad name for this class
 //this is the runtime part for email config (that is stored alongside the watch and refers to the destination so that  account = <document id of Destination>)
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class SlackActionConf {
+public class SlackActionConf implements Document<SlackActionConf> {
 
     private String account;
     private String from;
@@ -18,8 +17,6 @@ public class SlackActionConf {
     private String text;
     private List<Map<String, ?>> blocks;
     private List<Map<String, ?>> attachments;
-
-    @JsonProperty(value = "icon_emoji")
     private String iconEmoji;
 
     public String getAccount() {
@@ -76,5 +73,20 @@ public class SlackActionConf {
 
     public void setAttachments(List<Map<String, ?>> attachments) {
         this.attachments = attachments;
+    }
+
+    @Override
+    public Object toBasicObject() {
+        OrderedImmutableMap<String, Object> result = OrderedImmutableMap.ofNonNull("account", account, "from", from, "channel", channel, "text", text, "icon_emoji", iconEmoji);
+
+        if (blocks != null && !blocks.isEmpty()) {
+            result = result.with("blocks", blocks);
+        }
+        
+        if (attachments != null && !attachments.isEmpty()) {
+            result = result.with("attachments", attachments);
+        }
+        
+        return result;
     }
 }

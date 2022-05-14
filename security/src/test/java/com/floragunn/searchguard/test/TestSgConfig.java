@@ -48,6 +48,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.patch.MergePatch;
 import com.floragunn.fluent.collections.ImmutableList;
@@ -501,7 +502,7 @@ public class TestSgConfig {
     public static NestedValueMap fromYaml(String yamlString) {
         try {
             return NestedValueMap.fromYaml(yamlString);
-        } catch (IOException e) {
+        } catch (IOException | DocumentParseException e) {
             throw new RuntimeException(e);
         }
     }

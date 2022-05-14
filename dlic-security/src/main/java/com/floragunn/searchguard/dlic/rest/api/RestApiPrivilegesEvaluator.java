@@ -30,15 +30,19 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -146,7 +150,7 @@ public class RestApiPrivilegesEvaluator {
 
 		final Map<Endpoint, List<Method>> disabledEndpoints = new HashMap<Endpoint, List<Method>>();
 		
-		Map<String, Object> disabledEndpointsSettings = Utils.convertJsonToxToStructuredMap(settings);
+		Map<String, Object> disabledEndpointsSettings = convertJsonToxToStructuredMap(settings);
 
 		for (Entry<String, Object> value : disabledEndpointsSettings.entrySet()) {
 			// key is the endpoint, see if it is a valid one
@@ -204,6 +208,18 @@ public class RestApiPrivilegesEvaluator {
 		}
 		return disabledEndpoints;
 	}
+	
+    private static Map<String, Object> convertJsonToxToStructuredMap(ToXContent jsonContent) {
+        Map<String, Object> map = null;
+        try {
+            final BytesReference bytes = XContentHelper.toXContent(jsonContent, XContentType.JSON, false);
+            map = XContentHelper.convertToMap(bytes, false, XContentType.JSON).v2();
+        } catch (IOException e1) {
+            throw ExceptionsHelper.convertToElastic(e1);
+        }
+
+        return map;
+    }
 
 	/**
 	 * Check if the current request is allowed to use the REST API and the

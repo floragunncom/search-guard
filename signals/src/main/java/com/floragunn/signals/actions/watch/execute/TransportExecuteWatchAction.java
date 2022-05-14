@@ -25,6 +25,8 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
@@ -203,7 +205,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         if (request.getInputJson() != null) {
             try {
                 input = NestedValueMap.fromJsonString(request.getInputJson());
-            } catch (IOException e) {
+            } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
                 log.info("Error while parsing json: " + request.getInputJson(), e);
                 return new ExecuteWatchResponse(null, request.getWatchId(), Status.INVALID_INPUT, null);
             }

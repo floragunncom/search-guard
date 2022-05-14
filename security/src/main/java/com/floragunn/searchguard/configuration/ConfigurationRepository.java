@@ -63,6 +63,7 @@ import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocUpdateException;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.Parser;
@@ -525,7 +526,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             return new StandardResponse(200).message(configType.getUiName() + " has been updated");
 
-        } catch (ConfigUnavailableException e) {
+        } catch (ConfigUnavailableException | DocUpdateException e) {
             throw new ConfigUpdateException(e);
         }
     }
@@ -567,7 +568,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             return new StandardResponse(200).message(message);
 
-        } catch (ConfigUnavailableException e) {
+        } catch (ConfigUnavailableException | DocUpdateException e) {
             throw new ConfigUpdateException(e);
         }
     }

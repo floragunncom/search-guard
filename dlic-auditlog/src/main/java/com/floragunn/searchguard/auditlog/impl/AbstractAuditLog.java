@@ -19,8 +19,6 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,7 +32,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -66,18 +63,18 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.flipkart.zjsonpatch.JsonDiff;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.patch.JsonPatch;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
-import com.floragunn.searchguard.dlic.rest.support.Utils;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserInformation;
+import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
 import com.google.common.io.BaseEncoding;
 
 public abstract class AbstractAuditLog implements AuditLog {
@@ -674,8 +671,12 @@ public abstract class AbstractAuditLog implements AuditLog {
                     originalSource = XContentHelper.convertToJson(originalResult.internalSourceRef(), false, XContentType.JSON);
                     currentSource = XContentHelper.convertToJson(currentIndex.source(), false, XContentType.JSON);
                 }
-                final JsonNode diffnode = JsonDiff.asJson(DefaultObjectMapper.objectMapper.readTree(originalSource), DefaultObjectMapper.objectMapper.readTree(currentSource));
-                msg.addComplianceWriteDiffSource(diffnode.size() == 0?"":diffnode.toString());
+                DocNode originalDocument = DocNode.parse(Format.JSON).from(originalSource);
+                DocNode currentDocument = DocNode.parse(Format.JSON).from(currentSource);
+                
+                JsonPatch diff = JsonPatch.fromDiff(originalDocument, currentDocument);
+                
+                msg.addComplianceWriteDiffSource(diff.isEmpty() ? "" : diff.toJsonString());
             } catch (Exception e) {
                 log.error("Unable to generate diff for {}",msg.toPrettyString(),e);
             }   
@@ -743,32 +744,15 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         final Map<String, Object> configAsMap = Utils.convertJsonToxToStructuredMap(settings);
-        
-        final SecurityManager sm = System.getSecurityManager();
-        
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
         final Map<String, String> envAsMap;
                 
         if (logEnvVars) {
-            envAsMap = AccessController.doPrivileged(new PrivilegedAction<Map<String, String>>() {
-                @Override
-                public Map<String, String> run() {
-                    return System.getenv();
-                }
-            });
+            envAsMap = PrivilegedCode.execute(() -> System.getenv());
         } else {
             envAsMap = null;
         }
         
-        final Properties propsAsMap = AccessController.doPrivileged(new PrivilegedAction<Properties>() {
-            @Override
-            public Properties run() {
-                return System.getProperties();
-            }
-        });
+        final Properties propsAsMap = PrivilegedCode.execute(() -> System.getProperties()); 
 
         final String sha256 = DigestUtils.sha256Hex(configAsMap.toString() + (envAsMap != null ? envAsMap.toString() : "") + propsAsMap.toString());
         AuditMessage msg = new AuditMessage(Category.COMPLIANCE_EXTERNAL_CONFIG, clusterService, null, null);

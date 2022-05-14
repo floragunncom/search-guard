@@ -20,8 +20,8 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.settings.SignalsSettings.ParsedSettingsKey;
@@ -61,7 +61,7 @@ public class TransportGetSettingsAction extends HandledTransportAction<GetSettin
                 if (!request.isJsonRequested() && (value instanceof String || value instanceof Number || value instanceof Boolean)) {
                     listener.onResponse(new GetSettingsResponse(GetSettingsResponse.Status.OK, String.valueOf(value), "text/plain"));
                 } else {
-                    String json = DefaultObjectMapper.objectMapper.writeValueAsString(value);
+                    String json = DocWriter.json().writeAsString(value);
                     listener.onResponse(new GetSettingsResponse(GetSettingsResponse.Status.OK, json, "application/json"));
                 }
 

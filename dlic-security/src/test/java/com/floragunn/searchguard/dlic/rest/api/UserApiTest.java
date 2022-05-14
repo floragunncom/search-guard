@@ -385,7 +385,7 @@ public class UserApiTest {
             response = adminClient.patch("/_searchguard/api/internalusers", patchPayload);
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
             Assert.assertTrue(response.getBody().contains("error"));
-            Assert.assertTrue(response.getBody().contains("xxx"));
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Invalid password"));
         }
     }
 
@@ -481,7 +481,7 @@ public class UserApiTest {
 
     protected void addUserWithHash(GenericRestClient adminClient, String username, String hash, int status) throws Exception {
         HttpResponse response = adminClient.putJson("/_searchguard/api/internalusers/" + username, "{\"hash\": \"" + hash + "\"}", new Header[0]);
-        Assert.assertEquals(status, response.getStatusCode());
+        Assert.assertEquals(response.getBody(), status, response.getStatusCode());
     }
 
     protected void addUserWithoutPasswordOrHash(GenericRestClient adminClient, String username, String[] roles, int status) throws Exception {

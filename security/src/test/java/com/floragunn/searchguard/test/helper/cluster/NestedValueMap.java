@@ -11,13 +11,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.google.common.collect.MapMaker;
 
 public class NestedValueMap extends HashMap<String, Object> {
@@ -106,20 +107,16 @@ public class NestedValueMap extends HashMap<String, Object> {
         return result;
     }
 
-    public static NestedValueMap fromJsonString(String jsonString) throws IOException {
-        return NestedValueMap.copy(DefaultObjectMapper.readValue(jsonString, Map.class));
+    public static NestedValueMap fromJsonString(String jsonString) throws IOException, DocumentParseException, UnexpectedDocumentStructureException {
+        return NestedValueMap.copy(DocReader.json().readObject(jsonString));
     }
 
-    public static NestedValueMap fromYaml(String yamlString) throws IOException {
-        return NestedValueMap.copy(DefaultObjectMapper.YAML_MAPPER.readValue(yamlString, Object.class));
+    public static NestedValueMap fromYaml(String yamlString) throws IOException, DocumentParseException {
+        return NestedValueMap.copy(DocReader.yaml().read(yamlString));
     }
 
-    public static NestedValueMap fromYaml(InputStream inputSteam) throws IOException {
-        return NestedValueMap.copy(DefaultObjectMapper.YAML_MAPPER.readValue(inputSteam, Object.class));
-    }
-
-    public static NestedValueMap fromJsonArrayString(String jsonString) throws IOException {
-        return NestedValueMap.copy(DefaultObjectMapper.readValue(jsonString, List.class));
+    public static NestedValueMap fromYaml(InputStream inputSteam) throws DocumentParseException, IOException {
+        return NestedValueMap.copy(DocReader.yaml().read(inputSteam));
     }
 
     public static NestedValueMap of(String key1, Object value1) {
@@ -302,19 +299,11 @@ public class NestedValueMap extends HashMap<String, Object> {
     }
 
     public String toJsonString() {
-        try {
-            return DefaultObjectMapper.objectMapper.writeValueAsString(this);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        return DocWriter.json().writeAsString(this);
     }
 
     public String toYamlString() {
-        try {
-            return DefaultObjectMapper.YAML_MAPPER.writeValueAsString(this);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        return DocWriter.yaml().writeAsString(this);
     }
 
     private Object deepCloneObject(Object object) {

@@ -2,6 +2,7 @@ package com.floragunn.searchguard.tools.sgadmin;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 
 import org.apache.http.client.methods.HttpPost;
 import org.elasticsearch.ElasticsearchStatusException;
@@ -13,7 +14,9 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.Validatable;
 import org.elasticsearch.common.CheckedFunction;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 
 public class SearchGuardAdminRestClient extends RestHighLevelClient {
 
@@ -32,13 +35,14 @@ public class SearchGuardAdminRestClient extends RestHighLevelClient {
     }
 
     private static class ResponseConverters {
-        private static final ObjectMapper MAPPER = new ObjectMapper();
 
-        static CheckedFunction<Response, GenericResponse, IOException> generic = read(GenericResponse.class);
-
-        private static <Entity> CheckedFunction<Response, Entity, IOException> read(Class<Entity> clazz) {
-            return r -> MAPPER.readValue(r.getEntity().getContent(), clazz);
-        }
+        static CheckedFunction<Response, GenericResponse, IOException> generic = (r) -> {
+            try {
+                return new GenericResponse(DocReader.json().readObject(r.getEntity().getContent()));
+            } catch (DocumentParseException | UnexpectedDocumentStructureException | UnsupportedOperationException e) {
+               throw new IOException(e);
+            }
+        };
     }
 
     public static class EmptyRequest implements Validatable {
@@ -48,6 +52,11 @@ public class SearchGuardAdminRestClient extends RestHighLevelClient {
     public static class GenericResponse {
         private String message;
         private String errror;
+
+        public GenericResponse(Map<String, Object> source) {
+            this.message = String.valueOf(source.get("message"));
+            this.errror = source.get("error") != null ? source.get("error").toString() : null;
+        }
 
         public String getMessage() {
             return message;

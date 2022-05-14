@@ -14,7 +14,6 @@
 
 package com.floragunn.searchguard.dlic.rest.validation;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -26,7 +25,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class InternalUsersValidator extends AbstractConfigurationValidator {
@@ -67,14 +66,6 @@ public class InternalUsersValidator extends AbstractConfigurationValidator {
                         }
                         return false;
                     }
-                    
-                    if(!regex.isEmpty() && !Pattern.compile("^"+regex+"$").matcher(password).matches()) {
-                        if(log.isDebugEnabled()) {
-                            log.debug("Regex does not match password");
-                        }
-                        this.errorType = ErrorType.INVALID_PASSWORD;
-                        return false;
-                    }
 
                     String username = request.param("name");
                     
@@ -89,11 +80,10 @@ public class InternalUsersValidator extends AbstractConfigurationValidator {
                         return false;
                     }
 
-                    if(username.toLowerCase().equals(password.toLowerCase())) {
-                        if(log.isDebugEnabled()) {
-                            log.debug("Username must not match password");
-                        }
-                        this.errorType = ErrorType.INVALID_PASSWORD;
+                    ErrorType error = validatePassword(username, password, esSettings);
+                    
+                    if (error != null) {
+                        this.errorType = error;
                         return false;
                     }
                 }
@@ -106,11 +96,33 @@ public class InternalUsersValidator extends AbstractConfigurationValidator {
         return true;
     }
 
+    public static ErrorType validatePassword(String username, String password, Settings esSettings) {
+
+        if (password == null || password.isEmpty()) {
+            return null;
+        }
+
+        String regex = esSettings.get(ConfigConstants.SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_REGEX, null);
+
+        if (regex == null || regex.isEmpty()) {
+            return null;
+        }
+        
+        if (!Pattern.compile("^" + regex + "$").matcher(password).matches()) {
+            return ErrorType.INVALID_PASSWORD;
+        }
+
+        if (username.toLowerCase().equals(password.toLowerCase())) {
+            return ErrorType.INVALID_PASSWORD;
+        }
+
+        return null;
+    }
+    
     @Override
-    protected Exception validationError(IOException e) {
-        if (e instanceof JsonProcessingException) {
-            String message = ((JsonProcessingException)e).getOriginalMessage();
-            return new SensitiveDataException("Passed User object is invalid: " + message);
+    protected Exception validationError(Exception e) {
+        if (e instanceof DocumentParseException) {
+            return new SensitiveDataException("Passed User object is invalid");
         }
         return e;
     }

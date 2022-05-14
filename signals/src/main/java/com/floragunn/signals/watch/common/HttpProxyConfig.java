@@ -23,9 +23,6 @@ import org.apache.http.HttpHost;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.NullNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 
@@ -78,21 +75,6 @@ public class HttpProxyConfig implements ToXContent {
 
     static enum Type {
         USE_SPECIFIC_PROXY, USE_DEFAULT_PROXY, USE_NO_PROXY
-    }
-
-    public static HttpProxyConfig create(JsonNode jsonNode) throws ConfigValidationException {
-
-        if (jsonNode == null || jsonNode instanceof NullNode) {
-            return null;
-        }
-
-        if (!(jsonNode instanceof TextNode)) {
-            throw new ConfigValidationException(new InvalidAttributeValue(null, jsonNode.textValue(), "URI or default or none", jsonNode));
-        }
-
-        String value = jsonNode.textValue();
-
-        return create(value);
     }
 
     public static HttpProxyConfig create(String value) throws ConfigValidationException {        

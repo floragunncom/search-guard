@@ -249,7 +249,7 @@ public class MultitenancyTests {
 
                 Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
                 Assert.assertEquals(response.getBody(), ".kibana_-815674808_kibana712aliastest_7.12.0_001",
-                        response.toJsonNode().path("_index").textValue());
+                        response.getBodyAsDocNode().getAsString("_index"));
             }
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
@@ -301,8 +301,8 @@ public class MultitenancyTests {
             try (GenericRestClient restClient = cluster.getRestClient(USER_DEPT_01)) {
                 GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo");
 
-                Assert.assertEquals(response.getBody(), "true", response.toJsonNode().path("sg_tenants").path("dept_01").asText());
-                Assert.assertEquals("", response.toJsonNode().path("sg_tenants").path("dept_02").asText());
+                Assert.assertEquals(response.getBody(), "true", response.getBodyAsDocNode().getAsNode("sg_tenants", "dept_01").toString());
+                Assert.assertNull(response.getBodyAsDocNode().get("sg_tenants", "dept_02"));
 
                 response = restClient.putJson(".kibana/config/user_attr_test",
                         "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}",
@@ -318,8 +318,8 @@ public class MultitenancyTests {
             try (GenericRestClient restClient = cluster.getRestClient(USER_DEPT_02)) {
                 GenericRestClient.HttpResponse response = restClient.get("_searchguard/authinfo");
 
-                Assert.assertEquals("", response.toJsonNode().path("sg_tenants").path("dept_01").asText());
-                Assert.assertEquals("true", response.toJsonNode().path("sg_tenants").path("dept_02").asText());
+                Assert.assertNull(response.getBodyAsDocNode().get("sg_tenants", "dept_01"));
+                Assert.assertEquals("true", response.getBodyAsDocNode().getAsNode("sg_tenants", "dept_02").toString());
 
                 response = restClient.putJson(".kibana/config/user_attr_test",
                         "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}",

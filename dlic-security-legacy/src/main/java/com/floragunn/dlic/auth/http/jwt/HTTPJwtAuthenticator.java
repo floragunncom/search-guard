@@ -40,6 +40,9 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.dlic.util.Roles;
@@ -60,6 +63,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.DeserializationException;
+import io.jsonwebtoken.io.Deserializer;
 import io.jsonwebtoken.security.WeakKeyException;
 
 public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthenticationFrontend {
@@ -117,9 +122,9 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
                 }
 
                 if(key != null) {
-                    _jwtParser = Jwts.parser().setSigningKey(key);
+                    _jwtParser = Jwts.parser().setSigningKey(key).deserializeJsonWith(jsonDeserializer);
                 } else {
-                    _jwtParser = Jwts.parser().setSigningKey(decoded);
+                    _jwtParser = Jwts.parser().setSigningKey(decoded).deserializeJsonWith(jsonDeserializer);
                 }
 
             }  
@@ -385,6 +390,18 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
         }
     }
 
+    private final Deserializer<Map<String, ?>> jsonDeserializer = new Deserializer<Map<String,?>>() {
+        
+        @Override
+        public Map<String, ?> deserialize(byte[] bytes) throws DeserializationException {
+            try {
+                return DocReader.json().readObject(bytes);
+            } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
+               throw new DeserializationException(e.getMessage(), e);
+            }
+        }
+    };
+    
     public static TypedComponent.Info<LegacyHTTPAuthenticator> INFO = new TypedComponent.Info<LegacyHTTPAuthenticator>() {
 
         @Override
