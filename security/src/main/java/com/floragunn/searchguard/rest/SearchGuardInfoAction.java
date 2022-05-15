@@ -31,6 +31,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -55,11 +56,13 @@ public class SearchGuardInfoAction extends BaseRestHandler {
     private final Logger log = LogManager.getLogger(this.getClass());
     private final PrivilegesEvaluator evaluator;
     private final ThreadContext threadContext;
+    private final ClusterService clusterService;
     
-    public SearchGuardInfoAction(final Settings settings, final RestController controller, final PrivilegesEvaluator evaluator, final ThreadPool threadPool) {
+    public SearchGuardInfoAction(Settings settings, RestController controller, PrivilegesEvaluator evaluator, ThreadPool threadPool, ClusterService clusterService) {
         super();
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
+        this.clusterService = clusterService;
     }
 
     @Override
@@ -84,7 +87,7 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     final X509Certificate[] certs = threadContext.getTransient(ConfigConstants.SG_SSL_PEER_CERTIFICATES);
                     final User user = (User)threadContext.getTransient(ConfigConstants.SG_USER);
                     final TransportAddress remoteAddress = (TransportAddress) threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-                    
+                                        
                     
                     Set<String> sgRoles = null;
                     
@@ -114,6 +117,8 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     if (ssoLogoutUrl != null) {
                         builder.field("sso_logout_url", ssoLogoutUrl);
                     }
+                    
+                    builder.field("cluster_name", clusterService.getClusterName().value());
                     
                     if(user != null && verbose) {
                         try {
