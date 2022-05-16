@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchsupport.action.Action.UnparsedMessage;
 
 public class StandardResponse extends Action.Response {
@@ -112,23 +113,8 @@ public class StandardResponse extends Action.Response {
 
     @Override
     public Object toBasicObject() {
-        Map<String, Object> result = new LinkedHashMap<>();
-
-        result.put("status", getStatus());
-
-        if (data != null) {
-            result.put("data", data);
-        }
-
-        if (error != null) {
-            result.put("error", error.toBasicObject());
-        }
-
-        if (message != null) {
-            result.put("message", message);
-        }
-
-        return result;
+        return OrderedImmutableMap.ofNonNull("status", getStatus(), "error", error != null ? error.toBasicObject() : null, "message", message, "data",
+                data);
     }
 
     public static class Error implements Document<Error> {
@@ -164,19 +150,7 @@ public class StandardResponse extends Action.Response {
 
         @Override
         public Object toBasicObject() {
-            Map<String, Object> result = new LinkedHashMap<>(3);
-
-            if (code != null) {
-                result.put("code", code);
-            }
-            result.put("message", message);
-
-            if (details != null) {
-                result.put("details", details);
-            }
-
-            return result;
+            return OrderedImmutableMap.ofNonNull("code", code, "message", message, "details", details);
         }
-
     }
 }

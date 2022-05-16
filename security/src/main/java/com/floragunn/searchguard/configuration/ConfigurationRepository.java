@@ -76,6 +76,7 @@ import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
@@ -368,19 +369,19 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 ConfigMap oldConfig = this.currentConfig;
                 ConfigMap mergedConfig = oldConfig.with(loadedConfig);
                 discardedConfig = oldConfig.only(loadedConfig.getTypes());
-                
+
                 this.currentConfig = mergedConfig;
             }
 
             notifyAboutChanges(this.currentConfig);
-            
+
             if (discardedConfig != null && !discardedConfig.isEmpty()) {
                 this.threadPool.schedule(() -> {
-                    LOGGER.info("Destroying old configuration: " + discardedConfig);                    
+                    LOGGER.info("Destroying old configuration: " + discardedConfig);
                     discardedConfig.destroy();
-                }, TimeValue.timeValueSeconds(10), ThreadPool.Names.GENERIC);                
+                }, TimeValue.timeValueSeconds(10), ThreadPool.Names.GENERIC);
             }
-            
+
         } catch (InterruptedException e) {
             throw new RuntimeException("Interrupted while waiting for configuration", e);
         } catch (ExecutionException e) {
@@ -659,7 +660,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
     }
 
-    public void update(Map<CType<?>, ConfigWithMetadata> configTypeToConfigMap)
+    public Map<CType<?>, ConfigUpdateResult> update(Map<CType<?>, ConfigWithMetadata> configTypeToConfigMap)
             throws ConfigUpdateException, ConfigValidationException, ConcurrentConfigUpdateException {
         ValidationErrors validationErrors = new ValidationErrors();
         BulkRequest bulkRequest = new BulkRequest();
@@ -690,11 +691,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             if (ctype.getArity() == CType.Arity.SINGLE) {
                 if (!configMap.isEmpty()) {
-                    configMap = ImmutableMap.of("default", DocNode.wrap(configMap).splitDottedAttributeNamesToTree().toMap());                    
+                    configMap = ImmutableMap.of("default", DocNode.wrap(configMap).splitDottedAttributeNamesToTree().toMap());
                 } else {
                     configMap = ImmutableMap.empty();
                 }
-                
             }
 
             try {
@@ -772,44 +772,64 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
         try {
             BulkResponse bulkResponse = privilegedConfigClient.bulk(bulkRequest).actionGet();
+            Map<CType<?>, ConfigUpdateResult> result = new LinkedHashMap<>(configTypeToConfigMap.size());
+
+            for (BulkItemResponse item : bulkResponse.getItems()) {
+                CType<?> ctype = CType.fromString(item.getId());
+
+                if (ctype == null) {
+                    LOGGER.error("Could not find CType for " + item.getId());
+                    continue;
+                }
+
+                if (item.isFailed()) {
+                    result.put(ctype, new ConfigUpdateResult("Update failed", new StandardResponse.Error(item.getFailureMessage())));
+                } else {
+                    result.put(ctype,
+                            new ConfigUpdateResult("Update successful", item.getResponse().getPrimaryTerm() + "." + item.getResponse().getSeqNo()));
+                }
+            }
 
             if (bulkResponse.hasFailures()) {
                 LOGGER.error("Index update finished with errors:\n" + Strings.toString(bulkResponse));
-                
+
                 List<String> documentIdsWithVersionConflictEngineException = getDocumentIdsWithVersionConflictEngineException(bulkResponse);
-                
+
                 if (!documentIdsWithVersionConflictEngineException.isEmpty()) {
                     if (documentIdsWithVersionConflictEngineException.size() == 1) {
                         throw new ConcurrentConfigUpdateException(
-                                "The configuration " + documentIdsWithVersionConflictEngineException.get(0) + " has been concurrently modified.");
+                                "The configuration " + documentIdsWithVersionConflictEngineException.get(0) + " has been concurrently modified.").updateResult(result);
                     } else {
-                        throw new ConcurrentConfigUpdateException("The configurations "
-                                + (documentIdsWithVersionConflictEngineException.stream().collect(Collectors.joining(", "))) + " have been concurrently modified.");
+                        throw new ConcurrentConfigUpdateException(
+                                "The configurations " + (documentIdsWithVersionConflictEngineException.stream().collect(Collectors.joining(", ")))
+                                        + " have been concurrently modified.").updateResult(result);
                     }
                 } else {
-                    throw new ConfigUpdateException("Updating the configuration failed", bulkResponse);                                        
+                    throw new ConfigUpdateException("Updating the configuration failed", bulkResponse).updateResult(result);
                 }
             } else {
                 LOGGER.info("Index update done:\n" + Strings.toString(bulkResponse));
+                
+                try {
+                    ConfigUpdateRequest configUpdateRequest = new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]));
+
+                    ConfigUpdateResponse configUpdateResponse = privilegedConfigClient.execute(ConfigUpdateAction.INSTANCE, configUpdateRequest).actionGet();
+
+                    if (configUpdateResponse.hasFailures()) {
+                        throw new ConfigUpdateException("Configuration index was updated; however, some nodes reported failures while refreshing.",
+                                configUpdateResponse).updateResult(result);
+                    }
+                } catch (Exception e) {
+                    throw new ConfigUpdateException("Configuration index was updated; however, the refresh failed", e).updateResult(result);
+                }
+                
+                return result;
             }
         } catch (ConfigUpdateException | ConcurrentConfigUpdateException e) {
             throw e;
         } catch (Exception e) {
             throw new ConfigUpdateException("Updating the configuration failed", e);
-        }
-
-        try {
-            ConfigUpdateRequest configUpdateRequest = new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]));
-
-            ConfigUpdateResponse configUpdateResponse = privilegedConfigClient.execute(ConfigUpdateAction.INSTANCE, configUpdateRequest).actionGet();
-
-            if (configUpdateResponse.hasFailures()) {
-                throw new ConfigUpdateException("Configuration index was updated; however, some nodes reported failures while refreshing.",
-                        configUpdateResponse);
-            }
-        } catch (Exception e) {
-            throw new ConfigUpdateException("Configuration index was updated; however, the refresh failed", e);
-        }
+        }        
     }
 
     @Override
@@ -825,16 +845,16 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public Context getParserContext() {
         return parserContext;
     }
- 
-    private List<String> getDocumentIdsWithVersionConflictEngineException(BulkResponse bulkResponse) { 
+
+    private List<String> getDocumentIdsWithVersionConflictEngineException(BulkResponse bulkResponse) {
         ArrayList<String> result = new ArrayList<>();
-        
+
         for (BulkItemResponse item : bulkResponse.getItems()) {
             if (item.getFailure() != null && item.getFailure().getCause() instanceof VersionConflictEngineException) {
                 result.add(item.getId());
             }
         }
-        
+
         return result;
     }
 
@@ -915,6 +935,28 @@ public class ConfigurationRepository implements ComponentStateProvider {
         public String getEtag() {
             return etag;
         }
+    }
 
+    public static class ConfigUpdateResult implements Document<ConfigUpdateResult> {
+        private final String message;
+        private final String etag;
+        private final StandardResponse.Error error;
+
+        public ConfigUpdateResult(String message, String etag) {
+            this.message = message;
+            this.etag = etag;
+            this.error = null;
+        }
+
+        public ConfigUpdateResult(String message, StandardResponse.Error error) {
+            this.message = message;
+            this.etag = null;
+            this.error = error;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return OrderedImmutableMap.ofNonNull("message", message, "etag", etag, "error", error);
+        }
     }
 }
