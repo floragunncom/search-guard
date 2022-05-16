@@ -3,3 +3,4 @@
 # If you are looking for the former authorization domains: These are now specified in sg_authc.yml as part of the auth_domains.
 
 ignore_unauthorized_indices: true
+debug: false
