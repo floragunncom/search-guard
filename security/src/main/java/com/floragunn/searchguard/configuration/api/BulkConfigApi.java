@@ -51,6 +51,7 @@ import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchguard.configuration.ConfigurationRepository.ConfigUpdateResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository.ConfigWithMetadata;
 import com.floragunn.searchguard.configuration.variables.ConfigVar;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
@@ -259,16 +260,18 @@ public class BulkConfigApi {
                         }
 
                         if (!configMap.isEmpty()) {
-                            this.configurationRepository.update(configMap);
+                            Map<CType<?>, ConfigUpdateResult> result = this.configurationRepository.update(configMap);
+                            return new StandardResponse(200).message("Configuration has been updated").data(result);
+                        } else {
+                            return new StandardResponse(200).message("No configuration was provided");
                         }
-                        return new StandardResponse(200).message("Configuration has been updated");
                     } catch (ConfigValidationException e) {
                         return new StandardResponse(400).error(e);
                     } catch (ConcurrentConfigUpdateException e) {
-                        return new StandardResponse(412).error(e.getMessage());
+                        return new StandardResponse(412).error(e.getMessage()).data(e.getUpdateResult());
                     } catch (ConfigUpdateException e) {
                         log.error("Error while updating configuration", e);
-                        return new StandardResponse(500).error(null, e.getMessage(), e.getDetailsAsMap());
+                        return new StandardResponse(500).error(null, e.getMessage(), e.getDetailsAsMap()).data(e.getUpdateResult());
                     }
                 });
             }

@@ -71,6 +71,7 @@ public class BulkConfigApiTest {
             HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc.toJsonString());
 
             Assert.assertEquals(updateResponse.getBody(), 200, updateResponse.getStatusCode());
+            Assert.assertNotNull(updateResponse.getBody(), updateResponse.getBodyAsDocNode().get("data", "tenants", "etag"));
 
             Thread.sleep(300);
 

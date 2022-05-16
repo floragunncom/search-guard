@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,12 @@
 
 package com.floragunn.searchguard.configuration;
 
+import java.util.Map;
+
 public class ConcurrentConfigUpdateException extends Exception {
 
     private static final long serialVersionUID = -3653303121589781438L;
+    private Map<CType<?>, ConfigurationRepository.ConfigUpdateResult> updateResult;
 
     public ConcurrentConfigUpdateException(String message, Throwable cause) {
         super(message, cause);
@@ -33,4 +36,12 @@ public class ConcurrentConfigUpdateException extends Exception {
         super(cause);
     }
 
+    public Map<CType<?>, ConfigurationRepository.ConfigUpdateResult> getUpdateResult() {
+        return updateResult;
+    }
+
+    ConcurrentConfigUpdateException updateResult(Map<CType<?>, ConfigurationRepository.ConfigUpdateResult> updateResult) {
+        this.updateResult = updateResult;
+        return this;
+    }
 }

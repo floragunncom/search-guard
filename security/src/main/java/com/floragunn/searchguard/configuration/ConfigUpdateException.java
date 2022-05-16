@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ public class ConfigUpdateException extends Exception {
 
     private static final long serialVersionUID = -8627848154509219672L;
     private Object details;
+    private Map<CType<?>, ConfigurationRepository.ConfigUpdateResult> updateResult;
 
     public ConfigUpdateException(String message, Throwable cause) {
         super(message, cause);
@@ -58,5 +59,14 @@ public class ConfigUpdateException extends Exception {
         } else {
             return null;
         }
+    }
+
+    public Map<CType<?>, ConfigurationRepository.ConfigUpdateResult> getUpdateResult() {
+        return updateResult;
+    }
+
+    ConfigUpdateException updateResult(Map<CType<?>, ConfigurationRepository.ConfigUpdateResult> updateResult) {
+        this.updateResult = updateResult;
+        return this;
     }
 }
