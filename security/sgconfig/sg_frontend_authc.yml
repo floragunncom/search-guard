@@ -33,5 +33,5 @@ default:
     oidc.client_id: "your-oidc-client-id"
     oidc.client_secret: "your-oidc-client-secret"
     oidc.idp.openid_configuration_url: "https://your.idp.example.com/auth/realms/master/.well-known/openid-configuration"
-    user_mapping.roles.from: jwt.roles
+    user_mapping.roles.from: oidc_id_token.roles
     
