@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.auth;
+package com.floragunn.searchguard.authc;
 
 public class UserMappingTest {
     //    @Test

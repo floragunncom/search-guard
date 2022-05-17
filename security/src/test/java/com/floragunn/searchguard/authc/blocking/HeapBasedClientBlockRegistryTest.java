@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.auth.blocking;
+package com.floragunn.searchguard.authc.blocking;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;

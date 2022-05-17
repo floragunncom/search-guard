@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.auth;
+package com.floragunn.searchguard.authc;
 
 import java.net.InetAddress;
 import java.util.Arrays;

@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.auth.blocking;
+package com.floragunn.searchguard.authc.blocking;
 
 import java.util.HashSet;
 import java.util.Set;
