@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.auth;
+package com.floragunn.searchguard.authc;
 
 public class SessionAuthenticationIntegrationTests {
     // TODO subject pattern 
