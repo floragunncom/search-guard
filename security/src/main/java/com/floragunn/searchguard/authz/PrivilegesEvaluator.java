@@ -57,6 +57,7 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
+import com.floragunn.searchguard.authc.session.backend.SessionApi;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult.Status;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
@@ -241,7 +242,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     .missingPrivileges(action);
         }
 
-        if ("cluster:admin:searchguard:session/_own/delete".equals(action0)) {
+        if (SessionApi.DeleteAction.NAME.equals(action0)) {
             // Special case for deleting own session: This is always allowed
             return PrivilegesEvaluationResult.OK;
         }

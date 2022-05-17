@@ -42,6 +42,7 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.Action;
+import com.floragunn.searchsupport.action.Action.UnparsedMessage;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
@@ -52,7 +53,7 @@ public class SessionApi {
     public static class GetExtendedInfoAction extends Action<EmptyRequest, GetExtendedInfoAction.Response> {
 
         public static final GetExtendedInfoAction INSTANCE = new GetExtendedInfoAction();
-        public static final String NAME = "cluster:searchguard:session/_own/get/extended";
+        public static final String NAME = "cluster:admin:searchguard:session/_own/get/extended";
 
         protected GetExtendedInfoAction() {
             super(NAME, EmptyRequest::new, Response::new);
@@ -195,6 +196,81 @@ public class SessionApi {
         }
     }
 
+    /**
+     * Note: This is only used for /_searchguard/auth/session/with_header endpoint. In most cases, sessions will be started with /_searchguard/auth/session, which
+     * uses no transport action.
+     */
+    public static class CreateAction extends Action<EmptyRequest, StartSessionResponse> {
+
+        public static final CreateAction INSTANCE = new CreateAction();
+        public static final String NAME = "cluster:admin:searchguard:session/create";
+
+        protected CreateAction() {
+            super(NAME, EmptyRequest::new, StartSessionResponse::new);
+        }
+
+        public static class Handler extends Action.Handler<EmptyRequest, StartSessionResponse> {
+            private static final Logger log = LogManager.getLogger(Handler.class);
+
+            private final SessionService sessionService;
+            private final AuthInfoService authInfoService;
+
+            @Inject
+            public Handler(HandlerDependencies handlerDependencies, SessionService sessionService, AuthInfoService authInfoService,
+                    PrivilegesEvaluator privilegesEvaluator) {
+                super(CreateAction.INSTANCE, handlerDependencies);
+
+                this.sessionService = sessionService;
+                this.authInfoService = authInfoService;
+            }
+
+            @Override
+            protected final CompletableFuture<StartSessionResponse> doExecute(EmptyRequest request) {
+                User user = authInfoService.getCurrentUser();
+
+                if (user == null) {
+                    log.error("Cannot create session: No user found in thread context");
+                    CompletableFuture<StartSessionResponse> result = new CompletableFuture<>();
+                    result.completeExceptionally(new Exception("Invalid authentication"));
+                    return result;
+                }
+
+                return sessionService.createSession(user);
+            }
+        }
+    }
+
+    public static class StartSessionResponse extends Action.Response {
+        private String token;
+        private String redirectUri;
+
+        public StartSessionResponse(String token, String redirectUri) {
+            this.token = token;
+            this.redirectUri = redirectUri;
+        }
+
+        public StartSessionResponse(UnparsedMessage message) throws ConfigValidationException {
+            super(message);
+            DocNode docNode = message.requiredDocNode();
+
+            this.token = docNode.getAsString("token");
+            this.redirectUri = docNode.getAsString("redirect_uri");
+        }
+
+        public String getToken() {
+            return token;
+        }
+
+        public String getRedirectUri() {
+            return redirectUri;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return OrderedImmutableMap.of("token", token, "redirect_uri", redirectUri);
+        }
+    }
+
     public static class Rest extends RestApi {
         private static final Logger log = LogManager.getLogger(Rest.class);
         private SessionService sessionService;
@@ -202,6 +278,7 @@ public class SessionApi {
         public Rest() {
             handlesGet("/_searchguard/auth/session/extended").with(GetExtendedInfoAction.INSTANCE);
             handlesGet("/_searchguard/auth/session").with((r, c) -> handleGet(r, c));
+            handlesPost("/_searchguard/auth/session/with_header").with(CreateAction.INSTANCE);
             handlesPost("/_searchguard/auth/session").with((r, c) -> handlePost(r, c));
             handlesDelete("/_searchguard/auth/session").with(DeleteAction.INSTANCE);
         }
@@ -232,7 +309,7 @@ public class SessionApi {
                     Map<String, Object> requestBody = DocReader.format(Format.getByContentType(xContentType.mediaType()))
                             .readObject(BytesReference.toBytes(body));
 
-                    sessionService.createSession(requestBody, request, (response) -> {
+                    sessionService.authenticateAndCreateSession(requestBody, request, (response) -> {
                         Responses.send(channel, RestStatus.CREATED, response);
                     }, (authFailureAuthzResult) -> {
                         Responses.send(channel, authFailureAuthzResult.getRestStatus(), authFailureAuthzResult);

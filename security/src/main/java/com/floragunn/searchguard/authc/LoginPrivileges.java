@@ -18,7 +18,7 @@
 package com.floragunn.searchguard.authc;
 
 public interface LoginPrivileges {
-    public static final String HTTP_AUTHORIZATION_HEADER = "cluster:searchguard:login/http_authorization_header";
-    public static final String TRANSPORT = "cluster:searchguard:login/transport";
-    public static final String SESSION = "cluster:searchguard:login/session";
+    public static final String HTTP_AUTHORIZATION_HEADER = "cluster:admin:searchguard:login/http_authorization_header";
+    public static final String TRANSPORT = "cluster:admin:searchguard:login/transport";
+    public static final String SESSION = "cluster:admin:searchguard:login/session";
 }

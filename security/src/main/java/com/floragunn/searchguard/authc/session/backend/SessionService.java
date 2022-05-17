@@ -98,6 +98,7 @@ import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationProcessor;
 import com.floragunn.searchguard.authc.session.FrontendAuthcConfig;
 import com.floragunn.searchguard.authc.session.backend.PushSessionTokenUpdateAction.Request.UpdateType;
+import com.floragunn.searchguard.authc.session.backend.SessionApi.StartSessionResponse;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.CType;
@@ -244,7 +245,7 @@ public class SessionService {
         });
     }
 
-    public void createSession(Map<String, Object> request, RestRequest restRequest, Consumer<StartSessionResponse> onResult,
+    public void authenticateAndCreateSession(Map<String, Object> request, RestRequest restRequest, Consumer<StartSessionResponse> onResult,
             Consumer<AuthcResult> onAuthFailure, Consumer<Exception> onFailure) {
 
         if (this.config == null) {
@@ -256,7 +257,7 @@ public class SessionService {
             if (authcResult.getStatus() == AuthcResult.Status.PASS) {
                 threadPool.generic().submit(() -> {
                     try {
-                        StartSessionResponse response = createLightweightJwt(authcResult);
+                        StartSessionResponse response = createLightweightJwt(authcResult.getUser(), authcResult.getRedirectUri());
                         onResult.accept(response);
                     } catch (SessionCreationException e) {
                         log.info("Creating token failed", e);
@@ -270,6 +271,21 @@ public class SessionService {
             }
 
         }, onFailure);
+    }
+
+    public CompletableFuture<StartSessionResponse> createSession(User user) {
+        CompletableFuture<StartSessionResponse> result = new CompletableFuture<>();
+
+        threadPool.generic().submit(() -> {
+            try {
+                result.complete(createLightweightJwt(user, null));
+            } catch (Exception e) {
+                log.error("Creating token failed", e);
+                result.completeExceptionally(e);
+            }
+        });
+
+        return result;
     }
 
     public String getSsoLogoutUrl(User user) {
@@ -375,13 +391,11 @@ public class SessionService {
 
     }
 
-    private StartSessionResponse createLightweightJwt(AuthcResult authczResult) throws SessionCreationException {
+    private StartSessionResponse createLightweightJwt(User user, String redirectUri) throws SessionCreationException {
 
         if (jwtProducer == null) {
             throw new SessionCreationException("SessionService is not configured", RestStatus.INTERNAL_SERVER_ERROR);
         }
-
-        User user = authczResult.getUser();
 
         SessionToken sessionToken = create(user);
 
@@ -407,7 +421,7 @@ public class SessionService {
             throw new SessionCreationException("Error while creating JWT. Possibly the key configuration is not valid.",
                     RestStatus.INTERNAL_SERVER_ERROR, e);
         }
-        return new StartSessionResponse(encodedJwt, authczResult.getRedirectUri());
+        return new StartSessionResponse(encodedJwt, redirectUri);
     }
 
     public SessionToken getById(String id) throws NoSuchSessionException {
