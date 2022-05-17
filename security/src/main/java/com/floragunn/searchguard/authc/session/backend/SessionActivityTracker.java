@@ -104,15 +104,11 @@ class SessionActivityTracker {
         long now = System.currentTimeMillis();
 
         lastAccess.put(authToken.getId(), now + inactivityBeforeExpiryMillis);
-        Instant nextFlushBeforeUpdate = sessionFlushThread.nextFlush;
         sessionFlushThread.setEarlyFlushTimeIfNecessary(authToken.getDynamicExpiryTime().toEpochMilli());
-
-        log.info("Next flush: " + nextFlushBeforeUpdate + " " + sessionFlushThread.nextFlush + " << " + authToken.getDynamicExpiryTime());
-
+        
         if (lastComponentStateUpdate + 10 * 1000 < now) {
             lastComponentStateUpdate = now;
         }
-
     }
 
     void checkExpiryAndTrackAccess(SessionToken authToken, Consumer<Boolean> onResult, Consumer<Exception> onFailure) {
