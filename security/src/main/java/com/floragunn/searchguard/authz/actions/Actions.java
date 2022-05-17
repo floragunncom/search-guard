@@ -163,6 +163,7 @@ import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.authc.LoginPrivileges;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
+import com.floragunn.searchguard.authc.session.backend.SessionApi;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.AdditionalPrivileges;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
@@ -367,6 +368,10 @@ public class Actions {
         cluster(InternalUsersConfigApi.PutAction.INSTANCE);
         cluster(InternalUsersConfigApi.PatchAction.INSTANCE);
         cluster(GetActivatedFrontendConfigAction.INSTANCE);
+        cluster(SessionApi.CreateAction.INSTANCE);
+        cluster(SessionApi.DeleteAction.INSTANCE);
+        cluster(SessionApi.GetExtendedInfoAction.INSTANCE);
+
         cluster(LoginPrivileges.SESSION);
 
         tenant("kibana:saved_objects/_/read");

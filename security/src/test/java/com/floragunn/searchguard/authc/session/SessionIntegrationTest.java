@@ -73,6 +73,31 @@ public class SessionIntegrationTest {
     }
 
     @Test
+    public void startSession_header() throws Exception {
+        String token;
+
+        try (GenericRestClient restClient = cluster.getRestClient(BASIC_USER)) {
+            HttpResponse response = restClient.post("/_searchguard/auth/session/with_header");
+
+            System.out.println(response.getBody());
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+
+            token = response.toJsonNode().path("token").asText();
+
+            Assert.assertNotNull(response.getBody(), token);
+        }
+
+        try (GenericRestClient restClient = cluster.getRestClient(new BearerAuthorization(token))) {
+            HttpResponse response = restClient.get("/_searchguard/authinfo");
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+
+            Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
+        }
+    }
+
+    @Test
     public void nonDefaultConfigTest() throws Exception {
         String token;
 
@@ -127,9 +152,7 @@ public class SessionIntegrationTest {
             System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 403, response.getStatusCode());
-            Assert.assertEquals(
-                    "The user 'no_roles_user' is not allowed to log in.",
-                    response.toJsonNode().path("error").textValue());
+            Assert.assertEquals("The user 'no_roles_user' is not allowed to log in.", response.toJsonNode().path("error").textValue());
         }
     }
 
@@ -159,7 +182,7 @@ public class SessionIntegrationTest {
 
             try (GenericRestClient restClient = cluster.getRestClient(new BearerAuthorization(token))) {
                 HttpResponse response = restClient.get("/_searchguard/authinfo");
-                
+
                 Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
                 Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());

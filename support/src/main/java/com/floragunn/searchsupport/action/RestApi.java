@@ -127,7 +127,7 @@ public class RestApi extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        Endpoint endpoint = chooseEndpoint(methodToEndpointMap.get(request.method()), request.params());
+        Endpoint endpoint = chooseEndpoint(methodToEndpointMap.get(request.method()), request.path(), request.params());
 
         if (endpoint != null) {
             return endpoint.handler.apply(request, client);
@@ -140,7 +140,7 @@ public class RestApi extends BaseRestHandler {
         methodToEndpointMap.computeIfAbsent(endpoint.platformMethod, (k) -> new ArrayList<Endpoint>(4)).add(endpoint);
     }
 
-    private Endpoint chooseEndpoint(List<Endpoint> endpoints, Map<String, String> params) {
+    private Endpoint chooseEndpoint(List<Endpoint> endpoints, String actualRoute, Map<String, String> params) {
         if (endpoints == null || endpoints.size() == 0) {
             return null;
         } else if (endpoints.size() == 1) {
@@ -150,6 +150,10 @@ public class RestApi extends BaseRestHandler {
             int bestMatchSize = -1;
 
             for (Endpoint endpoint : endpoints) {
+                if (!actualRoute.startsWith(endpoint.paramlessPrefix)) {
+                    continue;
+                }
+
                 int match = endpoint.matchParams(params);
 
                 if (match != -1 && match > bestMatchSize) {
@@ -177,12 +181,14 @@ public class RestApi extends BaseRestHandler {
         private final List<String> routes;
         private BiFunction<RestRequest, NodeClient, RestChannelConsumer> handler;
         private final Set<String> requiredParams;
+        private final String paramlessPrefix;
 
         public Endpoint(Method method, String route) {
             this.method = method;
             this.platformMethod = RestRequest.Method.valueOf(method.toString());
             this.routes = Collections.singletonList(route);
             this.requiredParams = getPathParamsFromRoute(route);
+            this.paramlessPrefix = getParamlessPrefix(route);
         }
 
         public RestApi with(BiFunction<RestRequest, NodeClient, RestChannelConsumer> handler) {
@@ -533,5 +539,15 @@ public class RestApi extends BaseRestHandler {
         }
 
         return result;
+    }
+
+    private static String getParamlessPrefix(String route) {
+        int firstParam = route.indexOf('{');
+
+        if (firstParam == -1) {
+            return route;
+        } else {
+            return route.substring(0, firstParam);
+        }
     }
 }
