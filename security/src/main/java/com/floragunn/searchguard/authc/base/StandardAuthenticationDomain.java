@@ -35,6 +35,7 @@ import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.TypedComponentRegistry;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
@@ -42,7 +43,6 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.UserInformationBackend;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -55,7 +55,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         Comparable<StandardAuthenticationDomain<AuthenticatorType>>, Document<StandardAuthenticationDomain<AuthenticatorType>>, Destroyable {
 
     public static final Metadata<StandardAuthenticationDomain> HTTP_META = Metadata.create(StandardAuthenticationDomain.class, "auth_domain",
-            "Authentication domains", (n, c) -> parse(n, HTTPAuthenticator.class, (ConfigurationRepository.Context) c),
+            "Authentication domains", (n, c) -> parse(n, HttpAuthenticationFrontend.class, (ConfigurationRepository.Context) c),
             Attribute.required("type", String.class, "<authentication_frontend_type/authentication_backend_type> or <authentication_frontend_type>"),
             Attribute.optional("id", String.class, "A string to identify this authentication domain"),
             Attribute.optional("description", String.class, null),

@@ -34,8 +34,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
@@ -53,8 +51,9 @@ import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
+import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.base.AuthcResult;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auth.oidc.BadCredentialsException;
 import com.floragunn.searchguard.enterprise.auth.oidc.JwksProviderClient;
@@ -67,7 +66,7 @@ import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.base.Strings;
 
-public class JwtAuthenticator implements HTTPAuthenticator {
+public class JwtAuthenticator implements HttpAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(JwtAuthenticator.class);
 
     private final KeyProvider staticKeySet;
@@ -170,9 +169,14 @@ public class JwtAuthenticator implements HTTPAuthenticator {
     }
 
     @Override
-    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context)
+    public AuthCredentials extractCredentials(RequestMetaData<?> request)
             throws CredentialsException, AuthenticatorUnavailableException {
-        String jwtString = getJwtTokenString(request);
+        String jwtString = request.getAuthorizationByScheme(jwtHeaderName, "bearer");
+        String jwtTokenFromParam = jwtUrlParameter != null ? request.getParam(jwtUrlParameter) : null;
+
+        if (jwtString == null && jwtTokenFromParam != null && jwtTokenFromParam.toLowerCase().startsWith("bearer ")) {
+            jwtString = jwtTokenFromParam.substring("bearer ".length()).trim();
+        }
 
         if (jwtString == null) {
             return null;
@@ -321,33 +325,16 @@ public class JwtAuthenticator implements HTTPAuthenticator {
         }
     }
 
-    private static final String BEARER = "bearer ";
-
-    protected String getJwtTokenString(RestRequest request) {
-        String jwtTokenFromHeader = request.header(jwtHeaderName);
-        String jwtTokenFromParam = jwtUrlParameter != null ? request.param(jwtUrlParameter) : null;
-
-        if (jwtTokenFromHeader != null && jwtTokenFromHeader.toLowerCase().startsWith(BEARER)) {
-            return jwtTokenFromHeader.substring(BEARER.length()).trim();
-        }
-
-        if (jwtTokenFromParam != null && jwtTokenFromParam.toLowerCase().startsWith(BEARER)) {
-            return jwtTokenFromParam.substring(BEARER.length()).trim();
-        }
-
-        return null;
-    }
-
     @Override
     public ComponentState getComponentState() {
         return componentState;
     }
 
-    public static TypedComponent.Info<HTTPAuthenticator> INFO = new TypedComponent.Info<HTTPAuthenticator>() {
+    public static TypedComponent.Info<HttpAuthenticationFrontend> INFO = new TypedComponent.Info<HttpAuthenticationFrontend>() {
 
         @Override
-        public Class<HTTPAuthenticator> getType() {
-            return HTTPAuthenticator.class;
+        public Class<HttpAuthenticationFrontend> getType() {
+            return HttpAuthenticationFrontend.class;
         }
 
         @Override
@@ -356,7 +343,7 @@ public class JwtAuthenticator implements HTTPAuthenticator {
         }
 
         @Override
-        public Factory<HTTPAuthenticator> getFactory() {
+        public Factory<HttpAuthenticationFrontend> getFactory() {
             return JwtAuthenticator::new;
         }
     };

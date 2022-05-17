@@ -25,9 +25,9 @@ import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersAuthenticationBackend;
 import com.floragunn.searchguard.authc.legacy.LegacyAuthenticationBackend;
 import com.floragunn.searchguard.authc.legacy.LegacyAuthorizationBackend;
-import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticator;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPClientCertAuthenticator;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.authenticators.HttpClientCertAuthenticationFrontend;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 
@@ -45,8 +45,8 @@ public enum ModuleType implements Serializable {
 	OPENID_AUTHENTICATION_BACKEND("OpenID authentication backend", "com.floragunn.dlic.auth.http.jwt.keybyoidc.HTTPJwtKeyByOpenIdConnectAuthenticator", Boolean.TRUE),
 	SAML_AUTHENTICATION_BACKEND("SAML authentication backend", "com.floragunn.dlic.auth.http.saml.HTTPSamlAuthenticator", Boolean.TRUE),
 	INTERNAL_USERS_AUTHENTICATION_BACKEND("Internal users authentication backend", InternalUsersAuthenticationBackend.class.getName(), Boolean.FALSE),
-	HTTP_BASIC_AUTHENTICATOR("HTTP Basic Authenticator", BasicAuthenticator.class.getName(), Boolean.FALSE),
-	HTTP_CLIENTCERT_AUTHENTICATOR("HTTP Client Certificate Authenticator", HTTPClientCertAuthenticator.class.getName(), Boolean.FALSE),
+	HTTP_BASIC_AUTHENTICATOR("HTTP Basic Authenticator", BasicAuthenticationFrontend.class.getName(), Boolean.FALSE),
+	HTTP_CLIENTCERT_AUTHENTICATOR("HTTP Client Certificate Authenticator", HttpClientCertAuthenticationFrontend.class.getName(), Boolean.FALSE),
 	CUSTOM_HTTP_AUTHENTICATOR("Custom HTTP authenticator", null, Boolean.TRUE),
 	CUSTOM_AUTHENTICATION_BACKEND("Custom authentication backend", null, Boolean.TRUE),
 	CUSTOM_AUTHORIZATION_BACKEND("Custom authorization backend", null, Boolean.TRUE),
@@ -84,7 +84,7 @@ public enum ModuleType implements Serializable {
     	        return SG_STD_MODULE;
     	    }
     	    
-    		if(HTTPAuthenticator.class.isAssignableFrom(clazz)) {
+    		if(HttpAuthenticationFrontend.class.isAssignableFrom(clazz)) {
     			moduleType = ModuleType.CUSTOM_HTTP_AUTHENTICATOR;
     		}
 

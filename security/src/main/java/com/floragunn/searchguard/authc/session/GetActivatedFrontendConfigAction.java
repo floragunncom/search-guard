@@ -34,7 +34,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
-import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticator;
+import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig.AuthMethod;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -220,7 +220,7 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
             RestAuthcConfig restAuthcConfig = configRepository.getConfiguration(CType.AUTHC).getCEntry("default");
 
             if (restAuthcConfig != null) {
-                if (restAuthcConfig.getAuthenticators().stream().anyMatch((d) -> d.getFrontend() instanceof BasicAuthenticator)) {
+                if (restAuthcConfig.getAuthenticators().stream().anyMatch((d) -> d.getFrontend() instanceof BasicAuthenticationFrontend)) {
                     return FrontendAuthcConfig.BASIC;
                 }
             }

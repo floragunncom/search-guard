@@ -50,11 +50,11 @@ import org.elasticsearch.script.ScriptService;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
-import com.floragunn.searchguard.authc.rest.authenticators.AnonymousAuthenticator;
-import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticator;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPClientCertAuthenticator;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPTrustedOriginAuthenticator;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.authenticators.AnonymousAuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.authenticators.HttpClientCertAuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.authenticators.HttpTrustedOriginAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.LinkApiAuthenticationFrontend;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -189,8 +189,8 @@ public class SearchGuardModulesRegistry {
         return result;
     }
 
-    public ImmutableList<AuthenticationDomain<HTTPAuthenticator>> getImplicitHttpAuthenticationDomains() {
-        ImmutableList.Builder<AuthenticationDomain<HTTPAuthenticator>> result = new ImmutableList.Builder<>();
+    public ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>> getImplicitHttpAuthenticationDomains() {
+        ImmutableList.Builder<AuthenticationDomain<HttpAuthenticationFrontend>> result = new ImmutableList.Builder<>();
 
         for (SearchGuardModule module : modules) {
             result.with(module.getImplicitHttpAuthenticationDomains());
@@ -262,12 +262,12 @@ public class SearchGuardModulesRegistry {
 
         typedComponentRegistry.registerInstance(AuthenticationBackend.class, "noop", AuthenticationBackend.NOOP);
 
-        typedComponentRegistry.register(HTTPAuthenticator.class, "basic", BasicAuthenticator::new);
-        typedComponentRegistry.registerInstance(HTTPAuthenticator.class, "anonymous", new AnonymousAuthenticator());
-        typedComponentRegistry.registerInstance(HTTPAuthenticator.class, "trusted_origin", new HTTPTrustedOriginAuthenticator(null, null));
-        typedComponentRegistry.registerInstance(HTTPAuthenticator.class, "clientcert", new HTTPClientCertAuthenticator(null, null));
+        typedComponentRegistry.register(HttpAuthenticationFrontend.class, "basic", BasicAuthenticationFrontend::new);
+        typedComponentRegistry.registerInstance(HttpAuthenticationFrontend.class, "anonymous", new AnonymousAuthenticationFrontend());
+        typedComponentRegistry.registerInstance(HttpAuthenticationFrontend.class, "trusted_origin", new HttpTrustedOriginAuthenticationFrontend(null, null));
+        typedComponentRegistry.registerInstance(HttpAuthenticationFrontend.class, "clientcert", new HttpClientCertAuthenticationFrontend(null, null));
 
-        typedComponentRegistry.register(ApiAuthenticationFrontend.class, "basic", BasicAuthenticator::new);
+        typedComponentRegistry.register(ApiAuthenticationFrontend.class, "basic", BasicAuthenticationFrontend::new);
         typedComponentRegistry.register(ApiAuthenticationFrontend.class, "link", LinkApiAuthenticationFrontend::new);
 
         return typedComponentRegistry;

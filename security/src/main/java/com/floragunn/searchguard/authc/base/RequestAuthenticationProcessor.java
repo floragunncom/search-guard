@@ -24,7 +24,6 @@ import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
@@ -42,7 +41,6 @@ import com.floragunn.searchguard.authc.rest.RestImpersonationProcessor;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
@@ -52,7 +50,6 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
     private static final Logger log = LogManager.getLogger(RequestAuthenticationProcessor.class);
 
     protected final RequestMetaData<RestRequest> request;
-    protected final ThreadContext threadContext;
     protected final AuditLog auditLog;
     private final Collection<AuthenticationDomain<AuthenticatorType>> authenticationDomains;
     private final Iterator<AuthenticationDomain<AuthenticatorType>> authenticationDomainIter;
@@ -69,14 +66,13 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
 
     protected AuthCredentials authCredentials = null;
 
-    public RequestAuthenticationProcessor(RequestMetaData<RestRequest> request, ThreadContext threadContext,
+    public RequestAuthenticationProcessor(RequestMetaData<RestRequest> request,
             Collection<AuthenticationDomain<AuthenticatorType>> authenticationDomains, AdminDNs adminDns, PrivilegesEvaluator privilegesEvaluator,
             Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache, AuditLog auditLog,
             BlockedUserRegistry blockedUserRegistry, List<AuthFailureListener> ipAuthFailureListeners, List<String> requiredLoginPrivileges,
             boolean debug) {
 
         this.request = request;
-        this.threadContext = threadContext;
         this.authenticationDomains = authenticationDomains;
         this.authenticationDomainIter = authenticationDomains.iterator();
         this.ipAuthFailureListeners = ipAuthFailureListeners;
@@ -268,7 +264,6 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                         new RestImpersonationProcessor<AuthenticatorType>(authenticatedUser, getImpersonationUser(), authenticationDomains, adminDns,
                                 impersonationCache).impersonate((result) -> {
                                     if (result.getUser() != null) {
-                                        threadContext.putTransient(ConfigConstants.SG_USER, result.getUser());
                                         auditLog.logSucceededLogin(result.getUser(), false, authenticatedUser, request.getRequest());
                                     }
                                     onResult.accept(result);
@@ -276,7 +271,6 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                     } else {
                         // This is the happy case :-)
 
-                        threadContext.putTransient(ConfigConstants.SG_USER, authenticatedUser);
                         auditLog.logSucceededLogin(authenticatedUser, false, authenticatedUser, request.getRequest());
                         if (debug.isEnabled()) {
                             debug.success(authenticationDomain.getType(), "User is logged in", "user",

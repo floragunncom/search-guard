@@ -27,8 +27,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
@@ -36,12 +34,12 @@ import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
-public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HTTPAuthenticator> {
+public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HttpAuthenticationFrontend> {
     private final static Logger log = LogManager.getLogger(SessionTokenAuthenticationDomain.class);
 
     private final SessionService sessionService;
@@ -55,7 +53,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
     }
 
     @Override
-    public HTTPAuthenticator getFrontend() {
+    public HttpAuthenticationFrontend getFrontend() {
         return authenticator;
     }
 
@@ -79,7 +77,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
         return sessionService.isEnabled();
     }
 
-    public static class SessionAuthenticator implements HTTPAuthenticator {
+    public static class SessionAuthenticator implements HttpAuthenticationFrontend {
 
         private final SessionService sessionService;
         private final String jwtHeaderName;
@@ -98,8 +96,8 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
         }
 
         @Override
-        public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
-            String encodedJwt = getJwtTokenString(request);
+        public AuthCredentials extractCredentials(RequestMetaData<?> request) throws CredentialsException {
+            String encodedJwt = request.getAuthorizationByScheme(jwtHeaderName, "bearer");
 
             if (Strings.isNullOrEmpty(encodedJwt)) {
                 return null;
@@ -125,33 +123,8 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
 
             } catch (JwtException e) {
                 log.info("JWT is invalid (" + this.getType() + ")", e);
-                return null;
+                throw new CredentialsException("JWT is invalid", e);
             }
-        }
-
-        protected String getJwtTokenString(RestRequest request) {
-            String authzHeader = request.header(jwtHeaderName);
-
-            if (authzHeader == null) {
-                return null;
-            }
-
-            authzHeader = authzHeader.trim();
-
-            int separatorIndex = authzHeader.indexOf(' ');
-
-            if (separatorIndex == -1) {
-                log.info("Illegal Authorization header: " + authzHeader);
-                return null;
-            }
-
-            String scheme = authzHeader.substring(0, separatorIndex);
-
-            if (!scheme.equalsIgnoreCase("bearer")) {
-                return null;
-            }
-
-            return authzHeader.substring(separatorIndex + 1).trim();
         }
 
         protected String extractSubject(JwtClaims claims) {
@@ -192,7 +165,8 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HT
     }
 
     @Override
-    public CompletableFuture<User> authenticate(AuthCredentials credentials, AuthenticationDebugLogger debug) throws AuthenticatorUnavailableException, CredentialsException {
+    public CompletableFuture<User> authenticate(AuthCredentials credentials, AuthenticationDebugLogger debug)
+            throws AuthenticatorUnavailableException, CredentialsException {
         try {
             CompletableFuture<User> result = new CompletableFuture<User>();
 

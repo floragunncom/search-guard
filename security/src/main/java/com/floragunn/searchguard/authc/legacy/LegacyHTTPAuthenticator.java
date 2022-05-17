@@ -17,13 +17,29 @@
 
 package com.floragunn.searchguard.authc.legacy;
 
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestRequest;
 
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.authc.CredentialsException;
+import com.floragunn.searchguard.authc.RequestMetaData;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.user.AuthCredentials;
 
-public interface LegacyHTTPAuthenticator extends HTTPAuthenticator {
+public interface LegacyHTTPAuthenticator extends HttpAuthenticationFrontend {
+    AuthCredentials extractCredentials(RestRequest request, ThreadContext threadContext);
+    
+    default AuthCredentials extractCredentials(RequestMetaData<?> request) throws AuthenticatorUnavailableException, CredentialsException {
+        LegacyRestRequestMetaData restRequestMetaData = (LegacyRestRequestMetaData) request;
+        return extractCredentials(restRequestMetaData.getRequest(), restRequestMetaData.getThreadContext());
+    }
+    
     default boolean reRequestAuthentication(RestChannel channel, AuthCredentials credentials) {
+        return false;
+    }
+    
+    default boolean handleMetaRequest(RestRequest restRequest, RestChannel restChannel, String generalRequestPathComponent, String specificRequestPathComponent, ThreadContext threadContext) {
         return false;
     }
 }

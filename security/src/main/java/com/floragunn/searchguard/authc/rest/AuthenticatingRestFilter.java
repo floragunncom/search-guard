@@ -60,7 +60,6 @@ import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.HTTPHelper;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.RestApi;
@@ -184,6 +183,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
                     if (result.getStatus() == AuthcResult.Status.PASS) {
                         // make it possible to filter logs by username
+                        threadContext.putTransient(ConfigConstants.SG_USER, result.getUser());
                         org.apache.logging.log4j.ThreadContext.clearAll();
                         org.apache.logging.log4j.ThreadContext.put("user", result.getUser() != null ? result.getUser().getName() : null);
 
@@ -232,7 +232,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
             threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.REST.toString());
 
-            if (HTTPHelper.containsBadHeader(request)) {
+            if (containsBadHeader(request)) {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
                 auditLog.logBadHeaders(request);
@@ -300,4 +300,13 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
     }
 
+    private static boolean containsBadHeader(RestRequest request) {
+        for (String key : request.getHeaders().keySet()) {
+            if (key != null && key.trim().toLowerCase().startsWith(ConfigConstants.SG_CONFIG_PREFIX.toLowerCase())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

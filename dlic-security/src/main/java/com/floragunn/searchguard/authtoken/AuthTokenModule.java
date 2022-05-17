@@ -44,7 +44,7 @@ import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authtoken.api.AuthTokenInfoAction;
 import com.floragunn.searchguard.authtoken.api.AuthTokenInfoRestAction;
 import com.floragunn.searchguard.authtoken.api.AuthTokenRestAction;
@@ -170,7 +170,7 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
     }
 
     @Override
-    public List<AuthenticationDomain<HTTPAuthenticator>> getImplicitHttpAuthenticationDomains() {
+    public List<AuthenticationDomain<HttpAuthenticationFrontend>> getImplicitHttpAuthenticationDomains() {
         return Collections.singletonList(authenticationDomain);
     }
 

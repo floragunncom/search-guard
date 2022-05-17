@@ -39,7 +39,7 @@ import org.elasticsearch.script.ScriptService;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 
 public interface SearchGuardModule {
     default List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
@@ -64,7 +64,7 @@ public interface SearchGuardModule {
         return Collections.emptyList();
     }
 
-    default List<AuthenticationDomain<HTTPAuthenticator>> getImplicitHttpAuthenticationDomains() {
+    default List<AuthenticationDomain<HttpAuthenticationFrontend>> getImplicitHttpAuthenticationDomains() {
         return Collections.emptyList();
     }
 

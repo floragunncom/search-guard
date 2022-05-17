@@ -17,13 +17,16 @@
 
 package com.floragunn.searchguard.authc;
 
+import java.util.List;
+import java.util.Map;
+
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
 
 import inet.ipaddr.IPAddress;
 
-public class RequestMetaData<T> {
+public abstract class RequestMetaData<T> {
     private final T request;
     private final IPAddress directIpAddress;
     private final IPAddress originatingIpAddress;
@@ -64,6 +67,34 @@ public class RequestMetaData<T> {
 
     public String getClientCertSubject() {
         return clientCertSubject;
+    }
+
+    public abstract String getHeader(String headerName);
+
+    public abstract Map<String, List<String>> getHeaders();
+
+    public abstract String getParam(String paramName);
+    
+    public String getAuthorizationByScheme(String header, String scheme) {
+        String authorization = getHeader(header);
+        if (authorization == null) {
+            return null;
+        }
+
+        int separator = authorization.indexOf(' ');
+        if (separator == -1) {
+            return null;
+        }
+
+        if (!authorization.substring(0, separator).equalsIgnoreCase(scheme)) {
+            return null;
+        }
+
+        return authorization.substring(separator + 1).trim();
+    }
+
+    public String getAuthorizationByScheme(String scheme) {
+        return getAuthorizationByScheme("Authorization", scheme);
     }
 
     @Override

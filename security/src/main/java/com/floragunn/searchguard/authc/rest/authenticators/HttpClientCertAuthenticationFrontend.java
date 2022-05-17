@@ -28,29 +28,28 @@ import javax.naming.ldap.Rdn;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.authc.RequestMetaData;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.base.Strings;
 
-public class HTTPClientCertAuthenticator implements HTTPAuthenticator {
+public class HttpClientCertAuthenticationFrontend implements HttpAuthenticationFrontend {
 
-    private static final Logger log = LogManager.getLogger(HTTPClientCertAuthenticator.class);
+    private static final Logger log = LogManager.getLogger(HttpClientCertAuthenticationFrontend.class);
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "clientcert").initialized();
 
-    public HTTPClientCertAuthenticator(DocNode settings, ConfigurationRepository.Context context) {
+    public HttpClientCertAuthenticationFrontend(DocNode settings, ConfigurationRepository.Context context) {
     }
 
     @Override
-    public AuthCredentials extractCredentials(final RestRequest request, final ThreadContext threadContext) {
+    public AuthCredentials extractCredentials(RequestMetaData<?> request) {
 
-        String principal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
+        String principal = request.getClientCertSubject();
 
         if (Strings.isNullOrEmpty(principal)) {
             log.debug("No client cert provided");

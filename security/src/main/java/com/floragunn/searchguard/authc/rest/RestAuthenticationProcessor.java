@@ -43,7 +43,6 @@ import com.floragunn.searchguard.authc.base.IPAddressAcceptanceRules;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -77,7 +76,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
         private final boolean debug;
 
         private final RestAuthcConfig authcConfig;
-        private final List<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains;
+        private final List<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains;
         private final ClientAddressAscertainer clientAddressAscertainer;
         private final IPAddressAcceptanceRules ipAddressAcceptanceRules;
         private final List<String> requiredLoginPrivileges = Collections.emptyList();
@@ -104,7 +103,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
             this.userCache = authcConfig.getUserCacheConfig().build();
             this.impersonationCache = authcConfig.getUserCacheConfig().build();
             
-            for (AuthenticationDomain<HTTPAuthenticator> authenticationDomain : this.authenticationDomains) {
+            for (AuthenticationDomain<HttpAuthenticationFrontend> authenticationDomain : this.authenticationDomains) {
                 componentState.addPart(authenticationDomain.getComponentState());
             }
         }
@@ -114,7 +113,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
             String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
 
             ClientIpInfo clientInfo = clientAddressAscertainer.getActualRemoteAddress(request);
-            RequestMetaData<RestRequest> requestMetaData = new RequestMetaData<RestRequest>(request, clientInfo, sslPrincipal);
+            RequestMetaData<RestRequest> requestMetaData = new RestRequestMetaData(request, clientInfo, sslPrincipal);
             IPAddress remoteIpAddress = clientInfo.getOriginatingIpAddress();
 
             if (!ipAddressAcceptanceRules.accept(requestMetaData)) {
@@ -147,7 +146,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
                 return;
             }
 
-            new RestRequestAuthenticationProcessor(restHandler, requestMetaData, channel, threadContext, authenticationDomains, adminDns,
+            new RestRequestAuthenticationProcessor(restHandler, requestMetaData, authenticationDomains, adminDns,
                     privilegesEvaluator, userCache, impersonationCache, auditLog, blockedUserRegistry, ipAuthFailureListeners,
                     requiredLoginPrivileges, debug).authenticate(onResult, onFailure);
 

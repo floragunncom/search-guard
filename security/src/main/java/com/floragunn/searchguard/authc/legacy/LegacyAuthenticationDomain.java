@@ -40,7 +40,7 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authc.transport.TransportAuthenticationDomain.TransportAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -144,7 +144,7 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
         return result.toString();
     }
 
-    public static Optional<AuthenticationDomain<HTTPAuthenticator>> parseHttpDomain(String id, DocNode docNode,
+    public static Optional<AuthenticationDomain<HttpAuthenticationFrontend>> parseHttpDomain(String id, DocNode docNode,
             ConfigurationRepository.Context context, ImmutableList<LegacyAuthorizationBackend> authorizationBackends)
             throws ConfigValidationException {
         TypedComponentRegistry typedComponentRegistry = context.modulesRegistry().getTypedComponentRegistry();
@@ -171,7 +171,7 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
 
         String backendType = vNode.get("authentication_backend.type").withDefault("internal").asString();
 
-        HTTPAuthenticator httpAuthenticator = null;
+        HttpAuthenticationFrontend httpAuthenticator = null;
         LegacyAuthenticationBackend authenticationBackend = null;
 
         try {
@@ -215,7 +215,7 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
 
         validationErrors.throwExceptionForPresentErrors();
 
-        return Optional.of(new LegacyAuthenticationDomain<HTTPAuthenticator>(id, authenticationBackend, httpAuthenticator, challenge, order,
+        return Optional.of(new LegacyAuthenticationDomain<HttpAuthenticationFrontend>(id, authenticationBackend, httpAuthenticator, challenge, order,
                 skipUsers, enabledOnlyForIps, authorizationBackends));
 
     }

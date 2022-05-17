@@ -25,7 +25,6 @@ import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -50,11 +49,11 @@ public class ApiAuthenticationProcessor extends RequestAuthenticationProcessor<A
     private final Map<String, Object> request;
     private final String frontendConfigId;
 
-    public ApiAuthenticationProcessor(Map<String, Object> request, RequestMetaData<RestRequest> requestMetaData, ThreadContext threadContext,
+    public ApiAuthenticationProcessor(Map<String, Object> request, RequestMetaData<RestRequest> requestMetaData, 
             Collection<AuthenticationDomain<ApiAuthenticationFrontend>> authenticationDomains, AdminDNs adminDns,
             PrivilegesEvaluator privilegesEvaluator, AuditLog auditLog, BlockedUserRegistry blockedUserRegistry,
             List<AuthFailureListener> ipAuthFailureListeners, List<String> requiredLoginPrivileges, boolean debug) {
-        super(requestMetaData, threadContext, authenticationDomains, adminDns, privilegesEvaluator, null, null, auditLog, blockedUserRegistry,
+        super(requestMetaData, authenticationDomains, adminDns, privilegesEvaluator, null, null, auditLog, blockedUserRegistry,
                 ipAuthFailureListeners, requiredLoginPrivileges, debug);
 
         this.request = request;

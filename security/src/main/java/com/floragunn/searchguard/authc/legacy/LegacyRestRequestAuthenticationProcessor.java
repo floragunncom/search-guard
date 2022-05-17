@@ -35,19 +35,18 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
-import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.base.RequestAuthenticationProcessor;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.cache.Cache;
 
-public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticationProcessor<HTTPAuthenticator> {
+public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticationProcessor<HttpAuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(LegacyRestRequestAuthenticationProcessor.class);
 
     private final MetaRequestInfo authDomainMetaRequest;
@@ -55,15 +54,16 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
     private final RestHandler restHandler;
     private final RestRequest restRequest;
     private final RestChannel restChannel;
+    private final ThreadContext threadContext;
 
     private LinkedHashSet<String> challenges = new LinkedHashSet<>(2);
 
-    public LegacyRestRequestAuthenticationProcessor(RestHandler restHandler, RequestMetaData<RestRequest> request, RestChannel restChannel,
-            ThreadContext threadContext, Collection<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains, AdminDNs adminDns,
+    public LegacyRestRequestAuthenticationProcessor(RestHandler restHandler, LegacyRestRequestMetaData request, RestChannel restChannel,
+            ThreadContext threadContext, Collection<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains, AdminDNs adminDns,
             PrivilegesEvaluator privilegesEvaluator, Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache,
             AuditLog auditLog, BlockedUserRegistry blockedUserRegistry, List<AuthFailureListener> ipAuthFailureListeners,
             List<String> requiredLoginPrivileges, boolean debug) {
-        super(request, threadContext, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog,
+        super(request, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog,
                 blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, debug);
 
         this.restHandler = restHandler;
@@ -71,18 +71,19 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
         this.restChannel = restChannel;
         this.authDomainMetaRequest = checkAuthDomainMetaRequest(restRequest);
         this.isAuthDomainMetaRequest = authDomainMetaRequest != null;
+        this.threadContext = request.getThreadContext();
     }
 
     @Override
-    protected AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<HTTPAuthenticator> authenticationDomain,
+    protected AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<HttpAuthenticationFrontend> authenticationDomain,
             Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
-        HTTPAuthenticator httpAuthenticator = authenticationDomain.getFrontend();
+        HttpAuthenticationFrontend httpAuthenticator = authenticationDomain.getFrontend();
 
         if (isAuthDomainMetaRequest && authDomainMetaRequest.authDomainType.equals(httpAuthenticator.getType())
                 && ("_first".equals(authDomainMetaRequest.authDomainId) || authenticationDomain.getId().equals(authDomainMetaRequest.authDomainId))) {
 
-            if (httpAuthenticator.handleMetaRequest(restRequest, restChannel, authDomainMetaRequest.authDomainPath,
-                    authDomainMetaRequest.remainingPath, threadContext)) {
+            if (httpAuthenticator instanceof LegacyHTTPAuthenticator && ((LegacyHTTPAuthenticator) httpAuthenticator).handleMetaRequest(restRequest,
+                    restChannel, authDomainMetaRequest.authDomainPath, authDomainMetaRequest.remainingPath, threadContext)) {
                 return AuthDomainState.STOP;
             }
         }
@@ -93,7 +94,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
 
         AuthCredentials ac;
         try {
-            ac = httpAuthenticator.extractCredentials(restRequest, threadContext);
+            ac = httpAuthenticator.extractCredentials(request);
         } catch (Exception e1) {
             log.warn("'{}' extracting credentials from {} http authenticator", e1.toString(), httpAuthenticator.getType(), e1);
             return AuthDomainState.SKIP;
@@ -176,7 +177,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
     @Override
     protected String getRequestedTenant() {
         if (restHandler instanceof TenantAwareRestHandler) {
-            return ((TenantAwareRestHandler) restHandler).getTenantName(restRequest);
+            return ((TenantAwareRestHandler) restHandler).getTenantName(request);
         } else {
             return restRequest.header("sgtenant") != null ? restRequest.header("sgtenant") : restRequest.header("sg_tenant");
         }

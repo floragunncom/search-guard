@@ -35,7 +35,6 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.base.IPAddressAcceptanceRules;
 import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.support.IPAddressCollection;
@@ -50,12 +49,12 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Dest
             Attribute.optional("user_cache", Object.class, "User cache configuration."));
 
     private final DocNode source;
-    private final ImmutableList<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains;
+    private final ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains;
     private final Network network;
     private final boolean debugEnabled;
     private final CacheConfig userCacheConfig;
 
-    public RestAuthcConfig(DocNode source, ImmutableList<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains, Network network,
+    public RestAuthcConfig(DocNode source, ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains, Network network,
             CacheConfig userCacheConfig, boolean debugEnabled) {
         super();
         this.source = source;
@@ -79,8 +78,8 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Dest
             return new ValidationResult<RestAuthcConfig>(e.getValidationErrors());
         }
 
-        List<AuthenticationDomain<HTTPAuthenticator>> authDomain = vNode.get("auth_domains")
-                .asList((n) -> StandardAuthenticationDomain.parse(n, HTTPAuthenticator.class, context));
+        List<AuthenticationDomain<HttpAuthenticationFrontend>> authDomain = vNode.get("auth_domains")
+                .asList((n) -> StandardAuthenticationDomain.parse(n, HttpAuthenticationFrontend.class, context));
 
         Network network = vNode.get("network").by(Network::parse);
 
@@ -175,7 +174,7 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Dest
         return network;
     }
 
-    public ImmutableList<AuthenticationDomain<HTTPAuthenticator>> getAuthenticators() {
+    public ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>> getAuthenticators() {
         return authenticationDomains;
     }
 

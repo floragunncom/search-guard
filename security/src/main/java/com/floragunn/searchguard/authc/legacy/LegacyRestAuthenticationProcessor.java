@@ -36,16 +36,15 @@ import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
-import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.base.IPAddressAcceptanceRules;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer;
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthenticationProcessor;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.modules.state.ComponentState;
@@ -70,7 +69,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
     private final BlockedUserRegistry blockedUserRegistry;
 
     private final RestAuthcConfig authcConfig;
-    private final List<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains;
+    private final List<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains;
     private final ClientAddressAscertainer clientAddressAscertainer;
     private final IPAddressAcceptanceRules ipAddressAcceptanceRules;
     private final List<String> requiredLoginPrivileges = Collections.emptyList();
@@ -96,7 +95,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
         this.userCache = authcConfig.getUserCacheConfig().build();
         this.impersonationCache = authcConfig.getUserCacheConfig().build();
 
-        for (AuthenticationDomain<HTTPAuthenticator> authenticationDomain : this.authenticationDomains) {
+        for (AuthenticationDomain<HttpAuthenticationFrontend> authenticationDomain : this.authenticationDomains) {
             componentState.addPart(authenticationDomain.getComponentState());
         }
     }
@@ -106,7 +105,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
         String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
 
         ClientIpInfo clientInfo = clientAddressAscertainer.getActualRemoteAddress(request);
-        RequestMetaData<RestRequest> requestMetaData = new RequestMetaData<RestRequest>(request, clientInfo, sslPrincipal);
+        LegacyRestRequestMetaData requestMetaData = new LegacyRestRequestMetaData(request, clientInfo, sslPrincipal, threadContext);
         IPAddress remoteIpAddress = clientInfo.getOriginatingIpAddress();
 
         if (!ipAddressAcceptanceRules.accept(requestMetaData)) {

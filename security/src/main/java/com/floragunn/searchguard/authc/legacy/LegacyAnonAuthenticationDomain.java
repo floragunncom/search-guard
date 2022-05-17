@@ -24,21 +24,21 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 
-public class LegacyAnonAuthenticationDomain implements AuthenticationDomain<HTTPAuthenticator> {
+public class LegacyAnonAuthenticationDomain implements AuthenticationDomain<HttpAuthenticationFrontend> {
     private final ComponentState componentState = new ComponentState(0, "auth_domain", "legacy_anon").initialized();
 
     @Override
-    public HTTPAuthenticator getFrontend() {
+    public HttpAuthenticationFrontend getFrontend() {
         return frontend;
     }
 
@@ -62,7 +62,7 @@ public class LegacyAnonAuthenticationDomain implements AuthenticationDomain<HTTP
         return true;
     }
 
-    private final HTTPAuthenticator frontend = new HTTPAuthenticator() {
+    private final HttpAuthenticationFrontend frontend = new LegacyHTTPAuthenticator() {
         private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "legacy_anon").initialized();
 
         @Override

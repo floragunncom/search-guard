@@ -16,6 +16,9 @@
 
 package com.floragunn.searchguard.authc.transport;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
 
@@ -46,7 +49,6 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.modules.state.ComponentStateProvider;
-import com.floragunn.searchguard.support.HTTPHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
@@ -135,7 +137,7 @@ public class AuthenticatingTransportRequestHandler implements ComponentStateProv
             return null;
         }
 
-        RequestMetaData<TransportRequest> requestMetaData = new RequestMetaData<TransportRequest>(request, remoteIpAddress, action);
+        RequestMetaData<TransportRequest> requestMetaData = new TransportRequestMetaData(request, remoteIpAddress, action);
 
         if (!ipAddressAcceptanceRules.accept(requestMetaData)) {
             log.info("Not accepting request due to acceptance rules {}", requestMetaData);
@@ -153,7 +155,7 @@ public class AuthenticatingTransportRequestHandler implements ComponentStateProv
         final String authorizationHeader = threadContext.getHeader("Authorization");
         //Use either impersonation OR credentials authentication
         //if both is supplied credentials authentication win
-        AuthCredentials.Builder credentialBuilder = HTTPHelper.extractCredentials(authorizationHeader, log);
+        AuthCredentials.Builder credentialBuilder = extractCredentials(authorizationHeader);
         AuthCredentials creds = credentialBuilder != null ? credentialBuilder.authenticatorType("transport_basic").build() : null;
 
         User impersonatedTransportUser = null;
@@ -360,6 +362,51 @@ public class AuthenticatingTransportRequestHandler implements ComponentStateProv
     @Override
     public ComponentState getComponentState() {
         return componentState;
+    }
+    
+    private static AuthCredentials.Builder extractCredentials(String authorizationHeader) {
+
+        if (authorizationHeader != null) {
+            if (!authorizationHeader.trim().toLowerCase().startsWith("basic ")) {
+                return null;
+            } else {
+
+                final String decodedBasicHeader = new String(Base64.getDecoder().decode(authorizationHeader.split(" ")[1]),
+                        StandardCharsets.UTF_8);
+
+                //username:password
+                //special case
+                //username must not contain a :, but password is allowed to do so
+                //   username:pass:word
+                //blank password
+                //   username:
+                
+                final int firstColonIndex = decodedBasicHeader.indexOf(':');
+
+                String username = null;
+                String password = null;
+
+                if (firstColonIndex > 0) {
+                    username = decodedBasicHeader.substring(0, firstColonIndex);
+                    
+                    if(decodedBasicHeader.length() - 1 != firstColonIndex) {
+                        password = decodedBasicHeader.substring(firstColonIndex + 1);
+                    } else {
+                        //blank password
+                        password="";
+                    }
+                }
+
+                if (username == null || password == null) {
+                    log.debug("Invalid 'Authorization' header");
+                    return null;
+                } else {
+                    return AuthCredentials.forUser(username).password(password.getBytes(StandardCharsets.UTF_8)).complete();
+                }
+            }
+        } else {
+            return null;
+        }
     }
 
 }
