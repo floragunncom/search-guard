@@ -108,7 +108,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
         }
 
         if (ac == null) {
-            log.debug("no {} credentials found in request", authenticationDomain.getFrontend().getType());
+            log.trace("no {} credentials found in request", authenticationDomain.getFrontend().getType());
 
             if (isChallengeEnabled(authenticationDomain)) {
                 if (httpAuthenticator instanceof LegacyHTTPAuthenticator && ((LegacyHTTPAuthenticator) httpAuthenticator).reRequestAuthentication(restChannel, ac)) {

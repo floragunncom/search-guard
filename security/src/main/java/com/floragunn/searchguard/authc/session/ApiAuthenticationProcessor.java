@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,8 +74,8 @@ public class ApiAuthenticationProcessor extends RequestAuthenticationProcessor<A
         try {
             ac = authenticationFrontend.extractCredentials(request);
         } catch (CredentialsException e) {
-            if (log.isDebugEnabled()) {
-                log.debug("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
+            if (log.isTraceEnabled()) {
+                log.trace("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
             }
 
             debug.add(e.getDebugInfo());
