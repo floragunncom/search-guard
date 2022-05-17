@@ -93,6 +93,7 @@ import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer;
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
+import com.floragunn.searchguard.authc.rest.RestRequestMetaData;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationProcessor;
 import com.floragunn.searchguard.authc.session.FrontendAuthcConfig;
@@ -104,8 +105,8 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -366,9 +367,9 @@ public class SessionService {
             log.debug("Auth domains after filtering by mode " + mode + " and id " + id + ": " + apiAuthenticationDomains);
         }
 
-        RequestMetaData<RestRequest> requestMetaData = new RequestMetaData<RestRequest>(restRequest, remoteIpAddress, null);
+        RequestMetaData<RestRequest> requestMetaData = new RestRequestMetaData(restRequest, remoteIpAddress, null);
 
-        new ApiAuthenticationProcessor(request, requestMetaData, threadContext, apiAuthenticationDomains, adminDns, privilegesEvaluator, auditLog,
+        new ApiAuthenticationProcessor(request, requestMetaData, apiAuthenticationDomains, adminDns, privilegesEvaluator, auditLog,
                 blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, authcConfig.isDebugEnabled(configId)).authenticate(onResult,
                         onFailure);
     }

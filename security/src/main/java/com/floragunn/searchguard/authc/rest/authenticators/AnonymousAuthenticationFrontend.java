@@ -17,15 +17,14 @@
 
 package com.floragunn.searchguard.authc.rest.authenticators;
 
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
-
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
+import com.floragunn.searchguard.authc.RequestMetaData;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 
-public class AnonymousAuthenticator implements HTTPAuthenticator {
+public class AnonymousAuthenticationFrontend implements HttpAuthenticationFrontend {
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "anonymous").initialized();
 
     @Override
@@ -34,7 +33,7 @@ public class AnonymousAuthenticator implements HTTPAuthenticator {
     }
 
     @Override
-    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context)
+    public AuthCredentials extractCredentials(RequestMetaData<?> request)
             throws AuthenticatorUnavailableException, CredentialsException {
         return AuthCredentials.forUser("anonymous").build();
     }

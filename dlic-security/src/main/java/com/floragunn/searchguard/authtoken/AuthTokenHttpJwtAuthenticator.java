@@ -20,15 +20,14 @@ import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
 
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.RequestMetaData;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.base.Strings;
 
-public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
+public class AuthTokenHttpJwtAuthenticator implements HttpAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(AuthTokenHttpJwtAuthenticator.class);
 
     private final AuthTokenService authTokenService;
@@ -48,8 +47,8 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
     }
 
     @Override
-    public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) {
-        String encodedJwt = getJwtTokenString(request);
+    public AuthCredentials extractCredentials(RequestMetaData<?> request) {
+        String encodedJwt = request.getAuthorizationByScheme(jwtHeaderName, "bearer");
 
         if (Strings.isNullOrEmpty(encodedJwt)) {
             return null;
@@ -75,34 +74,6 @@ public class AuthTokenHttpJwtAuthenticator implements HTTPAuthenticator {
             log.info("JWT is invalid (" + this.getType() + ")", e);
             return null;
         }
-    }
-
-    protected String getJwtTokenString(RestRequest request) {
-        String authzHeader = request.header(jwtHeaderName);
-
-        if (authzHeader == null) {
-            return null;
-        }
-
-        authzHeader = authzHeader.trim();
-
-        int separatorIndex = authzHeader.indexOf(' ');
-
-        if (separatorIndex == -1) {
-            log.info("Illegal Authorization header: " + authzHeader);
-            return null;
-        }
-
-        String scheme = authzHeader.substring(0, separatorIndex);
-
-        if (!scheme.equalsIgnoreCase("bearer")) {
-            if (log.isDebugEnabled()) {
-                log.debug("Unsupported authentication scheme " + scheme);
-            }
-            return null;
-        }
-
-        return authzHeader.substring(separatorIndex + 1).trim();
     }
 
     protected String extractSubject(JwtClaims claims) {

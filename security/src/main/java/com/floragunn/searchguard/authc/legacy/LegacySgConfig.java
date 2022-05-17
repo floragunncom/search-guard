@@ -41,9 +41,9 @@ import com.floragunn.searchguard.TypedComponentRegistry;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.UserInformationBackend;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig.Network;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.authc.transport.TransportAuthcConfig;
 import com.floragunn.searchguard.authc.transport.TransportAuthenticationDomain;
 import com.floragunn.searchguard.authc.transport.TransportAuthenticationDomain.TransportAuthenticationFrontend;
@@ -121,7 +121,7 @@ public class LegacySgConfig implements Document<LegacySgConfig> {
         ValidationErrors validationErrors = new ValidationErrors();
         boolean criticalErrors = false;
 
-        ValidationResult<ImmutableList<AuthenticationDomain<HTTPAuthenticator>>> authenticationDomains = parseAuthenticationDomains(docNode, context,
+        ValidationResult<ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>>> authenticationDomains = parseAuthenticationDomains(docNode, context,
                 authorizationBackends);
         validationErrors.add(null, authenticationDomains.getValidationErrors());
 
@@ -174,21 +174,21 @@ public class LegacySgConfig implements Document<LegacySgConfig> {
         }
     }
 
-    static ValidationResult<ImmutableList<AuthenticationDomain<HTTPAuthenticator>>> parseAuthenticationDomains(DocNode docNode,
+    static ValidationResult<ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>>> parseAuthenticationDomains(DocNode docNode,
             ConfigurationRepository.Context context, ImmutableList<LegacyAuthorizationBackend> authorizationBackends) {
 
         DocNode authcNode = docNode.getAsNode("dynamic", "authc");
 
         if (authcNode.isNull()) {
-            return new ValidationResult<ImmutableList<AuthenticationDomain<HTTPAuthenticator>>>(new MissingAttribute("dynamic.authc"));
+            return new ValidationResult<ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>>>(new MissingAttribute("dynamic.authc"));
         }
 
         if (!authcNode.isMap()) {
-            return new ValidationResult<ImmutableList<AuthenticationDomain<HTTPAuthenticator>>>(
+            return new ValidationResult<ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>>>(
                     new InvalidAttributeValue("dynamic.authc", null, "A mapping from auth domain names to definitions"));
         }
 
-        ImmutableList.Builder<AuthenticationDomain<HTTPAuthenticator>> domains = new ImmutableList.Builder<>();
+        ImmutableList.Builder<AuthenticationDomain<HttpAuthenticationFrontend>> domains = new ImmutableList.Builder<>();
         ValidationErrors validationErrors = new ValidationErrors();
 
         for (Map.Entry<String, DocNode> entry : authcNode.toMapOfNodes().entrySet()) {
@@ -201,14 +201,14 @@ public class LegacySgConfig implements Document<LegacySgConfig> {
             }
         }
 
-        ImmutableList<AuthenticationDomain<HTTPAuthenticator>> result = domains
+        ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>> result = domains
                 .build((a, b) -> Integer.compare(((LegacyAuthenticationDomain<?>) a).getOrder(), ((LegacyAuthenticationDomain<?>) b).getOrder()));
 
         if (Boolean.TRUE.equals(docNode.get("dynamic", "http", "anonymous_auth_enabled"))) {
             result = result.with(new LegacyAnonAuthenticationDomain());
         }
 
-        return new ValidationResult<ImmutableList<AuthenticationDomain<HTTPAuthenticator>>>(result, validationErrors);
+        return new ValidationResult<ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>>>(result, validationErrors);
     }
 
     static ValidationResult<ImmutableList<LegacyAuthorizationBackend>> parseAuthorizationDomains(DocNode docNode,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 floragunn GmbH
+ * Copyright 2015-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,12 @@
  * 
  */
 
-package com.floragunn.searchguard.authc.rest.authenticators;
-
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
+package com.floragunn.searchguard.authc.rest;
 
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
+import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 /**
@@ -45,7 +42,7 @@ import com.floragunn.searchguard.user.AuthCredentials;
  * https://floragunn.com
  * </b>
  */
-public interface HTTPAuthenticator extends AuthenticationFrontend {
+public interface HttpAuthenticationFrontend extends AuthenticationFrontend {
     
     /**
      * Extract {@link AuthCredentials} from {@link RestRequest}
@@ -59,13 +56,9 @@ public interface HTTPAuthenticator extends AuthenticationFrontend {
      * @throws AuthenticatorUnavailableException
      * @throws CredentialsException
      */
-    AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws AuthenticatorUnavailableException, CredentialsException;
+    AuthCredentials extractCredentials(RequestMetaData<?> request) throws AuthenticatorUnavailableException, CredentialsException;
     
     default String getChallenge(AuthCredentials credentials) {
         return null;
-    }
-    
-    default boolean handleMetaRequest(RestRequest restRequest, RestChannel restChannel, String generalRequestPathComponent, String specificRequestPathComponent, ThreadContext threadContext) {
-        return false;
     }
 }

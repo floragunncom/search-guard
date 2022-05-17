@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -18,7 +18,6 @@ import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.AccessController;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
@@ -34,11 +33,8 @@ import javax.security.auth.login.LoginException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.rest.RestRequest;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
@@ -49,12 +45,14 @@ import org.ietf.jgss.Oid;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.RequestMetaData;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
 import com.google.common.base.Strings;
 
-public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
+public class HTTPSpnegoAuthenticator implements HttpAuthenticationFrontend {
 
     private static final String TYPE = "kerberos";
     private static final Oid[] KRB_OIDS = new Oid[] { KrbConstants.SPNEGO, KrbConstants.KRB5MECH };
@@ -76,82 +74,71 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
             this.challenge = settings.getAsBoolean("challenge", true);
 
-            final SecurityManager sm = System.getSecurityManager();
-
-            if (sm != null) {
-                sm.checkPermission(new SpecialPermission());
-            }
-
-            AccessController.doPrivileged(new PrivilegedAction<Void>() {
-
-                @Override
-                public Void run() {
-
-                    try {
-                        if (settings.getAsBoolean("krb_debug", false)) {
-                            JaasKrbUtil.setDebug(true);
-                            System.setProperty("sun.security.krb5.debug", "true");
-                            System.setProperty("java.security.debug", "gssloginconfig,logincontext,configparser,configfile");
-                            System.setProperty("sun.security.spnego.debug", "true");
-                            System.out.println("Kerberos debug is enabled");
-                            System.err.println("Kerberos debug is enabled");
-                            log.info("Kerberos debug is enabled on stdout");
-                        } else {
-                            log.debug("Kerberos debug is NOT enabled");
-                        }
-                    } catch (Throwable e) {
-                        log.error("Unable to enable krb_debug due to ", e);
-                        System.err.println("Unable to enable krb_debug due to " + ExceptionsHelper.stackTrace(e));
-                        System.out.println("Unable to enable krb_debug due to " + ExceptionsHelper.stackTrace(e));
+            PrivilegedCode.execute(() -> {
+                try {
+                    if (settings.getAsBoolean("krb_debug", false)) {
+                        JaasKrbUtil.setDebug(true);
+                        System.setProperty("sun.security.krb5.debug", "true");
+                        System.setProperty("java.security.debug", "gssloginconfig,logincontext,configparser,configfile");
+                        System.setProperty("sun.security.spnego.debug", "true");
+                        System.out.println("Kerberos debug is enabled");
+                        System.err.println("Kerberos debug is enabled");
+                        log.info("Kerberos debug is enabled on stdout");
+                    } else {
+                        log.debug("Kerberos debug is NOT enabled");
                     }
+                } catch (Throwable e) {
+                    log.error("Unable to enable krb_debug due to ", e);
+                    System.err.println("Unable to enable krb_debug due to " + ExceptionsHelper.stackTrace(e));
+                    System.out.println("Unable to enable krb_debug due to " + ExceptionsHelper.stackTrace(e));
+                }
 
-                    System.setProperty(KrbConstants.USE_SUBJECT_CREDS_ONLY_PROP, "false");
+                System.setProperty(KrbConstants.USE_SUBJECT_CREDS_ONLY_PROP, "false");
 
-                    String krb5Path = krb5PathSetting;
+                String krb5Path = krb5PathSetting;
 
-                    if (!Strings.isNullOrEmpty(krb5Path)) {
+                if (!Strings.isNullOrEmpty(krb5Path)) {
 
-                        if (Paths.get(krb5Path).isAbsolute()) {
-                            log.debug("krb5_filepath: {}", krb5Path);
-                            System.setProperty(KrbConstants.KRB5_CONF_PROP, krb5Path);
-                        } else {
-                            krb5Path = configDir.resolve(krb5Path).toAbsolutePath().toString();
-                            log.debug("krb5_filepath (resolved from {}): {}", configDir, krb5Path);
-                        }
-
+                    if (Paths.get(krb5Path).isAbsolute()) {
+                        log.debug("krb5_filepath: {}", krb5Path);
                         System.setProperty(KrbConstants.KRB5_CONF_PROP, krb5Path);
                     } else {
-                        if (Strings.isNullOrEmpty(System.getProperty(KrbConstants.KRB5_CONF_PROP))) {
-                            System.setProperty(KrbConstants.KRB5_CONF_PROP, "/etc/krb5.conf");
-                            log.debug("krb5_filepath (was not set or configured, set to default): /etc/krb5.conf");
-                        }
+                        krb5Path = configDir.resolve(krb5Path).toAbsolutePath().toString();
+                        log.debug("krb5_filepath (resolved from {}): {}", configDir, krb5Path);
                     }
 
-                    stripRealmFromPrincipalName = settings.getAsBoolean("strip_realm_from_principal", true);
-                    acceptorPrincipal = new HashSet<>(settings.getAsList("searchguard.kerberos.acceptor_principal", Collections.emptyList()));
-                    final String _acceptorKeyTabPath = settings.get("searchguard.kerberos.acceptor_keytab_filepath");
-
-                    if (acceptorPrincipal == null || acceptorPrincipal.size() == 0) {
-                        log.error("acceptor_principal must not be null or empty. Kerberos authentication will not work");
-                        acceptorPrincipal = null;
+                    System.setProperty(KrbConstants.KRB5_CONF_PROP, krb5Path);
+                } else {
+                    if (Strings.isNullOrEmpty(System.getProperty(KrbConstants.KRB5_CONF_PROP))) {
+                        System.setProperty(KrbConstants.KRB5_CONF_PROP, "/etc/krb5.conf");
+                        log.debug("krb5_filepath (was not set or configured, set to default): /etc/krb5.conf");
                     }
-
-                    if (_acceptorKeyTabPath == null || _acceptorKeyTabPath.length() == 0) {
-                        log.error("searchguard.kerberos.acceptor_keytab_filepath must not be null or empty. Kerberos authentication will not work");
-                        acceptorKeyTabPath = null;
-                    } else {
-                        acceptorKeyTabPath = configDir.resolve(settings.get("searchguard.kerberos.acceptor_keytab_filepath"));
-
-                        if (!Files.exists(acceptorKeyTabPath)) {
-                            log.error(
-                                    "Unable to read keytab from {} - Maybe the file does not exist or is not readable. Kerberos authentication will not work",
-                                    acceptorKeyTabPath);
-                            acceptorKeyTabPath = null;
-                        }
-                    }
-
-                    return null;
                 }
+
+                stripRealmFromPrincipalName = settings.getAsBoolean("strip_realm_from_principal", true);
+                acceptorPrincipal = new HashSet<>(settings.getAsList("searchguard.kerberos.acceptor_principal", Collections.emptyList()));
+                final String _acceptorKeyTabPath = settings.get("searchguard.kerberos.acceptor_keytab_filepath");
+
+                if (acceptorPrincipal == null || acceptorPrincipal.size() == 0) {
+                    log.error("acceptor_principal must not be null or empty. Kerberos authentication will not work");
+                    acceptorPrincipal = null;
+                }
+
+                if (_acceptorKeyTabPath == null || _acceptorKeyTabPath.length() == 0) {
+                    log.error("searchguard.kerberos.acceptor_keytab_filepath must not be null or empty. Kerberos authentication will not work");
+                    acceptorKeyTabPath = null;
+                } else {
+                    acceptorKeyTabPath = configDir.resolve(settings.get("searchguard.kerberos.acceptor_keytab_filepath"));
+
+                    if (!Files.exists(acceptorKeyTabPath)) {
+                        log.error(
+                                "Unable to read keytab from {} - Maybe the file does not exist or is not readable. Kerberos authentication will not work",
+                                acceptorKeyTabPath);
+                        acceptorKeyTabPath = null;
+                    }
+                }
+
+                return null;
             });
 
             log.debug("strip_realm_from_principal {}", stripRealmFromPrincipalName);
@@ -167,108 +154,91 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
     }
 
     @Override
-    public AuthCredentials extractCredentials(final RestRequest request, ThreadContext threadContext) {
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
-        AuthCredentials creds = AccessController.doPrivileged(new PrivilegedAction<AuthCredentials>() {
-            @Override
-            public AuthCredentials run() {
-                return extractCredentials0(request);
-            }
-        });
-
-        return creds;
-    }
-
-    private AuthCredentials extractCredentials0(final RestRequest request) {
-
-        if (acceptorPrincipal == null || acceptorKeyTabPath == null) {
-            log.error("Missing acceptor principal or keytab configuration. Kerberos authentication will not work");
-            return null;
-        }
-
-        Principal principal = null;
-        final String authorizationHeader = request.header("Authorization");
-
-        if (authorizationHeader != null) {
-            if (!authorizationHeader.trim().toLowerCase().startsWith("negotiate ")) {
-                log.warn("No 'Negotiate Authorization' header, send 401 and 'WWW-Authenticate Negotiate'");
+    public AuthCredentials extractCredentials(RequestMetaData<?> request) {
+        return PrivilegedCode.execute(() -> {
+            if (acceptorPrincipal == null || acceptorKeyTabPath == null) {
+                log.error("Missing acceptor principal or keytab configuration. Kerberos authentication will not work");
                 return null;
-            } else {
-                final byte[] decodedNegotiateHeader = Base64.getDecoder().decode(authorizationHeader.substring(10));
+            }
 
-                GSSContext gssContext = null;
-                byte[] outToken = null;
+            Principal principal = null;
+            final String authorizationHeader = request.getHeader("Authorization");
 
-                try {
+            if (authorizationHeader != null) {
+                if (!authorizationHeader.trim().toLowerCase().startsWith("negotiate ")) {
+                    log.debug("No 'Negotiate Authorization' header, send 401 and 'WWW-Authenticate Negotiate'");
+                    return null;
+                } else {
+                    final byte[] decodedNegotiateHeader = Base64.getDecoder().decode(authorizationHeader.substring(10));
 
-                    final Subject subject = JaasKrbUtil.loginUsingKeytab(acceptorPrincipal, acceptorKeyTabPath, false);
+                    GSSContext gssContext = null;
+                    byte[] outToken = null;
 
-                    final GSSManager manager = GSSManager.getInstance();
-                    final int credentialLifetime = GSSCredential.INDEFINITE_LIFETIME;
+                    try {
 
-                    final PrivilegedExceptionAction<GSSCredential> action = new PrivilegedExceptionAction<GSSCredential>() {
-                        @Override
-                        public GSSCredential run() throws GSSException {
-                            return manager.createCredential(null, credentialLifetime, KRB_OIDS, GSSCredential.ACCEPT_ONLY);
+                        final Subject subject = JaasKrbUtil.loginUsingKeytab(acceptorPrincipal, acceptorKeyTabPath, false);
+
+                        final GSSManager manager = GSSManager.getInstance();
+                        final int credentialLifetime = GSSCredential.INDEFINITE_LIFETIME;
+
+                        final PrivilegedExceptionAction<GSSCredential> action = new PrivilegedExceptionAction<GSSCredential>() {
+                            @Override
+                            public GSSCredential run() throws GSSException {
+                                return manager.createCredential(null, credentialLifetime, KRB_OIDS, GSSCredential.ACCEPT_ONLY);
+                            }
+                        };
+                        gssContext = manager.createContext(Subject.doAs(subject, action));
+
+                        outToken = Subject.doAs(subject, new AcceptAction(gssContext, decodedNegotiateHeader));
+
+                        if (outToken == null) {
+                            log.warn("Ticket validation not successful, outToken is null");
+                            return null;
                         }
-                    };
-                    gssContext = manager.createContext(Subject.doAs(subject, action));
 
-                    outToken = Subject.doAs(subject, new AcceptAction(gssContext, decodedNegotiateHeader));
+                        principal = Subject.doAs(subject, new AuthenticateAction(log, gssContext, stripRealmFromPrincipalName));
 
-                    if (outToken == null) {
-                        log.warn("Ticket validation not successful, outToken is null");
+                    } catch (final LoginException e) {
+                        log.error("Login exception due to", e);
+                        return null;
+                    } catch (final GSSException e) {
+                        log.error("Ticket validation not successful due to", e);
+                        return null;
+                    } catch (final PrivilegedActionException e) {
+                        final Throwable cause = e.getCause();
+                        if (cause instanceof GSSException) {
+                            log.info("Service login not successful due to", e);
+                        } else {
+                            log.error("Service login not successful due to", e);
+                        }
+                        return null;
+                    } finally {
+                        if (gssContext != null) {
+                            try {
+                                gssContext.dispose();
+                            } catch (final GSSException e) {
+                                // Ignore
+                            }
+                        }
+                    }
+
+                    if (principal == null) {
+                        return AuthCredentials.forUser("_incomplete_").authenticatorType(getType()).nativeCredentials(outToken).build();
+                    }
+
+                    final String username = ((SimpleUserPrincipal) principal).getName();
+
+                    if (username == null || username.length() == 0) {
                         return null;
                     }
 
-                    principal = Subject.doAs(subject, new AuthenticateAction(log, gssContext, stripRealmFromPrincipalName));
-
-                } catch (final LoginException e) {
-                    log.error("Login exception due to", e);
-                    return null;
-                } catch (final GSSException e) {
-                    log.error("Ticket validation not successful due to", e);
-                    return null;
-                } catch (final PrivilegedActionException e) {
-                    final Throwable cause = e.getCause();
-                    if (cause instanceof GSSException) {
-                        log.info("Service login not successful due to", e);
-                    } else {
-                        log.error("Service login not successful due to", e);
-                    }
-                    return null;
-                } finally {
-                    if (gssContext != null) {
-                        try {
-                            gssContext.dispose();
-                        } catch (final GSSException e) {
-                            // Ignore
-                        }
-                    }
+                    return AuthCredentials.forUser(username).authenticatorType(getType()).nativeCredentials(outToken).complete().build();
                 }
-
-                if (principal == null) {
-                    return AuthCredentials.forUser("_incomplete_").authenticatorType(getType()).nativeCredentials(outToken).build();
-                }
-
-                final String username = ((SimpleUserPrincipal) principal).getName();
-
-                if (username == null || username.length() == 0) {
-                    return null;
-                }
-
-                return AuthCredentials.forUser(username).authenticatorType(getType()).nativeCredentials(outToken).complete().build();
+            } else {
+                log.trace("No 'Authorization' header, send 401 and 'WWW-Authenticate Negotiate'");
+                return null;
             }
-        } else {
-            log.trace("No 'Authorization' header, send 401 and 'WWW-Authenticate Negotiate'");
-            return null;
-        }
-
+        });
     }
 
     @Override
@@ -420,11 +390,11 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
         }
     }
 
-    public static TypedComponent.Info<HTTPAuthenticator> INFO = new TypedComponent.Info<HTTPAuthenticator>() {
+    public static TypedComponent.Info<HttpAuthenticationFrontend> INFO = new TypedComponent.Info<HttpAuthenticationFrontend>() {
 
         @Override
-        public Class<HTTPAuthenticator> getType() {
-            return HTTPAuthenticator.class;
+        public Class<HttpAuthenticationFrontend> getType() {
+            return HttpAuthenticationFrontend.class;
         }
 
         @Override
@@ -433,7 +403,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
         }
 
         @Override
-        public Factory<HTTPAuthenticator> getFactory() {
+        public Factory<HttpAuthenticationFrontend> getFactory() {
             return (config, context) -> {
                 if (config.isNull()) {
                     config = DocNode.EMPTY;

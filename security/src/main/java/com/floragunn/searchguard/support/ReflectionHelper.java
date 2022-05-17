@@ -22,11 +22,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -39,9 +37,7 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
-import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.GuiceDependencies;
-import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.NullAuditLog;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
@@ -281,84 +277,6 @@ public class ReflectionHelper {
         } catch (final Throwable e) {
             log.error("Unable to enable Compliance Module", e);
             return new ComplianceIndexingOperationListener();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T> T instantiateAAA(final String clazz, final Settings settings, final Path configPath, final boolean checkEnterprise) throws ConfigValidationException, NoSuchComponentException {
-
-        if (checkEnterprise && enterpriseModulesDisabled()) {
-            throw new ElasticsearchException("Can not load '{}' because enterprise modules are disabled", clazz);
-        }
-
-        try {
-            final Class<?> clazz0 = Class.forName(clazz);
-            final T ret = (T) clazz0.getConstructor(Settings.class, Path.class).newInstance(settings, configPath);
-
-            return ret;
-        } catch (InvocationTargetException e) {
-            if (e.getCause() instanceof ConfigValidationException) {
-                throw (ConfigValidationException) e.getCause();
-            } else {
-                log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
-                if (log.isDebugEnabled()) {
-                    log.debug("Stacktrace: ", e);
-                }
-                throw new ElasticsearchException(e);
-            }
-        } catch (ClassNotFoundException e) {
-            throw new NoSuchComponentException(clazz, e);
-        } catch (final Throwable e) {
-            log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            throw new ElasticsearchException(e);
-        }
-    }
-    
-    @SuppressWarnings("unchecked")
-    public static <T> T instantiateAAA(String clazz, Map<String, Object> config, ConfigurationRepository.Context context, boolean checkEnterprise) throws ConfigValidationException, ClassNotFoundException {
-
-        if (checkEnterprise && enterpriseModulesDisabled()) {
-            throw new ElasticsearchException("Can not load '{}' because enterprise modules are disabled", clazz);
-        }
-
-        try {
-            final Class<?> clazz0 = Class.forName(clazz);
-            T ret;
-            
-            try {
-                ret = (T) clazz0.getConstructor(Map.class, ConfigurationRepository.Context.class).newInstance(config, context);
-            } catch (NoSuchMethodException e) {
-                Settings.Builder settings = Settings.builder().loadFromMap(config);
-                
-                if (context.getEsSettings() != null) {
-                    settings.put(context.getEsSettings());
-                }
-                
-                ret = (T) clazz0.getConstructor(Settings.class, Path.class).newInstance(settings.build(), context.getConfigPath());
-            }
-            
-            return ret;
-        } catch (ClassNotFoundException e) {
-            throw e;
-        } catch (InvocationTargetException e) {
-            if (e.getCause() instanceof ConfigValidationException) {
-                throw (ConfigValidationException) e.getCause();
-            } else {
-                log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
-                if (log.isDebugEnabled()) {
-                    log.debug("Stacktrace: ", e);
-                }
-                throw new ElasticsearchException(e);
-            }
-        } catch (final Throwable e) {
-            log.warn("Unable to enable '{}' due to {}", clazz, e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            throw new ElasticsearchException(e);
         }
     }
 

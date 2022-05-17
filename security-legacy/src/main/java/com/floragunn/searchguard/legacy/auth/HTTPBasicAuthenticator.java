@@ -19,6 +19,7 @@ package com.floragunn.searchguard.legacy.auth;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -38,12 +39,11 @@ import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
 import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.support.HTTPHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthenticationFrontend {
 
-    protected final Logger log = LogManager.getLogger(this.getClass());
+    protected final static Logger log = LogManager.getLogger(HTTPBasicAuthenticator.class);
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "basic", HTTPBasicAuthenticator.class)
             .initialized();
     
@@ -62,7 +62,7 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
 
         final String authorizationHeader = request.header("Authorization");
 
-        AuthCredentials.Builder credsBuilder = HTTPHelper.extractCredentials(authorizationHeader, log);
+        AuthCredentials.Builder credsBuilder = extractCredentials(authorizationHeader);
 
         if (credsBuilder != null) {
             return credsBuilder.authenticatorType(getType()).build();
@@ -122,5 +122,51 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
     @Override
     public ComponentState getComponentState() {
         return componentState;
+    }
+    
+    private static AuthCredentials.Builder extractCredentials(String authorizationHeader) {
+
+        if (authorizationHeader != null) {
+            if (!authorizationHeader.trim().toLowerCase().startsWith("basic ")) {
+                log.debug("No 'Basic Authorization' header, send 401 and 'WWW-Authenticate Basic'");
+                return null;
+            } else {
+
+                final String decodedBasicHeader = new String(Base64.getDecoder().decode(authorizationHeader.split(" ")[1]),
+                        StandardCharsets.UTF_8);
+
+                //username:password
+                //special case
+                //username must not contain a :, but password is allowed to do so
+                //   username:pass:word
+                //blank password
+                //   username:
+                
+                final int firstColonIndex = decodedBasicHeader.indexOf(':');
+
+                String username = null;
+                String password = null;
+
+                if (firstColonIndex > 0) {
+                    username = decodedBasicHeader.substring(0, firstColonIndex);
+                    
+                    if(decodedBasicHeader.length() - 1 != firstColonIndex) {
+                        password = decodedBasicHeader.substring(firstColonIndex + 1);
+                    } else {
+                        //blank password
+                        password="";
+                    }
+                }
+
+                if (username == null || password == null) {
+                    log.debug("Invalid 'Authorization' header, send 401 and 'WWW-Authenticate Basic'");
+                    return null;
+                } else {
+                    return AuthCredentials.forUser(username).password(password.getBytes(StandardCharsets.UTF_8)).complete();
+                }
+            }
+        } else {
+            return null;
+        }
     }
 }

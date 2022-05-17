@@ -17,32 +17,29 @@
 
 package com.floragunn.searchguard.authc.rest.authenticators;
 
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
-
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authc.CredentialsException;
+import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.base.AuthcResult;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
-import com.google.common.collect.ImmutableMap;
 
-public class HTTPTrustedOriginAuthenticator implements HTTPAuthenticator {
+public class HttpTrustedOriginAuthenticationFrontend implements HttpAuthenticationFrontend {
 
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "trusted_origin").initialized();
 
-    public HTTPTrustedOriginAuthenticator(DocNode docNode, ConfigurationRepository.Context context) {
-
+    public HttpTrustedOriginAuthenticationFrontend(DocNode docNode, ConfigurationRepository.Context context) {
     }
 
-    public AuthCredentials extractCredentials(RestRequest restRequest, ThreadContext threadContext) throws CredentialsException {
-        if (threadContext.getTransient(ConfigConstants.SG_XFF_DONE) == Boolean.TRUE) {
+    public AuthCredentials extractCredentials(RequestMetaData<?> request) throws CredentialsException {
+        if (request.isTrustedProxy()) {
             return AuthCredentials.forUser("n/a").authenticatorType(getType()).complete().build();
         } else {
             throw new CredentialsException(new AuthcResult.DebugInfo("trusted_origin", false, "Connecting IP is not trusted",
-                    ImmutableMap.of("direct_ip_address", String.valueOf(restRequest.getHttpChannel().getRemoteAddress().getAddress()))));
+                    ImmutableMap.of("direct_ip_address", String.valueOf(request.getDirectIpAddress()))));
         }
     }
 

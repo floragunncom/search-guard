@@ -24,8 +24,6 @@ import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
@@ -41,37 +39,36 @@ import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.base.RequestAuthenticationProcessor;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.cache.Cache;
 
-public class RestRequestAuthenticationProcessor extends RequestAuthenticationProcessor<HTTPAuthenticator> {
+public class RestRequestAuthenticationProcessor extends RequestAuthenticationProcessor<HttpAuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(RestRequestAuthenticationProcessor.class);
 
     private final RestHandler restHandler;
-    private final RestRequest restRequest;
+    private final RequestMetaData<RestRequest> request;
 
     private LinkedHashSet<String> challenges = new LinkedHashSet<>(2);
 
-    public RestRequestAuthenticationProcessor(RestHandler restHandler, RequestMetaData<RestRequest> request, RestChannel restChannel,
-            ThreadContext threadContext, Collection<AuthenticationDomain<HTTPAuthenticator>> authenticationDomains, AdminDNs adminDns,
+    public RestRequestAuthenticationProcessor(RestHandler restHandler, RequestMetaData<RestRequest> request, 
+             Collection<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains, AdminDNs adminDns,
             PrivilegesEvaluator privilegesEvaluator, Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache,
             AuditLog auditLog, BlockedUserRegistry blockedUserRegistry, List<AuthFailureListener> ipAuthFailureListeners,
             List<String> requiredLoginPrivileges, boolean debug) {
-        super(request, threadContext, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog,
+        super(request, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog,
                 blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, debug);
 
         this.restHandler = restHandler;
-        this.restRequest = request.getRequest();
+        this.request = request;
     }
 
     @Override
-    protected AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<HTTPAuthenticator> authenticationDomain,
+    protected AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<HttpAuthenticationFrontend> authenticationDomain,
             Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
-        HTTPAuthenticator authenticationFrontend = authenticationDomain.getFrontend();
+        HttpAuthenticationFrontend authenticationFrontend = authenticationDomain.getFrontend();
 
         if (log.isTraceEnabled()) {
             log.trace("Try to extract auth creds from {} http authenticator", authenticationFrontend.getType());
@@ -79,7 +76,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
 
         AuthCredentials ac;
         try {
-            ac = authenticationFrontend.extractCredentials(restRequest, threadContext);
+            ac = authenticationFrontend.extractCredentials(request);
         } catch (CredentialsException e) {
             if (log.isTraceEnabled()) {
                 log.trace("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
@@ -103,7 +100,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
             if (log.isDebugEnabled()) {
                 log.debug("Rejecting REST request because of blocked user: " + ac.getUsername() + "; authDomain: " + authenticationDomain);
             }
-            auditLog.logBlockedUser(ac, false, ac, restRequest);
+            auditLog.logBlockedUser(ac, false, ac, request.getRequest());
             return AuthDomainState.SKIP;
         }
 
@@ -134,7 +131,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
                 }
             }
 
-            ac = ac.userMappingAttributes(ImmutableMap.of("request", ImmutableMap.of("headers", restRequest.getHeaders(), "direct_ip_address",
+            ac = ac.userMappingAttributes(ImmutableMap.of("request", ImmutableMap.of("headers", request.getHeaders(), "direct_ip_address",
                     String.valueOf(request.getDirectIpAddress()), "originating_ip_address", String.valueOf(request.getOriginatingIpAddress()))));
 
             return proceed(ac, authenticationDomain, onResult, onFailure);
@@ -160,15 +157,15 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
     @Override
     protected String getRequestedTenant() {
         if (restHandler instanceof TenantAwareRestHandler) {
-            return ((TenantAwareRestHandler) restHandler).getTenantName(restRequest);
+            return ((TenantAwareRestHandler) restHandler).getTenantName(request);
         } else {
-            return restRequest.header("sgtenant") != null ? restRequest.header("sgtenant") : restRequest.header("sg_tenant");
+            return request.getHeader("sgtenant") != null ? request.getHeader("sgtenant") : request.getHeader("sg_tenant");
         }
     }
 
     @Override
     protected String getImpersonationUser() {
-        return restRequest.header("sg_impersonate_as");
+        return request.getHeader("sg_impersonate_as");
     }
 
 }

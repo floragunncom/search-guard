@@ -18,31 +18,31 @@
 package com.floragunn.searchguard.authc.rest.authenticators;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.searchguard.authc.RequestMetaData;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.support.HTTPHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 
-public class BasicAuthenticator implements HTTPAuthenticator, ApiAuthenticationFrontend {
-    private static final Logger log = LogManager.getLogger(BasicAuthenticator.class);
-    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "basic").initialized();
+public class BasicAuthenticationFrontend implements HttpAuthenticationFrontend, ApiAuthenticationFrontend {
+    public static String TYPE = "basic";
+    private static final Logger log = LogManager.getLogger(BasicAuthenticationFrontend.class);
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", TYPE).initialized();
     private final boolean challenge;
 
-    public BasicAuthenticator(DocNode docNode, ConfigurationRepository.Context context) throws ConfigValidationException {
+    public BasicAuthenticationFrontend(DocNode docNode, ConfigurationRepository.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
@@ -53,17 +53,13 @@ public class BasicAuthenticator implements HTTPAuthenticator, ApiAuthenticationF
     }
 
     @Override
-    public AuthCredentials extractCredentials(RestRequest request, ThreadContext threadContext) {
+    public String getType() {
+        return TYPE;
+    }
 
-        final boolean forceLogin = request.paramAsBoolean("force_login", false);
-
-        if (forceLogin) {
-            return null;
-        }
-
-        final String authorizationHeader = request.header("Authorization");
-
-        AuthCredentials.Builder credsBuilder = HTTPHelper.extractCredentials(authorizationHeader, log);
+    @Override
+    public AuthCredentials extractCredentials(RequestMetaData<?> request) {
+        AuthCredentials.Builder credsBuilder = decodeBasicCredentials(request.getAuthorizationByScheme("basic"));
 
         if (credsBuilder != null) {
             return credsBuilder.authenticatorType(getType()).build();
@@ -73,12 +69,7 @@ public class BasicAuthenticator implements HTTPAuthenticator, ApiAuthenticationF
     }
 
     @Override
-    public String getType() {
-        return "basic";
-    }
-
-    @Override
-    public AuthCredentials extractCredentials(Map<String, Object> request) throws ElasticsearchSecurityException, ConfigValidationException {
+    public AuthCredentials extractCredentials(Map<String, Object> request) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
 
         if (request.get("user") == null) {
@@ -107,5 +98,24 @@ public class BasicAuthenticator implements HTTPAuthenticator, ApiAuthenticationF
     @Override
     public ComponentState getComponentState() {
         return componentState;
+    }
+
+    private AuthCredentials.Builder decodeBasicCredentials(String basicAuthorization) {
+        if (basicAuthorization == null) {
+            return null;
+        }
+        
+        String decodedBasicHeader = new String(Base64.getDecoder().decode(basicAuthorization), StandardCharsets.UTF_8);
+
+        int firstColonIndex = decodedBasicHeader.indexOf(':');
+        if (firstColonIndex == -1) {
+            log.debug("Invalid 'Authorization' header; no colon found.");
+            return null;
+        }
+
+        String username = decodedBasicHeader.substring(0, firstColonIndex);
+        String password = decodedBasicHeader.length() - 1 != firstColonIndex ? decodedBasicHeader.substring(firstColonIndex + 1) : "";
+
+        return AuthCredentials.forUser(username).password(password.getBytes(StandardCharsets.UTF_8)).complete();
     }
 }

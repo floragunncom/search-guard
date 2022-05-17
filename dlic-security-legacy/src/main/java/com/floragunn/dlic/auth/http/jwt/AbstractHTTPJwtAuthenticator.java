@@ -39,7 +39,7 @@ import org.elasticsearch.rest.RestStatus;
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.dlic.util.Roles;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.authc.rest.authenticators.HTTPAuthenticator;
+import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.oidc.BadCredentialsException;
 import com.floragunn.searchguard.enterprise.auth.oidc.JwtVerifier;
 import com.floragunn.searchguard.enterprise.auth.oidc.KeyProvider;
@@ -50,7 +50,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.PathNotFoundException;
 
-public abstract class AbstractHTTPJwtAuthenticator implements HTTPAuthenticator {
+public abstract class AbstractHTTPJwtAuthenticator implements LegacyHTTPAuthenticator {
     private final static Logger log = LogManager.getLogger(AbstractHTTPJwtAuthenticator.class);
 
     private static final String BEARER = "bearer ";
