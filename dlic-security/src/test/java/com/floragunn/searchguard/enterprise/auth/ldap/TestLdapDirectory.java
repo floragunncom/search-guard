@@ -104,6 +104,11 @@ public class TestLdapDirectory {
             return this;
         }
 
+        public Entry displayName(String... displayName) {
+            attributes.add(new Attribute("displayName", displayName));
+            return this;
+        }
+        
         public Entry uniqueMember(String... uniqueMember) {
             attributes.add(new Attribute("uniquemember", uniqueMember));
             return this;

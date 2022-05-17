@@ -56,7 +56,7 @@ public class LdapIntegrationTest {
     static TestCertificate ldapServerCertificate = certificatesContext.create("CN=ldap.example.com,OU=MyOU,O=MyO");
 
     static TestLdapDirectory.Entry KARLOTTA = new TestLdapDirectory.Entry("cn=Karlotta,ou=people,o=TEST").cn("Karlotta").uid("karlotta")
-            .userpassword("karlottas-secret").objectClass("inetOrgPerson");
+            .userpassword("karlottas-secret").displayName("Karlotta Karl").objectClass("inetOrgPerson");
 
     static TestLdapDirectory.Entry THORE = new TestLdapDirectory.Entry("cn=Thore,ou=people,o=TEST").cn("Thore").uid("tho").userpassword("tho-secret")
             .objectClass("inetOrgPerson").attr("departmentnumber", "a", "b").attr("businessCategory", "bc_1");
@@ -103,6 +103,7 @@ public class LdapIntegrationTest {
 
     static TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(//
             new Authc.Domain("basic/ldap")//
+                    .description("using raw filter queries")//
                     .backend(DocNode.of(//
                             "idp.hosts", "#{var:ldapHost}", //
                             "idp.tls.trusted_cas", certificatesContext.getCaCertificate().getCertificateString(), //
@@ -117,6 +118,7 @@ public class LdapIntegrationTest {
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
                             .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //
             new Authc.Domain("basic/ldap")//
+                    .description("using by_attribute filter queries and getting user name from ldap_user_entry.displayName")//
                     .backend(DocNode.of(//
                             "idp.hosts", "#{var:ldapHost}", //
                             "idp.tls.trusted_cas", certificatesContext.getCaCertificate().getCertificateString(), //
@@ -128,9 +130,11 @@ public class LdapIntegrationTest {
                             "group_search.recursive.enabled", true))
                     .acceptIps("127.0.0.17")//
                     .userMapping(new UserMapping()//
+                            .userNameFromBackend("ldap_user_entry.displayName")//
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
                             .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //   
             new Authc.Domain("basic/ldap")//
+                    .description("group search based on attribute of ldap_user_entry")//
                     .backend(DocNode.of(//
                             "idp.hosts", "#{var:ldapHost}", //
                             "idp.tls.trusted_cas", certificatesContext.getCaCertificate().getCertificateString(), //
@@ -184,6 +188,17 @@ public class LdapIntegrationTest {
                     XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("attr_test_e").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"e\", \"amount\": 5050}",
                     XContentType.JSON)).actionGet();
+        }
+    }
+
+    @Test
+    public void name_fromLdapEntry() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(KARLOTTA)) {
+            client.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 17 }));
+
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), "Karlotta Karl", response.getBodyAsDocNode().get("user_name"));
         }
     }
 

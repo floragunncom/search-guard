@@ -714,6 +714,7 @@ public class TestSgConfig {
 
             private final String type;
             private String id;
+            private String description;
             private List<String> acceptIps = null;
             private List<String> skipIps = null;
             private List<String> acceptUsers = null;
@@ -729,6 +730,11 @@ public class TestSgConfig {
 
             public Domain id(String id) {
                 this.id = id;
+                return this;
+            }
+
+            public Domain description(String description) {
+                this.description = description;
                 return this;
             }
 
@@ -794,6 +800,10 @@ public class TestSgConfig {
                     result.put("id", id);
                 }
 
+                if (description != null) {
+                    result.put("description", description);
+                }
+
                 if (frontendConfig != null) {
                     int slash = type.indexOf('/');
                     result.put(type.substring(0, slash != -1 ? slash : type.length()), frontendConfig);
@@ -846,6 +856,7 @@ public class TestSgConfig {
             public static class UserMapping implements Document<UserMapping> {
                 private List<DocNode> userNameFrom = new ArrayList<>();
                 private List<String> userNameStatic = new ArrayList<>();
+                private List<DocNode> userNameFromBackend = new ArrayList<>();
                 private List<DocNode> rolesFrom = new ArrayList<>();
                 private List<DocNode> rolesFromCommaSeparatedString = new ArrayList<>();
                 private List<String> rolesStatic = new ArrayList<>();
@@ -864,6 +875,16 @@ public class TestSgConfig {
 
                 public UserMapping userNameStatic(String userName) {
                     userNameStatic.add(userName);
+                    return this;
+                }
+
+                public UserMapping userNameFromBackend(String sourcePath) {
+                    userNameFromBackend.add(DocNode.wrap(sourcePath));
+                    return this;
+                }
+
+                public UserMapping userNameFromBackend(DocNode docNode) {
+                    userNameFromBackend.add(docNode);
                     return this;
                 }
 
@@ -901,7 +922,7 @@ public class TestSgConfig {
                 public Object toBasicObject() {
                     Map<String, Object> result = new LinkedHashMap<>();
 
-                    if (userNameFrom.size() != 0 || userNameStatic.size() != 0) {
+                    if (userNameFrom.size() != 0 || userNameStatic.size() != 0 || userNameFromBackend.size() != 0) {
                         Map<String, Object> userName = new LinkedHashMap<>();
 
                         if (userNameFrom.size() == 1) {
@@ -914,6 +935,12 @@ public class TestSgConfig {
                             userName.put("static", userNameStatic.get(0));
                         } else if (userNameStatic.size() > 1) {
                             userName.put("static", userNameStatic);
+                        }
+
+                        if (userNameFromBackend.size() == 1) {
+                            userName.put("from_backend", userNameFromBackend.get(0));
+                        } else if (userNameFromBackend.size() > 1) {
+                            userName.put("from_backend", userNameFromBackend);
                         }
 
                         result.put("user_name", userName);

@@ -91,6 +91,23 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
         ImmutableMap<String, Object> debugDetails = ImmutableMap.of("user_mapping_attributes", authCredentials.getAttributesForUserMapping(),
                 "user_mapping", source);
 
+        if (userNameFromBackend != null && !userNameFromBackend.isEmpty()) {
+            ImmutableSet<String> newUserNames = MappingSpecification.apply(userNameFromBackend, authCredentials);
+            
+            if (newUserNames.size() == 0) {
+                throw new CredentialsException(new AuthcResult.DebugInfo(null, false, "No user name found", debugDetails));
+            } else if (newUserNames.size() != 1) {
+                throw new CredentialsException(new AuthcResult.DebugInfo(null, false, "More than one candidate for the user name was found",
+                        debugDetails.with("user_name_candidates", newUserNames)));
+            }
+            
+            if (log.isDebugEnabled()) {
+                log.debug("Mapped user name: " + newUserNames.only());
+            }
+            
+            result.userName(newUserNames.only());
+        }
+        
         if (roles != null && !roles.isEmpty()) {
             ImmutableSet<String> backendRoles = MappingSpecification.apply(roles, authCredentials);
             result.backendRoles(backendRoles);
@@ -120,26 +137,30 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-        List<MappingSpecification> userName = vNode.get("user_name").by(MappingSpecification::parseUserNameMapping);
-        List<MappingSpecification> roles = vNode.get("roles").by(MappingSpecification::parseRoleMapping);
-        List<MapMappingSpecification> attributes = vNode.get("attrs").by(MapMappingSpecification::parse);
+        ImmutableList<MappingSpecification> userName = vNode.get("user_name").by(MappingSpecification::parseUserNameMapping);
+        ImmutableList<MappingSpecification> userNameFromBackend = vNode.get("user_name").by(MappingSpecification::parseUserNameFromBackendMapping);
+
+        ImmutableList<MappingSpecification> roles = vNode.get("roles").by(MappingSpecification::parseRoleMapping);
+        ImmutableList<MapMappingSpecification> attributes = vNode.get("attrs").by(MapMappingSpecification::parse);
         
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
-        return new UserMapping(docNode, userName, roles, attributes);
+        return new UserMapping(docNode, userName, userNameFromBackend, roles, attributes);
     }
 
     private final DocNode source;
     private final ImmutableList<MappingSpecification> userName;
+    private final ImmutableList<MappingSpecification> userNameFromBackend;
     private final ImmutableList<MappingSpecification> roles;
     private final ImmutableList<MapMappingSpecification> attrs;
 
-    public UserMapping(DocNode source, List<MappingSpecification> userName, List<MappingSpecification> roles, List<MapMappingSpecification> attrs) {
+    public UserMapping(DocNode source, ImmutableList<MappingSpecification> userName, ImmutableList<MappingSpecification> userNameFromBackend, ImmutableList<MappingSpecification> roles, ImmutableList<MapMappingSpecification> attrs) {
         this.source = source;
-        this.userName = ImmutableList.of(userName);
-        this.roles = ImmutableList.of(roles);
-        this.attrs = ImmutableList.of(attrs);
+        this.userName = userName;
+        this.userNameFromBackend = userNameFromBackend;
+        this.roles = roles;
+        this.attrs = attrs;
     }
 
     public static class Static extends MappingSpecification {
@@ -264,20 +285,32 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
 
     public static abstract class MappingSpecification {
 
-        static List<MappingSpecification> parseUserNameMapping(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        static ImmutableList<MappingSpecification> parseUserNameMapping(DocNode docNode, Parser.Context context) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
             List<FromAttribute> from = vNode.get("from").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute::parse);
             List<Static> staticValues = vNode.get("static").asList().withEmptyListAsDefault().ofObjectsParsedBy(Static::parse);
 
+            vNode.used("from_backend");
             vNode.checkForUnusedAttributes();
             validationErrors.throwExceptionForPresentErrors();
 
             return ImmutableList.concat(from, staticValues);
         }
+        
+        static ImmutableList<MappingSpecification> parseUserNameFromBackendMapping(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+            ValidationErrors validationErrors = new ValidationErrors();
+            ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-        static List<MappingSpecification> parseRoleMapping(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+            ImmutableList<MappingSpecification> from = vNode.get("from_backend").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute::parse);
+
+            validationErrors.throwExceptionForPresentErrors();
+
+            return from;
+        }
+
+        static ImmutableList<MappingSpecification> parseRoleMapping(DocNode docNode, Parser.Context context) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
@@ -377,7 +410,7 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
     }
 
     public static abstract class MapMappingSpecification {
-        static List<MapMappingSpecification> parse(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        static ImmutableList<MapMappingSpecification> parse(DocNode docNode, Parser.Context context) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
