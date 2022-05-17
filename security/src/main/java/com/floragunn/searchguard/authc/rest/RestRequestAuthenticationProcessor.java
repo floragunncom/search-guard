@@ -81,8 +81,8 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
         try {
             ac = authenticationFrontend.extractCredentials(restRequest, threadContext);
         } catch (CredentialsException e) {
-            if (log.isDebugEnabled()) {
-                log.debug("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
+            if (log.isTraceEnabled()) {
+                log.trace("'{}' extracting credentials from {} authentication frontend", e.toString(), authenticationFrontend.getType(), e);
             }
 
             debug.add(e.getDebugInfo());
@@ -108,7 +108,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
         }
 
         if (ac == null) {
-            log.debug("no {} credentials found in request", authenticationDomain.getFrontend().getType());
+            log.trace("no {} credentials found in request", authenticationDomain.getFrontend().getType());
 
             String challenge = authenticationFrontend.getChallenge(ac);
 

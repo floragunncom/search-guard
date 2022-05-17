@@ -166,8 +166,8 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                 return AuthDomainState.SKIP;
             }
 
-            if (log.isDebugEnabled()) {
-                log.debug("Checking authdomain " + authenticationDomain + " (total: " + this.authenticationDomains.size() + ")");
+            if (log.isTraceEnabled()) {
+                log.trace("Checking authdomain " + authenticationDomain + " (total: " + this.authenticationDomains.size() + ")");
             }
 
             if (!authenticationDomain.accept(request)) {
@@ -334,7 +334,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
     protected AuthcResult handleFinalAuthFailure() {
 
         try {
-            log.warn("Authentication finally failed for {} from {}", authCredentials == null ? null : authCredentials.getUsername(), request);
+            log.warn("Authentication failed for {} from {}", authCredentials == null ? null : authCredentials.getUsername(), request);
 
             auditLog.logFailedLogin(authCredentials != null ? authCredentials : AuthCredentials.NONE, false, null, request.getRequest());
             notifyIpAuthFailureListeners(authCredentials);
