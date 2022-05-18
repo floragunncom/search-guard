@@ -20,7 +20,7 @@
 	<name>Search Guard FLX</name>
 
 	<properties>
-		<elasticsearch.version>7.16.3</elasticsearch.version>
+		<elasticsearch.version>7.17.3</elasticsearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
         <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
         
