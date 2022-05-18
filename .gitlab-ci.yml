@@ -16,8 +16,9 @@ image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 #  - "sgbuild0/search-guard-suite-enterprise/m2repository" #path look like this because of mv we do below
 #
 before_script:
-  - export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
-  - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+  # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3
+  - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
+  - export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
 
 stages:
   - build
@@ -372,8 +373,8 @@ deploy_snapshot:
     - |
       set -x
       mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml deploy | tee deploy.out
-      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`
+      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
+      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`
       ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       if [ -z "$IT_BRANCH" ]; then
@@ -427,13 +428,15 @@ deploy_staging:
   script:
     - |
       ./dev/setup_gpg.sh
-      SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
-      ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+      # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
+      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
+      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
+      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       echo "Deploying Release to Staging repo"
-      mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-suite-staging -DskipTests -B -Penterprise -Prelease -Drevision=$ES_VERSION-$SG_VERSION | tee deploy.out
-      SG_ES_PLUGIN_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`      
+      mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-flx-staging -DskipTests -B -Penterprise -Prelease -Drevision=$DEPLOY_VERSION | tee deploy.out
+      SG_ES_PLUGIN_URI=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
+      SG_ADMIN_URI=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`      
       if [ -z "$IT_BRANCH" ]; then
         if [ "$CI_COMMIT_REF_NAME" != "master" ] && [ -n $(git ls-remote --heads git@git.floragunn.com:private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]; then
           IT_BRANCH="$CI_COMMIT_REF_NAME"
@@ -482,12 +485,14 @@ deploy_release:
   script:
     - ./dev/setup_gpg.sh
     - |
-      export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
-      export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+      # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
+      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
+      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
+      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
       export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
 
-      echo "Removing current release from Staging"
-      curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-suite-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
+      # TODO echo "Removing current release from Staging"
+      #curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-flx-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
 
       cd search-guard-integration-tests
       git tag $CI_COMMIT_TAG || true

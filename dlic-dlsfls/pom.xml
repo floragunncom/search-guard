@@ -12,31 +12,31 @@
 
 	<parent>
 		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-suite-parent</artifactId>
+		<artifactId>search-guard-flx-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+	<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
 	<packaging>jar</packaging>
-	<name>Search Guard Suite - Document Level Security and Field Level Security (Enterprise)</name>
+	<name>Search Guard FLX: Document and Field Level Security (Enterprise)</name>
 
 	<dependencies>
 		<!-- Security -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
+			<artifactId>search-guard-flx-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-ssl</artifactId>
+			<artifactId>search-guard-flx-ssl</artifactId>
 			<scope>test</scope>
 		</dependency>		
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
@@ -78,20 +78,20 @@
 		<!-- Security Test -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
+			<artifactId>search-guard-flx-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security-legacy</artifactId>
+			<artifactId>search-guard-flx-security-legacy</artifactId>
 			<scope>test</scope>
 		</dependency>		
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security-legacy</artifactId>
+			<artifactId>search-guard-flx-security-legacy</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>

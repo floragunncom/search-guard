@@ -12,44 +12,40 @@
 
 	<parent>
 		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-suite-parent</artifactId>
+		<artifactId>search-guard-flx-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>dlic-search-guard-suite-auditlog</artifactId>
+	<artifactId>dlic-search-guard-flx-auditlog</artifactId>
 	<packaging>jar</packaging>
-	<name>Search Guard Suite - Audit Logging (Enterprise)</name>
+	<name>Search Guard FLX: Audit Logging (Enterprise)</name>
 
 	<properties>
-		<jjwt.version>0.10.5</jjwt.version>
-		<ldaptive.version>1.2.3</ldaptive.version>
-
-		<unboundid-ldapsdk.version>5.0.1</unboundid-ldapsdk.version>
 	</properties>
 
 	<dependencies>
 		<!-- Security -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
+			<artifactId>search-guard-flx-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-ssl</artifactId>
+			<artifactId>search-guard-flx-ssl</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>dlic-search-guard-suite-security</artifactId>
+			<artifactId>dlic-search-guard-flx-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
@@ -81,27 +77,27 @@
 		<!-- Security Test -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
+			<artifactId>search-guard-flx-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security-legacy</artifactId>
+			<artifactId>search-guard-flx-security-legacy</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security-legacy</artifactId>
+			<artifactId>search-guard-flx-security-legacy</artifactId>
 			<scope>test</scope>
 		</dependency>
 
     	<dependency>
 	   		<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
@@ -109,25 +105,9 @@
 		<dependency>
 		    <!--  DLS/FLS is a required dependency for audit logging to work -->
 			<groupId>com.floragunn</groupId>
-			<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+			<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
 			<scope>test</scope>
 		</dependency>		
-
-		<dependency>
-			<groupId>org.ldaptive</groupId>
-			<artifactId>ldaptive</artifactId>
-			<version>${ldaptive.version}</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>commons-cli</artifactId>
-					<groupId>commons-cli</groupId>
-				</exclusion>
-				<exclusion>
-					<artifactId>slf4j-api</artifactId>
-					<groupId>org.slf4j</groupId>
-				</exclusion>
-			</exclusions>
-		</dependency>
 
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
@@ -164,60 +144,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-api</artifactId>
-			<version>${jjwt.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-impl</artifactId>
-			<version>${jjwt.version}</version>
-			<scope>runtime</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt-jackson</artifactId>
-			<version>${jjwt.version}</version>
-			<scope>runtime</scope>
-			<exclusions>
-				<exclusion>
-					<artifactId>jackson-databind</artifactId>
-					<groupId>com.fasterxml.jackson.core</groupId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.cxf</groupId>
-			<artifactId>cxf-rt-rs-security-jose</artifactId>
-			<version>${cxf.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.glassfish.jaxb</groupId>
-					<artifactId>jaxb-runtime</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>jakarta.xml.bind</groupId>
-					<artifactId>jakarta.xml.bind-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.activation</groupId>
-					<artifactId>activation</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.activation</groupId>
-					<artifactId>javax.activation</artifactId>
-				</exclusion>	
-				<exclusion>
-					<groupId>com.fasterxml.woodstox</groupId>
-					<artifactId>woodstox-core</artifactId>
-				</exclusion>												
-			</exclusions>				
-		</dependency>
-
-		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
 			<version>${jackson.version}</version>
@@ -251,45 +177,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<dependency>
-			<groupId>com.onelogin</groupId>
-			<artifactId>java-saml</artifactId>
-			<version>2.7.0</version>
-
-			<exclusions>
-				<exclusion>
-					<groupId>org.codehaus.woodstox</groupId>
-					<artifactId>woodstox-core-asl</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>joda-time</groupId>
-					<artifactId>joda-time</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>jakarta.activation</groupId>
-					<artifactId>jakarta.activation-api</artifactId>
-				</exclusion>								
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.opensaml</groupId>
-			<artifactId>opensaml-saml-impl</artifactId>
-			<version>3.4.5</version>
-			<exclusions>
-				<exclusion>
-					<groupId>joda-time</groupId>
-					<artifactId>joda-time</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>commons-collections</groupId>
-					<artifactId>commons-collections</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-				</exclusion>					
-			</exclusions>
-		</dependency>
+	
 
 		<dependency>
 			<groupId>commons-collections</groupId>
@@ -322,13 +210,6 @@
 					<artifactId>asm</artifactId>
 				</exclusion>				
 			</exclusions>			
-		</dependency>
-
-
-		<dependency>
-			<groupId>com.unboundid</groupId>
-			<artifactId>unboundid-ldapsdk</artifactId>
-			<version>${unboundid-ldapsdk.version}</version>
 		</dependency>
 
 		<!-- Only test scoped dependencies hereafter -->

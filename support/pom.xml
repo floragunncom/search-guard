@@ -14,13 +14,13 @@
 
 	<parent>
 		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-suite-parent</artifactId>
+		<artifactId>search-guard-flx-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>search-guard-suite-support</artifactId>
+	<artifactId>search-guard-flx-support</artifactId>
 	<packaging>jar</packaging>
-	<name>Search Guard Suite - Support</name>
+	<name>Search Guard FLX: Support</name>
 
 	<dependencies>
 
