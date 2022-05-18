@@ -22,8 +22,8 @@ BASE_DIR=$(pwd)
 SG_VERSION_PRE="${project.version}"
 SG_VERSION="${1:-$SG_VERSION_PRE}"
 SGSF_VERSION="${2:-$SG_VERSION_PRE}"
-SG_REPOSITORY="${3:-search-guard-suite-alpha}"
-SG_PLUGIN_NAME="search-guard"
+SG_REPOSITORY="${3:-search-guard-flx-release}"
+SG_PLUGIN_NAME="search-guard-flx"
 SGCTL_VERSION="0.2.5"
 
 if [[ $SG_VERSION =~ .*-os-.* ]]; then
@@ -45,7 +45,6 @@ else
   ES_VERSION=$(echo $SG_VERSION | cut -d- -f3)
   SB_NAME="Elasticsearch"
   SB_LC_NAME="elasticsearch"
-  SG_PLUGIN_NAME="search-guard-flx"
   SF_NAME="Kibana"
   SF_LC_NAME_CC="kibana"
   SF_LC_NAME="kibana" 
@@ -67,7 +66,7 @@ SGSF_PLUGIN_FILE_NAME="search-guard-$SF_LC_NAME-plugin-$SGSF_VERSION.zip"
 
 SG_LINK="https://maven.search-guard.com/$SG_REPOSITORY/com/floragunn/search-guard-$SB_LC_NAME-plugin/$SG_VERSION/$SG_PLUGIN_FILE_NAME"
 SGSF_LINK="https://maven.search-guard.com/$SG_REPOSITORY/com/floragunn/search-guard-$SF_LC_NAME-plugin/$SGSF_VERSION/$SGSF_PLUGIN_FILE_NAME"
-SGCTL_LINK="https://maven.search-guard.com/search-guard-suite-release/com/floragunn/sgctl/$SGCTL_VERSION/sgctl-$SGCTL_VERSION.sh"
+SGCTL_LINK="https://maven.search-guard.com/search-guard-flx-release/com/floragunn/sgctl/$SGCTL_VERSION/sgctl-$SGCTL_VERSION.sh"
 
 TLS_TOOL="search-guard-tlstool"
 TLS_TOOL_ARCHIVE="$TLS_TOOL-1.8.tar.gz"

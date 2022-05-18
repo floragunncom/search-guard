@@ -12,13 +12,13 @@
 
     <parent>
         <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-suite-parent</artifactId>
+        <artifactId>search-guard-flx-parent</artifactId>
         <version>${revision}</version>
     </parent>
 
-    <artifactId>dlic-search-guard-suite-signals</artifactId>
+    <artifactId>dlic-search-guard-flx-signals</artifactId>
     <packaging>jar</packaging>
-    <name>Search Guard Suite - Signals (Enterprise)</name>
+    <name>Search Guard FLX: Signals (Enterprise)</name>
 
     <properties />
 
@@ -45,6 +45,7 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
+            <scope>test</scope>
             <exclusions>
                 <exclusion>
                     <artifactId>jackson-core</artifactId>
@@ -57,7 +58,7 @@
         <!-- Signals -->
         <dependency>
             <groupId>com.floragunn</groupId>
-            <artifactId>search-guard-suite-signals</artifactId>
+            <artifactId>search-guard-flx-signals</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -65,7 +66,7 @@
         <!-- Signals Test -->
         <dependency>
             <groupId>com.floragunn</groupId>
-            <artifactId>search-guard-suite-signals</artifactId>
+            <artifactId>search-guard-flx-signals</artifactId>
             <version>${project.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
@@ -82,43 +83,30 @@
             <artifactId>codova</artifactId>
         </dependency>
 
-	<dependency>
-		<groupId>com.fasterxml.jackson.core</groupId>
-		<artifactId>jackson-databind</artifactId>
-		<version>${jackson.version}</version>
-		<scope>test</scope>
-		<exclusions>
-			<exclusion>
-				<artifactId>jackson-core</artifactId>
-				<groupId>com.fasterxml.jackson.core</groupId>
-			</exclusion>
-		</exclusions>
-	</dependency>
-
         <!-- Security -->
         <dependency>
             <groupId>com.floragunn</groupId>
-            <artifactId>search-guard-suite-security</artifactId>
+            <artifactId>search-guard-flx-security</artifactId>
             <scope>provided</scope>
         </dependency>
         
         <dependency>
             <groupId>com.floragunn</groupId>
-            <artifactId>search-guard-suite-ssl</artifactId>
+            <artifactId>search-guard-flx-ssl</artifactId>
             <scope>test</scope>
         </dependency>
         
         <!-- Security Enterprise -->
         <dependency>
             <groupId>com.floragunn</groupId>
-            <artifactId>dlic-search-guard-suite-security</artifactId>
+            <artifactId>dlic-search-guard-flx-security</artifactId>
             <scope>provided</scope>
         </dependency>
 
         <!-- Security Test -->
         <dependency>
             <groupId>com.floragunn</groupId>
-            <artifactId>search-guard-suite-security</artifactId>
+            <artifactId>search-guard-flx-security</artifactId>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
@@ -126,13 +114,13 @@
         <!-- Scheduler -->
         <dependency>
             <groupId>com.floragunn</groupId>
-            <artifactId>search-guard-suite-scheduler</artifactId>
+            <artifactId>search-guard-flx-scheduler</artifactId>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.floragunn</groupId>
-            <artifactId>search-guard-suite-support</artifactId>
+            <artifactId>search-guard-flx-support</artifactId>
             <scope>provided</scope>
         </dependency>
 

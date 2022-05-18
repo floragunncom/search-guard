@@ -14,13 +14,13 @@
 
 	<parent>
 		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-suite-parent</artifactId>
+		<artifactId>search-guard-flx-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>search-guard-suite-security</artifactId>
+	<artifactId>search-guard-flx-security</artifactId>
 	<packaging>jar</packaging>
-	<name>Search Guard Suite - Security</name>
+	<name>Search Guard FLX: Security</name>
 
 	<dependencies>
 		<!-- Netty 4 transport -->
@@ -114,19 +114,19 @@
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-ssl</artifactId>
+			<artifactId>search-guard-flx-ssl</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
@@ -197,13 +197,6 @@
 			<groupId>com.github.seancfoley</groupId>
 			<artifactId>ipaddress</artifactId>
 			<version>5.3.3</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>elasticsearch-rest-high-level-client</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>provided</scope>
 		</dependency>
 
 		<dependency>

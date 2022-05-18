@@ -14,16 +14,16 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.floragunn</groupId>
-	<artifactId>search-guard-suite-parent</artifactId>
+	<artifactId>search-guard-flx-parent</artifactId>
 	<version>${revision}</version>
 	<packaging>pom</packaging>
-	<name>Search Guard Suite - Parent</name>
+	<name>Search Guard FLX</name>
 
 	<properties>
 		<elasticsearch.version>7.16.3</elasticsearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
-		<revision>${elasticsearch.version}-${sg-suite.version}</revision>
-
+        <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
+        
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<sonatypeOssDistMgmtSnapshotsUrl>https://oss.sonatype.org/content/repositories/snapshots/
@@ -79,27 +79,17 @@
 		</repository>
 		<repository>
 			<id>release</id>
-			<url>https://maven.search-guard.com:443/search-guard-suite-release</url>
+			<url>https://maven.search-guard.com:443/search-guard-flx-release</url>
 			<releases>
 				<enabled>true</enabled>
 			</releases>
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
-		</repository>
-		<repository>
-			<id>alpha</id>
-			<url>https://maven.search-guard.com:443/search-guard-suite-alpha</url>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</repository>		
+		</repository>	
 		<repository>
 			<id>snapshot</id>
-			<url>https://maven.search-guard.com:443/search-guard-suite-snapshot</url>
+			<url>https://maven.search-guard.com:443/search-guard-flx-snapshot</url>
 			<releases>
 				<enabled>false</enabled>
 			</releases>
@@ -117,17 +107,27 @@
 				<enabled>false</enabled>
 			</snapshots>
 		</repository>
+        <repository>
+            <id>alpha</id>
+            <url>https://maven.search-guard.com:443/search-guard-suite-alpha</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>   		
 	</repositories>
 	<distributionManagement>
 		<repository>
 			<id>release</id>
 			<name>Release repository</name>
-			<url>https://maven.search-guard.com:443/search-guard-suite-release</url>
+			<url>https://maven.search-guard.com:443/search-guard-flx-release</url>
 		</repository>
 		<snapshotRepository>
 			<id>snapshot</id>
 			<name>Snapshot repository</name>
-			<url>https://maven.search-guard.com:443/search-guard-suite-snapshot</url>
+			<url>https://maven.search-guard.com:443/search-guard-flx-snapshot</url>
 		</snapshotRepository>
 	</distributionManagement>
 	<scm>
@@ -274,70 +274,70 @@
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>search-guard-suite-security</artifactId>
+				<artifactId>search-guard-flx-security</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>search-guard-suite-security-legacy</artifactId>
+				<artifactId>search-guard-flx-security-legacy</artifactId>
 				<version>${project.version}</version>
 			</dependency>			
 			
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>search-guard-suite-ssl</artifactId>
+				<artifactId>search-guard-flx-ssl</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>search-guard-suite-security</artifactId>
+				<artifactId>search-guard-flx-security</artifactId>
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
 			</dependency>
 			
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>search-guard-suite-security-legacy</artifactId>
+				<artifactId>search-guard-flx-security-legacy</artifactId>
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
 			</dependency>			
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>search-guard-suite-scheduler</artifactId>
+				<artifactId>search-guard-flx-scheduler</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>search-guard-suite-support</artifactId>
+				<artifactId>search-guard-flx-support</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>dlic-search-guard-suite-security</artifactId>
+				<artifactId>dlic-search-guard-flx-security</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>dlic-search-guard-suite-fe-multi-tenancy</artifactId>
+				<artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>dlic-search-guard-suite-security</artifactId>
+				<artifactId>dlic-search-guard-flx-security</artifactId>
 				<version>${project.version}</version>
 				<classifier>tests</classifier>				
 			</dependency>
 			
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>search-guard-suite-support</artifactId>
+				<artifactId>search-guard-flx-support</artifactId>
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
 			</dependency>
@@ -356,20 +356,14 @@
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>dlic-search-guard-suite-security</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			
-			<dependency>
-				<groupId>com.floragunn</groupId>
-				<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+				<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			
 			
 			<dependency>			
 				<groupId>com.floragunn</groupId>
-				<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+				<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
 				<version>${project.version}</version>
 				<classifier>tests</classifier>				
 			</dependency>

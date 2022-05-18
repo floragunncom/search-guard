@@ -14,43 +14,43 @@
 
 	<parent>
 		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-suite-parent</artifactId>
+		<artifactId>search-guard-flx-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
 	<artifactId>sgadmin</artifactId>
 	<packaging>jar</packaging>
-	<name>Search Guard Suite - sgadmin tool</name>
+	<name>Search Guard FLX: sgadmin tool</name>
 
 	<dependencies>
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
+			<artifactId>search-guard-flx-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-ssl</artifactId>
+			<artifactId>search-guard-flx-ssl</artifactId>
 			<scope>provided</scope>
 		</dependency>		
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security-legacy</artifactId>
+			<artifactId>search-guard-flx-security-legacy</artifactId>
 			<scope>provided</scope>			
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
+			<artifactId>search-guard-flx-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
 				
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security-legacy</artifactId>
+			<artifactId>search-guard-flx-security-legacy</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
@@ -91,7 +91,7 @@
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		

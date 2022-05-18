@@ -5,13 +5,13 @@
 
 	<parent>
 		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-suite-parent</artifactId>
+		<artifactId>search-guard-flx-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>search-guard-suite-signals</artifactId>
+	<artifactId>search-guard-flx-signals</artifactId>
 	<packaging>jar</packaging>
-	<name>Search Guard Suite - Signals</name>
+	<name>Search Guard FLX: Signals</name>
 
 	<dependencies>
 	
@@ -41,19 +41,19 @@
 		<!-- Scheduler -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-scheduler</artifactId>
+			<artifactId>search-guard-flx-scheduler</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
@@ -61,13 +61,13 @@
 		<!-- Security -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
+			<artifactId>search-guard-flx-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-ssl</artifactId>
+			<artifactId>search-guard-flx-ssl</artifactId>
 			<scope>provided</scope>
 		</dependency>		
 		
@@ -79,14 +79,14 @@
 		<!-- Security Test -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
+			<artifactId>search-guard-flx-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>dlic-search-guard-suite-fe-multi-tenancy</artifactId>
+			<artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
 			<scope>test</scope>
 		</dependency>		
 		

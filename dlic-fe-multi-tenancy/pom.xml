@@ -12,13 +12,13 @@
 
 	<parent>
 		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-suite-parent</artifactId>
+		<artifactId>search-guard-flx-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>dlic-search-guard-suite-fe-multi-tenancy</artifactId>
+	<artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
 	<packaging>jar</packaging>
-	<name>Search Guard Suite - Frontend Multi-Tenancy (Enterprise)</name>
+	<name>Search Guard FLX: Frontend Multi-Tenancy (Enterprise)</name>
 
 	<properties>
 	</properties>
@@ -27,19 +27,19 @@
 		<!-- Security -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
+			<artifactId>search-guard-flx-security</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-ssl</artifactId>
+			<artifactId>search-guard-flx-ssl</artifactId>
 			<scope>provided</scope>
 		</dependency>		
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
@@ -75,27 +75,27 @@
 		<!-- Security Test -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security</artifactId>
+			<artifactId>search-guard-flx-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security-legacy</artifactId>
+			<artifactId>search-guard-flx-security-legacy</artifactId>
 			<scope>test</scope>
 		</dependency>	
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-security-legacy</artifactId>
+			<artifactId>search-guard-flx-security-legacy</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>		
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+			<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
 			<scope>test</scope>
 		</dependency>		
 		

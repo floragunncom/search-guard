@@ -14,13 +14,13 @@
 
 	<parent>
 		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-suite-parent</artifactId>
+		<artifactId>search-guard-flx-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>search-guard-suite-ssl</artifactId>
+	<artifactId>search-guard-flx-ssl</artifactId>
 	<packaging>jar</packaging>
-	<name>Search Guard Suite - SSL</name>
+	<name>Search Guard FLX: SSL</name>
 
 	<dependencies>
 		<!-- Netty 4 transport -->
@@ -109,13 +109,13 @@
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-suite-support</artifactId>
+			<artifactId>search-guard-flx-support</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>

@@ -14,13 +14,13 @@
 
 	<parent>
 		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-suite-parent</artifactId>
+		<artifactId>search-guard-flx-parent</artifactId>
 		<version>${revision}</version>
 	</parent>
 
-	<artifactId>search-guard-suite-plugin</artifactId>
+	<artifactId>search-guard-flx-elasticsearch-plugin</artifactId>
 	<packaging>pom</packaging>
-	<name>Search Guard Suite - Plugin</name>
+	<name>Search Guard FLX: Plugin for Elasticsearch</name>
 
 	<properties>
 		<!-- assembly descriptors -->
@@ -191,37 +191,37 @@
 			<dependencies>
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-ssl</artifactId>
+					<artifactId>search-guard-flx-ssl</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 				
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-security</artifactId>
+					<artifactId>search-guard-flx-security</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 				
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-security-legacy</artifactId>
+					<artifactId>search-guard-flx-security-legacy</artifactId>
 					<version>${project.version}</version>
 				</dependency>				
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-scheduler</artifactId>
+					<artifactId>search-guard-flx-scheduler</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-signals</artifactId>
+					<artifactId>search-guard-flx-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-support</artifactId>
+					<artifactId>search-guard-flx-support</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
@@ -234,37 +234,37 @@
 				<!-- DLIC -->
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-security</artifactId>
+					<artifactId>dlic-search-guard-flx-security</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-signals</artifactId>
+					<artifactId>dlic-search-guard-flx-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
+					<artifactId>dlic-search-guard-flx-auditlog</artifactId>
 					<version>${project.version}</version>
 				</dependency>		
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-security-legacy</artifactId>
+					<artifactId>dlic-search-guard-flx-security-legacy</artifactId>
 					<version>${project.version}</version>
 				</dependency>				
 				
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+					<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
 					<version>${project.version}</version>
 				</dependency>		
 				
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-fe-multi-tenancy</artifactId>
+					<artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
 					<version>${project.version}</version>
 				</dependency>								
 				
@@ -308,37 +308,37 @@
 			<dependencies>
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-ssl</artifactId>
+					<artifactId>search-guard-flx-ssl</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 				
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-security</artifactId>
+					<artifactId>search-guard-flx-security</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 				
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-security-legacy</artifactId>
+					<artifactId>search-guard-flx-security-legacy</artifactId>
 					<version>${project.version}</version>
 				</dependency>				
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-scheduler</artifactId>
+					<artifactId>search-guard-flx-scheduler</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-signals</artifactId>
+					<artifactId>search-guard-flx-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-support</artifactId>
+					<artifactId>search-guard-flx-support</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
@@ -351,37 +351,37 @@
 				<!-- DLIC -->
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-security</artifactId>
+					<artifactId>dlic-search-guard-flx-security</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-signals</artifactId>
+					<artifactId>dlic-search-guard-flx-signals</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-auditlog</artifactId>
+					<artifactId>dlic-search-guard-flx-auditlog</artifactId>
 					<version>${project.version}</version>
 				</dependency>	
 				
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-dlsfls</artifactId>
+					<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
 					<version>${project.version}</version>
 				</dependency>								
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-fe-multi-tenancy</artifactId>
+					<artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
 					<version>${project.version}</version>
 				</dependency>	
 
 				<dependency>
 					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-security-legacy</artifactId>
+					<artifactId>dlic-search-guard-flx-security-legacy</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
