@@ -389,10 +389,10 @@ deploy_snapshot:
       fi
       if [[ ! "$SG_KI_PLUGIN" =~ ^https?:.*$ ]]; then
         if [[ "$SG_KI_PLUGIN" =~ .*SNAPSHOT.* ]]; then
-          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-kibana-plugin-snapshot search-guard-kibana-plugin $SG_KI_PLUGIN .zip)
+          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
           echo "Found: $SG_KI_PLUGIN"
         else
-          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-kibana-plugin-release search-guard-kibana-plugin $SG_KI_PLUGIN .zip)
+          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-release search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
           echo "Found: $SG_KI_PLUGIN"
         fi
       fi
