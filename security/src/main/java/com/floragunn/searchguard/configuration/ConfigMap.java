@@ -97,6 +97,6 @@ public class ConfigMap implements Destroyable {
     
     @Override
     public String toString() {
-        return map.toString();
+        return map.values().toString();
     }
 }
