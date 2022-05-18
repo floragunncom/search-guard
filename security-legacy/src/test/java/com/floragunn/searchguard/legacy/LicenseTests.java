@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 import org.apache.http.HttpStatus;
 import org.elasticsearch.cluster.ClusterState;
@@ -99,7 +100,7 @@ public class LicenseTests extends SingleClusterTest {
     @Test
     public void testComplianceLicense() throws Exception {
       
-        final String now = new SimpleDateFormat("yyyy-MM-dd", SgUtils.EN_Locale).format(new Date());
+        final String now = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(new Date());
         SearchGuardLicense license = SearchGuardLicense.createTrialLicense(now, "");
         
         license.dynamicValidate(cs);
