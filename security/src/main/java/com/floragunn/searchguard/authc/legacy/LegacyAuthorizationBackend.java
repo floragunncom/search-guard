@@ -24,6 +24,7 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
 
 public interface LegacyAuthorizationBackend extends UserInformationBackend {
     /**
@@ -39,7 +40,7 @@ public interface LegacyAuthorizationBackend extends UserInformationBackend {
      */
     void fillRoles(User user, AuthCredentials credentials) throws AuthenticatorUnavailableException;
 
-    default CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation) throws AuthenticatorUnavailableException {
+    default CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter) throws AuthenticatorUnavailableException {
         User tempUser = User.forUser(userInformation.getName()).with(userInformation).build();
 
         fillRoles(tempUser, userInformation);

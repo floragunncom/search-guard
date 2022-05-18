@@ -34,8 +34,8 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
 
 public class HttpClientCertAuthenticationFrontend implements HttpAuthenticationFrontend {

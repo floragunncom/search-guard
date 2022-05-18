@@ -35,9 +35,11 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
 public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HttpAuthenticationFrontend> {
     private final static Logger log = LogManager.getLogger(SessionTokenAuthenticationDomain.class);
@@ -45,11 +47,13 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<Ht
     private final SessionService sessionService;
     private final SessionAuthenticator authenticator;
     private final ComponentState componentState = new ComponentState(0, "auth_domain", "session").initialized();
+    private final TimeAggregation authenticationBackendMetrics = new TimeAggregation.Milliseconds();
 
     SessionTokenAuthenticationDomain(SessionService sessionService) {
         this.sessionService = sessionService;
         this.authenticator = new SessionAuthenticator(sessionService);
         this.componentState.addPart(this.authenticator.getComponentState());
+        this.componentState.addMetrics("authentication_backend", authenticationBackendMetrics);
     }
 
     @Override
@@ -167,6 +171,8 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<Ht
     @Override
     public CompletableFuture<User> authenticate(AuthCredentials credentials, AuthenticationDebugLogger debug)
             throws AuthenticatorUnavailableException, CredentialsException {
+        Meter meter = Meter.basic(sessionService.getMetricsLevel(), authenticationBackendMetrics);
+
         try {
             CompletableFuture<User> result = new CompletableFuture<User>();
 
@@ -176,6 +182,8 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<Ht
                             "Session " + sessionToken.getId() + " has been expired or deleted", RestStatus.UNAUTHORIZED));
                 } else {
                     sessionService.checkExpiryAndTrackAccess(sessionToken, (ok) -> {
+                        meter.close();
+
                         if (ok) {
                             result.complete(User.forUser(sessionToken.getUserName()).type(SessionService.USER_TYPE)
                                     .backendRoles(sessionToken.getBase().getBackendRoles())
@@ -186,20 +194,24 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<Ht
                                     RestStatus.UNAUTHORIZED));
                         }
                     }, (e) -> {
+                        meter.close();
                         result.completeExceptionally(e);
-                    });
+                    }, meter);
                 }
 
             }, (noSuchAuthTokenException) -> {
+                meter.close();
                 result.complete(null);
             }, (e) -> {
+                meter.close();
                 result.completeExceptionally(e);
-            });
+            }, meter);
 
             return result;
 
         } catch (InvalidTokenException e) {
             log.info("Got InvalidTokenException for " + credentials, e);
+            meter.close();
             return CompletableFuture.completedFuture(null);
         }
     }

@@ -37,6 +37,7 @@ import com.floragunn.searchguard.authc.AuthenticationFrontend;
 import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destroyable {
 
@@ -69,11 +70,13 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
         } catch (UnexpectedDocumentStructureException e) {
             return new ValidationResult<FrontendAuthcConfig>(e.getValidationErrors());
         }
+        
+        MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
 
         FrontendAuthcConfig result = new FrontendAuthcConfig();
         result.parsedJson = DocNode.wrap(parsedJson);
         result.authDomains = ImmutableList
-                .of(vNode.get("auth_domains").asList((documentNode) -> FrontendAuthenticationDomain.parse(documentNode, context)));
+                .of(vNode.get("auth_domains").asList((documentNode) -> FrontendAuthenticationDomain.parse(documentNode, context, metricsLevel)));
         result.loginPage = vNode.get("login_page").withDefault(LoginPage.DEFAULT).by(LoginPage::parse);
         result.debug = vNode.get("debug").withDefault(false).asBoolean();
 
@@ -113,7 +116,7 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
             this.authenticationDomain = authenticationDomain;
         }
 
-        public static FrontendAuthenticationDomain parse(DocNode documentNode, ConfigurationRepository.Context context)
+        public static FrontendAuthenticationDomain parse(DocNode documentNode, ConfigurationRepository.Context context, MetricsLevel metricsLevel)
                 throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(documentNode, validationErrors);
@@ -131,7 +134,7 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
                     result.message = DEFAULT_BASIC_AUTHC.getMessage();
                 }
             } else if (context != null && result.enabled) {
-                result.authenticationDomain = StandardAuthenticationDomain.parse(vNode, validationErrors, ApiAuthenticationFrontend.class, context);
+                result.authenticationDomain = StandardAuthenticationDomain.parse(vNode, validationErrors, ApiAuthenticationFrontend.class, context, metricsLevel);
             }
 
             validationErrors.throwExceptionForPresentErrors();

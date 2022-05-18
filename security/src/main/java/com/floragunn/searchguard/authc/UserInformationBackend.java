@@ -19,9 +19,10 @@ package com.floragunn.searchguard.authc;
 import java.util.concurrent.CompletableFuture;
 
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
 
 public interface UserInformationBackend {
     String getType();
 
-    CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation) throws AuthenticatorUnavailableException;
+    CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter) throws AuthenticatorUnavailableException;
 }

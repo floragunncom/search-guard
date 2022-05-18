@@ -57,8 +57,8 @@ import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.kerberos.JaasKrbUtil;
 import com.floragunn.searchguard.enterprise.auth.kerberos.KrbConstants;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
 
 public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {

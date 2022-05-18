@@ -20,10 +20,11 @@ package com.floragunn.searchguard.authc;
 import java.util.concurrent.CompletableFuture;
 
 import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
 
 public interface AuthenticationBackend extends ComponentStateProvider {
 
@@ -40,7 +41,8 @@ public interface AuthenticationBackend extends ComponentStateProvider {
      * @return the authenticated User, or null if the user does not exist
      * @throws AuthenticatorUnavailableException if the authentication backend is not available right now.
      */
-    CompletableFuture<AuthCredentials> authenticate(AuthCredentials authCredentials) throws AuthenticatorUnavailableException, CredentialsException;
+    CompletableFuture<AuthCredentials> authenticate(AuthCredentials authCredentials, Meter meter)
+            throws AuthenticatorUnavailableException, CredentialsException;
 
     /**
      * Are users produced by this authentication backend allowed to be cached in a node-local heap-based cache? 
@@ -70,14 +72,14 @@ public interface AuthenticationBackend extends ComponentStateProvider {
     final static AuthenticationBackend NOOP = new AuthenticationBackend() {
 
         private final ComponentState componentState = new ComponentState(0, "authentication_backend", "noop").initialized();
-        
+
         @Override
         public String getType() {
             return "noop";
         }
 
         @Override
-        public CompletableFuture<AuthCredentials> authenticate(AuthCredentials authCredentials)
+        public CompletableFuture<AuthCredentials> authenticate(AuthCredentials authCredentials, Meter meter)
                 throws AuthenticatorUnavailableException, CredentialsException {
             return CompletableFuture.completedFuture(authCredentials);
         }

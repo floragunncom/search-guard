@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,9 +37,17 @@ import org.elasticsearch.index.reindex.BulkByScrollResponse;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
 import org.elasticsearch.threadpool.Scheduler.Cancellable;
+
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+
 import org.elasticsearch.threadpool.ThreadPool;
 
-public class IndexCleanupAgent {
+public class IndexCleanupAgent implements ComponentStateProvider {
 
     private final static Logger log = LogManager.getLogger(IndexCleanupAgent.class);
     private final static Supplier<QueryBuilder> DEFAULT_CLEANUP_QUERY = () -> QueryBuilders.rangeQuery("expires").lt(System.currentTimeMillis());
@@ -49,6 +57,9 @@ public class IndexCleanupAgent {
     private final String index;
     private final Supplier<QueryBuilder> cleanupQuery;
     private final ClusterService clusterService;
+    
+    private final ComponentState componentState;
+    private final TimeAggregation deleteActionMetrics = new TimeAggregation.Milliseconds();
 
     private Cancellable cleanupJob;
     private TimeValue cleanupInterval = TimeValue.timeValueHours(1);
@@ -64,6 +75,9 @@ public class IndexCleanupAgent {
         this.cleanupQuery = cleanupQuery;
         this.clusterService = clusterService;
         this.cleanupInterval = cleanupInterval;
+        this.componentState = new ComponentState("index_cleanup_agent_" + indexName).mandatory(false);
+        this.componentState.setState(State.SUSPENDED);
+        this.componentState.addMetrics("delete_actions", deleteActionMetrics);
 
         if (clusterService.lifecycleState() == Lifecycle.State.STARTED) {
             checkState(clusterService.state());
@@ -97,14 +111,18 @@ public class IndexCleanupAgent {
         cleanupInProgressSince = System.currentTimeMillis();
 
         try {
+            Meter meter = Meter.basic(MetricsLevel.BASIC, deleteActionMetrics);
+            
             new DeleteByQueryRequestBuilder(client, DeleteByQueryAction.INSTANCE).filter(cleanupQuery.get()).source(index)
                     .execute(new ActionListener<BulkByScrollResponse>() {
                         @Override
                         public void onResponse(BulkByScrollResponse response) {
                             cleanupInProgress = false;
+                            meter.close();
 
                             long deleted = response.getDeleted();
-
+                            meter.count("deleted_documents", deleted);
+                            
                             log.debug("Deleted " + deleted + " expired entries from " + index);
                             
                             if (log.isTraceEnabled()) {
@@ -115,6 +133,7 @@ public class IndexCleanupAgent {
                         @Override
                         public void onFailure(Exception e) {
                             cleanupInProgress = false;
+                            meter.close();
 
                             if (e instanceof IndexNotFoundException) {
                                 log.debug("No expired entries have been deleted because the index does not exist", e);
@@ -147,6 +166,7 @@ public class IndexCleanupAgent {
                 if (cleanupJob == null) {
                     cleanupJob = threadPool.scheduleWithFixedDelay(() -> cleanupExpiredEntries(), cleanupInterval, ThreadPool.Names.GENERIC);
                 }
+                componentState.setState(State.INITIALIZED);
             }
         } else if (!isMaster && cleanupJob != null) {
             synchronized (IndexCleanupAgent.this) {
@@ -155,6 +175,7 @@ public class IndexCleanupAgent {
                     cleanupJob = null;
                     cleanupInProgress = false;
                 }
+                componentState.setState(State.SUSPENDED);
             }
         }
     }
@@ -173,5 +194,10 @@ public class IndexCleanupAgent {
                 cleanupInProgress = false;
             }
         }
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

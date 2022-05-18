@@ -39,12 +39,12 @@ import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.modules.state.ComponentState.State;
-import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.support.SgUtils;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
 
 public class LicenseRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(LicenseRepository.class);
@@ -170,7 +170,7 @@ public class LicenseRepository implements ComponentStateProvider {
                 this.effectiveLicense = license;
             } else {
                 componentState.setState(State.INITIALIZED, "license_invalid");
-                componentState.setDetailJson(validationErrors.toJsonString());
+                componentState.addDetail(validationErrors);
                 componentState.setConfigProperty("license_uid", license.getUid());
 
                 this.effectiveLicense = license;

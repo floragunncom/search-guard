@@ -45,11 +45,14 @@ import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.CacheStats;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.google.common.cache.Cache;
 
 import inet.ipaddr.IPAddress;
@@ -82,6 +85,8 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
         private final List<String> requiredLoginPrivileges = Collections.emptyList();
         private final ComponentState componentState = new ComponentState("rest_authentication_processor");
 
+        private final TimeAggregation authenticateMetrics = new TimeAggregation.Milliseconds();
+
         private List<AuthFailureListener> ipAuthFailureListeners = ImmutableList.empty();
 
         public Default(RestAuthcConfig config, SearchGuardModulesRegistry modulesRegistry, AdminDNs adminDns, BlockedIpRegistry blockedIpRegistry,
@@ -100,16 +105,29 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
             this.blockedIpRegistry = blockedIpRegistry;
             this.blockedUserRegistry = blockedUserRegistry;
 
-            this.userCache = authcConfig.getUserCacheConfig().build();
-            this.impersonationCache = authcConfig.getUserCacheConfig().build();
-            
+            if (authcConfig.getMetricsLevel().basicEnabled()) {
+                this.userCache = authcConfig.getUserCacheConfig().buildWithStats();
+                this.impersonationCache = authcConfig.getUserCacheConfig().buildWithStats();
+            } else {
+                this.userCache = authcConfig.getUserCacheConfig().build();
+                this.impersonationCache = authcConfig.getUserCacheConfig().build();
+            }
+
             for (AuthenticationDomain<HttpAuthenticationFrontend> authenticationDomain : this.authenticationDomains) {
                 componentState.addPart(authenticationDomain.getComponentState());
+            }
+
+            if (authcConfig.getMetricsLevel().basicEnabled()) {
+                componentState.addMetrics("authenticate", authenticateMetrics);
+                componentState.addMetrics("user_cache", CacheStats.from(userCache));
+                componentState.addMetrics("impersonation_cache", CacheStats.from(impersonationCache));
             }
         }
 
         public void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthcResult> onResult,
                 Consumer<Exception> onFailure) {
+            Meter meter = Meter.basic(authcConfig.getMetricsLevel(), authenticateMetrics);
+
             String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
 
             ClientIpInfo clientInfo = clientAddressAscertainer.getActualRemoteAddress(request);
@@ -118,6 +136,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
             if (!ipAddressAcceptanceRules.accept(requestMetaData)) {
                 log.info("Not accepting request from {}", requestMetaData);
+                meter.close();
                 onResult.accept(AuthcResult.stop(RestStatus.FORBIDDEN, "Forbidden",
                         ImmutableList.of(new AuthcResult.DebugInfo("-/-", false,
                                 "Request denied because client IP address is denied by authc.network.accept configuration",
@@ -141,14 +160,15 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
                     log.debug("Rejecting REST request because of blocked address: " + request.getHttpChannel().getRemoteAddress());
                 }
                 auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
+                meter.close();
                 channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
                 onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
                 return;
             }
 
-            new RestRequestAuthenticationProcessor(restHandler, requestMetaData, authenticationDomains, adminDns,
-                    privilegesEvaluator, userCache, impersonationCache, auditLog, blockedUserRegistry, ipAuthFailureListeners,
-                    requiredLoginPrivileges, debug).authenticate(onResult, onFailure);
+            new RestRequestAuthenticationProcessor(restHandler, requestMetaData, authenticationDomains, adminDns, privilegesEvaluator, userCache,
+                    impersonationCache, auditLog, blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, debug)
+                            .authenticate(meter.consumer(onResult), meter.consumer(onFailure));
 
         }
 

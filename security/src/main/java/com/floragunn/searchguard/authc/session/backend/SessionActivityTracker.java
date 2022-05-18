@@ -48,9 +48,11 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
 /**
  * This class is responsible for tracking the last access to a session and extending the expiration time of that session on that access.
@@ -83,6 +85,7 @@ class SessionActivityTracker {
     private Duration flushInterval;
     private Random random;
     private final ComponentState componentState = new ComponentState(1, null, "session_activity_tracker", SessionActivityTracker.class).initialized();
+    private final TimeAggregation flushMetrics = new TimeAggregation.Milliseconds();
     private volatile long lastComponentStateUpdate = -1;
     private WriteRequest.RefreshPolicy indexRefreshPolicy = WriteRequest.RefreshPolicy.NONE;
 
@@ -95,6 +98,8 @@ class SessionActivityTracker {
         this.random = new Random(System.currentTimeMillis() + hashCode());
 
         setInactivityTimeout(inactivityTimeout);
+        
+        this.componentState.addMetrics("flush", flushMetrics);
 
         this.sessionFlushThread = new SessionFlushThread();
         this.sessionFlushThread.start();
@@ -105,13 +110,13 @@ class SessionActivityTracker {
 
         lastAccess.put(authToken.getId(), now + inactivityBeforeExpiryMillis);
         sessionFlushThread.setEarlyFlushTimeIfNecessary(authToken.getDynamicExpiryTime().toEpochMilli());
-        
+
         if (lastComponentStateUpdate + 10 * 1000 < now) {
             lastComponentStateUpdate = now;
         }
     }
 
-    void checkExpiryAndTrackAccess(SessionToken authToken, Consumer<Boolean> onResult, Consumer<Exception> onFailure) {
+    void checkExpiryAndTrackAccess(SessionToken authToken, Consumer<Boolean> onResult, Consumer<Exception> onFailure, Meter meter) {
         Instant now = Instant.now();
 
         if (authToken.getDynamicExpiryTime().isAfter(now)) {
@@ -169,7 +174,7 @@ class SessionActivityTracker {
                 onResult.accept(Boolean.FALSE);
             }
 
-        }, (noSuchAuthTokenException) -> onResult.accept(Boolean.FALSE), onFailure);
+        }, (noSuchAuthTokenException) -> onResult.accept(Boolean.FALSE), onFailure, meter);
 
     }
 
@@ -220,7 +225,11 @@ class SessionActivityTracker {
     }
 
     private void flush(String reason) {
+        Meter superMeter = Meter.basic(sessionService.getMetricsLevel(), flushMetrics);
+        Meter meter = superMeter.basic(reason);
+
         try {
+
             Map<String, Long> lastAccessCopy = new HashMap<>(lastAccess);
 
             if (log.isDebugEnabled()) {
@@ -253,6 +262,8 @@ class SessionActivityTracker {
                         }
 
                         componentState.setState(State.INITIALIZED, "Flushed " + lastAccessCopy.size() + " dynamic_expires entries");
+                        meter.close();
+                        superMeter.close();
 
                         return;
                     }
@@ -283,10 +294,14 @@ class SessionActivityTracker {
                     }
 
                     if (bulkRequest.numberOfActions() != 0) {
+                        Meter updateMeter = meter.basic("update");
+
                         privilegedConfigClient.bulk(bulkRequest, new ActionListener<BulkResponse>() {
 
                             @Override
                             public void onResponse(BulkResponse response) {
+                                updateMeter.close();
+
                                 int updated = 0;
                                 int conflict = 0;
 
@@ -320,6 +335,8 @@ class SessionActivityTracker {
 
                             @Override
                             public void onFailure(Exception e) {
+                                updateMeter.close();
+
                                 log.error("Error while writing session activity: " + query, e);
                                 componentState.addLastException("session activity update", e);
                                 restoreLastAccess(lastAccessCopy);
@@ -327,8 +344,23 @@ class SessionActivityTracker {
                         });
                     }
 
+                    Meter searchMeter = meter.basic("index_search");
+
                     // Continue scrolling
-                    privilegedConfigClient.searchScroll(new SearchScrollRequest(response.getScrollId()), this);
+                    privilegedConfigClient.searchScroll(new SearchScrollRequest(response.getScrollId()), new ActionListener<SearchResponse>() {
+
+                        @Override
+                        public void onResponse(SearchResponse response) {
+                            searchMeter.close();
+                            this.onResponse(response);
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            searchMeter.close();
+                            this.onFailure(e);
+                        }
+                    });
 
                 }
 
@@ -336,17 +368,36 @@ class SessionActivityTracker {
                 public void onFailure(Exception e) {
                     log.error("Error while writing auth token activity: " + query, e);
                     restoreLastAccess(lastAccessCopy);
+                    meter.close();
+                    superMeter.close();
                 }
 
             };
 
             componentState.setState(State.INITIALIZED, "Flushing " + lastAccessCopy.size() + " dynamic_expires entries");
 
+            Meter searchMeter = meter.basic("index_search");
+
             privilegedConfigClient.search(
                     new SearchRequest(indexName).source(new SearchSourceBuilder().query(query).size(1000)).scroll(new TimeValue(10000)),
-                    searchListener);
+                    new ActionListener<SearchResponse>() {
+
+                        @Override
+                        public void onResponse(SearchResponse response) {
+                            searchMeter.close();
+                            searchListener.onResponse(response);
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            searchMeter.close();
+                            searchListener.onFailure(e);
+                        }
+                    });
         } catch (Exception e) {
             log.error("Exception during flush(" + reason + ")", e);
+            superMeter.close();
+            meter.close();
         }
     }
 

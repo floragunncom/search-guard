@@ -31,6 +31,7 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.support.Pattern;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.google.common.cache.Cache;
 import com.unboundid.ldap.sdk.DereferencePolicy;
 import com.unboundid.ldap.sdk.Entry;
@@ -71,20 +72,23 @@ public class GroupSearch {
         validationErrors.throwExceptionForPresentErrors();
     }
 
-    Set<Entry> search(LDAPConnection connection, String dn, AttributeSource attributeSource) throws LDAPException, ExpressionEvaluationException {
-        return new SearchState(connection, attributeSource).search(dn);
+    Set<Entry> search(LDAPConnection connection, String dn, AttributeSource attributeSource, Meter meter)
+            throws LDAPException, ExpressionEvaluationException {
+        return new SearchState(connection, attributeSource, meter).search(dn);
     }
 
     class SearchState {
 
         private final LDAPConnection connection;
+        private final AttributeSource attributeSource;
+        private final Meter meter;
 
         private Map<String, Entry> foundEntries = new HashMap<>();
-        private AttributeSource attributeSource;
 
-        SearchState(LDAPConnection connection, AttributeSource attributeSource) {
+        SearchState(LDAPConnection connection, AttributeSource attributeSource, Meter meter) {
             this.connection = connection;
             this.attributeSource = attributeSource;
+            this.meter = meter;
         }
 
         Set<Entry> search(String dn) throws LDAPException, ExpressionEvaluationException {
@@ -97,10 +101,10 @@ public class GroupSearch {
             }
 
             Filter filter = searchFilter.toFilter(attributeSource);
-            
+
             if (searchCache != null) {
                 Set<Entry> cachedResult = searchCache.getIfPresent(filter);
-                
+
                 if (cachedResult != null) {
                     return cachedResult;
                 }
@@ -125,40 +129,42 @@ public class GroupSearch {
             }
 
             Set<Entry> result = ImmutableSet.of(foundEntries.values());
-            
+
             if (searchCache != null) {
                 searchCache.put(filter, result);
             }
-            
+
             return result;
         }
 
         void searchNested(Set<String> dnSet, int currentDepth) throws LDAPException, ExpressionEvaluationException {
-            List<Filter> filters = new ArrayList<>(dnSet.size());
-
-            for (String dn : dnSet) {
-                AttributeSource attributeSource = AttributeSource.joined(AttributeSource.of("dn", dn), this.attributeSource);
-                filters.add(recursiveSearchFilter.toFilter(attributeSource));
-            }
-
-            Filter filter = Filter.createORFilter(filters);
-
-            SearchRequest searchRequest = new SearchRequest(searchBaseDn, searchScope, filter, SearchRequest.ALL_OPERATIONAL_ATTRIBUTES,
-                    SearchRequest.ALL_USER_ATTRIBUTES);
-            searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
-
             Set<String> newEntryDns = new HashSet<>();
 
-            for (SearchResultEntry entry : connection.search(searchRequest).getSearchEntries()) {
-                if (!foundEntries.containsKey(entry.getDN())) {
-                    foundEntries.put(entry.getDN(), entry);
+            try (Meter subMeter = this.meter.detail("recursive_search")) {
+                List<Filter> filters = new ArrayList<>(dnSet.size());
 
-                    if (recursivePattern == null || recursivePattern.matches(entry.getDN())) {
-                        newEntryDns.add(entry.getDN());
+                for (String dn : dnSet) {
+                    AttributeSource attributeSource = AttributeSource.joined(AttributeSource.of("dn", dn), this.attributeSource);
+                    filters.add(recursiveSearchFilter.toFilter(attributeSource));
+                }
+
+                Filter filter = Filter.createORFilter(filters);
+
+                SearchRequest searchRequest = new SearchRequest(searchBaseDn, searchScope, filter, SearchRequest.ALL_OPERATIONAL_ATTRIBUTES,
+                        SearchRequest.ALL_USER_ATTRIBUTES);
+                searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
+
+                for (SearchResultEntry entry : connection.search(searchRequest).getSearchEntries()) {
+                    if (!foundEntries.containsKey(entry.getDN())) {
+                        foundEntries.put(entry.getDN(), entry);
+
+                        if (recursivePattern == null || recursivePattern.matches(entry.getDN())) {
+                            newEntryDns.add(entry.getDN());
+                        }
                     }
                 }
             }
-
+            
             if (newEntryDns.size() != 0 && currentDepth < maxRecusionDepth) {
                 searchNested(newEntryDns, currentDepth + 1);
             }

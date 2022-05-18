@@ -1,10 +1,10 @@
 /*
- * Copyright 2021 floragunn GmbH
- *
+ * Copyright 2022 floragunn GmbH
+ * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,17 +12,24 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ * 
  */
+package com.floragunn.searchsupport.cstate.metrics;
 
-package com.floragunn.searchguard.authc;
+public enum MetricsLevel {
+    NONE(0), BASIC(1), DETAILED(2);
 
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+    private final int level;
 
-public interface AuthenticationFrontend extends ComponentStateProvider {
-    /**
-     * The type (name) of the authenticator. Only for logging.  
-     * @return the type
-     */
-    String getType();
+    MetricsLevel(int level) {
+        this.level = level;
+    }
+
+    public boolean basicEnabled() {
+        return level >= BASIC.level;
+    }
+
+    public boolean detailedEnabled() {
+        return level >= DETAILED.level;
+    }
 }

@@ -24,8 +24,6 @@ import java.util.concurrent.ExecutionException;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.Metadata;
-import com.floragunn.codova.documents.Metadata.Attribute;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -35,7 +33,6 @@ import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.TypedComponentRegistry;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
-import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
@@ -45,26 +42,17 @@ import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.google.common.hash.Hashing;
 
 public class StandardAuthenticationDomain<AuthenticatorType extends AuthenticationFrontend> implements AuthenticationDomain<AuthenticatorType>,
         Comparable<StandardAuthenticationDomain<AuthenticatorType>>, Document<StandardAuthenticationDomain<AuthenticatorType>>, Destroyable {
-
-    public static final Metadata<StandardAuthenticationDomain> HTTP_META = Metadata.create(StandardAuthenticationDomain.class, "auth_domain",
-            "Authentication domains", (n, c) -> parse(n, HttpAuthenticationFrontend.class, (ConfigurationRepository.Context) c),
-            Attribute.required("type", String.class, "<authentication_frontend_type/authentication_backend_type> or <authentication_frontend_type>"),
-            Attribute.optional("id", String.class, "A string to identify this authentication domain"),
-            Attribute.optional("description", String.class, null),
-            Attribute.optional("enabled", Boolean.class, "Set to false to disable this auth domain"),
-            Attribute.optional("accept", AcceptanceRules.Criteria.META, "Criteria which decide whether this auth domain will process a request"),
-            Attribute.optional("skip", AcceptanceRules.Criteria.META, "Criteria which decide whether this auth domain will NOT process a request"),
-            Attribute.optional("debug", Boolean.class, "Enables authc debug mode. If true, /_searchguard/auth/debug provides debug information."),
-            Attribute.optional("network", Object.class, "Network-specific configuration."),
-            Attribute.optional("user_cache", Object.class, "User cache configuration."));
 
     private final DocNode source;
     private final String type;
@@ -79,6 +67,10 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
     private final String infoString;
     private final ImmutableList<UserInformationBackend> additionalUserInformationBackends;
     private final ComponentState componentState;
+    private final MetricsLevel metricsLevel;
+    private final TimeAggregation authenticationBackendMetrics = new TimeAggregation.Milliseconds();
+    private final TimeAggregation userInformationBackendMetrics = new TimeAggregation.Milliseconds();
+    private final TimeAggregation impersonationUserInformationBackendMetrics = new TimeAggregation.Milliseconds();
 
     /**
      * Only for supporting the legacy config format
@@ -87,7 +79,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
 
     public StandardAuthenticationDomain(DocNode source, String type, String id, String description, boolean enabled, int order,
             AcceptanceRules acceptanceRules, AuthenticatorType authenticationFrontend, AuthenticationBackend authenticationBackend,
-            ImmutableList<UserInformationBackend> additionalUserInformationBackends, UserMapping userMapping) {
+            ImmutableList<UserInformationBackend> additionalUserInformationBackends, UserMapping userMapping, MetricsLevel metricsLevel) {
         this.source = source;
         this.type = type;
         this.id = id;
@@ -100,11 +92,11 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         this.userMapping = userMapping;
         this.infoString = buildInfoString();
         this.acceptanceRules = acceptanceRules;
-        this.componentState = new ComponentState(0, "auth_domain", id);
+        this.componentState = new ComponentState(0, "auth_domain", this.infoString);
+        this.metricsLevel = metricsLevel;
 
         if (authenticationFrontend != null) {
             this.componentState.addPart(authenticationFrontend.getComponentState());
-
         }
 
         if (authenticationBackend != null) {
@@ -112,6 +104,11 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         }
 
         this.componentState.updateStateFromParts();
+
+        if (metricsLevel.basicEnabled()) {
+            this.componentState.addMetrics("authentication_backend", authenticationBackendMetrics, "user_information_backend",
+                    userInformationBackendMetrics, "impersonation_backend", impersonationUserInformationBackendMetrics);
+        }
     }
 
     public AuthenticationBackend getBackend() {
@@ -161,16 +158,17 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
     }
 
     public static <AuthenticatorType extends AuthenticationFrontend> StandardAuthenticationDomain<AuthenticatorType> parse(DocNode documentNode,
-            Class<AuthenticatorType> authenticatorType, ConfigurationRepository.Context context) throws ConfigValidationException {
+            Class<AuthenticatorType> authenticatorType, ConfigurationRepository.Context context, MetricsLevel metricsLevel)
+            throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(documentNode, validationErrors);
 
-        return parse(vNode, validationErrors, authenticatorType, context);
+        return parse(vNode, validationErrors, authenticatorType, context, metricsLevel);
     }
 
     public static <AuthenticatorType extends AuthenticationFrontend> StandardAuthenticationDomain<AuthenticatorType> parse(ValidatingDocNode vNode,
-            ValidationErrors validationErrors, Class<AuthenticatorType> authenticatorType, ConfigurationRepository.Context context)
-            throws ConfigValidationException {
+            ValidationErrors validationErrors, Class<AuthenticatorType> authenticatorType, ConfigurationRepository.Context context,
+            MetricsLevel metricsLevel) throws ConfigValidationException {
         TypedComponentRegistry typedComponentRegistry = context.modulesRegistry().getTypedComponentRegistry();
 
         String id = vNode.get("id").asString();
@@ -240,7 +238,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
         validationErrors.throwExceptionForPresentErrors();
 
         return new StandardAuthenticationDomain<AuthenticatorType>(vNode.getDocumentNode(), type, id, description, enabled, order, acceptanceRules,
-                authenticator, authenticationBackend, additionalUserInformationBackends, userMapping);
+                authenticator, authenticationBackend, additionalUserInformationBackends, userMapping, metricsLevel);
     }
 
     private static ImmutableList<UserInformationBackend> parseAdditionalUserInformationBackends(List<DocNode> list,
@@ -316,8 +314,8 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
     @Override
     public CompletableFuture<User> authenticate(AuthCredentials authCredentials, AuthenticationDebugLogger debug)
             throws AuthenticatorUnavailableException, CredentialsException {
-        try {
-            authCredentials = authenticationBackend.authenticate(authCredentials).get();
+        try (Meter meter = Meter.basic(metricsLevel, authenticationBackendMetrics)) {
+            authCredentials = authenticationBackend.authenticate(authCredentials, meter).get();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } catch (ExecutionException e) {
@@ -340,18 +338,20 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
                 .authBackendType(authenticationBackend != null ? authenticationBackend.getType() : null));
 
         if (additionalUserInformationBackends.size() != 0) {
-            for (UserInformationBackend backend : additionalUserInformationBackends) {
-                try {
-                    authCredentials = authCredentials.with(backend.getUserInformation(authCredentials).get());
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                } catch (ExecutionException e) {
-                    if (e.getCause() instanceof AuthenticatorUnavailableException) {
-                        throw (AuthenticatorUnavailableException) e.getCause();
-                    } else if (e.getCause() instanceof RuntimeException) {
-                        throw (RuntimeException) e.getCause();
-                    } else {
-                        throw new RuntimeException(e.getCause());
+            try (Meter meter = Meter.basic(metricsLevel, userInformationBackendMetrics)) {
+                for (UserInformationBackend backend : additionalUserInformationBackends) {
+                    try (Meter subMeter = meter.basic(backend.getType())) {
+                        authCredentials = authCredentials.with(backend.getUserInformation(authCredentials, subMeter).get());
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    } catch (ExecutionException e) {
+                        if (e.getCause() instanceof AuthenticatorUnavailableException) {
+                            throw (AuthenticatorUnavailableException) e.getCause();
+                        } else if (e.getCause() instanceof RuntimeException) {
+                            throw (RuntimeException) e.getCause();
+                        } else {
+                            throw new RuntimeException(e.getCause());
+                        }
                     }
                 }
             }
@@ -379,8 +379,8 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
 
         UserInformationBackend primaryBackend = (UserInformationBackend) authenticationBackend;
 
-        try {
-            authCredentials = primaryBackend.getUserInformation(authCredentials).get();
+        try (Meter meter = Meter.basic(metricsLevel, impersonationUserInformationBackendMetrics)) {
+            authCredentials = primaryBackend.getUserInformation(authCredentials, meter).get();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } catch (ExecutionException e) {
@@ -403,18 +403,20 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
                 .authDomainInfo(AuthDomainInfo.from(originalUser).addAuthBackend(authenticationBackend.getType() + "+impersonation")).build();
 
         if (additionalUserInformationBackends.size() != 0) {
-            for (UserInformationBackend backend : additionalUserInformationBackends) {
-                try {
-                    authCredentials = authCredentials.with(backend.getUserInformation(authCredentials).get());
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                } catch (ExecutionException e) {
-                    if (e.getCause() instanceof AuthenticatorUnavailableException) {
-                        throw (AuthenticatorUnavailableException) e.getCause();
-                    } else if (e.getCause() instanceof RuntimeException) {
-                        throw (RuntimeException) e.getCause();
-                    } else {
-                        throw new RuntimeException(e.getCause());
+            try (Meter meter = Meter.basic(metricsLevel, userInformationBackendMetrics)) {
+                for (UserInformationBackend backend : additionalUserInformationBackends) {
+                    try (Meter subMeter = meter.basic(backend.getType())) {
+                        authCredentials = authCredentials.with(backend.getUserInformation(authCredentials, subMeter).get());
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    } catch (ExecutionException e) {
+                        if (e.getCause() instanceof AuthenticatorUnavailableException) {
+                            throw (AuthenticatorUnavailableException) e.getCause();
+                        } else if (e.getCause() instanceof RuntimeException) {
+                            throw (RuntimeException) e.getCause();
+                        } else {
+                            throw new RuntimeException(e.getCause());
+                        }
                     }
                 }
             }

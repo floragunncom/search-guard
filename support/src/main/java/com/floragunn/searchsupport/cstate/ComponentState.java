@@ -15,9 +15,8 @@
  * 
  */
 
-package com.floragunn.searchguard.modules.state;
+package com.floragunn.searchsupport.cstate;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -26,7 +25,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -39,21 +37,19 @@ import java.util.jar.Manifest;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentType;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
-import com.google.common.base.Charsets;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
+import com.floragunn.searchsupport.cstate.metrics.Measurement;
 import com.google.common.base.Strings;
 
-public class ComponentState implements Writeable, ToXContentObject {
+public class ComponentState implements Document<ComponentState> {
     private static final Logger log = LogManager.getLogger(ComponentState.class);
 
     private final String type;
@@ -63,9 +59,8 @@ public class ComponentState implements Writeable, ToXContentObject {
     private volatile String subState;
     private volatile int tries;
     private volatile String message;
-    private volatile String detailJson;
-    private volatile List<Object> detailJsonElements;
-    private volatile Throwable initException;
+    private List<Object> detailJsonElements = Collections.synchronizedList(new ArrayList<>());
+    private volatile ImmutableList<String> initException;
     private Instant startedAt = Instant.now();
     private volatile Instant initializedAt;
     private volatile Instant changedAt;
@@ -81,8 +76,7 @@ public class ComponentState implements Writeable, ToXContentObject {
     private byte licenseRequired;
     private int sortPrio;
     private String configVersion;
-    private String configJson;
-    private Map<String, Object> metrics;
+    private ImmutableMap<String, Measurement<?>> metrics = ImmutableMap.empty();
     private ImmutableMap<String, Object> moreConfigProperties;
 
     private List<ComponentState> parts = new ArrayList<>();
@@ -109,51 +103,87 @@ public class ComponentState implements Writeable, ToXContentObject {
         }
     }
 
-    public ComponentState(StreamInput in) throws IOException {
-        this.type = in.readOptionalString();
-        this.name = in.readString();
-        this.className = in.readOptionalString();
-        this.sortPrio = in.readInt();
-        this.nodeId = in.readOptionalString();
-        this.nodeName = in.readOptionalString();
-        @SuppressWarnings("unused")
-        int version = in.readInt();
-        this.state = in.readEnum(State.class);
-        this.subState = in.readOptionalString();
-        this.tries = in.readInt();
-        this.message = in.readOptionalString();
-        this.detailJson = in.readOptionalString();
-        this.startedAt = in.readOptionalInstant();
-        this.initializedAt = in.readOptionalInstant();
-        this.changedAt = in.readOptionalInstant();
-        this.failedAt = in.readOptionalInstant();
-        this.nextTryAt = in.readOptionalInstant();
-        this.mandatory = in.readBoolean();
-        this.jarFileName = in.readOptionalString();
-        this.jarVersion = in.readOptionalString();
-        this.jarBuildTime = in.readOptionalString();
+    public ComponentState(DocNode docNode) {
+        this.type = docNode.getAsString("type");
+        this.name = docNode.getAsString("name");
+        this.className = docNode.getAsString("class_name");
+        this.nodeId = docNode.getAsString("node_id");
+        this.nodeName = docNode.getAsString("node_name");
+        this.state = docNode.hasNonNull("state") ? State.valueOf(docNode.getAsString("state")) : null;
+        this.subState = docNode.getAsString("sub_state");
+        try {
+            this.tries = docNode.hasNonNull("tries") ? docNode.getNumber("tries").intValue() : 0;
+        } catch (ConfigValidationException e) {
+            log.error("Invalid value for tries", e);
+        }
+        this.message = docNode.getAsString("message");
 
-        if (in.readBoolean()) {
-            this.initException = in.readException();
+        if (docNode.hasNonNull("detail")) {
+            Object detail = docNode.get("detail");
+
+            if (detail instanceof List) {
+                this.detailJsonElements.addAll((List<?>) detail);
+            } else {
+                this.detailJsonElements.add(detail);
+            }
         }
 
-        this.lastExceptions = in.readMap(StreamInput::readString, ExceptionRecord::new);
+        this.startedAt = docNode.hasNonNull("started_at") ? Instant.parse(docNode.getAsString("started_at")) : null;
+        this.initializedAt = docNode.hasNonNull("initialized_at") ? Instant.parse(docNode.getAsString("initialized_at")) : null;
+        this.changedAt = docNode.hasNonNull("changed_at") ? Instant.parse(docNode.getAsString("changed_at")) : null;
+        this.failedAt = docNode.hasNonNull("failed_at") ? Instant.parse(docNode.getAsString("failed_at")) : null;
+        this.nextTryAt = docNode.hasNonNull("next_try_at") ? Instant.parse(docNode.getAsString("next_try_at")) : null;
+        this.mandatory = docNode.get("mandatory") instanceof Boolean ? (Boolean) docNode.get("mandatory") : null;        
 
-        byte marker = in.readByte();
-
-        if (marker == 1) {
-            this.moreConfigProperties = ImmutableMap.of(in.readMap());
+        if (docNode.hasNonNull("build")) {
+            DocNode build = docNode.getAsNode("build");
+            this.jarFileName = build.getAsString("file");
+            this.jarVersion = build.getAsString("version");
+            this.jarBuildTime = build.getAsString("time");
         }
 
-        this.licenseRequired = in.readByte();
-        this.configVersion = in.readOptionalString();
-        this.configJson = in.readOptionalString();
+        this.initException = docNode.getAsListOfStrings("init_exception");
 
-        if (in.readBoolean()) {
-            this.metrics = in.readMap();
+        if (docNode.hasNonNull("last_exceptions")) {
+            DocNode lastExceptions = docNode.getAsNode("last_exceptions");
+
+            for (String key : lastExceptions.keySet()) {
+                this.lastExceptions.put(key, new ExceptionRecord(lastExceptions.getAsNode(key)));
+            }
         }
 
-        this.parts = in.readList(ComponentState::new);
+        if (docNode.hasNonNull("config")) {
+            DocNode config = docNode.getAsNode("config");
+            ImmutableMap.Builder<String, Object> moreConfigProperties = new ImmutableMap.Builder<>();
+
+            for (String key : config.keySet()) {
+
+                if (key.equals("version")) {
+                    this.configVersion = config.getAsString("version");
+                } else {
+                    moreConfigProperties.put(key, config.get(key));
+                }
+            }
+
+            this.moreConfigProperties = moreConfigProperties.build();
+        }
+
+        if (docNode.hasNonNull("metrics")) {
+            DocNode metricsNode = docNode.getAsNode("metrics");
+            ImmutableMap.Builder<String, Measurement<?>> metrics = new ImmutableMap.Builder<>(metricsNode.size());
+
+            for (String key : metricsNode.keySet()) {
+                metrics.put(key, Measurement.parse(metricsNode.getAsNode(key)));
+            }
+
+            this.metrics = metrics.build();
+        }
+
+        if (docNode.hasNonNull("parts")) {
+            for (DocNode part : docNode.getAsListOfNodes("parts")) {
+                this.parts.add(new ComponentState(part));
+            }
+        }
     }
 
     public String getName() {
@@ -167,7 +197,7 @@ public class ComponentState implements Writeable, ToXContentObject {
     public String getKey() {
         return this.type + "::" + this.name;
     }
-    
+
     public String getTypeAndName() {
         if (this.type == null) {
             return this.name;
@@ -182,61 +212,6 @@ public class ComponentState implements Writeable, ToXContentObject {
 
     public enum State {
         INITIALIZING, INITIALIZED, PARTIALLY_INITIALIZED, FAILED, DISABLED, SUSPENDED
-    }
-
-    @Override
-    public void writeTo(StreamOutput out) throws IOException {
-        out.writeOptionalString(type);
-        out.writeString(name);
-        out.writeOptionalString(className);
-        out.writeInt(sortPrio);
-        out.writeOptionalString(nodeId);
-        out.writeOptionalString(nodeName);
-        out.writeInt(1);
-        out.writeEnum(state);
-        out.writeOptionalString(subState);
-        out.writeInt(this.tries);
-        out.writeOptionalString(this.message);
-        out.writeOptionalString(this.detailJson);
-        out.writeOptionalInstant(this.startedAt);
-        out.writeOptionalInstant(this.initializedAt);
-        out.writeOptionalInstant(this.changedAt);
-        out.writeOptionalInstant(this.failedAt);
-        out.writeOptionalInstant(this.nextTryAt);
-        out.writeBoolean(mandatory);
-        out.writeOptionalString(this.jarFileName);
-        out.writeOptionalString(this.jarVersion);
-        out.writeOptionalString(this.jarBuildTime);
-
-        if (this.initException != null) {
-            out.writeBoolean(true);
-            out.writeException(this.initException);
-        } else {
-            out.writeBoolean(false);
-        }
-
-        out.writeMap(this.lastExceptions, StreamOutput::writeString, (o, v) -> v.writeTo(o));
-
-        if (this.moreConfigProperties != null && !this.moreConfigProperties.isEmpty()) {
-            out.writeByte((byte) 1);
-            out.writeMap(this.moreConfigProperties);
-        } else {
-            out.writeByte((byte) 0);
-        }
-
-        out.writeByte(licenseRequired);
-        out.writeOptionalString(configVersion);
-        out.writeOptionalString(configJson);
-
-        if (this.metrics != null) {
-            out.writeBoolean(true);
-            out.writeMap(this.metrics);
-        } else {
-            out.writeBoolean(false);
-        }
-
-        out.writeList(parts);
-
     }
 
     public PartsStats updateStateFromParts() {
@@ -428,39 +403,9 @@ public class ComponentState implements Writeable, ToXContentObject {
         this.message = message;
     }
 
-    public String getDetailJson() {
-        if (detailJson != null) {
-            return detailJson;
-        } else if (detailJsonElements != null) {
-            try {
-                return DocWriter.json().mapValues((o) -> {
-                    if (o instanceof Throwable) {
-                        return exceptionToString((Throwable) o);
-                    } else {
-                        return o;
-                    }
-                }).writeAsString(detailJsonElements);
-
-            } catch (Exception e) {
-                log.error("Error while writing " + detailJsonElements, e);
-                return null;
-            }
-        } else {
-            return null;
-        }
-    }
-
-    public void setDetailJson(String detailJson) {
-        this.detailJson = detailJson;
-    }
-
-    public Throwable getInitException() {
-        return initException;
-    }
-
     public void setFailed(Throwable initException) {
         Instant now = Instant.now();
-        this.initException = initException;
+        this.initException = exceptionToString(initException);
         this.state = State.FAILED;
         this.subState = null;
         this.failedAt = now;
@@ -491,7 +436,7 @@ public class ComponentState implements Writeable, ToXContentObject {
     }
 
     public void setInitException(Exception initException) {
-        this.initException = initException;
+        this.initException = exceptionToString(initException);
     }
 
     public Map<String, ExceptionRecord> getLastExceptions() {
@@ -547,148 +492,121 @@ public class ComponentState implements Writeable, ToXContentObject {
     }
 
     public void addDetail(Object detail) {
-        if (detailJsonElements == null) {
-            if (detailJson != null) {
-                try {
-                    Object parsedDetailJson = DocReader.json().read(detailJson);
-
-                    if (parsedDetailJson instanceof List) {
-                        @SuppressWarnings("unchecked")
-                        List<Object> list = (List<Object>) parsedDetailJson;
-                        detailJsonElements = new ArrayList<>(list);
-                    } else if (parsedDetailJson != null) {
-                        detailJsonElements = new ArrayList<>();
-                        detailJsonElements.add(parsedDetailJson);
-                    }
-                } catch (DocumentParseException e) {
-                    log.error("Error while parsing detail JSON", e);
-                }
-
-                detailJson = null;
-            }
-
-            if (detailJsonElements == null) {
-                detailJsonElements = Collections.synchronizedList(new ArrayList<>());
-            }
-        }
-
         detailJsonElements.add(detail);
     }
 
+    public void addDetailJson(String detailJson) {
+        try {
+            Object parsedDetailJson = DocReader.json().read(detailJson);
+            detailJsonElements.add(parsedDetailJson);
+        } catch (DocumentParseException e) {
+            log.error("Error while parsing detail JSON\n" + detailJson, e);
+        }
+    }
+
     @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
+    public Object toBasicObject() {
+        OrderedImmutableMap.Builder<String, Object> result = new OrderedImmutableMap.Builder<>(40);
 
         if (nodeId != null) {
-            builder.field("node_id", nodeId);
+            result.put("node_id", nodeId);
         }
 
         if (nodeName != null) {
-            builder.field("node_name", nodeName);
+            result.put("node_name", nodeName);
         }
 
         if (type != null) {
-            builder.field("type", type);
+            result.put("type", type);
         }
 
-        builder.field("name", name);
-        builder.field("state", state);
+        result.put("name", name);
+        result.put("state", state);
 
         if (subState != null) {
-            builder.field("sub_state", subState);
+            result.put("sub_state", subState);
         }
 
         if (message != null) {
-            builder.field("message", message);
+            result.put("message", message);
         }
 
-        if (detailJson != null) {
-            builder.rawField("detail", new ByteArrayInputStream(detailJson.getBytes(Charsets.UTF_8)), XContentType.JSON);
+        if (detailJsonElements != null && detailJsonElements.size() != 0) {
+            if (detailJsonElements.size() == 1) {
+                result.put("detail", detailJsonElements.get(0));
+            } else {
+                result.put("detail", detailJsonElements);
+            }
         }
 
         if (startedAt != null) {
-            builder.field("started_at", startedAt.toString());
+            result.put("started_at", startedAt.toString());
         }
 
         if (changedAt != null && (startedAt == null || changedAt.isAfter(startedAt))) {
-            builder.field("changed_at", changedAt.toString());
+            result.put("changed_at", changedAt.toString());
         }
 
         if (initializedAt != null) {
-            builder.field("initialized_at", initializedAt.toString());
+            result.put("initialized_at", initializedAt.toString());
         }
 
         if (failedAt != null) {
-            builder.field("failed_at", failedAt.toString());
+            result.put("failed_at", failedAt.toString());
         }
 
         if (nextTryAt != null) {
-            builder.field("next_try_at", nextTryAt.toString());
+            result.put("next_try_at", nextTryAt.toString());
         }
 
         if (initException != null) {
-            builder.field("init_exception", exceptionToString(initException));
+            result.put("init_exception", initException);
         }
 
         if (licenseRequired != 0) {
-            builder.field("license_required", getLicenseRequiredInfo());
+            result.put("license_required", getLicenseRequiredInfo());
         }
 
         if (jarFileName != null || jarVersion != null || jarBuildTime != null) {
-            builder.startObject("build");
-
-            if (jarFileName != null) {
-                builder.field("file", jarFileName);
-            }
-
-            if (jarVersion != null) {
-                builder.field("version", jarVersion);
-            }
-
-            if (jarBuildTime != null) {
-                builder.field("build_time", jarBuildTime);
-            }
-
-            builder.endObject();
+            result.put("build", OrderedImmutableMap.ofNonNull("file", jarFileName, "version", jarVersion, "time", jarBuildTime));
         }
 
-        if (configVersion != null || configJson != null || (moreConfigProperties != null && !moreConfigProperties.isEmpty())) {
-            builder.startObject("config");
+        if (configVersion != null || (moreConfigProperties != null && !moreConfigProperties.isEmpty())) {
+            OrderedImmutableMap.Builder<String, Object> config = new OrderedImmutableMap.Builder<>();
 
             if (configVersion != null) {
-                builder.field("version", configVersion);
+                config.put("version", configVersion);
             }
-            
+
             if (moreConfigProperties != null && !moreConfigProperties.isEmpty()) {
                 for (Map.Entry<String, Object> entry : moreConfigProperties.entrySet()) {
-                    builder.field(entry.getKey(), entry.getValue());
+                    config.put(entry.getKey(), entry.getValue());
                 }
             }
 
-            if (configJson != null) {
-                builder.rawField("content", new ByteArrayInputStream(configJson.getBytes(Charsets.UTF_8)), XContentType.JSON);
-            }
-            builder.endObject();
+            result.put("config", config.build());
+        }
+
+        if (metrics != null && metrics.size() != 0) {
+            result.put("metrics", metrics);
         }
 
         if (parts.size() > 0) {
-            builder.field("parts", parts);
+            result.put("parts", parts);
         }
 
         if (lastExceptions.size() != 0) {
-            builder.field("last_exceptions", lastExceptions);
+            result.put("last_exceptions", lastExceptions);
         }
 
-        builder.endObject();
-
-        return builder;
+        return result.build();
     }
 
-    private static List<String> exceptionToString(Throwable e) {
+    private static ImmutableList<String> exceptionToString(Throwable e) {
         StringWriter stringWriter = new StringWriter();
         PrintWriter printWriter = new PrintWriter(stringWriter);
         e.printStackTrace(printWriter);
-        return Arrays.asList(stringWriter.toString().replace('\t', ' ').split("\n"));
+        return ImmutableList.ofArray(stringWriter.toString().replace('\t', ' ').split("\n"));
     }
 
     public List<ComponentState> getParts() {
@@ -763,7 +681,24 @@ public class ComponentState implements Writeable, ToXContentObject {
 
         parts.addAll(newParts);
     }
-    
+
+    public void addMetrics(String key, Measurement<?> measurement) {
+        this.metrics = this.metrics.with(key, measurement);
+    }
+
+    public void addMetrics(String key1, Measurement<?> measurement1, String key2, Measurement<?> measurement2) {
+        this.metrics = this.metrics.with(ImmutableMap.of(key1, measurement1, key2, measurement2));
+    }
+
+    public void addMetrics(String key1, Measurement<?> measurement1, String key2, Measurement<?> measurement2, String key3,
+            Measurement<?> measurement3) {
+        this.metrics = this.metrics.with(ImmutableMap.of(key1, measurement1, key2, measurement2, key2, measurement3));
+    }
+
+    public void addMetrics(Map<String, Measurement<?>> measurements) {
+        this.metrics = this.metrics.with(ImmutableMap.of(measurements));
+    }
+
     public void setConfigProperty(String property, Object value) {
         if (this.moreConfigProperties == null) {
             this.moreConfigProperties = ImmutableMap.of(property, value);
@@ -839,7 +774,7 @@ public class ComponentState implements Writeable, ToXContentObject {
     }
 
     public Instant getMinStartForInitializingState() {
-        Instant result = this.startedAt;
+        Instant result = this.state == ComponentState.State.INITIALIZING ? this.startedAt : null;
 
         for (ComponentState part : parts) {
             Instant start = part.getMinStartForInitializingState();
@@ -965,37 +900,25 @@ public class ComponentState implements Writeable, ToXContentObject {
         this.configVersion = Long.toString(configVersion);
     }
 
-    public String getConfigJson() {
-        return configJson;
-    }
-
-    public void setConfigJson(String configJson) {
-        this.configJson = configJson;
-    }
-
-    public static class ExceptionRecord implements Writeable, ToXContentObject {
-        private final Throwable exception;
+    public static class ExceptionRecord implements Document<ExceptionRecord> {
+        private final ImmutableList<String> exception;
         private final String message;
         private final Instant occuredAt;
 
         public ExceptionRecord(Throwable exception, String message) {
-            this.exception = exception;
+            this.exception = exceptionToString(exception);
             this.message = message;
             this.occuredAt = Instant.now();
         }
 
-        public ExceptionRecord(StreamInput in) throws IOException {
-            this.exception = in.readException();
-            this.occuredAt = in.readInstant();
-            this.message = in.readOptionalString();
+        public ExceptionRecord(DocNode docNode) {
+            this.message = docNode.getAsString("message");
+            this.exception = docNode.getAsListOfStrings("exception");
+            this.occuredAt = docNode.hasNonNull("occured_at") ? Instant.parse(docNode.getAsString("occured_at")) : null;
         }
 
         public ExceptionRecord(Throwable exception) {
             this(exception, null);
-        }
-
-        public Throwable getException() {
-            return exception;
         }
 
         public String getMessage() {
@@ -1007,35 +930,9 @@ public class ComponentState implements Writeable, ToXContentObject {
         }
 
         @Override
-        public void writeTo(StreamOutput out) throws IOException {
-            out.writeException(this.exception);
-            out.writeInstant(this.occuredAt);
-            out.writeOptionalString(this.message);
+        public Object toBasicObject() {
+            return OrderedImmutableMap.ofNonNull("message", message, "exception", exception, "occured_at", occuredAt);
         }
-
-        @Override
-        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-            builder.startObject();
-            if (message != null) {
-                builder.field("message", message);
-            }
-            builder.field("exception", exceptionToString(exception));
-            builder.field("occured_at", occuredAt.toString());
-
-            builder.endObject();
-            return builder;
-        }
-    }
-
-    @Override
-    public String toString() {
-        return "ComponentState [type=" + type + ", name=" + name + ", className=" + className + ", state=" + state + ", subState=" + subState
-                + ", tries=" + tries + ", message=" + message + ", detailJson=" + detailJson + ", detailJsonElements=" + detailJsonElements
-                + ", initException=" + initException + ", startedAt=" + startedAt + ", initializedAt=" + initializedAt + ", changedAt=" + changedAt
-                + ", failedAt=" + failedAt + ", nextTryAt=" + nextTryAt + ", lastExceptions=" + lastExceptions + ", mandatory=" + mandatory
-                + ", jarFileName=" + jarFileName + ", jarVersion=" + jarVersion + ", jarBuildTime=" + jarBuildTime + ", nodeId=" + nodeId
-                + ", nodeName=" + nodeName + ", licenseRequired=" + licenseRequired + ", sortPrio=" + sortPrio + ", configVersion=" + configVersion
-                + ", configJson=" + configJson + ", metrics=" + metrics + ", parts=" + parts + "]";
     }
 
     public byte getLicenseRequired() {
@@ -1061,4 +958,9 @@ public class ComponentState implements Writeable, ToXContentObject {
         this.licenseRequired = 1;
         return this;
     }
+
+    public ImmutableMap<String, Measurement<?>> getMetrics() {
+        return metrics;
+    }
+
 }
