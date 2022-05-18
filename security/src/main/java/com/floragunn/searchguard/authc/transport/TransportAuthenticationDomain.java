@@ -36,19 +36,20 @@ import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
 import com.floragunn.searchguard.authc.base.UserMapping;
 import com.floragunn.searchguard.authc.transport.TransportAuthenticationDomain.TransportAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class TransportAuthenticationDomain extends StandardAuthenticationDomain<TransportAuthenticationFrontend> {
 
     public TransportAuthenticationDomain(DocNode source, String type, String id, String description, boolean enabled, int order,
             AcceptanceRules acceptanceRules, TransportAuthenticationFrontend authenticationFrontend, AuthenticationBackend authenticationBackend,
-            ImmutableList<UserInformationBackend> additionalUserInformationBackends, UserMapping userMapping) {
+            ImmutableList<UserInformationBackend> additionalUserInformationBackends, UserMapping userMapping, MetricsLevel metricsLevel) {
         super(source, type, id, description, enabled, order, acceptanceRules, authenticationFrontend, authenticationBackend,
-                additionalUserInformationBackends, userMapping);
+                additionalUserInformationBackends, userMapping, metricsLevel);
     }
 
-    public static AuthenticationDomain<TransportAuthenticationFrontend> parse(DocNode documentNode, ConfigurationRepository.Context context)
-            throws ConfigValidationException {
+    public static AuthenticationDomain<TransportAuthenticationFrontend> parse(DocNode documentNode, ConfigurationRepository.Context context,
+            MetricsLevel metricsLevel) throws ConfigValidationException {
         TypedComponentRegistry typedComponentRegistry = context.modulesRegistry().getTypedComponentRegistry();
 
         ValidationErrors validationErrors = new ValidationErrors();
@@ -115,7 +116,7 @@ public class TransportAuthenticationDomain extends StandardAuthenticationDomain<
         validationErrors.throwExceptionForPresentErrors();
 
         return new TransportAuthenticationDomain(documentNode, type, id, description, enabled, order, acceptanceRules,
-                new TransportAuthenticationFrontend(), authenticationBackend, additionalUserInformationBackends, userMapping);
+                new TransportAuthenticationFrontend(), authenticationBackend, additionalUserInformationBackends, userMapping, metricsLevel);
     }
 
     private static ImmutableList<UserInformationBackend> parseAdditionalUserInformationBackends(List<DocNode> list,

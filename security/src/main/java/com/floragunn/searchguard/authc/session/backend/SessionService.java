@@ -108,14 +108,17 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.io.BaseEncoding;
@@ -138,14 +141,20 @@ public class SessionService {
     private final ThreadPool threadPool;
     private final ThreadContext threadContext;
     private final String indexName;
-    private final ComponentState componentState;
-    private final ComponentState configComponentState;
     private final AdminDNs adminDns;
     private final PrivilegesEvaluator privilegesEvaluator;
     private final AuditLog auditLog;
     private final BlockedIpRegistry blockedIpRegistry;
     private final BlockedUserRegistry blockedUserRegistry;
     private final ClusterService clusterService;
+
+    private final ComponentState componentState;
+    private final ComponentState configComponentState;
+
+    private final TimeAggregation startAuthenticatedSessionMetrics = new TimeAggregation.Milliseconds();
+    private final TimeAggregation startSessionMetrics = new TimeAggregation.Milliseconds();
+
+    private final TimeAggregation deleteMetrics = new TimeAggregation.Milliseconds();
 
     private SessionActivityTracker activityTracker;
     private IndexCleanupAgent indexCleanupAgent;
@@ -186,6 +195,9 @@ public class SessionService {
                 this, indexName, privilegedConfigClient, threadPool);
 
         this.componentState.addPart(activityTracker.getComponentState());
+        this.componentState.addMetrics("start_session_with_authentication", startAuthenticatedSessionMetrics);
+        this.componentState.addMetrics("start_session_with_external_authentication", startSessionMetrics);
+        this.componentState.addMetrics("delete_session", deleteMetrics);
 
         this.setConfig(config);
 
@@ -202,7 +214,9 @@ public class SessionService {
             this.indexCleanupAgent = new IndexCleanupAgent(indexName, SessionToken.EXPIRES_AT, CLEANUP_INTERVAL.get(settings), privilegedConfigClient,
                     clusterService, threadPool);
         }
-
+        
+        componentState.addPart(this.indexCleanupAgent.getComponentState());        
+        
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
 
             @Override
@@ -253,35 +267,45 @@ public class SessionService {
             return;
         }
 
+        Meter meter = Meter.basic(getMetricsLevel(), startAuthenticatedSessionMetrics);
+
         authenticate(request, restRequest, config.getRequiredLoginPrivileges(), (authcResult) -> {
             if (authcResult.getStatus() == AuthcResult.Status.PASS) {
                 threadPool.generic().submit(() -> {
                     try {
-                        StartSessionResponse response = createLightweightJwt(authcResult.getUser(), authcResult.getRedirectUri());
+                        StartSessionResponse response = createLightweightJwt(authcResult.getUser(), authcResult.getRedirectUri(), meter);
+                        meter.close();
                         onResult.accept(response);
                     } catch (SessionCreationException e) {
+                        meter.close();
                         log.info("Creating token failed", e);
                         onAuthFailure.accept(AuthcResult.stop(e.getRestStatus(), e.getMessage()));
                     } catch (Exception e) {
+                        meter.close();
                         onFailure.accept(e);
                     }
                 });
             } else {
+                meter.close();
                 onAuthFailure.accept(authcResult);
             }
 
-        }, onFailure);
+        }, meter.consumer(onFailure), meter);
     }
 
     public CompletableFuture<StartSessionResponse> createSession(User user) {
         CompletableFuture<StartSessionResponse> result = new CompletableFuture<>();
 
+        Meter meter = Meter.basic(getMetricsLevel(), startSessionMetrics);
+
         threadPool.generic().submit(() -> {
             try {
-                result.complete(createLightweightJwt(user, null));
+                result.complete(createLightweightJwt(user, null, meter));
             } catch (Exception e) {
                 log.error("Creating token failed", e);
                 result.completeExceptionally(e);
+            } finally {
+                meter.close();
             }
         });
 
@@ -328,7 +352,9 @@ public class SessionService {
     }
 
     private void authenticate(Map<String, Object> request, RestRequest restRequest, List<String> requiredLoginPrivileges,
-            Consumer<AuthcResult> onResult, Consumer<Exception> onFailure) {
+            Consumer<AuthcResult> onResult, Consumer<Exception> onFailure, Meter meter) {
+
+        Meter subMeter = meter.basic("authenticate");
 
         ClientIpInfo clientInfo = clientAddressAscertainer.getActualRemoteAddress(restRequest);
         IPAddress remoteIpAddress = clientInfo.getOriginatingIpAddress();
@@ -348,6 +374,7 @@ public class SessionService {
             if (log.isDebugEnabled()) {
                 log.debug("Rejecting REST request because of blocked address: " + remoteIpAddress);
             }
+            subMeter.close();
             auditLog.logBlockedIp(restRequest, clientInfo.getOriginatingTransportAddress().address());
             onResult.accept(new AuthcResult(AuthcResult.Status.STOP, RestStatus.UNAUTHORIZED, "Authentication finally failed"));
             return;
@@ -359,6 +386,7 @@ public class SessionService {
 
         if (apiAuthenticationDomains == null) {
             log.error("Invalid config_id: " + configId + "; available: " + this.authcConfig);
+            subMeter.close();
             onResult.accept(new AuthcResult(AuthcResult.Status.STOP, RestStatus.BAD_REQUEST, "Invalid config_id"));
             return;
         }
@@ -386,18 +414,17 @@ public class SessionService {
         RequestMetaData<RestRequest> requestMetaData = new RestRequestMetaData(restRequest, remoteIpAddress, null);
 
         new ApiAuthenticationProcessor(request, requestMetaData, apiAuthenticationDomains, adminDns, privilegesEvaluator, auditLog,
-                blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, authcConfig.isDebugEnabled(configId)).authenticate(onResult,
-                        onFailure);
-
+                blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, authcConfig.isDebugEnabled(configId))
+                        .authenticate(subMeter.consumer(onResult), subMeter.consumer(onFailure));
     }
 
-    private StartSessionResponse createLightweightJwt(User user, String redirectUri) throws SessionCreationException {
+    private StartSessionResponse createLightweightJwt(User user, String redirectUri, Meter meter) throws SessionCreationException {
 
         if (jwtProducer == null) {
             throw new SessionCreationException("SessionService is not configured", RestStatus.INTERNAL_SERVER_ERROR);
         }
 
-        SessionToken sessionToken = create(user);
+        SessionToken sessionToken = create(user, meter);
 
         JwtClaims jwtClaims = new JwtClaims();
         JwtToken jwt = new JwtToken(jwtClaims);
@@ -424,33 +451,33 @@ public class SessionService {
         return new StartSessionResponse(encodedJwt, redirectUri);
     }
 
-    public SessionToken getById(String id) throws NoSuchSessionException {
+    public SessionToken getById(String id, Meter meter) throws NoSuchSessionException {
         SessionToken result = idToAuthTokenMap.getIfPresent(id);
 
         if (result != null) {
             return result;
         } else {
-            return getByIdFromIndex(id);
+            return getByIdFromIndex(id, meter);
         }
     }
 
-    public void getById(String id, Consumer<SessionToken> onResult, Consumer<NoSuchSessionException> onNoSuchAuthToken,
-            Consumer<Exception> onFailure) {
+    public void getById(String id, Consumer<SessionToken> onResult, Consumer<NoSuchSessionException> onNoSuchAuthToken, Consumer<Exception> onFailure,
+            Meter meter) {
 
         SessionToken result = idToAuthTokenMap.getIfPresent(id);
 
         if (result != null) {
             onResult.accept(result);
         } else {
-            getByIdFromIndex(id, onResult, onNoSuchAuthToken, onFailure);
+            getByIdFromIndex(id, onResult, onNoSuchAuthToken, onFailure, meter);
         }
     }
 
-    public SessionToken getByIdFromIndex(String id) throws NoSuchSessionException {
+    public SessionToken getByIdFromIndex(String id, Meter meter) throws NoSuchSessionException {
 
         CompletableFuture<SessionToken> completableFuture = new CompletableFuture<>();
 
-        getByIdFromIndex(id, completableFuture::complete, completableFuture::completeExceptionally, completableFuture::completeExceptionally);
+        getByIdFromIndex(id, completableFuture::complete, completableFuture::completeExceptionally, completableFuture::completeExceptionally, meter);
 
         try {
             return completableFuture.get();
@@ -466,7 +493,9 @@ public class SessionService {
     }
 
     public void getByIdFromIndex(String id, Consumer<SessionToken> onResult, Consumer<NoSuchSessionException> onNoSuchSession,
-            Consumer<Exception> onFailure) {
+            Consumer<Exception> onFailure, Meter meter) {
+
+        Meter subMeter = meter.basic("index_read_by_id");
 
         privilegedConfigClient.get(new GetRequest(indexName, id), new ActionListener<GetResponse>() {
 
@@ -483,21 +512,27 @@ public class SessionService {
 
                         idToAuthTokenMap.put(id, sessionToken);
 
+                        subMeter.close();
                         onResult.accept(sessionToken);
                     } catch (ConfigValidationException e) {
+                        subMeter.close();
                         onFailure.accept(new RuntimeException("Token " + id + " is not stored in a valid format", e));
                     } catch (Exception e) {
+                        subMeter.close();
                         log.error(e);
                         onFailure.accept(e);
                     }
 
                 } else {
+                    subMeter.close();
                     onNoSuchSession.accept(new NoSuchSessionException(id));
                 }
             }
 
             @Override
             public void onFailure(Exception e) {
+                subMeter.close();
+
                 if (e instanceof IndexNotFoundException) {
                     onNoSuchSession.accept(new NoSuchSessionException(id));
                 } else {
@@ -509,30 +544,32 @@ public class SessionService {
     }
 
     public String delete(User user, SessionToken sessionToken) throws NoSuchSessionException, SessionUpdateException {
-        if (log.isTraceEnabled()) {
-            log.trace("revoke(" + user + ", " + sessionToken.getId() + ")");
+        try (Meter meter = Meter.basic(getMetricsLevel(), deleteMetrics)) {
+            if (log.isTraceEnabled()) {
+                log.trace("delete(" + user + ", " + sessionToken.getId() + ")");
+            }
+
+            sessionToken = getById(sessionToken.getId(), meter);
+
+            if (sessionToken.getRevokedAt() != null) {
+                log.info("Session token " + sessionToken + " was already revoked");
+                return "Session token was already revoked";
+            }
+
+            String updateStatus = updateSessionToken(sessionToken.getRevokedInstance(), UpdateType.REVOKED, meter);
+
+            if (updateStatus != null) {
+                return updateStatus;
+            }
+
+            return "Sesion has been deleted";
         }
-
-        sessionToken = getById(sessionToken.getId());
-
-        if (sessionToken.getRevokedAt() != null) {
-            log.info("Session token " + sessionToken + " was already revoked");
-            return "Session token was already revoked";
-        }
-
-        String updateStatus = updateSessionToken(sessionToken.getRevokedInstance(), UpdateType.REVOKED);
-
-        if (updateStatus != null) {
-            return updateStatus;
-        }
-
-        return "Sesion has been deleted";
     }
 
-    public SessionToken getByClaims(Map<String, Object> claims) throws NoSuchSessionException, InvalidTokenException {
+    public SessionToken getByClaims(Map<String, Object> claims, Meter meter) throws NoSuchSessionException, InvalidTokenException {
         CompletableFuture<SessionToken> completableFuture = new CompletableFuture<>();
 
-        getByClaims(claims, completableFuture::complete, completableFuture::completeExceptionally, completableFuture::completeExceptionally);
+        getByClaims(claims, completableFuture::complete, completableFuture::completeExceptionally, completableFuture::completeExceptionally, meter);
 
         try {
             return completableFuture.get();
@@ -548,7 +585,7 @@ public class SessionService {
     }
 
     public void getByClaims(Map<String, Object> claims, Consumer<SessionToken> onResult, Consumer<NoSuchSessionException> onNoSuchAuthToken,
-            Consumer<Exception> onFailure) throws InvalidTokenException {
+            Consumer<Exception> onFailure, Meter meter) throws InvalidTokenException {
         String id = Objects.toString(claims.get(JwtConstants.CLAIM_JWT_ID), null);
         Set<String> audience = getClaimAsSet(claims, JwtConstants.CLAIM_AUDIENCE);
 
@@ -560,7 +597,7 @@ public class SessionService {
             throw new InvalidTokenException("Supplied auth token does not have an id claim");
         }
 
-        getById(id, onResult, onNoSuchAuthToken, onFailure);
+        getById(id, onResult, onNoSuchAuthToken, onFailure, meter);
     }
 
     private Set<String> getClaimAsSet(Map<String, Object> claims, String claimName) {
@@ -575,7 +612,7 @@ public class SessionService {
         }
     }
 
-    public SessionToken create(User user) throws SessionCreationException {
+    private SessionToken create(User user, Meter meter) throws SessionCreationException {
         if (config == null || !config.isEnabled()) {
             throw new SessionCreationException("Session token handling is not enabled", RestStatus.INTERNAL_SERVER_ERROR);
         }
@@ -618,7 +655,7 @@ public class SessionService {
                 dynamicExpiresAt != null ? dynamicExpiresAt.toInstant() : null, null);
 
         try {
-            updateSessionToken(sessionToken, UpdateType.NEW);
+            updateSessionToken(sessionToken, UpdateType.NEW, meter);
         } catch (Exception e) {
             componentState.addLastException("create", e);
             throw new SessionCreationException("Error while creating token", RestStatus.INTERNAL_SERVER_ERROR, e);
@@ -658,11 +695,11 @@ public class SessionService {
         return expiresAfter;
     }
 
-    private String updateSessionToken(SessionToken sessionToken, UpdateType updateType) throws SessionUpdateException {
+    private String updateSessionToken(SessionToken sessionToken, UpdateType updateType, Meter meter) throws SessionUpdateException {
         SessionToken oldToken = null;
 
         try {
-            oldToken = getById(sessionToken.getId());
+            oldToken = getById(sessionToken.getId(), meter);
         } catch (NoSuchSessionException e) {
             oldToken = null;
         }
@@ -671,7 +708,7 @@ public class SessionService {
             throw new SessionUpdateException("Token ID already exists: " + sessionToken.getId());
         }
 
-        try (XContentBuilder xContentBuilder = XContentFactory.jsonBuilder()) {
+        try (XContentBuilder xContentBuilder = XContentFactory.jsonBuilder(); Meter subMeter = meter.basic("index_update")) {
             sessionToken.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
 
             IndexResponse indexResponse = privilegedConfigClient
@@ -692,7 +729,7 @@ public class SessionService {
             throw new SessionUpdateException(e);
         }
 
-        try {
+        try (Meter subMeter = meter.basic("cluster_update")) {
             PushSessionTokenUpdateAction.Response pushAuthTokenUpdateResponse = privilegedConfigClient
                     .execute(PushSessionTokenUpdateAction.INSTANCE, new PushSessionTokenUpdateAction.Request(sessionToken, updateType, 0))
                     .actionGet();
@@ -766,8 +803,8 @@ public class SessionService {
         return false;
     }
 
-    public void checkExpiryAndTrackAccess(SessionToken sessionToken, Consumer<Boolean> onResult, Consumer<Exception> onFailure) {
-        activityTracker.checkExpiryAndTrackAccess(sessionToken, onResult, onFailure);
+    void checkExpiryAndTrackAccess(SessionToken sessionToken, Consumer<Boolean> onResult, Consumer<Exception> onFailure, Meter meter) {
+        activityTracker.checkExpiryAndTrackAccess(sessionToken, onResult, onFailure, meter);
     }
 
     public void setConfig(SessionServiceConfig config) {
@@ -818,6 +855,10 @@ public class SessionService {
 
     public boolean isEnabled() {
         return config.isEnabled();
+    }
+
+    MetricsLevel getMetricsLevel() {
+        return config.getMetricsLevel();
     }
 
     void initJwtProducer() {

@@ -48,10 +48,10 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.modules.state.ComponentState.State;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
 
 public class ConfigurationLoader {
     private static final Logger log = LogManager.getLogger(ConfigurationLoader.class);
@@ -280,7 +280,7 @@ public class ConfigurationLoader {
 
         if (configState != null) {
             configState.setFailed(failure.getMessage());
-            configState.setDetailJson(Strings.toString(failure));
+            configState.addDetailJson(Strings.toString(failure));
         }
     }
 }

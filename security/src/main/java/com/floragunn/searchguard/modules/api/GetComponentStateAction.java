@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,9 +58,15 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
-import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.modules.state.ComponentState.PartsStats;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.PartsStats;
+import com.floragunn.searchsupport.cstate.metrics.Measurement;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 
@@ -69,7 +75,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
     private static final Logger log = LogManager.getLogger(GetComponentStateAction.class);
 
     public static final GetComponentStateAction INSTANCE = new GetComponentStateAction();
-    public static final String NAME = "cluster:admin/searchguard/components/state/get";
+    public static final String NAME = "cluster:admin/searchguard/components/state";
 
     protected GetComponentStateAction() {
         super(NAME, Response::new);
@@ -98,7 +104,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         }
 
         @Override
-        public void writeTo(final StreamOutput out) throws IOException {
+        public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
             out.writeOptionalString(moduleId);
             out.writeBoolean(verbose);
@@ -127,13 +133,13 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         }
 
         @Override
-        public void writeTo(final StreamOutput out) throws IOException {
+        public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
             request.writeTo(out);
         }
     }
 
-    public static class Response extends BaseNodesResponse<NodeResponse> implements StatusToXContentObject {
+    public static class Response extends BaseNodesResponse<NodeResponse> implements StatusToXContentObject, Document<Response> {
 
         private String message;
         private Health health;
@@ -143,17 +149,17 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
             super(in);
         }
 
-        public Response(final ClusterName clusterName, List<NodeResponse> nodes, List<FailedNodeException> failures) {
+        public Response(ClusterName clusterName, List<NodeResponse> nodes, List<FailedNodeException> failures) {
             super(clusterName, nodes, failures);
         }
 
         @Override
-        public List<NodeResponse> readNodesFrom(final StreamInput in) throws IOException {
+        public List<NodeResponse> readNodesFrom(StreamInput in) throws IOException {
             return in.readList(NodeResponse::new);
         }
 
         @Override
-        public void writeNodesTo(final StreamOutput out, List<NodeResponse> nodes) throws IOException {
+        public void writeNodesTo(StreamOutput out, List<NodeResponse> nodes) throws IOException {
             out.writeList(nodes);
         }
 
@@ -225,6 +231,18 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
                         componentState.setNodeName(nodeResponse.getNode().getName());
 
                         mergedComponentState.addPart(componentState);
+
+                        if (!componentState.getMetrics().isEmpty()) {
+                            for (Map.Entry<String, Measurement<?>> entry : componentState.getMetrics().entrySet()) {
+                                Measurement<?> existing = mergedComponentState.getMetrics().get(entry.getKey());
+
+                                if (existing == null) {
+                                    mergedComponentState.addMetrics(entry.getKey(), entry.getValue().clone());
+                                } else {
+                                    existing.addToThis(entry.getValue());
+                                }
+                            }
+                        }
                     }
                 } catch (Exception e) {
                     log.error("Error while processing nodeResponse " + nodeResponse, e);
@@ -349,20 +367,13 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         }
 
         @Override
+        public Map<String, Object> toBasicObject() {
+            return OrderedImmutableMap.ofNonNull("health", getHealth(), "message", getMessage(), "components", getMergedComponentState());
+        }
+
+        @Override
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-            builder.startObject();
-
-            if (getHealth() != null) {
-                builder.field("health", getHealth());
-            }
-
-            if (getMessage() != null) {
-                builder.field("message", getMessage());
-            }
-
-            builder.field("components", getMergedComponentState());
-
-            builder.endObject();
+            builder.value(toDeepBasicObject());
             return builder;
         }
 
@@ -393,7 +404,24 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
             super(in);
             message = in.readOptionalString();
             detailJson = in.readOptionalString();
-            states = in.readList(ComponentState::new);
+
+            try {
+                List<DocNode> stateNodes = DocNode.parse(Format.SMILE).from(in.readByteArray()).toListOfNodes();
+                ArrayList<ComponentState> states = new ArrayList<>(stateNodes.size());
+
+                for (DocNode stateNode : stateNodes) {
+                    try {
+                        states.add(new ComponentState(stateNode));
+                    } catch (Exception e) {
+                        log.error("Error while parsing state " + stateNode, e);
+                    }
+                }
+                
+                this.states = states;
+            } catch (Exception e) {
+                log.error("Error while parsing states", e);
+                this.states = Collections.emptyList();
+            }
         }
 
         public NodeResponse(DiscoveryNode node, List<ComponentState> states, String message, String detailJson) {
@@ -424,7 +452,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
             super.writeTo(out);
             out.writeOptionalString(message);
             out.writeOptionalString(detailJson);
-            out.writeList(states);
+            out.writeByteArray(DocWriter.smile().writeAsBytes(states));
         }
     }
 

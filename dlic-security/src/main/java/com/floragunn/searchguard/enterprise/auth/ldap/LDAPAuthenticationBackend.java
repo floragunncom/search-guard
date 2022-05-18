@@ -41,8 +41,9 @@ import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.DereferencePolicy;
@@ -93,9 +94,9 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     }
 
     @Override
-    public CompletableFuture<AuthCredentials> authenticate(AuthCredentials credentials)
+    public CompletableFuture<AuthCredentials> authenticate(AuthCredentials credentials, Meter meter)
             throws AuthenticatorUnavailableException, CredentialsException {
-        SearchResultEntry entry = PrivilegedCode.execute(() -> search(credentials), AuthenticatorUnavailableException.class);
+        SearchResultEntry entry = PrivilegedCode.execute(() -> search(credentials, meter), AuthenticatorUnavailableException.class);
 
         // fake a user that does not exist
         // makes guessing if a user exists or not harder when looking on the
@@ -103,7 +104,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         if (entry == null) {
             if (fakeLoginEnabled) {
                 String fakeLoginDn = this.fakeLoginDn != null ? this.fakeLoginDn : "CN=faketomakebindfail,DC=" + UUID.randomUUID().toString();
-                try {
+                try (Meter subMeter = meter.detail("invalid_login_delay")) {
                     checkPassword(fakeLoginDn, fakeLoginPassword);
                 } catch (LDAPException e) {
                     // This is expected
@@ -120,7 +121,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
             log.trace("Try to authenticate dn {}", dn);
         }
 
-        try {
+        try (Meter subMeter = meter.detail("check_password")) {
             checkPassword(entry.getDN(), credentials.getPassword());
         } catch (LDAPException e) {
             throw new CredentialsException(
@@ -134,7 +135,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         AuthCredentials.Builder resultBuilder = updatedCredentials.copy();
 
         if (groupSearch != null) {
-            Set<Entry> groupEntries = searchGroups(entry, updatedCredentials);
+            Set<Entry> groupEntries = searchGroups(entry, updatedCredentials, meter);
 
             resultBuilder.userMappingAttribute("ldap_group_entries", ImmutableList.map(groupEntries, (e) -> entryToMap(e)));
             resultBuilder.backendRoles(extractRoles(groupEntries));
@@ -144,8 +145,8 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     }
 
     @Override
-    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation) throws AuthenticatorUnavailableException {
-        SearchResultEntry entry = PrivilegedCode.execute(() -> search(userInformation), AuthenticatorUnavailableException.class);
+    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter) throws AuthenticatorUnavailableException {
+        SearchResultEntry entry = PrivilegedCode.execute(() -> search(userInformation, meter), AuthenticatorUnavailableException.class);
 
         if (entry == null) {
             return CompletableFuture.completedFuture(null);
@@ -156,7 +157,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         AuthCredentials.Builder resultBuilder = updatedCredentials.copy();
 
         if (groupSearch != null) {
-            Set<Entry> groupEntries = searchGroups(entry, updatedCredentials);
+            Set<Entry> groupEntries = searchGroups(entry, updatedCredentials, meter);
 
             resultBuilder.userMappingAttribute("ldap_group_entries", ImmutableList.map(groupEntries, (e) -> entryToMap(e)));
             resultBuilder.backendRoles(extractRoles(groupEntries));
@@ -181,9 +182,9 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         }
     }
 
-    private SearchResultEntry search(AuthCredentials userName) throws AuthenticatorUnavailableException {
+    private SearchResultEntry search(AuthCredentials userName, Meter meter) throws AuthenticatorUnavailableException {
 
-        try (LDAPConnection connection = connectionManager.getConnection()) {
+        try (Meter subMeter = meter.detail("user_search"); LDAPConnection connection = connectionManager.getConnection()) {
             Filter filter = userSearchFilter.toFilter(AttributeSource.of("user.name", userName.getName()));
             SearchRequest searchRequest = new SearchRequest(userSearchBaseDn, userSearchScope, filter, SearchRequest.ALL_OPERATIONAL_ATTRIBUTES,
                     SearchRequest.ALL_USER_ATTRIBUTES);
@@ -204,9 +205,9 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         }
     }
 
-    private Set<Entry> searchGroups(SearchResultEntry entry, AuthCredentials credentials) throws AuthenticatorUnavailableException {
-        try (LDAPConnection connection = connectionManager.getConnection()) {
-            return groupSearch.search(connection, entry.getDN(), AttributeSource.from(credentials.getAttributesForUserMapping()));
+    private Set<Entry> searchGroups(SearchResultEntry entry, AuthCredentials credentials, Meter meter) throws AuthenticatorUnavailableException {
+        try (Meter subMeter = meter.detail("group_search"); LDAPConnection connection = connectionManager.getConnection()) {
+            return groupSearch.search(connection, entry.getDN(), AttributeSource.from(credentials.getAttributesForUserMapping()), meter);
         } catch (LDAPException e) {
             throw new AuthenticatorUnavailableException("Error connecting to LDAP backend", e.getMessage(), e);
         } catch (ExpressionEvaluationException e) {

@@ -29,8 +29,8 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig.AuthMethod;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction.Request;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.cstate.ComponentState;
 
 public class LinkApiAuthenticationFrontend implements ApiAuthenticationFrontend {
 

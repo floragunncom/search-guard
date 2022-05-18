@@ -38,6 +38,7 @@ import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.configuration.variables.ConfigVarServiceNotYetAvailableException;
 import com.floragunn.searchguard.support.JoseParsers;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.google.common.collect.ImmutableList;
 
 public class SessionServiceConfig implements Document<SessionServiceConfig> {
@@ -56,6 +57,7 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
     private DocNode source;
     private boolean refreshSessionActivityIndex;
     private Template<String> jwtAudience;
+    private MetricsLevel metricsLevel;
 
     public boolean isEnabled() {
         return enabled;
@@ -105,6 +107,7 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
             result.jwtSigningKey = JoseParsers.parseJwkHs512SigningKey(key);
             result.jwtAudience = new Template<String>("sg_session_${cluster.name}", (s) -> s);
             result.source = DocNode.EMPTY;
+            result.metricsLevel = MetricsLevel.BASIC;
 
             return result;
         } catch (ConfigVarServiceNotYetAvailableException e) {
@@ -120,6 +123,7 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
 
         SessionServiceConfig result = new SessionServiceConfig();
         result.enabled = vJsonNode.get("enabled").withDefault(true).asBoolean();
+        result.metricsLevel = vJsonNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
 
         if (result.enabled) {
             if (vJsonNode.hasNonNull("jwt_signing_key")) {
@@ -150,7 +154,7 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
             }
 
             result.jwtAudience = vJsonNode.get("jwt_audience").withDefault("sg_session_${cluster.name}").asTemplate();
-            
+
             result.maxValidity = vJsonNode.get("max_validity").asTemporalAmount();
             result.inactivityTimeout = vJsonNode.get("inactivity_timeout").withDefault(Duration.ofHours(1)).asDuration();
 
@@ -160,9 +164,10 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
 
             result.refreshSessionActivityIndex = vJsonNode.get("refresh_session_activity_index").withDefault(false).asBoolean();
 
-            result.source = jsonNode;
             // TODO create test JWT for more thorough validation (some things are only checked then)
         }
+
+        result.source = jsonNode;
 
         if (!validationErrors.hasErrors()) {
             return new ValidationResult<SessionServiceConfig>(result);
@@ -214,6 +219,10 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
 
     public void setJwtAudience(Template<String> jwtAudience) {
         this.jwtAudience = jwtAudience;
+    }
+
+    protected MetricsLevel getMetricsLevel() {
+        return metricsLevel;
     }
 
 }

@@ -34,8 +34,8 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.junit.AsyncAssert;
 import com.floragunn.searchsupport.junit.LoggingTestWatcher;
 import com.floragunn.signals.support.NestedValueMap;

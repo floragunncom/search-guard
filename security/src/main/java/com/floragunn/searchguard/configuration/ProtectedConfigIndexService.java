@@ -50,7 +50,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
-import com.floragunn.searchguard.modules.state.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.indices.IndexMapping;
 import com.google.common.collect.ImmutableMap;
 
@@ -389,14 +389,14 @@ public class ProtectedConfigIndexService {
 
                             if (isTimedOut()) {
                                 moduleState.setFailed("Index " + name + " is has not become ready. Giving up");
-                                moduleState.setDetailJson(Strings.toString(clusterHealthResponse));
+                                moduleState.addDetailJson(Strings.toString(clusterHealthResponse));
                                 log.error("Index " + name + " is has not become ready:\n" + clusterHealthResponse + "\nGiving up.");
                                 return;
                             }
 
                             if (isLate()) {
                                 log.error("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
-                                moduleState.setDetailJson(Strings.toString(clusterHealthResponse));
+                                moduleState.addDetailJson(Strings.toString(clusterHealthResponse));
                             } else if (log.isTraceEnabled()) {
                                 log.trace("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
                             }

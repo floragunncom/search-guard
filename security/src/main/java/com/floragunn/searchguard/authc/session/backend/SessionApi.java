@@ -45,6 +45,7 @@ import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.Action.UnparsedMessage;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.rest.Responses;
 
@@ -176,7 +177,7 @@ public class SessionApi {
                             return new StandardResponse(400, new StandardResponse.Error("User has no active session"));
                         }
 
-                        SessionToken authToken = sessionService.getByIdFromIndex(authTokenId);
+                        SessionToken authToken = sessionService.getByIdFromIndex(authTokenId, Meter.NO_OP);
 
                         if (!user.getName().equals(authToken.getUserName())) {
                             throw new NoSuchSessionException(authTokenId);

@@ -57,9 +57,9 @@ import com.floragunn.searchguard.authc.rest.authenticators.HttpClientCertAuthent
 import com.floragunn.searchguard.authc.rest.authenticators.HttpTrustedOriginAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.LinkApiAuthenticationFrontend;
-import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
 public class SearchGuardModulesRegistry {
 

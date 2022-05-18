@@ -38,6 +38,7 @@ import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.support.IPAddressCollection;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Destroyable {
 
@@ -53,15 +54,17 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Dest
     private final Network network;
     private final boolean debugEnabled;
     private final CacheConfig userCacheConfig;
+    private final MetricsLevel metricsLevel;
 
     public RestAuthcConfig(DocNode source, ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains, Network network,
-            CacheConfig userCacheConfig, boolean debugEnabled) {
+            CacheConfig userCacheConfig, boolean debugEnabled, MetricsLevel metricsLevel) {
         super();
         this.source = source;
         this.authenticationDomains = authenticationDomains;
         this.network = network;
         this.debugEnabled = debugEnabled;
         this.userCacheConfig = userCacheConfig;
+        this.metricsLevel = metricsLevel;
     }
 
     @Override
@@ -78,8 +81,10 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Dest
             return new ValidationResult<RestAuthcConfig>(e.getValidationErrors());
         }
 
+        MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
+
         List<AuthenticationDomain<HttpAuthenticationFrontend>> authDomain = vNode.get("auth_domains")
-                .asList((n) -> StandardAuthenticationDomain.parse(n, HttpAuthenticationFrontend.class, context));
+                .asList((n) -> StandardAuthenticationDomain.parse(n, HttpAuthenticationFrontend.class, context, metricsLevel));
 
         Network network = vNode.get("network").by(Network::parse);
 
@@ -89,12 +94,12 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Dest
 
         vNode.checkForUnusedAttributes();
 
-        return new ValidationResult<>(new RestAuthcConfig(docNode, ImmutableList.of(authDomain), network, userCacheConfig, debugEnabled),
-                validationErrors);
+        return new ValidationResult<>(
+                new RestAuthcConfig(docNode, ImmutableList.of(authDomain), network, userCacheConfig, debugEnabled, metricsLevel), validationErrors);
     }
 
     public static RestAuthcConfig empty(DocNode docNode) {
-        return new RestAuthcConfig(docNode, ImmutableList.empty(), null, CacheConfig.DEFAULT, false);
+        return new RestAuthcConfig(docNode, ImmutableList.empty(), null, CacheConfig.DEFAULT, false, MetricsLevel.BASIC);
     }
 
     public static class Network {
@@ -210,6 +215,10 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Dest
             }
         }
 
+    }
+
+    protected MetricsLevel getMetricsLevel() {
+        return metricsLevel;
     }
 
 }

@@ -27,18 +27,22 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class AuthorizationConfig implements PatchableDocument<AuthorizationConfig> {
     private final DocNode source;
     private final boolean ignoreUnauthorizedIndices;
     private final String fieldAnonymizationSalt;
     private final boolean debugEnabled;
+    private final MetricsLevel metricsLevel;
 
-    AuthorizationConfig(DocNode source, boolean ignoreUnauthorizedIndices, String fieldAnonymizationSalt, boolean debugEnabled) {
+    AuthorizationConfig(DocNode source, boolean ignoreUnauthorizedIndices, String fieldAnonymizationSalt, boolean debugEnabled,
+            MetricsLevel metricsLevel) {
         this.ignoreUnauthorizedIndices = ignoreUnauthorizedIndices;
         this.source = source;
         this.fieldAnonymizationSalt = fieldAnonymizationSalt;
         this.debugEnabled = debugEnabled;
+        this.metricsLevel = metricsLevel;
     }
 
     public static ValidationResult<AuthorizationConfig> parse(DocNode docNode, Parser.Context context) {
@@ -53,10 +57,11 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
         boolean ignoreUnauthorizedIndices = vNode.get("ignore_unauthorized_indices").withDefault(true).asBoolean();
         String fieldAnonymizationSalt = vNode.get("field_anonymization.salt").asString();
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
+        MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
 
         if (!validationErrors.hasErrors()) {
             return new ValidationResult<AuthorizationConfig>(
-                    new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt, debugEnabled));
+                    new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt, debugEnabled, metricsLevel));
         } else {
             return new ValidationResult<AuthorizationConfig>(validationErrors);
         }
@@ -70,7 +75,7 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
         String fieldAnonymizationSalt = vNode.get("dynamic.field_anonymization_salt2").asString();
         validationErrors.throwExceptionForPresentErrors();
 
-        return new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt, false);
+        return new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt, false, MetricsLevel.BASIC);
     }
 
     public boolean isIgnoreUnauthorizedIndices() {
@@ -98,5 +103,9 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
     @Override
     public AuthorizationConfig parseI(DocNode docNode, Context context) throws ConfigValidationException {
         return parse(docNode, (ConfigurationRepository.Context) context).get();
+    }
+
+    public MetricsLevel getMetricsLevel() {
+        return metricsLevel;
     }
 }

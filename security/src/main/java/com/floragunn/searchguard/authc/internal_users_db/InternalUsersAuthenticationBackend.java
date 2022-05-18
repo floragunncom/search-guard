@@ -31,8 +31,9 @@ import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.UserInformationBackend;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
 
 public class InternalUsersAuthenticationBackend implements AuthenticationBackend, UserInformationBackend {
 
@@ -55,7 +56,7 @@ public class InternalUsersAuthenticationBackend implements AuthenticationBackend
     }
 
     @Override
-    public CompletableFuture<AuthCredentials> authenticate(AuthCredentials authCredentials)
+    public CompletableFuture<AuthCredentials> authenticate(AuthCredentials authCredentials, Meter meter)
             throws AuthenticatorUnavailableException, CredentialsException {
 
         InternalUser internalUser = internalUsersDatabase.get(authCredentials.getUsername());
@@ -99,7 +100,7 @@ public class InternalUsersAuthenticationBackend implements AuthenticationBackend
     }
 
     @Override
-    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials authCredentials) throws AuthenticatorUnavailableException {
+    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials authCredentials, Meter meter) throws AuthenticatorUnavailableException {
 
         InternalUser internalUser = internalUsersDatabase.get(authCredentials.getUsername());
 

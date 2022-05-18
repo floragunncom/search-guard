@@ -33,6 +33,7 @@ import com.floragunn.searchguard.authc.base.IPAddressAcceptanceRules;
 import com.floragunn.searchguard.authc.transport.TransportAuthenticationDomain.TransportAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class TransportAuthcConfig implements Document<TransportAuthcConfig>, Destroyable {
 
@@ -65,9 +66,11 @@ public class TransportAuthcConfig implements Document<TransportAuthcConfig>, Des
         } catch (UnexpectedDocumentStructureException e) {
             return new ValidationResult<TransportAuthcConfig>(e.getValidationErrors());
         }
+        
+        MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
 
         List<AuthenticationDomain<TransportAuthenticationFrontend>> authenticators = vNode.get("auth_domains")
-                .asList((n) -> TransportAuthenticationDomain.parse(n, context));
+                .asList((n) -> TransportAuthenticationDomain.parse(n, context, metricsLevel));
 
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
         CacheConfig userCacheConfig = vNode.get("user_cache").withDefault(CacheConfig.DEFAULT).by(CacheConfig::new);

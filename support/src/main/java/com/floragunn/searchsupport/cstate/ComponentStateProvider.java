@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.modules.state;
+package com.floragunn.searchsupport.cstate;
 
 @FunctionalInterface
 public interface ComponentStateProvider {

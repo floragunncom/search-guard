@@ -52,6 +52,7 @@ import com.floragunn.searchguard.license.SearchGuardLicenseKey;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class LegacySgConfig implements Document<LegacySgConfig> {
 
@@ -121,8 +122,8 @@ public class LegacySgConfig implements Document<LegacySgConfig> {
         ValidationErrors validationErrors = new ValidationErrors();
         boolean criticalErrors = false;
 
-        ValidationResult<ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>>> authenticationDomains = parseAuthenticationDomains(docNode, context,
-                authorizationBackends);
+        ValidationResult<ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>>> authenticationDomains = parseAuthenticationDomains(docNode,
+                context, authorizationBackends);
         validationErrors.add(null, authenticationDomains.getValidationErrors());
 
         Network network = null;
@@ -140,7 +141,8 @@ public class LegacySgConfig implements Document<LegacySgConfig> {
 
         if (!criticalErrors && authenticationDomains.hasResult()) {
             return new ValidationResult<RestAuthcConfig>(
-                    new RestAuthcConfig(docNode, authenticationDomains.peek(), network, CacheConfig.DEFAULT, false), validationErrors);
+                    new RestAuthcConfig(docNode, authenticationDomains.peek(), network, CacheConfig.DEFAULT, false, MetricsLevel.NONE),
+                    validationErrors);
         } else {
             return new ValidationResult<RestAuthcConfig>(RestAuthcConfig.empty(docNode), validationErrors);
         }

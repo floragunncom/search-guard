@@ -61,9 +61,9 @@ import com.floragunn.searchguard.enterprise.auth.oidc.JwtVerifier;
 import com.floragunn.searchguard.enterprise.auth.oidc.KeyProvider;
 import com.floragunn.searchguard.enterprise.auth.oidc.OpenIdProviderClient;
 import com.floragunn.searchguard.enterprise.auth.oidc.SelfRefreshingKeySet;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
 
 public class JwtAuthenticator implements HttpAuthenticationFrontend {

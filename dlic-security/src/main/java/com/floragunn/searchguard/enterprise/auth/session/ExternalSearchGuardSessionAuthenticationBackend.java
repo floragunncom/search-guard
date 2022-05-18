@@ -55,8 +55,9 @@ import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
-import com.floragunn.searchguard.modules.state.ComponentState;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
 import com.floragunn.searchsupport.privileged_code.PrivilegedCode.PrivilegedSupplierThrowing2;
 
@@ -130,7 +131,7 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
     }
 
     @Override
-    public CompletableFuture<AuthCredentials> authenticate(AuthCredentials authCredentials)
+    public CompletableFuture<AuthCredentials> authenticate(AuthCredentials authCredentials, Meter meter)
             throws AuthenticatorUnavailableException, CredentialsException {
         if (!(authCredentials.getNativeCredentials() instanceof String)) {
             throw new AuthenticatorUnavailableException("Configuration Error", TYPE + " must be combined with a JWT authentication frontend");
@@ -142,7 +143,7 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
 
         return PrivilegedCode.execute(
                 (PrivilegedSupplierThrowing2<CompletableFuture<AuthCredentials>, CredentialsException, AuthenticatorUnavailableException>) () -> {
-                    try (CloseableHttpResponse response = executeWithRetry(httpGet)) {
+                    try (CloseableHttpResponse response = executeWithRetry(httpGet, meter)) {
                         if (response.getStatusLine().getStatusCode() == 401) {
                             throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false, "Failed to authenticate with JWT",
                                     ImmutableMap.of("response_status", response.getStatusLine())));
@@ -216,18 +217,20 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
         return TYPE;
     }
 
-    private CloseableHttpResponse executeWithRetry(HttpGet httpGet) throws ClientProtocolException, IOException {
+    private CloseableHttpResponse executeWithRetry(HttpGet httpGet, Meter meter) throws ClientProtocolException, IOException {
         int hostCount = this.hosts.size();
 
         if (hostCount == 1) {
-            return this.httpClient.execute(this.hosts.get(0), httpGet);
+            try (Meter subMeter = meter.detail(this.hosts.get(0).toString())) {
+                return this.httpClient.execute(this.hosts.get(0), httpGet);
+            }
         } else {
             int first = ThreadLocalRandom.current().nextInt(hostCount);
 
             for (int i = 0; i < hostCount - 1; i++) {
                 int hostIndex = (i + first) % hostCount;
 
-                try {
+                try (Meter subMeter = meter.detail(this.hosts.get(hostIndex).toString())) {
                     CloseableHttpResponse response = this.httpClient.execute(this.hosts.get(hostIndex), httpGet);
 
                     if (response.getStatusLine().getStatusCode() < 500) {

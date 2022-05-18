@@ -74,13 +74,14 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.modules.state.ComponentState;
-import com.floragunn.searchguard.modules.state.ComponentStateProvider;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.google.common.base.Strings;
 
 public class PrivilegesEvaluator implements ComponentStateProvider {
@@ -143,16 +144,18 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.rolesMappingResolution = getRolesMappingResolution(settings);
 
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
-
+            
             @Override
             public void onChange(ConfigMap configMap) {
                 SgDynamicConfiguration<AuthorizationConfig> config = configMap.get(CType.AUTHZ);
                 SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
+                MetricsLevel metricsLevel = MetricsLevel.BASIC;
 
                 if (config != null && config.getCEntry("default") != null) {
                     AuthorizationConfig authzConfig = config.getCEntry("default");
                     ignoreUnauthorizedIndices = authzConfig.isIgnoreUnauthorizedIndices();
                     debugEnabled = authzConfig.isDebugEnabled();
+                    metricsLevel = authzConfig.getMetricsLevel();
                     log.info("Got authzConfig: " + authzConfig);
                 } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
                     try {
@@ -174,7 +177,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         : ActionGroup.FlattenedIndex.EMPTY;
 
                 actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions,
-                        clusterService.state().metadata().getIndicesLookup().keySet(), tenants.getCEntries().keySet());
+                        clusterService.state().metadata().getIndicesLookup().keySet(), tenants.getCEntries().keySet(), metricsLevel);
 
                 documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
 
