@@ -43,9 +43,9 @@ public class SearchGuardVersion {
     private static String readVersionFromJar() {
         try {
             InputStream inputStream = SearchGuardVersion.class
-                    .getResourceAsStream("/META-INF/maven/com.floragunn/search-guard-suite-security/pom.properties");
+                    .getResourceAsStream("/META-INF/maven/com.floragunn/search-guard-flx-security/pom.properties");
             if (inputStream == null) {
-                throw new Exception("Could not find resource /META-INF/maven/com.floragunn/search-guard-suite-security/pom.properties");
+                throw new Exception("Could not find resource /META-INF/maven/com.floragunn/search-guard-flx-security/pom.properties");
             }
 
             Properties pomProperties = new Properties();
@@ -54,7 +54,7 @@ public class SearchGuardVersion {
             String version = pomProperties.getProperty("version");
 
             if (version == null || version.trim().length() == 0) {
-                throw new Exception("Version property of /META-INF/maven/com.floragunn/search-guard-suite-security/pom.properties is empty");
+                throw new Exception("Version property of /META-INF/maven/com.floragunn/search-guard-flx-security/pom.properties is empty");
             }
 
             int sep = version.indexOf("-es-");
