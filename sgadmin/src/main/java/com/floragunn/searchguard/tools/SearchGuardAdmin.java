@@ -28,14 +28,19 @@ import java.io.Writer;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -46,6 +51,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.http.HttpHost;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
+import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.ExceptionsHelper;
@@ -118,7 +124,6 @@ import com.floragunn.searchguard.ssl.util.config.ClientAuthCredentials;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.floragunn.searchguard.ssl.util.config.TrustStore;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient.GenericResponse;
 import com.google.common.io.CharStreams;
@@ -912,7 +917,7 @@ public class SearchGuardAdmin {
             final String content = CharStreams.toString(reader);
             final String res = tc
                     .index(new IndexRequest(index).type(type).id(id).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                            .source(_id, readXContent(resolveEnvVars?SgUtils.replaceEnvVars(content, Settings.EMPTY):content, XContentType.YAML))).actionGet().getId();
+                            .source(_id, readXContent(resolveEnvVars?replaceEnvVars(content, Settings.EMPTY):content, XContentType.YAML))).actionGet().getId();
 
             if (id.equals(res)) {
                 System.out.println("   SUCC: Configuration for '" + _id + "' created or updated");
@@ -1296,5 +1301,86 @@ public class SearchGuardAdmin {
             return new String[]{"config","roles","rolesmapping","internalusers","actiongroups"};
         }
         return CType.lcStringValues().toArray(new String[0]);
+    }
+    
+    private static final Pattern ENV_PATTERN = Pattern.compile("\\$\\{env\\.([\\w]+)((\\:\\-)?[\\w]*)\\}");
+    private static final Pattern ENVBC_PATTERN = Pattern.compile("\\$\\{envbc\\.([\\w]+)((\\:\\-)?[\\w]*)\\}");
+    private static final Pattern ENVBASE64_PATTERN = Pattern.compile("\\$\\{envbase64\\.([\\w]+)((\\:\\-)?[\\w]*)\\}");
+    
+    private static String replaceEnvVars(String in, Settings settings) {
+        if(in == null || in.isEmpty()) {
+            return in;
+        }
+              
+        return replaceEnvVarsBC(replaceEnvVarsNonBC(replaceEnvVarsBase64(in)));
+    }
+    
+    private static String replaceEnvVarsNonBC(String in) {
+        //${env.MY_ENV_VAR}
+        //${env.MY_ENV_VAR:-default}
+        Matcher matcher = ENV_PATTERN.matcher(in);
+        StringBuffer sb = new StringBuffer();
+        while(matcher.find()) {            
+            final String replacement = resolveEnvVar(matcher.group(1), matcher.group(2), false);
+            if(replacement != null) {
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+            }
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+    
+    private static String replaceEnvVarsBC(String in) {
+        //${envbc.MY_ENV_VAR}
+        //${envbc.MY_ENV_VAR:-default}
+        Matcher matcher = ENVBC_PATTERN.matcher(in);
+        StringBuffer sb = new StringBuffer();
+        while(matcher.find()) {
+            final String replacement = resolveEnvVar(matcher.group(1), matcher.group(2), true);
+            if(replacement != null) {
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+            }
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+    
+    private static String replaceEnvVarsBase64(String in) {
+        //${envbc.MY_ENV_VAR}
+        //${envbc.MY_ENV_VAR:-default}
+        Matcher matcher = ENVBASE64_PATTERN.matcher(in);
+        StringBuffer sb = new StringBuffer();
+        while(matcher.find()) {
+            final String replacement = resolveEnvVar(matcher.group(1), matcher.group(2), false);
+            if(replacement != null) {
+                matcher.appendReplacement(sb, (Matcher.quoteReplacement(new String(Base64.getDecoder().decode(replacement), StandardCharsets.UTF_8))));
+            }
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+    
+    //${env.MY_ENV_VAR}
+    //${env.MY_ENV_VAR:-default}
+    private static String resolveEnvVar(String envVarName, String mode, boolean bc) {
+        final String envVarValue = System.getenv(envVarName);
+        if (envVarValue == null || envVarValue.isEmpty()) {
+            if (mode != null && mode.startsWith(":-") && mode.length() > 2) {
+                return bc ? hash(mode.substring(2).toCharArray()) : mode.substring(2);
+            } else {
+                return null;
+            }
+        } else {
+            return bc ? hash(envVarValue.toCharArray()) : envVarValue;
+        }
+    }
+
+    private static String hash(final char[] clearTextPassword) {
+        final byte[] salt = new byte[16];
+        new SecureRandom().nextBytes(salt);
+        final String hash = OpenBSDBCrypt.generate((Objects.requireNonNull(clearTextPassword)), salt, 12);
+        Arrays.fill(salt, (byte) 0);
+        Arrays.fill(clearTextPassword, '\0');
+        return hash;
     }
 }

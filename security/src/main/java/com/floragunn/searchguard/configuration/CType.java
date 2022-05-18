@@ -56,15 +56,15 @@ public class CType<T> {
     private static Set<CType<?>> allSet = new HashSet<>();
 
     public static final CType<InternalUser> INTERNALUSERS = new CType<InternalUser>("internalusers", "Internal User", 0, InternalUser.class,
-            InternalUser::parse);
+            InternalUser::parse).replaceLegacyEnvVars();
     public static final CType<ActionGroup> ACTIONGROUPS = new CType<ActionGroup>("actiongroups", "Action Group", 1, ActionGroup.class,
-            ActionGroup::parse);
+            ActionGroup::parse).replaceLegacyEnvVars();
     public static final CType<LegacySgConfig> CONFIG = new CType<LegacySgConfig>("config", "Config", 2, LegacySgConfig.class, LegacySgConfig::parse,
-            Storage.OPTIONAL);
-    public static final CType<Role> ROLES = new CType<Role>("roles", "Role", 3, Role.class, Role::parse);
+            Storage.OPTIONAL).replaceLegacyEnvVars();
+    public static final CType<Role> ROLES = new CType<Role>("roles", "Role", 3, Role.class, Role::parse).replaceLegacyEnvVars();
     public static final CType<RoleMapping> ROLESMAPPING = new CType<RoleMapping>("rolesmapping", "Role Mapping", 4, RoleMapping.class,
-            RoleMapping::parse);
-    public static final CType<Tenant> TENANTS = new CType<Tenant>("tenants", "Tenant", 5, Tenant.class, Tenant::parse);
+            RoleMapping::parse).replaceLegacyEnvVars();
+    public static final CType<Tenant> TENANTS = new CType<Tenant>("tenants", "Tenant", 5, Tenant.class, Tenant::parse).replaceLegacyEnvVars();
     public static final CType<Blocks> BLOCKS = new CType<Blocks>("blocks", "Block", 6, Blocks.class, Blocks::parse, Storage.OPTIONAL);
 
     public static final CType<ConfigVar> CONFIG_VARS = new CType<ConfigVar>("config_vars", "Config Variable", 7, ConfigVar.class, null,
@@ -91,6 +91,7 @@ public class CType<T> {
     private final int ord;
     private final Storage storage;
     private final Arity arity;
+    private boolean replaceLegacyEnvVars = false;
 
     private final Parser.ReturningValidationResult<T, ConfigurationRepository.Context> parser;
 
@@ -239,4 +240,14 @@ public class CType<T> {
     public Arity getArity() {
         return arity;
     }
+
+    CType<T> replaceLegacyEnvVars() {
+        this.replaceLegacyEnvVars = true;
+        return this;
+    }
+
+    protected boolean isReplaceLegacyEnvVars() {
+        return replaceLegacyEnvVars;
+    }
+
 }

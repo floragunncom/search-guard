@@ -21,6 +21,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,10 +42,9 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
 public class LicenseRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(LicenseRepository.class);
@@ -148,7 +148,7 @@ public class LicenseRepository implements ComponentStateProvider {
     }
 
     private static String formatDate(long date) {
-        return new SimpleDateFormat("yyyy-MM-dd", SgUtils.EN_Locale).format(new Date(date));
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(new Date(date));
     }
 
     @Override

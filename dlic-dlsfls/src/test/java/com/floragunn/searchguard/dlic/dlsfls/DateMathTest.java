@@ -16,6 +16,7 @@ package com.floragunn.searchguard.dlic.dlsfls;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 import java.util.TimeZone;
 
 import org.apache.http.HttpStatus;
@@ -28,7 +29,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
-import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class DateMathTest extends AbstractDlsFlsTest{
@@ -41,7 +41,7 @@ public class DateMathTest extends AbstractDlsFlsTest{
 
 
         
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd", SgUtils.EN_Locale);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd", Locale.ENGLISH);
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         
         String date = sdf.format(new Date());

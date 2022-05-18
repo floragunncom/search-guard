@@ -19,13 +19,21 @@ package com.floragunn.searchguard.configuration;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.xcontent.ToXContent;
@@ -41,10 +49,9 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.google.common.base.Charsets;
 
 public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, RedactableDocument, ComponentStateProvider, Destroyable {
@@ -72,8 +79,13 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
 
     public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo, long primaryTerm,
             Settings settings, ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
-        // TODO do replacement only for legacy config
-        String jsonString = SgUtils.replaceEnvVars(uninterpolatedJson, settings);
+        String jsonString;
+        
+        if (ctype.isReplaceLegacyEnvVars()) {
+            jsonString = replaceEnvVars(uninterpolatedJson, settings, ctype);
+        } else {
+            jsonString = uninterpolatedJson;
+        }
 
         return fromDocNode(DocNode.wrap(DocReader.json().splitAttributesAtDotsStartingAtDepth(1).read(jsonString)), uninterpolatedJson, ctype,
                 docVersion, seqNo, primaryTerm, parserContext);
@@ -437,6 +449,102 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
                 }
             }
         }
+    }
+    
+    private static final Pattern ENV_PATTERN = Pattern.compile("\\$\\{env\\.([\\w]+)((\\:\\-)?[\\w]*)\\}");
+    private static final Pattern ENVBC_PATTERN = Pattern.compile("\\$\\{envbc\\.([\\w]+)((\\:\\-)?[\\w]*)\\}");
+    private static final Pattern ENVBASE64_PATTERN = Pattern.compile("\\$\\{envbase64\\.([\\w]+)((\\:\\-)?[\\w]*)\\}");
+    
+    @Deprecated
+    private static String replaceEnvVars(String in, Settings settings, CType<?> ctype) {
+        if(in == null || in.isEmpty()) {
+            return in;
+        }
+              
+        return replaceEnvVarsBC(replaceEnvVarsNonBC(replaceEnvVarsBase64(in, ctype), ctype), ctype);
+    }
+    
+    @Deprecated
+    private static String replaceEnvVarsNonBC(String in, CType<?> ctype) {
+        //${env.MY_ENV_VAR}
+        //${env.MY_ENV_VAR:-default}
+        Matcher matcher = ENV_PATTERN.matcher(in);
+        StringBuffer sb = new StringBuffer();
+        while(matcher.find()) {            
+            log.error("DEPRECATION WARNING: The environment variable " + matcher.group() + " in the configuration " + ctype
+                    + " is deprecated. Support will be removed in the next version. Please move to configuration variables.");
+            
+            final String replacement = resolveEnvVar(matcher.group(1), matcher.group(2), false);
+            if(replacement != null) {
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+            }
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+    
+    @Deprecated
+    private static String replaceEnvVarsBC(String in, CType<?> ctype) {
+        //${envbc.MY_ENV_VAR}
+        //${envbc.MY_ENV_VAR:-default}
+        Matcher matcher = ENVBC_PATTERN.matcher(in);
+        StringBuffer sb = new StringBuffer();
+        while(matcher.find()) {
+            log.error("DEPRECATION WARNING: The environment variable " + matcher.group() + " in the configuration " + ctype
+                    + " is deprecated. Support will be removed in the next version. Please move to configuration variables.");
+            
+            final String replacement = resolveEnvVar(matcher.group(1), matcher.group(2), true);
+            if(replacement != null) {
+                matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+            }
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+    
+    @Deprecated
+    private static String replaceEnvVarsBase64(String in, CType<?> ctype) {
+        //${envbc.MY_ENV_VAR}
+        //${envbc.MY_ENV_VAR:-default}
+        Matcher matcher = ENVBASE64_PATTERN.matcher(in);
+        StringBuffer sb = new StringBuffer();
+        while(matcher.find()) {
+            log.error("DEPRECATION WARNING: The environment variable " + matcher.group() + " in the configuration " + ctype
+                    + " is deprecated. Support will be removed in the next version. Please move to configuration variables.");
+            
+            final String replacement = resolveEnvVar(matcher.group(1), matcher.group(2), false);
+            if(replacement != null) {
+                matcher.appendReplacement(sb, (Matcher.quoteReplacement(new String(Base64.getDecoder().decode(replacement), StandardCharsets.UTF_8))));
+            }
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+    
+    @Deprecated
+    //${env.MY_ENV_VAR}
+    //${env.MY_ENV_VAR:-default}
+    private static String resolveEnvVar(String envVarName, String mode, boolean bc) {
+        final String envVarValue = System.getenv(envVarName);
+        if (envVarValue == null || envVarValue.isEmpty()) {
+            if (mode != null && mode.startsWith(":-") && mode.length() > 2) {
+                return bc ? hash(mode.substring(2).toCharArray()) : mode.substring(2);
+            } else {
+                return null;
+            }
+        } else {
+            return bc ? hash(envVarValue.toCharArray()) : envVarValue;
+        }
+    }
+    
+    @Deprecated
+    private static String hash(final char[] clearTextPassword) {
+        final byte[] salt = new byte[16];
+        new SecureRandom().nextBytes(salt);
+        final String hash = OpenBSDBCrypt.generate((Objects.requireNonNull(clearTextPassword)), salt, 12);
+        Arrays.fill(salt, (byte) 0);
+        Arrays.fill(clearTextPassword, '\0');
+        return hash;
     }
 
 }
