@@ -428,6 +428,8 @@ deploy_staging:
     - openstack-runner
   script:
     - |
+      set -x
+      set -e
       ./dev/setup_gpg.sh
       # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
       SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
@@ -439,7 +441,7 @@ deploy_staging:
       SG_ES_PLUGIN_URI=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
       SG_ADMIN_URI=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`      
       if [ -z "$IT_BRANCH" ]; then
-        if [ "$CI_COMMIT_REF_NAME" != "master" ] && [ -n $(git ls-remote --heads git@git.floragunn.com:private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]; then
+        if [ "$CI_COMMIT_REF_NAME" != "master" ] && [ -n "$(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME)" ]; then
           IT_BRANCH="$CI_COMMIT_REF_NAME"
         else
           IT_BRANCH="$MAJOR.x"
