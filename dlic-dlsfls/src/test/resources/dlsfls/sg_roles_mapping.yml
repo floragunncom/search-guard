@@ -255,4 +255,9 @@ sg_dfm_nv_not_restricted_all_indices:
 sg_dfm_nv_not_restricted_one_index:
   users:
     - dfm_restricted_and_unrestricted_one_index_role
+     
+
+logs_index_with_dls:
+  users:
+    - dept_manager
        
