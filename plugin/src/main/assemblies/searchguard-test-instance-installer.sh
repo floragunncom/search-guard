@@ -24,7 +24,7 @@ SG_VERSION="${1:-$SG_VERSION_PRE}"
 SGSF_VERSION="${2:-$SG_VERSION_PRE}"
 SG_REPOSITORY="${3:-search-guard-flx-release}"
 SG_PLUGIN_NAME="search-guard-flx"
-SGCTL_VERSION="0.2.5"
+SGCTL_VERSION="1.0.0-beta-1"
 NODE_VERSION="v10.24.1"
 
 if [[ $SG_VERSION =~ .*-os-.* ]]; then
