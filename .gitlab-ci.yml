@@ -71,8 +71,9 @@ build_for_tag_version:
   before_script:
     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   script:
-    - export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
-    - export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+    # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3
+    - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
+    - export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
     - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:sg-suite.version" -v $SG_VERSION pom.xml
     - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:elasticsearch.version" -v $ES_VERSION pom.xml
     - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
