@@ -447,10 +447,10 @@ deploy_staging:
           IT_BRANCH="$MAJOR.x"
         fi
       fi
-      echo "SG_ES_PLUGIN_URI=$SG_ES_PLUGIN_URI" >> build.env
-      echo "SG_ADMIN_URI=$SG_ADMIN_URI" >> build.env
+      echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
+      echo "SG_ADMIN=$SG_ADMIN" >> build.env
       echo "ES_VERSION=$ES_VERSION" >>build.env
-      echo "SG_KI_PLUGIN_URI=$SG_KI_PLUGIN_URI" >>build.env
+      echo "SG_KI_PLUGIN=$SG_KI_PLUGIN" >>build.env
       echo "KI_VERSION=$KI_VERSION" >>build.env
       echo "IT_BRANCH=$IT_BRANCH" >>build.env
       cat build.env
